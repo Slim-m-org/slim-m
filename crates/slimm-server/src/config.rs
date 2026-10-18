@@ -17,6 +17,11 @@ pub struct Config {
     #[serde(default = "default_database_path")]
     pub database_path: String,
 
+    /// Base64 of the 32-byte key that seals stored two-factor secrets. Blank reads as unset, and
+    /// the key then lives in a file beside the database; see docs/OPERATING.md.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub data_key: Option<String>,
+
     /// How many Argon2id password hashes may run at once. Each costs ~19 MiB, so
     /// this caps the transient memory a burst of logins can claim; requests over
     /// the limit wait on the semaphore rather than piling that memory up.
@@ -148,6 +153,14 @@ pub struct Config {
     #[serde(default = "default_addons_repo")]
     pub addons_repo: String,
 
+    /// A directory laid out like a module registry (`index.json`,
+    /// `modules/<id>/...`) the Dock offers as an extra, unverified source named
+    /// `dev`, so a module author can install a build without publishing it.
+    /// Unset is the default and keeps the source, and its routes, absent. An
+    /// operator tool: set it only on a deployment you are developing against.
+    #[serde(default, deserialize_with = "blank_as_none")]
+    pub dev_module_dir: Option<String>,
+
     /// Base URL of a self-hosted Piston instance (engineer-man/piston), for
     /// example `http://piston:2000` on a compose-internal network; the
     /// `/api/v2/...` paths are appended when calling it. See
@@ -221,6 +234,7 @@ impl Default for Config {
         Self {
             port: default_port(),
             database_path: default_database_path(),
+            data_key: None,
             hash_concurrency: default_hash_concurrency(),
             push_relay_url: None,
             push_relay_key: None,
@@ -236,6 +250,7 @@ impl Default for Config {
             cors_allowed_origins: None,
             trust_proxy_hops: 0,
             addons_repo: default_addons_repo(),
+            dev_module_dir: None,
             code_runner_url: None,
             discord_client_id: None,
             discord_client_secret: None,

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT command FROM module_run_stats WHERE module_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "command",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4e4bd5deb5b096c13e2933434ebcebde7176779b261da262cf8352502f92f2ff"
+}

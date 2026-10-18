@@ -5,6 +5,7 @@
 //! host decides what may be dialled; see [`HttpFetcher`].
 
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use serde::Deserialize;
 use serde_json::json;
@@ -51,10 +52,15 @@ pub struct FetchResponse {
 pub struct FetchRefused(pub String);
 
 /// Performs a request the gate already allowed. The implementation owns the
-/// address check (public only, unless the admin approved local addresses) and
-/// the timeout.
+/// address check (public only, unless the admin approved private network
+/// addresses) and gives up inside `remaining`, the run's unspent wall clock, so
+/// the module is still running when it hears about a slow upstream.
 pub trait HttpFetcher: Send + Sync {
-    fn fetch(&self, request: FetchRequest) -> Result<FetchResponse, FetchRefused>;
+    fn fetch(
+        &self,
+        request: FetchRequest,
+        remaining: Duration,
+    ) -> Result<FetchResponse, FetchRefused>;
 }
 
 #[derive(Deserialize)]
@@ -145,12 +151,13 @@ pub fn parse(request: &[u8], hosts: &[String]) -> Result<FetchRequest, String> {
 }
 
 /// Dispatches one `net.fetch` request, returning the UTF-8 JSON response.
-/// `fetches_remaining` is this run's budget, spent per attempt.
+/// `fetches_remaining` is this run's budget, spent per attempt, and `remaining`
+/// the wall clock the run has left.
 pub fn handle(
     fetcher: &dyn HttpFetcher,
     hosts: &[String],
     fetches_remaining: &mut u32,
-    request: &[u8],
+    (request, remaining): (&[u8], Duration),
 ) -> Vec<u8> {
     if *fetches_remaining == 0 {
         return refusal("net.fetch budget for this run is exhausted");
@@ -160,7 +167,7 @@ pub fn handle(
         Ok(parsed) => parsed,
         Err(reason) => return refusal(&reason),
     };
-    match fetcher.fetch(parsed) {
+    match fetcher.fetch(parsed, remaining) {
         Ok(response) => serde_json::to_vec(&json!({
             "ok": true,
             "status": response.status,

@@ -40,12 +40,14 @@ extension SlimmApiDock on SlimmApi {
   /// after seeing it listed; an empty list withdraws every approval, and null
   /// keeps what was approved before (never adding to it). [approveLocalNetwork]
   /// is the separate yes to reach home-network addresses, only valid with
-  /// `net.fetch` approved.
+  /// `net.fetch` approved. [reviewedDigest] is the manifest's `reviewDigest`
+  /// the admin was shown; the server refuses the install if it has changed.
   Future<InstalledDockModule> installDockModule({
     required String moduleId,
     required String version,
     List<String>? approvedHostCapabilities,
     bool? approveLocalNetwork,
+    String? reviewedDigest,
     String? source,
   }) async {
     final json = await _send(
@@ -58,6 +60,7 @@ extension SlimmApiDock on SlimmApi {
           'approved_host_capabilities': approvedHostCapabilities,
         if (approveLocalNetwork != null)
           'approve_local_network': approveLocalNetwork,
+        if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
       },
     );
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
@@ -82,6 +85,13 @@ extension SlimmApiDock on SlimmApi {
   Future<void> uninstallDockModule(String moduleId) => _send(
         'DELETE',
         '/space/dock/modules/$moduleId/install',
+        expectNoContent: true,
+      );
+
+  /// Empties what an installed module has stored; it stays installed.
+  Future<void> clearDockModuleStorage(String moduleId) => _send(
+        'DELETE',
+        '/space/dock/modules/$moduleId/storage',
         expectNoContent: true,
       );
 

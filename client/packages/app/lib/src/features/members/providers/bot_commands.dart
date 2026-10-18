@@ -13,9 +13,3 @@ final channelBotCommandsProvider = FutureProvider.autoDispose
       (ref, channelId) =>
           ref.watch(apiProvider).listChannelBotCommands(channelId),
     );
-
-/// A bot's own registration, for its profile section.
-final botCommandRegistrationProvider = FutureProvider.autoDispose
-    .family<api.BotCommandRegistration, String>(
-      (ref, botId) => ref.watch(apiProvider).getBotCommands(botId),
-    );

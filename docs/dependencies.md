@@ -67,6 +67,14 @@ The notification schedule (`docs/decisions/0033-notification-schedule.md`) needs
 Built with `default-features = false` plus `std`, `tzdb-bundle-always` and `serde`: `tzdb-bundle-always` compiles the whole IANA database into the binary, since the release image (`gcr.io/distroless/static-debian12`) ships no `/usr/share/zoneinfo` for a runtime `TZDIR` lookup to find.
 `chrono-tz` was the obvious alternative and was rejected only because this project has no existing `chrono` dependency to piggyback on; see the decision record for the full comparison.
 
+## image
+
+Decodes an uploaded JPEG, PNG or WebP and re-encodes a bounded-size preview for `GET /attachments/{id}?w=N`, so an inline tile does not download the original (`crates/slimm-server/src/media/preview.rs`).
+Built with `default-features = false` and only `jpeg`, `png` and `webp`: no GIF (animated pictures are always served as the original), no AVIF, no TIFF, so the decode surface and the binary stay small.
+Everything is pure Rust, so the static musl build needs no C library.
+The `webp` feature only encodes lossless, so a preview is a JPEG (quality 72) for photographs and a lossless WebP for pictures with transparency or flat graphics, whichever is smaller; the type is in the response `Content-Type`, so a lossy WebP encoder can replace it later without a client change.
+Decoding holds a whole raster in memory, so previews are generated one at a time, refuse sources over 40 megapixels or 48 MiB, and cap the decoder's allocation, to stay inside the 512 MiB container.
+
 ## tikv-jemallocator
 
 The server binary's global allocator, set in `crates/slimm-server/src/main.rs`.

@@ -24,6 +24,7 @@ import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../../../audio/lounge_tracks.dart';
+import '../widgets/global_hotkey_rows.dart';
 import '../widgets/push_to_talk_key_row.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
@@ -112,6 +113,8 @@ class _PushToTalkSection extends ConsumerWidget {
                 .read(voiceSettingsControllerProvider.notifier)
                 .setPushToTalkKey(key),
           ),
+        if (settings.pushToTalkEnabled) const GlobalHotkeyStatusLine(),
+        const MuteShortcutRows(),
       ],
     );
   }

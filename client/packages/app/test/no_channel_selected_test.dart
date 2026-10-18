@@ -7,20 +7,31 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/first_run/providers/first_run_controller.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-Future<void> _pump(WidgetTester tester, {required bool touch}) async {
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  required bool touch,
+}) async {
+  final container = ProviderContainer();
+  addTearDown(container.dispose);
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(Brightness.light, AppTokens.light),
-      home: AppTouchTargets(
-        enabled: touch,
-        child: const Scaffold(body: NoChannelSelected()),
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: AppTouchTargets(
+          enabled: touch,
+          child: const Scaffold(body: NoChannelSelected()),
+        ),
       ),
     ),
   );
+  return container;
 }
 
 void main() {
@@ -41,7 +52,28 @@ void main() {
 
     await _pump(tester, touch: true);
     expect(find.byType(AppKbd), findsNothing);
-    expect(find.textContaining('Choose one from the list'), findsOneWidget);
+  });
+
+  testWidgets('guides a member who skipped setup, on both layouts', (
+    tester,
+  ) async {
+    for (final touch in [false, true]) {
+      await _pump(tester, touch: touch);
+      expect(
+        find.textContaining('Pick a channel from the list'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Open a voice channel'), findsOneWidget);
+      expect(find.text('Run setup'), findsOneWidget);
+    }
+  });
+
+  testWidgets('Run setup opens the flow again', (tester) async {
+    final container = await _pump(tester, touch: true);
+    await tester.tap(find.text('Run setup'));
+    await tester.pump();
+    final state = container.read(firstRunControllerProvider);
+    expect((state.active, state.replay), (true, true));
   });
 
   testWidgets('the shortcut list is centred under the heading', (tester) async {

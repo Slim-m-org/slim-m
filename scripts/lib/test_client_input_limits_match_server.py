@@ -28,6 +28,8 @@ MIRRORS = {
     "searchQuery": ("limits.rs", "MAX_QUERY_CHARS"),
     "channelTopic": ("http/channels/channel_validation.rs", "CHANNEL_TOPIC_MAX_CHARS"),
     "spaceDescription": ("store/space_landing.rs", "MAX_SPACE_DESCRIPTION_CHARS"),
+    "botPrefix": ("store/bot_commands.rs", "MAX_BOT_PREFIX_LEN"),
+    "welcomeMessage": ("store/space_welcome.rs", "MAX_WELCOME_MESSAGE_CHARS"),
     "spaceRules": ("store/member_gate.rs", "MAX_RULES_CHARS"),
     "statusText": ("http/user_status.rs", "STATUS_TEXT_MAX_CHARS"),
     "pronouns": ("http/user_status.rs", "PRONOUNS_MAX_CHARS"),

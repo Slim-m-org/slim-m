@@ -20,6 +20,7 @@ pub(super) mod module_artifacts;
 pub(super) mod module_kv;
 pub(super) mod module_permissions;
 pub(super) mod module_schedule;
+pub(super) mod module_stats;
 
 /// One installed module, as recorded at its last install.
 #[derive(Debug, Clone)]
@@ -460,6 +461,7 @@ pub(super) async fn insert_module_metadata(
             .await?;
         }
     }
+    prune_undeclared_run_stats(tx, req).await?;
     for perm in req.permissions {
         sqlx::query!(
             "INSERT INTO module_permissions (module_id, perm_key, name, description)
@@ -473,6 +475,35 @@ pub(super) async fn insert_module_metadata(
         )
         .execute(&mut **tx)
         .await?;
+    }
+    Ok(())
+}
+
+/// Drops run history for commands the installed build no longer declares.
+async fn prune_undeclared_run_stats(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    req: &InstallModuleRequest<'_>,
+) -> anyhow::Result<()> {
+    let recorded: Vec<String> = sqlx::query_scalar!(
+        "SELECT command FROM module_run_stats WHERE module_id = ?",
+        req.id
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    for command in recorded {
+        let declared = req
+            .extension_points
+            .iter()
+            .any(|e| e.kind == "command" && e.name == command);
+        if !declared {
+            sqlx::query!(
+                "DELETE FROM module_run_stats WHERE module_id = ? AND command = ?",
+                req.id,
+                command
+            )
+            .execute(&mut **tx)
+            .await?;
+        }
     }
     Ok(())
 }

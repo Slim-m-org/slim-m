@@ -46,6 +46,7 @@ export 'src/client.dart'
         usesUploadSessions,
         SlimmApiAuth,
         SlimmApiTotp,
+        SlimmApiDirectRoute,
         SlimmApiLinkedAccounts,
         SlimmApiBotCommands,
         SlimmApiBotUi,

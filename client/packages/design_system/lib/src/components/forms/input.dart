@@ -14,10 +14,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show TextInputFormatter;
 
+import '../../app_icons.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../text_context_menu.dart';
+import '../core/icon_button.dart';
 import 'code_point_limit.dart';
 
 enum AppInputSize { sm, md, lg }
@@ -112,6 +114,7 @@ class _AppInputState extends State<AppInput> {
   late final FocusNode _focusNode;
   bool _ownsFocusNode = false;
   bool _focused = false;
+  bool _revealed = false;
 
   @override
   void initState() {
@@ -182,7 +185,7 @@ class _AppInputState extends State<AppInput> {
     final hasError = (widget.errorText ?? '').isNotEmpty;
 
     return Semantics(
-      label: widget.semanticLabel,
+      label: widget.obscureText ? null : widget.semanticLabel,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +241,19 @@ class _AppInputState extends State<AppInput> {
             widget.icon!,
             const SizedBox(width: AppSpacing.s8)
           ],
-          Expanded(child: _textField(tokens, textStyle)),
+          // The reveal toggle is its own node, so the label must sit on the field itself.
+          Expanded(
+            child: widget.obscureText
+                ? Semantics(
+                    label: widget.semanticLabel,
+                    child: _textField(tokens, textStyle),
+                  )
+                : _textField(tokens, textStyle),
+          ),
+          if (widget.obscureText) ...[
+            const SizedBox(width: AppSpacing.s8),
+            _revealToggle(),
+          ],
           if (widget.trailing != null) ...[
             const SizedBox(width: AppSpacing.s8),
             widget.trailing!
@@ -248,6 +263,17 @@ class _AppInputState extends State<AppInput> {
     );
   }
 
+  Widget _revealToggle() => AppIconButton(
+        icon: _revealed ? AppIcons.hideSecret : AppIcons.revealSecret,
+        semanticLabel: _revealed ? 'Hide password' : 'Show password',
+        tooltip: _revealed ? 'Hide password' : 'Show password',
+        size: AppIconButtonSize.sm,
+        iconSize: AppSizes.icon16,
+        onPressed: widget.enabled
+            ? () => setState(() => _revealed = !_revealed)
+            : null,
+      );
+
   Widget _textField(AppTokens tokens, TextStyle textStyle) {
     return TextField(
       controller: widget.controller,
@@ -255,7 +281,7 @@ class _AppInputState extends State<AppInput> {
       // Live Text is noise in every field here; see its own library.
       contextMenuBuilder: textContextMenuWithoutScanText,
       enabled: widget.enabled,
-      obscureText: widget.obscureText,
+      obscureText: widget.obscureText && !_revealed,
       minLines: widget.minLines,
       maxLines: _multiline ? widget.maxLines : 1,
       autofocus: widget.autofocus,

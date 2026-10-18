@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A tapped image opened over the app, paging through every image on its
-/// message. The tapped page gets the bytes already on screen so it never
-/// shows a spinner; siblings load their own. Only the tapped page carries
+/// message. The tapped page starts from the bytes already on screen (the
+/// inline preview) so it never shows a spinner, then shows the original once
+/// it loads; siblings load their own. Only the tapped page carries
 /// the Hero tag, minted per thumbnail because one content-addressed image
 /// can appear on several messages. The backdrop is black in both themes,
 /// and a transparent [Material] gives the root-navigator route text styles.
@@ -73,7 +74,8 @@ class FullscreenImageViewer extends ConsumerStatefulWidget {
   /// one [bytes] belongs to.
   final int index;
 
-  /// The tapped image's bytes, already fetched by the row that opened this.
+  /// The tapped image's bytes as the row draws them: an inline preview, not
+  /// necessarily the original.
   final Uint8List bytes;
 
   /// The tapped thumbnail's own identity tag, or null for a caller with no
@@ -155,9 +157,11 @@ class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
   Widget _page(int index) {
     final image = widget.images[index];
     if (index == widget.index) {
+      // The row's bytes are its inline preview: they hold the page up until the original arrives.
+      final original = ref.watch(attachmentBytesProvider(image.id)).valueOrNull;
       return FullscreenImagePage(
         filename: image.filename,
-        bytes: widget.bytes,
+        bytes: original ?? widget.bytes,
         heroTag: widget.heroTag,
         onDismiss: _close,
         onZoomChanged: _onZoomChanged,
@@ -181,7 +185,6 @@ class _FullscreenImageViewerState extends ConsumerState<FullscreenImageViewer> {
   }
 
   Future<Uint8List> _currentBytes() {
-    if (_current == widget.index) return Future.value(widget.bytes);
     return ref.read(attachmentBytesProvider(widget.images[_current].id).future);
   }
 

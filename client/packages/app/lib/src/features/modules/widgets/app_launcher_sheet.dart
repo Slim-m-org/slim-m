@@ -23,6 +23,7 @@ import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
 import '../providers/app_launch.dart';
+import 'module_about_sheet.dart';
 import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
@@ -173,12 +174,14 @@ Widget _appRows(
       for (final app in list)
         AppListRow(
           label: app.name,
-          subtitle: app.description,
+          subtitle: moduleCommandDetail(app.description, app.module),
           leading: Icon(
             AppIcons.dock,
             size: AppSizes.icon16,
             color: tokens.textSecondary,
           ),
+          trailing: ModuleNetworkBadge(module: app.module),
+          trailingExtra: ModuleAboutButton(module: app.module),
           onTap: () {
             Navigator.of(sheetContext).pop();
             unawaited(

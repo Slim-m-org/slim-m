@@ -20,7 +20,7 @@ use super::dock::wire::InstalledModuleDto;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce, require_manage_server};
 use super::module_host::{schedule_approved, scheduled_surface};
-use super::module_run::run_installed;
+use super::module_run::{RunRequest, run_installed};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -144,7 +144,13 @@ async fn run_one(
     command: &str,
 ) {
     let surface = scheduled_surface(state, module, bot, channel);
-    match run_installed(state, module, bot, command, "", surface).await {
+    let request = RunRequest {
+        caller: bot,
+        command,
+        input: "",
+        scheduled: true,
+    };
+    match run_installed(state, module, &request, surface).await {
         Ok(outcome) if outcome.ok => {}
         Ok(outcome) => {
             tracing::info!(module = %module.id, command, error = %outcome.payload, "scheduled module run failed");

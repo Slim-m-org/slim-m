@@ -45,6 +45,10 @@ pub enum SetBotCommandsError {
     TooManyCommands,
     InvalidPrefix(&'static str),
     InvalidCommand(&'static str),
+    /// The bot was assigned a different prefix when it was created.
+    PrefixNotAssigned {
+        assigned: String,
+    },
     Internal(anyhow::Error),
 }
 
@@ -67,7 +71,7 @@ pub struct VisibleBotCommand {
 
 /// A prefix must be short, whitespace-free, and not one of the composer's own
 /// reserved triggers.
-fn validate_bot_prefix(prefix: &str) -> Result<(), &'static str> {
+pub fn validate_bot_prefix(prefix: &str) -> Result<(), &'static str> {
     if prefix.is_empty() || prefix.chars().count() > MAX_BOT_PREFIX_LEN {
         return Err("a bot's prefix must be 1 to 16 characters");
     }
@@ -130,13 +134,14 @@ fn validate_bot_command(command: &BotCommand) -> Result<(), &'static str> {
 
 impl Store {
     /// Replaces a bot's whole registration in one transaction, all or
-    /// nothing on a validation failure.
+    /// nothing on a validation failure. Returns the newly added names dropped
+    /// because another live bot already answers to them.
     pub async fn set_bot_commands(
         &self,
         bot_user_id: UserId,
         prefix: &str,
         commands: &[BotCommand],
-    ) -> Result<(), SetBotCommandsError> {
+    ) -> Result<Vec<String>, SetBotCommandsError> {
         validate_bot_prefix(prefix).map_err(SetBotCommandsError::InvalidPrefix)?;
         if commands.len() > MAX_BOT_COMMANDS {
             return Err(SetBotCommandsError::TooManyCommands);
@@ -153,6 +158,12 @@ impl Store {
 
         let now = now_ms();
         let mut tx = self.begin_write().await?;
+        let dropped =
+            super::bot_prefix::claim_registration(&mut tx, bot_user_id, prefix, commands).await?;
+        let commands: Vec<&BotCommand> = commands
+            .iter()
+            .filter(|c| !dropped.contains(&c.name.to_lowercase()))
+            .collect();
         sqlx::query!(
             "INSERT INTO bot_command_registrations (bot_user_id, prefix, updated_at)
              VALUES (?, ?, ?)
@@ -185,7 +196,7 @@ impl Store {
             .await?;
         }
         tx.commit().await?;
-        Ok(())
+        Ok(dropped)
     }
 
     /// A bot's whole current registration, unfiltered - see
@@ -241,11 +252,13 @@ impl Store {
                JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL
                WHERE u.is_bot = 1 AND u.deleted_at IS NULL
                  AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)
-               ORDER BY r.prefix ASC, c.position ASC"#,
+               ORDER BY r.prefix ASC, r.updated_at ASC, u.created_at ASC, c.position ASC"#,
         )
         .fetch_all(&self.pool)
         .await?;
 
+        // Registration refuses a clash now; this keeps rows registered before that from listing twice.
+        let mut answered = std::collections::HashSet::new();
         let mut can_view: HashMap<UserId, bool> = HashMap::new();
         let mut visible = Vec::new();
         for row in rows {
@@ -265,7 +278,7 @@ impl Store {
                     allowed
                 }
             };
-            if !allowed {
+            if !allowed || !answered.insert((row.prefix.clone(), row.name.to_lowercase())) {
                 continue;
             }
             visible.push(VisibleBotCommand {

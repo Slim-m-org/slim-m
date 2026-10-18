@@ -9,10 +9,12 @@ import 'database.dart';
 import 'message_dto.dart';
 import 'rail_channel.dart';
 
+part 'message_store_authorship.dart';
 part 'message_store_batch.dart';
 part 'message_store_channels.dart';
 part 'message_store_cursors.dart';
 part 'message_store_drafts.dart';
+part 'message_store_inbox.dart';
 part 'message_store_pending_attachments.dart';
 part 'message_store_rows.dart';
 part 'message_store_recovery.dart';
@@ -53,9 +55,23 @@ class MessageStore {
   /// Dart, or a channel holding 200 delivered rows would cut the sender's own
   /// unsent message off the end.
   Stream<List<Message>> watchChannel(String channelId, {int limit = 200}) {
-    return _channelMessagesQuery(channelId, limit).watch().map(
+    return _channelMessagesQuery(channelId, limit)
+        .watch()
+        .distinct(_sameRows)
+        .map(
           (rows) => rows.reversed.map((r) => r.toDto()).toList(growable: false),
         );
+  }
+
+  /// Drift re-selects on any write to `messages`, other channels' included;
+  /// rows compare by value, so an unchanged window is dropped before it is
+  /// converted or rebuilt.
+  static bool _sameRows(List<MessageRow> a, List<MessageRow> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   /// [watchChannel]'s own query and ordering, fetched once rather than

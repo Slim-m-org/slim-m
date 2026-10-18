@@ -63,65 +63,71 @@ class SignInCredentialFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        LabeledField(
-          label: 'Username',
-          helper: creatingAccount ? usernameRule : null,
-          child: AppInput(
-            maxLength: InputLimits.username,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(usernameCharacters),
-            ],
-            controller: username,
-            errorText: errorFor(SignInErrorField.username),
-            autocorrect: false,
-            autofillHints: const [AutofillHints.username],
-            textInputAction: TextInputAction.next,
-            semanticLabel: 'Username',
+    return AutofillGroup(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LabeledField(
+            label: 'Username',
+            helper: creatingAccount ? usernameRule : null,
+            child: AppInput(
+              maxLength: InputLimits.username,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(usernameCharacters),
+              ],
+              controller: username,
+              errorText: errorFor(SignInErrorField.username),
+              autocorrect: false,
+              autofillHints: const [AutofillHints.username],
+              textInputAction: TextInputAction.next,
+              semanticLabel: 'Username',
+            ),
           ),
-        ),
-        if (creatingAccount && askDisplayName) ...[
+          if (creatingAccount && askDisplayName) ...[
+            const SizedBox(height: AppSpacing.s16),
+            LabeledField(
+              label: 'Display name',
+              helper: displayNameHelper,
+              child: AppInput(
+                controller: displayName,
+                errorText: errorFor(SignInErrorField.displayName),
+                textInputAction: TextInputAction.next,
+                semanticLabel: 'Display name',
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.s16),
           LabeledField(
-            label: 'Display name',
-            helper: displayNameHelper,
+            label: 'Password',
+            helper: creatingAccount ? passwordRule : null,
             child: AppInput(
-              controller: displayName,
-              errorText: errorFor(SignInErrorField.displayName),
-              textInputAction: TextInputAction.next,
-              semanticLabel: 'Display name',
+              maxLength: InputLimits.password,
+              controller: password,
+              errorText: errorFor(SignInErrorField.password),
+              obscureText: true,
+              autofillHints: [
+                creatingAccount
+                    ? AutofillHints.newPassword
+                    : AutofillHints.password,
+              ],
+              textInputAction: TextInputAction.done,
+              semanticLabel: 'Password',
+              onSubmitted: (_) => busy ? null : onSubmit(),
             ),
           ),
+          if (!creatingAccount)
+            Align(
+              alignment: Alignment.centerRight,
+              child: AppButton(
+                label: 'Trouble signing in?',
+                variant: AppButtonVariant.ghost,
+                disabled: busy,
+                onPressed: onRecoverAccount,
+              ),
+            ),
         ],
-        const SizedBox(height: AppSpacing.s16),
-        LabeledField(
-          label: 'Password',
-          helper: creatingAccount ? passwordRule : null,
-          child: AppInput(
-            maxLength: InputLimits.password,
-            controller: password,
-            errorText: errorFor(SignInErrorField.password),
-            obscureText: true,
-            autofillHints: const [AutofillHints.password],
-            textInputAction: TextInputAction.done,
-            semanticLabel: 'Password',
-            onSubmitted: (_) => busy ? null : onSubmit(),
-          ),
-        ),
-        if (!creatingAccount)
-          Align(
-            alignment: Alignment.centerRight,
-            child: AppButton(
-              label: 'Trouble signing in?',
-              variant: AppButtonVariant.ghost,
-              disabled: busy,
-              onPressed: onRecoverAccount,
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

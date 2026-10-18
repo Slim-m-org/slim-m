@@ -148,3 +148,22 @@ async fn a_bad_name_leaves_the_other_fields_in_the_same_patch_unwritten() {
     let (_, settings) = w.call("GET", "/space/settings", Some(&w.admin), None).await;
     assert_eq!(settings["description"], "");
 }
+
+#[tokio::test]
+async fn a_description_shows_on_version_only_once_one_is_written() {
+    let w = world().await;
+    let (_, version) = w.call("GET", "/version", None, None).await;
+    assert!(version.get("space_description").is_none());
+
+    let (status, _) = w
+        .call(
+            "PATCH",
+            "/space/settings",
+            Some(&w.admin),
+            Some(json!({"description": "Game night, most Fridays."})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, version) = w.call("GET", "/version", None, None).await;
+    assert_eq!(version["space_description"], "Game night, most Fridays.");
+}

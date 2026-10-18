@@ -316,6 +316,64 @@ void main() {
     expect(body?['permissions'], Perm.sendMessages);
   });
 
+  testWidgets('the form offers a free prefix and sends the one left in it', (
+    tester,
+  ) async {
+    Map<String, dynamic>? body;
+    await _pump(tester, (request) {
+      if (request.url.path == '/bots/suggested-prefix') {
+        return http.Response(
+          jsonEncode({'prefix': '?'}),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'POST' && request.url.path == '/bots') {
+        body = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'bot': jsonDecode(_botJson('helper')),
+            'token': _botToken,
+          }),
+          201,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('[]', 200);
+    });
+
+    final prefixField = find.bySemanticsLabel('Bot command prefix');
+    expect(
+      tester.widget<TextField>(find.byType(TextField).at(1)).controller?.text,
+      '?',
+    );
+    expect(prefixField, findsWidgets);
+
+    await tester.enterText(find.byType(TextField).first, 'helper');
+    await tester.enterText(find.byType(TextField).at(1), '~');
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+
+    expect(body?['prefix'], '~');
+  });
+
+  testWidgets('a listed bot shows the prefix it answers to', (tester) async {
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/bots') {
+        final bot = jsonDecode(_botJson('helper', lastUsed: 1000));
+        bot['prefix'] = '~';
+        return http.Response(
+          jsonEncode([bot]),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 200);
+    });
+
+    expect(find.textContaining('Prefix ~.'), findsOneWidget);
+  });
+
   testWidgets('a permission the admin lacks cannot be granted to a new bot', (
     tester,
   ) async {

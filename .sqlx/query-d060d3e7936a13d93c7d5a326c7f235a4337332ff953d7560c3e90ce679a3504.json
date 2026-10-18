@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT u.id AS \"user_id!: UserId\", u.username, u.display_name, u.created_at,\n                      t.name AS \"token_name?\", t.last_used_at AS \"last_used_at?\"\n               FROM users u\n               LEFT JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL\n               WHERE u.id = ?",
+  "query": "SELECT u.id AS \"user_id!: UserId\", u.username, u.display_name, u.created_at, u.bot_prefix,\n                      t.name AS \"token_name?\", t.last_used_at AS \"last_used_at?\"\n               FROM users u\n               LEFT JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL\n               WHERE u.id = ?",
   "describe": {
     "columns": [
       {
@@ -24,13 +24,18 @@
         "type_info": "Integer"
       },
       {
-        "name": "token_name?",
+        "name": "bot_prefix",
         "ordinal": 4,
         "type_info": "Text"
       },
       {
-        "name": "last_used_at?",
+        "name": "token_name?",
         "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_used_at?",
+        "ordinal": 6,
         "type_info": "Integer"
       }
     ],
@@ -42,9 +47,10 @@
       false,
       false,
       false,
+      true,
       false,
       true
     ]
   },
-  "hash": "f51d07b4f1b2054c1a8dd543e89cdf53e63be05c0957d2293fb4efb87f408d48"
+  "hash": "d060d3e7936a13d93c7d5a326c7f235a4337332ff953d7560c3e90ce679a3504"
 }

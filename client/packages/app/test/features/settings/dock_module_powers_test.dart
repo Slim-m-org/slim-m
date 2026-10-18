@@ -101,6 +101,7 @@ Future<_Harness> _pump(
           capabilities: asks,
           network: network,
           schedules: schedules,
+          reviewDigest: 'digest-of-what-was-shown',
         ),
       );
     }
@@ -239,31 +240,40 @@ void main() {
     expect(find.text('Run on its own'), findsOneWidget);
   });
 
-  testWidgets('Local network shows only with network.local and net.fetch on', (
-    tester,
-  ) async {
-    await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
-    expect(_toggle('Local network'), findsNothing);
-    await _flip(tester, 'Reach the internet');
-    expect(_toggle('Local network'), findsOneWidget);
-    expect(_on(tester, 'Local network'), isFalse);
-    expect(
-      find.text(
-        'Can also reach devices on your home network, like a NAS or media '
-        'server.',
-      ),
-      findsOneWidget,
-    );
-    await _flip(tester, 'Reach the internet');
-    expect(_toggle('Local network'), findsNothing);
-  });
+  testWidgets(
+    'Private network shows only with network.local and net.fetch on',
+    (tester) async {
+      await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
+      expect(_toggle('Private network'), findsNothing);
+      await _flip(tester, 'Reach the internet');
+      expect(_toggle('Private network'), findsOneWidget);
+      expect(_on(tester, 'Private network'), isFalse);
+      expect(
+        find.text(
+          'Can also reach devices on your private network, like a NAS or media '
+          'server. Never this server, its host or anything you block.',
+        ),
+        findsOneWidget,
+      );
+      await _flip(tester, 'Reach the internet');
+      expect(_toggle('Private network'), findsNothing);
+    },
+  );
 
   testWidgets('a module that asks for no local network never shows it', (
     tester,
   ) async {
     await _pump(tester, asks: ['net.fetch'], network: _lanFree);
     await _flip(tester, 'Reach the internet');
-    expect(_toggle('Local network'), findsNothing);
+    expect(_toggle('Private network'), findsNothing);
+  });
+
+  testWidgets('the install carries the digest of the manifest the admin saw', (
+    tester,
+  ) async {
+    final h = await _pump(tester, asks: ['kv.store']);
+    await _install(tester);
+    expect(h.installs.single['reviewed_digest'], 'digest-of-what-was-shown');
   });
 
   testWidgets('approve_local_network is sent false while left off', (
@@ -280,7 +290,7 @@ void main() {
   ) async {
     final on = await _pump(tester, asks: ['net.fetch'], network: _localNetwork);
     await _flip(tester, 'Reach the internet');
-    await _flip(tester, 'Local network');
+    await _flip(tester, 'Private network');
     await _install(tester);
     expect(on.installs.single['approve_local_network'], true);
     expect(on.installs.single['approved_host_capabilities'], ['net.fetch']);
@@ -293,7 +303,7 @@ void main() {
       network: _localNetwork,
     );
     await _flip(tester, 'Reach the internet');
-    await _flip(tester, 'Local network');
+    await _flip(tester, 'Private network');
     await _flip(tester, 'Reach the internet');
     await _flip(tester, 'Remember data');
     await _install(tester);
@@ -301,10 +311,10 @@ void main() {
     expect(h.installs.single['approved_host_capabilities'], ['kv.store']);
 
     await _flip(tester, 'Reach the internet');
-    expect(_on(tester, 'Local network'), isFalse, reason: 'not remembered');
+    expect(_on(tester, 'Private network'), isFalse, reason: 'not remembered');
   });
 
-  testWidgets('the consent sheet lists Local network as its own line', (
+  testWidgets('the consent sheet lists Private network as its own line', (
     tester,
   ) async {
     await _pump(
@@ -314,11 +324,11 @@ void main() {
       community: true,
     );
     await _flip(tester, 'Reach the internet');
-    await _flip(tester, 'Local network');
+    await _flip(tester, 'Private network');
     await tester.tap(find.text('Install v1.0.0'));
     await tester.pumpAndSettle();
     expect(find.text('This module can:'), findsOneWidget);
-    expect(find.textContaining('home network'), findsNWidgets(2));
+    expect(find.textContaining('private network'), findsNWidgets(2));
     await writeSnapshot(tester, 'dock-consent-network-local-phone');
   });
 
@@ -334,7 +344,7 @@ void main() {
     await _flip(tester, 'Reach the internet');
     await tester.tap(find.text('Install v1.0.0'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('home network'), findsOneWidget);
+    expect(find.textContaining('private network'), findsOneWidget);
   });
 
   testWidgets('the consent sheet at desktop width', (tester) async {
@@ -346,7 +356,7 @@ void main() {
       size: const Size(1100, 900),
     );
     await _flip(tester, 'Reach the internet');
-    await _flip(tester, 'Local network');
+    await _flip(tester, 'Private network');
     await tester.tap(find.text('Install v1.0.0'));
     await tester.pumpAndSettle();
     await writeSnapshot(tester, 'dock-consent-network-local-desktop');
@@ -437,7 +447,7 @@ void main() {
       size: const Size(360, 800),
     );
     expect(tester.takeException(), isNull);
-    expect(find.text('Local network'), findsOneWidget);
+    expect(find.text('Private network'), findsOneWidget);
     expect(find.text('Posts in'), findsOneWidget);
   });
 

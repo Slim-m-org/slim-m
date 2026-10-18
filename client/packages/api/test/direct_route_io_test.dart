@@ -15,6 +15,9 @@ import 'package:web_socket_channel/status.dart' as status;
 const _fixtures = 'test/fixtures/direct_route';
 const _host = 'slimm.test';
 
+/// The port the app was pointed at; a direct address is only taken on this one.
+const _port = 8443;
+
 SecurityContext _serving(String name) => SecurityContext()
   ..useCertificateChain('$_fixtures/$name.pem')
   ..usePrivateKey('$_fixtures/$name.key');
@@ -50,31 +53,40 @@ void main() {
   late List<String> publicSeen;
   late DateTime now;
 
+  /// Where a dial to the advertised address really lands: a test server's
+  /// ephemeral port, since the advertised one must be the server's own port.
+  late int directTarget;
+
   setUp(() async {
     (public, publicSeen) = await _server('public', _host);
     now = DateTime(2026);
+    directTarget = 1;
   });
 
   IoDirectRoute route() {
     final route = IoDirectRoute(
-      Uri.parse('https://$_host:${public.port}'),
+      Uri.parse('https://$_host:$_port'),
       context: _trusting,
       connectPublic: (host, port) =>
-          Socket.connect(InternetAddress.loopbackIPv4, port),
+          Socket.connect(InternetAddress.loopbackIPv4, public.port),
+      connectDirect: (host, port) =>
+          Socket.connect(InternetAddress.loopbackIPv4, directTarget),
       clock: () => now,
     );
     addTearDown(route.httpClient.close);
     return route;
   }
 
+  const lan = '127.0.0.1:$_port';
+
   Future<String> get(IoDirectRoute r, String path) async =>
-      (await r.httpClient.get(Uri.parse('https://$_host:${public.port}$path')))
-          .body;
+      (await r.httpClient.get(Uri.parse('https://$_host:$_port$path'))).body;
 
   test('an advertised address that is the server carries the requests',
       () async {
     final (direct, directSeen) = await _server('direct', _host);
-    final r = route()..advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    final r = route()..advertise([lan]);
 
     expect(await get(r, '/version'), 'direct');
     expect(r.active, isTrue);
@@ -86,7 +98,8 @@ void main() {
       'an address holding some other certificate is refused, the public '
       'route is used, and the address is left alone for a while', () async {
     final (impostor, impostorSeen) = await _server('impostor', 'other.test');
-    final r = route()..advertise(['127.0.0.1:${impostor.port}']);
+    directTarget = impostor.port;
+    final r = route()..advertise([lan]);
 
     expect(await get(r, '/a'), 'public');
     expect(r.active, isFalse);
@@ -101,16 +114,18 @@ void main() {
     final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final port = closed.port;
     await closed.close();
-    final r = route()..advertise(['127.0.0.1:$port']);
+    directTarget = port;
+    final r = route()..advertise([lan]);
     // Not kept alive, or the next request would reuse this public connection.
     final first = await r.httpClient.send(
-      http.Request('GET', Uri.parse('https://$_host:${public.port}/a'))
+      http.Request('GET', Uri.parse('https://$_host:$_port/a'))
         ..persistentConnection = false,
     );
     expect(await first.stream.bytesToString(), 'public');
 
     final (direct, _) = await _server('direct', _host);
-    r.advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    r.advertise(['127.0.0.1:$_port', '10.0.0.5:$_port']);
     expect(await get(r, '/b'), 'direct', reason: 'new addresses reset it');
   });
 
@@ -123,10 +138,12 @@ void main() {
     final seen = <bool>[];
     r.activeChanges.listen(seen.add);
 
-    r.advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    r.advertise([lan]);
     await get(r, '/a');
     await get(r, '/b');
-    r.advertise(['127.0.0.1:$port']);
+    directTarget = port;
+    r.advertise(['10.0.0.5:$_port']);
     await get(r, '/c');
     await pumpEventQueue();
 
@@ -135,9 +152,10 @@ void main() {
 
   test('the event socket takes the same route', () async {
     final (direct, _) = await _server('direct', _host);
-    final r = route()..advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    final r = route()..advertise([lan]);
     final channel = r.connectWebSocket(
-      Uri.parse('wss://$_host:${public.port}/ws'),
+      Uri.parse('wss://$_host:$_port/ws'),
     );
     expect(await channel.stream.first, 'direct');
     await channel.sink.close(status.normalClosure);
@@ -145,10 +163,11 @@ void main() {
 
   test('another host is never shortcut', () async {
     final (direct, directSeen) = await _server('direct', _host);
-    final r = route()..advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    final r = route()..advertise([lan]);
     // The public server's certificate names slimm.test, so reaching it as elsewhere.test must fail.
     await expectLater(
-      r.httpClient.get(Uri.parse('https://elsewhere.test:${public.port}/')),
+      r.httpClient.get(Uri.parse('https://elsewhere.test:$_port/')),
       throwsA(isA<HandshakeException>()),
     );
     expect(directSeen, isEmpty);
@@ -161,7 +180,8 @@ void main() {
     final r = route();
     expect(await get(r, '/version'), 'public');
 
-    r.advertise(['127.0.0.1:${direct.port}']);
+    directTarget = direct.port;
+    r.advertise([lan]);
     expect(await get(r, '/upload'), 'direct');
     expect(directSeen, ['/upload']);
   });
@@ -172,17 +192,17 @@ void main() {
     final (direct, _) = await _server('direct', _host);
     var reachable = false;
     final r = IoDirectRoute(
-      Uri.parse('https://$_host:${public.port}'),
+      Uri.parse('https://$_host:$_port'),
       context: _trusting,
       connectPublic: (host, port) =>
-          Socket.connect(InternetAddress.loopbackIPv4, port),
+          Socket.connect(InternetAddress.loopbackIPv4, public.port),
       connectDirect: (host, port) => reachable
           ? Socket.connect(InternetAddress.loopbackIPv4, direct.port)
           : Future.error(const SocketException('unreachable')),
       clock: () => now,
     );
     addTearDown(r.httpClient.close);
-    r.advertise(['10.0.0.100:443']);
+    r.advertise(['10.0.0.100:$_port']);
 
     expect(await get(r, '/a'), 'public');
     reachable = true;
@@ -191,5 +211,25 @@ void main() {
     now = now.add(const Duration(minutes: 2));
     expect(await get(r, '/c'), 'direct');
     expect(r.active, isTrue);
+  });
+
+  test('an address a hostile server picked is never dialled', () async {
+    final dialled = <String>[];
+    final r = IoDirectRoute(
+      Uri.parse('https://$_host:$_port'),
+      context: _trusting,
+      connectPublic: (host, port) =>
+          Socket.connect(InternetAddress.loopbackIPv4, public.port),
+      connectDirect: (host, port) {
+        dialled.add('$host:$port');
+        return Future.error(const SocketException('unreachable'));
+      },
+      clock: () => now,
+    );
+    addTearDown(r.httpClient.close);
+    r.advertise(['127.0.0.1:22', '8.8.8.8:$_port', 'router.lan:$_port']);
+
+    expect(await get(r, '/a'), 'public');
+    expect(dialled, isEmpty);
   });
 }

@@ -4,6 +4,7 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "clipboard_image_channel.h"
+#include "global_hotkeys_channel.h"
 #include "now_playing_channel.h"
 #include "single_instance.h"
 
@@ -29,6 +30,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   RegisterNowPlayingChannel(flutter_controller_->engine()->messenger());
+  RegisterGlobalHotkeysChannel(flutter_controller_->engine()->messenger());
   RegisterSecondInstanceChannel(flutter_controller_->engine()->messenger());
   RegisterClipboardImageChannel(flutter_controller_->engine()->messenger(),
                                 GetHandle());
@@ -47,6 +49,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  UnregisterGlobalHotkeys();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

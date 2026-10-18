@@ -24,6 +24,9 @@ export 'src/key_store.dart';
 export 'src/local_notifications.dart';
 export 'src/notification_tap_channel.dart';
 export 'src/now_playing.dart';
+export 'src/global_hotkeys.dart';
+export 'src/global_hotkeys_keys.dart'
+    show portalTriggerFor, windowsVirtualKeyFor;
 export 'src/persistent_key_store.dart';
 export 'src/polled_stream.dart';
 export 'src/picture_in_picture_channel.dart';

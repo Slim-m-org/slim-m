@@ -202,6 +202,14 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Mute shortcut',
+    description: 'Works when slim-m is in the background.',
+    keywords: ['mute', 'hotkey', 'keybind', 'global'],
+    conditional: true,
+    available: _desktop,
+  ),
+  SettingsEntry(
+    'voice',
     'Join with camera on',
     description: 'Calls still connect without a camera.',
     keywords: ['video', 'webcam'],
@@ -288,6 +296,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'performance',
+    'Link previews',
+    description: 'Whether links get a preview card.',
+    keywords: ['embed', 'unfurl', 'card'],
+  ),
+  SettingsEntry(
+    'performance',
     'Attachment preview quality',
     description: 'How sharply attachments are drawn in messages.',
     keywords: ['images', 'resolution'],
@@ -324,6 +338,18 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry('general', 'Message page size', keywords: ['history']),
   SettingsEntry('general', 'Startup', keywords: ['autostart']),
+  SettingsEntry(
+    'general',
+    'Setup',
+    keywords: ['onboarding', 'welcome', 'first run', 'getting started'],
+  ),
+  SettingsEntry(
+    'general',
+    'Run setup again',
+    description: 'Profile, notifications and voice, one step at a time.',
+    keywords: ['onboarding', 'welcome', 'tour', 'first run'],
+    conditional: true,
+  ),
   SettingsEntry(
     'general',
     'History',

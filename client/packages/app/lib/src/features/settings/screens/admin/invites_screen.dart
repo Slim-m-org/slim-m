@@ -22,6 +22,7 @@ import '../../../members/widgets/invite_landing_section.dart';
 import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';
+import '../../widgets/welcome_section.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
@@ -74,6 +75,7 @@ class InvitesPane extends ConsumerWidget {
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
           JoinGateSection(),
+          WelcomeSection(),
           InviteLandingSection(),
         ],
         if (canInvite) ...const [_CreateInviteCard(), _InviteList()],
@@ -247,9 +249,8 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
   }
 }
 
-/// Copies the whole invite - server and code in one string - which is what
-/// somebody being invited actually needs. See `invite_link.dart` for why it
-/// is a `slimm://` link rather than an https one.
+/// Copies the whole invite - server and code in one https link - which is what
+/// somebody being invited actually needs.
 void _copyInviteLink(WidgetRef ref, String code) {
   Clipboard.setData(
     ClipboardData(

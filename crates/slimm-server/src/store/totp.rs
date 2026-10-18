@@ -12,6 +12,7 @@
 //! path.
 
 use crate::auth::hash_secret;
+use crate::data_key::DataKey;
 use crate::ids::{SessionId, UserId};
 use crate::totp;
 
@@ -179,6 +180,50 @@ impl Store {
         Ok(!self.totp_is_enabled(user_id).await?)
     }
 
+    /// Whether any two-factor secret is already sealed, so a missing data key would lock it.
+    pub async fn has_sealed_totp_secrets(&self) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM user_totp_factors WHERE secret LIKE 'enc1:%') AS "found!: bool""#
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(found)
+    }
+
+    /// Seals every two-factor secret still stored in the clear, from before the data key
+    /// existed, and warns about any the current key cannot open. Safe to run on every start.
+    pub async fn seal_totp_secrets(&self) -> anyhow::Result<()> {
+        let rows =
+            sqlx::query!(r#"SELECT user_id AS "user_id!: UserId", secret FROM user_totp_factors"#)
+                .fetch_all(&self.pool)
+                .await?;
+        let mut unreadable = 0usize;
+        for row in rows {
+            let context = row.user_id.to_string();
+            if DataKey::is_sealed(&row.secret) {
+                unreadable += usize::from(self.data_key.open(&context, &row.secret).is_err());
+                continue;
+            }
+            let sealed = self.data_key.seal(&context, &row.secret)?;
+            sqlx::query!(
+                "UPDATE user_totp_factors SET secret = ? WHERE user_id = ? AND secret = ?",
+                sealed,
+                row.user_id,
+                row.secret
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+        if unreadable > 0 {
+            tracing::error!(
+                unreadable,
+                "two-factor secrets the data key cannot open; restore the key file that was \
+                 backed up with this database, or clear those members' two-factor"
+            );
+        }
+        Ok(())
+    }
+
     /// Starts an enrolment: mints a secret and stores it unconfirmed.
     ///
     /// Replaces an existing *unconfirmed* enrolment, since a member who
@@ -197,6 +242,7 @@ impl Store {
         }
         let secret = totp::generate_secret();
         let provisioning_uri = totp::provisioning_uri(&secret, issuer, account)?;
+        let sealed = self.data_key.seal(&user_id.to_string(), &secret)?;
         let now = now_ms();
 
         let mut tx = self.begin_write().await?;
@@ -217,7 +263,7 @@ impl Store {
                     confirmed_at = NULL, last_step = NULL,
                     failed_attempts = 0, locked_until = NULL",
             user_id,
-            secret,
+            sealed,
             now,
             user_id
         )
@@ -263,7 +309,8 @@ impl Store {
             return Err(TotpError::Locked { until });
         }
 
-        let step = totp::matching_step(&factor.secret, code, now)?
+        let secret = self.data_key.open(&user_id.to_string(), &factor.secret)?;
+        let step = totp::matching_step(&secret, code, now)?
             .filter(|step| factor.last_step.is_none_or(|last| *step > last));
         let Some(step) = step else {
             super::totp_verify::record_failure(&mut tx, user_id, factor.failed_attempts, now)

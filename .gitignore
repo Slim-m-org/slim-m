@@ -85,3 +85,6 @@ ds-bundle/
 .design-sync/node_modules
 design/web/dist/
 perf/load/results/
+
+# The server data key (see docs/OPERATING.md); never commit it
+slimm-data.key

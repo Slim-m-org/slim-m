@@ -41,14 +41,17 @@ import '../../../widgets/viewport_freeze.dart';
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
 /// handing them here; this renders exactly what it is given.
-class LinkPreviewList extends StatelessWidget {
+class LinkPreviewList extends ConsumerWidget {
   const LinkPreviewList({super.key, required this.urls});
 
   final List<String> urls;
 
   @override
-  Widget build(BuildContext context) {
-    if (urls.isEmpty) return const SizedBox.shrink();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hidden =
+        ref.watch(linkPreviewDisplayControllerProvider) ==
+        LinkPreviewDisplay.hide;
+    if (urls.isEmpty || hidden) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

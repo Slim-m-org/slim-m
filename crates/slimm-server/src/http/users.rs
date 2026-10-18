@@ -258,6 +258,9 @@ struct MeDto {
     /// `hidden`). Self-view only: a hidden choice is invisible to everyone
     /// else, so this must never appear on [`UserDto`] or any other-user shape.
     presence_visibility: String,
+    /// A bot's assigned command prefix; absent for a person and for a bot with none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bot_prefix: Option<String>,
 }
 
 /// The editable half of a profile.
@@ -338,6 +341,7 @@ async fn get_me(
             .unwrap_or_else(|| default_profile_color(user.id)),
         profile_color_rgb: user.profile_color_rgb,
         presence_visibility: visibility.unwrap_or_default().as_str().to_owned(),
+        bot_prefix: state.store.bot_prefix(ctx.user_id).await?,
     }))
 }
 

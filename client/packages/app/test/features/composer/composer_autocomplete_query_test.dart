@@ -138,4 +138,33 @@ void main() {
       reason: 'offset zero, not start-of-line: the message begins once',
     );
   });
+
+  group('a bot prefix', () {
+    AutocompleteQuery? bot(
+      String text, [
+      Iterable<String> prefixes = const ['!'],
+    ]) => autocompleteQueryAt(text, text.length, botPrefixes: prefixes);
+
+    test('opens the bot vocabulary when the message starts with it', () {
+      final q = bot('!wa')!;
+      expect(q.kind, AutocompleteKind.botCommand);
+      expect(q.prefix, '!');
+      expect(q.term, 'wa');
+      expect(q.start, 0);
+    });
+
+    test('is not a trigger mid-message or once the first word ends', () {
+      expect(bot('hey !wa'), isNull);
+      expect(bot('!watch the'), isNull);
+    });
+
+    test('is not a trigger for a prefix no bot registered', () {
+      expect(bot('?wa'), isNull);
+      expect(autocompleteQueryAt('!wa', 3), isNull);
+    });
+
+    test('the longest matching prefix wins', () {
+      expect(bot('!!wa', const ['!', '!!'])!.prefix, '!!');
+    });
+  });
 }

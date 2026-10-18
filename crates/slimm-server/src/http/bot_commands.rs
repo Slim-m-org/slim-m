@@ -7,6 +7,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, put};
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,8 @@ use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{BotCommand, SetBotCommandsError, VisibleBotCommand};
 
+/// Lists newly added command names left out because another bot holds them.
+const DROPPED_HEADER: &str = "x-slimm-dropped-commands";
 const BODY_LIMIT: usize = 16 * 1024;
 
 pub fn routes() -> Router<AppState> {
@@ -82,7 +85,7 @@ async fn set_commands(
     parts: Parts,
     Authed(ctx): Authed,
     Json(body): Json<SetBotCommandsRequest>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<Response, ApiError> {
     super::extract::enforce(&state, &parts, Some(&ctx), Class::Write)?;
     if !state.store.is_bot(ctx.user_id).await? {
         return Err(ApiError::Forbidden);
@@ -93,13 +96,24 @@ async fn set_commands(
         .set_bot_commands(ctx.user_id, &body.prefix, &commands)
         .await
     {
-        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Ok(dropped) if dropped.is_empty() => Ok(StatusCode::NO_CONTENT.into_response()),
+        Ok(dropped) => {
+            tracing::warn!(bot = %ctx.user_id, ?dropped, "bot command names already taken were not registered");
+            Ok((
+                StatusCode::NO_CONTENT,
+                [(DROPPED_HEADER, dropped.join(","))],
+            )
+                .into_response())
+        }
         Err(SetBotCommandsError::TooManyCommands) => Err(ApiError::BadRequest(
             "a bot may register at most 50 commands",
         )),
         Err(SetBotCommandsError::InvalidPrefix(msg) | SetBotCommandsError::InvalidCommand(msg)) => {
             Err(ApiError::BadRequest(msg))
         }
+        Err(SetBotCommandsError::PrefixNotAssigned { assigned }) => Err(ApiError::ConflictDetail(
+            format!("this bot is assigned the prefix {assigned}; register under it"),
+        )),
         Err(SetBotCommandsError::Internal(err)) => Err(err.into()),
     }
 }

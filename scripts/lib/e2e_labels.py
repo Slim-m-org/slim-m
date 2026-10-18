@@ -10,6 +10,7 @@ nobody remembered was duplicated across three files.
 # Not the hint text: it vanishes once typed, and goes bare for a thread/DM, once colliding with "Pinned/Search messages".
 COMPOSER = "Message composer"
 SEND = "Send message"
+SKIP_SETUP = "Skip setup"
 ATTACH = "Attach a file"
 ADD_REACTION = "Add reaction"
 REMOVE_ATTACHMENT = "Remove attachment"

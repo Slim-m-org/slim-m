@@ -2,7 +2,8 @@
 //! `net.fetch` through the real command route: a module reaches only the
 //! hosts an admin approved, and a local address only with the separate local
 //! network approval. The upstream is a real listener on loopback, which is
-//! exactly the local address the second approval exists for.
+//! the stand-in LAN device the second approval exists for (see
+//! `treat_loopback_as_lan_for_tests`; real loopback is never reachable).
 
 use axum::Router;
 use axum::routing::get;
@@ -26,6 +27,7 @@ fn fetch(url: &str) -> String {
 
 #[tokio::test]
 async fn an_approved_host_answers_only_with_the_local_approval() {
+    slimm_server::module_runtime::treat_loopback_as_lan_for_tests(true);
     let w = world("slimm-modnet-local").await;
     let port = upstream().await;
     let host = format!("localhost:{port}");

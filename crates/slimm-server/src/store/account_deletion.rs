@@ -435,6 +435,9 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!("DELETE FROM login_throttle WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         // The factor row holds its secret in the clear; a tombstone fires no cascade.
         sqlx::query!("DELETE FROM totp_challenges WHERE user_id = ?", user_id)
             .execute(&mut *tx)

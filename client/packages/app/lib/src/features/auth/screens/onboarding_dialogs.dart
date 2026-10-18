@@ -94,7 +94,7 @@ class InviteDialogState extends ConsumerState<InviteDialog> {
       setState(
         () => _error =
             'That looks like a web address. Paste an invite link that '
-            'starts with slimm://join, or just the code.',
+            'was sent to you, or just the code.',
       );
       return;
     }

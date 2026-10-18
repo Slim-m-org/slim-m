@@ -19,8 +19,13 @@ use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
 use super::hidden_chars::is_hidden_char;
+use super::messages::parse_uuid;
+use crate::ids::ChannelId;
 use crate::ratelimit::Class;
-use crate::store::{JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, TotpPolicy};
+use crate::store::{
+    JoinPolicy, MAX_SPACE_DESCRIPTION_CHARS, MAX_SPACE_NAME_CHARS, MAX_WELCOME_MESSAGE_CHARS,
+    SpaceWelcome, TotpPolicy,
+};
 
 const BODY_LIMIT: usize = 4 * 1024;
 
@@ -48,6 +53,12 @@ struct SpaceSettingsDto {
     icon_updated_at: Option<i64>,
     /// What "Space default" means for members' noise suppression.
     strong_noise_suppression: bool,
+    /// Whether a welcome message is posted when someone joins.
+    welcome_enabled: bool,
+    /// Where the welcome is posted, or null for none.
+    welcome_channel_id: Option<String>,
+    /// The welcome template; `{user}` and `{space}` are filled in.
+    welcome_message: String,
 }
 
 /// The PATCH body: only the fields present are written.
@@ -58,10 +69,15 @@ struct UpdateSpaceSettingsDto {
     totp_policy: Option<String>,
     description: Option<String>,
     strong_noise_suppression: Option<bool>,
+    welcome_enabled: Option<bool>,
+    /// An empty string clears the channel.
+    welcome_channel_id: Option<String>,
+    welcome_message: Option<String>,
 }
 
 async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
     let landing = state.store.space_landing().await?;
+    let welcome = state.store.space_welcome().await?;
     Ok(SpaceSettingsDto {
         name: state.store.deployment_name().await?,
         join_policy: state.store.join_policy().await?.as_str().to_owned(),
@@ -70,6 +86,9 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         banner_updated_at: landing.banner_updated_at,
         icon_updated_at: landing.icon_updated_at,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
+        welcome_enabled: welcome.enabled,
+        welcome_channel_id: welcome.channel_id.map(|id| id.to_string()),
+        welcome_message: welcome.message,
     })
 }
 
@@ -104,6 +123,63 @@ fn validate_name(raw: &str) -> Result<&str, ApiError> {
     Ok(trimmed)
 }
 
+/// The welcome settings after this PATCH, or `None` when it names none of them.
+/// Turning it on needs a text channel and a message, so a half-set welcome is refused.
+async fn merged_welcome(
+    state: &AppState,
+    body: &UpdateSpaceSettingsDto,
+) -> Result<Option<SpaceWelcome>, ApiError> {
+    if body.welcome_enabled.is_none()
+        && body.welcome_channel_id.is_none()
+        && body.welcome_message.is_none()
+    {
+        return Ok(None);
+    }
+    let mut welcome = state.store.space_welcome().await?;
+    if let Some(enabled) = body.welcome_enabled {
+        welcome.enabled = enabled;
+    }
+    if let Some(raw) = body.welcome_channel_id.as_deref().map(str::trim) {
+        welcome.channel_id = match raw {
+            "" => None,
+            raw => {
+                let id = ChannelId(parse_uuid(raw)?);
+                let channel = state.store.channel(id).await?;
+                if channel.is_none_or(|c| c.kind != "text") {
+                    return Err(ApiError::BadRequest(
+                        "welcome_channel_id must be a text channel",
+                    ));
+                }
+                Some(id)
+            }
+        };
+    }
+    if let Some(raw) = body.welcome_message.as_deref() {
+        welcome.message = validate_welcome_message(raw)?.to_owned();
+    }
+    if welcome.enabled && (welcome.channel_id.is_none() || welcome.message.is_empty()) {
+        return Err(ApiError::BadRequest(
+            "a welcome needs a channel and a message before it can be turned on",
+        ));
+    }
+    Ok(Some(welcome))
+}
+
+fn validate_welcome_message(raw: &str) -> Result<&str, ApiError> {
+    let trimmed = raw.trim();
+    if trimmed.chars().count() > MAX_WELCOME_MESSAGE_CHARS {
+        return Err(ApiError::BadRequest(
+            "welcome_message must be 500 characters or fewer",
+        ));
+    }
+    if trimmed.chars().any(|c| c != '\n' && is_hidden_char(c)) {
+        return Err(ApiError::BadRequest(
+            "welcome_message must not contain control or invisible characters",
+        ));
+    }
+    Ok(trimmed)
+}
+
 async fn read(
     State(state): State<AppState>,
     parts: Parts,
@@ -131,11 +207,15 @@ async fn update(
         && body.totp_policy.is_none()
         && body.description.is_none()
         && body.strong_noise_suppression.is_none()
+        && body.welcome_enabled.is_none()
+        && body.welcome_channel_id.is_none()
+        && body.welcome_message.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description or strong_noise_suppression",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression or a welcome field",
         ));
     }
+    let welcome = merged_welcome(&state, &body).await?;
     let name = body.name.as_deref().map(validate_name).transpose()?;
     let description = body
         .description
@@ -169,6 +249,9 @@ async fn update(
     }
     if let Some(enabled) = body.strong_noise_suppression {
         state.store.set_strong_noise_suppression(enabled).await?;
+    }
+    if let Some(welcome) = welcome {
+        state.store.set_space_welcome(&welcome).await?;
     }
     Ok(Json(dto(&state).await?))
 }

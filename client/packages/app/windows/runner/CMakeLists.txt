@@ -9,6 +9,7 @@ project(runner LANGUAGES CXX)
 add_executable(${BINARY_NAME} WIN32
   "clipboard_image_channel.cpp"
   "flutter_window.cpp"
+  "global_hotkeys_channel.cpp"
   "main.cpp"
   "now_playing_channel.cpp"
   "single_instance.cpp"
@@ -54,6 +55,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE "wtsapi32.lib")
 target_link_libraries(${BINARY_NAME} PRIVATE now_playing_smtc)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 

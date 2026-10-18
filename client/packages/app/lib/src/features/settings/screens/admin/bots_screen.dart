@@ -49,6 +49,7 @@ class BotsPane extends ConsumerStatefulWidget {
 class _BotsPaneState extends ConsumerState<BotsPane>
     with GuardedActionState<BotsPane> {
   final _username = TextEditingController();
+  final _prefix = TextEditingController();
   bool _busy = false;
 
   /// The bot's managed-role grant. Defaults to none.
@@ -59,14 +60,34 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   api.NewBot? _justCreated;
 
   @override
+  void initState() {
+    super.initState();
+    _suggestPrefix();
+  }
+
+  @override
   void dispose() {
     _username.dispose();
+    _prefix.dispose();
     super.dispose();
+  }
+
+  /// Fills the field with a free prefix the admin can accept or overtype.
+  /// Left empty when the suggestion fails: the server picks one on create.
+  Future<void> _suggestPrefix({bool refresh = false}) async {
+    if (refresh) ref.invalidate(suggestedBotPrefixProvider);
+    try {
+      final suggestion = await ref.read(suggestedBotPrefixProvider.future);
+      if (mounted && _prefix.text.isEmpty) _prefix.text = suggestion;
+    } on Object {
+      return;
+    }
   }
 
   Future<void> _create() async {
     final username = _username.text.trim();
     if (username.isEmpty) return;
+    final prefix = _prefix.text.trim();
     setState(() => _busy = true);
     api.NewBot? created;
     final ok = await guard(
@@ -74,7 +95,11 @@ class _BotsPaneState extends ConsumerState<BotsPane>
       action: () async {
         created = await ref
             .read(apiProvider)
-            .createBot(username, permissions: _permissions);
+            .createBot(
+              username,
+              permissions: _permissions,
+              prefix: prefix.isEmpty ? null : prefix,
+            );
       },
     );
     if (!mounted) return;
@@ -83,10 +108,14 @@ class _BotsPaneState extends ConsumerState<BotsPane>
       if (ok) {
         _justCreated = created;
         _username.clear();
+        _prefix.clear();
         _permissions = 0;
       }
     });
-    if (ok) ref.invalidate(botsProvider);
+    if (ok) {
+      ref.invalidate(botsProvider);
+      await _suggestPrefix(refresh: true);
+    }
   }
 
   String _permissionsSummary() {
@@ -133,6 +162,23 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                     controller: _username,
                     autocorrect: false,
                     semanticLabel: 'Bot username',
+                    onSubmitted: (_) => _busy ? null : _create(),
+                  ),
+                ),
+                LabeledField(
+                  label: 'Command prefix',
+                  helper:
+                      'Typed before a command. Bots can share one while '
+                      'their commands differ.',
+                  child: AppInput(
+                    maxLength: api.InputLimits.botPrefix,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                    ],
+                    controller: _prefix,
+                    autocorrect: false,
+                    mono: true,
+                    semanticLabel: 'Bot command prefix',
                     onSubmitted: (_) => _busy ? null : _create(),
                   ),
                 ),
@@ -232,6 +278,7 @@ class _BotRowState extends ConsumerState<_BotRow>
       detail: bot.isRevoked
           ? 'Revoked. Kept for what it wrote.'
           : [
+              if (bot.prefix case final prefix?) 'Prefix $prefix.',
               bot.tokenLastUsedAt == null ? 'Never used yet.' : 'Token active.',
               count == 0
                   ? 'No permissions granted yet'

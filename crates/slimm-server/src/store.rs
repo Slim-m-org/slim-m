@@ -22,6 +22,7 @@ mod apps;
 mod attachments;
 mod bootstrap;
 mod bot_commands;
+mod bot_prefix;
 mod bot_ui;
 mod bots;
 mod calls;
@@ -55,7 +56,7 @@ use messages::{
 mod moderation_audit;
 mod moderation_history;
 mod modules;
-use modules::{module_kv, module_permissions};
+use modules::{module_kv, module_permissions, module_stats};
 mod nicknames;
 mod notification_schedule;
 mod notifications;
@@ -76,12 +77,15 @@ mod removals;
 mod reports;
 mod roles;
 use roles::{role_hierarchy, role_reorder, role_update};
+mod login_throttle;
 mod safety;
 mod saved_messages;
 mod sessions;
 mod sign_in_alert;
 mod space;
 mod space_landing;
+mod space_link_previews;
+mod space_welcome;
 mod storage;
 mod thread_listing;
 mod threads;
@@ -106,7 +110,7 @@ pub use bootstrap::Bootstrap;
 pub use bot_commands::{
     BotCommand, BotCommandRegistration, MAX_BOT_COMMAND_DESCRIPTION_LEN, MAX_BOT_COMMAND_NAME_LEN,
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
-    SetBotCommandsError, VisibleBotCommand,
+    SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
@@ -138,6 +142,7 @@ pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use interactions::{Interaction, InteractionKind};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
+pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
@@ -152,6 +157,7 @@ pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
+pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits, ModuleSchedule,
@@ -184,6 +190,7 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
+pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{
@@ -397,6 +404,9 @@ pub struct Store {
     /// that outlived the process. See that method's own doc for why a fresh,
     /// unseeded clock is the exact gap the seeding step closes.
     canvas_op_clock: Arc<canvas_op_clock::CanvasOpClock>,
+    /// Seals the secrets read back later (two-factor). A bare [`Store::new`] holds a throwaway
+    /// key, so a process that should keep them must call [`Store::with_data_key`].
+    data_key: Arc<crate::data_key::DataKey>,
 }
 
 impl Store {
@@ -404,7 +414,14 @@ impl Store {
         Self {
             pool,
             canvas_op_clock: Arc::default(),
+            data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
         }
+    }
+
+    /// The same store sealing secrets with `key`.
+    pub fn with_data_key(mut self, key: crate::data_key::DataKey) -> Self {
+        self.data_key = Arc::new(key);
+        self
     }
 
     /// Confirms the database answers a trivial query. Backs the liveness probe.

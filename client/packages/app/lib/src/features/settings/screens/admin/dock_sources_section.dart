@@ -51,11 +51,13 @@ class DockCommunitySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = section.source.repo;
+    final local = section.source.local;
     final shown = section.entries.where(_matches).toList(growable: false);
     return SettingsSectionCard(
-      title: 'Community source: $repo',
-      description:
-          'Not the official registry, so review what each module can do.',
+      title: local ? 'Local source: dev directory' : 'Community source: $repo',
+      description: local
+          ? 'Not verified, and built on this server by whoever runs it.'
+          : 'Not the official registry, so review what each module can do.',
       children: [
         if (section.failed)
           SettingsCardBlock(
@@ -74,17 +76,18 @@ class DockCommunitySection extends StatelessWidget {
               installed: _installedHere(entry),
               source: section.source.id,
             ),
-        SettingsActionRow(
-          message: 'Modules already installed from it stay installed.',
-          action: AppButton(
-            label: 'Remove this source',
-            icon: AppIcons.delete,
-            variant: AppButtonVariant.danger,
-            size: AppButtonSize.sm,
-            semanticLabel: 'Remove source $repo',
-            onPressed: onRemove,
+        if (!local)
+          SettingsActionRow(
+            message: 'Modules already installed from it stay installed.',
+            action: AppButton(
+              label: 'Remove this source',
+              icon: AppIcons.delete,
+              variant: AppButtonVariant.danger,
+              size: AppButtonSize.sm,
+              semanticLabel: 'Remove source $repo',
+              onPressed: onRemove,
+            ),
           ),
-        ),
       ],
     );
   }

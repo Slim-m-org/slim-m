@@ -17,6 +17,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/downloads/transfers_banner.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_video_player.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
@@ -38,6 +39,7 @@ Future<void> _pump(WidgetTester tester, Uint8List bytes) async {
         attachmentBytesProvider(
           _attachment.id,
         ).overrideWith((ref) async => bytes),
+        attachmentPreviewBytesProvider.overrideWith((ref, key) async => bytes),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),

@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_gallery.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
@@ -56,6 +57,9 @@ Future<void> _pump(
           attachmentBytesProvider(
             a.id,
           ).overrideWith((ref) async => Uint8List.fromList(_png)),
+        attachmentPreviewBytesProvider.overrideWith(
+          (ref, key) async => Uint8List.fromList(_png),
+        ),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),

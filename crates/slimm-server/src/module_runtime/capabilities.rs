@@ -17,6 +17,7 @@
 //! or authorized request.
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 use serde_json::json;
@@ -126,6 +127,12 @@ impl CapabilitySurface {
     /// unapproved capability, a malformed request, or a capability the host does
     /// not implement all return a clean `{ok:false,error}`.
     pub fn dispatch(&mut self, request: &[u8]) -> Vec<u8> {
+        self.dispatch_before(request, None)
+    }
+
+    /// As [`dispatch`](Self::dispatch), with the run's `deadline` so a slow
+    /// capability gives up while the module can still answer.
+    pub fn dispatch_before(&mut self, request: &[u8], deadline: Option<Instant>) -> Vec<u8> {
         let CapabilitySurface::Enabled {
             approved,
             module_id,
@@ -160,7 +167,15 @@ impl CapabilitySurface {
             },
             "net.fetch" => match fetcher {
                 Some(fetcher) => {
-                    net::handle(fetcher.as_ref(), network_hosts, fetches_remaining, request)
+                    let remaining = deadline.map_or(Duration::MAX, |d| {
+                        d.saturating_duration_since(Instant::now())
+                    });
+                    net::handle(
+                        fetcher.as_ref(),
+                        network_hosts,
+                        fetches_remaining,
+                        (request, remaining),
+                    )
                 }
                 None => refusal("net.fetch is not available to this run"),
             },

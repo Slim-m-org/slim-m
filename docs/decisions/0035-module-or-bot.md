@@ -103,3 +103,40 @@ Two are worth a card each:
 
 - Which capabilities a module may eventually hold. That stays with 0023, one review each.
 - The wire between a bot and a module for a split case. The first one built (the watch party) settles it, and it gets its own record then.
+
+## Amended 2026-10-18: modules can fetch and run on a timer
+
+The checklist above was written when "a module has no network" and "a module runs only when a member acts" were both true.
+Neither is any longer: `net.fetch` and `schedule` shipped on 2026-10-14 ([0023](0023-mediated-host-capabilities.md)), and a module can read the time (`now_ms`).
+Questions 1 and 2 therefore sent some secret-free poll-and-post jobs to a bot for a reason that has gone.
+This section replaces those two questions and leaves the rest of the record as it was written.
+
+**The revised first two questions, in order.**
+
+1. Does it need a secret, a raw socket (UDP, a game-server query, a database), a connection that stays open, an inbound listener, or a voice call? It is a bot. A module's only way out is one HTTP request to a site named in its manifest and approved by an admin, and it holds nothing a request could not carry.
+2. Does it react to events with nobody present (a message, a join, a reaction), keep per-person state or direct messages, post in more than one channel, or need an interval under five minutes? It is a bot. A module's timer is one fixed channel the admin picks, a floor of five minutes, no event input, and a small shared `kv.store`.
+
+A job that clears both is a module when it only polls a fixed set of public sites on an interval and posts what it finds to one channel.
+Questions 3 to 5 are unchanged.
+
+**What stays true.**
+A module is still not somebody a member can mention or moderate, and a module that needs a long-lived secret is still a bot.
+Reaching a LAN service stays possible for a module only through the admin's second approval, which reaches private ranges and never loopback, the server itself or its container network; a job that needs more than one request to a device at home is usually a bot.
+
+**The current poll-and-post bots.**
+Checked on 2026-10-18 against `slim-bots/bots`. No bot is retired by this record: a module version is built, left to soak beside the bot, and only then does the bot go.
+
+| Bot | Verdict | Why |
+| --- | --- | --- |
+| github-releases | Module candidate | Polls one public API on an interval and posts to one channel, no commands. The token it can take is optional and only raises a rate limit. Port first, because it is the cleanest fit. |
+| deals | Stay a bot, for now | Needs no key and fetches public pages, but `!pricewatch` keeps per-member watches and pings members by mention, and `!deals setup` picks the channel from chat. Only the free-games half could be a module, and splitting it is not worth the two parts. |
+| feeds | Stay a bot | Feeds are chosen from chat, so the hosts are not known when an admin approves the module; a module can only reach hosts its manifest named. |
+| uptime-relay | Stay a bot | An inbound webhook listener with a shared secret. A module cannot listen. |
+| game-status | Stay a bot | Asks game servers over UDP and raw TCP, which `net.fetch` cannot do. |
+| reminders | Stay a bot | Per-member state, per-member time zones, minute-level times and replies to the person who asked. |
+| minecraft, pelican, jellyfin, sonarr, radarr, seerr, arrkit | Stay a bot | A credential or a LAN service with a connection that lasts (checklist 1). |
+
+**Reference modules.**
+`slim-addons` ships `reminder` (the clock and `kv.store`) and `weather` (`net.fetch`), so an author has a copyable example of each new power.
+They are examples of the capabilities, not a claim that those jobs belong in a module rather than a bot.
+

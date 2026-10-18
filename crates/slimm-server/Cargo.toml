@@ -37,11 +37,13 @@ totp-rs.workspace = true
 futures-util.workspace = true
 tokio-util.workspace = true
 crypto_box.workspace = true
+crypto_secretbox.workspace = true
 reqwest.workspace = true
 url.workspace = true
 ed25519-dalek.workspace = true
 wasmi.workspace = true
 jiff.workspace = true
+image.workspace = true
 # `util` for ServiceExt::oneshot (http/capability.rs), `limit` for the concurrency bound; named explicitly, not via feature unification.
 tower = { version = "0.5", features = ["util", "limit"] }
 tikv-jemallocator = "0.7.0"

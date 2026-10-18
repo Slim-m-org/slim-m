@@ -22,6 +22,46 @@ Widget _wrap(Widget child) {
 
 void main() {
   group('AppInput', () {
+    testWidgets('an obscured field reveals and hides on the eye toggle', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(const AppInput(obscureText: true)));
+      bool obscured() =>
+          tester.widget<EditableText>(find.byType(EditableText)).obscureText;
+
+      expect(obscured(), isTrue);
+      await tester.tap(find.bySemanticsLabel('Show password'));
+      await tester.pump();
+      expect(obscured(), isFalse);
+      await tester.tap(find.bySemanticsLabel('Hide password'));
+      await tester.pump();
+      expect(obscured(), isTrue);
+    });
+
+    testWidgets('an obscured field keeps its label on the text field node', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(const AppInput(obscureText: true, semanticLabel: 'Password')),
+      );
+      expect(
+        find.bySemanticsLabel('Password'),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Password')),
+        isSemantics(isTextField: true),
+      );
+      handle.dispose();
+    });
+
+    testWidgets('a plain field has no reveal toggle', (tester) async {
+      await tester.pumpWidget(_wrap(const AppInput()));
+
+      expect(find.bySemanticsLabel('Show password'), findsNothing);
+    });
+
     testWidgets('shows its placeholder', (tester) async {
       await tester
           .pumpWidget(_wrap(const AppInput(placeholder: 'Search messages')));

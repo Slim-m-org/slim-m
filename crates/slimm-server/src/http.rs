@@ -25,6 +25,7 @@ mod analytics;
 mod apps;
 mod attachment_ids;
 mod attachment_limit;
+mod attachment_preview;
 mod attachment_range;
 mod attachment_uploads;
 mod attachments;
@@ -60,10 +61,12 @@ pub mod gifs;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interactions;
+mod invite_page;
 mod invites;
 mod join_gate;
 pub mod link_preview;
 pub mod linked_accounts;
+mod member_permissions;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
@@ -71,6 +74,7 @@ use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
     messages_bulk, messages_bulk_window,
 };
+mod direct_route;
 mod metrics;
 mod module_caller;
 mod module_commands;
@@ -107,8 +111,10 @@ mod sign_in_alert;
 mod space;
 mod space_banner;
 mod space_icon;
+mod space_link_previews;
 mod still_picture;
 mod storage;
+mod surface_state;
 mod sync;
 mod sync_ops;
 mod threads;
@@ -124,6 +130,7 @@ use voice::{voice_calls, voice_ring, voice_rooms, voice_webhook};
 mod watch_session;
 mod webhooks;
 mod webhooks_admin;
+mod welcome;
 mod ws;
 
 /// The wire-protocol envelope version a client negotiates on connect. Bumped
@@ -227,10 +234,14 @@ pub fn router(state: AppState) -> Router {
         .merge(channels::routes())
         .merge(channel_order::routes())
         .merge(channel_permissions::routes())
+        .merge(direct_route::routes())
         .merge(dock::routes())
         .merge(emoji::routes())
         .merge(invites::routes())
+        .merge(invite_page::routes())
+        .merge(space_link_previews::routes())
         .merge(members::routes())
+        .merge(member_permissions::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())
         .merge(messages::routes())

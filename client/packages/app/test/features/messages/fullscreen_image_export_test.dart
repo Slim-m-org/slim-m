@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_app/src/features/messages/widgets/image_export.dart';
@@ -87,7 +88,11 @@ Future<ProviderContainer> _open(
   final container = ProviderContainer(
     overrides: [
       imageExporterProvider.overrideWithValue(exporter),
+      attachmentBytesProvider('a1').overrideWith((ref) async => _png),
       attachmentBytesProvider('a2').overrideWith((ref) async => _secondBytes),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _secondBytes,
+      ),
     ],
   );
   addTearDown(container.dispose);

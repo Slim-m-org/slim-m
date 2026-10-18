@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.name FROM bot_commands c\n         JOIN bot_command_registrations r ON r.bot_user_id = c.bot_user_id\n         WHERE c.bot_user_id = ? AND r.prefix = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "285d3ea536bbbe8ca10463a7efd728a85d679b2060882c4333aaf33fe0785602"
+}

@@ -179,10 +179,13 @@ impl Store {
             return Err(ChallengeError::Locked { until });
         }
 
+        let secret = self
+            .data_key
+            .open(&pending.user_id.to_string(), &pending.secret)?;
         let proof = match spend_code(
             &mut tx,
             pending.user_id,
-            &pending.secret,
+            &secret,
             pending.last_step,
             code,
             now,
@@ -269,16 +272,8 @@ impl Store {
             return Err(TotpError::Locked { until });
         }
 
-        match spend_code(
-            &mut tx,
-            user_id,
-            &factor.secret,
-            factor.last_step,
-            code,
-            now,
-        )
-        .await?
-        {
+        let secret = self.data_key.open(&user_id.to_string(), &factor.secret)?;
+        match spend_code(&mut tx, user_id, &secret, factor.last_step, code, now).await? {
             Some(proof) => {
                 tx.commit().await?;
                 Ok(proof)

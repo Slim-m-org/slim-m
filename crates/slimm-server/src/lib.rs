@@ -12,6 +12,7 @@ pub mod code_runner;
 pub mod components;
 pub mod config;
 pub mod cors;
+pub mod data_key;
 pub mod db;
 pub mod emoji;
 pub mod ephemeral;
@@ -112,6 +113,15 @@ pub async fn run() -> anyhow::Result<()> {
     let pool = db::connect(&config).await?;
 
     let store = store::Store::new(pool);
+    let allow_new_key = std::env::var("SLIMM_DATA_KEY_ALLOW_NEW").is_ok_and(|v| v == "1");
+    let data_key = data_key::DataKey::load_guarded(
+        config.data_key.as_deref(),
+        &config.database_path,
+        store.has_sealed_totp_secrets().await?,
+        allow_new_key,
+    )?;
+    let store = store.with_data_key(data_key);
+    store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
     sweeps::spawn_token_sweep(store.clone());
@@ -133,6 +143,7 @@ pub async fn run() -> anyhow::Result<()> {
     let gifs = http::gifs::GifSearch::new(&config)?;
     let link_previews =
         http::link_preview::LinkPreviews::new(&config, store.link_preview_image_key().await?);
+    link_previews.set_override(store.link_previews_override().await?);
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
     let state = http::AppState {

@@ -22,6 +22,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/accounts/widgets/account_shortcuts.dart';
+import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -57,12 +58,14 @@ import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/transfers_banner.dart';
 import '../widgets/update_banner_host.dart';
+import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
+import '../features/messages/widgets/inbox_sheet.dart';
 import '../features/messages/screens/thread_screen.dart';
 
 part 'home_shell_pane_slots.dart';
@@ -89,7 +92,7 @@ class HomeShell extends ConsumerWidget {
     final facts = _shellFacts(ref, layout, width, selected);
     final scaffold = _scaffold(context, ref, layout, facts);
 
-    return WhatsNewGate(
+    final shell = WhatsNewGate(
       child: PushToTalkListener(
         child: CallbackShortcuts(
           bindings: _shortcutBindings(context, ref),
@@ -113,6 +116,7 @@ class HomeShell extends ConsumerWidget {
         ),
       ),
     );
+    return FirstRunGate(child: shell);
   }
 
   void _holdSessionProviders(WidgetRef ref) {
@@ -340,6 +344,7 @@ class HomeShell extends ConsumerWidget {
     final quickSwitch = activatorFor(AppAction.quickSwitch);
     final focusComposer = activatorFor(AppAction.focusComposer);
     final openSettings = activatorFor(AppAction.openSettings);
+    final openInbox = activatorFor(AppAction.openInbox);
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
@@ -355,11 +360,15 @@ class HomeShell extends ConsumerWidget {
             ref.read(composerFocusNodeProvider)?.requestFocus(),
       if (openSettings != null)
         openSettings: () => context.push(Routes.personalSettings),
+      if (openInbox != null) openInbox: () => showInboxSheet(context),
       if (nextChannel != null)
         nextChannel: () => unawaited(_cycleChannel(context, ref, 1)),
       if (previousChannel != null)
         previousChannel: () => unawaited(_cycleChannel(context, ref, -1)),
-      if (muteCall != null) muteCall: () => call()?.toggleMute(),
+      if (muteCall != null)
+        muteCall: () => ref
+            .read(pushToTalkGateProvider)
+            .toggleMute(HoldSource.inWindow, () => call()?.toggleMute()),
       if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),

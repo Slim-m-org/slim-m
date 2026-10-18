@@ -171,7 +171,7 @@ pub async fn run(c: &mut Contract) {
         "PATCH",
         "/space/settings",
         root,
-        json!({"join_policy": "invite"}),
+        json!({"join_policy": "invite", "welcome_message": "Welcome {user} to {space}"}),
     )
     .await;
     c.bare("getJoinGate", "GET", "/space/join-gate", root).await;
@@ -251,6 +251,26 @@ pub async fn run(c: &mut Contract) {
         "/space/screen-share",
         root,
         json!({"max_height": 2160}),
+    )
+    .await;
+
+    c.bare("getSpaceLinkPreviews", "GET", "/space/link-previews", root)
+        .await;
+    c.json(
+        "updateSpaceLinkPreviews",
+        "PATCH",
+        "/space/link-previews",
+        root,
+        json!({"enabled": false}),
+    )
+    .await;
+    // Back on, because later calls unfurl and embed images.
+    c.json(
+        "updateSpaceLinkPreviews",
+        "PATCH",
+        "/space/link-previews",
+        root,
+        json!({"enabled": true}),
     )
     .await;
 
@@ -398,6 +418,7 @@ async fn push_calls(c: &mut Contract, root: &str, channel: &str, bob_id: &str) {
     )
     .await;
     channel_notification_override_calls(c, root, channel).await;
+    c.get("getDirectRoute", "/direct-route", root).await;
     quiet_hours_calls(c, root).await;
     notification_schedule_calls::notification_schedule_calls(c, root, channel, bob_id).await;
     c.bare("deregisterPush", "DELETE", "/push", root).await;

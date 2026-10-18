@@ -32,6 +32,9 @@ enum AppAction {
   /// Open settings.
   openSettings,
 
+  /// Open the inbox of mentions and unread channels.
+  openInbox,
+
   /// Toggle this device's own microphone during a call.
   toggleMuteCall,
 
@@ -52,6 +55,7 @@ enum AppAction {
         AppAction.nextChannel => 'Next channel',
         AppAction.previousChannel => 'Previous channel',
         AppAction.openSettings => 'Open settings',
+        AppAction.openInbox => 'Open the inbox',
         AppAction.toggleMuteCall => 'Mute or unmute (in a call)',
         AppAction.toggleCameraCall => 'Turn camera on or off (in a call)',
         AppAction.toggleShareCall => 'Start or stop screen share (in a call)',
@@ -114,6 +118,7 @@ Map<ShortcutActivator, AppAction> defaultBindings({bool forWeb = kIsWeb}) => {
       _primary(LogicalKeyboardKey.keyK): AppAction.quickSwitch,
       _primary(LogicalKeyboardKey.keyL): AppAction.focusComposer,
       _primary(LogicalKeyboardKey.comma): AppAction.openSettings,
+      _primary(LogicalKeyboardKey.keyI, shift: true): AppAction.openInbox,
       const SingleActivator(LogicalKeyboardKey.escape): AppAction.escape,
       (forWeb ? _cycleChannelKeyWeb : _cycleChannelKey)():
           AppAction.nextChannel,

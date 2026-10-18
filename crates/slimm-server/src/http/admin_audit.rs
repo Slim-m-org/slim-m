@@ -71,6 +71,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "space.attachment_limit",
         None,
     ),
+    route(
+        Method::PATCH,
+        "/space/link-previews",
+        "space.link_previews",
+        None,
+    ),
     route(Method::POST, "/space/icon", "space.icon_set", None),
     route(Method::DELETE, "/space/icon", "space.icon_clear", None),
     route(Method::POST, "/space/banner", "space.banner_set", None),
@@ -209,6 +215,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         Method::POST,
         "/space/dock/modules/{id}/disable",
         "module.disable",
+        MODULE,
+    ),
+    route(
+        Method::DELETE,
+        "/space/dock/modules/{id}/storage",
+        "module.clear_storage",
         MODULE,
     ),
     route(

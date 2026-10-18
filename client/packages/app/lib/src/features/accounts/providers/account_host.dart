@@ -14,6 +14,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart'
     show sessionProvider, sessionRestoreNoteProvider;
+import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'account.dart';
@@ -343,6 +344,10 @@ class AccountHost extends ChangeNotifier {
         await beginFresh();
       }
     }
+    await clearAttachmentPreviews(
+      runtime.container.read(attachmentPreviewCacheProvider),
+      Uri.parse(origin),
+    );
     _retire(runtime);
   }
 

@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart';
 import '../providers/attachment_bytes.dart';
+import '../providers/attachment_preview_bytes.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
@@ -200,7 +201,15 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       tile ?? kInlineImageMax,
       scale: previewScale,
     );
-    final bytesAsync = ref.watch(attachmentBytesProvider(attachment.id));
+    // A gif animates, so it is always the original; a still draws its preview.
+    final bytesAsync = _isGif
+        ? ref.watch(attachmentBytesProvider(attachment.id))
+        : ref.watch(
+            attachmentPreviewBytesProvider((
+              id: attachment.id,
+              bucket: attachmentPreviewBucket(decodeWidth),
+            )),
+          );
     return bytesAsync.when(
       loading: () => _captioned(
         caption,
@@ -216,7 +225,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
           filename: attachment.filename,
           width: kInlineImageMax,
           tileEdge: tile,
-          onRetry: _refetch,
+          onRetry: () => _refetch(decodeWidth),
         ),
       ),
       data: (bytes) {
@@ -406,12 +415,20 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         width: kInlineImageMax,
         tileEdge: tile,
         message: 'Could not open',
-        onRetry: _refetch,
+        onRetry: () => _refetch(decodeWidth),
       ),
     );
   }
 
-  void _refetch() => ref.invalidate(attachmentBytesProvider(attachment.id));
+  void _refetch(int decodeWidth) {
+    ref.invalidate(attachmentBytesProvider(attachment.id));
+    ref.invalidate(
+      attachmentPreviewBytesProvider((
+        id: attachment.id,
+        bucket: attachmentPreviewBucket(decodeWidth),
+      )),
+    );
+  }
 
   /// The real preview's caption under a stand-in, so nothing shifts on arrival.
   Widget _captioned(String caption, Widget box) {

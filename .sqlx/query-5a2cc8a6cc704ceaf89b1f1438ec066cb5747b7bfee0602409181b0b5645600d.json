@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT link_previews AS \"v: bool\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "v: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5a2cc8a6cc704ceaf89b1f1438ec066cb5747b7bfee0602409181b0b5645600d"
+}

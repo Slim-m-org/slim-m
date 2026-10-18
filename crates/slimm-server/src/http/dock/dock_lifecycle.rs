@@ -13,6 +13,7 @@ use super::super::extract::{Authed, Json, enforce};
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
 use crate::ratelimit::Class;
+use crate::store::{DeleteAccountError, InstalledModule};
 
 pub(in crate::http) async fn uninstall(
     State(state): State<AppState>,
@@ -22,10 +23,35 @@ pub(in crate::http) async fn uninstall(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
-    if state.store.uninstall_module(&id).await? {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(ApiError::NotFound("module not installed"))
+    let module = state.store.installed_module(&id).await?;
+    if !state.store.uninstall_module(&id).await? {
+        return Err(ApiError::NotFound("module not installed"));
+    }
+    if let Some(module) = module {
+        retire_principal(&state, &module).await;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// A scheduled module's principal and its channel overwrite go with the module,
+/// so nothing ownerless stays in the member list or a channel's permissions.
+/// Its messages stay, still labelled as the module's.
+async fn retire_principal(state: &AppState, module: &InstalledModule) {
+    let Some(bot) = module.bot_user_id else {
+        return;
+    };
+    if let Some(channel) = module.schedule_channel_id
+        && let Err(err) = state.store.delete_member_overwrite(channel, bot).await
+    {
+        tracing::warn!(%err, module = %module.id, "could not remove a module's channel overwrite");
+    }
+    match state.store.delete_account(bot).await {
+        Ok(_) | Err(DeleteAccountError::UserNotFound) => {
+            super::super::members::announce_member_gone(state, bot).await;
+        }
+        Err(err) => {
+            tracing::warn!(?err, module = %module.id, "could not remove a module's principal");
+        }
     }
 }
 
@@ -88,7 +114,31 @@ pub(in crate::http) async fn list_installed(
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
     let modules = state.store.list_installed_modules().await?;
+    let mut stats = state.store.module_run_stats().await?;
+    let usage = state.store.module_storage_usage().await?;
     Ok(Json(
-        modules.into_iter().map(InstalledModuleDto::from).collect(),
+        modules
+            .into_iter()
+            .map(|m| {
+                let stats = stats.remove(&m.id).unwrap_or_default();
+                let usage = usage.get(&m.id).copied().unwrap_or_default();
+                InstalledModuleDto::from(m).with_activity(stats, usage)
+            })
+            .collect(),
     ))
+}
+
+/// Empties a module's `kv.store`; the module stays installed with its approvals.
+pub(in crate::http) async fn clear_storage(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    match state.store.clear_module_storage(&id).await? {
+        Some(_) => Ok(StatusCode::NO_CONTENT),
+        None => Err(ApiError::NotFound("module not installed")),
+    }
 }

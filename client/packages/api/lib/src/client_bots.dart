@@ -12,6 +12,7 @@ class Bot {
     this.tokenName,
     this.tokenLastUsedAt,
     this.roleId,
+    this.prefix,
   });
 
   factory Bot.fromJson(Map<String, dynamic> json) => Bot(
@@ -23,6 +24,7 @@ class Bot {
         tokenLastUsedAt: json['token_last_used_at'] as int?,
         roleId: json['role_id'] as String?,
         permissions: json['permissions'] as int,
+        prefix: json['prefix'] as String?,
       );
 
   final String userId;
@@ -43,6 +45,9 @@ class Bot {
 
   /// What the managed role currently grants.
   final int permissions;
+
+  /// The command prefix assigned to this bot; null until one is assigned.
+  final String? prefix;
 
   bool get isRevoked => tokenName == null;
 }
@@ -87,6 +92,7 @@ extension SlimmApiBots on SlimmApi {
     String username, {
     String? displayName,
     int permissions = 0,
+    String? prefix,
   }) async {
     final json = await _send(
       'POST',
@@ -95,9 +101,23 @@ extension SlimmApiBots on SlimmApi {
         'username': username,
         if (displayName != null) 'display_name': displayName,
         'permissions': permissions,
+        if (prefix != null) 'prefix': prefix,
       },
     );
     return NewBot.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// A command prefix no live bot holds, for the create form to offer.
+  Future<String> suggestedBotPrefix() async {
+    final json = await _send('GET', '/bots/suggested-prefix');
+    return (json as Map<String, dynamic>)['prefix'] as String;
+  }
+
+  /// A member's effective permission bits. Bot accounts only, so the app never
+  /// calls it; it is here for the wire contract.
+  Future<int> memberPermissions(String userId) async {
+    final json = await _send('GET', '/members/$userId/permissions');
+    return (json as Map<String, dynamic>)['permissions'] as int;
   }
 
   /// Revokes a bot's token and session, stopping it on its next request.

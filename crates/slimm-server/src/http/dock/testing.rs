@@ -18,6 +18,11 @@ impl Dock {
         Self::from_parts(parsed.clone(), repos, vec![parsed], true)
     }
 
+    /// [`Dock::for_test`] with the operator's local `dev` source on, reading `dev_dir`.
+    pub fn for_test_with_dev(base_url: &str, dev_dir: &std::path::Path) -> Self {
+        Self::for_test(base_url).with_dev_dir(dev_dir.to_str())
+    }
+
     /// An enabled Dock whose official source is `config`'s, read from under
     /// `root` (a local fake upstream) instead of the real host, so a test
     /// exercises the same slug fallback production does.

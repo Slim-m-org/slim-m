@@ -28,6 +28,14 @@ void main() {
         contains(','));
   });
 
+  test('the inbox has its own key, shared with no other action', () {
+    final keys = describeAppAction(AppAction.openInbox, forWeb: false);
+
+    expect(keys, containsAll(['Shift', 'I']));
+    final owners = resolveBindings(forWeb: false).values;
+    expect(owners.where((a) => a == AppAction.openInbox), hasLength(1));
+  });
+
   test('the web build describes its own browser-safe keys', () {
     // Ctrl+Tab never reaches the page, so the hint must not claim it does.
     final keys = describeAppAction(AppAction.nextChannel, forWeb: true);

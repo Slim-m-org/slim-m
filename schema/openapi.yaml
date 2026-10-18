@@ -1750,6 +1750,42 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /invite/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        description: The invite code.
+        schema:
+          type: string
+    get:
+      operationId: inviteLandingPage
+      tags: [invites]
+      summary: The page an https invite link opens.
+      description: >
+        Unauthenticated, rate limited like `/invites/{code}/check`, and an
+        HTML page for a browser. A usable code shows the space name, icon and
+        member count with buttons that open the app (`slimm://join`), the web
+        client at `/app` when this deployment serves it, and the downloads. An
+        unusable code answers one fixed 404 page whatever the reason, so it
+        cannot be used to mine codes.
+      security: []
+      responses:
+        "200":
+          description: A usable invite.
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Expired, spent, revoked, or never issued.
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /space/banner:
     get:
       operationId: getSpaceBanner
@@ -3074,6 +3110,42 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /members/{userId}/permissions:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The member's or bot's UUID.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMemberPermissions
+      tags: [bots]
+      summary: A member's effective deployment-wide permissions, for a bot.
+      description: >-
+        Bot-only, read-only: lets a permission-gated command resolve who may
+        run it without the bot holding MANAGE_ROLES. Returns the same bitmask
+        `Me.permissions` gives the caller about itself, with any timeout
+        already subtracted. It cannot change a role.
+      responses:
+        "200":
+          description: The member's permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPermissions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /members/{userId}/nickname:
     parameters:
       - name: userId
@@ -4097,7 +4169,26 @@ paths:
         `Content-Range`; an unsatisfiable range answers 416; a multi-range or
         malformed value is ignored and the whole body is returned. This is what
         lets a large download resume and a video or audio file seek.
+
+
+        `w` asks for a preview of a still JPEG, PNG or WebP instead of the
+        original: the longest side is rounded up to 320, 640 or 1280 pixels
+        (anything above 1280 gets 1280), the EXIF orientation is applied and
+        all metadata is dropped. The preview is a JPEG, or a lossless WebP for
+        a picture with transparency or flat graphics, and is generated once
+        and stored next to the original. An animated picture, any other type,
+        a picture too large to decode, one that is no smaller as a preview,
+        and one that fails to decode are answered with the original bytes
+        and the original's content type, so a caller must read the response
+        `Content-Type` rather than assume the preview's. A value that is not a
+        non-negative integer answers 400.
       parameters:
+        - name: w
+          in: query
+          required: false
+          description: Preview width in pixels; see the operation description.
+          schema:
+            type: integer
         - name: Range
           in: header
           required: false
@@ -5605,6 +5696,29 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /direct-route:
+    get:
+      operationId: getDirectRoute
+      tags: [system]
+      summary: Where a native client on the deployment's own network can reach it directly.
+      description: >
+        `host:port` addresses of the same TLS endpoint over the deployment's own
+        network, set with SLIMM_DIRECT_ADDRESSES and empty when unset. Needs a
+        session: the addresses are private network details, so they are not part
+        of the unauthenticated `GET /version`. A client dials one only when it is
+        a private or loopback IP literal on the server's own port, and verifies
+        the certificate against the public hostname.
+      responses:
+        "200":
+          description: The addresses, possibly none.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectRoute"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /push/quiet-hours:
     get:
       operationId: getQuietHours
@@ -7137,6 +7251,12 @@ paths:
         holding the requested `permissions` (default none). Refused for a
         caller that is itself a bot, so one compromised credential cannot
         mint another that survives revoking it.
+
+        The bot is assigned a command prefix: the `prefix` sent, else a free
+        one the server picks. Two bots may share a prefix, but the server
+        refuses a command registration that clashes with another live bot's
+        (see `setBotCommands`). A `prefix` follows the same shape rules as one
+        registered with commands.
       requestBody:
         required: true
         content:
@@ -7158,6 +7278,29 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /bots/suggested-prefix:
+    get:
+      operationId: getSuggestedBotPrefix
+      tags: [bots]
+      summary: A command prefix no live bot holds.
+      description: >-
+        Offered by the create-bot form so an admin accepts a free prefix
+        rather than guessing. Gated on MANAGE_SERVER. See
+        docs/decisions/0069-bot-prefix-assignment.md.
+      responses:
+        "200":
+          description: A free prefix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestedBotPrefix"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7224,6 +7367,13 @@ paths:
         within the set; a description is 1 to 100 characters; a `usage` hint
         is at most 80 characters; a `permission` is exactly one bit from
         `Permissions`, the same bitmask `getChannelPermissions` returns.
+
+        The prefix must be the one assigned to the bot (`Me.bot_prefix`); a
+        bot with none adopts the prefix it registers. Answers 409 when the
+        prefix is not the assigned one. A command name the bot already held
+        is always kept. A newly added name another live bot already answers
+        to under the same prefix is left out, and the call still succeeds,
+        listing the left-out names in the `x-slimm-dropped-commands` header.
       requestBody:
         required: true
         content:
@@ -7239,6 +7389,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8471,6 +8623,57 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/link-previews:
+    get:
+      operationId: getSpaceLinkPreviews
+      tags: [space]
+      summary: Read whether this space unfurls pasted links.
+      description: >
+        Gated on MANAGE_SERVER. The operator's `SLIMM_LINK_PREVIEWS` is the
+        ceiling: an admin can turn previews off, and back on only where the
+        operator allows them. `/version`'s `link_previews_enabled` reports the
+        effective value to every client.
+      responses:
+        "200":
+          description: The current setting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceLinkPreviews"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      operationId: updateSpaceLinkPreviews
+      tags: [space]
+      summary: Turn link previews on or off for the whole space.
+      description: >
+        Overrides the operator's default. Off, the unfurl route answers as if
+        previews were not configured; links already posted keep their text.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceLinkPreviews"
+      responses:
+        "200":
+          description: The setting after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceLinkPreviews"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules:
     get:
       operationId: listDockModules
@@ -8600,7 +8803,9 @@ paths:
       summary: Uninstall a module. Requires MANAGE_SERVER.
       description: >
         Removes the install, its registered permissions, and every role
-        grant of them - nothing dangles.
+        grant of them - nothing dangles. A scheduled module's own principal
+        is removed too, with its overwrite in the channel it posted to; its
+        earlier messages stay, still marked as the module's.
       responses:
         "204":
           description: The module was uninstalled.
@@ -8664,6 +8869,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstalledDockModule"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/storage:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      operationId: clearDockModuleStorage
+      tags: [space]
+      summary: Empty an installed module's stored data. Requires MANAGE_SERVER.
+      description: >
+        Deletes every kv.store entry the module holds. The module stays
+        installed with its approvals and permissions; only what it remembered
+        is gone. The usage a client shows comes from the `storage` field of
+        `GET /space/dock/installed`.
+      responses:
+        "204":
+          description: The module's stored data was cleared.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -9305,7 +9537,8 @@ components:
       required: false
       description: >
         A module source's id from listDockSources; omitted, the official
-        source.
+        source. `dev` is the operator's local directory and exists only when
+        SLIMM_DEV_MODULE_DIR is set; otherwise it answers 404.
       schema:
         type: string
 
@@ -9465,6 +9698,9 @@ components:
         space_name:
           type: string
           description: This deployment's own name, which an admin can change. Absent on older servers.
+        space_description:
+          type: string
+          description: The Space's description, as the invite landing card shows it. Absent when none is set.
         version:
           type: string
           description: The server's release version.
@@ -9563,16 +9799,6 @@ components:
             The oldest client version this deployment serves, as `X.Y.Z`.
             Absent means no floor, the default. Below it a client stops and
             offers to update. Set with SLIMM_MIN_CLIENT_VERSION.
-        direct_addresses:
-          type: array
-          items:
-            type: string
-          description: >
-            `host:port` addresses where a native client on the deployment's
-            own network can reach the same TLS endpoint directly, skipping a
-            proxy. The client verifies the certificate against the public
-            hostname and falls back when an address fails. Absent unless set
-            with SLIMM_DIRECT_ADDRESSES.
         capabilities:
           type: array
           items:
@@ -10057,6 +10283,11 @@ components:
           description: >
             The caller's own stored presence choice, as `SetVisibilityRequest`
             takes it. Self-view only: never on `UserProfile` or any frame.
+        bot_prefix:
+          type: [string, "null"]
+          description: >-
+            For a bot, the command prefix an admin assigned it; absent for a
+            person and for a bot with none.
 
     UpdateMeRequest:
       type: object
@@ -10264,6 +10495,16 @@ components:
           description: >
             What "Space default" means for members' noise suppression; see
             the same field on `/version`.
+        welcome_enabled:
+          type: boolean
+          description: Whether a welcome message is posted when someone joins. Off by default.
+        welcome_channel_id:
+          type: [string, "null"]
+          format: uuid
+          description: The text channel the welcome is posted in, or null for none.
+        welcome_message:
+          type: string
+          description: The welcome template; `{user}` and `{space}` are filled in. Empty when none.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -10325,6 +10566,20 @@ components:
           description: At most 280 characters, no control or invisible characters.
         strong_noise_suppression:
           type: boolean
+        welcome_enabled:
+          type: boolean
+          description: >
+            Turning it on needs a text channel and a message, already stored
+            or sent in the same request.
+        welcome_channel_id:
+          type: string
+          description: A text channel's id; an empty string clears it.
+        welcome_message:
+          type: string
+          description: >
+            At most 500 characters, line breaks allowed, no other control or
+            invisible character. `{user}` becomes an @mention of the new
+            member and `{space}` the Space's name.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.
@@ -10642,6 +10897,13 @@ components:
             Client-advertised: a client reads this and caps its own capture
             parameters, rather than the server inspecting published tracks.
             Settable range is 360 to 2160; the default is 2160.
+    SpaceLinkPreviews:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Whether this space unfurls pasted links into preview cards.
     DockIndexEntry:
       type: object
       required: [id, name, version, summary, shadowed]
@@ -10672,6 +10934,11 @@ components:
           description: The GitHub `owner/repo` slug.
         official:
           type: boolean
+        local:
+          type: boolean
+          description: >
+            True for the operator's local `dev` source (SLIMM_DEV_MODULE_DIR),
+            a directory rather than a repository. Never verified.
         created_at:
           type: integer
           format: int64
@@ -10835,6 +11102,12 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        review_digest:
+          type: string
+          description: >
+            A digest of the artifact, capabilities, hosts, schedules,
+            permission keys and limits shown here. Send it back as
+            `reviewed_digest` on install so consent is for this manifest.
     DockChangelogEntry:
       type: object
       required: [version, changes]
@@ -10874,8 +11147,9 @@ components:
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
-            longer declares (and net.fetch when its hosts changed), and never
-            adds one.
+            longer declares, message.post, net.fetch and schedule when the
+            artifact changed, net.fetch when its hosts changed and schedule
+            when its commands or intervals did, and never adds one.
         approve_local_network:
           type: boolean
           description: >
@@ -10883,7 +11157,15 @@ components:
             addresses (private, loopback and link-local ranges). Only valid
             when net.fetch is approved and the manifest's network.local is
             true; true otherwise is refused with 400. Omitted keeps an earlier
-            approval for the same hosts.
+            approval for the same hosts. It reaches private networks only
+            (10/8, 172.16/12, 192.168/16, fc00::/7), never loopback,
+            link-local, the cloud metadata address or the server itself.
+        reviewed_digest:
+          type: string
+          description: >
+            The `review_digest` of the manifest the admin was shown. The
+            install is refused with 409 if the manifest has changed since.
+            Omitted skips the check.
     InstalledDockModule:
       type: object
       required:
@@ -10960,6 +11242,92 @@ components:
           type: boolean
         installed_at:
           type: integer
+        run_stats:
+          type: array
+          description: >
+            How each command has run lately. Only `GET /space/dock/installed`
+            fills it.
+          items:
+            $ref: "#/components/schemas/DockRunStat"
+        storage:
+          $ref: "#/components/schemas/DockStorage"
+    DockRunStat:
+      type: object
+      required:
+        [command, run_count, failure_count, last_run_at, last_duration_ms, max_duration_ms]
+      properties:
+        command:
+          type: string
+        run_count:
+          type: integer
+          format: int64
+        failure_count:
+          type: integer
+          format: int64
+          description: >
+            Runs the host could not complete (a limit, a trap, a malformed
+            answer), plus scheduled runs whose command answered with an error.
+        last_run_at:
+          type: integer
+          format: int64
+        last_ok_at:
+          type: integer
+          format: int64
+        failing_since:
+          type: integer
+          format: int64
+          description: When the current run of failures began; absent while the last run succeeded.
+        last_error:
+          type: string
+        last_error_at:
+          type: integer
+          format: int64
+        last_duration_ms:
+          type: integer
+          format: int64
+        max_duration_ms:
+          type: integer
+          format: int64
+    DockStorage:
+      type: object
+      required: [entries, bytes, max_entries, max_bytes]
+      description: What a module's kv.store holds against its allowance.
+      properties:
+        entries:
+          type: integer
+          format: int64
+        bytes:
+          type: integer
+          format: int64
+          description: Keys plus values, in bytes.
+        max_entries:
+          type: integer
+          format: int64
+        max_bytes:
+          type: integer
+          format: int64
+    ModuleInfo:
+      type: object
+      required: [name, verified, capabilities, network_hosts]
+      description: Which module provides a command and what it may do.
+      properties:
+        name:
+          type: string
+        verified:
+          type: boolean
+          description: True when the module came from the official registry.
+        capabilities:
+          type: array
+          description: >
+            The host capabilities an admin approved (kv.store, message.post,
+            net.fetch, schedule).
+          items:
+            type: string
+        network_hosts:
+          type: array
+          description: The sites net.fetch may reach; empty without it.
+          items:
+            type: string
     RunModuleCommandRequest:
       type: object
       required: [input]
@@ -10974,6 +11342,17 @@ components:
           description: >
             The channel the command was typed in. Only a run that names one
             may use the message.post capability, and it may post only there.
+        post_output:
+          type: boolean
+          description: >
+            Post a successful run's output into `channel_id` as the caller,
+            labelled as the module's (the same footer and origin record as
+            message.post), instead of returning it. The response then carries
+            `message_id` and no `output`. Needs `channel_id`; the caller needs
+            view and send permission there. A failed run posts nothing.
+        reply_to_id:
+          type: string
+          description: The message a posted output replies to; only with `post_output`.
     RunCodeBlockRequest:
       type: object
       required: [module_id, command, input]
@@ -10993,6 +11372,9 @@ components:
       properties:
         ok:
           type: boolean
+        message_id:
+          type: string
+          description: The message the output was posted as, when `post_output` was asked for.
         output:
           type: string
           nullable: true
@@ -11044,6 +11426,8 @@ components:
           type: string
           nullable: true
           description: A short human summary of what the command does.
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
     App:
       type: object
       required: [module_id, command, name]
@@ -11062,6 +11446,8 @@ components:
           type: string
           nullable: true
           description: A short human summary of what the app is.
+        module:
+          $ref: "#/components/schemas/ModuleInfo"
     CallRecord:
       type: object
       required: [outcome]
@@ -11620,10 +12006,38 @@ components:
           description: >-
             What the managed role currently grants. Change it with `PATCH
             /bots/{botId}/permissions`, or by editing the role directly.
+        prefix:
+          type: [string, "null"]
+          description: >-
+            The prefix assigned to the bot. Absent for a bot that never
+            registered one.
+    SuggestedBotPrefix:
+      type: object
+      required: [prefix]
+      properties:
+        prefix:
+          type: string
+    MemberPermissions:
+      type: object
+      required: [user_id, permissions]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          format: int64
+          description: The deployment-wide permission bitmask, timeout subtracted.
     CreateBotRequest:
       type: object
       required: [username]
       properties:
+        prefix:
+          type: [string, "null"]
+          description: >-
+            The command prefix to assign, 1 to 16 characters with no
+            whitespace and not `/`, `@` or `:`. `!` is assigned when
+            absent; bots may share a prefix while their commands differ.
         username:
           type: string
           description: >-
@@ -14315,6 +14729,17 @@ components:
             May be less than `start_minute` for a window that crosses
             midnight (23:00-08:00 is the ordinary shape); must not equal
             `start_minute`.
+
+    DirectRoute:
+      type: object
+      required: [addresses]
+      properties:
+        addresses:
+          type: array
+          items:
+            type: string
+          description: >-
+            `host:port` entries; empty when the operator has not set any.
 
     QuietHoursResponse:
       type: object

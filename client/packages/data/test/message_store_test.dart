@@ -485,4 +485,13 @@ void main() {
           'dropped for being over the limit',
     );
   });
+
+  test('messageAtSeq finds a delivered message by its seq, or nothing',
+      () async {
+    await store.applyMessage(_message(id: 'm1', seq: 4, content: 'four'));
+
+    expect((await store.messageAtSeq('chan-1', 4))?.id, 'm1');
+    expect(await store.messageAtSeq('chan-1', 5), isNull);
+    expect(await store.messageAtSeq('chan-2', 4), isNull);
+  });
 }
