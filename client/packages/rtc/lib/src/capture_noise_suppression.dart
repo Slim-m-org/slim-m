@@ -21,7 +21,11 @@ class CaptureNoiseSuppression {
     required this.canRestart,
     required this.onNativeStrongChanged,
     this.debounce = kCaptureRestartDebounce,
+    this.log,
   });
+
+  /// Where Strong's decisions are written, so a copied debug log explains a noisy mic.
+  final void Function(String line)? log;
 
   /// Only hosts with the native input gate can run rnnoise at all.
   final bool supported;
@@ -39,6 +43,7 @@ class CaptureNoiseSuppression {
 
   final _tracker = StrongInactivityTracker();
   bool _strong = false;
+  bool _reportedActive = false;
   bool _fallback = false;
   bool _captureOff = false;
   bool _disposed = false;
@@ -59,6 +64,7 @@ class CaptureNoiseSuppression {
   void setStrong(bool strong) {
     if (strong == _strong) return;
     _strong = strong;
+    _log('Strong noise suppression ${strong ? 'on' : 'off'}');
     _resetFallback();
     onNativeStrongChanged();
     _schedule();
@@ -73,6 +79,7 @@ class CaptureNoiseSuppression {
   void fallBack() {
     if (_fallback) return;
     _fallback = true;
+    _log('Strong could not reopen the mic; using standard suppression');
     _tracker.reset();
   }
 
@@ -101,8 +108,15 @@ class CaptureNoiseSuppression {
       _tracker.reset();
       return;
     }
+    if (strongActive && !_reportedActive) {
+      _reportedActive = true;
+      _log('Strong is running on this mic');
+    }
     if (_tracker.add(strongActive: strongActive) && !_fallback) {
       _fallback = true;
+      _log(
+        'Strong is not running on this mic; using standard suppression',
+      );
       _schedule();
     }
   }
@@ -117,8 +131,11 @@ class CaptureNoiseSuppression {
 
   void _resetFallback() {
     _fallback = false;
+    _reportedActive = false;
     _tracker.reset();
   }
+
+  void _log(String message) => log?.call('voice: $message');
 
   void _schedule() {
     if (_disposed || _inFlight) return;
@@ -147,8 +164,9 @@ class CaptureNoiseSuppression {
       if (_disposed || generation != _generation) return;
       _failures = 0;
       opened(webrtcNoiseSuppression: want);
-    } on Object {
+    } on Object catch (error) {
       if (generation == _generation) {
+        _log('mic restart for noise suppression failed: $error');
         _failures++;
         _rearm();
       }

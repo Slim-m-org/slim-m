@@ -34,8 +34,8 @@ class InputGateReading {
   /// Whether the level crossed the threshold within the hold time.
   final bool voice;
 
-  /// Whether rnnoise processed the last frame; false when it is off or the
-  /// capture is not 48 kHz.
+  /// Whether rnnoise processed the last frame; false when it is off, or on a
+  /// plugin too old to resample a capture that is not 48 kHz.
   final bool strongActive;
 }
 

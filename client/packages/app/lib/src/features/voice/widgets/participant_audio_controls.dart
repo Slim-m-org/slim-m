@@ -250,10 +250,14 @@ class ParticipantScreenAudioSection extends StatefulWidget {
     super.key,
     required this.identity,
     required this.controller,
+    this.showLabel = true,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// Off where a title above already says this is the screen's sound.
+  final bool showLabel;
 
   @override
   State<ParticipantScreenAudioSection> createState() =>
@@ -273,6 +277,7 @@ class _ParticipantScreenAudioSectionState
           identity: widget.identity,
           controller: widget.controller,
           channel: LocalAudioChannel.screen,
+          showLabel: widget.showLabel,
         ),
         AppMenuItem(
           label: muted ? 'Unmute screen audio' : 'Mute screen audio',

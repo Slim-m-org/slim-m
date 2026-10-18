@@ -15,6 +15,7 @@ Opening takes a 5 ms fade, so the start of a word is not clipped by more than th
 Silence is cheap on the wire: with Opus DTX a closed gate measured about 8 to 112 bytes a second against about 2 KB a second open.
 
 It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter that rises instantly and falls 1.5 dB a frame.
+With Strong on, the gate also reads rnnoise's speech probability: it opens at once when speech is likely (above 0.6) and the level is over the threshold, otherwise only after the level stays 15 dB over the threshold for two frames, so a single keyboard click does not open it; the hold drops to 100 ms when speech is unlikely.
 The app reads both through `getInputGate` about every 50 ms during a call (`InputGateMonitor` in `slimm_rtc`).
 The local speaking ring follows that voice state directly; remote rings still come from the SFU.
 
@@ -57,8 +58,8 @@ It used about 0.05% of one core.
 
 libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and room noise through.
 "Strong" runs rnnoise 0.2 (xiph, BSD-3-Clause, vendored in the fork under `third_party/rnnoise`) first in the capture chain, so the gate and its meter see the cleaned signal.
-It works on 480-sample frames, which is exactly one 10 ms hook frame at 48 kHz; at any other capture rate it passes audio through and `getInputGate` reports `strongNoiseSuppression: false`.
-The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s (40 polls), the settings row shows "Strong is off for this mic. It needs a 48 kHz input.", and hides it after 10 active polls in a row.
+It works on 480-sample frames, one 10 ms frame at 48 kHz, so a capture at any other rate (8, 16, 32 or 44.1 kHz, as Bluetooth hands-free headsets deliver) is resampled to 48 kHz for it and back, which costs well under 3 ms of delay; mono and stereo are both handled.
+The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s (40 polls), the settings row shows "Strong isn't running on this mic.", and hides it after 10 active polls in a row. Since the plugin resamples, that now points at a plugin or device problem rather than the sample rate, and the debug log records it.
 While Strong is active the mic is opened with libwebrtc's own noise suppression off, because rnnoise alone measured better than the two in series (docs/research/mic-handling.md, P4).
 If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted or on push-to-talk.
 

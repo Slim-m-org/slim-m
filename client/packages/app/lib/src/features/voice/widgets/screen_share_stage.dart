@@ -47,10 +47,14 @@ class ScreenShareStage extends StatelessWidget {
     this.onFocus,
     this.focused = false,
     this.showCaption = true,
+    this.onStreamVolume,
   });
 
   /// Off where a caption under the tile already names the sharer, as in the share grid.
   final bool showCaption;
+
+  /// Opens this share's own volume, anchored to the given context; null when it carries no sound.
+  final void Function(BuildContext anchor)? onStreamVolume;
 
   /// Stops watching this share; null where the tile is not a choosable share.
   final VoidCallback? onStopWatching;
@@ -75,6 +79,9 @@ class ScreenShareStage extends StatelessWidget {
   /// The remote sharer's identity, which offers the pop-out button; null for
   /// the local share, which is never previewed back to the sharer.
   final String? popOutIdentity;
+
+  bool get _hasStageActions =>
+      onStopWatching != null || onFocus != null || onStreamVolume != null;
 
   @override
   Widget build(BuildContext context) {
@@ -121,13 +128,24 @@ class ScreenShareStage extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (icons && (onStopWatching != null || onFocus != null))
+              if (icons && _hasStageActions)
                 Positioned(
                   right: 4,
                   top: 4,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (onStreamVolume != null) ...[
+                        Builder(
+                          builder: (anchor) => ShareStageButton(
+                            icon: AppIcons.speaker,
+                            label: 'Stream volume',
+                            onTap: () => onStreamVolume!(anchor),
+                          ),
+                        ),
+                        if (onFocus != null || onStopWatching != null)
+                          const SizedBox(width: 4),
+                      ],
                       if (onFocus != null)
                         ShareStageButton(
                           icon: focused
@@ -172,14 +190,16 @@ class ScreenShareStage extends StatelessWidget {
         ),
       ),
     );
-    if (onStopWatching == null && onFocus == null) return stage;
+    if (!_hasStageActions) return stage;
+    final volume = onStreamVolume;
     return ContextMenuRegion(
-      itemsBuilder: (context, close) => shareStageMenuItems(
+      itemsBuilder: (_, close) => shareStageMenuItems(
         close,
         sharerName: sharerName,
         onStopWatching: onStopWatching,
         onFocus: onFocus,
         focused: focused,
+        onStreamVolume: volume == null ? null : () => volume(context),
       ),
       child: stage,
     );
