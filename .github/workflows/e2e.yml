@@ -36,6 +36,7 @@ on:
       - "scripts/e2e-stack.sh"
       - "scripts/lib/e2e_*.py"
       - "scripts/lib/test_e2e_*.py"
+      - "scripts/lib/make_*voice.py"
       - ".github/workflows/e2e.yml"
   schedule:
     - cron: "0 6 * * *"
