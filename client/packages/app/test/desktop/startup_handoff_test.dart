@@ -255,9 +255,11 @@ void main() {
     await reveal;
   });
 
-  testWidgets('a resize before the handoff has settled is not persisted; the '
-      'same resize after revealAfterHandoff completes is - regression test '
-      'for the client-v0.58.0 splash-geometry bug', (tester) async {
+  testWidgets('nothing is persisted while the splash is up; once the final '
+      'geometry is applied a real size is, and a splash-sized one never is - '
+      'regression test for the client-v0.58.0 splash-geometry bug', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final store = WindowGeometryStore(await SharedPreferences.getInstance());
     final port = FakeDesktopWindowPort();
@@ -276,21 +278,22 @@ void main() {
     expect(store.read(), isNull, reason: 'the splash is still up');
 
     await DesktopWindowShell.prepareHandoff(container);
-    port.bounds = const WindowRect(x: 100, y: 100, width: 1280, height: 720);
+    await tester.pump();
     port.emit(DesktopWindowEventKind.resize);
     await tester.pump(desktopGeometryDebounce);
-    expect(store.read(), isNull, reason: 'applied but not yet revealed');
+    expect(
+      store.read(),
+      isNull,
+      reason: 'a splash-sized window is never saved, even once enabled',
+    );
 
-    final reveal = DesktopWindowShell.revealAfterHandoff();
-    await tester.pump();
-    await tester.pump();
-    await reveal;
+    port.bounds = const WindowRect(x: 100, y: 100, width: 900, height: 650);
     port.emit(DesktopWindowEventKind.resize);
     await tester.pump(desktopGeometryDebounce);
 
     final saved = store.read();
-    expect(saved, isNotNull);
-    expect(saved!.windowedSize, const WindowSize(width: 1280, height: 720));
+    expect(saved, isNotNull, reason: 'persisted before the reveal settles');
+    expect(saved!.windowedSize, const WindowSize(width: 900, height: 650));
   });
 
   /// The owner's report, twice: a desktop window opening on the phone

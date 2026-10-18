@@ -294,6 +294,9 @@ class DesktopWindowShell {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {
       debugPrint('desktop: splash handoff geometry failed: $error');
+    } finally {
+      // Not after the reveal settles: on a host that never renders at the new size that wait times out.
+      _controller?.enableGeometryPersistence();
     }
   }
 
@@ -385,11 +388,7 @@ class DesktopWindowShell {
   /// completion, so the bound protects a log line, not a caller.
   static Future<void> revealAfterHandoff() async {
     if (currentDesktopPlatform() == null) return;
-    try {
-      await _reveal();
-    } finally {
-      _controller?.enableGeometryPersistence();
-    }
+    await _reveal();
   }
 
   static Future<void> _reveal() async {
