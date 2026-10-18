@@ -55,7 +55,7 @@ pub(crate) use call_record::record_finished_call;
 use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
 pub use live_state::RoomLiveState;
 pub use ring::{CallRingOutcome, CallRings, RING_TIMEOUT};
-pub use roster::RoomParticipant;
+pub use roster::{RoomParticipant, RosterCache};
 use token::{Claims, VideoGrant, http_url_for, unix_secs};
 pub use webhook::{WebhookError, WebhookEvent, channel_for_room, is_screen_share_source};
 
@@ -128,6 +128,7 @@ pub struct VoiceService {
     rings: CallRings,
     /// Ephemeral like its siblings above; see `voice::live_state`'s own doc.
     live_state: RoomLiveState,
+    roster_cache: roster::RosterCache,
 }
 
 struct Enabled {
@@ -173,6 +174,7 @@ impl VoiceService {
             heartbeats: CallHeartbeats::new(),
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
+            roster_cache: roster::RosterCache::default(),
         })
     }
 
@@ -183,6 +185,7 @@ impl VoiceService {
             heartbeats: CallHeartbeats::new(),
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
+            roster_cache: roster::RosterCache::default(),
         }
     }
 
@@ -200,6 +203,7 @@ impl VoiceService {
             heartbeats: CallHeartbeats::new(),
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
+            roster_cache: roster::RosterCache::default(),
         }
     }
 
@@ -376,6 +380,7 @@ impl VoiceService {
     ) -> Result<(), VoiceError> {
         // Ended on purpose, so a later sweep must not rediscover and re-call it.
         self.heartbeats.forget(user_id, channel_id);
+        self.roster_cache.invalidate(channel_id);
         let Some(enabled) = self.inner.as_ref() else {
             return Err(VoiceError::Unavailable);
         };

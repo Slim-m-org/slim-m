@@ -262,7 +262,7 @@ async fn roster(
         return Err(ApiError::Forbidden);
     }
 
-    let connected = match state.voice.list_participants(channel_id).await {
+    let connected = match state.voice.list_participants_shared(channel_id).await {
         Ok(list) => list,
         Err(VoiceError::Unavailable) => {
             return Err(ApiError::NotConfigured(
