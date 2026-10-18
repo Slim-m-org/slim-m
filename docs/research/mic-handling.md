@@ -425,3 +425,14 @@ Gain is the exception, because there is nothing to read it back from - flutter_w
 A resubscribe reuses the publication and its sid, so an id-keyed cache would report a hit and skip the reapplication that exists precisely to catch a track that came back at source volume.
 It does not reuse the object: `addSubscribedMediaTrack` builds a new `RemoteAudioTrack` around the new `MediaStreamTrack`, so a resubscribed track misses, which is the point.
 The entry is also only written when the enable that precedes it can be seen to have landed.
+
+## Update 2026-10-18: releasing a muted capture, and what a deafened listener receives
+
+Silence on the receive side is now two calls: the media track's `enabled` flag for an instant local result, and the publication's `disable()`, which sends `UpdateTrackSettings(disabled)` so the SFU stops forwarding (livekit_client 2.10.0, `remote.dart`).
+It keeps the subscription and needs no renegotiation, so the "drops the subscription" comments that said otherwise are gone.
+
+A mute keeps the capture for `kMicReleaseGrace`, then stops it and reopens it on the next unmute.
+Push to talk keeps it open, and a phone releases it the moment the app is backgrounded.
+
+Measured on Fedora with PipeWire, a bare livekit_client room with the gate and rnnoise on: libwebrtc's desktop engine already drops the PulseAudio source-output within 0.6 s of any mute, so on Linux the release changes nothing visible and costs the same ~25 ms to come back.
+The release matters where the track holds the device on its own: the web (the browser keeps the stream live while `enabled` is false) and the platforms where livekit_client starts the recording itself (iOS, macOS, Android), which is why `LiveKitMicPort.release` also asks the plugin to stop the recording there.
