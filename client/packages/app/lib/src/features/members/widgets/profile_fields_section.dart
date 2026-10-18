@@ -3,7 +3,7 @@
 /// (`SlimmApi.updateMe`), the same route the display name and status text
 /// already ride. Pronouns and about save on blur, the same convention
 /// `MemberProfileNoteField` uses; a colour swatch saves the moment it is
-/// tapped, since there is nothing to type.
+/// tapped, since there is nothing to type; the Custom swatch saves once the picker does.
 library;
 
 import 'dart:async';
@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/profile_draft.dart';
+import 'profile_colour.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/color_swatch_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -60,6 +61,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   /// text changes; a refusal used to vanish and leave the text silently unsaved.
   String? _pronounsError;
   String? _aboutError;
+  String? _colourError;
 
   void _seed(api.Me me) {
     if (_seeded) return;
@@ -100,12 +102,37 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     }
   }
 
-  Future<void> _setColor(int index) async {
+  /// A preset sends only the index, which clears any custom colour server-side.
+  Future<void> _setColor(int index) =>
+      _saveColour(() => ref.read(apiProvider).updateMe(profileColor: index));
+
+  /// The nearest preset rides along so older clients still draw something close.
+  Future<void> _setCustomColour(Color colour) => _saveColour(
+    () => ref
+        .read(apiProvider)
+        .updateMe(
+          profileColor: nearestColourIndex(colour, AppCanvasColors.cursors),
+          profileColorRgb: rgbOf(colour),
+        ),
+  );
+
+  Future<void> _pickCustomColour(api.Me me) async {
+    final colour = await showAppColourPicker(
+      context,
+      initial:
+          profileColourOf(index: me.profileColor, rgb: me.profileColorRgb) ??
+          AppCanvasColors.cursors.first,
+    );
+    if (colour != null) await _setCustomColour(colour);
+  }
+
+  Future<void> _saveColour(Future<Object?> Function() save) async {
+    setState(() => _colourError = null);
     try {
-      await ref.read(apiProvider).updateMe(profileColor: index);
+      await save();
       ref.invalidate(meProvider);
-    } on api.ApiException {
-      // Low-stakes; the swatch simply stays on the old colour.
+    } on api.ApiException catch (e) {
+      if (mounted) setState(() => _colourError = 'Not saved: ${e.message}');
     }
   }
 
@@ -141,12 +168,31 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     );
     final colourField = _Labelled(
       label: 'Profile colour',
-      child: ColorSwatchRow(
-        label: 'Profile colour',
-        colors: AppCanvasColors.cursors,
-        names: _colourNames,
-        selected: me?.profileColor,
-        onSelect: me == null ? null : _setColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ColorSwatchRow(
+            label: 'Profile colour',
+            colors: AppCanvasColors.cursors,
+            names: _colourNames,
+            selected: me?.profileColorRgb == null ? me?.profileColor : null,
+            onSelect: me == null ? null : _setColor,
+            custom: CustomSwatch(
+              label: 'Custom',
+              colour: me?.profileColorRgb == null
+                  ? null
+                  : profileColourOf(rgb: me!.profileColorRgb),
+              onTap: me == null ? null : () => _pickCustomColour(me),
+            ),
+          ),
+          if (_colourError != null) ...[
+            const SizedBox(height: AppSpacing.s8),
+            AppErrorState(
+              message: _colourError!,
+              onDismiss: () => setState(() => _colourError = null),
+            ),
+          ],
+        ],
       ),
     );
 

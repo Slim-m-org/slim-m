@@ -6,6 +6,24 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// The trailing "Custom" swatch: the chosen custom [colour] when there is one,
+/// otherwise a neutral add button. [onTap] opens whatever picks the colour.
+class CustomSwatch {
+  const CustomSwatch({
+    required this.label,
+    required this.onTap,
+    this.colour,
+    this.icon,
+  });
+
+  final String label;
+  final Color? colour;
+  final VoidCallback? onTap;
+
+  /// Drawn when [colour] is null; defaults to [AppIcons.add].
+  final IconData? icon;
+}
+
 class ColorSwatchRow extends StatelessWidget {
   const ColorSwatchRow({
     super.key,
@@ -14,6 +32,7 @@ class ColorSwatchRow extends StatelessWidget {
     required this.names,
     required this.selected,
     required this.onSelect,
+    this.custom,
   }) : assert(colors.length == names.length);
 
   /// What is being chosen, read before each swatch's name, e.g. "Role colour".
@@ -27,10 +46,14 @@ class ColorSwatchRow extends StatelessWidget {
   /// Null disables every swatch.
   final ValueChanged<int>? onSelect;
 
+  /// An extra swatch after the presets; selected whenever it holds a colour.
+  final CustomSwatch? custom;
+
   @override
   Widget build(BuildContext context) {
     final touch = AppTouchTargets.of(context);
     final onSelect = this.onSelect;
+    final custom = this.custom;
     return Wrap(
       spacing: touch ? 0 : 2,
       runSpacing: touch ? 0 : 2,
@@ -41,6 +64,14 @@ class ColorSwatchRow extends StatelessWidget {
             label: '$label: ${names[i]}',
             selected: selected == i,
             onTap: onSelect == null ? null : () => onSelect(i),
+          ),
+        if (custom != null)
+          _ColorSwatch(
+            color: custom.colour,
+            icon: custom.icon ?? AppIcons.add,
+            label: '$label: ${custom.label}',
+            selected: custom.colour != null,
+            onTap: custom.onTap,
           ),
       ],
     );
@@ -53,9 +84,12 @@ class _ColorSwatch extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.icon,
   });
 
-  final Color color;
+  /// Null draws the neutral [icon] swatch instead of a fill.
+  final Color? color;
+  final IconData? icon;
   final String label;
   final bool selected;
   final VoidCallback? onTap;
@@ -86,9 +120,21 @@ class _ColorSwatch extends StatelessWidget {
                 width: 2,
               ),
             ),
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
+            child: color == null
+                ? DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceSunken,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: tokens.borderStrong),
+                    ),
+                    child: Icon(icon, size: 16, color: tokens.textSecondary),
+                  )
+                : DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
           ),
         ),
       ),
