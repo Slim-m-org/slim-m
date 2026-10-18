@@ -10,7 +10,6 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
@@ -20,22 +19,14 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_convergence_model.dart';
 import 'canvas_convergence_wire.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// A fake `SlimmApi` whose `/canvas/ops` route always answers the full tail
 /// of [log] past `after_seq` in one page - the simplification
 /// `canvas_sync_test.dart`'s own fakes already make, since paging itself is
 /// covered there and is not this harness's concern.
-api.SlimmApi fakeClientFor(List<CanonOp> log) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: api.SessionStore(
-    tokens: const api.TokenPair(
-      userId: 'me',
-      accessToken: 'access',
-      refreshToken: 'refresh',
-      accessExpiresAt: 0,
-    ),
-  ),
-  httpClient: MockClient((request) async {
+api.SlimmApi fakeClientFor(List<CanonOp> log) => testApi(
+  (request) async {
     if (!request.url.path.endsWith('/canvas/ops')) {
       return jsonResponse(<Object>[]);
     }
@@ -48,7 +39,15 @@ api.SlimmApi fakeClientFor(List<CanonOp> log) => api.SlimmApi(
       'has_more': false,
       'reset': false,
     });
-  }),
+  },
+  session: api.SessionStore(
+    tokens: const api.TokenPair(
+      userId: 'me',
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      accessExpiresAt: 0,
+    ),
+  ),
 );
 
 /// One simulated client: a real [CanvasDocument] and [CanvasSync] pair, fed
