@@ -14,6 +14,7 @@ import 'database_key.dart';
 Future<QueryExecutor> openSlimmDatabase({
   required DatabaseKeyStore keys,
   String? directoryPath,
+  String? fileName,
   void Function(DatabaseResetReason reason)? onReset,
 }) {
   throw UnsupportedError(

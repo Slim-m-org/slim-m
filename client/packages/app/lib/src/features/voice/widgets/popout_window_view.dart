@@ -12,12 +12,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show LocalAudioChannel;
 
 import '../../../desktop/desktop_window_port.dart' show ResizeEdge;
 import '../../../desktop/window_resize_frame.dart';
 import '../providers/call_mini_player.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import 'participant_audio_controls.dart' show ParticipantVolumeControl;
 
 const popOutWindowKey = Key('popout_window_view');
 const popOutDragRegionKey = Key('popout_drag_region');
@@ -40,6 +42,11 @@ class PopOutWindowView extends ConsumerWidget {
       FeedKind.screenShare => controller.screenShareViewFor(feed.identity),
       FeedKind.camera => controller.cameraViewFor(feed.identity),
     };
+    // Rebuilt on roster changes so the volume appears once the share's sound arrives.
+    ref.watch(voiceControllerProvider.select((v) => v.participants));
+    final hasSound =
+        feed.kind == FeedKind.screenShare &&
+        controller.hasScreenAudio(feed.identity);
     final label = switch (feed.kind) {
       FeedKind.screenShare => "${feed.name}'s screen",
       FeedKind.camera => feed.name,
@@ -65,6 +72,12 @@ class PopOutWindowView extends ConsumerWidget {
                     micOn: micOn,
                     onMute: controller.toggleMicrophone,
                     onLeave: controller.leave,
+                    volume: hasSound
+                        ? _StreamVolume(
+                            identity: feed.identity,
+                            controller: controller,
+                          )
+                        : null,
                   ),
                   if (frame != null)
                     ResizeHandles(onStart: frame!.onResizeStart),
@@ -197,12 +210,14 @@ class _Controls extends StatelessWidget {
     required this.micOn,
     required this.onMute,
     required this.onLeave,
+    this.volume,
   });
 
   final bool shown;
   final bool micOn;
   final VoidCallback onMute;
   final VoidCallback onLeave;
+  final Widget? volume;
 
   @override
   Widget build(BuildContext context) {
@@ -213,22 +228,73 @@ class _Controls extends StatelessWidget {
       child: AnimatedOpacity(
         opacity: shown ? 1 : 0,
         duration: _revealDuration,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.s8,
+          children: [?volume, _buttons()],
+        ),
+      ),
+    );
+  }
+
+  Widget _buttons() => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    spacing: AppSpacing.s16,
+    children: [
+      AppIconButton(
+        icon: micOn ? AppIcons.mic : AppIcons.micOff,
+        semanticLabel: micOn ? 'Mute' : 'Unmute',
+        tooltip: micOn ? 'Mute' : 'Unmute',
+        onPressed: onMute,
+      ),
+      AppIconButton(
+        icon: AppIcons.leaveCall,
+        semanticLabel: 'Leave call',
+        tooltip: 'Leave call',
+        variant: AppIconButtonVariant.danger,
+        onPressed: onLeave,
+      ),
+    ],
+  );
+}
+
+const double _streamVolumeMaxWidth = 260;
+
+/// The shared screen's own volume, on a raised pill so it reads over any picture.
+class _StreamVolume extends StatelessWidget {
+  const _StreamVolume({required this.identity, required this.controller});
+
+  final String identity;
+  final VoiceController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _streamVolumeMaxWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+        decoration: BoxDecoration(
+          color: tokens.surfaceRaised,
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          border: Border.all(color: tokens.borderSubtle),
+        ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          spacing: AppSpacing.s16,
           children: [
-            AppIconButton(
-              icon: micOn ? AppIcons.mic : AppIcons.micOff,
-              semanticLabel: micOn ? 'Mute' : 'Unmute',
-              tooltip: micOn ? 'Mute' : 'Unmute',
-              onPressed: onMute,
+            Icon(
+              AppIcons.speaker,
+              size: AppSizes.icon16,
+              color: tokens.textSecondary,
             ),
-            AppIconButton(
-              icon: AppIcons.leaveCall,
-              semanticLabel: 'Leave call',
-              tooltip: 'Leave call',
-              variant: AppIconButtonVariant.danger,
-              onPressed: onLeave,
+            const SizedBox(width: AppSpacing.s8),
+            Expanded(
+              child: ParticipantVolumeControl(
+                identity: identity,
+                controller: controller,
+                channel: LocalAudioChannel.screen,
+                showLabel: false,
+              ),
             ),
           ],
         ),

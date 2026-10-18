@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE admin_audit_log SET actor_id = NULL WHERE actor_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "d6208067040480a6e4ea273691fdc5d3e408df3466f6f3b728fe50939e1ad7da"
+}

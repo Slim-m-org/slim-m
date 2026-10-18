@@ -21,6 +21,8 @@ mixin VoiceSessionInputGate {
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
+  void _diag(String line);
+
   bool get supportsInputGate => _gate.supported;
 
   void _initCapture(
@@ -36,6 +38,7 @@ mixin VoiceSessionInputGate {
           _state == VoiceSessionState.connected && _mic.open && _gateEnabled,
       onNativeStrongChanged: () => unawaited(_applyInputGate()),
       debounce: debounce ?? kCaptureRestartDebounce,
+      log: _diag,
     );
     _captureReadings = _gate.readings.listen(
       (r) =>

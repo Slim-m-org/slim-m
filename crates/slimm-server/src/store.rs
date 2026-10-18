@@ -16,6 +16,7 @@ use sqlx::SqlitePool;
 use crate::ids::{ChannelCategoryId, ChannelId, MessageId, Seq, UserId};
 
 mod account_deletion;
+mod admin_audit;
 mod analytics;
 mod apps;
 mod attachments;
@@ -43,6 +44,7 @@ mod emoji;
 mod forward_cascade;
 mod interactions;
 mod invites;
+mod linked_accounts;
 mod member_gate;
 mod members_bulk;
 mod messages;
@@ -94,6 +96,7 @@ mod watch_sessions;
 mod webhooks;
 
 pub use account_deletion::DeleteAccountError;
+pub use admin_audit::AdminAuditEntry;
 pub use analytics::{
     ANALYTICS_WINDOW_DAYS, AnalyticsStats, DayCount, MemberAttachmentUsage, MetricSample,
 };
@@ -134,6 +137,7 @@ pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use interactions::{Interaction, InteractionKind};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
+pub use linked_accounts::{AccountLinkError, LinkedAccount};
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
@@ -331,6 +335,9 @@ pub struct User {
     /// a raw colour: an index keeps meaning a fixed hue in both themes. See
     /// migration 0075.
     pub profile_color: Option<i64>,
+    /// A custom colour as 0xRRGGBB, or `None` to use [`Self::profile_color`];
+    /// see migration 0120.
+    pub profile_color_rgb: Option<i64>,
     /// Whether this account is a bot rather than a person, so a reader can be
     /// told without inspecting anything. See
     /// `docs/decisions/0028-bot-accounts.md`; it changes how the account
@@ -480,6 +487,7 @@ impl Store {
             pronouns: None,
             about: None,
             profile_color: None,
+            profile_color_rgb: None,
             is_bot: false,
             is_webhook: false,
         })

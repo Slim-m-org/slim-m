@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
@@ -49,6 +50,12 @@ class ChosenServer extends Notifier<Uri?> {
   }
 
   Future<void> _persist(Uri server) async {
+    final slot = ref.read(accountSlotProvider);
+    if (slot != null) {
+      // The host files the account and saves the index; no legacy handle.
+      slot.accountFor(server);
+      return;
+    }
     try {
       await ref.read(keyStoreProvider).put(serverUrlHandle, server.toString());
     } catch (_) {
@@ -129,11 +136,21 @@ final isFreshInstallProvider = StateProvider<bool>((ref) => false);
 /// write to land before anything relies on it being durable.
 final sessionProvider = Provider<SessionStore>((ref) {
   final keyStore = ref.read(keyStoreProvider);
+  final slot = ref.read(accountSlotProvider);
   final store = SessionStore(
     onChange: (tokens) async {
       final serverUrl = tokens == null ? null : ref.read(serverUrlProvider);
+      // An account's session is filed under its own handle; its server lives in the index.
+      final handle = slot == null
+          ? sessionTokenHandle
+          : slot.accountFor(ref.read(serverUrlProvider)).sessionHandle;
       try {
-        await _persistSession(keyStore, tokens, serverUrl);
+        await _persistSession(
+          keyStore,
+          handle,
+          tokens,
+          slot == null ? serverUrl : null,
+        );
       } catch (_) {
         /// The server rotates refresh tokens with reuse detection: a write that
         /// failed here may have left a stale, already-spent token on disk, and
@@ -141,7 +158,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
         /// whole family. Dropping the stored session outright degrades to a
         /// fresh sign-in instead of that false replay.
         if (tokens != null) {
-          await keyStore.delete(sessionTokenHandle).catchError((_) {});
+          await keyStore.delete(handle).catchError((_) {});
         }
       }
     },
@@ -152,14 +169,15 @@ final sessionProvider = Provider<SessionStore>((ref) {
 
 Future<void> _persistSession(
   KeyStore keyStore,
+  String handle,
   TokenPair? tokens,
   Uri? serverUrl,
 ) async {
   if (tokens == null) {
-    await keyStore.delete(sessionTokenHandle);
+    await keyStore.delete(handle);
     return;
   }
-  await keyStore.put(sessionTokenHandle, jsonEncode(tokens.toJson()));
+  await keyStore.put(handle, jsonEncode(tokens.toJson()));
   if (serverUrl != null) {
     await keyStore.put(serverUrlHandle, serverUrl.toString());
   }
@@ -178,29 +196,40 @@ Future<void> _persistSession(
 /// round trip here would mean a dead connection leaves the user staring at
 /// nothing rather than a working, if offline, app.
 ///
-/// Everything here, including the very first read, runs inside the guarded
-/// region: main() awaits this before runApp, so any failure of the storage
-/// layer itself must degrade to "no stored session" and let the app reach the
-/// sign-in screen, never crash launch outright. That guarded region is also
+/// Nothing here may crash launch: main() awaits this before runApp. Storage
+/// that cannot be read yet keeps the stored session and retries, because a
+/// locked keychain is not a sign-out and deleting on it left devices signed
+/// out locally while still registered for push. Only a session that was read
+/// and found unusable is deleted. The guarded region is also
 /// where [migrateLegacyFileSecretsIfNeeded] runs, ahead of the reads below:
 /// on macOS and Windows an upgrading install's session still sits in the old
 /// file until that move lands, and this has to see the moved copy, not miss
 /// it and read as signed out.
-Future<void> restoreSession(ProviderContainer container) async {
+Future<void> restoreSession(
+  ProviderContainer container, {
+  Duration firstRetry = const Duration(seconds: 2),
+}) async {
   final keyStore = container.read(keyStoreProvider);
+  final note = container.read(sessionRestoreNoteProvider.notifier);
+  final String? storedServerUrl;
+  final String? stored;
+  final SharedPreferences prefs;
   try {
     await migrateLegacyFileSecretsIfNeeded();
-
+    storedServerUrl = await keyStore.read(serverUrlHandle);
+    stored = await keyStore.read(sessionTokenHandle);
+    prefs = await container.read(preferencesProvider.future);
+  } catch (error) {
+    // Locked storage (a phone woken before unlock, a keyring not yet open) is not a sign-out: keep everything and retry.
+    note.state = 'stored session unreadable at launch, will retry: $error';
+    container.read(_restoreRetryProvider).schedule(container, firstRetry);
+    return;
+  }
+  container.read(_restoreRetryProvider).cancel();
+  try {
     /// The iOS/Android keychain outlives app deletion; this flag does not, so
-    /// its absence means this is the first launch since an install (fresh, or
-    /// a reinstall over one that was supposedly wiped). Whatever is already in
-    /// the keychain at that point belongs to the account signed in before,
-    /// not to this install, and must not come back as if nothing happened.
-    ///
-    /// That reaches the push key too, and on iOS it takes a second call: a
-    /// keychain query carries its own access group and accessibility, so the
-    /// wipe below cannot see an item stored under different ones.
-    final prefs = await container.read(preferencesProvider.future);
+    /// its absence means this is the first launch since an install. Checked
+    /// only after storage proved readable, so a locked phone never reads as one.
     if (prefs.getBool(hasLaunchedBeforeKey) != true) {
       await keyStore.clear();
       // A second store on iOS; see [pushKeyStoreProvider].
@@ -211,9 +240,7 @@ Future<void> restoreSession(ProviderContainer container) async {
       return;
     }
 
-    // Read before the session and restored whether or not there is one: a
-    // remembered server is what tells sign-in apart from onboarding.
-    final storedServerUrl = await keyStore.read(serverUrlHandle);
+    // Restored whether or not there is a session: a remembered server is what tells sign-in apart from onboarding.
     final parsed = storedServerUrl == null
         ? null
         : Uri.tryParse(storedServerUrl);
@@ -224,25 +251,57 @@ Future<void> restoreSession(ProviderContainer container) async {
     if (serverUrl != null) {
       container.read(chosenServerProvider.notifier).restore(serverUrl);
     }
-
-    final stored = await keyStore.read(sessionTokenHandle);
     if (stored == null) return;
 
     final tokens = TokenPair.fromJson(
       jsonDecode(stored) as Map<String, dynamic>,
     );
-
     if (serverUrl == null) {
-      // A session with no usable address restores to a connection that can
-      // never work, so it is dropped rather than aimed at the default.
+      // A session with no usable address restores to a connection that can never work.
       throw const FormatException('missing or invalid persisted server url');
     }
-
+    if (container.read(sessionProvider).isSignedIn) return;
     container.read(sessionProvider).set(tokens);
-  } catch (_) {
-    // A broken store, corrupt JSON, a missing server address, or anything
-    // else here must degrade to "no stored session", never crash launch.
+    if (note.state != null) {
+      note.state = 'stored session restored after a retry';
+    }
+  } catch (error) {
+    // Only what was read and found unusable is dropped; an unreadable store returned above.
+    note.state = 'stored session dropped: $error';
     await keyStore.delete(sessionTokenHandle).catchError((_) {});
+  }
+}
+
+/// Why the last attempt to restore the stored session did not simply succeed,
+/// for the debug log; null while nothing went wrong.
+final sessionRestoreNoteProvider = StateProvider<String?>((ref) => null);
+
+final _restoreRetryProvider = Provider<_RestoreRetry>((ref) {
+  final retry = _RestoreRetry();
+  ref.onDispose(retry.cancel);
+  return retry;
+});
+
+/// Retries an unreadable restore with doubling waits, until it reads or someone signs in.
+class _RestoreRetry {
+  static const _maxWait = Duration(seconds: 30);
+  Timer? _timer;
+  Duration? _next;
+
+  void schedule(ProviderContainer container, Duration first) {
+    if (_timer?.isActive ?? false) return;
+    final wait = _next ?? first;
+    _next = wait * 2 > _maxWait ? _maxWait : wait * 2;
+    _timer = Timer(wait, () {
+      if (container.read(sessionProvider).isSignedIn) return cancel();
+      unawaited(restoreSession(container, firstRetry: first));
+    });
+  }
+
+  void cancel() {
+    _timer?.cancel();
+    _timer = null;
+    _next = null;
   }
 }
 
@@ -325,6 +384,14 @@ final apiProvider = Provider<SlimmApi>((ref) {
   final api = SlimmApi(
     baseUrl: ref.watch(serverUrlProvider),
     session: ref.watch(sessionProvider),
+  )..clientReport = (kind: deviceClientKind, version: null);
+  // The version arrives asynchronously; until then a refresh reports the kind alone.
+  unawaited(
+    PackageInfo.fromPlatform().then(
+      (info) =>
+          api.clientReport = (kind: deviceClientKind, version: info.version),
+      onError: (_) {},
+    ),
   );
   ref.onDispose(api.close);
   return api;
@@ -344,6 +411,7 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
   final db = SlimmDatabase(
     await openSlimmDatabase(
       keys: KeyStoreDatabaseKey(ref.read(keyStoreProvider)),
+      fileName: ref.read(accountSlotProvider)?.databaseFile,
       onReset: (reason) =>
           ref.read(databaseResetProvider.notifier).state = reason,
     ),

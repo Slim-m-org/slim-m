@@ -41,6 +41,8 @@ import 'composer_bot_mentions.dart';
 import 'composer_clipboard_image.dart';
 import 'composer_clipboard_paste.dart';
 import 'composer_code_blocks.dart';
+import '../../settings/providers/ui_sound_settings.dart'
+    show messageSentSignalProvider;
 import 'composer_send_focus.dart';
 import 'composer_drop_registration.dart';
 import 'composer_extras.dart';
@@ -627,6 +629,7 @@ class _ComposerState extends ConsumerState<Composer> {
     if (handled) return;
     await staging.sendReady(widget.onSend);
     if (mounted) {
+      ref.read(messageSentSignalProvider.notifier).state++;
       setState(() {
         _mentionHelpSeen.clear();
         _visibleMentionHelp.clear();

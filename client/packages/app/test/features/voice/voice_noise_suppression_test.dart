@@ -146,7 +146,7 @@ void main() {
   });
 
   group('the inactive note', () {
-    const note = 'Strong is off for this mic. It needs a 48 kHz input.';
+    const note = "Strong isn't running on this mic.";
 
     Future<FakeSession> join(
       WidgetTester tester, {

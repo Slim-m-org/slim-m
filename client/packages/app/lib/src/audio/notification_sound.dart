@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The seven synthesised notification sounds (`assets/audio/notifications/`,
+/// The synthesised notification sounds (`assets/audio/notifications/`,
 /// see that directory's own `sounds.py` for what each one is for) and the
 /// seam a fake stands in for, so nothing that plays one ever touches real
 /// audio hardware in a test.
@@ -24,7 +24,16 @@ enum NotificationSound {
   callRing('call_ring'),
   memberJoin('member_join'),
   memberLeave('member_leave'),
-  error('error');
+  error('error'),
+  messageSent('message_sent'),
+  messageReceivedInView('message_received_in_view'),
+  selfJoin('self_join'),
+  selfLeave('self_leave'),
+  muteOn('mute_on'),
+  muteOff('mute_off'),
+  deafenOn('deafen_on'),
+  deafenOff('deafen_off'),
+  ringback('ringback');
 
   const NotificationSound(this._fileName);
   final String _fileName;
@@ -63,15 +72,15 @@ abstract class SoundPlayer {
 /// session, route, or focus a live call already holds - see the library
 /// doc comment above for why that is this package's whole reason to exist.
 class AudioPlayersSoundPlayer implements SoundPlayer {
-  AudioPlayersSoundPlayer()
-    : _player = AudioPlayer(),
-      _loopPlayer = AudioPlayer();
-
-  final AudioPlayer _player;
+  /// Both players are built on first use: constructing one on Linux throws a
+  /// native exception, uncatchable from Dart, when GStreamer's playbin is missing.
+  AudioPlayer? _createdPlayer;
+  AudioPlayer get _player => _createdPlayer ??= AudioPlayer();
 
   /// Its own player, never the shared [_player]: see [SoundPlayer.loop]'s
   /// own doc for why a looping ring and a one-shot chime must not share one.
-  final AudioPlayer _loopPlayer;
+  AudioPlayer? _createdLoopPlayer;
+  AudioPlayer get _loopPlayer => _createdLoopPlayer ??= AudioPlayer();
 
   /// Backlog #134: the wav family is already level with itself (see
   /// `assets/audio/synth.py`'s `TARGET_LUFS`), but `audioplayers` defaults a
@@ -131,11 +140,11 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
   }
 
   @override
-  Future<void> stopLoop() => _loopPlayer.stop();
+  Future<void> stopLoop() async => _createdLoopPlayer?.stop();
 
   @override
   Future<void> dispose() async {
-    await _player.dispose();
-    await _loopPlayer.dispose();
+    await _createdPlayer?.dispose();
+    await _createdLoopPlayer?.dispose();
   }
 }

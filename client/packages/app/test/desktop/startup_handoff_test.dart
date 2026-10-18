@@ -19,11 +19,11 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fake_async/fake_async.dart';
 import 'package:flutter/widgets.dart' show Size;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
@@ -73,6 +73,37 @@ void main() {
     expect(port.lastResizable, isFalse);
     expect(port.hideTitleBarCalls, 1);
     expect(DesktopWindowShell.frameless, isTrue);
+  });
+
+  testWidgets('on Windows the splash hides the title bar, draws no frameless '
+      'chrome, and the handoff restores the native title bar', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.windows;
+
+    await DesktopWindowShell.lockSplashChrome();
+    expect(port.hideTitleBarCalls, 1);
+    expect(DesktopWindowShell.frameless, isFalse);
+    expect(port.showTitleBarCalls, 0);
+
+    await DesktopWindowShell.prepareHandoff(_container());
+    expect(port.showTitleBarCalls, 1);
+  });
+
+  testWidgets('macOS keeps its native title bar through the splash', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.macOS;
+
+    await DesktopWindowShell.lockSplashChrome();
+    await DesktopWindowShell.prepareHandoff(_container());
+
+    expect(port.hideTitleBarCalls, 0);
+    expect(port.showTitleBarCalls, 0);
   });
 
   testWidgets('prepareHandoff hides the window, unlocks resizing, and falls '
@@ -224,40 +255,45 @@ void main() {
     await reveal;
   });
 
-  test('a resize before prepareHandoff completes is not persisted; the same '
-      'resize after prepareHandoff completes is - regression test for the '
-      'client-v0.58.0 splash-geometry bug', () async {
+  testWidgets('nothing is persisted while the splash is up; once the final '
+      'geometry is applied a real size is, and a splash-sized one never is - '
+      'regression test for the client-v0.58.0 splash-geometry bug', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     final store = WindowGeometryStore(await SharedPreferences.getInstance());
     final port = FakeDesktopWindowPort();
     DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugPositionSupported = () => true;
     final container = _container();
+    tester.view.physicalSize = const Size(1280, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
 
-    fakeAsync((async) {
-      unawaited(DesktopWindowShell.registerListenersAndTray(container));
-      async.flushMicrotasks();
+    unawaited(DesktopWindowShell.registerListenersAndTray(container));
+    await tester.pump(const Duration(seconds: 6));
+    port.bounds = const WindowRect(x: 45, y: 45, width: 360, height: 260);
+    port.emit(DesktopWindowEventKind.resize);
+    await tester.pump(desktopGeometryDebounce);
+    expect(store.read(), isNull, reason: 'the splash is still up');
 
-      port.bounds = const WindowRect(x: 45, y: 45, width: 480, height: 340);
-      port.emit(DesktopWindowEventKind.resize);
-      async.elapse(desktopGeometryDebounce);
+    await DesktopWindowShell.prepareHandoff(container);
+    await tester.pump();
+    port.emit(DesktopWindowEventKind.resize);
+    await tester.pump(desktopGeometryDebounce);
+    expect(
+      store.read(),
+      isNull,
+      reason: 'a splash-sized window is never saved, even once enabled',
+    );
 
-      expect(
-        store.read(),
-        isNull,
-        reason: 'the splash is still up; prepareHandoff has not run yet',
-      );
-
-      unawaited(DesktopWindowShell.prepareHandoff(container));
-      async.flushMicrotasks();
-
-      port.bounds = const WindowRect(x: 100, y: 100, width: 1280, height: 720);
-      port.emit(DesktopWindowEventKind.resize);
-      async.elapse(desktopGeometryDebounce);
-    });
+    port.bounds = const WindowRect(x: 100, y: 100, width: 900, height: 650);
+    port.emit(DesktopWindowEventKind.resize);
+    await tester.pump(desktopGeometryDebounce);
 
     final saved = store.read();
-    expect(saved, isNotNull);
-    expect(saved!.windowedSize, const WindowSize(width: 1280, height: 720));
+    expect(saved, isNotNull, reason: 'persisted before the reveal settles');
+    expect(saved!.windowedSize, const WindowSize(width: 900, height: 650));
   });
 
   /// The owner's report, twice: a desktop window opening on the phone
@@ -271,7 +307,7 @@ void main() {
 
     expect(viewMatchesSize(const Size(1280, 720), target), isTrue);
     expect(
-      viewMatchesSize(const Size(480, 388), target),
+      viewMatchesSize(const Size(360, 388), target),
       isFalse,
       reason: 'the splash size is exactly the case this exists to catch',
     );
@@ -309,7 +345,7 @@ void main() {
       final port = FakeDesktopWindowPort();
       DesktopWindowShell.debugPort = port;
       await DesktopWindowShell.prepareHandoff(_container());
-      tester.view.physicalSize = const Size(480, 387);
+      tester.view.physicalSize = const Size(360, 387);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
@@ -333,7 +369,7 @@ void main() {
   );
 
   test('viewHasLeftSplash looks at width only', () {
-    expect(viewHasLeftSplash(const Size(480, 387)), isFalse);
+    expect(viewHasLeftSplash(const Size(360, 387)), isFalse);
     expect(viewHasLeftSplash(const Size(1920, 1080)), isTrue);
     expect(viewHasLeftSplash(null), isFalse);
   });

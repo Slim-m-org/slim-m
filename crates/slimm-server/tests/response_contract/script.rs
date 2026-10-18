@@ -282,6 +282,19 @@ pub async fn run(c: &mut Contract) {
 
     c.bare("getSpaceStorage", "GET", "/space/storage", root)
         .await;
+    c.bare("listAdminAuditLog", "GET", "/space/audit-log", root)
+        .await;
+    c.bare("listMyLinkedAccounts", "GET", "/me/links", bob_token)
+        .await;
+    c.bare(
+        "listUserLinkedAccounts",
+        "GET",
+        &format!("/users/{bob_id}/links"),
+        root,
+    )
+    .await;
+    c.bare("unlinkDiscord", "DELETE", "/me/links/discord", bob_token)
+        .await;
 
     c.json(
         "sync",

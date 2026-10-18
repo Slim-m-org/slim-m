@@ -120,7 +120,13 @@ extension SlimmApiAuth on SlimmApi {
         'POST',
         '/auth/refresh',
         authenticated: false,
-        body: {'refresh_token': current.refreshToken},
+        body: {
+          'refresh_token': current.refreshToken,
+          if (clientReport case final report?) ...{
+            'client_kind': report.kind,
+            if (report.version case final version?) 'client_version': version,
+          },
+        },
       );
       tokens = TokenPair.fromJson(json as Map<String, dynamic>);
     } on UnauthorizedException {

@@ -17,15 +17,16 @@ library;
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
-import 'package:flutter/widgets.dart' show Size, WidgetsBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../diagnostics/debug_log.dart';
+import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
+import 'display_server.dart';
 import 'first_run_tray_notice.dart';
 import 'splash_mapped_wait.dart';
 import 'startup_state.dart' show startupLeavingProvider;
@@ -80,10 +81,42 @@ class DesktopWindowShell {
   /// it with no import cycle: this file already imports that one.
   static const splashWindowSize = kSplashWindowSize;
 
+  static bool Function() _positionSupported = windowPositionSupported;
+
+  /// Test-only seam for the Wayland rule, since a test runs on this Linux box.
+  @visibleForTesting
+  static set debugPositionSupported(bool Function() probe) =>
+      _positionSupported = probe;
+
+  @visibleForTesting
+  static void debugEnablePersistence() =>
+      _controller?.enableGeometryPersistence();
+
+  /// Writes any pending geometry, then destroys the window through [port].
+  static Future<void> quit(DesktopWindowPort port) async {
+    try {
+      await _controller?.flush();
+    } catch (error) {
+      debugPrint('desktop: flushing geometry on quit failed: $error');
+    }
+    await port.destroy();
+  }
+
   static DesktopWindowController? _controller;
   static DesktopTrayController? _trayController;
   static bool _active = false;
   static bool _framelessApplied = false;
+
+  /// Windows hides the native title bar for the splash only; the handoff
+  /// brings it back, since the real window keeps its native frame there.
+  static bool _splashTitleBarHidden = false;
+
+  static DesktopPlatform? _debugPlatform;
+
+  /// Test-only: which platform's splash chrome [lockSplashChrome] applies.
+  @visibleForTesting
+  static set debugSplashPlatform(DesktopPlatform? platform) =>
+      _debugPlatform = platform;
 
   /// The windowed size [_applyFinalGeometry] asked for, so
   /// [revealAfterHandoff] knows what the view is supposed to settle at.
@@ -111,8 +144,11 @@ class DesktopWindowShell {
     _trayController = null;
     _active = false;
     _framelessApplied = false;
+    _splashTitleBarHidden = false;
+    _debugPlatform = null;
     _handoffTargetSize = null;
     _handoffFillsDisplay = false;
+    _positionSupported = windowPositionSupported;
   }
 
   /// Flips the two flags [DesktopChrome] reads, so a widget test can render
@@ -216,9 +252,15 @@ class DesktopWindowShell {
 
   static Future<void> _lockSplashChrome() async {
     await _port.setResizable(false);
-    if (currentDesktopPlatform() == DesktopPlatform.linux) {
-      await _port.hideTitleBar();
-      _framelessApplied = true;
+    switch (_debugPlatform ?? currentDesktopPlatform()) {
+      case DesktopPlatform.linux:
+        await _port.hideTitleBar();
+        _framelessApplied = true;
+      case DesktopPlatform.windows:
+        await _port.hideTitleBar();
+        _splashTitleBarHidden = true;
+      case DesktopPlatform.macOS || null:
+        break;
     }
   }
 
@@ -234,9 +276,7 @@ class DesktopWindowShell {
   ///
   /// Bounded and swallowed the same way [applyInitialGeometry] is: a hang or
   /// throw here must not strand the app hidden with nothing to reveal it.
-  /// [DesktopWindowController.enableGeometryPersistence] is flipped
-  /// unconditionally afterwards, success or failure, so a failure here never
-  /// leaves persistence disabled for the rest of the run. [splashFloor] is
+  /// Persistence stays off until [revealAfterHandoff] has settled the view. [splashFloor] is
   /// how long the splash must have been on screen once mapped. [fadeOut] is
   /// how long the splash content dissolves before its window hides.
   static Future<void> prepareHandoff(
@@ -254,20 +294,29 @@ class DesktopWindowShell {
       await _applyFinalGeometry(container).timeout(_setupTimeout);
     } catch (error) {
       debugPrint('desktop: splash handoff geometry failed: $error');
+    } finally {
+      // Not after the reveal settles: on a host that never renders at the new size that wait times out.
+      _controller?.enableGeometryPersistence();
     }
-    _controller?.enableGeometryPersistence();
   }
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
     await _port.hide();
+    if (_splashTitleBarHidden) {
+      await _port.showTitleBar();
+      _splashTitleBarHidden = false;
+    }
 
     final prefs = await container.read(preferencesProvider.future);
     final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;
     // Size clamp before the display clamp so a saved size below the floor is never restored where the OS minimum is not honored (Wayland); see clampSizeToMinimum.
-    final geometry = clampToAttachedDisplays(
+    final sized = clampToAttachedDisplays(
       clampSizeToMinimum(saved),
       await _port.allDisplays(),
     );
+    final geometry = _positionSupported()
+        ? sized
+        : sized.copyWith(clearPosition: true);
 
     await _port.setResizable(true);
     // After the splash, which is deliberately smaller than this floor.
@@ -339,6 +388,10 @@ class DesktopWindowShell {
   /// completion, so the bound protects a log line, not a caller.
   static Future<void> revealAfterHandoff() async {
     if (currentDesktopPlatform() == null) return;
+    await _reveal();
+  }
+
+  static Future<void> _reveal() async {
     try {
       await _port.show();
     } catch (error) {
@@ -349,60 +402,11 @@ class DesktopWindowShell {
     } catch (error) {
       debugPrint('desktop: post-reveal frame wait failed: $error');
     }
-    await _awaitMetricsAtHandoffSize();
-  }
-
-  /// Waits, bounded, for the view to actually report the size
-  /// [_applyFinalGeometry] asked for.
-  ///
-  /// This is what keeps the real UI from ever laying out at the splash's
-  /// 380px. `main.dart` flips `appReadyProvider` only after this returns, so
-  /// the first frame of the real app is built against the window it is
-  /// really in. Without it the flip races the compositor's own metrics, and
-  /// on a launch that loses the race the whole app builds at
-  /// [LayoutClass.compact] - a desktop window rendering the phone layout,
-  /// which the owner reported twice. Measured on their KDE Wayland session:
-  /// one launch in three built the real UI at 380 logical pixels.
-  ///
-  /// A maximized or fullscreen run state has no size of ours to match, so it
-  /// waits for the view to stop reporting the splash's size instead; without
-  /// that the real UI built at 380px and a first-launch sheet latched the
-  /// phone presentation for good. Fails open on the timeout, because a window
-  /// whose metrics never arrive must still get its app: a wrong layout is
-  /// recoverable by resizing, a splash that never leaves is not.
-  static Future<void> _awaitMetricsAtHandoffSize() async {
-    final target = _handoffTargetSize;
-    if (target == null && !_handoffFillsDisplay) return;
-    final deadline = DateTime.now().add(_setupTimeout);
-    while (DateTime.now().isBefore(deadline)) {
-      final size = _currentViewSize();
-      final reached = target != null
-          ? viewMatchesSize(size, target)
-          : viewHasLeftSplash(size);
-      if (reached) return;
-      try {
-        await SchedulerBinding.instance.endOfFrame.timeout(_metricsPollStep);
-      } catch (_) {
-        // A frame that never came is not a reason to stop asking.
-      }
-    }
-    debugPrint(
-      'desktop: view never reported the handoff size $target; '
-      'last seen ${_currentViewSize()}',
+    await awaitViewAtHandoffSize(
+      target: _handoffTargetSize,
+      fillsDisplay: _handoffFillsDisplay,
+      timeout: _setupTimeout,
     );
-  }
-
-  /// How long one poll waits for a frame before re-reading the view size: a
-  /// hidden or idle window can go a while without painting, and the size may
-  /// change without one.
-  static const _metricsPollStep = Duration(milliseconds: 100);
-
-  static Size? _currentViewSize() {
-    final view = WidgetsBinding.instance.platformDispatcher.implicitView;
-    if (view == null) return null;
-    final ratio = view.devicePixelRatio;
-    if (ratio <= 0) return null;
-    return view.physicalSize / ratio;
   }
 
   /// Registers the receiving end of the runners' notification that a second
@@ -487,13 +491,18 @@ class DesktopWindowShell {
       store: store,
       platform: platform,
       trayAvailable: trayAvailable,
+      positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
     )..start();
 
     await _port.setPreventClose(true);
     // The Linux title bar is hidden by lockSplashChrome, not here; see decision 0012's superseding section.
 
-    _trayController = DesktopTrayController(port: _port, container: container);
+    _trayController = DesktopTrayController(
+      port: _port,
+      container: container,
+      host: container.read(accountHostProvider),
+    );
     await _trayController!.start();
   }
 

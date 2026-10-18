@@ -307,6 +307,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
           onLongPressStart: !widget.enableLongPress
               ? null
               : (details) {
+                  AppHaptics.impact();
                   widget.onHoldChanged?.call(false);
                   _setOpen(
                     true,

@@ -48,6 +48,7 @@ abstract final class Routes {
   static const adminPerformance = '/settings/performance';
   static const adminSpaceVoice = '/settings/space-voice';
   static const adminStorage = '/settings/storage';
+  static const adminAuditLog = '/settings/audit-log';
   static const adminServerMetrics = '/settings/server-metrics';
   static const adminDock = '/settings/dock';
   static const adminBots = '/settings/bots';

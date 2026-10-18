@@ -57,6 +57,18 @@ use world::Contract;
 /// this list must be called.
 const UNCOVERED: &[(&str, &str)] = &[
     (
+        "startDiscordLink",
+        "needs a configured Discord application, which this fixture's router has \
+         none of, so it can only answer 501 here. Its 200 and 501 are covered by \
+         tests/discord_link.rs against a local fake of Discord.",
+    ),
+    (
+        "discordLinkCallback",
+        "answers HTML to a browser, not JSON, and needs a state minted by \
+         startDiscordLink plus a fake Discord to trade the code with; \
+         tests/discord_link.rs drives every outcome of it.",
+    ),
+    (
         "kickVoiceParticipant",
         "the only path to its 204 goes through a reachable LiveKit room service, \
          which this harness has none of. Nothing is lost by not driving it: the \

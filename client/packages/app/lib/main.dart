@@ -16,11 +16,17 @@ import 'package:slimm_platform/platform.dart';
 export 'src/desktop/startup_state.dart';
 
 import 'src/deep_links.dart';
+import 'src/features/accounts/providers/account_host.dart';
+import 'src/features/accounts/widgets/account_call_pill.dart';
+import 'src/features/accounts/providers/account_providers.dart';
+import 'src/features/accounts/providers/account_restore.dart';
+import 'src/features/accounts/providers/account_services.dart';
+import 'src/features/accounts/providers/account_slot.dart';
+import 'src/features/accounts/providers/account_store.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
 import 'src/providers/desktop_call_notifier.dart';
-import 'src/providers/desktop_message_notifier.dart';
 import 'src/providers/viewing_reporter.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
@@ -39,8 +45,6 @@ import 'src/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
 import 'src/providers/providers.dart';
 import 'src/providers/startup_restores.dart';
-import 'src/providers/push_controller.dart';
-import 'src/providers/sync_controller.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
 import 'src/web_update/web_update_pill.dart';
@@ -96,12 +100,8 @@ Future<void> main([List<String> args = const []]) async {
   DesktopWindowShell.registerSecondInstanceHandler();
   DesktopQuitShortcut.register(DesktopWindowShell.port);
 
-  // See emojiImageCacheProvider's own doc for why this is opted into here rather than left as its default.
-  final container = ProviderContainer(
-    overrides: [
-      emojiImageCacheProvider.overrideWithValue(createEmojiImageCache()),
-    ],
-  );
+  final host = _createAccountHost();
+  final container = host.createFirst();
   // Before anything that can throw, so startup failures land in the log too.
   installDiagnostics(container);
 
@@ -110,12 +110,60 @@ Future<void> main([List<String> args = const []]) async {
     _bootstrapApp(container, launchedAtLogin: args.contains(autostartArgument)),
   );
 
-  runApp(
-    UncontrolledProviderScope(container: container, child: const SlimMApp()),
-  );
+  runApp(AccountRoot(host: host));
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
   await DesktopWindowShell.lockSplashChrome();
+}
+
+/// One shared key store and emoji cache, then a container per account built on them.
+///
+/// See emojiImageCacheProvider's own doc for why the cache is opted into here rather than left as its default.
+AccountHost _createAccountHost() {
+  final keyStore = createPersistentKeyStore();
+  final emojiCache = createEmojiImageCache();
+  final accounts = AccountStore(keyStore);
+  // One log for every account, since the error hooks are global.
+  final debugLog = DebugLog();
+  late final AccountHost host;
+  host = AccountHost(
+    store: accounts,
+    createContainer: (slot) => ProviderContainer(
+      overrides: [
+        debugLogProvider.overrideWith((ref) => debugLog),
+        emojiImageCacheProvider.overrideWithValue(emojiCache),
+        keyStoreProvider.overrideWithValue(keyStore),
+        accountSlotProvider.overrideWithValue(slot),
+        accountHostProvider.overrideWith((ref) => host),
+      ],
+    ),
+    startServices: (r) async => startAccountServices(r.container),
+    onActivate: (r) => resyncSharedPreferences(r.container),
+    readSession: (r) => restoreAccountSession(accounts, r),
+    signOutRuntime: (r) => signOutVia(r.container.read),
+  );
+  return host;
+}
+
+/// Mounts whichever account's container is active, so a switch swaps the
+/// whole graph beneath it and nothing of the previous account stays reachable.
+class AccountRoot extends StatelessWidget {
+  const AccountRoot({super.key, required this.host});
+
+  final AccountHost host;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: host,
+    builder: (context, _) {
+      final container = host.active!.container;
+      return UncontrolledProviderScope(
+        key: ObjectKey(container),
+        container: container,
+        child: const SlimMApp(),
+      );
+    },
+  );
 }
 
 /// The async sequence [StartupApp] masks: session restore (so the router's
@@ -197,7 +245,9 @@ Future<Duration> _resolveSplashFloor(ProviderContainer container) =>
 
 Future<void> _runBootstrapSequence(ProviderContainer container) async {
   container.read(startupStatusProvider.notifier).state = 'Restoring session';
-  await restoreSession(container);
+  if (!await wipeKeychainOnFreshInstall(container)) {
+    await container.read(accountHostProvider)!.start();
+  }
 
   container.read(startupStatusProvider.notifier).state = 'Loading preferences';
   // Independent restores off one cached SharedPreferences future: concurrent rather than an event-loop turn apiece, paid on every launch.
@@ -206,10 +256,8 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
   container.read(appLockControllerProvider.notifier).armOnLaunch();
 
   container.read(startupStatusProvider.notifier).state = 'Connecting';
-  container.read(syncControllerProvider);
-  container.read(pushControllerProvider);
+  startAccountServices(container);
   container.read(deepLinkControllerProvider);
-  container.read(desktopMessageNotifierProvider);
   container.read(viewingReporterProvider);
   container.read(desktopCallNotifierProvider);
   await DesktopWindowShell.registerListenersAndTray(container);
@@ -245,6 +293,11 @@ Future<void> _initAndroidPush() async {
   }
 }
 
+/// Linux and Windows hide the native title bar for the splash; macOS keeps it.
+bool get _splashIsFrameless =>
+    currentDesktopPlatform() == DesktopPlatform.linux ||
+    currentDesktopPlatform() == DesktopPlatform.windows;
+
 /// The root. Which surface is shown follows the session, enforced by the
 /// router's redirect: a revoked session lands on sign-in from wherever the user
 /// was, without any screen checking for itself. How it looks follows the
@@ -259,9 +312,8 @@ class SlimMApp extends ConsumerWidget {
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
         leaving: ref.watch(startupLeavingProvider),
-        windowPort: currentDesktopPlatform() == DesktopPlatform.linux
-            ? DesktopWindowShell.port
-            : null,
+        rounded: currentDesktopPlatform() == DesktopPlatform.linux,
+        windowPort: _splashIsFrameless ? DesktopWindowShell.port : null,
       );
     }
 
@@ -352,6 +404,7 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
                   ),
                   const Positioned.fill(child: ToastOverlay()),
                   const Positioned.fill(child: WebUpdatePill()),
+                  const Positioned.fill(child: AccountCallPill()),
                   const Positioned.fill(child: IncomingCallOverlay()),
                 ],
               ),

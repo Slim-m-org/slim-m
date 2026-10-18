@@ -25,7 +25,8 @@ DebugLog _populated() => DebugLog()
   );
 
 Future<void> _openPane(WidgetTester tester, String label) async {
-  await tester.tap(find.text(label));
+  // The nav row; the pane's own heading repeats the label once it is open.
+  await tester.tap(find.text(label).first);
   await tester.pump(const Duration(milliseconds: 350));
 }
 

@@ -10,7 +10,6 @@ library;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_attachments.dart';
@@ -289,7 +288,7 @@ class _TileButtonState extends State<_TileButton> {
   bool _hovered = false;
 
   void _handleTap() {
-    HapticFeedback.selectionClick();
+    AppHaptics.selection();
     widget.onTap();
   }
 

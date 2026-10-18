@@ -174,7 +174,7 @@ class LocalNotifications {
     bool? isAndroid,
     bool? isLinux,
     AndroidPermissionRequester? permissionRequester,
-    Future<void> Function()? onActivated,
+    Future<void> Function(String? payload)? onActivated,
   })  : _onActivated = onActivated,
         _plugin = plugin ?? FlutterLocalNotificationsPlugin(),
         _isAndroid = isAndroid ?? isAndroidHost,
@@ -185,8 +185,8 @@ class LocalNotifications {
   final bool _isAndroid;
   final bool _isLinux;
 
-  /// Called when the person clicks a notification; the payload is an opaque envelope, so raising the app is all there is to do.
-  final Future<void> Function()? _onActivated;
+  /// Called when the person clicks a notification, with the payload it was shown with.
+  final Future<void> Function(String? payload)? _onActivated;
 
   /// The platforms this actually displays on today. iOS/web render (or do
   /// not) without this class; macOS/Windows are not wired yet.
@@ -235,8 +235,8 @@ class LocalNotifications {
         android: AndroidInitializationSettings('@drawable/ic_stat_notify'),
         linux: LinuxInitializationSettings(defaultActionName: 'Open slim-m'),
       ),
-      onDidReceiveNotificationResponse: (_) => unawaited(
-        _onActivated?.call() ?? Future<void>.value(),
+      onDidReceiveNotificationResponse: (response) => unawaited(
+        _onActivated?.call(response.payload) ?? Future<void>.value(),
       ),
     );
     _ready = true;
@@ -273,6 +273,7 @@ class LocalNotifications {
     String text, {
     required LocalAlertChannel channel,
     String? title,
+    String? payload,
   }) async {
     if (!_supported) return;
     await _ensureReady();
@@ -294,6 +295,7 @@ class LocalNotifications {
               : LinuxNotificationUrgency.normal,
         ),
       ),
+      payload: payload,
     );
   }
 

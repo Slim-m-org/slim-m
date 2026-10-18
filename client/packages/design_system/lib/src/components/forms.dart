@@ -4,6 +4,7 @@
 library;
 
 export 'forms/chip.dart';
+export 'forms/colour_picker.dart';
 export 'forms/focus_ring.dart';
 export 'forms/focusable_tap_target.dart';
 export 'forms/code_point_limit.dart';

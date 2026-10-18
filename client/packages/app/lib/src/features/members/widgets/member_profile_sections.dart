@@ -19,6 +19,7 @@ import '../providers/presence_view.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
 import 'presence_indicator.dart';
 import 'user_avatar.dart';
+import 'profile_colour.dart';
 
 /// Avatar, name, handle, and the presence word beside its dot - never the
 /// dot alone, which is the rule every surface in this app follows.
@@ -135,7 +136,12 @@ class MemberProfileHeader extends ConsumerWidget {
               // The ring here means "in a call with you", so the name says that.
               speaking: inCallTogether,
               // The profile colour; absent on an older server reads as no ring.
-              ringColor: inCallTogether ? null : profileRingColor(profile),
+              ringColor: inCallTogether
+                  ? null
+                  : profileRingColour(
+                      profile,
+                      Theme.of(context).extension<AppTokens>()!.surfaceRaised,
+                    ),
               semanticLabel: inCallTogether
                   ? '${profile.displayName}, in a call with you'
                   : null,
@@ -177,17 +183,6 @@ class MemberProfileHeader extends ConsumerWidget {
 String _sentenceCase(String? word) => word == null || word.isEmpty
     ? ''
     : word[0].toUpperCase() + word.substring(1);
-
-/// The member card's own avatar ring, from an index into the design system's
-/// closed categorical colour set - reused rather than a new palette, per the
-/// "no new hue family" spirit of decision 0004. Null when the server has not
-/// sent a colour at all (an older deployment), which is unknown, not zero.
-Color? profileRingColor(api.UserProfile profile) {
-  final index = profile.profileColor;
-  if (index == null) return null;
-  const cursors = AppCanvasColors.cursors;
-  return cursors[index % cursors.length];
-}
 
 /// The timed-out banner: amber rather than red, because it expires on its own
 /// and the error grammar reserves red for something that needs acting on.

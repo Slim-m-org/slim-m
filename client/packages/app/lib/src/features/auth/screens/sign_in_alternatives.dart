@@ -16,6 +16,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../accounts/widgets/add_server_cancel.dart';
+
 class SignInAlternatives extends StatelessWidget {
   const SignInAlternatives({
     super.key,
@@ -54,6 +56,7 @@ class SignInAlternatives extends StatelessWidget {
         disabled: busy,
         onPressed: onUseDifferentSpace,
       ),
+      AddServerCancel(disabled: busy),
     ],
   );
 }

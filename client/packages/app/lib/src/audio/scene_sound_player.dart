@@ -30,9 +30,9 @@ abstract class ModuleSoundPlayer {
 /// [AudioPlayersSoundPlayer] uses for notification chimes - see that class's
 /// own doc comment for why.
 class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
-  AudioPlayersModuleSoundPlayer() : _player = AudioPlayer();
-
-  final AudioPlayer _player;
+  /// Built on first use, for the GStreamer reason [AudioPlayersSoundPlayer] gives.
+  AudioPlayer? _created;
+  AudioPlayer get _player => _created ??= AudioPlayer();
 
   /// Rendering is arithmetic over tens of thousands of samples (up to
   /// `NotesOp.maxNotes` notes, each up to `maxNoteSeconds` long), so this runs
@@ -57,7 +57,7 @@ class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
   }
 
   @override
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() async => _created?.dispose();
 }
 
 /// A top-level function, as `compute` requires: renders one WAV clip from

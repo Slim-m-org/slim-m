@@ -18,6 +18,15 @@ import 'database_key.dart';
 /// browser's cache rather than migrating it.
 const slimmDatabaseName = 'slimm';
 
+/// The browser database for [fileName]: the legacy name for the default file,
+/// the file's own name without its extension for any other.
+String webDatabaseName(String? fileName) {
+  if (fileName == null || fileName == 'slimm.sqlite') return slimmDatabaseName;
+  return fileName.endsWith('.sqlite')
+      ? fileName.substring(0, fileName.length - '.sqlite'.length)
+      : fileName;
+}
+
 /// Opens the browser-backed database, letting drift pick the most durable
 /// storage the browser offers: OPFS first, then IndexedDB, then memory.
 ///
@@ -31,10 +40,11 @@ const slimmDatabaseName = 'slimm';
 Future<QueryExecutor> openSlimmDatabase({
   required DatabaseKeyStore keys,
   String? directoryPath,
+  String? fileName,
   void Function(DatabaseResetReason reason)? onReset,
 }) async {
   final result = await WasmDatabase.open(
-    databaseName: slimmDatabaseName,
+    databaseName: webDatabaseName(fileName),
     sqlite3Uri: Uri.parse('sqlite3.wasm'),
     driftWorkerUri: Uri.parse('drift_worker.js'),
   );

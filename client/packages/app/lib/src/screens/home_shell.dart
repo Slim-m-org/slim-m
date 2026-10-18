@@ -21,6 +21,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import 'package:go_router/go_router.dart';
 
+import '../features/accounts/widgets/account_shortcuts.dart';
 import '../features/members/providers/activity_publisher.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -362,6 +363,7 @@ class HomeShell extends ConsumerWidget {
       if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),
+      ...serverSwitchBindings(ref),
     };
   }
 

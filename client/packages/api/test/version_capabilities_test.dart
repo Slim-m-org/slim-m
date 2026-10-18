@@ -97,6 +97,14 @@ void main() {
     test('a server too old to report it is null, not false', () {
       expect(_version({}).linkPreviewsEnabled, isNull);
     });
+
+    test('discord_link_enabled is read, and absent is null', () {
+      expect(
+        _version({'discord_link_enabled': true}).discordLinkEnabled,
+        isTrue,
+      );
+      expect(_version({}).discordLinkEnabled, isNull);
+    });
   });
 
   group('space name', () {

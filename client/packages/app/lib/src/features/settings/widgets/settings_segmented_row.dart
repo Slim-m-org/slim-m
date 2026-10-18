@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
+import 'settings_search.dart';
 
 class SettingsSegmentedRow<T> extends StatelessWidget {
   const SettingsSegmentedRow({
@@ -37,7 +38,10 @@ class SettingsSegmentedRow<T> extends StatelessWidget {
   static const minLabelWidth = 160.0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      SettingsHighlightTarget(label: label, child: _content(context));
+
+  Widget _content(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final metrics = SettingsRowMetrics.of(context);
     final text = Column(

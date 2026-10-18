@@ -87,6 +87,26 @@ SingleActivator _cycleChannelKeyWeb({bool previous = false}) => SingleActivator(
       alt: true,
     );
 
+/// Ctrl (Cmd on Apple) plus 1 to 9, jumping to the nth signed-in server.
+///
+/// Not part of [AppAction]: nine near-identical actions would crowd a keybinding
+/// screen. Empty on the web build, where every browser reserves these for its own tabs.
+List<SingleActivator> serverSwitchActivators({bool forWeb = kIsWeb}) {
+  if (forWeb) return const [];
+  const digits = [
+    LogicalKeyboardKey.digit1,
+    LogicalKeyboardKey.digit2,
+    LogicalKeyboardKey.digit3,
+    LogicalKeyboardKey.digit4,
+    LogicalKeyboardKey.digit5,
+    LogicalKeyboardKey.digit6,
+    LogicalKeyboardKey.digit7,
+    LogicalKeyboardKey.digit8,
+    LogicalKeyboardKey.digit9,
+  ];
+  return [for (final digit in digits) _primary(digit)];
+}
+
 /// The bindings a user has not overridden. [forWeb] picks the browser-safe
 /// next/previous-channel keys; it defaults to the real [kIsWeb], which a
 /// caller cannot flip at runtime, so a test passes it explicitly instead.

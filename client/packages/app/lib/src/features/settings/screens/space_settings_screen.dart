@@ -20,6 +20,7 @@ import '../widgets/settings_notice.dart';
 import '../widgets/settings_panes.dart';
 import 'space_settings_section.dart';
 import 'settings_screen_scaffold.dart';
+import '../providers/settings_index.dart';
 
 class SpaceSettingsScreen extends ConsumerWidget {
   const SpaceSettingsScreen({
@@ -50,6 +51,7 @@ class SpaceSettingsScreen extends ConsumerWidget {
       );
     }
     return SettingsPanesScaffold(
+      searchEntries: spaceSettingsIndex,
       initialPaneId: initialPaneId,
       onPaneChanged: onPaneChanged,
       title: 'Space settings',

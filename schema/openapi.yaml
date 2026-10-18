@@ -1052,6 +1052,146 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /me/links:
+    get:
+      operationId: listMyLinkedAccounts
+      tags: [users]
+      summary: The accounts the caller has linked from elsewhere.
+      responses:
+        "200":
+          description: The caller's linked accounts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedAccount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /me/links/discord/start:
+    post:
+      operationId: startDiscordLink
+      tags: [users]
+      summary: Start linking a Discord account.
+      description: >
+        Answers Discord's authorize URL for the client to open in a browser.
+        It carries a one-time state, valid for ten minutes, that ties the
+        callback to the caller. Only the `identify` scope is requested.
+        501 when the server has no Discord application configured.
+      responses:
+        "200":
+          description: Where to send the browser.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: Discord linking is not configured on this server.
+  /me/links/discord:
+    delete:
+      operationId: unlinkDiscord
+      tags: [users]
+      summary: Remove the caller's Discord link, if any.
+      responses:
+        "204":
+          description: No Discord link remains.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /links/discord/callback:
+    get:
+      operationId: discordLinkCallback
+      tags: [users]
+      summary: Where Discord sends the browser back after authorizing.
+      description: >
+        Unauthenticated: the one-time `state` from `/me/links/discord/start`
+        names the member. Spends the state, trades `code` for a token, reads
+        the Discord account and stores the link. Answers a short HTML page
+        for the browser tab in every case; an expired, replayed or unknown
+        state stores nothing.
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Linked, or cancelled by the member.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: A missing, expired or used state, or no code.
+          content:
+            text/html:
+              schema:
+                type: string
+        "409":
+          description: That Discord account is linked to another member.
+          content:
+            text/html:
+              schema:
+                type: string
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "502":
+          description: Discord did not answer.
+          content:
+            text/html:
+              schema:
+                type: string
+  /users/{userId}/links:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listUserLinkedAccounts
+      tags: [users]
+      summary: The accounts a member has linked, for their profile.
+      responses:
+        "200":
+          description: That member's linked accounts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkedAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /users/{userId}/note:
     parameters:
       - name: userId
@@ -7916,6 +8056,46 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/audit-log:
+    get:
+      operationId: listAdminAuditLog
+      tags: [space]
+      summary: Read the admin audit log, newest first.
+      description: >
+        Gated on MANAGE_SERVER. One entry per successful admin change to the
+        space (settings, roles, channels, categories, permissions, invites,
+        emoji, modules). Member moderation stays in `/reports/history`.
+        `limit` defaults to 50 and is clamped to 1..200; `before` is the id of
+        the oldest entry already seen.
+      parameters:
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A page of admin changes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminChange"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/storage:
     get:
       operationId: getSpaceStorage
@@ -9346,6 +9526,12 @@ components:
             Whether this deployment unfurls pasted links into preview cards
             (SLIMM_LINK_PREVIEWS is set). A client checks this before asking
             for any link preview, so a disabled deployment makes no request.
+        discord_link_enabled:
+          type: boolean
+          description: >
+            Whether members can link a Discord account (all three
+            SLIMM_DISCORD_* settings are set). Absent on older servers, which
+            a client reads as false.
         screen_share_max_height:
           type: integer
           description: >
@@ -9624,6 +9810,14 @@ components:
       properties:
         refresh_token:
           type: string
+        client_kind:
+          type: string
+          nullable: true
+          description: What the app reports it is now (at most 16 characters), recorded on the device so the devices list follows it. Absent leaves the stored value.
+        client_version:
+          type: string
+          nullable: true
+          description: The app version refreshing (at most 32 characters), recorded the same way, so the devices list follows an app update.
 
     UserProfile:
       type: object
@@ -9730,6 +9924,13 @@ components:
             a stable default derived from its id, so a card is never
             colourless. Absent on servers older than this field, which a
             client must treat as unknown rather than defaulting to zero.
+        profile_color_rgb:
+          type: integer
+          nullable: true
+          description: >
+            A custom colour as 0xRRGGBB (0 to 16777215) that wins over
+            `profile_color`, or null for the preset. `profile_color` then holds
+            the nearest preset, for a client older than this field.
         is_bot:
           type: boolean
           description: >
@@ -9846,6 +10047,10 @@ components:
         profile_color:
           type: integer
           description: The caller's own profile colour index; see `UserProfile.profile_color`.
+        profile_color_rgb:
+          type: integer
+          nullable: true
+          description: The caller's own custom colour, or null; see `UserProfile.profile_color_rgb`.
         presence_visibility:
           type: string
           enum: [online, away, dnd, hidden]
@@ -9894,6 +10099,12 @@ components:
             There is no clearing this back to unset: every account always has
             one, defaulting to a stable value derived from its id. An index
             outside the set is a 400.
+        profile_color_rgb:
+          type: integer
+          description: >
+            A custom colour as 0xRRGGBB (0 to 16777215; outside it is a 400).
+            A `profile_color` sent without this drops any custom colour back to
+            that preset, which is also how an older client clears it.
 
     TotpChallenge:
       type: object
@@ -10251,6 +10462,46 @@ components:
           description: >
             What that pass reclaimed, in whatever unit that sweep counts
             (rows removed, files freed): sweep-specific, not always bytes.
+    AdminChange:
+      type: object
+      required: [id, actor_id, action, target_id, detail, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actor_id:
+          type: [string, "null"]
+          format: uuid
+          description: Null once the actor's account is gone.
+        action:
+          type: string
+          description: Dotted action name such as `role.update` or `channel.delete`.
+        target_id:
+          type: [string, "null"]
+          description: The id of what changed, when the action has one.
+        detail:
+          type: object
+          description: >
+            `fields` lists the request's field names, `name` the name a create
+            or rename set, and `params` any other ids in the route.
+          additionalProperties: true
+        created_at:
+          type: integer
+          format: int64
+    LinkedAccount:
+      type: object
+      required: [provider, username, display_name, linked_at]
+      properties:
+        provider:
+          type: string
+          enum: [discord]
+        username:
+          type: string
+        display_name:
+          type: [string, "null"]
+        linked_at:
+          type: integer
+          format: int64
     SpaceStorage:
       type: object
       required:

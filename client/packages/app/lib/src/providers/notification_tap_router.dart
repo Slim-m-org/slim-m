@@ -18,7 +18,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../features/accounts/providers/account_host.dart';
+import '../features/accounts/providers/account_providers.dart';
 import '../routing/routes.dart';
+import 'providers.dart' show storeProvider;
 import '../routing/router.dart';
 
 /// The route a tap naming [channelId] should land on, or null for a tap
@@ -34,6 +37,46 @@ import '../routing/router.dart';
 String? channelRouteForTap(String? channelId) {
   if (channelId == null || channelId.isEmpty) return null;
   return Routes.channel(channelId, openChat: true);
+}
+
+/// Opens [channelId] on the account it belongs to, switching to it first.
+///
+/// [origin] names the account when the tap says so; a push carries only a
+/// channel id, so otherwise the account whose local store knows the channel
+/// wins, and the one on screen is the fallback.
+Future<void> openChannelOnOwner(
+  AccountHost host,
+  String channelId, {
+  String? origin,
+}) async {
+  final route = channelRouteForTap(channelId);
+  if (route == null) return;
+  final target =
+      (origin == null ? null : host.runtimeFor(origin)) ??
+      await _ownerOf(host, channelId) ??
+      host.active;
+  if (target == null) return;
+  final account = target.account;
+  if (target != host.active && account != null) {
+    await host.switchTo(account.origin);
+  }
+  target.container.read(routerProvider).go(route);
+}
+
+Future<AccountRuntime?> _ownerOf(AccountHost host, String channelId) async {
+  final candidates = [
+    if (host.active != null) host.active!,
+    ...host.accounts.where((r) => r != host.active),
+  ];
+  for (final runtime in candidates) {
+    try {
+      final store = await runtime.container.read(storeProvider.future);
+      if (await store.channelRow(channelId) != null) return runtime;
+    } catch (_) {
+      // A store that will not open cannot own the channel; try the next account.
+    }
+  }
+  return null;
 }
 
 /// Listens for notification taps and routes to the channel each came from.
@@ -52,7 +95,13 @@ final notificationTapRouterProvider = Provider<void>((ref) {
 
   void go(String? channelId) {
     final route = channelRouteForTap(channelId);
-    if (route != null) ref.read(routerProvider).go(route);
+    if (route == null) return;
+    final host = ref.read(accountHostProvider);
+    if (host == null) {
+      ref.read(routerProvider).go(route);
+      return;
+    }
+    unawaited(openChannelOnOwner(host, channelId!));
   }
 
   final subscription = channel.taps.listen(go);

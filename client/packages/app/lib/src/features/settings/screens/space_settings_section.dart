@@ -29,6 +29,7 @@ import '../../channels/providers/channel_permissions.dart';
 import '../../../routing/routes.dart';
 import 'admin/account_recovery_screen.dart';
 import 'admin/analytics_screen.dart';
+import 'admin/audit_log_screen.dart';
 import 'admin/bots_screen.dart';
 import 'admin/channel_permissions_screen.dart';
 import 'admin/dock_screen.dart';
@@ -236,6 +237,15 @@ SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
           icon: AppIcons.storage,
           compactRoute: Routes.adminStorage,
           builder: (_) => const StoragePane(),
+        ),
+      if (access.canManageServer)
+        SettingsPane(
+          id: 'audit-log',
+          label: 'Audit log',
+          icon: AppIcons.activityLog,
+          compactRoute: Routes.adminAuditLog,
+          scrollable: false,
+          builder: (_) => const AuditLogPane(),
         ),
       if (access.canManageServer)
         SettingsPane(

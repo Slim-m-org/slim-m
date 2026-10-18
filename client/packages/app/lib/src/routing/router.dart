@@ -35,6 +35,7 @@ import '../features/settings/screens/admin/removed_members_screen.dart';
 import '../features/settings/screens/admin/role_detail_screen.dart';
 import '../features/settings/screens/admin/roles_screen.dart';
 import '../features/settings/screens/admin/server_metrics_screen.dart';
+import '../features/settings/screens/admin/audit_log_screen.dart';
 import '../features/settings/screens/admin/storage_screen.dart';
 import '../features/settings/screens/admin/webhooks_screen.dart';
 import '../features/channels/screens/channel_settings_screen.dart';
@@ -192,6 +193,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminStorage,
         pageBuilder: (context, state) =>
             modalPage(context, const StorageScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminAuditLog,
+        pageBuilder: (context, state) =>
+            modalPage(context, const AuditLogScreen()),
       ),
       GoRoute(
         path: Routes.adminServerMetrics,

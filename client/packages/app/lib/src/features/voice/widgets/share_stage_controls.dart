@@ -56,7 +56,17 @@ List<Widget> shareStageMenuItems(
   VoidCallback? onStopWatching,
   VoidCallback? onFocus,
   bool focused = false,
+  VoidCallback? onStreamVolume,
 }) => [
+  if (onStreamVolume != null)
+    AppMenuItem(
+      label: 'Stream volume',
+      leading: AppIcons.speaker,
+      onTap: () {
+        close();
+        onStreamVolume();
+      },
+    ),
   if (onFocus != null)
     AppMenuItem(
       label: focused ? 'Show all shares' : 'Focus $sharerName\'s screen',

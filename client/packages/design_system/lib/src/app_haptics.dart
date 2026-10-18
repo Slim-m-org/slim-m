@@ -17,7 +17,11 @@ import 'package:flutter/services.dart';
 
 /// Physical feedback for a tap, guarded to the platforms that can produce it.
 abstract final class AppHaptics {
+  /// The person's own haptics preference; the app sets it, nothing else does.
+  static bool enabled = true;
+
   static bool get _hasEngine =>
+      enabled &&
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.android);
@@ -33,5 +37,15 @@ abstract final class AppHaptics {
   /// deliberate without being a buzz.
   static void impact() {
     if (_hasEngine) HapticFeedback.lightImpact();
+  }
+
+  /// A firm tap for an action that completed (a swipe-to-reply committing).
+  static void success() {
+    if (_hasEngine) HapticFeedback.mediumImpact();
+  }
+
+  /// The heaviest tap, for a mention or something that needs attention.
+  static void warning() {
+    if (_hasEngine) HapticFeedback.heavyImpact();
   }
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: UserId\", username AS \"username!\",\n                      display_name AS \"display_name!\", created_at AS \"created_at!\",\n                      avatar_updated_at, status_text, pronouns, about,\n                      profile_color, is_bot AS \"is_bot!\",\n                      is_webhook AS \"is_webhook!\"\n               FROM users WHERE deleted_at IS NULL AND is_webhook = 0 AND id > ?\n               AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = users.id)\n               ORDER BY id ASC LIMIT ?",
+  "query": "SELECT id AS \"id!: UserId\", username AS \"username!\",\n                      display_name AS \"display_name!\", created_at AS \"created_at!\",\n                      avatar_updated_at, status_text, pronouns, about,\n                      profile_color, profile_color_rgb, is_bot AS \"is_bot!\",\n                      is_webhook AS \"is_webhook!\"\n               FROM users WHERE deleted_at IS NULL AND is_webhook = 0 AND id > ?\n               AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = users.id)\n               ORDER BY id ASC LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -49,13 +49,18 @@
         "type_info": "Integer"
       },
       {
-        "name": "is_bot!",
+        "name": "profile_color_rgb",
         "ordinal": 9,
         "type_info": "Integer"
       },
       {
-        "name": "is_webhook!",
+        "name": "is_bot!",
         "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_webhook!",
+        "ordinal": 11,
         "type_info": "Integer"
       }
     ],
@@ -72,9 +77,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "f652f0837ea9e3e58b0d5e7880b01947953dee0baa143444d6f18c3b33a001df"
+  "hash": "ede92bd04c12ff6b41f2b750b4a8fe1a02395196e2f0f95fc94c786eebd83b87"
 }

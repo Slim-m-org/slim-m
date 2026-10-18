@@ -39,10 +39,12 @@ part 'client_module_commands.dart';
 part 'client_module_permissions.dart';
 part 'client_bots.dart';
 part 'client_category_permissions.dart';
+part 'client_linked_accounts.dart';
 part 'client_notification_schedule.dart';
 part 'client_presence.dart';
 part 'client_push.dart';
 part 'client_roles.dart';
+part 'client_admin_audit.dart';
 part 'client_space.dart';
 part 'client_threads.dart';
 part 'client_totp.dart';
@@ -205,6 +207,10 @@ class SlimmApi {
 
   final Uri baseUrl;
   final SessionStore session;
+
+  /// What each refresh reports about this app, so the server's devices list
+  /// follows an update instead of the version it signed in with.
+  ({String kind, String? version})? clientReport;
   final http.Client _http;
 
   /// Upload sessions a caller gave up on while they were still resumable,
