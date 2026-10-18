@@ -44,6 +44,9 @@ pub const ACTIVE_WINDOW: Duration = Duration::from_secs(120);
 /// parent are the realistic ceiling, the rest is abuse.
 pub const MAX_VIEWED_CHANNELS: usize = 8;
 
+/// The device behind one connection and when it last reported its user active.
+type Activity = (DeviceId, Instant);
+
 struct Report {
     device: DeviceId,
     channels: HashSet<ChannelId>,
@@ -53,7 +56,7 @@ struct Report {
 #[derive(Clone, Default)]
 pub struct ViewingTracker {
     reports: Arc<Mutex<HashMap<UserId, HashMap<u64, Report>>>>,
-    active: Arc<Mutex<HashMap<UserId, HashMap<u64, Instant>>>>,
+    active: Arc<Mutex<HashMap<UserId, HashMap<u64, Activity>>>>,
     next_connection: Arc<AtomicU64>,
 }
 
@@ -122,16 +125,16 @@ impl ViewingTracker {
         }
     }
 
-    /// Records that `connection`'s user was just using that device.
-    pub fn mark_active(&self, user_id: UserId, connection: u64) {
-        self.mark_active_at(user_id, connection, Instant::now());
+    /// Records that `connection`'s user was just using `device`.
+    pub fn mark_active(&self, user_id: UserId, device: DeviceId, connection: u64) {
+        self.mark_active_at(user_id, device, connection, Instant::now());
     }
 
-    pub fn mark_active_at(&self, user_id: UserId, connection: u64, now: Instant) {
+    pub fn mark_active_at(&self, user_id: UserId, device: DeviceId, connection: u64, now: Instant) {
         let mut active = lock(&self.active);
         let own = active.entry(user_id).or_default();
-        own.retain(|_, at| now.duration_since(*at) < ACTIVE_WINDOW);
-        own.insert(connection, now);
+        own.retain(|_, (_, at)| now.duration_since(*at) < ACTIVE_WINDOW);
+        own.insert(connection, (device, now));
     }
 
     /// Whether any live connection of `user_id` reported its user active
@@ -141,15 +144,57 @@ impl ViewingTracker {
     }
 
     pub fn is_recently_active_at(&self, user_id: UserId, now: Instant) -> bool {
-        lock(&self.active).get(&user_id).is_some_and(|own| {
-            own.values()
-                .any(|at| now.duration_since(*at) < ACTIVE_WINDOW)
-        })
+        !self.active_devices_at(user_id, now).is_empty()
     }
 
-    /// Drops every report from one device, for when its lifecycle report says
-    /// it is no longer in front of the user.
+    /// The devices whose connections reported `user_id` active within [`ACTIVE_WINDOW`].
+    pub fn active_devices_at(&self, user_id: UserId, now: Instant) -> Vec<DeviceId> {
+        let active = lock(&self.active);
+        let mut devices: Vec<DeviceId> = active
+            .get(&user_id)
+            .into_iter()
+            .flat_map(|own| own.values())
+            .filter(|(_, at)| now.duration_since(*at) < ACTIVE_WINDOW)
+            .map(|(device, _)| *device)
+            .collect();
+        devices.sort_by_key(|device| device.0);
+        devices.dedup();
+        devices
+    }
+
+    /// The devices whose connections reported `channel_id` open within [`VIEWING_TTL`].
+    pub fn viewing_devices_at(
+        &self,
+        user_id: UserId,
+        channel_id: ChannelId,
+        now: Instant,
+    ) -> Vec<DeviceId> {
+        let reports = lock(&self.reports);
+        let mut devices: Vec<DeviceId> = reports
+            .get(&user_id)
+            .into_iter()
+            .flat_map(|own| own.values())
+            .filter(|report| {
+                report.channels.contains(&channel_id) && now.duration_since(report.at) < VIEWING_TTL
+            })
+            .map(|report| report.device)
+            .collect();
+        devices.sort_by_key(|device| device.0);
+        devices.dedup();
+        devices
+    }
+
+    /// Drops every viewing and activity report from one device, for when its
+    /// lifecycle report says it is no longer in front of the user.
     pub fn clear_device(&self, user_id: UserId, device: DeviceId) {
+        let mut active = lock(&self.active);
+        if let Some(own) = active.get_mut(&user_id) {
+            own.retain(|_, (reporter, _)| *reporter != device);
+            if own.is_empty() {
+                active.remove(&user_id);
+            }
+        }
+        drop(active);
         let mut reports = lock(&self.reports);
         if let Some(own) = reports.get_mut(&user_id) {
             own.retain(|_, report| report.device != device);
@@ -166,11 +211,7 @@ impl ViewingTracker {
     }
 
     pub fn is_viewing_at(&self, user_id: UserId, channel_id: ChannelId, now: Instant) -> bool {
-        lock(&self.reports).get(&user_id).is_some_and(|own| {
-            own.values().any(|report| {
-                report.channels.contains(&channel_id) && now.duration_since(report.at) < VIEWING_TTL
-            })
-        })
+        !self.viewing_devices_at(user_id, channel_id, now).is_empty()
     }
 }
 
@@ -300,7 +341,7 @@ mod tests {
         let tracker = ViewingTracker::default();
         let user = UserId::generate();
         let start = Instant::now();
-        tracker.mark_active_at(user, 1, start);
+        tracker.mark_active_at(user, DeviceId::generate(), 1, start);
         assert!(tracker.is_recently_active_at(user, start));
         assert!(
             tracker.is_recently_active_at(user, start + ACTIVE_WINDOW - Duration::from_millis(1))
@@ -312,11 +353,45 @@ mod tests {
     fn a_closed_connection_stops_counting_as_active() {
         let tracker = ViewingTracker::default();
         let user = UserId::generate();
-        tracker.mark_active(user, 1);
-        tracker.mark_active(user, 2);
+        tracker.mark_active(user, DeviceId::generate(), 1);
+        tracker.mark_active(user, DeviceId::generate(), 2);
         tracker.forget_connection(user, 1);
         assert!(tracker.is_recently_active(user));
         tracker.forget_connection(user, 2);
         assert!(!tracker.is_recently_active(user));
+    }
+
+    #[test]
+    fn clearing_a_device_also_drops_its_activity() {
+        let tracker = ViewingTracker::default();
+        let user = UserId::generate();
+        let (phone, laptop) = (DeviceId::generate(), DeviceId::generate());
+        tracker.mark_active(user, phone, 1);
+        tracker.mark_active(user, laptop, 2);
+        tracker.clear_device(user, phone);
+        assert_eq!(
+            tracker.active_devices_at(user, Instant::now()),
+            vec![laptop]
+        );
+        tracker.clear_device(user, laptop);
+        assert!(!tracker.is_recently_active(user));
+        assert!(lock(&tracker.active).is_empty());
+    }
+
+    #[test]
+    fn the_tracker_names_the_devices_behind_a_signal() {
+        let tracker = ViewingTracker::default();
+        let (user, channel) = (UserId::generate(), ChannelId::generate());
+        let phone = DeviceId::generate();
+        tracker.set(user, phone, 1, one(channel));
+        tracker.mark_active(user, phone, 1);
+        let now = Instant::now();
+        assert_eq!(tracker.viewing_devices_at(user, channel, now), vec![phone]);
+        assert_eq!(tracker.active_devices_at(user, now), vec![phone]);
+        assert!(
+            tracker
+                .viewing_devices_at(user, ChannelId::generate(), now)
+                .is_empty()
+        );
     }
 }

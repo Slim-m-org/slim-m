@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
-use slimm_server::ids::{MessageId, UserId};
+use slimm_server::ids::{DeviceId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
 use slimm_server::store::{NewMessage, Store};
@@ -100,9 +100,10 @@ async fn push_skips_a_recipient_active_on_another_device_until_the_window_ends()
         .unwrap();
 
     let viewing = PresenceTracker::new().viewing();
-    viewing.mark_active(active, 1);
+    viewing.mark_active(active, DeviceId::generate(), 1);
     viewing.mark_active_at(
         lapsed,
+        DeviceId::generate(),
         2,
         Instant::now() - ACTIVE_WINDOW - Duration::from_secs(1),
     );
