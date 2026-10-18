@@ -12,6 +12,7 @@ import os
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -83,10 +84,15 @@ def _stop(proc, grace=15):
 
 
 @contextlib.contextmanager
+def work_dir():
+    """Where e2e.sh keeps its files; it exports E2E_WORK, so the fallback is for a lone import."""
+    return os.environ.get("E2E_WORK") or os.path.join(tempfile.gettempdir(), "e2e")
+
+
 def browser(name, wav, work=None):
     """A headless Chrome on the port reserved for `name`, killed on exit."""
     port = EXTRA_PORTS[name]
-    work = work or os.environ.get("E2E_WORK", "/tmp/e2e")
+    work = work or work_dir()
     profile = os.path.join(work, f"chrome-{name}")
     shutil.rmtree(profile, ignore_errors=True)
     os.makedirs(profile)

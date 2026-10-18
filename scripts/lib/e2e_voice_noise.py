@@ -32,7 +32,7 @@ MIN_SEPARATION_DB = 6.0
 
 
 def fixture_path():
-    work = os.environ.get("E2E_WORK", "/tmp/e2e")
+    work = e2e_browsers.work_dir()
     path = os.path.join(work, "noisy-voice.wav")
     make_noisy_voice.write(path)
     return path

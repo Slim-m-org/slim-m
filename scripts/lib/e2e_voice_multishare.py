@@ -101,7 +101,7 @@ def _area(video):
 def two_shares_reach_a_third_viewer(a, b, server, secret, admin_api,
                                     sign_in, room_id, bob_id):
     e2e_browsers.register(server, admin_api, "carol", secret)
-    wav = os.path.join(os.environ.get("E2E_WORK", "/tmp/e2e"), "fake-voice.wav")
+    wav = os.path.join(e2e_browsers.work_dir(), "fake-voice.wav")
     with e2e_audio.installed(a), e2e_audio.installed(b), \
             e2e_browsers.browser("carol", wav) as c:
         _three_way(a, b, c, server, secret, sign_in, room_id, bob_id)
