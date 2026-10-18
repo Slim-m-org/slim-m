@@ -137,11 +137,32 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(tester.widget<AppSlider>(_meter()).meter, 50);
+    expect(tester.widget<AppSlider>(_meter()).meterActive, isTrue);
     expect(
       find.textContaining('Join a voice call to see your live input level'),
       findsNothing,
     );
     // Clears the heartbeat timer a connected call keeps running.
+    await controller.leave();
+  });
+
+  testWidgets('the meter shows the gate closed while nothing is being sent', (
+    tester,
+  ) async {
+    final session = await _pump(tester);
+    final controller = _container(
+      tester,
+    ).read(voiceControllerProvider.notifier);
+    await controller.join('channel-1');
+    await tester.pumpAndSettle();
+
+    session.inputGateController.add(
+      const InputGateReading(levelDb: -30, voice: false),
+    );
+    await tester.pumpAndSettle();
+    final slider = tester.widget<AppSlider>(_meter());
+    expect(slider.meter, 62.5);
+    expect(slider.meterActive, isFalse);
     await controller.leave();
   });
 

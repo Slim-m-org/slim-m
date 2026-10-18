@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_design_system/src/components/forms/slider_shapes.dart';
 
 Widget _wrap(Widget child) {
   return MaterialApp(
@@ -423,6 +424,24 @@ void main() {
 
       final theme = SliderTheme.of(tester.element(find.byType(Slider)));
       expect(theme.tickMarkShape, SliderTickMarkShape.noTickMark);
+    });
+
+    testWidgets('an inactive meter is drawn in a neutral tone', (tester) async {
+      Future<Color> meterColor({required bool active}) async {
+        await tester.pumpWidget(_wrap(SizedBox(
+            width: 200,
+            child: AppSlider(
+                value: 40,
+                tall: true,
+                meter: 60,
+                meterActive: active,
+                onChanged: (_) {}))));
+        final theme = SliderTheme.of(tester.element(find.byType(Slider)));
+        return (theme.trackShape! as TroughTrackShape).meterColor;
+      }
+
+      expect(await meterColor(active: true),
+          isNot(await meterColor(active: false)));
     });
 
     testWidgets('tall variant renders without a meter or ticks supplied',
