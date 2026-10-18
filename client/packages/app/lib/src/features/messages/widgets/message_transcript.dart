@@ -180,12 +180,13 @@ class MessageTranscript extends StatefulWidget {
 }
 
 class _MessageTranscriptState extends State<MessageTranscript> {
-  /// Message ids already on screen at least once. The newest row animates in
-  /// only when its id is not in here, so a genuinely new arrival slides in
-  /// while the initial load, a recycle on scroll-back, and an unrelated parent
-  /// rebuild all render it statically. Reset with the widget, which is per
-  /// channel, so switching channels does not replay a stale entrance.
+  /// The newest row animates in only when its id is not in here, so a
+  /// genuinely new arrival slides in while the initial load, a recycle on
+  /// scroll-back, and an unrelated parent rebuild render it statically. Holds
+  /// the first window's tail and each newest id since, capped at
+  /// [_seenCap]; reset with the widget, which is per channel.
   final Set<String> _seen = {};
+  static const _seenCap = 64;
   bool _hydrated = false;
 
   /// Kept across rebuilds on purpose; see its own doc comment for why living
@@ -342,6 +343,15 @@ class _MessageTranscriptState extends State<MessageTranscript> {
       ? Align(alignment: Alignment.topCenter, child: _transcript(context))
       : _transcript(context);
 
+  /// Remembers the newest row, and on the first build the tail it could fall back to when the newest is deleted.
+  void _markSeen(List<TranscriptItem> items) {
+    final fresh = _hydrated ? items.skip(items.length - 1) : items;
+    _seen.addAll(fresh.map((item) => item.id));
+    while (_seen.length > _seenCap) {
+      _seen.remove(_seen.first);
+    }
+  }
+
   Widget _transcript(BuildContext context) {
     final messages = widget.messages;
     final items = mergePrivateAnswers(messages, widget.privateAnswers);
@@ -355,8 +365,7 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     _estimateJumpScroll();
     final newestId = items.last.id;
     final animateNewest = _hydrated && !_seen.contains(newestId);
-    // Everything on screen counts as seen, so a recycle never replays.
-    _seen.addAll(items.map((item) => item.id));
+    _markSeen(items);
     _hydrated = true;
 
     final frame = _Frame(
