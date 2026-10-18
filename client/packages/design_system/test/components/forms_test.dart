@@ -458,9 +458,30 @@ void main() {
           Theme.of(tester.element(find.byType(Slider))).extension<AppTokens>()!;
       final theme = SliderTheme.of(tester.element(find.byType(Slider)));
       final color = (theme.trackShape! as TroughTrackShape).meterColor;
-      expect(color, tokens.textDisabled);
+      expect(color, tokens.textDisabled.withValues(alpha: inactiveMeterAlpha));
       expect(color, isNot(tokens.borderStrong));
     });
+
+    for (final (name, tokens) in [
+      ('light', AppTokens.light),
+      ('dark', AppTokens.dark),
+      ('true black', AppTokens.trueBlack),
+    ]) {
+      test('$name: a live meter is visible and outweighs a silenced one', () {
+        final trough = tokens.surfaceSunken;
+        Color over(Color c) => Color.alphaBlend(c, trough);
+        final live = contrastRatio(
+          over(tokens.accentFill.withValues(alpha: activeMeterAlpha)),
+          trough,
+        );
+        final silenced = contrastRatio(
+          over(tokens.textDisabled.withValues(alpha: inactiveMeterAlpha)),
+          trough,
+        );
+        expect(live, greaterThanOrEqualTo(2.4));
+        expect(live, greaterThan(silenced * 1.3));
+      });
+    }
 
     testWidgets('a muted inactive meter is not dimmed twice', (tester) async {
       await tester.pumpWidget(_wrap(SizedBox(

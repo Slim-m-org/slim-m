@@ -25,6 +25,10 @@ import '../../touch_targets.dart';
 import 'focusable_tap_target.dart';
 import 'slider_shapes.dart';
 
+/// How much of the accent and of the disabled tone the live and silenced meters keep.
+const activeMeterAlpha = 0.7;
+const inactiveMeterAlpha = 0.5;
+
 class AppSlider extends StatefulWidget {
   const AppSlider({
     super.key,
@@ -105,11 +109,16 @@ class _AppSliderState extends State<AppSlider> {
     return widget.onChanged == null ? 0.7 : 1;
   }
 
-  /// A muted slider is already at half opacity, so its inactive meter starts
-  /// from the brighter neutral instead of dimming twice.
+  /// A live level reads at accent strength, a silenced one recedes behind it; the
+  /// old accentSoft tint was 1.1-1.3:1 against the trough and so the silenced
+  /// meter looked louder than the live one. A muted slider is already at half
+  /// opacity, so its inactive meter skips the extra dimming.
   Color _meterColor(AppTokens tokens) {
-    if (widget.meterActive) return tokens.accentSoft;
-    return widget.muted ? tokens.textSecondary : tokens.textDisabled;
+    if (widget.meterActive) {
+      return tokens.accentFill.withValues(alpha: activeMeterAlpha);
+    }
+    if (widget.muted) return tokens.textSecondary;
+    return tokens.textDisabled.withValues(alpha: inactiveMeterAlpha);
   }
 
   Widget _tickLabels(AppTokens tokens) {
