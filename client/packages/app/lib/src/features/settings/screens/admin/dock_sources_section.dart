@@ -56,7 +56,7 @@ class DockCommunitySection extends StatelessWidget {
     return SettingsSectionCard(
       title: local ? 'Local source: dev directory' : 'Community source: $repo',
       description: local
-          ? 'Not verified. Built on this server by whoever runs it.'
+          ? 'Not verified, and built on this server by whoever runs it.'
           : 'Not the official registry, so review what each module can do.',
       children: [
         if (section.failed)
