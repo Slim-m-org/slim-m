@@ -32,6 +32,7 @@ use uuid::Uuid;
 
 mod content_type;
 mod image_header;
+pub mod preview;
 mod stream;
 mod upload_session;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
@@ -162,6 +163,7 @@ const SPACE_ICON_KEY: &str = "space-icon";
 pub struct Media {
     attachments_dir: PathBuf,
     avatars_dir: PathBuf,
+    previews: preview::Previews,
     max_attachment_bytes: u64,
     /// The deployment-wide ceiling, or `None` for no ceiling. Carried here
     /// rather than on `AppState` because this is where the other size limit
@@ -203,6 +205,8 @@ impl Media {
         let avatars_dir = root.join("avatars");
         std::fs::create_dir_all(&attachments_dir)?;
         std::fs::create_dir_all(&avatars_dir)?;
+        let previews_dir = root.join("previews");
+        std::fs::create_dir_all(&previews_dir)?;
         let uploads_dir = root.join("uploads");
         std::fs::create_dir_all(&uploads_dir)?;
         Ok(Self {
@@ -210,6 +214,7 @@ impl Media {
             blobs: Arc::default(),
             attachments_dir,
             avatars_dir,
+            previews: preview::Previews::new(previews_dir),
             max_attachment_bytes,
             max_total_attachment_bytes: None,
             upload_timeout: DEFAULT_UPLOAD_TIMEOUT,
@@ -366,7 +371,17 @@ impl Media {
     }
 
     pub async fn delete_attachment(&self, sha256_hex: &str) -> io::Result<()> {
+        self.previews.delete(sha256_hex).await?;
         remove(self.attachment_path(sha256_hex)).await
+    }
+
+    pub fn previews(&self) -> &preview::Previews {
+        &self.previews
+    }
+
+    /// The stored original's path, for deriving a preview from it.
+    pub fn attachment_file(&self, sha256_hex: &str) -> PathBuf {
+        self.attachment_path(sha256_hex)
     }
 
     pub async fn write_avatar(&self, user_id: &str, bytes: Vec<u8>) -> io::Result<()> {

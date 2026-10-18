@@ -106,6 +106,8 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
           child: _maybeHero(
             Image.memory(
               widget.bytes,
+              // The inline preview hands over to the original without a blank frame.
+              gaplessPlayback: true,
               fit: BoxFit.contain,
               semanticLabel: widget.filename,
               // The inline thumbnail already tried and failed to decode these same bytes; see the viewer's own doc comment.

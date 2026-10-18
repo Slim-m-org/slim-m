@@ -13,8 +13,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import '../../../providers/disk_byte_cache.dart';
 
 /// Read/write access to cached emoji image bytes, kept behind an interface
 /// so a test can hand [customEmojiImageProvider] an in-memory fake rather
@@ -47,87 +47,24 @@ const emojiImageCacheByteCeiling = 32 * 1024 * 1024;
 /// (a future "free up space" action, say) cannot touch anything else there.
 const _cacheDirName = 'emoji-image-cache';
 
-/// Disk-backed, least-recently-used by file modification time rather than a
-/// separate manifest: touching a file's mtime on every read and write is
-/// enough to order eviction correctly and needs no extra state that could
-/// itself drift from what is actually on disk.
+/// The emoji cache on disk, in its own directory so clearing it cannot touch
+/// anything else under the support directory.
 class DiskEmojiImageCache implements EmojiImageCache {
-  DiskEmojiImageCache({Directory? directory}) : _directory = directory;
+  DiskEmojiImageCache({Directory? directory})
+    : _cache = DiskByteCache(
+        dirName: _cacheDirName,
+        ceilingBytes: emojiImageCacheByteCeiling,
+        directory: directory,
+      );
 
-  /// Overridden by tests; production always resolves the real
-  /// application-support directory, the same call `openSlimmDatabase`'s
-  /// native backend makes for drift's own file.
-  final Directory? _directory;
-
-  Future<Directory>? _dir;
-
-  Future<Directory> _cacheDir() => _dir ??= _open();
-
-  Future<Directory> _open() async {
-    final base = _directory ?? await getApplicationSupportDirectory();
-    final dir = Directory(p.join(base.path, _cacheDirName));
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-
-  /// `Uri.encodeComponent` rather than the id verbatim: ids are server-issued
-  /// UUIDs today with nothing unsafe in them, but a cache file name built
-  /// from any external string should not trust that forever, the same
-  /// defense-in-depth the API transport's own path-segment escaping applies.
-  File _fileFor(Directory dir, String emojiId) =>
-      File(p.join(dir.path, '${Uri.encodeComponent(emojiId)}.bin'));
+  final DiskByteCache _cache;
 
   @override
-  Future<Uint8List?> read(String emojiId) async {
-    try {
-      final file = _fileFor(await _cacheDir(), emojiId);
-      final bytes = await file.readAsBytes();
-      unawaited(file.setLastModified(DateTime.now()).catchError((_) {}));
-      return bytes;
-    } catch (_) {
-      // A miss, an unreadable file, or a broken directory: all read as a cache that was never populated.
-      return null;
-    }
-  }
+  Future<Uint8List?> read(String emojiId) => _cache.read(emojiId);
 
   @override
-  Future<void> write(String emojiId, Uint8List bytes) async {
-    try {
-      final dir = await _cacheDir();
-      await _fileFor(dir, emojiId).writeAsBytes(bytes);
-      await _evictOverCeiling(dir);
-    } catch (_) {
-      // See the interface doc: a failed write only means a slower next launch.
-    }
-  }
-
-  Future<void> _evictOverCeiling(Directory dir) async {
-    final files = <File>[];
-    final sizes = <File, int>{};
-    final modified = <File, DateTime>{};
-    var total = 0;
-    await for (final entity in dir.list()) {
-      if (entity is! File) continue;
-      final stat = await entity.stat();
-      files.add(entity);
-      sizes[entity] = stat.size;
-      modified[entity] = stat.modified;
-      total += stat.size;
-    }
-    if (total <= emojiImageCacheByteCeiling) return;
-    files.sort((a, b) => modified[a]!.compareTo(modified[b]!));
-    for (final file in files) {
-      if (total <= emojiImageCacheByteCeiling) break;
-      total -= sizes[file]!;
-      try {
-        await file.delete();
-      } catch (_) {
-        // Left for a later eviction pass; not this write's problem to solve.
-      }
-    }
-  }
+  Future<void> write(String emojiId, Uint8List bytes) =>
+      _cache.write(emojiId, bytes);
 }
 
 /// A no-op cache: every read misses, every write is dropped after one debug

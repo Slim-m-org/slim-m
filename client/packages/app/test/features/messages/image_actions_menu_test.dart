@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/features/messages/widgets/attachment_view.dart';
 import 'package:slimm_app/src/features/messages/widgets/fullscreen_image_viewer.dart';
 import 'package:slimm_app/src/features/messages/widgets/image_actions.dart';
@@ -96,6 +97,7 @@ Future<void> _pump(
           clipboardImageWriterProvider.overrideWithValue(writer),
           imageExporterProvider.overrideWithValue(exporter),
           attachmentBytesProvider.overrideWith((ref, id) async => _png),
+          attachmentPreviewBytesProvider.overrideWith((ref, key) async => _png),
         ],
         child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
@@ -234,6 +236,7 @@ void main() {
             imageExporterProvider.overrideWithValue(
               _FakeExporter(phone: false),
             ),
+            attachmentBytesProvider.overrideWith((ref, id) async => _png),
           ],
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),

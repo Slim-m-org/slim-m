@@ -35,6 +35,7 @@ import 'src/desktop/desktop_window_shell.dart';
 import 'src/providers/desktop_splash_preference.dart';
 import 'src/features/emoji/providers/emoji_catalog_provider.dart';
 import 'src/features/emoji/providers/emoji_image_cache.dart';
+import 'src/features/messages/providers/attachment_preview_bytes.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
@@ -122,6 +123,7 @@ Future<void> main([List<String> args = const []]) async {
 AccountHost _createAccountHost() {
   final keyStore = createPersistentKeyStore();
   final emojiCache = createEmojiImageCache();
+  final previewCache = createAttachmentPreviewCache();
   final accounts = AccountStore(keyStore);
   // One log for every account, since the error hooks are global.
   final debugLog = DebugLog();
@@ -132,6 +134,7 @@ AccountHost _createAccountHost() {
       overrides: [
         debugLogProvider.overrideWith((ref) => debugLog),
         emojiImageCacheProvider.overrideWithValue(emojiCache),
+        attachmentPreviewCacheProvider.overrideWithValue(previewCache),
         keyStoreProvider.overrideWithValue(keyStore),
         accountSlotProvider.overrideWithValue(slot),
         accountHostProvider.overrideWith((ref) => host),

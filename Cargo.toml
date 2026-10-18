@@ -63,6 +63,9 @@ wasmi = "0.51"
 # binary, since the distroless release image ships no /usr/share/zoneinfo.
 jiff = { version = "0.2", default-features = false, features = ["std", "tzdb-bundle-always", "serde"] }
 
+# Decodes JPEG/PNG/GIF/WebP to cut the inline attachment preview; every other codec is off (binary size budget, decode attack surface). See docs/dependencies.md.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+
 [profile.dev]
 # Line tables, not full DWARF. This crate builds 154 integration test files
 # into 154 separate binaries, each statically linking the whole crate and its

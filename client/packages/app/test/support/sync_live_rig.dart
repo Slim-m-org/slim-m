@@ -52,13 +52,18 @@ class SyncLiveRig {
     required List<Map<String, dynamic>> seeded,
     int? opCursor,
     MessageStore Function(SlimmDatabase db)? makeStore,
+    int extraChannels = 0,
+    List<Override> overrides = const [],
   }) async {
     final db = SlimmDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final store = makeStore?.call(db) ?? MessageStore(db);
-    await store.upsertChannels([
+    final channels = [
       const api.Channel(id: 'c1', name: 'general', kind: 'text', createdAt: 0),
-    ]);
+      for (var i = 0; i < extraChannels; i++)
+        api.Channel(id: 'x$i', name: 'extra-$i', kind: 'text', createdAt: 0),
+    ];
+    await store.upsertChannels(channels);
     for (final m in seeded) {
       await store.applyMessage(api.Message.fromJson(m));
     }
@@ -71,7 +76,8 @@ class SyncLiveRig {
         'GET',
         '/channels',
         (_) => jsonResponse([
-          {'id': 'c1', 'name': 'general', 'kind': 'text', 'created_at': 0},
+          for (final c in channels)
+            {'id': c.id, 'name': c.name, 'kind': 'text', 'created_at': 0},
         ]),
       )
       ..on(
@@ -93,6 +99,7 @@ class SyncLiveRig {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore()),
         storeProvider.overrideWith((ref) async => store),
+        ...overrides,
         apiProvider.overrideWith((ref) {
           final client = api.SlimmApi(
             baseUrl: server.baseUrl,

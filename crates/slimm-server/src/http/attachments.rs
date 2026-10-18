@@ -201,6 +201,13 @@ fn upload_stream_error(err: StreamError) -> ApiError {
     }
 }
 
+/// Query for [`fetch`].
+#[derive(Deserialize)]
+struct FetchParams {
+    /// Asks for a bounded-size preview of a still image; see [`super::attachment_preview`].
+    w: Option<u32>,
+}
+
 /// Serves stored bytes back, gated on the same VIEW_CHANNEL a caller needs to
 /// read the message the attachment belongs to.
 ///
@@ -214,6 +221,7 @@ fn upload_stream_error(err: StreamError) -> ApiError {
 async fn fetch(
     AuthedLimited(ctx): AuthedLimited<ASSET>,
     Path(attachment_id): Path<String>,
+    Query(params): Query<FetchParams>,
     headers: HeaderMap,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
@@ -243,6 +251,13 @@ async fn fetch(
         .attachment_summary(&sha256)
         .await?
         .ok_or(ApiError::NotFound("attachment not found"))?;
+    if let Some(width) = params.w
+        && let Some(response) =
+            super::attachment_preview::serve(&state.media, &attachment_id, &meta, width, &headers)
+                .await
+    {
+        return Ok(response);
+    }
     let (file, total_len) = state
         .media
         .open_attachment(&attachment_id)

@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/attachment_bytes.dart';
+import '../providers/attachment_preview_bytes.dart';
 import '../providers/media_preferences.dart';
 import '../../../message_preview.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
@@ -87,7 +87,12 @@ class ReplyAttachmentThumb extends ConsumerWidget {
     }
     return frame(
       ref
-          .watch(attachmentBytesProvider(sole.id))
+          .watch(
+            attachmentPreviewBytesProvider((
+              id: sole.id,
+              bucket: attachmentPreviewBucket(decodeEdge(context, edge)),
+            )),
+          )
           .when(
             data: (bytes) => Image.memory(
               bytes,

@@ -50,7 +50,7 @@ pub async fn collect_garbage(
     media: &Media,
     now: SystemTime,
 ) -> anyhow::Result<usize> {
-    let mut removed = 0;
+    let mut removed = collect_stale_previews(store, media, now).await?;
     for (name, modified) in media.attachment_files().await? {
         let age = now.duration_since(modified).unwrap_or_default();
         if name.starts_with(".tmp-") {
@@ -68,6 +68,30 @@ pub async fn collect_garbage(
         let _guard = media.blob_guard().await;
         if store.attachment_summary(&sha256).await?.is_none() {
             media.delete_attachment(&name).await?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
+}
+
+/// Removes previews whose attachment is gone; `delete_attachment` covers the normal path.
+async fn collect_stale_previews(
+    store: &Store,
+    media: &Media,
+    now: SystemTime,
+) -> anyhow::Result<usize> {
+    let mut removed = 0;
+    for (name, modified) in media.previews().files().await? {
+        let age = now.duration_since(modified).unwrap_or_default();
+        let stale_temp = name.starts_with(".tmp-") && age >= TEMP_FILE_GRACE;
+        let hex = name.split('.').next().unwrap_or_default();
+        let orphan = age >= ORPHAN_FILE_GRACE
+            && is_content_name(hex)
+            && match media::from_hex(hex) {
+                Some(sha256) => store.attachment_summary(&sha256).await?.is_none(),
+                None => false,
+            };
+        if (stale_temp || orphan) && media.previews().remove_file(&name).await.is_ok() {
             removed += 1;
         }
     }

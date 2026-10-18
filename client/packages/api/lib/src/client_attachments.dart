@@ -121,8 +121,18 @@ extension SlimmApiAttachments on SlimmApi {
   /// live message attaching it, checked across every channel that does,
   /// since content addressing means more than one message can share the
   /// same bytes.
-  Future<FetchedBytes> fetchAttachment(String attachmentId) =>
-      _fetchBytes('/attachments/$attachmentId');
+  ///
+  /// With [previewWidth] the server answers a smaller preview of a still image
+  /// where it can, and the original otherwise; read [FetchedBytes.contentType]
+  /// rather than assuming which one came back.
+  Future<FetchedBytes> fetchAttachment(
+    String attachmentId, {
+    int? previewWidth,
+  }) =>
+      _fetchBytes(
+        '/attachments/$attachmentId',
+        query: previewWidth == null ? null : {'w': '$previewWidth'},
+      );
 
   /// Opens an attachment as a stream, with no deadline on the body itself: a
   /// multi-gigabyte file legitimately takes longer than any whole-transfer

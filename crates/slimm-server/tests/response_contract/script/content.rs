@@ -322,6 +322,12 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
     // Only fetchable once a live message references it, so not before now.
     c.get("getAttachment", &format!("/attachments/{attachment}"), root)
         .await;
+    c.get(
+        "getAttachment",
+        &format!("/attachments/{attachment}?w=640"),
+        root,
+    )
+    .await;
 
     c.json(
         "editMessage",
