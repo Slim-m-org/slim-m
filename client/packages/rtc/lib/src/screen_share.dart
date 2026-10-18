@@ -104,6 +104,46 @@ class ScreenShareQuality {
   String toString() => 'ScreenShareQuality($id)';
 }
 
+/// What a share is really published at once the captured source is known.
+class ScreenShareFit {
+  const ScreenShareFit({
+    required this.quality,
+    required this.width,
+    required this.height,
+  });
+
+  /// The tier whose bitrate and frame rate apply to [width] by [height].
+  final ScreenShareQuality quality;
+  final int width;
+  final int height;
+}
+
+/// Never publishes above the shared source or the space ceiling.
+///
+/// A 1080p screen with the 2160p tier picked would otherwise hand the encoder
+/// a 3840x2160 layout and a 12 Mbps top layer it can never fill.
+ScreenShareFit fitScreenShare(
+  ScreenShareQuality chosen, {
+  required int sourceWidth,
+  required int sourceHeight,
+  int? maxHeight,
+}) {
+  final limit =
+      [chosen.height, sourceHeight, if (maxHeight != null) maxHeight].reduce(
+    (a, b) => a < b ? a : b,
+  );
+  final tier = ScreenShareResolution.values.lastWhere(
+    (r) => r.height <= limit,
+    orElse: () => ScreenShareResolution.values.first,
+  );
+  final quality = ScreenShareQuality(tier, chosen.frameRate);
+  return ScreenShareFit(
+    quality: quality,
+    width: quality.width < sourceWidth ? quality.width : sourceWidth,
+    height: quality.height < sourceHeight ? quality.height : sourceHeight,
+  );
+}
+
 /// A screen the OS will let this app capture.
 ///
 /// Screens only, never windows. Enumerating windows through libwebrtc's

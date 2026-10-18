@@ -41,6 +41,7 @@ import e2e_voice_mic_release
 import e2e_voice_devices
 import e2e_voice_multishare
 import e2e_voice_share
+import e2e_share_quality
 import e2e_voice_noise
 import e2e_voice_volume
 import e2e_voice_network
@@ -293,6 +294,9 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_voice_multishare.two_shares_reach_a_third_viewer(
              a, b, server, secret, admin, sign_in, room_id,
              member.me()["id"])),
+        ("voice: a share reaches the viewer, measured, with the sender held back",
+         lambda: e2e_share_quality.share_quality_under_a_constrained_sender(
+             a, b, room_id, member.me()["id"])),
         ("voice: calling in a dm", lambda: e2e_dm_call.start_dm_and_call(
             a, b, admin, member)),
         ("voice: a call nobody answers shows up in the dm",

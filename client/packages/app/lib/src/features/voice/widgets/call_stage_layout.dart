@@ -35,6 +35,7 @@ import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
 import 'fullscreen_video_overlay.dart';
 import 'local_screen_share_banner.dart';
+import 'share_limit_banner.dart';
 import 'share_stage_controls.dart';
 import 'share_stage_grid.dart';
 import 'voice_reconnect_banner.dart';
@@ -133,6 +134,13 @@ class CallStageLayout extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.only(top: AppSpacing.s12),
               child: LocalScreenSharePendingBanner(),
+            ),
+          if (voice.screenSharing)
+            ShareLimitBanner(
+              limit: ref.read(voiceControllerProvider.notifier).shareLimit,
+              onDismiss: ref
+                  .read(voiceControllerProvider.notifier)
+                  .dismissShareLimit,
             ),
           if (voice.error != null && !voice.rejoining)
             Padding(

@@ -3,6 +3,8 @@
 /// sends, and the resolution and frame rate of a screen share.
 library;
 
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -53,6 +55,10 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             _QualityRow<ScreenShareResolution>(
               label: 'Screen share resolution',
+              footnote: screenShareSizeNote(
+                settings.screenShareQuality.resolution,
+                _largestDisplayHeight(),
+              ),
               values: ScreenShareResolution.values,
               selected: settings.screenShareQuality.resolution,
               nameOf: (r) => r.label,
@@ -95,10 +101,12 @@ class _QualityRow<T> extends StatelessWidget {
     required this.nameOf,
     required this.onSelected,
     this.description,
+    this.footnote,
   });
 
   final String label;
   final String? description;
+  final String? footnote;
   final List<T> values;
   final T selected;
   final String Function(T value) nameOf;
@@ -108,10 +116,18 @@ class _QualityRow<T> extends StatelessWidget {
   Widget build(BuildContext context) => SettingsSegmentedRow<T>(
     label: label,
     description: description,
+    footnote: footnote,
     value: selected,
     choices: [
       for (final v in values) SettingsChoice(value: v, label: nameOf(v)),
     ],
     onChanged: onSelected,
   );
+}
+
+int? _largestDisplayHeight() {
+  final heights = [
+    for (final d in PlatformDispatcher.instance.displays) d.size.height.round(),
+  ];
+  return heights.isEmpty ? null : heights.reduce((a, b) => a > b ? a : b);
 }

@@ -55,6 +55,9 @@ extension VoiceSessionVideo on VoiceSession {
     );
     _applyShareAudioBlock(room);
     _syncStallWatch();
+    shareLimit.sync(
+      sharing: room.localParticipant?.isScreenShareEnabled() ?? false,
+    );
   }
 
   /// A share's audio is its own publication, which the culler never sees, so a blocked share's is unsubscribed here and only here.

@@ -5,6 +5,7 @@
 /// depends on a call being up.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 /// Which video track a sample describes.
@@ -19,10 +20,13 @@ class StatsEntry {
     this.values = const {},
   });
 
-  factory StatsEntry.fromReport(rtc.StatsReport report) => StatsEntry(
+  /// A browser reports `timestamp` in milliseconds; every native plugin
+  /// (desktop, Android, iOS) reports microseconds, so [web] picks the unit.
+  factory StatsEntry.fromReport(rtc.StatsReport report, {bool web = kIsWeb}) =>
+      StatsEntry(
         type: report.type,
         id: report.id,
-        timestampMs: report.timestamp,
+        timestampMs: web ? report.timestamp : report.timestamp / 1000,
         values: {for (final e in report.values.entries) '${e.key}': e.value},
       );
 
