@@ -26,6 +26,8 @@ import 'preference_controller.dart';
 import 'providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
 import '../features/voice/providers/voice_controller.dart';
+import '../features/voice/providers/voice_flags.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 /// Runs [restore], and on any failure records it and carries on: [name]'s
 /// controller keeps its default, which is always a usable answer.
@@ -81,6 +83,29 @@ Future<void> resyncSharedPreferences(ProviderContainer container) {
   return Future.wait([
     for (final entry in restorablePreferences.entries)
       restoreOrDefault(container, entry.key, entry.value(container).restore()),
+  ]);
+}
+
+/// Re-reads the device-wide voice preferences into a container that has not
+/// loaded them, unless it is in a call, where a restore would change a live one.
+Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
+  final flags = container.read(voiceFlagsProvider);
+  if (flags.state == VoiceSessionState.connected || flags.rejoining) return;
+  final voice = container.read(voiceControllerProvider.notifier);
+  await Future.wait([
+    for (final entry in {
+      'camera on join': voice.restoreCameraPreference(),
+      'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
+      'input threshold': voice.restoreInputThreshold().then(
+        (_) => voice.restoreInputThresholdAuto(),
+      ),
+      'even out loud sounds': voice.restoreEvenOutLoudSounds(),
+      'noise suppression': voice.restoreNoiseSuppression(),
+      'video quality': voice.restoreVideoQuality(),
+      'push to talk': voice.restorePushToTalkPreference(),
+      'audio devices': voice.restoreAudioDevicePreferences(),
+    }.entries)
+      restoreOrDefault(container, entry.key, entry.value),
   ]);
 }
 
