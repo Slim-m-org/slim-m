@@ -88,6 +88,28 @@ That is the reconnect herd the comments in `crates/slimm-server/src/http/ws/auth
 | `JITTER_MS` | 0 | random delay added after each barrier, to see what backoff would buy |
 | `LAG` | 20 | how far behind each channel cursor starts |
 
+### routes
+
+The routes the admin analytics page lists as slowest, driven the way a channel drives them: a burst of first-time `?w=320` previews of large JPEGs, then repeat downloads with and without `?w=` and the voice roster at a steady rate.
+It uploads its photos itself, from a directory of fixtures mounted at `/fixtures`.
+
+```bash
+python3 perf/load/make_photo.py /tmp/fixtures/photo-6000x4000.jpg 6000 4000 97
+LOAD_FIXTURES=/tmp/fixtures LOAD_FAKE_LIVEKIT=1 scripts/load-run.sh --profile routes -e PHOTO=photo-6000x4000.jpg
+```
+
+`LOAD_FAKE_LIVEKIT=1` starts `scripts/lib/load_fake_livekit.py` on the next port up and points the server at it, so the roster has an SFU to ask; `LOAD_FAKE_LIVEKIT_DELAY_MS` (default 40) is how long it takes to answer, and the run's `fake-livekit-calls.txt` counts what reached it.
+Link previews are not driven here, because the SSRF guard refuses the loopback page a local run would serve; `tests/link_preview_image.rs` and `tests/link_preview_cache.rs` count them at a fake upstream instead.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PHOTO` | `photo-6000x4000.jpg` | file in `LOAD_FIXTURES`; each upload gets a distinct hash from a trailing byte string |
+| `COLD_PHOTOS` | 8 | photos, and virtual users asking for a first preview at once |
+| `COLD_START` | 0 | seconds before that burst; 10 lets the upload-time previews finish first |
+| `ORIGINAL_RATE`, `PREVIEW_RATE` | 4, 40 | repeat requests per second without and with `?w=` |
+| `ROSTER_RATE` | 100 | roster requests per second |
+| `WARM_SECONDS` | 20 | length of the repeat phase |
+
 ## Reading the results
 
 Each run writes `perf/load/results/<timestamp>-<scenario>/`, which is gitignored:
@@ -97,7 +119,7 @@ Each run writes `perf/load/results/<timestamp>-<scenario>/`, which is gitignored
   If k6's CPU is near the cores it was given, the result is k6's ceiling, not the server's.
 - `metrics-before.txt` and `metrics-after.txt`: the server's own `/metrics`, before and after.
 - `k6.log`, `server.log`, `run.txt` (which binary, which commit, how many cores).
-- With `--profile`: `profile.json.gz`, `profile.json.syms.json` and `profile-top.txt`.
+- With `--profile`: `profile.json.gz`, `profile.json.syms.json` and `profile-top.txt`, and `flamegraph.svg` when `inferno-flamegraph` is installed (`cargo install inferno`).
 
 Two caveats for `fanout`.
 `delivery_ms` includes the send's own round trip, and `Date.now()` has millisecond resolution, so sub-millisecond numbers are not meaningful.
