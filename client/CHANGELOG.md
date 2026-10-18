@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.112.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.111.0...client-v0.112.0) (2026-10-18)
+
+
+### Features
+
+* live canvas, measured voice tests, settings and Spotify move, new sounds, windows installer fixes, and the push foreground fix ([#2257](https://github.com/Slim-m-org/slim-m/issues/2257)) ([08b9f5d](https://github.com/Slim-m-org/slim-m/commit/08b9f5d786a02a85b2c3930f40e18c4f93ef9ea5))
+
 ## [0.111.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.110.0...client-v0.111.0) (2026-10-18)
 
 
