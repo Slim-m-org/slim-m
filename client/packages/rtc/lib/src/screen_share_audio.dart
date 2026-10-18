@@ -7,12 +7,13 @@ library;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
-/// Whether this platform can add an audio track to a screen share. Linux is
-/// true though it depends on a build flag, since a build without it just
-/// shares video. [platform] lets a test pick the platform, because CI runs
+/// Whether this platform can add an audio track to a screen share. Linux
+/// depends on a build flag and Windows on version 10 2004 or newer, and both
+/// just share video when that is missing. [platform] lets a test pick the platform, because CI runs
 /// on Linux, which is itself a true answer.
 bool supportsScreenShareAudio({@visibleForTesting lk.PlatformType? platform}) {
   final onPlatform = platform ?? lk.lkPlatform();
   return onPlatform == lk.PlatformType.web ||
-      onPlatform == lk.PlatformType.linux;
+      onPlatform == lk.PlatformType.linux ||
+      onPlatform == lk.PlatformType.windows;
 }
