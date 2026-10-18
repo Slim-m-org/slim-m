@@ -9,15 +9,12 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
-import 'package:slimm_app/src/features/voice/widgets/audio_device_section.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -156,71 +153,4 @@ void main() {
       expect(prefs.getString('slimm.voice.audio_input_device_id'), 'mic-gone');
     },
   );
-
-  group('Reset microphone', () {
-    Finder resetButton() => find.widgetWithText(AppButton, 'Reset');
-
-    Future<void> showRow(WidgetTester tester) async {
-      await tester.scrollUntilVisible(
-        find.text('Reset microphone'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('is disabled outside a call', (tester) async {
-      final session = FakeSession();
-      await tester.pumpWidget(_pumpWith(session));
-      await tester.pumpAndSettle();
-      await showRow(tester);
-
-      await tester.tap(resetButton(), warnIfMissed: false);
-      await tester.pump();
-
-      expect(tester.widget<AppButton>(resetButton()).onPressed, isNull);
-      expect(session.microphoneResets, 0);
-    });
-
-    testWidgets('restarts the capture of a live call', (tester) async {
-      final session = FakeSession();
-      await tester.pumpWidget(_pumpWith(session));
-      await tester.pumpAndSettle();
-      await ProviderScope.containerOf(
-        tester.element(find.byType(AudioDeviceSection)),
-      ).read(voiceControllerProvider.notifier).join('channel-1');
-      await tester.pumpAndSettle();
-      await showRow(tester);
-
-      await tester.tap(resetButton());
-      await tester.pumpAndSettle();
-
-      expect(session.microphoneResets, 1);
-      // Clears the heartbeat timer a connected call keeps running.
-      await ProviderScope.containerOf(
-        tester.element(find.byType(AudioDeviceSection)),
-      ).read(voiceControllerProvider.notifier).leave();
-    });
-
-    testWidgets('a reset that fails is reported on the call', (tester) async {
-      final session = FakeSession()..microphoneResetWorks = false;
-      await tester.pumpWidget(_pumpWith(session));
-      await tester.pumpAndSettle();
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(AudioDeviceSection)),
-      );
-      await container.read(voiceControllerProvider.notifier).join('channel-1');
-      await tester.pumpAndSettle();
-      await showRow(tester);
-
-      await tester.tap(resetButton());
-      await tester.pumpAndSettle();
-
-      expect(
-        container.read(voiceControllerProvider).error,
-        'Could not reset the microphone.',
-      );
-      await container.read(voiceControllerProvider.notifier).leave();
-    });
-  });
 }

@@ -26,6 +26,8 @@ mixin VoiceSessionMicRecovery {
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
   Timer? _deviceDebounce;
+  Timer? _senderPoll;
+  String? _inputSignature;
 
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get micStatus => _micStatus;
@@ -60,22 +62,46 @@ mixin VoiceSessionMicRecovery {
         );
         unawaited(_restartMicCapture('silent'));
       },
+      onGaveUp: () {
+        _logMic(
+          'The microphone is still silent after every restart; asking the user to retry',
+          level: LogLevel.warning,
+        );
+        _setMicStatus(MicStatus.unavailable);
+      },
+      onRecovered: () {
+        if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
+      },
     );
     _micLost = _mic.lost.listen(
       (_) => _micRecovery.onLost('track ended or unpublished'),
     );
-    _micLevels = _gate.readings.listen(
-      (r) => _micWatchdog.observe(
-        r.levelDb,
+    _micLevels = _gate.readings.listen((r) => _observeMicLevel(r.levelDb));
+  }
+
+  void _observeMicLevel(double levelDb) => _micWatchdog.observe(
+        levelDb,
         active:
             _micWanted && _mic.open && _state == VoiceSessionState.connected,
-      ),
-    );
+      );
+
+  /// Hosts without the input gate read the sender's own stats instead.
+  Future<void> _pollSenderLevel() async {
+    if (_state != VoiceSessionState.connected || !_micWanted || !_mic.open) {
+      return _micWatchdog.reset();
+    }
+    try {
+      final level = await _mic.senderLevelDb();
+      if (level != null) _observeMicLevel(level);
+    } on Object catch (e) {
+      _logMic('Could not read the sent audio level: $e', level: LogLevel.debug);
+    }
   }
 
   Future<void> _disposeMicRecovery() async {
     _micRecovery.dispose();
     _deviceDebounce?.cancel();
+    _senderPoll?.cancel();
     await _micLost?.cancel();
     await _micLevels?.cancel();
     await _deviceChanges?.cancel();
@@ -103,6 +129,13 @@ mixin VoiceSessionMicRecovery {
     if (state == VoiceSessionState.connected) {
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
+        unawaited(_rememberInputs());
+      }
+      if (!_gate.supported) {
+        _senderPoll ??= Timer.periodic(
+          _micTiming.senderPoll,
+          (_) => unawaited(_pollSenderLevel()),
+        );
       }
       return;
     }
@@ -113,6 +146,9 @@ mixin VoiceSessionMicRecovery {
     _micWanted = false;
     _deviceDebounce?.cancel();
     _deviceDebounce = null;
+    _senderPoll?.cancel();
+    _senderPoll = null;
+    _inputSignature = null;
     unawaited(_deviceChanges?.cancel());
     _deviceChanges = null;
     _micRecovery.reset();
@@ -139,15 +175,36 @@ mixin VoiceSessionMicRecovery {
         level: LogLevel.warning,
       );
     }
+    final defaultMoved = await _defaultInputMoved();
     _logMic(
-      inputDropped
-          ? 'Audio devices changed; the chosen microphone is gone'
-          : 'Audio devices changed; the chosen microphone is still there',
+      'Audio devices changed; the chosen microphone is '
+      '${inputDropped ? 'gone' : 'still there'}'
+      '${defaultMoved ? ', and the system default moved' : ''}',
     );
     if (!_micWanted) return;
-    if (inputDropped || !_mic.hasTrack || _micStatus != MicStatus.ok) {
+    if (inputDropped ||
+        defaultMoved ||
+        !_mic.hasTrack ||
+        _micStatus != MicStatus.ok) {
       await _restartMicCapture('device change');
     }
+  }
+
+  Future<void> _rememberInputs() async {
+    try {
+      _inputSignature = await _audioSwitching.inputSignature();
+    } on Object catch (e) {
+      _logMic('Could not list microphones: $e', level: LogLevel.warning);
+    }
+  }
+
+  /// A capture that follows the system default has to move when that changes.
+  Future<bool> _defaultInputMoved() async {
+    final before = _inputSignature;
+    await _rememberInputs();
+    return _audioSwitching.followsSystemDefaultInput &&
+        before != null &&
+        before != _inputSignature;
   }
 
   /// Reopens the capture where the user wants the mic open, republishing it
@@ -159,6 +216,7 @@ mixin VoiceSessionMicRecovery {
       await _mic.restart(_currentCaptureOptions());
       _afterRestart();
       _logMic('Microphone capture restarted ($reason)');
+      if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
       return true;
     } on Object catch (e) {
       _logMic(
@@ -215,11 +273,12 @@ mixin VoiceSessionMicRecovery {
       );
 
   /// Force-restarts the capture, bypassing the same-device no-op a picker
-  /// selection has. A muted mic gets its track dropped, so the next unmute
-  /// opens a fresh one.
+  /// selection has; the tap on a mic button that says it is unavailable. A
+  /// muted mic gets its track dropped, so the next unmute opens a fresh one.
   Future<bool> resetMicrophone() async {
     if (_room == null) return false;
     _logMic('Microphone reset requested');
+    _micWatchdog.reset();
     if (!_micWanted) {
       if (_mic.hasTrack) await _mic.discard();
       return true;

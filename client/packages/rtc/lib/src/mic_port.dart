@@ -7,6 +7,8 @@ import 'dart:async';
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'mic_recovery.dart' show senderLevelToDb;
+
 abstract interface class MicPort {
   /// Whether a microphone track has been published.
   bool get hasTrack;
@@ -15,6 +17,10 @@ abstract interface class MicPort {
   bool get open;
 
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options);
+
+  /// The capture's level in dBFS from the sender's own stats, or null when the
+  /// platform reports none; only exact digital silence reads as the floor.
+  Future<double?> senderLevelDb();
 
   /// Reopens the capture with [options].
   Future<void> restart(lk.AudioCaptureOptions options);
@@ -84,6 +90,13 @@ class LiveKitMicPort implements MicPort {
           enabled,
           audioCaptureOptions: options,
         );
+  }
+
+  @override
+  Future<double?> senderLevelDb() async {
+    final stats = await _publication?.track?.getSenderStats();
+    final level = stats?.audioSourceStats?.audioLevel;
+    return level == null ? null : senderLevelToDb(level.toDouble());
   }
 
   @override

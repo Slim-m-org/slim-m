@@ -31,6 +31,8 @@ export 'src/input_gate.dart'
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mic_port.dart';
+export 'src/mic_preview.dart';
+export 'src/mic_preview_loopback.dart' show LoopbackMicSource, systemMicPreview;
 export 'src/mic_recovery.dart';
 export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';

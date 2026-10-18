@@ -8,10 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
+import '../../voice/widgets/mic_preview_hold.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/push_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
+import '../../voice/providers/mic_preview.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/audio_device_section.dart';
 
@@ -197,13 +199,13 @@ class FirstRunVoiceStep extends ConsumerWidget {
           child: const AudioDeviceSection(embedded: true),
         ),
         const SizedBox(height: AppSpacing.s16),
-        const _LevelMeter(),
+        const MicPreviewHold(child: _LevelMeter()),
       ],
     );
   }
 }
 
-/// Reads the live level, which only exists while a call has the microphone open.
+/// A call's own level while one is up, the preview's otherwise.
 class _LevelMeter extends ConsumerWidget {
   const _LevelMeter();
 
@@ -213,7 +215,10 @@ class _LevelMeter extends ConsumerWidget {
     final inCall = ref.watch(
       voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
     );
-    final level = inCall ? ref.watch(localMicLevelProvider) : 0.0;
+    final preview = inCall ? null : ref.watch(micMeterProvider);
+    final level = preview == null
+        ? ref.watch(localMicLevelProvider)
+        : preview.fraction;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: AppSpacing.s8,
@@ -238,9 +243,7 @@ class _LevelMeter extends ConsumerWidget {
           ),
         ),
         Text(
-          inCall
-              ? 'Say something to see it move.'
-              : 'Join a voice channel to see your level here.',
+          preview?.caption ?? 'Say something to see it move.',
           style: AppText.caption.copyWith(color: tokens.textSecondary),
         ),
       ],

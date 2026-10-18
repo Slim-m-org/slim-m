@@ -11,8 +11,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
+import '../widgets/mic_preview_hold.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
@@ -120,12 +122,9 @@ class _PushToTalkSection extends ConsumerWidget {
   }
 }
 
-/// A live level for the local microphone, sourced from the one real signal
-/// `slimm_rtc` exposes: [VoiceParticipant.isSpeaking] on an active call's
-/// local participant. There is no continuous amplitude in the package's
-/// public API, so this is a two-level meter (quiet or speaking) rather than
-/// a fabricated waveform, and it only reads live outside of a call once one
-/// starts: there is nothing to meter before that.
+/// A live level for the local microphone: the native gate's own reading on a
+/// host that has one, otherwise the call's speaking flag as a two-level meter
+/// in a call and the preview capture's measured level outside one.
 class _MicrophoneSection extends ConsumerWidget {
   const _MicrophoneSection();
 
@@ -144,8 +143,11 @@ class _MicrophoneSection extends ConsumerWidget {
         break;
       }
     }
+    final preview = inCall ? null : ref.watch(micMeterProvider);
     final speaking = inCall && (local?.isSpeaking ?? false);
-    final muted = !inCall || (local?.isMuted ?? true);
+    final muted = inCall
+        ? (local?.isMuted ?? true)
+        : preview?.status != MicPreviewStatus.live;
 
     if (hostHasInputGate(ref)) {
       return SettingsSectionCard(
@@ -163,32 +165,37 @@ class _MicrophoneSection extends ConsumerWidget {
 
     return SettingsSectionCard(
       title: 'Microphone',
-      description: 'Your input level while you are in a call.',
+      description: 'Your input level.',
       children: [
-        SettingsCardBlock(
-          gap: AppSpacing.s8,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(end: speaking ? _speakingLevel : _quietLevel),
-              duration: AppMotion.reduced(
-                context,
-                const Duration(milliseconds: 200),
+        MicPreviewHold(
+          child: SettingsCardBlock(
+            gap: AppSpacing.s8,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(
+                  end: preview != null
+                      ? preview.fraction * 100
+                      : speaking
+                      ? _speakingLevel
+                      : _quietLevel,
+                ),
+                duration: AppMotion.reduced(
+                  context,
+                  const Duration(milliseconds: 200),
+                ),
+                builder: (context, level, _) => AppSlider(
+                  tall: true,
+                  value: 0,
+                  onChanged: null,
+                  meter: level,
+                  muted: muted,
+                  semanticLabel: 'Microphone input level',
+                ),
               ),
-              builder: (context, level, _) => AppSlider(
-                tall: true,
-                value: 0,
-                onChanged: null,
-                meter: level,
-                muted: muted,
-                semanticLabel: 'Microphone input level',
-              ),
-            ),
-            if (!inCall)
-              const SettingsInfoLine(
-                'Join a voice call to see your live input level here.',
-                padding: EdgeInsets.zero,
-              ),
-          ],
+              if (preview?.status == MicPreviewStatus.unavailable)
+                SettingsInfoLine(preview!.caption, padding: EdgeInsets.zero),
+            ],
+          ),
         ),
         const _SensitivitySection(),
         if (isDesktopHost) const _PushToTalkSection(),
