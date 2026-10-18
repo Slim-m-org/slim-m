@@ -76,7 +76,14 @@ mixin VoiceSessionMicRecovery {
     _micLost = _mic.lost.listen(
       (_) => _micRecovery.onLost('track ended or unpublished'),
     );
-    _micLevels = _gate.readings.listen((r) => _observeMicLevel(r.levelDb));
+    _micLevels = _gate.readings.listen(_observeGateReading);
+  }
+
+  /// Strong suppression turns a quiet room into near-silence, which read as a
+  /// dead mic and restarted the capture every 30-60 s; it proves nothing either way.
+  void _observeGateReading(InputGateReading reading) {
+    if (reading.strongActive) return;
+    _observeMicLevel(reading.levelDb);
   }
 
   void _observeMicLevel(double levelDb) => _micWatchdog.observe(
