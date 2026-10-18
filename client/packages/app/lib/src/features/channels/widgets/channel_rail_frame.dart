@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../desktop/update_watch.dart';
+import '../../accounts/widgets/account_switcher.dart';
 import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../../members/providers/status_text.dart';
@@ -89,24 +90,27 @@ class RailHeader extends ConsumerWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      SpaceIdentityMark(
-                        iconUpdatedAt: server.valueOrNull?.iconUpdatedAt,
-                        status: syncStatus,
-                        failure: ref.watch(syncFailureProvider),
-                      ),
-                      Flexible(
-                        child: Text(
-                          server.valueOrNull?.displayName ?? 'slim-m',
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.body.copyWith(
-                            color: tokens.textPrimary,
-                            fontWeight: AppWeights.semi,
+                  child: AccountSwitcherTrigger(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SpaceIdentityMark(
+                          iconUpdatedAt: server.valueOrNull?.iconUpdatedAt,
+                          status: syncStatus,
+                          failure: ref.watch(syncFailureProvider),
+                        ),
+                        Flexible(
+                          child: Text(
+                            server.valueOrNull?.displayName ?? 'slim-m',
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.body.copyWith(
+                              color: tokens.textPrimary,
+                              fontWeight: AppWeights.semi,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SpaceMenuButton(),

@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
@@ -49,6 +50,12 @@ class ChosenServer extends Notifier<Uri?> {
   }
 
   Future<void> _persist(Uri server) async {
+    final slot = ref.read(accountSlotProvider);
+    if (slot != null) {
+      // The host files the account and saves the index; no legacy handle.
+      slot.accountFor(server);
+      return;
+    }
     try {
       await ref.read(keyStoreProvider).put(serverUrlHandle, server.toString());
     } catch (_) {
@@ -129,11 +136,21 @@ final isFreshInstallProvider = StateProvider<bool>((ref) => false);
 /// write to land before anything relies on it being durable.
 final sessionProvider = Provider<SessionStore>((ref) {
   final keyStore = ref.read(keyStoreProvider);
+  final slot = ref.read(accountSlotProvider);
   final store = SessionStore(
     onChange: (tokens) async {
       final serverUrl = tokens == null ? null : ref.read(serverUrlProvider);
+      // An account's session is filed under its own handle; its server lives in the index.
+      final handle = slot == null
+          ? sessionTokenHandle
+          : slot.accountFor(ref.read(serverUrlProvider)).sessionHandle;
       try {
-        await _persistSession(keyStore, tokens, serverUrl);
+        await _persistSession(
+          keyStore,
+          handle,
+          tokens,
+          slot == null ? serverUrl : null,
+        );
       } catch (_) {
         /// The server rotates refresh tokens with reuse detection: a write that
         /// failed here may have left a stale, already-spent token on disk, and
@@ -141,7 +158,7 @@ final sessionProvider = Provider<SessionStore>((ref) {
         /// whole family. Dropping the stored session outright degrades to a
         /// fresh sign-in instead of that false replay.
         if (tokens != null) {
-          await keyStore.delete(sessionTokenHandle).catchError((_) {});
+          await keyStore.delete(handle).catchError((_) {});
         }
       }
     },
@@ -152,14 +169,15 @@ final sessionProvider = Provider<SessionStore>((ref) {
 
 Future<void> _persistSession(
   KeyStore keyStore,
+  String handle,
   TokenPair? tokens,
   Uri? serverUrl,
 ) async {
   if (tokens == null) {
-    await keyStore.delete(sessionTokenHandle);
+    await keyStore.delete(handle);
     return;
   }
-  await keyStore.put(sessionTokenHandle, jsonEncode(tokens.toJson()));
+  await keyStore.put(handle, jsonEncode(tokens.toJson()));
   if (serverUrl != null) {
     await keyStore.put(serverUrlHandle, serverUrl.toString());
   }
@@ -393,6 +411,7 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
   final db = SlimmDatabase(
     await openSlimmDatabase(
       keys: KeyStoreDatabaseKey(ref.read(keyStoreProvider)),
+      fileName: ref.read(accountSlotProvider)?.databaseFile,
       onReset: (reason) =>
           ref.read(databaseResetProvider.notifier).state = reason,
     ),

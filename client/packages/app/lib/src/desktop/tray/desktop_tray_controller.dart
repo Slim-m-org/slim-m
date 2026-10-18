@@ -28,6 +28,7 @@ import 'package:slimm_design_system/design_system.dart' show AppPresence;
 import 'package:slimm_rtc/rtc.dart';
 import 'package:tray_manager/tray_manager.dart';
 
+import '../../features/accounts/providers/account_host.dart';
 import '../../features/members/providers/presence_controller.dart';
 import '../../features/members/providers/presence_view.dart';
 import '../../providers/providers.dart';
@@ -44,10 +45,26 @@ import 'tray_menu_actions.dart';
 const trayIconAssetPath = 'assets/icons/tray_icon.png';
 
 class DesktopTrayController with TrayListener {
-  DesktopTrayController({required this.port, required this.container});
+  DesktopTrayController({
+    required this.port,
+    required this.container,
+    this.host,
+  });
 
   final DesktopWindowPort port;
+
+  /// The container used when there is no [host] to say which account is current.
   final ProviderContainer container;
+  final AccountHost? host;
+
+  /// Call controls act on the account in a call, the rest on the one on screen.
+  ProviderContainer get _callContainer =>
+      host?.callRuntime?.container ?? _screenContainer;
+  ProviderContainer get _screenContainer =>
+      host?.active?.container ?? container;
+
+  ProviderContainer? _boundCall;
+  ProviderContainer? _boundScreen;
 
   ProviderSubscription<(VoiceSessionState, bool, bool)>? _voiceSubscription;
   ProviderSubscription<AppPresence>? _presenceSubscription;
@@ -57,23 +74,41 @@ class DesktopTrayController with TrayListener {
     await _setIcon();
     await _setToolTip();
     await _rebuildMenu();
+    _bind();
+    host?.addListener(_onHostChanged);
+  }
+
+  void _onHostChanged() {
+    if (_callContainer == _boundCall && _screenContainer == _boundScreen) {
+      return;
+    }
+    _bind();
+    unawaited(_rebuildMenu());
+  }
+
+  void _bind() {
+    _voiceSubscription?.close();
+    _presenceSubscription?.close();
+    _boundCall = _callContainer;
+    _boundScreen = _screenContainer;
     // Selected to the three flags this menu draws, so a roster change never fires it.
-    _voiceSubscription = container.listen(
+    _voiceSubscription = _boundCall!.listen(
       voiceFlagsProvider.select(
         (f) => (f.state, f.microphoneEnabled, f.deafened),
       ),
       (previous, next) => _rebuildMenu(),
     );
-    _presenceSubscription = container.listen<AppPresence>(ownPresenceProvider, (
-      previous,
-      next,
-    ) {
-      if (previous == next) return;
-      _rebuildMenu();
-    });
+    _presenceSubscription = _boundScreen!.listen<AppPresence>(
+      ownPresenceProvider,
+      (previous, next) {
+        if (previous == next) return;
+        _rebuildMenu();
+      },
+    );
   }
 
   void dispose() {
+    host?.removeListener(_onHostChanged);
     TrayManager.instance.removeListener(this);
     _voiceSubscription?.close();
     _presenceSubscription?.close();
@@ -121,9 +156,9 @@ class DesktopTrayController with TrayListener {
   }
 
   Future<void> _setContextMenu() async {
-    final voiceFlags = container.read(voiceFlagsProvider);
+    final voiceFlags = _callContainer.read(voiceFlagsProvider);
     final inCall = voiceFlags.state == VoiceSessionState.connected;
-    final selected = container.read(ownPresenceProvider);
+    final selected = _screenContainer.read(ownPresenceProvider);
     final items = trayMenuActions(inCall: inCall)
         .map((kind) => _itemFor(kind, voiceFlags, selected))
         .toList(growable: false);
@@ -156,17 +191,19 @@ class DesktopTrayController with TrayListener {
       label: voiceState.microphoneEnabled
           ? 'Mute microphone'
           : 'Unmute microphone',
-      onClick: (_) =>
-          container.read(voiceControllerProvider.notifier).toggleMicrophone(),
+      onClick: (_) => _callContainer
+          .read(voiceControllerProvider.notifier)
+          .toggleMicrophone(),
     ),
     TrayMenuActionKind.toggleDeafen => MenuItem(
       label: voiceState.deafened ? 'Undeafen' : 'Deafen',
       onClick: (_) =>
-          container.read(voiceControllerProvider.notifier).toggleDeafen(),
+          _callContainer.read(voiceControllerProvider.notifier).toggleDeafen(),
     ),
     TrayMenuActionKind.leaveCall => MenuItem(
       label: 'Leave call',
-      onClick: (_) => container.read(voiceControllerProvider.notifier).leave(),
+      onClick: (_) =>
+          _callContainer.read(voiceControllerProvider.notifier).leave(),
     ),
     TrayMenuActionKind.settings => MenuItem(
       label: 'Preferences',
@@ -188,7 +225,9 @@ class DesktopTrayController with TrayListener {
 
   Future<void> _openSettings() async {
     await port.show();
-    unawaited(container.read(routerProvider).push(Routes.personalSettings));
+    unawaited(
+      _screenContainer.read(routerProvider).push(Routes.personalSettings),
+    );
   }
 
   /// Sets the caller's own visibility from the tray, echoing it locally and
@@ -197,13 +236,13 @@ class DesktopTrayController with TrayListener {
   /// has no surface to render a failure on, so a refusal is corrected
   /// silently, the way a failed presence refresh already is elsewhere.
   Future<void> _setPresence(api.PresenceVisibility visibility) async {
-    final notifier = container.read(presenceVisibilityDisplayProvider.notifier);
+    final screen = _screenContainer;
+    final notifier = screen.read(presenceVisibilityDisplayProvider.notifier);
     final previous = notifier.state;
     notifier.state = visibility;
     final failure = await runGuarded(
       whatFailed: 'update your status',
-      action: () =>
-          container.read(apiProvider).setPresenceVisibility(visibility),
+      action: () => screen.read(apiProvider).setPresenceVisibility(visibility),
     );
     if (failure != null) notifier.state = previous;
   }

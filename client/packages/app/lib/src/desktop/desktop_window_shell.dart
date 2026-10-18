@@ -22,6 +22,7 @@ import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../diagnostics/debug_log.dart';
+import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
 import 'desktop_window_controller.dart';
@@ -548,7 +549,11 @@ class DesktopWindowShell {
     await _port.setPreventClose(true);
     // The Linux title bar is hidden by lockSplashChrome, not here; see decision 0012's superseding section.
 
-    _trayController = DesktopTrayController(port: _port, container: container);
+    _trayController = DesktopTrayController(
+      port: _port,
+      container: container,
+      host: container.read(accountHostProvider),
+    );
     await _trayController!.start();
   }
 

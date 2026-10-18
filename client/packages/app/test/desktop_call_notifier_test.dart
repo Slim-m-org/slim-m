@@ -35,6 +35,7 @@ class _FakeNotifications implements LocalNotifications {
     String text, {
     required LocalAlertChannel channel,
     String? title,
+    String? payload,
   }) async => shown.add(channel);
 
   @override

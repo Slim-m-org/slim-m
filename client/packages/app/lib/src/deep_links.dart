@@ -34,6 +34,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'features/accounts/providers/account_host.dart';
+import 'features/accounts/providers/account.dart' show originOf;
+import 'features/accounts/providers/account_providers.dart';
 import 'invite_link.dart';
 import 'message_link.dart';
 import 'providers/providers.dart';
@@ -81,6 +84,47 @@ MessageLink? messageFromDeepLink(Uri uri, {required Uri? signedInTo}) {
   return messageLinkIsHere(link, signedInTo) ? link : null;
 }
 
+/// Sends a link to the account it names, switching or adding one as needed.
+///
+/// False when the link is not this function's to place, so the single-account
+/// handling below still decides it.
+bool _routeAcrossAccounts(AccountHost host, Uri uri) {
+  final message = parseMessageLink(uri.toString());
+  if (message != null) {
+    final target = host.runtimeFor(originOf(message.server));
+    if (target == null || !target.signedIn) return false;
+    unawaited(host.switchTo(target.account!.origin));
+    jumpToMessage(
+      target.container.read(routerProvider),
+      target.container.read,
+      currentChannelId: null,
+      channelId: message.channelId,
+      messageId: message.messageId,
+    );
+    return true;
+  }
+  final invite = parseInviteLink(uri.toString());
+  if (invite == null) return false;
+  unawaited(_openInvite(host, invite));
+  return true;
+}
+
+Future<void> _openInvite(
+  AccountHost host,
+  ({Uri server, String code}) invite,
+) async {
+  final existing = host.runtimeFor(originOf(invite.server));
+  if (existing != null && existing.signedIn) {
+    await host.switchTo(existing.account!.origin);
+    return;
+  }
+  if (host.active?.signedIn ?? false) await host.beginAdd();
+  final container = host.active?.container;
+  if (container == null) return;
+  container.read(tappedInviteProvider.notifier).state = invite;
+  container.read(routerProvider).go(Routes.onboarding);
+}
+
 /// Listens for the app's whole lifetime; read once from bootstrap, next to
 /// the sync and push controllers.
 final deepLinkControllerProvider = Provider<void>((ref) {
@@ -92,6 +136,8 @@ final deepLinkControllerProvider = Provider<void>((ref) {
       unawaited(handleSpotifyCallback(ref, uri));
       return;
     }
+    final host = ref.read(accountHostProvider);
+    if (host != null && _routeAcrossAccounts(host, uri)) return;
     final signedIn = ref.read(sessionProvider).isSignedIn;
     final message = messageFromDeepLink(
       uri,

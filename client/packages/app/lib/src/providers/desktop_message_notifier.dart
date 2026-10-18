@@ -37,6 +37,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
+import '../features/accounts/providers/account_slot.dart';
+import '../features/accounts/providers/notification_target.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
 import 'live_events.dart';
@@ -65,10 +67,10 @@ class _DesktopMessageNotifier {
   }
 
   Future<void> _onMessageCreated(api.Message message) async {
-    // Skip while focused: a foreground app shows unread in the rail already.
+    // Skip while focused: a foreground app shows unread in the rail already, but only for the account on screen.
     final foreground =
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    if (foreground) return;
+    if (foreground && _ref.read(accountActiveProvider)) return;
 
     final alert = await _ref.read(messageAlertPolicyProvider).evaluate(message);
     if (alert == null) return;
@@ -87,6 +89,13 @@ class _DesktopMessageNotifier {
       isDm: alert.isDm,
       channelName: channel?.name,
     );
+    final origin = _ref.read(accountSlotProvider)?.account?.origin;
+    final payload = origin == null
+        ? null
+        : NotificationTarget(
+            origin: origin,
+            channelId: message.channelId,
+          ).encode();
     final notifications = _ref.read(localNotificationsProvider);
     // The per-kind OS control only reaches a banner filed under the kind it is; see LocalAlertChannel.
     final alertChannel = alert.mentionsSelf
@@ -94,7 +103,12 @@ class _DesktopMessageNotifier {
         : LocalAlertChannel.messages;
     // Fire-and-forget: a failed notification must never break event handling.
     unawaited(
-      notifications.show(text.body, channel: alertChannel, title: text.title),
+      notifications.show(
+        text.body,
+        channel: alertChannel,
+        title: text.title,
+        payload: payload,
+      ),
     );
   }
 }

@@ -72,6 +72,17 @@ restorablePreferences = {
   'rail width': (c) => c.read(railWidthControllerProvider.notifier),
 };
 
+/// Re-reads the shared appearance and behaviour preferences into a container
+/// built earlier, so an account shown after a switch matches what was just
+/// changed in the one before it. Leaves the voice preferences alone: a call
+/// may be running there.
+Future<void> resyncSharedPreferences(ProviderContainer container) {
+  return Future.wait([
+    for (final entry in restorablePreferences.entries)
+      restoreOrDefault(container, entry.key, entry.value(container).restore()),
+  ]);
+}
+
 /// Restores every preference bootstrap needs, concurrently off the one cached
 /// preferences future, each degrading on its own.
 Future<void> restoreStartupPreferences(ProviderContainer container) {
