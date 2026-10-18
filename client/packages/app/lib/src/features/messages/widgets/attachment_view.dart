@@ -32,7 +32,7 @@ import 'image_actions_menu.dart';
 import '../../../widgets/run_guarded.dart';
 import 'fullscreen_image_viewer.dart';
 import 'image_decode.dart';
-import '../../../widgets/viewport_freeze.dart';
+import '../../../widgets/animation_gate.dart';
 
 /// Mirrors `media::is_inline` in `crates/slimm-server/src/media.rs`: the
 /// allowlisted types the server serves inline rather than as a forced
@@ -176,10 +176,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
   Widget _image(BuildContext context, {required bool downloadGated}) {
     final tile = widget.tileEdge;
     final gifAutoplay = ref.watch(gifAutoplayControllerProvider);
-    final playGated =
-        _isGif && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
-    // Whatever the setting, a gif nobody is looking at holds its first frame.
-    final still = _isGif && !ref.watch(appFocusedProvider);
+    final focused = ref.watch(appFocusedProvider);
     final caption = _caption;
 
     // Held for download: nothing fetches until the tap, the point when metered.
@@ -229,7 +226,12 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         ),
       ),
       data: (bytes) {
-        // A gif held from autoplay shows its first frame, animating on hover or tap.
+        final animated = _isGif || looksAnimated(bytes);
+        final playGated =
+            animated && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
+        // Whatever the setting, an animation nobody is looking at holds its first frame.
+        final still = animated && !focused;
+        // An animation held from autoplay shows its first frame, animating on hover or tap.
         if (playGated) {
           return _gatedGif(bytes, caption: caption, decodeWidth: decodeWidth);
         }
@@ -257,7 +259,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
         onReveal: _reveal,
         // The first frame stays mounted under the pointer's playing copy: remounting it re-decodes and resizes the tile.
         showBadge: !_hovered,
-        preview: ViewportFreeze(
+        preview: AnimationGate(
           child: Stack(
             fit: StackFit.passthrough,
             children: [
@@ -365,7 +367,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
               child: ConstrainedBox(
                 constraints: _imageConstraints(tile),
                 // Never decodes wider than the transcript can draw it.
-                child: ViewportFreeze(
+                child: AnimationGate(
                   child: _bitmap(bytes, decodeWidth: decodeWidth, still: still),
                 ),
               ),

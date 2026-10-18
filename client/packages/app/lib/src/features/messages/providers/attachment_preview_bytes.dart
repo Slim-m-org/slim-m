@@ -79,6 +79,33 @@ bool looksLikeImage(Uint8List b) {
       at(4, [0x66, 0x74, 0x79, 0x70]);
 }
 
+/// Whether [b] is an image that can animate: any gif, a png with an `acTL`
+/// chunk, or a webp with an `ANIM` chunk.
+bool looksAnimated(Uint8List b) {
+  bool tag(int offset, String t) =>
+      b.length >= offset + 4 &&
+      String.fromCharCodes(b.sublist(offset, offset + 4)) == t;
+  int u32(int offset, Endian endian) =>
+      ByteData.sublistView(b).getUint32(offset, endian);
+  if (tag(0, 'GIF8')) return true;
+  if (tag(0, '\u0089PNG')) {
+    // Chunks run [length][type][data][crc]; acTL must precede the first IDAT.
+    for (var at = 8; at + 8 <= b.length;) {
+      if (tag(at + 4, 'acTL')) return true;
+      if (tag(at + 4, 'IDAT')) return false;
+      at += 12 + u32(at, Endian.big);
+    }
+    return false;
+  }
+  if (tag(0, 'RIFF') && tag(8, 'WEBP')) {
+    for (var at = 12; at + 8 <= b.length;) {
+      if (tag(at, 'ANIM')) return true;
+      at += 8 + u32(at + 4, Endian.little) + (u32(at + 4, Endian.little) & 1);
+    }
+  }
+  return false;
+}
+
 /// Forgets every preview cached for [server], when its account goes away.
 Future<void> clearAttachmentPreviews(ByteCache cache, Uri server) =>
     cache.removeWithPrefix('${attachmentPreviewScope(server)}-');

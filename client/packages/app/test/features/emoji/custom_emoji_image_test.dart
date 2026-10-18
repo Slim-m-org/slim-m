@@ -60,6 +60,7 @@ class _IndexWatcher extends ConsumerWidget {
 }
 
 void main() {
+  _unfocusedEmojiTest();
   group('a fetch that failed', () {
     testWidgets('shows the missing-image glyph rather than blank space, which '
         'is indistinguishable from one still loading', (tester) async {
@@ -267,6 +268,35 @@ void main() {
         });
         expect(requests, 4, reason: 'one try plus three retries, then give up');
       },
+    );
+  });
+}
+
+void _unfocusedEmojiTest() {
+  testWidgets('an animated custom emoji holds while the window is unfocused', (
+    tester,
+  ) async {
+    final binding = TestWidgetsFlutterBinding.instance;
+    addTearDown(
+      () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+    );
+    await tester.pumpWidget(
+      _app([
+        customEmojiImageProvider.overrideWith((ref, id) async => _png),
+      ], const CustomEmojiImage(emojiId: 'e-party_parrot')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      TickerMode.valuesOf(tester.element(find.byType(Image))).enabled,
+      isTrue,
+    );
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+
+    expect(
+      TickerMode.valuesOf(tester.element(find.byType(Image))).enabled,
+      isFalse,
     );
   });
 }
