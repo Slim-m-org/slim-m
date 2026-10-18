@@ -100,6 +100,7 @@ class CanvasSurface extends StatefulWidget {
     this.cursorLabelFontFamily,
     this.cursorGlide = Duration.zero,
     this.onPointerMoved,
+    this.onPointerLeft,
     this.placeholderFill = const Color(0xFFB9C0C8),
     this.placeholderIcon = const Color(0xFF6C757E),
     this.elevationShadow = const [],
@@ -177,6 +178,10 @@ class CanvasSurface extends StatefulWidget {
   /// onward - this widget applies no throttle of its own so a test can
   /// assert on every call without needing a fake clock.
   final PointerMoved? onPointerMoved;
+
+  /// The mouse left the surface, or a touch or pen lifted: nothing is under
+  /// this pointer any more, so its cursor should disappear for others.
+  final VoidCallback? onPointerLeft;
 
   /// Other participants' in-flight strokes, painted between the committed
   /// ink and this device's own draft. Null renders no layer at all, the same
@@ -445,6 +450,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
               valueListenable: _panning,
               builder: (context, panning, child) => MouseRegion(
                 cursor: _cursorFor(widget.tool, widget.enabled, panning),
+                onExit: (_) => widget.onPointerLeft?.call(),
                 child: child,
               ),
               child: Stack(

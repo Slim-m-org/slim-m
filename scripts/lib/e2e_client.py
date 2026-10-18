@@ -366,6 +366,30 @@ class Client:
                            "button": "left", "clickCount": 1})
         time.sleep(hold)
 
+    def press(self, x, y):
+        self.send(_MOUSE, {"type": "mousePressed", "x": x, "y": y,
+                           "button": "left", "clickCount": 1})
+
+    def move_held(self, points, hold=0.05):
+        for x, y in points:
+            self.send(_MOUSE, {"type": "mouseMoved", "x": x, "y": y,
+                               "button": "left", "buttons": 1})
+            time.sleep(hold)
+
+    def release(self, x, y):
+        self.send(_MOUSE, {"type": "mouseReleased", "x": x, "y": y,
+                           "button": "left", "clickCount": 1})
+
+    def region_png(self, rect):
+        """The PNG bytes of [rect] (page pixels), for before/after comparison."""
+        clip = {"x": rect["x"], "y": rect["y"], "width": rect["width"],
+                "height": rect["height"], "scale": 1}
+        r = self.send("Page.captureScreenshot",
+                      {"format": "png", "clip": clip})
+        data = (r.get("result", {}).get("result", {}).get("data")
+                or r.get("result", {}).get("data"))
+        return base64.b64decode(data or "")
+
     def canvas_rect(self):
         """The drawing surface's own bounding box; see e2e_js.canvas_rect."""
         raw = self.ev(e2e_js.canvas_rect())

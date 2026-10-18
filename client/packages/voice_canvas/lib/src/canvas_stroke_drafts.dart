@@ -19,6 +19,7 @@ class CanvasStrokeDraft {
     required this.authorId,
     required this.points,
     required this.colorIndex,
+    this.ended = false,
   });
 
   /// A client-minted id keying this preview session. Never a real,
@@ -34,6 +35,10 @@ class CanvasStrokeDraft {
 
   /// See `CanvasCursors`' own `CanvasCursor.colorIndex`.
   final int colorIndex;
+
+  /// The drawer let go: kept showing until their committed stroke arrives so
+  /// the ink never blinks out between the two.
+  final bool ended;
 }
 
 /// Most points one draft keeps, past which the oldest are dropped.
@@ -49,6 +54,10 @@ class CanvasStrokeDraft {
 /// times more than a fast continuous gesture produces in the several seconds
 /// a real stroke actually takes, so this is never visible in ordinary use.
 const int maxDraftPreviewPoints = 4000;
+
+/// How long a finished draft waits for its committed stroke before it is
+/// dropped as a gesture that never committed.
+const Duration finishedDraftGrace = Duration(seconds: 2);
 
 /// Remote in-flight strokes, keyed by [CanvasStrokeDraft.objectId].
 ///
@@ -91,6 +100,33 @@ class RemoteStrokeDrafts extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Marks a draft finished but keeps it painted until [settleAuthor] or
+  /// [pruneOlderThan] removes it, bridging the gap before the committed
+  /// stroke arrives.
+  void finish(String objectId, {DateTime? now}) {
+    final draft = _drafts[objectId];
+    if (draft == null || draft.ended) return;
+    _drafts[objectId] = CanvasStrokeDraft(
+      objectId: draft.objectId,
+      authorId: draft.authorId,
+      points: draft.points,
+      colorIndex: draft.colorIndex,
+      ended: true,
+    );
+    _lastSeen[objectId] = now ?? DateTime.now();
+    notifyListeners();
+  }
+
+  /// The committed stroke by [authorId] arrived: drops their finished drafts.
+  void settleAuthor(String? authorId) {
+    if (authorId == null) return;
+    final done = _drafts.values
+        .where((d) => d.ended && d.authorId == authorId)
+        .map((d) => d.objectId)
+        .toList(growable: false);
+    done.forEach(end);
+  }
+
   /// Drops one draft immediately: the drawer signalled the gesture ended, or
   /// its author was blocked.
   void end(String objectId) {
@@ -103,9 +139,16 @@ class RemoteStrokeDrafts extends ChangeNotifier {
   /// called from a caller-owned periodic timer, the same shape
   /// `CanvasCursors.pruneOlderThan` already documents the reasoning for.
   void pruneOlderThan(Duration ttl, {DateTime? now}) {
-    final cutoff = (now ?? DateTime.now()).subtract(ttl);
+    final at = now ?? DateTime.now();
+    final cutoff = at.subtract(ttl);
+    final endedCutoff = at.subtract(finishedDraftGrace);
     final stale = _lastSeen.entries
-        .where((entry) => entry.value.isBefore(cutoff))
+        .where(
+          (entry) =>
+              entry.value.isBefore(cutoff) ||
+              (_drafts[entry.key]?.ended == true &&
+                  entry.value.isBefore(endedCutoff)),
+        )
         .map((entry) => entry.key)
         .toList(growable: false);
     if (stale.isEmpty) return;

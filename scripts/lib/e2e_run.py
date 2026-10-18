@@ -17,6 +17,7 @@ import traceback
 import e2e_accounts
 import e2e_admin
 import e2e_canvas
+import e2e_canvas_live
 import e2e_canvas_shapes
 import e2e_labels as L
 import e2e_invite_landing
@@ -194,12 +195,19 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas.open_on_both(a, b, L.VOICE_CHANNEL)),
         ("canvas: a stroke arrives on the other client live",
          lambda: e2e_canvas.draw_stroke_and_see_it_live(a, b)),
+        ("canvas: the other client sees your cursor",
+         lambda: e2e_canvas_live.remote_cursor_shows(a, b)),
+        ("canvas: the other client sees a stroke before you let go",
+         lambda: e2e_canvas_live.stroke_shows_before_release(a, b)),
         ("canvas: a pasted image renders, not just a box",
          lambda: e2e_canvas.paste_image_and_hydrate(
              a, b, server, admin, admin.channel_named(L.VOICE_CHANNEL)["id"],
              upload())),
         ("canvas: moving and resizing it converges on both sides",
          lambda: e2e_canvas.move_and_resize_converges(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: the other client sees a move before you let go",
+         lambda: e2e_canvas_live.move_shows_before_release(
              a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: a note arrives on the other client live",
          lambda: e2e_canvas_shapes.place_note_and_see_it_live(

@@ -138,6 +138,12 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
   }
 
+  /// A touch or pen has no hover, so lifting it is leaving the canvas.
+  void _reportLeftIfTouch(PointerEvent event) {
+    if (event.kind == PointerDeviceKind.mouse || _totalPointers != 0) return;
+    widget.onPointerLeft?.call();
+  }
+
   /// A pointer moving with nothing pressed - drawing or erasing never
   /// happens here, only the position report a mouse (not a touch, which
   /// never hovers) gets for free.
@@ -151,6 +157,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   void _up(PointerEvent event) {
     final wasAlone = _totalPointers <= 1;
     _pointers = (_pointers - 1).clamp(0, 10);
+    _reportLeftIfTouch(event);
     if (_panning.value) {
       // An unrelated pointer lifting (a second finger, say) must not end someone else's grab.
       if (event.pointer != _panPointer) return;
@@ -185,6 +192,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// already acted and would otherwise never learn they ended.
   void _cancel(PointerEvent event) {
     _pointers = (_pointers - 1).clamp(0, 10);
+    _reportLeftIfTouch(event);
     if (_panning.value) {
       if (event.pointer == _panPointer) _endPan();
       return;

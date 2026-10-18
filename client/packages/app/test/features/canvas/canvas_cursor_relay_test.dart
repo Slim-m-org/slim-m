@@ -126,4 +126,32 @@ void main() {
       );
     });
   });
+
+  test('a pointer leaving hides the remote cursor and is sent once', () {
+    final cursors = CanvasCursors();
+    addTearDown(cursors.dispose);
+    var left = 0;
+    final relay = CanvasCursorRelay(
+      cursors: cursors,
+      paletteSize: 6,
+      send: (_, _) {},
+      sendLeft: () => left++,
+      resolveLabel: (_) => 'Someone',
+      isBlocked: (_) => false,
+      selfId: () => 'self',
+    );
+    addTearDown(relay.dispose);
+
+    relay.reportLocalPointerLeft();
+    expect(left, 0, reason: 'nothing was ever sent, so nothing to retract');
+    relay.reportLocalPointer(const Offset(1, 1));
+    relay.reportLocalPointerLeft();
+    relay.reportLocalPointerLeft();
+    expect(left, 1);
+
+    relay.applyRemote('alice', 4, 4);
+    expect(cursors.all, hasLength(1));
+    relay.applyRemote('alice', 0, 0, left: true);
+    expect(cursors.all, isEmpty);
+  });
 }

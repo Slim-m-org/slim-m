@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_preview_relay.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
@@ -60,6 +61,15 @@ CanvasSync _sync(CanvasDocument document) => CanvasSync(
   forgetFetchedRegion: () {},
 );
 
+CanvasObjectPreviewRelay _previewRelay(CanvasDocument document) =>
+    CanvasObjectPreviewRelay(
+      previews: RemoteObjectPreviews(document),
+      send: (_, _, _) {},
+      isBlocked: (_) => false,
+      selfId: () => null,
+      isDraggingLocally: (_) => false,
+    );
+
 void main() {
   late CanvasDocument document;
   late CanvasSync sync;
@@ -77,6 +87,8 @@ void main() {
   });
 
   // Only for the activity-log cases below; the media-slot cases build their own.
+  RemoteStrokeDrafts? strokeDrafts;
+
   CanvasMediaSlotSync mediaSlotSync() => CanvasMediaSlotSync(
     channelId: 'c1',
     client: _inertApi(),
@@ -91,12 +103,30 @@ void main() {
     relay: () => throw StateError('no cursor event exercised here'),
     strokePreviewRelay: () =>
         throw StateError('no stroke preview event exercised here'),
+    objectPreviewRelay: () => _previewRelay(document),
     applyPlacedObject: (_) {},
     forgetFetchedRegion: () {},
     activityLog: log,
+    strokeDrafts: strokeDrafts,
     mediaSlotSync: mediaSlotSync(),
     objectLocks: CanvasObjectLocks(channelId: 'c1', client: _inertApi()),
   );
+
+  test('the committed stroke replaces its author finished live draft', () {
+    final drafts = strokeDrafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    drafts.appendOrCreate(
+      objectId: 'd1',
+      authorId: 'alice',
+      points: const [0.0, 0.0],
+      colorIndex: 0,
+    );
+    drafts.finish('d1');
+
+    dispatch(api.CanvasObjectPlaced(channelId: 'c1', object: _object('a')));
+
+    expect(drafts.all, isEmpty);
+  });
 
   test('a live placement records with its own actor', () {
     dispatch(api.CanvasObjectPlaced(channelId: 'c1', object: _object('a')));
@@ -173,6 +203,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) {},
       forgetFetchedRegion: () {},
       activityLog: log,
@@ -286,6 +317,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) =>
           throw StateError('a media slot never places an object'),
       forgetFetchedRegion: () {},
@@ -328,6 +360,7 @@ void main() {
       relay: () => throw StateError('no cursor event exercised here'),
       strokePreviewRelay: () =>
           throw StateError('no stroke preview event exercised here'),
+      objectPreviewRelay: () => _previewRelay(document),
       applyPlacedObject: (_) =>
           throw StateError('a media slot never places an object'),
       forgetFetchedRegion: () {},

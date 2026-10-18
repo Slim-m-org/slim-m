@@ -38,6 +38,7 @@ import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_object_locks.dart';
+import 'canvas_object_preview_relay.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
@@ -207,6 +208,9 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     send: (x, y) => _ref
         .read(syncControllerProvider.notifier)
         .notifyCanvasCursor(channelId, x, y),
+    sendLeft: () => _ref
+        .read(syncControllerProvider.notifier)
+        .notifyCanvasCursor(channelId, 0, 0, left: true),
     resolveLabel: _cursorLabel,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
@@ -229,6 +233,23 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         selfId: () => _ref.read(meProvider).valueOrNull?.id,
       );
 
+  CanvasObjectPreviewRelay? _objectPreviewRelay;
+  CanvasObjectPreviewRelay get objectPreviewRelay =>
+      _objectPreviewRelay ??= CanvasObjectPreviewRelay(
+        previews: RemoteObjectPreviews(document),
+        send: (objectId, box, ended) => _ref
+            .read(syncControllerProvider.notifier)
+            .notifyCanvasObjectPreview(channelId, objectId, box, ended: ended),
+        isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+        selfId: () => _ref.read(meProvider).valueOrNull?.id,
+        isDraggingLocally: (id) => document.elevatedObjectId.value == id,
+        glide: () => objectPreviewGlide,
+      );
+
+  /// Set by the pane from the reduce-motion setting, which only the widget
+  /// tree can read.
+  Duration objectPreviewGlide = objectPreviewGlideDuration;
+
   /// [state.error]'s exact text for an almost-certainly-transient fetch
   /// failure - shared with `CanvasPane`'s `onRetryError` gate, so the one
   /// error this engine can meaningfully retry (re-running [fetch]) is
@@ -250,6 +271,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     document: document,
     relay: () => cursorRelay,
     strokePreviewRelay: () => strokePreviewRelay,
+    objectPreviewRelay: () => objectPreviewRelay,
+    strokeDrafts: remoteDrafts,
     applyPlacedObject: _apply,
     forgetFetchedRegion: () => _fetched = null,
     activityLog: activityLog,
@@ -433,6 +456,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _cursorRelay?.dispose();
     cursors.dispose();
     _strokePreviewRelay?.dispose();
+    _objectPreviewRelay?.dispose();
     remoteDrafts.dispose();
     activityLog.dispose();
     tileOverrides.dispose();

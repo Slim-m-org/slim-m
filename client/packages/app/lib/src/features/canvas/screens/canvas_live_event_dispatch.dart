@@ -16,6 +16,7 @@ import 'canvas_activity_log.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_object_locks.dart';
+import 'canvas_object_preview_relay.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
 
@@ -38,17 +39,20 @@ void dispatchCanvasLiveEvent(
   required CanvasDocument document,
   required CanvasCursorRelay Function() relay,
   required CanvasStrokePreviewRelay Function() strokePreviewRelay,
+  required CanvasObjectPreviewRelay Function() objectPreviewRelay,
   required void Function(api.CanvasObject object) applyPlacedObject,
   required VoidCallback forgetFetchedRegion,
   required CanvasMediaSlotSync mediaSlotSync,
   required CanvasObjectLocks objectLocks,
   CanvasActivityLog? activityLog,
+  RemoteStrokeDrafts? strokeDrafts,
 }) {
   switch (event) {
     case api.CanvasObjectPlaced(:final channelId, :final object)
         when channelId == paneChannelId:
       sync.applyLive(event.seq, () {
         applyPlacedObject(object);
+        strokeDrafts?.settleAuthor(object.authorId);
         activityLog?.recordPlacedLive(object);
       });
     case api.CanvasObjectsRemoved(
@@ -108,10 +112,11 @@ void dispatchCanvasLiveEvent(
           :final userId,
           :final x,
           :final y,
+          :final left,
         )
         when channelId == paneChannelId:
       // Never through sync.applyLive: a cursor carries no seq to catch up on.
-      relay().applyRemote(userId, x, y);
+      relay().applyRemote(userId, x, y, left: left);
     case api.CanvasStrokePreview(
           :final channelId,
           :final userId,
@@ -122,6 +127,24 @@ void dispatchCanvasLiveEvent(
         when channelId == paneChannelId:
       // Never through sync.applyLive, the same reason a cursor is not: no seq.
       strokePreviewRelay().applyRemote(userId, objectId, points, ended);
+    case api.CanvasObjectPreview(
+          :final channelId,
+          :final userId,
+          :final objectId,
+          :final x,
+          :final y,
+          :final w,
+          :final h,
+          :final ended,
+        )
+        when channelId == paneChannelId:
+      // Never through sync.applyLive, the same reason a cursor is not: no seq.
+      objectPreviewRelay().applyRemote(userId, objectId, (
+        x: x,
+        y: y,
+        w: w,
+        h: h,
+      ), ended);
     case api.CanvasObjectMoved(
           :final channelId,
           :final seq,
@@ -134,6 +157,7 @@ void dispatchCanvasLiveEvent(
         )
         when channelId == paneChannelId:
       sync.applyLive(seq, () {
+        objectPreviewRelay().settle(objectId);
         document.moveObject(objectId, x, y, w, h);
         document.refresh();
         activityLog?.recordMovedLive(opId);

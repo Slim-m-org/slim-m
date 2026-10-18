@@ -221,6 +221,19 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     document.refresh();
   }
 
+  /// The object this device is dragging or resizing and the box it now
+  /// shows, or null between gestures.
+  ({String id, ObjectBox box})? get activeMove {
+    final resize = _resize;
+    if (resize != null) return (id: resize.objectId, box: resize.current);
+    final drag = _drag;
+    if (drag == null) return null;
+    return (
+      id: drag.objectId,
+      box: (x: drag.x, y: drag.y, w: drag.fromW, h: drag.fromH),
+    );
+  }
+
   Offset _unsnapped() {
     document.snapGuides.value = const [];
     return Offset.zero;
