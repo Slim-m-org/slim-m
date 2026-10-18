@@ -184,8 +184,13 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
         name: 'Close',
         replySignature: DBusSignature(''),
       );
-    } on Object {
-      // The session may already be gone; the grab is released either way.
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'the portal session may already be gone; the grab is released either way',
+        error,
+        stack,
+      );
     }
   }
 

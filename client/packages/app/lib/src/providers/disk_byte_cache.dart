@@ -112,8 +112,13 @@ class DiskByteCache implements ByteCache {
           await entity.delete();
         }
       }
-    } catch (_) {
-      // An undeletable file stays until eviction reaches it.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'an undeletable cached file stays until eviction reaches it',
+        error,
+        stack,
+      );
     }
   }
 
