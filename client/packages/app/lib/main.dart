@@ -27,7 +27,6 @@ import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
 import 'src/providers/desktop_call_notifier.dart';
-import 'src/providers/viewing_reporter.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
@@ -46,6 +45,7 @@ import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
+import 'src/providers/media_disk_caches.dart';
 import 'src/providers/providers.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
@@ -127,6 +127,8 @@ AccountHost _createAccountHost() {
   final keyStore = createPersistentKeyStore();
   final emojiCache = createEmojiImageCache();
   final previewCache = createAttachmentPreviewCache();
+  final avatarCache = createAvatarCache();
+  final originalCache = createAttachmentOriginalCache();
   final accounts = AccountStore(keyStore);
   // One log for every account, since the error hooks are global.
   final debugLog = DebugLog(
@@ -141,6 +143,8 @@ AccountHost _createAccountHost() {
         debugLogProvider.overrideWith((ref) => debugLog),
         emojiImageCacheProvider.overrideWithValue(emojiCache),
         attachmentPreviewCacheProvider.overrideWithValue(previewCache),
+        avatarCacheProvider.overrideWithValue(avatarCache),
+        attachmentOriginalCacheProvider.overrideWithValue(originalCache),
         keyStoreProvider.overrideWithValue(keyStore),
         accountSlotProvider.overrideWithValue(slot),
         accountHostProvider.overrideWith((ref) => host),
@@ -274,7 +278,6 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
   container.read(deepLinkControllerProvider);
-  container.read(viewingReporterProvider);
   container.read(desktopCallNotifierProvider);
   await DesktopWindowShell.registerListenersAndTray(container);
 }

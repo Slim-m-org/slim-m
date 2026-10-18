@@ -43,13 +43,41 @@ final spotifyClientProvider = Provider<SpotifyClient>((ref) {
   );
 });
 
-final spotifySourceProvider = Provider<NowPlayingSource>(
-  (ref) => SpotifyNowPlayingSource(
-    client: ref.read(spotifyClientProvider),
-    store: ref.read(spotifyTokenStoreProvider),
-    onRevoked: () => ref.read(spotifyLinkerProvider).revoked(),
-  ),
-);
+/// One Spotify poll for the whole process, since the link is the person's, not
+/// an account's. It reads through the oldest live container and moves to the
+/// next when that one goes; a revoked grant is told to every container.
+final _spotifyOwners = <Ref>[];
+
+final _spotifyShared = SharedStream<NowPlaying>(() {
+  if (_spotifyOwners.isEmpty) return const Stream<NowPlaying?>.empty();
+  final owner = _spotifyOwners.first;
+  return SpotifyNowPlayingSource(
+    client: owner.read(spotifyClientProvider),
+    store: owner.read(spotifyTokenStoreProvider),
+    onRevoked: () async {
+      for (final each in _spotifyOwners.toList()) {
+        await each.read(spotifyLinkerProvider).revoked();
+      }
+    },
+  ).watch();
+});
+
+final spotifySourceProvider = Provider<NowPlayingSource>((ref) {
+  _spotifyOwners.add(ref);
+  ref.onDispose(() {
+    final wasOwner = _spotifyOwners.first == ref;
+    _spotifyOwners.remove(ref);
+    if (wasOwner) unawaited(_spotifyShared.reopen());
+  });
+  return const _SharedSpotifySource();
+});
+
+class _SharedSpotifySource implements NowPlayingSource {
+  const _SharedSpotifySource();
+
+  @override
+  Stream<NowPlaying?> watch() => _spotifyShared.stream;
+}
 
 /// Opens Spotify's consent page, in the Spotify app when it claims the link.
 /// Overridden in tests.

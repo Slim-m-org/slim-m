@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Fetches and caches one attachment's raw bytes.
 ///
-/// In-memory only, per session: an attachment is content-addressed and
-/// immutable once uploaded, so there is nothing to invalidate. The inline
-/// previews are what persist on disk (`attachment_preview_bytes.dart`); this
-/// is the original, fetched when an image is opened, copied or saved.
+/// An attachment is immutable once uploaded, so there is nothing to
+/// invalidate: a small original is kept on disk by `media_disk_caches.dart`
+/// and survives eviction and a restart. This is the original, fetched when a
+/// gif plays or an image is opened, copied or saved.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../../providers/cache_for.dart';
+import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 
 /// Deliberately small next to the avatar cache: these are whole images, and
@@ -82,12 +84,20 @@ final attachmentBytesProvider = FutureProvider.autoDispose
       _recent.hold(ref, attachmentId);
       var disposed = false;
       ref.onDispose(() => disposed = true);
+      final cache = ref.watch(attachmentOriginalCacheProvider);
+      final key = serverScopedKey(ref.watch(serverUrlProvider), attachmentId);
+      final cached = await cache.read(key);
+      if (cached != null) return cached;
       final api = ref.watch(apiProvider);
-      return fetchAttachmentRetrying(
+      final bytes = await fetchAttachmentRetrying(
         ref,
         () => api.fetchAttachment(attachmentId),
         isDisposed: () => disposed,
         // A cached failure would replay for every later view of this image.
         onGiveUp: () => _recent.release(attachmentId),
       );
+      if (bytes.length <= attachmentOriginalEntryMaxBytes) {
+        unawaited(cache.write(key, bytes));
+      }
+      return bytes;
     });

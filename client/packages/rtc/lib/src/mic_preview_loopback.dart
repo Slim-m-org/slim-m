@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'audio_device_switching.dart';
 import 'audio_devices.dart';
@@ -68,8 +69,10 @@ class LoopbackMicSource implements MicPreviewSource {
     track.enabled = false;
     try {
       await rtc.Helper.setVolume(0, track);
-    } on Object {
+    } on Object catch (error, stack) {
       // The web has no playout without an element, and a disabled track is silent already.
+      AppLog.swallowed(
+          LogTag.voice, 'Could not mute the loopback', error, stack);
     }
   }
 

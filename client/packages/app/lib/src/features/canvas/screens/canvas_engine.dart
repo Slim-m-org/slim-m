@@ -26,10 +26,12 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_camera_memory.dart';
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
+import '../../voice/providers/voice_flags.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
@@ -214,7 +216,20 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     resolveLabel: _cursorLabel,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
+    canSend: _cursorHasAudience,
   );
+
+  bool _cursorHasAudience() {
+    final inCallHere = _ref.read(voiceFlagsProvider).channelId == channelId;
+    return shouldRelayCursor(
+      focused: _ref.read(appFocusedProvider),
+      inCallHere: inCallHere,
+      othersInCall:
+          inCallHere &&
+          _ref.read(voiceParticipantsProvider).any((p) => !p.isLocal),
+      remoteCursors: cursors.all.isNotEmpty,
+    );
+  }
 
   CanvasStrokePreviewRelay? _strokePreviewRelay;
   CanvasStrokePreviewRelay get strokePreviewRelay =>

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
@@ -25,6 +26,7 @@ import '../features/messages/providers/failed_send_retry.dart';
 import '../features/channels/providers/last_text_channel.dart';
 import '../features/members/providers/member_presence.dart';
 import '../features/messages/providers/message_ops_sync.dart';
+import 'app_lifecycle.dart';
 import 'op_adjacency.dart';
 import '../features/messages/providers/message_extras.dart';
 import 'providers.dart';
@@ -39,6 +41,7 @@ import '../features/voice/providers/watch_room.dart';
 part 'sync_controller_catchup.dart';
 part 'sync_controller_events.dart';
 part 'sync_controller_reset.dart';
+part 'sync_controller_resume.dart';
 
 /// How the connection is doing, for the UI to show honestly rather than
 /// pretending everything is fine while messages silently stop arriving.
@@ -122,6 +125,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       }
     });
     _lastSignedIn = session.isSignedIn;
+    _ref.listen(appLifecycleProvider, _onLifecycle);
     if (_lastSignedIn) unawaited(start());
   }
 
@@ -135,6 +139,11 @@ class SyncController extends StateNotifier<SyncStatus> {
   bool _reconcileAgain = false;
   Timer? _retry;
   bool _disposed = false;
+
+  SyncStatus get _status => state;
+
+  /// False once [stop] or [dispose] ran, so a resume does not revive a stopped sync.
+  bool _wantsConnection = false;
   final ReconnectBackoff _backoff;
   final _channelRefresher = ChannelRefresher();
 
@@ -225,6 +234,7 @@ class SyncController extends StateNotifier<SyncStatus> {
   Future<void> start() async {
     if (_disposed) return;
     final generation = ++_generation;
+    _wantsConnection = true;
     _retry?.cancel();
     await _teardown();
     if (generation != _generation) return;
@@ -269,7 +279,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
 
-      _backoff.reset();
+      _backoff.connected();
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
       _wasLive = true;
@@ -284,9 +294,7 @@ class SyncController extends StateNotifier<SyncStatus> {
         ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
     } catch (error, stack) {
-      reportFailure(LogTag.sync, 'connect to the server', error, stack, {
-        'generation': generation,
-      });
+      reportFailure(LogTag.sync, 'connect to the server', error, stack);
       if (generation != _generation) return;
       // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
       state = SyncStatus.offline;
@@ -367,6 +375,7 @@ class SyncController extends StateNotifier<SyncStatus> {
 
   void _onDropped() {
     if (_disposed || state == SyncStatus.connecting) return;
+    _backoff.dropped();
     state = SyncStatus.offline;
     _scheduleRetry();
   }
@@ -375,12 +384,13 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// back in the same instant. See [ReconnectBackoff] for the delay itself;
   /// this only schedules the timer it returns.
   void _scheduleRetry() {
-    if (_disposed) return;
+    if (_disposed || _backgroundedOnPhone) return;
     _retry?.cancel();
     _retry = Timer(_backoff.next(), start);
   }
 
   Future<void> _teardown() async {
+    _backoff.dropped();
     await _events?.cancel();
     _events = null;
     _frames?.clear();
@@ -399,6 +409,7 @@ class SyncController extends StateNotifier<SyncStatus> {
   Future<void> stop() async {
     // Supersedes any in-flight start(), even one paused mid-catch-up on a network call.
     _generation++;
+    _wantsConnection = false;
     _channelRefresher.discardInFlight();
     _retry?.cancel();
     await _teardown();
@@ -472,6 +483,7 @@ class SyncController extends StateNotifier<SyncStatus> {
   @override
   void dispose() {
     _disposed = true;
+    _wantsConnection = false;
     _generation++;
     unawaited(_sessionSubscription.cancel());
     _retry?.cancel();

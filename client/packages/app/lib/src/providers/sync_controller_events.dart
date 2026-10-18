@@ -70,7 +70,7 @@ extension SyncControllerEvents on SyncController {
         );
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
-        unawaited(start());
+        unawaited(_resyncAfterLag());
       case _:
         break;
     }

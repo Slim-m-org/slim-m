@@ -115,6 +115,11 @@ class EventConnection {
     }
   }
 
+  /// Whether the socket still answers, for a device that may have slept through
+  /// its death. False means the caller should reconnect.
+  Future<bool> probe({Duration timeout = const Duration(seconds: 5)}) =>
+      _liveness.probe(timeout: timeout);
+
   /// Refreshes "this user is typing" in a channel.
   ///
   /// There is deliberately no stop frame: the server expires the state on a

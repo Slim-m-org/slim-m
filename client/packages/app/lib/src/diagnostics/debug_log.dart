@@ -6,9 +6,11 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
+import '../providers/app_lifecycle.dart';
 import 'debug_log_persistence.dart';
 
 typedef DiagnosticSeverity = LogLevel;
@@ -91,7 +93,8 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
     this.capacity = 200,
     this.persistence,
     this.echo = false,
-    this.saveDelay = const Duration(seconds: 2),
+    this.saveDelay = const Duration(minutes: 1),
+    this.dedupeWindow = const Duration(minutes: 10),
   }) : super(const []) {
     unawaited(_restore());
   }
@@ -101,9 +104,15 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   /// Mirrors every record to the console, for a debug run with a terminal.
   final bool echo;
+
+  /// The longest a change waits to reach disk unless the app is paused first.
   final Duration saveDelay;
+
+  /// How far back an identical record still folds into an earlier one.
+  final Duration dedupeWindow;
+  static const _dedupeDepth = 20;
   Timer? _saveTimer;
-  bool _touched = false;
+  bool _dirty = false;
 
   Future<void> _restore() async {
     final saved = await persistence?.load() ?? const [];
@@ -114,7 +123,6 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   @override
   void write(LogRecord record) {
-    _touched = true;
     final event = DiagnosticEvent(
       at: record.at,
       level: record.level,
@@ -124,13 +132,27 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
       context: record.context,
     );
     if (echo) debugPrint(redactText(event.toString()));
-    final last = state.isEmpty ? null : state.first;
-    // A retry loop would otherwise push everything useful out of the ring.
-    final next = last != null && last.sameAs(event)
-        ? [last.repeated(event.at), ...state.skip(1)]
-        : [event, ...state];
+    // A retry loop, even one interleaved with other records, would otherwise push everything useful out of the ring.
+    final index = _recentMatch(event);
+    final next = index == -1
+        ? [event, ...state]
+        : [
+            state[index].repeated(event.at),
+            ...state.take(index),
+            ...state.skip(index + 1),
+          ];
     state = _bounded(next);
     _scheduleSave();
+  }
+
+  int _recentMatch(DiagnosticEvent event) {
+    final depth = state.length < _dedupeDepth ? state.length : _dedupeDepth;
+    for (var i = 0; i < depth; i++) {
+      final candidate = state[i];
+      if (event.at.difference(candidate.at) > dedupeWindow) break;
+      if (candidate.sameAs(event)) return i;
+    }
+    return -1;
   }
 
   /// Drops the oldest debug record first, so a chatty source cannot push an error out.
@@ -167,16 +189,22 @@ class DebugLog extends StateNotifier<List<DiagnosticEvent>> implements LogSink {
 
   void clear() {
     state = const [];
-    _touched = true;
     _scheduleSave();
   }
 
   void _scheduleSave() {
     if (persistence == null) return;
-    _saveTimer ??= Timer(saveDelay, () {
-      _saveTimer = null;
-      if (_touched) unawaited(persistence!.save(state));
-    });
+    _dirty = true;
+    _saveTimer ??= Timer(saveDelay, flush);
+  }
+
+  /// Writes any unsaved change now; called when the app leaves the foreground.
+  void flush() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    if (!_dirty || persistence == null) return;
+    _dirty = false;
+    unawaited(persistence!.save(state));
   }
 
   @override
@@ -207,6 +235,9 @@ final debugLogProvider = StateNotifierProvider<DebugLog, List<DiagnosticEvent>>(
 void installDiagnostics(ProviderContainer container) {
   final log = container.read(debugLogProvider.notifier);
   AppLog.install(log);
+  container.listen(appLifecycleProvider, (_, state) {
+    if (state != AppLifecycleState.resumed) log.flush();
+  });
 
   final previousOnError = FlutterError.onError;
   FlutterError.onError = (details) {

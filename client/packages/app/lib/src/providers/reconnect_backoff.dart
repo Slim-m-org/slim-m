@@ -2,6 +2,7 @@
 /// The delay `SyncController` waits between reconnect attempts.
 library;
 
+import 'dart:async';
 import 'dart:math';
 
 /// Exponential backoff with jitter, so a server restart does not bring every
@@ -11,6 +12,9 @@ import 'dart:math';
 /// [maxAttempt] is reached, plus a uniformly random jitter in
 /// `[0, jitterMs)` milliseconds. [random] is injectable so a test can seed
 /// or fake the draw; production leaves it as the real `Random()`.
+/// How long a connection must stay live before the backoff forgets its failures.
+const connectionStableAfter = Duration(seconds: 30);
+
 class ReconnectBackoff {
   ReconnectBackoff({
     Random? random,
@@ -34,7 +38,31 @@ class ReconnectBackoff {
     return Duration(seconds: seconds) + jitter;
   }
 
-  /// A successful connection resets the sequence, so the next drop backs off
-  /// from the first step again rather than from wherever it last left off.
-  void reset() => _attempt = 0;
+  Timer? _stableTimer;
+  bool _stable = false;
+
+  /// Whether the current connection has stayed up long enough to trust.
+  bool get stable => _stable;
+
+  /// A connection counts as healthy only after it stays up for [stableAfter]; a
+  /// reset on connect alone made a socket that drops in seconds loop at one second.
+  void connected({Duration stableAfter = connectionStableAfter}) {
+    _stableTimer?.cancel();
+    _stableTimer = Timer(stableAfter, () {
+      _stable = true;
+      _attempt = 0;
+    });
+  }
+
+  /// The connection went away; whatever it earned toward a reset is forfeit.
+  void dropped() {
+    _stableTimer?.cancel();
+    _stableTimer = null;
+    _stable = false;
+  }
+
+  void reset() {
+    dropped();
+    _attempt = 0;
+  }
 }

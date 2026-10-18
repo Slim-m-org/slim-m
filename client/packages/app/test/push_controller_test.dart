@@ -320,6 +320,48 @@ void main() {
       expect(registerPushCalls, 1);
     });
 
+    test(
+      'repeated transitions to the same label report to the server once',
+      () async {
+        var lifecycleCalls = 0;
+        mockPushChannel(
+          (call) async => switch (call.method) {
+            'getToken' => 'abcd1234',
+            _ => null,
+          },
+        );
+        addTearDown(() => mockPushChannel(null));
+        final session = SessionStore();
+        final container = pushTestContainer(
+          session: session,
+          httpClient: MockClient((request) async {
+            if (request.url.path == '/push/lifecycle') lifecycleCalls++;
+            return http.Response('', 204);
+          }),
+          channel: ApnsTokenChannel(isIOS: true),
+        );
+        addTearDown(container.dispose);
+
+        final controller = container.read(pushControllerProvider.notifier);
+        session.set(pushTestTokens);
+        await pumpEventQueue();
+        controller.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        await pumpEventQueue();
+        final settled = lifecycleCalls;
+
+        for (var i = 0; i < 5; i++) {
+          controller.didChangeAppLifecycleState(AppLifecycleState.inactive);
+          controller.didChangeAppLifecycleState(AppLifecycleState.resumed);
+          await pumpEventQueue();
+        }
+        expect(lifecycleCalls, settled, reason: 'alt-tabbing is not a change');
+
+        controller.didChangeAppLifecycleState(AppLifecycleState.hidden);
+        await pumpEventQueue();
+        expect(lifecycleCalls, settled + 1);
+      },
+    );
+
     test('signing out resets status to notSignedIn', () async {
       mockPushChannel(
         (call) async => switch (call.method) {
@@ -614,7 +656,9 @@ void main() {
         binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
         async.flushMicrotasks();
 
-        expect(lifecycleReports, ['foreground', 'foreground']);
+        expect(lifecycleReports, [
+          'foreground',
+        ], reason: 'still foreground, and not worth a second report');
 
         container.dispose();
         async.flushMicrotasks();
