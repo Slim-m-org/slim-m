@@ -208,6 +208,11 @@ final spaceScreenShareCeilingProvider = FutureProvider.autoDispose<int>(
   (ref) => ref.watch(apiProvider).spaceScreenShareMaxHeight(),
 );
 
+/// Whether this space unfurls pasted links, `GET /space/link-previews`.
+final spaceLinkPreviewsProvider = FutureProvider.autoDispose<bool>(
+  (ref) => ref.watch(apiProvider).spaceLinkPreviews(),
+);
+
 /// The admin's attachment size limit beside the operator's ceiling,
 /// `GET /space/attachment-limit`. Members read the limit in force from
 /// `/version`; see `screens/admin/attachment_limit_section.dart`.

@@ -200,6 +200,20 @@ extension SlimmApiSpace on SlimmApi {
     return (json as Map<String, dynamic>)['max_height'] as int;
   }
 
+  Future<bool> spaceLinkPreviews() async {
+    final json = await _send('GET', '/space/link-previews');
+    return (json as Map<String, dynamic>)['enabled'] as bool;
+  }
+
+  Future<bool> setSpaceLinkPreviews(bool enabled) async {
+    final json = await _send(
+      'PATCH',
+      '/space/link-previews',
+      body: {'enabled': enabled},
+    );
+    return (json as Map<String, dynamic>)['enabled'] as bool;
+  }
+
   Future<SpaceAttachmentLimit> spaceAttachmentLimit() async {
     final json = await _send('GET', '/space/attachment-limit');
     return SpaceAttachmentLimit.fromJson(json as Map<String, dynamic>);

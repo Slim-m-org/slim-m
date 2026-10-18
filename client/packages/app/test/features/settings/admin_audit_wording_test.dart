@@ -46,6 +46,7 @@ void main() {
     (_change('space.retention'), 'changed message retention'),
     (_change('space.canvas_cap'), 'changed the canvas limit'),
     (_change('space.screen_share'), 'changed the screen share limit'),
+    (_change('space.link_previews'), 'changed link previews'),
     (_change('space.attachment_limit'), 'changed the attachment size limit'),
     (_change('space.icon_set'), 'set the space icon'),
     (_change('space.icon_clear'), 'removed the space icon'),

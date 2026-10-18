@@ -71,6 +71,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "space.attachment_limit",
         None,
     ),
+    route(
+        Method::PATCH,
+        "/space/link-previews",
+        "space.link_previews",
+        None,
+    ),
     route(Method::POST, "/space/icon", "space.icon_set", None),
     route(Method::DELETE, "/space/icon", "space.icon_clear", None),
     route(Method::POST, "/space/banner", "space.banner_set", None),

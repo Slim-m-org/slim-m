@@ -133,6 +133,7 @@ pub async fn run() -> anyhow::Result<()> {
     let gifs = http::gifs::GifSearch::new(&config)?;
     let link_previews =
         http::link_preview::LinkPreviews::new(&config, store.link_preview_image_key().await?);
+    link_previews.set_override(store.link_previews_override().await?);
     let dock = http::dock::Dock::new(&config);
     let code_runner = code_runner::CodeRunner::new(&config)?;
     let state = http::AppState {

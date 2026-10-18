@@ -108,6 +108,7 @@ mod sign_in_alert;
 mod space;
 mod space_banner;
 mod space_icon;
+mod space_link_previews;
 mod still_picture;
 mod storage;
 mod sync;
@@ -232,6 +233,7 @@ pub fn router(state: AppState) -> Router {
         .merge(emoji::routes())
         .merge(invites::routes())
         .merge(invite_page::routes())
+        .merge(space_link_previews::routes())
         .merge(members::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())

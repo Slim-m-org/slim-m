@@ -118,6 +118,7 @@ class _Describer {
     'space.retention' => 'changed message retention',
     'space.canvas_cap' => 'changed the canvas limit',
     'space.screen_share' => 'changed the screen share limit',
+    'space.link_previews' => 'changed link previews',
     'space.attachment_limit' => 'changed the attachment size limit',
     'space.icon_set' => 'set the space icon',
     'space.icon_clear' => 'removed the space icon',

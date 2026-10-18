@@ -8507,6 +8507,56 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/link-previews:
+    get:
+      operationId: getSpaceLinkPreviews
+      tags: [space]
+      summary: Read whether this space unfurls pasted links.
+      description: >
+        Gated on MANAGE_SERVER. Until an admin chooses, the operator's
+        `SLIMM_LINK_PREVIEWS` decides. `/version`'s `link_previews_enabled`
+        reports the same value to every client.
+      responses:
+        "200":
+          description: The current setting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceLinkPreviews"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      operationId: updateSpaceLinkPreviews
+      tags: [space]
+      summary: Turn link previews on or off for the whole space.
+      description: >
+        Overrides the operator's default. Off, the unfurl route answers as if
+        previews were not configured; links already posted keep their text.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpaceLinkPreviews"
+      responses:
+        "200":
+          description: The setting after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceLinkPreviews"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules:
     get:
       operationId: listDockModules
@@ -10678,6 +10728,13 @@ components:
             Client-advertised: a client reads this and caps its own capture
             parameters, rather than the server inspecting published tracks.
             Settable range is 360 to 2160; the default is 2160.
+    SpaceLinkPreviews:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Whether this space unfurls pasted links into preview cards.
     DockIndexEntry:
       type: object
       required: [id, name, version, summary, shadowed]

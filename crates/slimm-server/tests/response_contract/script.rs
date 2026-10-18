@@ -254,6 +254,26 @@ pub async fn run(c: &mut Contract) {
     )
     .await;
 
+    c.bare("getSpaceLinkPreviews", "GET", "/space/link-previews", root)
+        .await;
+    c.json(
+        "updateSpaceLinkPreviews",
+        "PATCH",
+        "/space/link-previews",
+        root,
+        json!({"enabled": false}),
+    )
+    .await;
+    // Back on, because later calls unfurl and embed images.
+    c.json(
+        "updateSpaceLinkPreviews",
+        "PATCH",
+        "/space/link-previews",
+        root,
+        json!({"enabled": true}),
+    )
+    .await;
+
     profile_calls(c, root, &admin_id, &bob_id).await;
     safety_calls(c, root, bob_token, &bob_id).await;
 

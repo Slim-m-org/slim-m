@@ -126,6 +126,18 @@ const spaceSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'performance',
+    'Link previews',
+    description: 'Cards under messages that contain a link.',
+    keywords: ['embed', 'unfurl', 'card'],
+  ),
+  SettingsEntry(
+    'performance',
+    'Preview links',
+    description: 'The server fetches each page to build its card.',
+    keywords: ['embed', 'unfurl'],
+  ),
+  SettingsEntry(
+    'performance',
     'Attachment size limit',
     description: 'Largest file a member can upload.',
     keywords: ['upload', 'file size', 'max size'],
