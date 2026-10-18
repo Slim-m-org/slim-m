@@ -198,3 +198,17 @@ jobs:
       defer: true
     secrets:
       UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+
+  # Rewrites SHA256SUMS to list the Windows and macOS downloads too; defers inside the workflow until the Linux tarball is attached, and release's own call then writes it.
+  client-checksums:
+    name: client checksums
+    needs: [windows-client, macos-client]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/client-checksums.yml
+    with:
+      tag: ${{ inputs.tag || github.ref_name }}
+    secrets:
+      RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

@@ -7,6 +7,7 @@ that is hashed but not attached fails a plain `-c`. The run blocks are
 executed against stand-in files rather than read as text.
 """
 import fnmatch
+import os
 import re
 import subprocess
 import tempfile
@@ -78,6 +79,32 @@ class ReleaseChecksumsListWhatIsAttachedTest(unittest.TestCase):
         self.assertEqual([n.removeprefix("./") for n in names], ["slim-m-client-android.apk"])
         for name in names:
             self.assertTrue(any(fnmatch.fnmatch(name.removeprefix("./"), p) for p in patterns), name)
+
+
+    def test_the_combined_checksums_wait_for_every_desktop_download_then_list_them(self):
+        workflow = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "client-checksums.yml"
+        step = next(
+            s for s in steps(jobs(workflow.read_text())["sums"]) if re.search(r"name:\s*checksums\s*$", s, re.M)
+        )
+        script = run_script(step).split("\n\n")[0]
+        required = [
+            "slim-m-client-1-linux-amd64.tar.gz",
+            "slim-m-client-1-windows-x64.zip",
+            "slim-m-setup-1.exe",
+            "slim-m-client-1-macos.zip",
+        ]
+
+        def listed(files: list[str]) -> list[str] | None:
+            with tempfile.TemporaryDirectory() as tmp:
+                for name in files:
+                    (Path(tmp) / name).write_text(name)
+                env = {"TAG": "t", "GITHUB_OUTPUT": str(Path(tmp) / "out"), "PATH": os.environ["PATH"]}
+                subprocess.run(["bash", "-euo", "pipefail", "-c", script], cwd=tmp, env=env, check=True, capture_output=True)
+                sums = Path(tmp) / "SHA256SUMS"
+                return [line.split()[1] for line in sums.read_text().splitlines()] if sums.exists() else None
+
+        self.assertIsNone(listed(required[:3]))
+        self.assertEqual(sorted(listed(required + ["slim-m-client-1.flatpak"])), sorted(required + ["slim-m-client-1.flatpak"]))
 
 
 if __name__ == "__main__":

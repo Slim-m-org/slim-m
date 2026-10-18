@@ -35,7 +35,7 @@ Taken from `client-v0.89.0` as it stands now.
 
 | Asset | Made by |
 | --- | --- |
-| `SHA256SUMS` | `release.yml`, covers the tarball, flatpak and rpm |
+| `SHA256SUMS` | `client-checksums.yml`, called by `release.yml` and `desktop-clients.yml`, covers every client download above |
 | `SHA256SUMS.android` | `release.yml` |
 | `slim-m-client-<version>-1.fc44.x86_64.rpm` | `release.yml` |
 | `slim-m-client-<version>-linux-amd64.tar.gz` | `release.yml` |
