@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 class NotificationTarget {
   const NotificationTarget({required this.origin, required this.channelId});
@@ -24,7 +25,8 @@ class NotificationTarget {
       if (origin is! String || channelId is! String) return null;
       if (origin.isEmpty || channelId.isEmpty) return null;
       return NotificationTarget(origin: origin, channelId: channelId);
-    } on FormatException {
+    } on FormatException catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'decode failed, ignored', error, stack);
       return null;
     }
   }

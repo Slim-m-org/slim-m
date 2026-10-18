@@ -13,6 +13,8 @@ import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'direct_route.dart';
+import 'logging/app_log.dart';
+import 'logging/failure.dart';
 
 DirectRoute createDirectRoute(Uri baseUrl) => IoDirectRoute(baseUrl);
 
@@ -160,7 +162,8 @@ class IoDirectRoute implements DirectRoute {
       _penalty = _firstPenalty;
       _skipUntil = null;
       return socket;
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.net, 'close', error, stack);
       raw?.destroy();
       _isActive = false;
       _probing = false;

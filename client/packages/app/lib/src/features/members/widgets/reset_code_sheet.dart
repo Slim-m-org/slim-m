@@ -50,7 +50,8 @@ Future<void> showResetCodeSheet(
             .read(apiProvider)
             .issueResetCode(subjectId, password: password);
         return null;
-      } on api.ApiException catch (e) {
+      } on api.ApiException catch (e, stack) {
+        api.reportFailure(api.LogTag.ui, 'show reauth sheet', e, stack);
         return reauthFailure(e);
       }
     },

@@ -68,7 +68,8 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
       // updateMe returns a UserProfile, not the Me shape meProvider holds, so refetch rather than merge.
       ref.invalidate(meProvider);
       if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('save your name', e));
       }

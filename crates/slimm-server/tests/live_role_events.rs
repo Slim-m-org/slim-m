@@ -14,12 +14,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -28,24 +24,10 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::app::json_body;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
@@ -122,13 +104,6 @@ fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Bod
     }
 }
 
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
 /// Grants ADMINISTRATOR to a user so every test below can create, update, and
 /// delete roles and assign or unassign them without wiring up every bit each
 /// verb happens to need.
@@ -147,7 +122,7 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await
         .unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
@@ -217,7 +192,7 @@ async fn member_role_changed_reaches_everyone() {
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await
         .unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, _bob_ticket, bob) = user_ticket(&store, "bob").await;

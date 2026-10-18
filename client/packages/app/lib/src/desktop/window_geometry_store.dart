@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'window_geometry.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const windowGeometryPreferenceKey = 'slimm.desktop.window_geometry';
 
@@ -30,7 +31,8 @@ class WindowGeometryStore {
         jsonDecode(raw) as Map<String, dynamic>,
       );
       return healSplashCorruption(decoded);
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.platform, 'read failed, ignored', error, stack);
       return null;
     }
   }

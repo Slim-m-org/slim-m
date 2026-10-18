@@ -11,6 +11,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'direct_route.dart';
 import 'exceptions.dart';
+import 'logging/app_log.dart';
+import 'logging/failure.dart';
 import 'models.dart';
 import 'upload_source.dart';
 
@@ -93,7 +95,8 @@ class SessionStore {
     _changes.add(tokens);
     if (_onChange case final onChange?) {
       // Caught, or an uncaught error here would poison every later onChange (see FileKeyStore).
-      _pending = _pending.then((_) => onChange(tokens)).catchError((_) {});
+      _pending = _pending.then((_) => onChange(tokens)).catchError(
+          ignoreError(LogTag.net, 'a session-change listener failed, ignored'));
     }
   }
 

@@ -14,7 +14,13 @@ final spaceRulesProvider = FutureProvider.autoDispose<api.SpaceRules?>((
 ) async {
   try {
     return await ref.watch(apiProvider).spaceRules();
-  } on api.NotFoundException {
+  } on api.NotFoundException catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'auto dispose failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
 });

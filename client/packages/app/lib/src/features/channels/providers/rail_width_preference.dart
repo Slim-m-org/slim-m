@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/preference_controller.dart';
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const railWidthKey = 'slimm.layout.rail_width';
 
@@ -32,8 +33,13 @@ class RailWidthController extends StateNotifier<double?>
       final prefs = await _ref.read(preferencesProvider.future);
       final stored = prefs.getDouble(railWidthKey);
       if (stored != null && stored.isFinite) state = clampRailWidth(stored);
-    } catch (_) {
-      // The layout default is always usable, so a bad read is not worth failing a launch over.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.data,
+        'The layout default is always usable, so a bad read is not worth failing a launch over',
+        error,
+        stack,
+      );
     }
   }
 

@@ -18,12 +18,9 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::Event;
 use slimm_server::ids::UserId;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -33,22 +30,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (ws connect ticket, user id).
 async fn user_ticket(store: &Store, name: &str) -> (String, UserId) {
@@ -111,7 +92,7 @@ async fn next_frame(ws: &mut Client) -> Value {
 #[tokio::test]
 async fn a_timeout_a_removal_and_a_restore_each_reach_a_connected_client() {
     let (store, _guard) = support::new_store("slimm-ws-moderation").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (_alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (bob_ticket, _bob) = user_ticket(&store, "bob").await;
     let addr = serve(state.clone()).await;

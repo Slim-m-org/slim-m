@@ -12,6 +12,9 @@ use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::presence::PresenceTracker;
 use slimm_server::store::Store;
 
+/// The shared app/state builder, request helpers and account fixtures.
+pub mod app;
+
 /// Route and schema extraction shared by `tests/openapi_contract.rs` and
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;

@@ -11,12 +11,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use serde_json::Value;
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 
@@ -27,19 +23,10 @@ use uuid::Uuid;
 /// media handle with a small size ceiling instead of the 10 MiB test default.
 fn app(store: Store, media: Media) -> Router {
     let auth = Auth::new(2).expect("auth service");
-    http::router(AppState {
-        store,
-        auth,
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media,
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store)
+        .auth(auth)
+        .media(media)
+        .router()
 }
 
 /// A member with a session and a channel they may post in. Holds ATTACH_FILES

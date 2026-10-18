@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
@@ -33,6 +32,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/reduced_motion_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession, tokens;
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _channelId = 'channel-shared';
 
@@ -65,31 +65,23 @@ const _participant = VoiceParticipant(
       syncControllerProvider.overrideWith(NoopSyncController.new),
       membersProvider.overrideWith((ref) async => [_bot]),
       rolesProvider.overrideWith((ref) async => const <api.Role>[]),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            final json = {'content-type': 'application/json'};
-            if (request.url.path.endsWith('/voice/token')) {
-              final body = {
-                'url': 'wss://sfu.example.com',
-                'room': _channelId,
-                'token': 'jwt',
-                'expires_at': 0,
-                'can_publish': true,
-              };
-              return http.Response(jsonEncode(body), 200, headers: json);
-            }
-            if (request.url.path.endsWith('/note')) {
-              final body = {'body': null, 'updated_at': null};
-              return http.Response(jsonEncode(body), 200, headers: json);
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        final json = {'content-type': 'application/json'};
+        if (request.url.path.endsWith('/voice/token')) {
+          final body = {
+            'url': 'wss://sfu.example.com',
+            'room': _channelId,
+            'token': 'jwt',
+            'expires_at': 0,
+            'can_publish': true,
+          };
+          return http.Response(jsonEncode(body), 200, headers: json);
+        }
+        if (request.url.path.endsWith('/note')) {
+          final body = {'body': null, 'updated_at': null};
+          return http.Response(jsonEncode(body), 200, headers: json);
+        }
+        return http.Response('', 204);
       }),
       voiceControllerProvider.overrideWith(
         (ref) => VoiceController(ref, session: session),

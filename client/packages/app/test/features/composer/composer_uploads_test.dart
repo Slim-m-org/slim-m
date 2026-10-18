@@ -19,7 +19,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
@@ -29,6 +28,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dar
 
 import 'composer_harness.dart';
 import '../../ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _desktop = Size(1000, 600);
 const _phone = Size(390, 700);
@@ -52,39 +52,35 @@ api.SlimmApi Function(Ref) _server({
   bool failUploads = false,
   List<String>? uploads,
 }) =>
-    (ref) => api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        if (request.url.path == '/version') {
-          return http.Response(
-            jsonEncode({
-              'name': 'slim-m',
-              'version': '1.0.0',
-              'protocol': 1,
-              'max_attachment_bytes': ?maxBytes,
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (request.method == 'POST' && request.url.path == '/attachments') {
-          uploads?.add(request.url.queryParameters['filename'] ?? '');
-          if (failUploads) throw http.ClientException('connection reset');
-          return http.Response(
-            jsonEncode({
-              'id': 'a1',
-              'filename': request.url.queryParameters['filename'],
-              'content_type': 'image/png',
-              'size': 4,
-            }),
-            201,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        return http.Response('{}', 404);
-      }),
-    );
+    (ref) => testApi((request) async {
+      if (request.url.path == '/version') {
+        return http.Response(
+          jsonEncode({
+            'name': 'slim-m',
+            'version': '1.0.0',
+            'protocol': 1,
+            'max_attachment_bytes': ?maxBytes,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (request.method == 'POST' && request.url.path == '/attachments') {
+        uploads?.add(request.url.queryParameters['filename'] ?? '');
+        if (failUploads) throw http.ClientException('connection reset');
+        return http.Response(
+          jsonEncode({
+            'id': 'a1',
+            'filename': request.url.queryParameters['filename'],
+            'content_type': 'image/png',
+            'size': 4,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 404);
+    }, session: ref.watch(sessionProvider));
 
 Future<void> _size(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;

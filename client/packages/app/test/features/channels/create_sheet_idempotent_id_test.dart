@@ -10,12 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/create_category_sheet.dart';
 import 'package:slimm_app/src/features/channels/widgets/create_channel_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'alice',
@@ -35,14 +35,10 @@ Future<List<Map<String, dynamic>>> _submitTwice(
     ProviderScope(
       overrides: [
         apiProvider.overrideWith(
-          (ref) => api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: api.SessionStore(tokens: _tokens),
-            httpClient: MockClient((request) async {
-              bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
-              return http.Response('{"error":"nope"}', 400);
-            }),
-          ),
+          (ref) => testApi((request) async {
+            bodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return http.Response('{"error":"nope"}', 400);
+          }, session: api.SessionStore(tokens: _tokens)),
         ),
       ],
       child: MaterialApp(

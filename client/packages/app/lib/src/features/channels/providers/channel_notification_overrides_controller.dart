@@ -138,7 +138,8 @@ class ChannelNotificationOverridesController
         byChannel: byChannel,
         settled: true,
       );
-    } catch (error) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
       if (!mounted || generation != _generation) return;
       final message = error is api.ApiException ? error.message : '$error';
       state = ChannelNotificationOverridesState(

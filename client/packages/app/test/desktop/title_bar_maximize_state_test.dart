@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/title_bar.dart';
@@ -17,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'support/fake_desktop_window_port.dart';
+import '../support/fake_api.dart';
 
 /// A host matching real usage: [TitleBar] sits atop the rest of the app
 /// inside a fixed-height slot, the same shape `DesktopChrome`'s own
@@ -37,15 +36,7 @@ Future<SemanticsHandle> _pump(
     ProviderScope(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((_) async => http.Response('', 404)),
-          );
-          ref.onDispose(client.close);
-          return client;
-        }),
+        mockApiOverride((_) async => http.Response('', 404)),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),

@@ -7,13 +7,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_content_preview_settings.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 const _channelName = 'top.npcserver.slimm/push';
 
@@ -47,34 +47,24 @@ _Rig _rig({required Map<String, bool> serverValue, bool putFails = false}) {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(session),
       apnsTokenChannelProvider.overrideWithValue(ApnsTokenChannel(isIOS: true)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            final user = session.tokens?.userId ?? 'none';
-            if (request.method == 'PUT' && request.url.path == '/push') {
-              registrations.add(
-                jsonDecode(request.body) as Map<String, dynamic>,
-              );
-              return http.Response('', 204);
-            }
-            if (request.url.path == '/push/preview') {
-              if (request.method == 'PUT') {
-                return putFails
-                    ? http.Response('down', 503)
-                    : http.Response(request.body, 200);
-              }
-              return http.Response(
-                jsonEncode({'include_content': serverValue[user]}),
-                200,
-              );
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((request) async {
+        final user = session.tokens?.userId ?? 'none';
+        if (request.method == 'PUT' && request.url.path == '/push') {
+          registrations.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response('', 204);
+        }
+        if (request.url.path == '/push/preview') {
+          if (request.method == 'PUT') {
+            return putFails
+                ? http.Response('down', 503)
+                : http.Response(request.body, 200);
+          }
+          return http.Response(
+            jsonEncode({'include_content': serverValue[user]}),
+            200,
+          );
+        }
+        return http.Response('', 204);
       }),
     ],
   );

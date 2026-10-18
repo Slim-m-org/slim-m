@@ -21,13 +21,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -38,22 +34,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// A user, their REST access token, and a WebSocket connect ticket.
 async fn user_ticket(store: &Store, name: &str) -> (String, String, UserId) {
@@ -136,7 +116,7 @@ async fn a_live_reaction_from_a_blocked_user_is_absent_for_the_blocker_alone() {
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (pest_access, _pest_ticket, pest) = user_ticket(&store, "pest").await;
@@ -240,7 +220,7 @@ async fn a_live_reactions_frame_never_carries_a_reactor_id_and_mixes_blocked_wit
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (_alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (pest_access, _pest_ticket, pest) = user_ticket(&store, "pest").await;
@@ -345,7 +325,7 @@ async fn a_blocked_reactors_early_timestamp_cannot_reorder_an_emoji_for_the_bloc
         .await
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (_alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_dana_access, dana_ticket, _dana) = user_ticket(&store, "dana").await;

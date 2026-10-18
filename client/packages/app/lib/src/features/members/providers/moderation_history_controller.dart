@@ -105,7 +105,8 @@ class ModerationHistoryController
         loading: false,
         more: page.length >= moderationHistoryPageSize,
       );
-    } on Object catch (e) {
+    } on Object catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'load more', e, stack);
       if (!mounted || generation != _generation) return;
       state = ModerationHistoryState(
         items: after == null ? held : onto,

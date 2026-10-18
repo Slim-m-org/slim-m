@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'update_check.dart' show isNewer;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// How dnf is run, so a test can script exit codes and output.
 typedef ProcessRunner =
@@ -96,9 +97,21 @@ class RpmUpdater {
         '--enabled',
       ]).timeout(_stepTimeout);
       return result.exitCode == 0 && repoListed('${result.stdout}');
-    } on ProcessException {
+    } on ProcessException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'repo enabled failed, ignored',
+        error,
+        stack,
+      );
       return false;
-    } on TimeoutException {
+    } on TimeoutException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'repo enabled failed, ignored',
+        error,
+        stack,
+      );
       return false;
     }
   }
@@ -115,9 +128,21 @@ class RpmUpdater {
       if (result.exitCode != 0) return null;
       final version = '${result.stdout}'.trim();
       return version.isEmpty ? null : version;
-    } on ProcessException {
+    } on ProcessException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'installed version failed, ignored',
+        error,
+        stack,
+      );
       return null;
-    } on TimeoutException {
+    } on TimeoutException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'installed version failed, ignored',
+        error,
+        stack,
+      );
       return null;
     }
   }
@@ -193,9 +218,16 @@ class RpmUpdater {
         ok: result.exitCode == 0,
         detail: lastLines('${result.stdout}\n${result.stderr}'),
       );
-    } on ProcessException catch (e) {
+    } on ProcessException catch (e, stack) {
+      AppLog.swallowed(LogTag.platform, 'privileged failed, ignored', e, stack);
       return RpmUpdateResult(ok: false, detail: e.message);
-    } on TimeoutException {
+    } on TimeoutException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'privileged failed, ignored',
+        error,
+        stack,
+      );
       return RpmUpdateResult(
         ok: false,
         detail: 'dnf did not finish within ${_stepTimeout.inMinutes} minutes.',

@@ -24,6 +24,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/call_lifecycle';
 
@@ -67,9 +68,14 @@ class CallLifecycleChannel {
         'callId': callId,
         'displayName': displayName,
       });
-    } on PlatformException {
-      // No CallKit call to report; the room itself is unaffected.
-    } on MissingPluginException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'No CallKit call to report; the room itself is unaffected',
+          error,
+          stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.voice, 'on call failed, ignored', error, stack);
       // As above: a build with no native handler for this channel.
     }
   }
@@ -79,9 +85,15 @@ class CallLifecycleChannel {
     if (!_isIOS) return;
     try {
       await _channel.invokeMethod<void>('callConnected');
-    } on PlatformException {
-      // Nothing reported yet, or CallKit unavailable; the state is unaffected.
-    } on MissingPluginException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'Nothing reported yet, or CallKit unavailable; the state is unaffected',
+          error,
+          stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'call connected failed, ignored', error, stack);
       // As above.
     }
   }
@@ -91,9 +103,15 @@ class CallLifecycleChannel {
     if (!_isIOS) return;
     try {
       await _channel.invokeMethod<void>('callEnded');
-    } on PlatformException {
-      // Nothing reported, which is the state this call wanted anyway.
-    } on MissingPluginException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'Nothing reported, which is the state this call wanted anyway',
+          error,
+          stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'call ended failed, ignored', error, stack);
       // As above.
     }
   }

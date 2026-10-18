@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/providers.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const canvasCamerasKey = 'slimm.canvas.cameras.v1';
 
@@ -45,8 +46,13 @@ class CanvasCameraMemory {
           ),
         );
       }
-    } catch (_) {
-      // An unreadable store just means every canvas opens at the origin, as before.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'An unreadable store just means every canvas opens at the origin, as before',
+        error,
+        stack,
+      );
     }
   }
 
@@ -66,8 +72,13 @@ class CanvasCameraMemory {
             e.key: [e.value.x, e.value.y, e.value.zoom],
         }),
       );
-    } catch (_) {
-      // Best effort: this session still remembers it in memory.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'Best effort: this session still remembers it in memory',
+        error,
+        stack,
+      );
     }
   }
 }

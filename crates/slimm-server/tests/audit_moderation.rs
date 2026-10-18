@@ -6,11 +6,7 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::{Event, Hub};
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::sync::broadcast::Receiver;
 use tower::ServiceExt;
@@ -37,19 +33,7 @@ async fn world() -> World {
     let other = register(&store, "omar").await;
     let hub = Hub::new();
     let events = hub.subscribe();
-    let router = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let router = support::app::builder(store.clone()).hub(hub).router();
     World {
         router,
         store,

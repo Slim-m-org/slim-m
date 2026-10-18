@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
@@ -18,6 +17,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/color_swatch_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -41,40 +41,32 @@ Future<_Harness> _pump(WidgetTester tester, {int? customRgb}) async {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            const json = {'content-type': 'application/json'};
-            if (request.url.path != '/me') return http.Response('', 404);
-            if (request.method == 'PATCH') {
-              if (h.refuse) {
-                return http.Response(
-                  jsonEncode({'error': 'colour refused'}),
-                  400,
-                  headers: json,
-                );
-              }
-              h.patches.add(jsonDecode(request.body) as Map<String, dynamic>);
-            }
+      mockApiOverride((request) async {
+        const json = {'content-type': 'application/json'};
+        if (request.url.path != '/me') return http.Response('', 404);
+        if (request.method == 'PATCH') {
+          if (h.refuse) {
             return http.Response(
-              jsonEncode({
-                'id': 'self',
-                'username': 'nc1107',
-                'display_name': 'Nick',
-                'created_at': 0,
-                'permissions': 0,
-                'profile_color': 0,
-                'profile_color_rgb': h.customRgb,
-              }),
-              200,
+              jsonEncode({'error': 'colour refused'}),
+              400,
               headers: json,
             );
+          }
+          h.patches.add(jsonDecode(request.body) as Map<String, dynamic>);
+        }
+        return http.Response(
+          jsonEncode({
+            'id': 'self',
+            'username': 'nc1107',
+            'display_name': 'Nick',
+            'created_at': 0,
+            'permissions': 0,
+            'profile_color': 0,
+            'profile_color_rgb': h.customRgb,
           }),
+          200,
+          headers: json,
         );
-        ref.onDispose(api.close);
-        return api;
       }),
     ],
   );

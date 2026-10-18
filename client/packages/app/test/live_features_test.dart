@@ -20,13 +20,13 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/channels/providers/pins_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 /// Waits several event-loop turns, enough for a mocked HTTP round trip
 /// kicked off by a live event's listener to land.
@@ -69,20 +69,12 @@ void main() {
           overrides: [
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
             sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: MockClient((request) async {
-                  return http.Response(
-                    jsonEncode(pinned),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }),
+            mockApiOverride((request) async {
+              return http.Response(
+                jsonEncode(pinned),
+                200,
+                headers: {'content-type': 'application/json'},
               );
-              ref.onDispose(api.close);
-              return api;
             }),
             liveEventsProvider.overrideWithValue(events.stream),
           ],
@@ -125,21 +117,13 @@ void main() {
           overrides: [
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
             sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-            apiProvider.overrideWith((ref) {
-              final api = SlimmApi(
-                baseUrl: Uri.parse('http://localhost:8080'),
-                session: ref.watch(sessionProvider),
-                httpClient: MockClient((request) async {
-                  if (fail) return http.Response('server error', 500);
-                  return http.Response(
-                    jsonEncode([_pinJson('m1')]),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }),
+            mockApiOverride((request) async {
+              if (fail) return http.Response('server error', 500);
+              return http.Response(
+                jsonEncode([_pinJson('m1')]),
+                200,
+                headers: {'content-type': 'application/json'},
               );
-              ref.onDispose(api.close);
-              return api;
             }),
             liveEventsProvider.overrideWithValue(events.stream),
           ],
@@ -173,16 +157,8 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                return http.Response('forbidden', 403);
-              }),
-            );
-            ref.onDispose(api.close);
-            return api;
+          mockApiOverride((request) async {
+            return http.Response('forbidden', 403);
           }),
           liveEventsProvider.overrideWithValue(const Stream.empty()),
         ],
@@ -207,22 +183,14 @@ void main() {
         overrides: [
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                // Refetches of the pin list, not every request the app makes.
-                if (request.url.path.endsWith('/pins')) fetchCount++;
-                return http.Response(
-                  '[]',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }),
+          mockApiOverride((request) async {
+            // Refetches of the pin list, not every request the app makes.
+            if (request.url.path.endsWith('/pins')) fetchCount++;
+            return http.Response(
+              '[]',
+              200,
+              headers: {'content-type': 'application/json'},
             );
-            ref.onDispose(api.close);
-            return api;
           }),
           liveEventsProvider.overrideWithValue(events.stream),
         ],

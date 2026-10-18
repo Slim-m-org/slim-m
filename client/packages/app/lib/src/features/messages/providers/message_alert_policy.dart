@@ -183,7 +183,8 @@ class MessageAlertPolicy {
       _selfAt = DateTime.now();
       _selfFailedAt = null;
       _selfFailedForId = null;
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'mentions self', error, stack);
       // Keeps the cache for this account, if there is one.
       _selfFailedAt = DateTime.now();
       _selfFailedForId = selfId;
@@ -196,7 +197,8 @@ class MessageAlertPolicy {
   Future<List<String>> _roleNames(api.SlimmApi client, String selfId) async {
     try {
       return (await client.getUser(selfId)).roles;
-    } on Object {
+    } on Object catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'role names', error, stack);
       return const [];
     }
   }
@@ -213,7 +215,8 @@ class MessageAlertPolicy {
       try {
         final parent = await _ref.read(apiProvider).getThreadParent(channelId);
         _parentChannels[channelId] = parent.parentChannelId;
-      } on api.ApiException {
+      } on api.ApiException catch (error, stack) {
+        api.reportFailure(api.LogTag.ui, 'role names', error, stack);
         return null;
       }
     }
@@ -249,7 +252,8 @@ class MessageAlertPolicy {
       final value = perms.hasPermission(Perm.sendMessages);
       _canSend[channelId] = (value: value, at: DateTime.now());
       return value;
-    } on Object {
+    } on Object catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'can send in', error, stack);
       return cached?.value ?? true;
     }
   }
@@ -280,7 +284,13 @@ class MessageAlertPolicy {
     }
     try {
       return await _ref.read(future).timeout(_refreshWait);
-    } on Object {
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'can send in failed, ignored',
+        error,
+        stack,
+      );
       return _ref.exists(provider) ? _ref.read(provider).valueOrNull : null;
     }
   }

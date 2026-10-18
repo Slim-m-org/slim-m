@@ -32,7 +32,13 @@ Future<bool> reportedChannelReachable(WidgetRef ref, String channelId) async {
   try {
     final store = await ref.read(storeProvider.future);
     return await store.hasChannel(channelId);
-  } catch (_) {
+  } catch (error, stack) {
+    api.AppLog.swallowed(
+      api.LogTag.ui,
+      'reported channel reachable failed, ignored',
+      error,
+      stack,
+    );
     return false;
   }
 }

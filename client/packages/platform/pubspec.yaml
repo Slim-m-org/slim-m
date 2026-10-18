@@ -7,6 +7,7 @@ environment:
   sdk: ^3.6.0
   flutter: ">=3.27.0"
 dependencies:
+  slimm_api:
   cryptography: ^2.9.0
   device_info_plus: ^13.2.0
   # MPRIS for rich presence; linux only, and web never compiles it (now_playing.dart).

@@ -10,7 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:slimm_api/api.dart' show InputLimits;
+import 'package:slimm_api/api.dart' show InputLimits, LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'sign_in_credential_fields.dart' show passwordRule;
@@ -88,7 +88,8 @@ class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
         _next.text,
         widget.askForCode ? _codeText : null,
       );
-    } on Object {
+    } on Object catch (error, stack) {
+      reportFailure(LogTag.auth, 'set state', error, stack);
       failure = 'Something went wrong. Try again.';
     }
     if (!mounted) return;

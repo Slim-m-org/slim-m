@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../desktop/self_update/self_update_failure.dart';
 import '../providers/windows_adopt.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 class WindowsInstallOffer extends ConsumerStatefulWidget {
   const WindowsInstallOffer({super.key});
@@ -31,7 +32,13 @@ class _WindowsInstallOfferState extends ConsumerState<WindowsInstallOffer> {
     });
     try {
       await ref.read(windowsAdoptActionProvider)();
-    } on SelfUpdateFailure catch (failure) {
+    } on SelfUpdateFailure catch (failure, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'set state failed, ignored',
+        failure,
+        stack,
+      );
       if (mounted) setState(() => _failure = failure);
     } finally {
       if (mounted) setState(() => _installing = false);

@@ -33,7 +33,8 @@ final avatarBytesProvider = FutureProvider.autoDispose
       try {
         final fetched = await ref.watch(apiProvider).fetchAvatar(key.userId);
         return fetched.bytes;
-      } on NotFoundException {
+      } on NotFoundException catch (error, stack) {
+        AppLog.swallowed(LogTag.media, 'family failed, ignored', error, stack);
         return null;
       }
     });

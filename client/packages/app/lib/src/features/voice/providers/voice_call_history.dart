@@ -35,7 +35,13 @@ final voiceCallHistoryProvider = FutureProvider.autoDispose
       });
       try {
         return await ref.watch(apiProvider).listVoiceCalls(channelId);
-      } on api.NotFoundException {
+      } on api.NotFoundException catch (error, stack) {
+        api.AppLog.swallowed(
+          api.LogTag.voice,
+          'family failed, ignored',
+          error,
+          stack,
+        );
         // A server too old to keep history: the pane shows its join bar alone.
         return const api.VoiceCallHistory(
           retentionDays: 0,

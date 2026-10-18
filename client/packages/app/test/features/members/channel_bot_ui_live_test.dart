@@ -9,11 +9,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -31,21 +31,13 @@ void main() {
       overrides: [
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         liveEventsProvider.overrideWithValue(events.stream),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/channels/c1/bot-ui') fetches++;
-              return http.Response(
-                jsonEncode(<Object>[]),
-                200,
-                headers: const {'content-type': 'application/json'},
-              );
-            }),
+        mockApiOverride((request) async {
+          if (request.url.path == '/channels/c1/bot-ui') fetches++;
+          return http.Response(
+            jsonEncode(<Object>[]),
+            200,
+            headers: const {'content-type': 'application/json'},
           );
-          ref.onDispose(client.close);
-          return client;
         }),
       ],
     );

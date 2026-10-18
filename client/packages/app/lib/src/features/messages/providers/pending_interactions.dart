@@ -57,7 +57,8 @@ abstract class PendingInteractions<V> extends StateNotifier<Map<String, V>> {
     _timers[key] = Timer(_timeout, () => _fail(key, id, _didNotAnswer));
     try {
       await send(id);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'start the interaction', e, stack);
       _fail(key, id, describe(e));
     }
   }

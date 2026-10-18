@@ -28,6 +28,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/push_tap';
 
@@ -66,9 +67,13 @@ class NotificationTapChannel {
     try {
       final channelId = await _channel.invokeMethod<String>('takeInitialTap');
       return (channelId != null && channelId.isNotEmpty) ? channelId : null;
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'take initial failed, ignored', error, stack);
       return null;
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.push, 'take initial failed, ignored', error, stack);
       return null;
     }
   }

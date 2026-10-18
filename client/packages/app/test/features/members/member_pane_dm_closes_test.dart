@@ -19,7 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
@@ -30,6 +29,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../support/reduced_motion_harness.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -70,39 +70,31 @@ ProviderContainer _wire({List<api.UserProfile> members = const [_other]}) {
       channelMembersProvider.overrideWith((ref, _) async => members),
       // Keeps the pane's keep-alive watchers from starting a real sync loop.
       liveEventsProvider.overrideWithValue(const Stream.empty()),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/me') {
-              return _json({
-                'id': 'me',
-                'username': 'me',
-                'display_name': 'Me',
-                'created_at': 0,
-                'permissions': 0,
-              });
-            }
-            if (request.url.path == '/presence') return _json(const []);
-            if (request.url.path == '/dms/${_other.id}') {
-              return _json({
-                'channel_id': 'dm-1',
-                'user': {
-                  'id': _other.id,
-                  'username': _other.username,
-                  'display_name': _other.displayName,
-                  'created_at': 0,
-                },
-                'unread': 0,
-                'created_at': 500,
-              });
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path == '/me') {
+          return _json({
+            'id': 'me',
+            'username': 'me',
+            'display_name': 'Me',
+            'created_at': 0,
+            'permissions': 0,
+          });
+        }
+        if (request.url.path == '/presence') return _json(const []);
+        if (request.url.path == '/dms/${_other.id}') {
+          return _json({
+            'channel_id': 'dm-1',
+            'user': {
+              'id': _other.id,
+              'username': _other.username,
+              'display_name': _other.displayName,
+              'created_at': 0,
+            },
+            'unread': 0,
+            'created_at': 500,
+          });
+        }
+        return http.Response('', 204);
       }),
     ],
   );

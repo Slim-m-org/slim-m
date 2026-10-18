@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 import 'support/mid_flight_capture.dart';
 import 'ui_snapshot_support.dart';
 import 'features/voice/voice_controller_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-nick',
@@ -69,10 +69,9 @@ Future<void> _capture(
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  final apiClient = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
+  final apiClient = testApi(
+    (_) async => http.Response('', 404),
     session: api.SessionStore(tokens: _tokens),
-    httpClient: MockClient((_) async => http.Response('', 404)),
   );
   addTearDown(apiClient.close);
   final tokens = brightness == Brightness.dark

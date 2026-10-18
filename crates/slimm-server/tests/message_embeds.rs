@@ -3,22 +3,18 @@
 //! embed yet, so every one here is written straight through the store.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::link_preview::LinkPreviews;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewEmbed, NewEmbedField, NewMessage, Store};
 use tower::ServiceExt;
 
 mod support;
+
+use support::app::{json_body, register_token as register, request_bare as request};
 
 struct Harness {
     app: Router,
@@ -44,52 +40,14 @@ async fn harness(link_previews: LinkPreviews) -> Harness {
         )
         .await
         .unwrap();
-    let app = http::router(AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews,
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let app = support::app::builder(store.clone())
+        .link_previews(link_previews)
+        .router();
     Harness {
         app,
         store,
         _guard: guard,
     }
-}
-
-fn request(method: &str, uri: &str, token: Option<&str>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    builder.body(Body::empty()).unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-async fn register(store: &Store, username: &str) -> String {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    store
-        .open_session(account.id, "cli")
-        .await
-        .unwrap()
-        .access_token
 }
 
 async fn messages_in(app: &Router, channel_id: &str, token: &str) -> Vec<Value> {

@@ -50,9 +50,11 @@ class _ImageExportActionsState extends ConsumerState<ImageExportActions> {
     try {
       final bytes = await widget.loadBytes();
       failure = await action(ref.read(imageExporterProvider), bytes);
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'run', e, stack);
       failure = describeApiFailure('$verb $name', e);
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.media, 'run', error, stack);
       failure = 'Could not $verb $name.';
     }
     if (!mounted) return;

@@ -11,13 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_selection.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_composer_area.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _channel = 'c1';
 
@@ -28,25 +28,21 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-api.SlimmApi _refusingApi(api.SessionStore session) => api.SlimmApi(
-  baseUrl: Uri.parse('http://localhost:8080'),
-  session: session,
-  httpClient: MockClient((request) async {
-    if (request.url.path == '/me') {
-      return http.Response(
-        jsonEncode({
-          'id': 'self',
-          'username': 'self',
-          'display_name': 'Self',
-          'created_at': 0,
-          'permissions': 0,
-        }),
-        200,
-      );
-    }
-    return http.Response('boom', 500);
-  }),
-);
+api.SlimmApi _refusingApi(api.SessionStore session) => testApi((request) async {
+  if (request.url.path == '/me') {
+    return http.Response(
+      jsonEncode({
+        'id': 'self',
+        'username': 'self',
+        'display_name': 'Self',
+        'created_at': 0,
+        'permissions': 0,
+      }),
+      200,
+    );
+  }
+  return http.Response('boom', 500);
+}, session: session);
 
 void main() {
   testWidgets('a refused bulk delete is an error state, selection intact', (

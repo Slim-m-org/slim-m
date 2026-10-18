@@ -172,7 +172,8 @@ class _DockPaneState extends ConsumerState<DockPane>
         (c) => !updated.approvedHostCapabilities.contains(c),
       );
       return lostAccess ? _UpdateOutcome.needsApproval : _UpdateOutcome.updated;
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'update all', error, stack);
       return _UpdateOutcome.failed;
     }
   }

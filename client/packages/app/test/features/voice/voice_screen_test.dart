@@ -23,6 +23,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/video_quality_recorder.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -434,33 +435,25 @@ void main() {
           ),
           keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
           sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-          apiProvider.overrideWith((ref) {
-            final api = SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                final match = RegExp(
-                  r'/channels/([^/]+)/voice/token',
-                ).firstMatch(request.url.path);
-                // channel-a's token request never resolves, holding the join in the window this fix covers.
-                if (match?.group(1) == 'channel-a') {
-                  await tokenGate.future;
-                }
-                return http.Response(
-                  jsonEncode({
-                    'url': 'wss://sfu.example.com',
-                    'room': match?.group(1),
-                    'token': 'jwt',
-                    'expires_at': 0,
-                    'can_publish': true,
-                  }),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
+          mockApiOverride((request) async {
+            final match = RegExp(
+              r'/channels/([^/]+)/voice/token',
+            ).firstMatch(request.url.path);
+            // channel-a's token request never resolves, holding the join in the window this fix covers.
+            if (match?.group(1) == 'channel-a') {
+              await tokenGate.future;
+            }
+            return http.Response(
+              jsonEncode({
+                'url': 'wss://sfu.example.com',
+                'room': match?.group(1),
+                'token': 'jwt',
+                'expires_at': 0,
+                'can_publish': true,
               }),
+              200,
+              headers: {'content-type': 'application/json'},
             );
-            ref.onDispose(api.close);
-            return api;
           }),
           voiceControllerProvider.overrideWith(
             (ref) => VoiceController(ref, session: _NoopSession()),

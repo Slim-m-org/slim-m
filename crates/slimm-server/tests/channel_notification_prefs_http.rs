@@ -6,24 +6,19 @@
 //! split `tests/channel_permissions.rs` draws for the sibling permissions
 //! route.
 
-use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use serde_json::{Value, json};
-use slimm_server::auth::Auth;
+use axum::http::StatusCode;
+use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::ids::{ChannelId, UserId};
+use slimm_server::ids::ChannelId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+
+use support::app::{app, json_body, register_id_token as register, request_authed as request};
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -37,36 +32,6 @@ async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     (Store::new(pool), guard)
 }
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
-async fn register(store: &Store, username: &str) -> (UserId, String) {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    let token = store
-        .open_session(account.id, "cli")
-        .await
-        .unwrap()
-        .access_token;
-    (account.id, token)
-}
-
 async fn general_channel_id(store: &Store) -> ChannelId {
     store
         .list_channels()
@@ -76,27 +41,6 @@ async fn general_channel_id(store: &Store) -> ChannelId {
         .next()
         .expect("bootstrap seeds a general channel")
         .id
-}
-
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(value) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(value.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 /// The round trip a client actually does: set an override, list it back,

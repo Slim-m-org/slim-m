@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
@@ -20,6 +19,7 @@ import 'package:slimm_app/src/features/settings/widgets/notification_schedule_al
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -100,31 +100,23 @@ Future<_Wired> _pump(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       membersProvider.overrideWith((ref) async => [_maya, _noor]),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add('${request.method} ${request.url.path}');
-            if (request.method == 'GET') {
-              return http.Response(
-                jsonEncode({'schedule': null}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (failWrites) {
-              return http.Response(
-                jsonEncode({'error': 'nope'}),
-                500,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            return http.Response('', 204);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        if (request.method == 'GET') {
+          return http.Response(
+            jsonEncode({'schedule': null}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (failWrites) {
+          return http.Response(
+            jsonEncode({'error': 'nope'}),
+            500,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('', 204);
       }),
     ],
   );

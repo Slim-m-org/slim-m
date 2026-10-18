@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Whether a capability is available, and if not, what went wrong.
 class CapabilityResult {
@@ -59,7 +60,8 @@ class MediaCapabilities {
         );
       }
       return CapabilityResult.available('$tracks audio track(s)');
-    } catch (e) {
+    } catch (e, stack) {
+      AppLog.swallowed(LogTag.voice, 'microphone failed, ignored', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }
@@ -76,7 +78,8 @@ class MediaCapabilities {
         );
       }
       return CapabilityResult.available('$tracks video track(s)');
-    } catch (e) {
+    } catch (e, stack) {
+      AppLog.swallowed(LogTag.voice, 'camera failed, ignored', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }
@@ -97,7 +100,9 @@ class MediaCapabilities {
         );
       }
       return CapabilityResult.available('$sources source(s)');
-    } catch (e) {
+    } catch (e, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'screen capture failed, ignored', e, stack);
       return CapabilityResult.unavailable('$e');
     }
   }

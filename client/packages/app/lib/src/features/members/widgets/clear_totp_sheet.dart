@@ -46,7 +46,8 @@ Future<void> showClearTotpSheet(
             .read(apiProvider)
             .clearMemberTotp(subjectId, password: password);
         return null;
-      } on ApiException catch (e) {
+      } on ApiException catch (e, stack) {
+        reportFailure(LogTag.auth, 'show reauth sheet', e, stack);
         return reauthFailure(e);
       }
     },

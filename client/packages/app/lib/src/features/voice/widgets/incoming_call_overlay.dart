@@ -57,6 +57,7 @@ import '../../../routing/router.dart';
 import 'voice_call_controls.dart' show CallDockButton;
 import '../../../widgets/floating_dock_card.dart';
 import '../../members/widgets/user_avatar.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 part 'incoming_call_overlay_surfaces.dart';
 
@@ -113,8 +114,13 @@ Future<void> _raiseWindow() async {
     final port = DesktopWindowShell.port;
     await port.show();
     await port.focus();
-  } catch (_) {
-    // Best-effort; see this function's own doc.
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.voice,
+      'Best-effort; see this function\'s own doc',
+      error,
+      stack,
+    );
   }
 }
 

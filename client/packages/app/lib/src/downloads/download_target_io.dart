@@ -8,6 +8,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
 import 'download_target.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
@@ -63,8 +64,13 @@ class FileDownloadTarget implements DownloadTarget {
     _closed = true;
     try {
       await _file.close();
-    } on FileSystemException {
-      // A close that fails must not stop the cleanup below.
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'A close that fails must not stop the cleanup below',
+        error,
+        stack,
+      );
     }
     await _deleteQuietly(_part);
     // The picker's empty placeholder is ours to remove; a file with content is not.
@@ -72,15 +78,21 @@ class FileDownloadTarget implements DownloadTarget {
       if (await _chosen.exists() && await _chosen.length() == 0) {
         await _chosen.delete();
       }
-    } on FileSystemException {
-      // Already gone or unreadable.
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(LogTag.ui, 'Already gone or unreadable', error, stack);
     }
   }
 
   Future<void> _deleteQuietly(File file) async {
     try {
       await file.delete();
-    } on FileSystemException {
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'delete quietly failed, ignored',
+        error,
+        stack,
+      );
       // Already gone.
     }
   }

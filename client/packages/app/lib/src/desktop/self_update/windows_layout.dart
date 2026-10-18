@@ -11,6 +11,7 @@ import 'package:path/path.dart' as p;
 
 import '../update_check.dart' show parseVersion;
 import 'linux_layout.dart' show LayoutNames;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The names inside the layout that both the launcher and the app rely on.
 abstract final class WindowsNames {
@@ -38,7 +39,13 @@ class WindowsInstallLayout {
     try {
       final text = File(path(name)).readAsStringSync().trim();
       return text.isEmpty ? null : text;
-    } on FileSystemException {
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'pointed version failed, ignored',
+        error,
+        stack,
+      );
       return null;
     }
   }
@@ -58,7 +65,13 @@ class WindowsInstallLayout {
       final probe = File(path('.write-probe'))..writeAsStringSync('');
       probe.deleteSync();
       return true;
-    } on FileSystemException {
+    } on FileSystemException catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'version of folder failed, ignored',
+        error,
+        stack,
+      );
       return false;
     }
   }

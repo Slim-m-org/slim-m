@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../diagnostics/debug_log.dart';
+import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/routes.dart';
 import '../widgets/debug_log_page.dart';
 import 'settings_screen_scaffold.dart';
@@ -31,7 +32,9 @@ class DebugLogScreen extends ConsumerWidget {
       actions: [
         IconButton(
           icon: const Icon(AppIcons.copy),
-          tooltip: 'Copy all',
+          tooltip: ref.watch(debugLogFilterProvider).isActive
+              ? 'Copy shown'
+              : 'Copy all',
           onPressed: empty ? null : () => unawaited(copyDebugLog(context, ref)),
         ),
         IconButton(

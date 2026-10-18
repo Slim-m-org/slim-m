@@ -9,13 +9,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
-import 'package:slimm_app/src/providers/providers.dart';
 
 import 'ui_snapshot_support.dart';
+import 'support/fake_api.dart';
 
 const _storage = {
   'database_bytes': 52428800,
@@ -60,33 +59,25 @@ const _metrics = api.ServerMetrics(
 );
 
 List<Override> _overrides() => [
-  apiProvider.overrideWith((ref) {
-    final client = api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        final body = switch (request.url.path) {
-          '/space/analytics' => fixtureAnalyticsEnabled,
-          '/space/retention' => const {'retention_days': 90},
-          '/space/canvas-cap' => const {'object_cap': 20000},
-          '/space/screen-share' => const {'max_height': 1440},
-          '/space/attachment-limit' => const {
-            'max_bytes': 104857600,
-            'server_max_bytes': 1073741824,
-          },
-          '/space/storage' => _storage,
-          _ => null,
-        };
-        if (body == null) return fixtureResponse(request);
-        return http.Response(
-          jsonEncode(body),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }),
+  mockApiOverride((request) async {
+    final body = switch (request.url.path) {
+      '/space/analytics' => fixtureAnalyticsEnabled,
+      '/space/retention' => const {'retention_days': 90},
+      '/space/canvas-cap' => const {'object_cap': 20000},
+      '/space/screen-share' => const {'max_height': 1440},
+      '/space/attachment-limit' => const {
+        'max_bytes': 104857600,
+        'server_max_bytes': 1073741824,
+      },
+      '/space/storage' => _storage,
+      _ => null,
+    };
+    if (body == null) return fixtureResponse(request);
+    return http.Response(
+      jsonEncode(body),
+      200,
+      headers: {'content-type': 'application/json'},
     );
-    ref.onDispose(client.close);
-    return client;
   }),
   serverMetricsProvider.overrideWith((ref) async => _metrics),
 ];

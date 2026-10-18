@@ -21,6 +21,7 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/providers.dart';
 import 'update_check.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// GitHub allows 60 unauthenticated requests per hour per source IP. Once
 /// every six hours is four requests a day from this check - even an install
@@ -96,8 +97,13 @@ class UpdateWatcher {
         return;
       }
       _ref.read(inSessionUpdateProvider.notifier).state = update;
-    } catch (_) {
-      // Best-effort, same as the splash's own check: try again next tick.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'Best-effort, same as the splash\'s own check: try again next tick',
+        error,
+        stack,
+      );
     }
   }
 }

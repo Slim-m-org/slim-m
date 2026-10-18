@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'emoji_bulk_plan.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// One file handed to the emoji card, before it is known to be an image or a zip.
 class EmojiPick {
@@ -68,14 +69,16 @@ EmojiZipPlan planEmojiPicks(
     } else if (_isZip(pick.fileName)) {
       try {
         entries.addAll(decodeEmojiZipEntries(pick.bytes));
-      } on ZipTooLargeException {
+      } on ZipTooLargeException catch (error, stack) {
+        reportFailure(LogTag.media, 'pick files', error, stack);
         refused.add(
           SkippedZipEntry(
             fileName: pick.fileName,
             reason: 'too large to import',
           ),
         );
-      } catch (_) {
+      } catch (error, stack) {
+        reportFailure(LogTag.media, 'pick files', error, stack);
         refused.add(
           SkippedZipEntry(
             fileName: pick.fileName,

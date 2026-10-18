@@ -7,6 +7,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// [deviceDisplayName], upgraded on a real phone build (never in a test host,
 /// where a platform channel would never answer) to the model the OS reports
@@ -24,7 +25,9 @@ Future<String> resolveDeviceName() async {
       host: deviceHostName,
       model: model,
     );
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+        LogTag.platform, 'resolve device name failed, ignored', error, stack);
     return deviceDisplayName;
   }
 }

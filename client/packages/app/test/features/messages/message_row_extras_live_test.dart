@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' hide Message;
 import 'package:slimm_app/src/features/channels/providers/channel_history.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -33,6 +32,7 @@ import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -44,21 +44,13 @@ const _tokens = TokenPair(
 List<Override> _overrides(Stream<ServerEvent> events) => [
   keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
   sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-  apiProvider.overrideWith((ref) {
-    final api = SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient(
-        (request) async => http.Response(
-          jsonEncode([]),
-          200,
-          headers: {'content-type': 'application/json'},
-        ),
-      ),
-    );
-    ref.onDispose(api.close);
-    return api;
-  }),
+  mockApiOverride(
+    (request) async => http.Response(
+      jsonEncode([]),
+      200,
+      headers: {'content-type': 'application/json'},
+    ),
+  ),
   syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
   // Overridden past the noop controller's own dead `liveEvents` getter.
   liveEventsProvider.overrideWithValue(events),

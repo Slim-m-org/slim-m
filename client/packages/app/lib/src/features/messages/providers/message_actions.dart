@@ -45,7 +45,8 @@ Future<void> setReaction(
     } else {
       await client.removeReaction(messageId: messageId, emoji: emoji);
     }
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'set the reaction', error, stack);
     extras.applyLocalReactionToggle(messageId, emoji, wasActive);
   }
 }
@@ -71,7 +72,8 @@ Future<void> castVote(WidgetRef ref, String messageId, int option) async {
   ref.read(messageExtrasProvider.notifier).applyLocalVote(messageId, option);
   try {
     await ref.read(apiProvider).votePoll(messageId: messageId, option: option);
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'cast vote', error, stack);
     // Best-effort: the next tally corrects this, and a vote has no clean revert.
   }
 }
@@ -90,7 +92,8 @@ Future<void> castRanking(
     await ref
         .read(apiProvider)
         .votePoll(messageId: messageId, ranking: ranking);
-  } on api.ApiException {
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'cast vote', error, stack);
     // Best-effort, like castVote.
   }
 }
@@ -324,7 +327,8 @@ Future<void> sendOptimistically(
     read(
       slowModeLastSentProvider.notifier,
     ).recordSent(channelId, DateTime.now());
-  } on api.ApiException catch (e) {
+  } on api.ApiException catch (e, stack) {
+    api.reportFailure(api.LogTag.ui, 'delete message action', e, stack);
     await store.markFailed(
       id,
       reason: describeApiFailure('send the message', e),

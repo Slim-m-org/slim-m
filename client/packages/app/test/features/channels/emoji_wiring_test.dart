@@ -26,7 +26,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_search_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -39,6 +38,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -82,60 +82,52 @@ ProviderContainer _container(MessageStore store) {
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            final path = request.url.path;
-            if (path == '/emoji') {
-              return _json([
-                {
-                  'id': 'e-tada',
-                  'name': 'tada',
-                  'uploader_id': null,
-                  'created_at': 0,
-                },
-              ]);
-            }
-            if (path.endsWith('/image')) {
-              return http.Response.bytes(
-                _png,
-                200,
-                headers: {'content-type': 'image/png'},
-              );
-            }
-            if (path == '/channels/c1/messages/search') {
-              return _json([
-                {
-                  'id': 'm1',
-                  'channel_id': 'c1',
-                  'author_id': 'alice',
-                  'author_display_name': 'Alice',
-                  'seq': 1,
-                  'content': _body,
-                  'created_at': 1000,
-                  'edited_at': null,
-                },
-              ]);
-            }
-            if (path == '/me') {
-              return _json({
-                'id': 'bob',
-                'username': 'bob',
-                'display_name': 'Bob',
-                'created_at': 0,
-                'permissions': 0,
-              });
-            }
-            if (request.method == 'PUT' && path == '/channels/c1/read') {
-              return _json({'last_read_seq': 1, 'unread': 0});
-            }
-            return _json(const []);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        final path = request.url.path;
+        if (path == '/emoji') {
+          return _json([
+            {
+              'id': 'e-tada',
+              'name': 'tada',
+              'uploader_id': null,
+              'created_at': 0,
+            },
+          ]);
+        }
+        if (path.endsWith('/image')) {
+          return http.Response.bytes(
+            _png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }
+        if (path == '/channels/c1/messages/search') {
+          return _json([
+            {
+              'id': 'm1',
+              'channel_id': 'c1',
+              'author_id': 'alice',
+              'author_display_name': 'Alice',
+              'seq': 1,
+              'content': _body,
+              'created_at': 1000,
+              'edited_at': null,
+            },
+          ]);
+        }
+        if (path == '/me') {
+          return _json({
+            'id': 'bob',
+            'username': 'bob',
+            'display_name': 'Bob',
+            'created_at': 0,
+            'permissions': 0,
+          });
+        }
+        if (request.method == 'PUT' && path == '/channels/c1/read') {
+          return _json({'last_read_seq': 1, 'unread': 0});
+        }
+        return _json(const []);
       }),
     ],
   );

@@ -9,12 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/devices_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 final _now = DateTime.now().millisecondsSinceEpoch;
 const _day = 24 * 60 * 60 * 1000;
@@ -52,26 +52,16 @@ Future<Set<String>> _pump(
           ),
         ),
       ),
-      apiProvider.overrideWith((ref) {
-        final built = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method == 'DELETE') {
-              removed.add(request.url.pathSegments.last);
-              return http.Response('', 204);
-            }
-            return http.Response(
-              jsonEncode(
-                rows.where((r) => !removed.contains(r['id'])).toList(),
-              ),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
+      mockApiOverride((request) async {
+        if (request.method == 'DELETE') {
+          removed.add(request.url.pathSegments.last);
+          return http.Response('', 204);
+        }
+        return http.Response(
+          jsonEncode(rows.where((r) => !removed.contains(r['id'])).toList()),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-        ref.onDispose(built.close);
-        return built;
       }),
     ],
   );

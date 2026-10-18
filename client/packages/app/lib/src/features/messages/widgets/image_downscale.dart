@@ -5,6 +5,7 @@ library;
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// [png] resampled so its width is [width], keeping the aspect ratio, or
 /// square when [height] is given.
@@ -27,7 +28,13 @@ Future<Uint8List?> minifiedPng(
     frame.image.dispose();
     codec.dispose();
     return data?.buffer.asUint8List();
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'finish an operation failed, ignored',
+      error,
+      stack,
+    );
     // Null is the documented fallback; a throw must not become a cancel.
     return null;
   }
@@ -85,7 +92,8 @@ Future<({int width, int height, bool animated})?> _decoded(
     frame.image.dispose();
     codec.dispose();
     return result;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(LogTag.media, 'decoded failed, ignored', error, stack);
     return null;
   }
 }

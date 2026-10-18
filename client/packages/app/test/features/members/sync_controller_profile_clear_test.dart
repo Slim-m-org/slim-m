@@ -11,12 +11,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'self',
@@ -31,31 +31,23 @@ void main() {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final api = SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/users') {
-                return http.Response(
-                  jsonEncode([
-                    {
-                      'id': 'u1',
-                      'username': 'u1',
-                      'display_name': 'Dave',
-                      'created_at': 0,
-                    },
-                  ]),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              // Any other route: the reconnect only needs to reach clear(), not to complete.
-              return http.Response('unavailable', 500);
-            }),
-          );
-          ref.onDispose(api.close);
-          return api;
+        mockApiOverride((request) async {
+          if (request.url.path == '/users') {
+            return http.Response(
+              jsonEncode([
+                {
+                  'id': 'u1',
+                  'username': 'u1',
+                  'display_name': 'Dave',
+                  'created_at': 0,
+                },
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          // Any other route: the reconnect only needs to reach clear(), not to complete.
+          return http.Response('unavailable', 500);
         }),
       ],
     );

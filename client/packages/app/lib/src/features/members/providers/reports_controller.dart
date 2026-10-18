@@ -91,7 +91,8 @@ class ReportsController extends StateNotifier<ReportsState> {
         loading: false,
         more: page.length >= reportsPageSize,
       );
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'load more', e, stack);
       if (!mounted || generation != _generation) return;
       state = ReportsState(
         reports: onto,

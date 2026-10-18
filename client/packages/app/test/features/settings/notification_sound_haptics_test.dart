@@ -12,7 +12,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
@@ -24,6 +23,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_settings_controller
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sound_player.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -93,26 +93,18 @@ Future<_Setup> _wireMessage() async {
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       storeProvider.overrideWith((ref) async => store),
       liveEventsProvider.overrideWithValue(events.stream),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path == '/me') {
-              return _json({
-                'id': 'me',
-                'username': 'nick',
-                'display_name': 'Nick',
-                'created_at': 0,
-                'permissions': 0,
-              });
-            }
-            if (request.url.path == '/blocks') return _json(const <Object>[]);
-            return _json(const <Object>[]);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path == '/me') {
+          return _json({
+            'id': 'me',
+            'username': 'nick',
+            'display_name': 'Nick',
+            'created_at': 0,
+            'permissions': 0,
+          });
+        }
+        if (request.url.path == '/blocks') return _json(const <Object>[]);
+        return _json(const <Object>[]);
       }),
       notificationSoundControllerProvider.overrideWith(
         (ref) => NotificationSoundController(

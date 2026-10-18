@@ -132,7 +132,8 @@ class _AddSourceSheetState extends ConsumerState<_AddSourceSheet> {
       await client.addDockSource(_repo.text.trim());
       container.invalidate(dockCatalogProvider);
       if (mounted) Navigator.of(context).pop();
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('add the source', e);

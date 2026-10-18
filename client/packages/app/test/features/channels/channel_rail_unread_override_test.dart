@@ -19,12 +19,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -62,28 +62,18 @@ Widget _harness(Channel channel, {Map<String, String> overrides = const {}}) =>
     ProviderScope(
       overrides: [
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path.endsWith(
-                '/notification-preferences/channels',
-              )) {
-                return http.Response(
-                  jsonEncode([
-                    for (final entry in overrides.entries)
-                      {'channel_id': entry.key, 'preference': entry.value},
-                  ]),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('', 404);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path.endsWith('/notification-preferences/channels')) {
+            return http.Response(
+              jsonEncode([
+                for (final entry in overrides.entries)
+                  {'channel_id': entry.key, 'preference': entry.value},
+              ]),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('', 404);
         }),
       ],
       child: MaterialApp(

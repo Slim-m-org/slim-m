@@ -177,7 +177,13 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     final List<api.OutstandingDmCallRing> rings;
     try {
       rings = await _ref.read(apiProvider).listIncomingDmCallRings();
-    } on Exception {
+    } on Exception catch (error, stack) {
+      api.reportFailure(
+        api.LogTag.voice,
+        'answer from outstanding ring',
+        error,
+        stack,
+      );
       // Unknown, not empty: the websocket frame can still answer it.
       return;
     }
@@ -328,7 +334,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
           ringId: started.ringId,
         ),
       );
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.voice, 'start outgoing ring', error, stack);
       // Best-effort; see this method's own doc.
     }
   }
@@ -360,7 +367,8 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     dismissIncoming();
     try {
       await _ref.read(apiProvider).declineDmCallRing(ring.channelId);
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.voice, 'decline', error, stack);
       // Best-effort: this ring times out on the caller's own side regardless.
     }
   }

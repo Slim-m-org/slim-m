@@ -25,6 +25,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 // ignore: implementation_imports
 import 'package:livekit_client/src/managers/broadcast_manager.dart'
     as lk_broadcast;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The seam. The default implementation talks to the app's iOS host; a test
 /// supplies its own, which is the only way any of this is exercisable off a
@@ -87,9 +88,13 @@ class MethodChannelBroadcastBridge implements BroadcastBridge {
     if (!usesBroadcastExtension) return true;
     try {
       return await channel.invokeMethod<bool>('isAvailable') ?? false;
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'is available failed, ignored', error, stack);
       return false;
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'is available failed, ignored', error, stack);
       return false;
     }
   }
@@ -99,10 +104,15 @@ class MethodChannelBroadcastBridge implements BroadcastBridge {
     if (!usesBroadcastExtension) return;
     try {
       await channel.invokeMethod<void>('requestStop');
-    } on PlatformException {
-      // Nothing to stop, or no host to ask. Either way the share is over as
-      // far as this side is concerned.
-    } on MissingPluginException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice,
+          'Nothing to stop, or no host to ask. Either way the share is over as far as this side is concerned',
+          error,
+          stack);
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'request stop failed, ignored', error, stack);
       // As above.
     }
   }

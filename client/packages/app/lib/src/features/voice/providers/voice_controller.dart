@@ -235,11 +235,19 @@ class VoiceController extends StateNotifier<VoiceState>
     );
     try {
       await _connect(channelId, mutedByCaller, superseded);
-    } on api.NotConfiguredException {
+    } on api.NotConfiguredException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.voice,
+        'join failed, ignored',
+        error,
+        stack,
+      );
       _failJoin(superseded, 'This Space has no voice configured.');
-    } on api.ForbiddenException {
+    } on api.ForbiddenException catch (error, stack) {
+      api.reportFailure(api.LogTag.voice, 'join', error, stack);
       _failJoin(superseded, 'You do not have permission to join this channel.');
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.voice, 'join', e, stack);
       _failJoin(
         superseded,
         describeApiFailure('join the call', e),

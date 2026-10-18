@@ -17,6 +17,7 @@ import 'rollback_record.dart';
 import 'self_update.dart';
 import 'self_update_failure.dart';
 import 'self_update_target.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// Fetch step, injectable so tests need no network.
 typedef FetchUpdate =
@@ -137,10 +138,17 @@ class SelfUpdateController {
       await target.install(update, unpack: _unpack);
       ref.read(stagedUpdateVersionProvider.notifier).state = update.version;
       return update.version;
-    } on SelfUpdateFailure catch (failure) {
+    } on SelfUpdateFailure catch (failure, stack) {
+      AppLog.swallowed(
+        LogTag.platform,
+        'count launch failed, ignored',
+        failure,
+        stack,
+      );
       ref.read(selfUpdateFailureProvider.notifier).state = failure;
       return null;
-    } catch (error) {
+    } catch (error, stack) {
+      reportFailure(LogTag.platform, 'count launch', error, stack);
       ref.read(selfUpdateFailureProvider.notifier).state = SelfUpdateFailure(
         SelfUpdateFailureKind.installFailed,
         'The update could not be installed, so this version is unchanged.',

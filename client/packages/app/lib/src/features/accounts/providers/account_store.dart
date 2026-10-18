@@ -10,6 +10,7 @@ import 'package:slimm_platform/platform.dart';
 import '../../../providers/providers.dart'
     show serverUrlHandle, sessionTokenHandle;
 import 'account.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The key-store entry holding the [AccountIndex]. It carries no secrets.
 const accountIndexHandle = 'slimm.accounts';
@@ -35,7 +36,8 @@ class AccountStore {
         accounts: accounts,
         activeOrigin: json['active'] as String?,
       );
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'load failed, ignored', error, stack);
       return const AccountIndex();
     }
   }
@@ -90,7 +92,8 @@ class AccountStore {
       if ((await load()).byOrigin(account.origin) == null) return false;
       return legacySession == null ||
           await _keys.read(account.sessionHandle) == legacySession;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.auth, 'landed failed, ignored', error, stack);
       return false;
     }
   }

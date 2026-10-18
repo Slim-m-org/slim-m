@@ -5,9 +5,9 @@ library;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _link = {
   'provider': 'discord',
@@ -17,21 +17,18 @@ const _link = {
 };
 
 SlimmApi _api(List<http.Request> seen, http.Response Function(http.Request) r) {
-  return SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: SessionStore(
-      tokens: const TokenPair(
-        userId: 'user-1',
-        accessToken: 'access',
-        refreshToken: 'refresh',
-        accessExpiresAt: 0,
-      ),
-    ),
-    httpClient: MockClient((request) async {
-      seen.add(request);
-      return r(request);
-    }),
-  );
+  return testApi((request) async {
+    seen.add(request);
+    return r(request);
+  },
+      session: SessionStore(
+        tokens: const TokenPair(
+          userId: 'user-1',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ));
 }
 
 http.Response _json(Object body, [int status = 200]) => http.Response(

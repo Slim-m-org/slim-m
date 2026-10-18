@@ -13,12 +13,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/moderation_history_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'mod-1',
@@ -63,21 +63,12 @@ ProviderContainer _container(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(events ?? const Stream.empty()),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method == 'GET' &&
-                request.url.path == '/reports/history') {
-              seen.add(request.url.queryParameters);
-              return handler(request);
-            }
-            return http.Response('not found', 404);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((request) async {
+        if (request.method == 'GET' && request.url.path == '/reports/history') {
+          seen.add(request.url.queryParameters);
+          return handler(request);
+        }
+        return http.Response('not found', 404);
       }),
     ],
   );

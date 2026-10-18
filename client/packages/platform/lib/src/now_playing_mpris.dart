@@ -11,6 +11,7 @@ import 'package:dbus/dbus.dart';
 
 import 'now_playing.dart';
 import 'polled_stream.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _mprisPrefix = 'org.mpris.MediaPlayer2.';
 const _playerInterface = 'org.mpris.MediaPlayer2.Player';
@@ -42,7 +43,9 @@ NowPlaying? pickNowPlaying(Iterable<MprisPlayerState> players) {
     try {
       final picked = _nowPlayingOf(player);
       if (picked != null) return picked;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'pick now playing failed, ignored', error, stack);
       continue;
     }
   }
@@ -118,7 +121,9 @@ class MprisNowPlayingSource implements NowPlayingSource {
             identity: await _identity(object),
           ),
         );
-      } on Object {
+      } on Object catch (error, stack) {
+        AppLog.swallowed(
+            LogTag.platform, 'read players failed, ignored', error, stack);
         continue;
       }
     }
@@ -128,7 +133,9 @@ class MprisNowPlayingSource implements NowPlayingSource {
   Future<String?> _identity(DBusRemoteObject object) async {
     try {
       return (await object.getProperty(_rootInterface, 'Identity')).asString();
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'identity failed, ignored', error, stack);
       return null;
     }
   }

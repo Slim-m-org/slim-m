@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart'
     show apiProvider, sessionProvider;
@@ -20,6 +19,7 @@ import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// A high-contrast pattern, so a blurry or mis-scaled decode shows in the PNG.
 Future<Uint8List> _patternPng() async {
@@ -44,49 +44,45 @@ Future<Uint8List> _patternPng() async {
 }
 
 api.SlimmApi Function(Ref) _client(Uint8List png) =>
-    (ref) => api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        final path = request.url.path;
-        if (path.endsWith('/users/user-ada/avatar')) {
-          return http.Response.bytes(
-            png,
-            200,
-            headers: {'content-type': 'image/png'},
-          );
-        }
-        if (path == '/users') {
-          return http.Response(
-            jsonEncode([
-              {
-                'id': 'user-ada',
-                'username': 'ada',
-                'display_name': 'Ada Lovelace',
-                'created_at': 0,
-                'avatar_updated_at': 1,
-                'roles': <String>[],
-              },
-            ]),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        if (path.endsWith('/c-main/voice/roster')) {
-          return http.Response(
-            jsonEncode({
-              'participants': [
-                {'user_id': 'user-ada', 'display_name': 'Ada Lovelace'},
-                {'user_id': 'user-nick', 'display_name': 'Nick'},
-              ],
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
-        return fixtureResponse(request);
-      }),
-    );
+    (ref) => testApi((request) async {
+      final path = request.url.path;
+      if (path.endsWith('/users/user-ada/avatar')) {
+        return http.Response.bytes(
+          png,
+          200,
+          headers: {'content-type': 'image/png'},
+        );
+      }
+      if (path == '/users') {
+        return http.Response(
+          jsonEncode([
+            {
+              'id': 'user-ada',
+              'username': 'ada',
+              'display_name': 'Ada Lovelace',
+              'created_at': 0,
+              'avatar_updated_at': 1,
+              'roles': <String>[],
+            },
+          ]),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (path.endsWith('/c-main/voice/roster')) {
+        return http.Response(
+          jsonEncode({
+            'participants': [
+              {'user_id': 'user-ada', 'display_name': 'Ada Lovelace'},
+              {'user_id': 'user-nick', 'display_name': 'Nick'},
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return fixtureResponse(request);
+    }, session: ref.watch(sessionProvider));
 
 void main() {
   setUpAll(loadRealFonts);

@@ -11,35 +11,19 @@
 //! file because `tests/voice.rs` was already past the file-size budget.
 
 use axum::Router;
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
+use axum::http::StatusCode;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
 use tower::ServiceExt;
 
 mod support;
 
+use support::app::request_bare as request;
+
 fn app(store: Store, voice: VoiceService) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice,
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
+    support::app::builder(store).voice(voice).router()
 }
 
 fn enabled_voice() -> VoiceService {
@@ -48,14 +32,6 @@ fn enabled_voice() -> VoiceService {
         "APItestkey",
         "a-test-secret-of-at-least-32-characters",
     )
-}
-
-fn request(method: &str, uri: &str, token: Option<&str>) -> Request<Body> {
-    let mut builder = Request::builder().method(method).uri(uri);
-    if let Some(token) = token {
-        builder = builder.header("authorization", format!("Bearer {token}"));
-    }
-    builder.body(Body::empty()).unwrap()
 }
 
 async fn member(store: &Store, username: &str) -> (UserId, String) {

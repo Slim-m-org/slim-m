@@ -17,6 +17,7 @@ dependency_overrides:
       ref: 1e30d9a6a6f276c6c4d3614e08ef30a4977c49ef
 workspace:
   - packages/api
+  - packages/slimm_test_support
   - packages/design_system
   - packages/data
   - packages/platform

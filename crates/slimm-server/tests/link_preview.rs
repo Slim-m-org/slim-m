@@ -10,46 +10,19 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::http::link_preview::LinkPreviews;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
 mod support;
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: LinkPreviews::for_test(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
+use support::app::register_token as register;
 
-async fn register(store: &Store, username: &str) -> String {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    store
-        .open_session(account.id, "cli")
-        .await
-        .unwrap()
-        .access_token
+fn app(store: Store) -> Router {
+    support::app::builder(store)
+        .link_previews(LinkPreviews::for_test())
+        .router()
 }
 
 fn req_get(uri: &str, token: &str) -> Request<Body> {

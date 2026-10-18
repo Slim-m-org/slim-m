@@ -14,6 +14,7 @@ import 'dart:async';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Which of one person's audio a gain or mute is about: their microphone, or
 /// the sound of the screen they are sharing. Keyed apart because they are
@@ -185,7 +186,8 @@ class LocalAudioState {
     for (final ref in refs) {
       try {
         failure = await _applyOne(ref) ?? failure;
-      } catch (e) {
+      } catch (e, stack) {
+        reportFailure(LogTag.voice, 'pass', e, stack);
         failure = e;
       }
     }
@@ -205,7 +207,8 @@ class LocalAudioState {
       if (audible) {
         try {
           await ref.disable();
-        } catch (e) {
+        } catch (e, stack) {
+          reportFailure(LogTag.voice, 'apply one', e, stack);
           failure = e;
         }
       }
@@ -221,7 +224,8 @@ class LocalAudioState {
     Object? here;
     try {
       await ref.enable();
-    } catch (e) {
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'apply one', e, stack);
       here = e;
     }
     // After the enable, never before: re-enabling can reset source volume.

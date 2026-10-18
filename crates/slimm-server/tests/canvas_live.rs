@@ -20,15 +20,11 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -53,22 +49,6 @@ async fn new_store() -> (Store, support::TestDbGuard) {
         Store::new(db::connect(&config).await.expect("connect + migrate")),
         guard,
     )
-}
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
 }
 
 async fn user_ticket(store: &Store, name: &str) -> (String, String, UserId) {
@@ -235,7 +215,7 @@ fn restore_request(channel: ChannelId, token: &str, target_op: &str) -> Request<
 #[tokio::test]
 async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
     let (store, _guard) = new_store().await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -276,7 +256,7 @@ async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
 #[tokio::test]
 async fn an_idempotent_replay_publishes_nothing() {
     let (store, _guard) = new_store().await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (access, ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -319,7 +299,7 @@ async fn an_idempotent_replay_publishes_nothing() {
 #[tokio::test]
 async fn a_canvas_burst_does_not_disconnect_a_text_only_connection() {
     let (store, _guard) = new_store().await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -361,7 +341,7 @@ async fn a_canvas_burst_does_not_disconnect_a_text_only_connection() {
 async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_denied_member_never_sees_any()
  {
     let (store, _guard) = new_store().await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
@@ -478,7 +458,7 @@ async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_d
 #[tokio::test]
 async fn an_op_that_changes_nothing_publishes_no_frame() {
     let (store, _guard) = new_store().await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;

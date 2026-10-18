@@ -13,7 +13,8 @@ final userLinkedAccountsProvider = FutureProvider.autoDispose
     .family<List<LinkedAccount>, String>((ref, userId) async {
       try {
         return await ref.watch(apiProvider).linkedAccountsOf(userId);
-      } on ApiException {
+      } on ApiException catch (error, stack) {
+        reportFailure(LogTag.auth, 'load linked accounts', error, stack);
         return const [];
       }
     });

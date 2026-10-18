@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -29,6 +28,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../voice/voice_controller_harness.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -66,15 +66,7 @@ Channel _channel(
 Widget _harness(Widget child) => ProviderScope(
   overrides: [
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-    apiProvider.overrideWith((ref) {
-      final client = api.SlimmApi(
-        baseUrl: Uri.parse('http://localhost:8080'),
-        session: ref.watch(sessionProvider),
-        httpClient: MockClient((_) async => http.Response('', 404)),
-      );
-      ref.onDispose(client.close);
-      return client;
-    }),
+    mockApiOverride((_) async => http.Response('', 404)),
   ],
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -94,15 +86,7 @@ Widget _voiceHarness(Widget child, {required VoiceState voice}) =>
     ProviderScope(
       overrides: [
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((_) async => http.Response('', 404)),
-          );
-          ref.onDispose(client.close);
-          return client;
-        }),
+        mockApiOverride((_) async => http.Response('', 404)),
         voiceControllerProvider.overrideWith(
           (ref) => FixedVoiceController(ref, voice),
         ),

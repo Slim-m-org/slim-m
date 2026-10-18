@@ -13,7 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/message_extras.dart'
     show MessageExtras;
@@ -27,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'message_row_harness.dart' as row;
+import '../../support/fake_api.dart';
 
 const _thumb = '\u{1F44D}';
 
@@ -130,15 +130,7 @@ class _Fixture {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient(server.handle),
-        );
-        ref.onDispose(client.close);
-        return client;
-      }),
+      mockApiOverride(server.handle),
     ],
     child: MaterialApp(
       theme: buildTheme(Brightness.light, AppTokens.light),

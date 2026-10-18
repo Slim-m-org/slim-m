@@ -20,13 +20,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -38,22 +34,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 async fn user_ticket(store: &Store, name: &str) -> (String, String, UserId) {
     let user = store.create_user(name, name).await.unwrap();
@@ -187,7 +167,7 @@ async fn a_revoked_view_stops_the_very_next_message() {
         )
         .await
         .unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob) = user_ticket(&store, "bob").await;
@@ -245,7 +225,7 @@ async fn a_granted_view_starts_delivering_at_once() {
         .create_role("everyone", Permissions::SEND_MESSAGES, true)
         .await
         .unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob) = user_ticket(&store, "bob").await;
@@ -301,7 +281,7 @@ async fn a_role_edit_that_removes_the_view_stops_delivery() {
         )
         .await
         .unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let (alice_access, _alice_ticket, alice) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;

@@ -12,13 +12,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/watch_room.dart';
 import 'package:slimm_app/src/features/voice/widgets/watch_session_bar.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 final _start = DateTime.utc(2026, 9, 30, 20);
 
@@ -85,8 +85,16 @@ Future<_Rig> _pump(
       liveEventsProvider.overrideWithValue(events.stream),
       watchClockProvider.overrideWithValue(() => clock),
       apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
+        final client = testApi(
+          (http.Request request) async {
+            rig.reads++;
+            if (respond != null) return respond(rig.reads);
+            return http.Response(
+              jsonEncode(session ?? {'error': 'no watch session'}),
+              session == null ? 404 : 200,
+              headers: {'content-type': 'application/json'},
+            );
+          },
           session: api.SessionStore(
             tokens: const api.TokenPair(
               userId: 'u1',
@@ -95,15 +103,6 @@ Future<_Rig> _pump(
               accessExpiresAt: 4102444800000,
             ),
           ),
-          httpClient: MockClient((http.Request request) async {
-            rig.reads++;
-            if (respond != null) return respond(rig.reads);
-            return http.Response(
-              jsonEncode(session ?? {'error': 'no watch session'}),
-              session == null ? 404 : 200,
-              headers: {'content-type': 'application/json'},
-            );
-          }),
         );
         ref.onDispose(client.close);
         return client;

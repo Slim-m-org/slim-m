@@ -7,12 +7,9 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -22,22 +19,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store, hub: Hub) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 async fn user_ticket(store: &Store, name: &str) -> (String, slimm_server::ids::UserId) {
     let user = store.create_user(name, name).await.unwrap();
@@ -124,7 +105,7 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
     let channel = store.list_channels().await.unwrap()[0].id;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
 
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
@@ -156,7 +137,7 @@ async fn a_member_denied_use_canvas_never_sees_a_cursor() {
         .await
         .unwrap();
 
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut carol_ws = connect(addr, &carol_ticket).await;
@@ -181,7 +162,7 @@ async fn a_hidden_users_cursor_is_not_announced() {
         .unwrap();
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
 
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
@@ -202,7 +183,7 @@ async fn an_out_of_bounds_cursor_is_dropped() {
     let channel = store.list_channels().await.unwrap()[0].id;
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
 
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
@@ -222,7 +203,7 @@ async fn cursor_frames_are_rate_limited() {
     store.bootstrap_deployment(alice_id).await.unwrap();
     let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
 
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;

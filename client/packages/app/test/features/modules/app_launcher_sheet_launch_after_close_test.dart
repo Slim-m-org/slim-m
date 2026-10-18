@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/modules/providers/app_launch.dart';
@@ -22,6 +21,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../support/sync_live_rig.dart' show rigMessage;
+import '../../support/fake_api.dart';
 
 void main() {
   testWidgets('a launch that finishes after the sheet closed still lands', (
@@ -53,21 +53,13 @@ void main() {
             ),
           ),
           storeProvider.overrideWith((ref) async => store),
-          apiProvider.overrideWith((ref) {
-            final client = api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                await gate.future;
-                return http.Response(
-                  jsonEncode(rigMessage('m1', 1, 'launched')),
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }),
+          mockApiOverride((request) async {
+            await gate.future;
+            return http.Response(
+              jsonEncode(rigMessage('m1', 1, 'launched')),
+              200,
+              headers: {'content-type': 'application/json'},
             );
-            ref.onDispose(client.close);
-            return client;
           }),
         ],
         child: MaterialApp(

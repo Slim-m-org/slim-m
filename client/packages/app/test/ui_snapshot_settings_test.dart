@@ -17,7 +17,6 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart'
@@ -27,6 +26,7 @@ import 'package:slimm_app/src/providers/providers.dart'
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 
 import 'ui_snapshot_support.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 /// The zero-override admin routes: reached today only by a direct
 /// navigation, since nothing in the app itself deep-links these, and absent
@@ -139,19 +139,15 @@ final _overrideSurfaces =
 /// shared fixture, so a surface needing one bespoke response does not have
 /// to re-derive the whole switch [fixtureResponse] already carries.
 api.SlimmApi _apiWith(Ref ref, Map<String, Object> paths) {
-  final client = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: ref.watch(sessionProvider),
-    httpClient: MockClient((request) async {
-      final body = paths[request.url.path];
-      if (body == null) return fixtureResponse(request);
-      return http.Response(
-        jsonEncode(body),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }),
-  );
+  final client = testApi((request) async {
+    final body = paths[request.url.path];
+    if (body == null) return fixtureResponse(request);
+    return http.Response(
+      jsonEncode(body),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  }, session: ref.watch(sessionProvider));
   ref.onDispose(client.close);
   return client;
 }

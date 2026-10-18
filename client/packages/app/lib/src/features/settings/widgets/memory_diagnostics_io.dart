@@ -4,6 +4,7 @@
 library;
 
 import 'dart:io';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The process's current resident set size in bytes, or null if the platform
 /// does not report it. `dart:io`'s [ProcessInfo.currentRss] answers on the VM
@@ -11,7 +12,13 @@ import 'dart:io';
 int? currentResidentBytes() {
   try {
     return ProcessInfo.currentRss;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'current resident bytes failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
 }

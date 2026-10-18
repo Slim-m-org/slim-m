@@ -10,13 +10,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/composer/providers/slash_command.dart';
 
 import 'composer_harness.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 void main() {
   testWidgets('a second Enter while a /command is in flight runs it once', (
@@ -29,28 +29,20 @@ void main() {
     final gate = Completer<void>();
     var runs = 0;
     Map<String, dynamic>? lastBody;
-    api.SlimmApi apiBuilder(Ref ref) => api.SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: MockClient((request) async {
-        if (request.method == 'POST' &&
-            request.url.path == '/modules/dice/commands/roll') {
-          runs += 1;
-          lastBody = jsonDecode(request.body) as Map<String, dynamic>;
-          await gate.future;
-          return http.Response(
-            jsonEncode({'ok': true, 'message_id': 'm1'}),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }
+    api.SlimmApi apiBuilder(Ref ref) => testApi((request) async {
+      if (request.method == 'POST' &&
+          request.url.path == '/modules/dice/commands/roll') {
+        runs += 1;
+        lastBody = jsonDecode(request.body) as Map<String, dynamic>;
+        await gate.future;
         return http.Response(
-          '{}',
-          404,
-          headers: {'content-type': 'text/plain'},
+          jsonEncode({'ok': true, 'message_id': 'm1'}),
+          200,
+          headers: {'content-type': 'application/json'},
         );
-      }),
-    );
+      }
+      return http.Response('{}', 404, headers: {'content-type': 'text/plain'});
+    }, session: ref.watch(sessionProvider));
     await tester.pumpWidget(
       composerHarness(
         controller: controller,

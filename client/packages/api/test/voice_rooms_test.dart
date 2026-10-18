@@ -6,9 +6,9 @@ library;
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _room = {
   'id': 'room-1',
@@ -21,25 +21,22 @@ const _room = {
   'room_locked': true,
 };
 
-SlimmApi _api(List<http.Request> seen) => SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: SessionStore(
-        tokens: const TokenPair(
-          userId: 'alice',
-          accessToken: 'a',
-          refreshToken: 'r',
-          accessExpiresAt: 0,
-        ),
-      ),
-      httpClient: MockClient((request) async {
-        seen.add(request);
-        return http.Response(
-          jsonEncode(_room),
-          200,
-          headers: {'content-type': 'application/json'},
-        );
-      }),
-    );
+SlimmApi _api(List<http.Request> seen) => testApi((request) async {
+      seen.add(request);
+      return http.Response(
+        jsonEncode(_room),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    },
+        session: SessionStore(
+          tokens: const TokenPair(
+            userId: 'alice',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 0,
+          ),
+        ));
 
 void main() {
   test('a room parses its owner, lock and limit', () {

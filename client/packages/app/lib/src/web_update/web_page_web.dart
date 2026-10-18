@@ -10,6 +10,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:web/web.dart' as web;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 Future<String?> fetchLiveWebBuild() async {
   try {
@@ -23,7 +24,13 @@ Future<String?> fetchLiveWebBuild() async {
     final body = jsonDecode(res.body);
     final build = body is Map ? body['build'] : null;
     return build is String && build.isNotEmpty ? build : null;
-  } on Object {
+  } on Object catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.platform,
+      'fetch live web build failed, ignored',
+      error,
+      stack,
+    );
     // A failed poll is silence; the next tick or tab focus tries again.
     return null;
   }

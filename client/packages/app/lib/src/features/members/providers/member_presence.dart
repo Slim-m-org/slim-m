@@ -194,7 +194,8 @@ class MemberProfileOverridesController
       final profile = await _ref.read(apiProvider).getUser(userId);
       if (!mounted) return;
       state = {...state, userId: profile};
-    } on api.ApiException {
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'refetch', error, stack);
       // Left stale; the next ProfileChanged (or a roster refetch) corrects it.
     }
   }

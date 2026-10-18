@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:local_auth/local_auth.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// True on every host `local_auth` actually implements: iOS, Android, macOS
 /// and Windows. False on Linux (no plugin implementation at all) and the web
@@ -70,7 +71,9 @@ class BiometricAuthChannel {
       return await _auth.isDeviceSupported()
           ? BiometricSupport.supported
           : BiometricSupport.unsupported;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'check support failed, ignored', error, stack);
       return BiometricSupport.error;
     }
   }
@@ -87,11 +90,14 @@ class BiometricAuthChannel {
     try {
       final ok = await _auth.authenticate(localizedReason: reason);
       return ok ? BiometricAuthResult.success : BiometricAuthResult.failure;
-    } on LocalAuthException catch (e) {
+    } on LocalAuthException catch (e, stack) {
+      AppLog.swallowed(LogTag.auth, 'authenticate failed, ignored', e, stack);
       return e.code == LocalAuthExceptionCode.noCredentialsSet
           ? BiometricAuthResult.unavailable
           : BiometricAuthResult.failure;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.auth, 'authenticate failed, ignored', error, stack);
       return BiometricAuthResult.failure;
     }
   }

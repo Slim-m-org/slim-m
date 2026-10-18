@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'pulse_audio_parse.dart';
 import 'voice_models.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 typedef PactlRunner = Future<ProcessResult> Function(List<String> args);
 
@@ -49,7 +50,8 @@ class PulseAudio {
       final result = await _run(['-f', 'json', 'list', kind]);
       if (result.exitCode != 0) return null;
       return parse(result.stdout as String);
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.voice, 'run pactl failed, ignored', error, stack);
       return null;
     }
   }
@@ -64,7 +66,8 @@ class PulseAudio {
       return result.exitCode == 0 && name.isNotEmpty
           ? '$pulseDevicePrefix$name'
           : null;
-    } on Object {
+    } on Object catch (error, stack) {
+      AppLog.swallowed(LogTag.voice, 'run pactl failed, ignored', error, stack);
       return null;
     }
   }

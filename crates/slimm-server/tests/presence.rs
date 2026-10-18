@@ -10,12 +10,9 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::presence;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -26,22 +23,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store, hub: Hub) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
@@ -157,7 +138,7 @@ async fn presence_status(state: &AppState, token: &str, target_id: &str) -> Stri
 #[tokio::test]
 async fn hidden_user_reads_offline_to_others_but_true_to_self() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice_id_str = alice_id.to_string();
@@ -224,7 +205,7 @@ async fn hidden_user_reads_offline_to_others_but_true_to_self() {
 #[tokio::test]
 async fn presence_flips_to_offline_when_the_last_socket_closes() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice_id_str = alice_id.to_string();
@@ -266,7 +247,7 @@ async fn presence_flips_to_offline_when_the_last_socket_closes() {
 #[tokio::test]
 async fn a_batch_mixes_hidden_visible_and_absent_ids_correctly() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let (carol_access, carol_ticket, _carol_id) = user_ticket(&store, "carol").await;
@@ -332,7 +313,7 @@ async fn a_batch_mixes_hidden_visible_and_absent_ids_correctly() {
 #[tokio::test]
 async fn unknown_id_is_simply_absent() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (access, _ticket, _id) = user_ticket(&store, "alice").await;
 
     let missing = uuid::Uuid::now_v7();
@@ -362,7 +343,9 @@ async fn unknown_id_is_simply_absent() {
 async fn a_ping_resets_the_idle_clock_not_just_typing() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::new();
-    let state = state_for(&store, hub.clone());
+    let state = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .build();
     let (_access, ticket, id) = user_ticket(&store, "alice").await;
 
     let addr = serve(state.clone()).await;
@@ -402,7 +385,9 @@ async fn a_ping_resets_the_idle_clock_not_just_typing() {
 async fn an_idle_transition_is_announced_to_another_viewer() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::with_idle_poll_interval(Duration::from_millis(20));
-    let state = state_for(&store, hub.clone());
+    let state = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .build();
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice_id_str = alice_id.to_string();
@@ -440,7 +425,9 @@ async fn an_idle_transition_is_announced_to_another_viewer() {
 async fn a_hidden_users_idle_transition_is_never_published() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
     let hub = Hub::with_idle_poll_interval(Duration::from_millis(20));
-    let state = state_for(&store, hub.clone());
+    let state = support::app::builder(store.clone())
+        .hub(hub.clone())
+        .build();
     let (_alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (_bob_access, bob_ticket, bob_id) = user_ticket(&store, "bob").await;
     let alice_id_str = alice_id.to_string();

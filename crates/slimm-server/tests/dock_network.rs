@@ -11,18 +11,11 @@ use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::dock::Dock;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
-use slimm_server::voice::VoiceService;
 use tokio::net::TcpListener;
 use tower::ServiceExt;
 
@@ -103,19 +96,7 @@ async fn harness(name: &str) -> Harness {
         .access_token;
     let served = Arc::new(Mutex::new(manifest(&["jellyfin.lan:8096"], true)));
     let dock = Dock::for_test(&registry(served.clone()).await);
-    let router = http::router(AppState {
-        store: s,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: VoiceService::disabled(),
-        media: Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock,
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    });
+    let router = support::app::builder(s).dock(dock).router();
     Harness {
         router,
         token,

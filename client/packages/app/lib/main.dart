@@ -5,7 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +40,7 @@ import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
+import 'src/diagnostics/debug_log_persistence.dart';
 import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
@@ -58,6 +59,7 @@ import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
 import 'src/features/members/widgets/moderation_error_host.dart';
 import 'src/widgets/toast_overlay.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Entry point.
 ///
@@ -126,7 +128,10 @@ AccountHost _createAccountHost() {
   final previewCache = createAttachmentPreviewCache();
   final accounts = AccountStore(keyStore);
   // One log for every account, since the error hooks are global.
-  final debugLog = DebugLog();
+  final debugLog = DebugLog(
+    persistence: const PrefsDebugLogPersistence(),
+    echo: kDebugMode,
+  );
   late final AccountHost host;
   host = AccountHost(
     store: accounts,
@@ -291,8 +296,13 @@ Future<void> _initAndroidPush() async {
   try {
     await ensureFirebaseInitialized();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (_) {
-    // No Firebase credentials or no Play Services: push degrades either way.
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.ui,
+      'No Firebase credentials or no Play Services: push degrades either way',
+      error,
+      stack,
+    );
   }
 }
 

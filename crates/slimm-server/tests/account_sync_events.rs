@@ -4,17 +4,12 @@
 
 use std::time::Duration;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -24,24 +19,10 @@ use uuid::Uuid;
 
 mod support;
 
+use support::app::request_json as request;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 async fn seed_everyone(store: &Store) {
     store
@@ -124,16 +105,6 @@ async fn frame_of_kind(ws: &mut Client, kind: &str) -> Option<Value> {
     None
 }
 
-fn request(method: &str, uri: &str, token: &str, body: Value) -> Request<Body> {
-    Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"))
-        .header("content-type", "application/json")
-        .body(Body::from(body.to_string()))
-        .unwrap()
-}
-
 async fn send(state: &AppState, token: &str, channel: ChannelId) -> Value {
     let response = http::router(state.clone())
         .oneshot(request(
@@ -156,7 +127,7 @@ async fn marking_unread_reaches_the_other_device_once_and_nobody_else() {
     let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice, phone_token, _ticket) = account(&store, "alice").await;
     let (_desktop_token, desktop_ticket) = device(&store, alice).await;
     let (_bob, _bob_token, bob_ticket) = account(&store, "bob").await;
@@ -200,7 +171,7 @@ async fn a_read_frame_says_the_manual_mark_is_cleared() {
     let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice, phone_token, _ticket) = account(&store, "alice").await;
     let (_desktop_token, desktop_ticket) = device(&store, alice).await;
     let addr = serve(state.clone()).await;
@@ -243,7 +214,7 @@ async fn a_channel_override_reaches_the_other_device_and_nobody_else() {
     let (store, _guard) = support::new_store("slimm-account-sync-events").await;
     seed_everyone(&store).await;
     let channel = store.create_channel("general", "text").await.unwrap();
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice, phone_token, _ticket) = account(&store, "alice").await;
     let (_desktop_token, desktop_ticket) = device(&store, alice).await;
     let (_bob, _bob_token, bob_ticket) = account(&store, "bob").await;

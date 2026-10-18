@@ -11,6 +11,7 @@ import 'package:flutter/rendering.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/widgets/image_downscale.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// The edge of the encoded result, in pixels.
 ///
@@ -55,7 +56,13 @@ Future<int?> sourceHeaderEdge(Uint8List bytes) async {
     final shorter = math.min(descriptor.width, descriptor.height);
     descriptor.dispose();
     return shorter;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'source header edge failed, ignored',
+      error,
+      stack,
+    );
     return decodedSourceEdge(bytes);
   }
 }
@@ -74,7 +81,13 @@ Future<int?> decodedSourceEdge(Uint8List bytes) async {
     frame.image.dispose();
     codec.dispose();
     return shorter;
-  } catch (_) {
+  } catch (error, stack) {
+    AppLog.swallowed(
+      LogTag.media,
+      'decoded source edge failed, ignored',
+      error,
+      stack,
+    );
     return null;
   }
 }
@@ -145,7 +158,8 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     Uint8List? out;
     try {
       out = await _capture(object);
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.media, 'confirm', error, stack);
       // Raster and encode are the one unrecoverable step here; see the doc.
       out = null;
     }

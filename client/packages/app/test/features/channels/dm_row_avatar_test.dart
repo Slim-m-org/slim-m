@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
@@ -19,6 +18,7 @@ import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -58,46 +58,38 @@ ProviderContainer _container({required bool hasAvatar}) {
         ref.onDispose(db.close);
         return db;
       }),
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path.endsWith('/voice/roster')) {
-              return http.Response(
-                jsonEncode({'participants': <Object>[]}),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path == '/users') {
-              return http.Response(
-                jsonEncode([
-                  {
-                    'id': 'user-nadia',
-                    'username': 'nadia',
-                    'display_name': 'Nadia',
-                    'created_at': 0,
-                    'avatar_updated_at': hasAvatar ? 1 : null,
-                    'roles': <String>[],
-                  },
-                ]),
-                200,
-                headers: {'content-type': 'application/json'},
-              );
-            }
-            if (request.url.path.endsWith('/avatar') && hasAvatar) {
-              return http.Response.bytes(
-                _png,
-                200,
-                headers: {'content-type': 'image/png'},
-              );
-            }
-            return http.Response('', 404);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path.endsWith('/voice/roster')) {
+          return http.Response(
+            jsonEncode({'participants': <Object>[]}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/users') {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'user-nadia',
+                'username': 'nadia',
+                'display_name': 'Nadia',
+                'created_at': 0,
+                'avatar_updated_at': hasAvatar ? 1 : null,
+                'roles': <String>[],
+              },
+            ]),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.endsWith('/avatar') && hasAvatar) {
+          return http.Response.bytes(
+            _png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        }
+        return http.Response('', 404);
       }),
     ],
   );

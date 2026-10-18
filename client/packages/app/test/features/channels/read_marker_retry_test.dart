@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_api/api.dart' show SessionStore;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_read_marker.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -27,25 +27,17 @@ Future<int> _putsAfterTwoAdvances(WidgetTester tester, int firstStatus) async {
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        apiProvider.overrideWith((ref) {
-          final a = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.method == 'PUT') {
-                puts++;
-                if (puts == 1) return http.Response('{}', firstStatus);
-                return http.Response(
-                  '{"last_read_seq": 5, "manually_unread": false}',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              return http.Response('{}', 200);
-            }),
-          );
-          ref.onDispose(a.close);
-          return a;
+        mockApiOverride((request) async {
+          if (request.method == 'PUT') {
+            puts++;
+            if (puts == 1) return http.Response('{}', firstStatus);
+            return http.Response(
+              '{"last_read_seq": 5, "manually_unread": false}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{}', 200);
         }),
         storeProvider.overrideWith((ref) async {
           final db = SlimmDatabase(NativeDatabase.memory());

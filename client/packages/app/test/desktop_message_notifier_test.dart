@@ -17,7 +17,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/accounts/providers/account.dart';
@@ -32,6 +31,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
+import 'support/fake_api.dart';
 
 class _FakeNotifications implements LocalNotifications {
   final shown = <String>[];
@@ -122,36 +122,28 @@ Future<_Setup> _wire({List<Override> extra = const []}) async {
       liveEventsProvider.overrideWithValue(events.stream),
       localNotificationsProvider.overrideWithValue(notifications),
       ...extra,
-      apiProvider.overrideWith((ref) {
-        final client = api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.url.path.startsWith(
-                  '/notification-preferences/channels/',
-                ) &&
-                request.method == 'PUT') {
-              final channelId = request.url.pathSegments.last;
-              final body = jsonDecode(request.body) as Map<String, dynamic>;
-              return _json({
-                'channel_id': channelId,
-                'preference': body['preference'],
-              });
-            }
-            if (request.url.path.endsWith('/me')) {
-              return _json({
-                'id': 'me',
-                'username': 'nick',
-                'display_name': 'Nick',
-                'created_at': 0,
-                'permissions': 0,
-              });
-            }
-            return _json(const <Object>[]);
-          }),
-        );
-        ref.onDispose(client.close);
-        return client;
+      mockApiOverride((request) async {
+        if (request.url.path.startsWith(
+              '/notification-preferences/channels/',
+            ) &&
+            request.method == 'PUT') {
+          final channelId = request.url.pathSegments.last;
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          return _json({
+            'channel_id': channelId,
+            'preference': body['preference'],
+          });
+        }
+        if (request.url.path.endsWith('/me')) {
+          return _json({
+            'id': 'me',
+            'username': 'nick',
+            'display_name': 'Nick',
+            'created_at': 0,
+            'permissions': 0,
+          });
+        }
+        return _json(const <Object>[]);
       }),
     ],
   );

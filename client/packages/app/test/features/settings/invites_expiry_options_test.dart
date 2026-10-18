@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -17,6 +16,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
   userId: 'user-1',
@@ -36,32 +36,24 @@ Future<List<Map<String, dynamic>>> _create(
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       myPermissionsProvider.overrideWithValue(Perm.createInvite),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith((ref) {
-        final api = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method == 'POST') {
-              posts.add(jsonDecode(request.body) as Map<String, dynamic>);
-              return http.Response(
-                jsonEncode({
-                  'code': 'fresh',
-                  'max_uses': null,
-                  'uses': 0,
-                  'expires_at': null,
-                  'created_at': 0,
-                  'revoked': false,
-                  'usable': true,
-                }),
-                200,
-                headers: _json,
-              );
-            }
-            return http.Response('[]', 200, headers: _json);
-          }),
-        );
-        ref.onDispose(api.close);
-        return api;
+      mockApiOverride((request) async {
+        if (request.method == 'POST') {
+          posts.add(jsonDecode(request.body) as Map<String, dynamic>);
+          return http.Response(
+            jsonEncode({
+              'code': 'fresh',
+              'max_uses': null,
+              'uses': 0,
+              'expires_at': null,
+              'created_at': 0,
+              'revoked': false,
+              'usable': true,
+            }),
+            200,
+            headers: _json,
+          );
+        }
+        return http.Response('[]', 200, headers: _json);
       }),
     ],
   );

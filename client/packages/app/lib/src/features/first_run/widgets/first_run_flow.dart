@@ -83,7 +83,8 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
           break;
       }
       return true;
-    } on api.ApiException catch (e) {
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'save step', e, stack);
       _error = 'Not saved: ${e.message}';
       return false;
     }
@@ -103,7 +104,13 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     if (choice == ref.read(notificationPreferenceProvider).valueOrNull) return;
     try {
       await ref.read(apiProvider).setNotificationPreference(choice);
-    } on api.NotFoundException {
+    } on api.NotFoundException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'save notify choice failed, ignored',
+        error,
+        stack,
+      );
       // A server too old for the route has nothing to save; the step still counts.
       return;
     }

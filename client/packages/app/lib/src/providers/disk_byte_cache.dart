@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, ignoreError;
 
 /// Keyed byte storage whose reads and writes never throw: a failure only
 /// means the next view refetches.
@@ -69,9 +70,19 @@ class DiskByteCache implements ByteCache {
     try {
       final file = _fileFor(await _cacheDir(), key);
       final bytes = await file.readAsBytes();
-      unawaited(file.setLastModified(DateTime.now()).catchError((_) {}));
+      unawaited(
+        file
+            .setLastModified(DateTime.now())
+            .catchError(
+              ignoreError(
+                LogTag.media,
+                'touching the cache entry is best effort',
+              ),
+            ),
+      );
       return bytes;
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.media, 'read failed, ignored', error, stack);
       // A miss, an unreadable file or a broken directory all read as never cached.
       return null;
     }
@@ -86,7 +97,8 @@ class DiskByteCache implements ByteCache {
       await partial.writeAsBytes(bytes);
       await partial.rename(file.path);
       if (_dueForTrim()) await _evictOverCeiling(dir);
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(LogTag.media, 'write failed, ignored', error, stack);
       // See [ByteCache.write]: a failed write is a slower next view, nothing more.
     }
   }
@@ -100,8 +112,13 @@ class DiskByteCache implements ByteCache {
           await entity.delete();
         }
       }
-    } catch (_) {
-      // An undeletable file stays until eviction reaches it.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'an undeletable cached file stays until eviction reaches it',
+        error,
+        stack,
+      );
     }
   }
 
@@ -129,7 +146,13 @@ class DiskByteCache implements ByteCache {
       total -= entry.size;
       try {
         await entry.file.delete();
-      } catch (_) {
+      } catch (error, stack) {
+        AppLog.swallowed(
+          LogTag.media,
+          'evict over ceiling failed, ignored',
+          error,
+          stack,
+        );
         // Left for a later pass.
       }
     }

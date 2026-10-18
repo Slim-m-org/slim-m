@@ -128,7 +128,13 @@ class _RosterPoller {
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
       if (!_controller.isClosed) _controller.add(visible);
-    } on api.NotConfiguredException {
+    } on api.NotConfiguredException catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.voice,
+        'poll failed, ignored',
+        error,
+        stack,
+      );
       self?.cancel();
       unawaited(_controller.close());
     } on api.ApiException catch (e) {

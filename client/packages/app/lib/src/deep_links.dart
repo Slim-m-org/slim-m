@@ -46,6 +46,7 @@ import 'routing/router.dart';
 import 'routing/routes.dart';
 import 'spotify/spotify_callback.dart';
 import 'features/messages/widgets/message_jump.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The platform's deep-link URIs. `app_links` replays the launching link to
 /// a new subscriber, so one stream covers both a cold start from a tap and
@@ -126,34 +127,42 @@ final deepLinkControllerProvider = Provider<void>((ref) {
   final guard = SpotifyRouteGuard();
   WidgetsBinding.instance.addObserver(guard);
   ref.onDispose(() => WidgetsBinding.instance.removeObserver(guard));
-  final sub = ref.read(deepLinkUrisProvider).listen((uri) {
-    if (isSpotifyCallback(uri)) {
-      unawaited(handleSpotifyCallback(ref, uri));
-      return;
-    }
-    final host = ref.read(accountHostProvider);
-    if (host != null && _routeAcrossAccounts(host, uri)) return;
-    final signedIn = ref.read(sessionProvider).isSignedIn;
-    final message = messageFromDeepLink(
-      uri,
-      signedInTo: signedIn ? ref.read(serverUrlProvider) : null,
-    );
-    if (message != null) {
-      // No currentChannelId to skip the route with: a link from outside the app cannot know what is open.
-      jumpToMessage(
-        ref.read(routerProvider),
-        ref.read,
-        currentChannelId: null,
-        channelId: message.channelId,
-        messageId: message.messageId,
+  final sub = ref.read(deepLinkUrisProvider).listen(
+    (uri) {
+      if (isSpotifyCallback(uri)) {
+        unawaited(handleSpotifyCallback(ref, uri));
+        return;
+      }
+      final host = ref.read(accountHostProvider);
+      if (host != null && _routeAcrossAccounts(host, uri)) return;
+      final signedIn = ref.read(sessionProvider).isSignedIn;
+      final message = messageFromDeepLink(
+        uri,
+        signedInTo: signedIn ? ref.read(serverUrlProvider) : null,
       );
-      return;
-    }
-    final invite = inviteFromDeepLink(uri, signedIn: signedIn);
-    if (invite == null) return;
-    ref.read(tappedInviteProvider.notifier).state = invite;
-    // The redirect keeps a signed-out user inside the join flow, so this can only land somewhere the invite is usable.
-    ref.read(routerProvider).go(Routes.onboarding);
-  }, onError: (Object error) => debugPrint('deep link stream failed: $error'));
+      if (message != null) {
+        // No currentChannelId to skip the route with: a link from outside the app cannot know what is open.
+        jumpToMessage(
+          ref.read(routerProvider),
+          ref.read,
+          currentChannelId: null,
+          channelId: message.channelId,
+          messageId: message.messageId,
+        );
+        return;
+      }
+      final invite = inviteFromDeepLink(uri, signedIn: signedIn);
+      if (invite == null) return;
+      ref.read(tappedInviteProvider.notifier).state = invite;
+      // The redirect keeps a signed-out user inside the join flow, so this can only land somewhere the invite is usable.
+      ref.read(routerProvider).go(Routes.onboarding);
+    },
+    onError: (Object error, StackTrace stack) => AppLog.warning(
+      LogTag.platform,
+      'deep link stream failed',
+      error: error,
+      stack: stack,
+    ),
+  );
   ref.onDispose(sub.cancel);
 });

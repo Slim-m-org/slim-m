@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_permissions.dart';
@@ -27,6 +26,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -93,31 +93,23 @@ void main() {
           syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
           // What the real per-channel route would answer for a DM: DM_BASE never carries MANAGE_MESSAGES.
           channelPermissionsProvider('c1').overrideWith((ref) async => 0),
-          apiProvider.overrideWith((ref) {
-            final client = api.SlimmApi(
-              baseUrl: Uri.parse('http://localhost:8080'),
-              session: ref.watch(sessionProvider),
-              httpClient: MockClient((request) async {
-                if (request.method == 'GET' && request.url.path == '/me') {
-                  return http.Response(
-                    jsonEncode(_meJson()),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                if (request.method == 'PUT' &&
-                    request.url.path == '/channels/c1/read') {
-                  return http.Response(
-                    jsonEncode({'last_read_seq': 1, 'unread': 0}),
-                    200,
-                    headers: {'content-type': 'application/json'},
-                  );
-                }
-                return _emptyJsonList();
-              }),
-            );
-            ref.onDispose(client.close);
-            return client;
+          mockApiOverride((request) async {
+            if (request.method == 'GET' && request.url.path == '/me') {
+              return http.Response(
+                jsonEncode(_meJson()),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            if (request.method == 'PUT' &&
+                request.url.path == '/channels/c1/read') {
+              return http.Response(
+                jsonEncode({'last_read_seq': 1, 'unread': 0}),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }
+            return _emptyJsonList();
           }),
         ],
       );

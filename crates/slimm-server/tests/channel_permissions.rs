@@ -10,20 +10,17 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
-use slimm_server::auth::Auth;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::ids::{ChannelId, MessageId, UserId};
+use slimm_server::ids::{ChannelId, MessageId};
 use slimm_server::permissions::Permissions;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
+
+use support::app::{app, json_body, register_id_token as register};
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -37,22 +34,6 @@ async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     (Store::new(pool), guard)
 }
 
-fn app(store: Store) -> Router {
-    http::router(AppState {
-        store,
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    })
-}
-
 fn request(uri: &str, token: &str) -> Request<Body> {
     Request::builder()
         .method("GET")
@@ -60,31 +41,6 @@ fn request(uri: &str, token: &str) -> Request<Body> {
         .header("authorization", format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    serde_json::from_slice(&bytes).unwrap()
-}
-
-/// Registers an account and returns its id and access token. The first call
-/// claims the deployment and becomes its administrator, seeding `@everyone`
-/// (VIEW_CHANNEL, SEND_MESSAGES and friends) and a `general` channel; a later
-/// call joins as a plain `@everyone` member.
-async fn register(store: &Store, username: &str) -> (UserId, String) {
-    let account = store
-        .create_account(username, username, "not-a-real-hash")
-        .await
-        .unwrap();
-    store.bootstrap_deployment(account.id).await.unwrap();
-    let token = store
-        .open_session(account.id, "cli")
-        .await
-        .unwrap()
-        .access_token;
-    (account.id, token)
 }
 
 async fn general_channel_id(store: &Store) -> ChannelId {

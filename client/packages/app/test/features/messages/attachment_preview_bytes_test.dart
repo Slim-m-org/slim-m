@@ -9,11 +9,11 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/disk_byte_cache.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -50,16 +50,10 @@ ProviderContainer _container(
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       attachmentPreviewCacheProvider.overrideWithValue(cache),
       if (server != null) serverUrlProvider.overrideWithValue(server),
-      apiProvider.overrideWith(
-        (ref) => api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            requests.add(request.url);
-            return http.Response.bytes(body ?? _png, 200);
-          }),
-        ),
-      ),
+      mockApiOverride((request) async {
+        requests.add(request.url);
+        return http.Response.bytes(body ?? _png, 200);
+      }),
     ],
   );
   addTearDown(container.dispose);

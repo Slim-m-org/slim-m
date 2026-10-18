@@ -38,6 +38,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../widgets/bounded_image_decode.dart';
 import 'module_scene.dart';
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// The longer side a kept bitmap is decoded to at most.
 const sceneImageMaxSide = 1024;
@@ -111,7 +112,8 @@ class SceneImageCache extends ChangeNotifier {
       _pending.remove(key);
       _remember(key, image);
       notifyListeners();
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.media, 'decode', error, stack);
       // Not a decodable image is a real answer, so nothing retries it.
       if (_disposed) return;
       _pending.remove(key);

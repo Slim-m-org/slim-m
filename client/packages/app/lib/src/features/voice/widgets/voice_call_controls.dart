@@ -62,6 +62,7 @@ import 'call_availability.dart';
 import 'call_dock_button.dart';
 import 'call_quality_options.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 export 'call_dock_button.dart';
 
@@ -429,7 +430,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
     try {
       final version = await ref.read(apiProvider).version();
       return version.screenShareMaxHeight;
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.voice, 'screen share ceiling', error, stack);
       return null;
     }
   }

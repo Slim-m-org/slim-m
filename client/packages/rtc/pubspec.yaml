@@ -7,6 +7,7 @@ environment:
   sdk: ^3.6.0
   flutter: ">=3.27.0"
 dependencies:
+  slimm_api:
   flutter:
     sdk: flutter
   # Pinned exactly: broadcast_bridge.dart reaches into its unversioned src/; broadcast_bridge_test.dart guards it.

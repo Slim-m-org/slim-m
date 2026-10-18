@@ -139,6 +139,7 @@ Read the unittest run's `OK` or `FAILED` summary line, not its last line: some t
 - Branch, pull request, squash merge to `main`, with a conventional-commit title (`feat:`, `fix:`, `chore:` and so on) so release-please can classify it.
 - Commit with `git commit -s`.
 - Plain comments are one line and say why, never how; durable reasoning goes in a decision record or a doc.
+- A caught client failure goes through the logger and never vanishes: see [error-handling.md](error-handling.md).
 - Keep files under 300 lines where practical and 500 as the budget.
 - `main` deploys the server continuously, so treat server changes as production changes.
 

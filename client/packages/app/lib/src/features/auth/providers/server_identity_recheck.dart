@@ -43,7 +43,8 @@ class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
       final identity = (await ref.watch(apiProvider).version()).identity;
       if (identity == null || identity.publicKey == pinned) return null;
       return identity;
-    } catch (_) {
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.auth, 'build', error, stack);
       return proven?.publicKey == pinned ? null : proven;
     }
   }

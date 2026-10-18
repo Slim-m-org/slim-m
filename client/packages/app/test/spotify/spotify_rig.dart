@@ -22,6 +22,7 @@ import 'package:slimm_app/src/spotify/spotify_client.dart';
 import 'package:slimm_app/src/spotify/spotify_config.dart';
 import 'package:slimm_app/src/spotify/spotify_link.dart';
 import 'package:slimm_platform/platform.dart';
+import '../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -71,26 +72,18 @@ class SpotifyRig {
             clientId: clientId,
           ),
         ),
-        apiProvider.overrideWith((ref) {
-          final client = api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient((request) async {
-              if (request.url.path == '/me') {
-                return http.Response(
-                  '{"id":"self","username":"self","display_name":"Self",'
-                  '"created_at":0,"permissions":0,'
-                  '"presence_visibility":"online"}',
-                  200,
-                  headers: {'content-type': 'application/json'},
-                );
-              }
-              calls.add('${request.method} ${request.url.path}');
-              return http.Response('', 204);
-            }),
-          );
-          ref.onDispose(client.close);
-          return client;
+        mockApiOverride((request) async {
+          if (request.url.path == '/me') {
+            return http.Response(
+              '{"id":"self","username":"self","display_name":"Self",'
+              '"created_at":0,"permissions":0,'
+              '"presence_visibility":"online"}',
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          calls.add('${request.method} ${request.url.path}');
+          return http.Response('', 204);
         }),
       ],
     );

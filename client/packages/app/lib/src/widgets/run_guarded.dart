@@ -32,8 +32,8 @@ Future<String?> runGuarded({
   try {
     await action();
     return null;
-  } on api.ApiException catch (e) {
-    return describeApiFailure(whatFailed, e);
+  } on api.ApiException catch (e, s) {
+    return reportFailureSentence(api.LogTag.ui, whatFailed, e, s);
   }
 }
 

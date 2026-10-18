@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/action_labels.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../ui_snapshot_support.dart';
+import '../../support/fake_api.dart';
 
 const _maya = api.UserProfile(
   id: 'user-maya',
@@ -77,18 +77,12 @@ _Rig _rig({required Brightness brightness, int permissions = _manager}) {
   rig.app = ProviderScope(
     overrides: [
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      apiProvider.overrideWith(
-        (ref) => api.SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((request) async {
-            if (request.method != 'GET') {
-              rig.calls.add('${request.method} ${request.url.path}');
-            }
-            return http.Response(jsonEncode(<String, Object?>{}), 200);
-          }),
-        ),
-      ),
+      mockApiOverride((request) async {
+        if (request.method != 'GET') {
+          rig.calls.add('${request.method} ${request.url.path}');
+        }
+        return http.Response(jsonEncode(<String, Object?>{}), 200);
+      }),
       meProvider.overrideWith((ref) async => _me),
       myPermissionsProvider.overrideWithValue(permissions),
       membersProvider.overrideWith((ref) async => [_maya]),

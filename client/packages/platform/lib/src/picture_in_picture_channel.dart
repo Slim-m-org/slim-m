@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 import 'host_platform.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const _channelName = 'top.npcserver.slimm/picture_in_picture';
 
@@ -42,9 +43,13 @@ class PictureInPictureChannel {
     if (!_isAndroid) return;
     try {
       await _channel.invokeMethod<void>('setEligible', eligible);
-    } on PlatformException {
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'set eligible failed, ignored', error, stack);
       return;
-    } on MissingPluginException {
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'set eligible failed, ignored', error, stack);
       return;
     }
   }

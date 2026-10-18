@@ -54,7 +54,8 @@ Future<void> sendSlashCommand({
     } else {
       fail(result.error ?? 'The command did not run.');
     }
-  } on ApiException catch (e) {
+  } on ApiException catch (e, stack) {
+    reportFailure(LogTag.ui, 'send the slash command', e, stack);
     fail(describeApiFailure('run /${command.name}', e));
   }
 }

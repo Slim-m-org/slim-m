@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_api/api.dart' as api show Channel;
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
 import 'support/fake_sync.dart';
+import 'support/fake_api.dart';
 import 'features/voice/voice_controller_harness.dart'
     show RecordingVoiceController;
 
@@ -63,15 +63,7 @@ _pump(
       databaseProvider.overrideWith((ref) => db),
       messageJumpProvider.overrideWith(_RecordingJump.new),
       ...extraOverrides,
-      apiProvider.overrideWith((ref) {
-        final client = SlimmApi(
-          baseUrl: Uri.parse('http://localhost:8080'),
-          session: ref.watch(sessionProvider),
-          httpClient: MockClient((_) async => throw StateError('no network')),
-        );
-        ref.onDispose(client.close);
-        return client;
-      }),
+      mockApiOverride((_) async => throw StateError('no network')),
     ],
   );
   container

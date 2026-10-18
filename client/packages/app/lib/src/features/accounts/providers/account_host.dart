@@ -21,6 +21,7 @@ import 'account.dart';
 import 'account_slot.dart';
 import 'account_store.dart';
 import 'account_unread.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
 /// One account's container with the live facts the switcher shows about it.
 class AccountRuntime {
@@ -129,7 +130,8 @@ class AccountHost extends ChangeNotifier {
   Future<void> start() async {
     try {
       _index = await store.loadOrMigrate();
-    } catch (_) {
+    } catch (error, stack) {
+      reportFailure(LogTag.auth, 'start', error, stack);
       _index = const AccountIndex();
     }
     final first = _active;
@@ -333,8 +335,13 @@ class AccountHost extends ChangeNotifier {
     _index = _index.without(origin);
     try {
       await store.deleteSession(account);
-    } catch (_) {
-      // A store that refuses the delete leaves a stale entry, never a signed-in ghost.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'A store that refuses the delete leaves a stale entry, never a signed-in ghost',
+        error,
+        stack,
+      );
     }
     await _saveIndex();
     if (_active == runtime) {
@@ -376,8 +383,13 @@ class AccountHost extends ChangeNotifier {
   Future<void> _saveIndex() async {
     try {
       await store.save(_index);
-    } catch (_) {
-      // Best effort: the sessions themselves are what matter, and each is saved on its own.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.auth,
+        'Best effort: the sessions themselves are what matter, and each is saved on its own',
+        error,
+        stack,
+      );
     }
   }
 

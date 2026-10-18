@@ -12,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -21,6 +20,7 @@ import 'package:slimm_app/src/features/messages/widgets/attachment_gallery.dart'
 import 'package:slimm_app/src/features/messages/widgets/attachment_image_states.dart';
 import 'package:slimm_design_system/design_system.dart';
 import '../../support/fake_sync.dart';
+import '../../support/fake_api.dart';
 
 const _png = <int>[
   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, //
@@ -88,13 +88,7 @@ Future<ProviderContainer> _pump(
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         attachmentRetryDelaysProvider.overrideWithValue(_delays),
         syncControllerProvider.overrideWith(NoopSyncController.new),
-        apiProvider.overrideWith(
-          (ref) => api.SlimmApi(
-            baseUrl: Uri.parse('http://localhost:8080'),
-            session: ref.watch(sessionProvider),
-            httpClient: MockClient(server.handle),
-          ),
-        ),
+        mockApiOverride(server.handle),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.dark, AppTokens.dark),

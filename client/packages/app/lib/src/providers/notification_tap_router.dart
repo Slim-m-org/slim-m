@@ -23,6 +23,7 @@ import '../features/accounts/providers/account_providers.dart';
 import '../routing/routes.dart';
 import 'providers.dart' show storeProvider;
 import '../routing/router.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The route a tap naming [channelId] should land on, or null for a tap
 /// carrying nothing usable.
@@ -72,8 +73,13 @@ Future<AccountRuntime?> _ownerOf(AccountHost host, String channelId) async {
     try {
       final store = await runtime.container.read(storeProvider.future);
       if (await store.channelRow(channelId) != null) return runtime;
-    } catch (_) {
-      // A store that will not open cannot own the channel; try the next account.
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.push,
+        'A store that will not open cannot own the channel; try the next account',
+        error,
+        stack,
+      );
     }
   }
   return null;

@@ -230,7 +230,13 @@ void _healAfterCooldown(Ref ref) {
   Future<void>.delayed(emojiImageTombstoneCooldown, () {
     try {
       ref.invalidateSelf();
-    } catch (_) {
+    } catch (error, stack) {
+      AppLog.swallowed(
+        LogTag.media,
+        'heal after cooldown failed, ignored',
+        error,
+        stack,
+      );
       // See the doc above: nothing left worth healing.
     }
   });

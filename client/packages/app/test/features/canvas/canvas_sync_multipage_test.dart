@@ -12,10 +12,10 @@ import 'dart:convert';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _pageLimit = 100;
 
@@ -37,17 +37,8 @@ class _Feed {
   final afterSeqs = <int>[];
   var coldFetches = 0;
 
-  late final client = api.SlimmApi(
-    baseUrl: Uri.parse('http://localhost:8080'),
-    session: api.SessionStore(
-      tokens: const api.TokenPair(
-        userId: 'me',
-        accessToken: 'a',
-        refreshToken: 'r',
-        accessExpiresAt: 0,
-      ),
-    ),
-    httpClient: MockClient((request) async {
+  late final client = testApi(
+    (request) async {
       final after = int.parse(request.url.queryParameters['after_seq']!);
       afterSeqs.add(after);
       if (after == failAfter) return http.Response('{}', 500);
@@ -74,7 +65,15 @@ class _Feed {
         200,
         headers: {'content-type': 'application/json'},
       );
-    }),
+    },
+    session: api.SessionStore(
+      tokens: const api.TokenPair(
+        userId: 'me',
+        accessToken: 'a',
+        refreshToken: 'r',
+        accessExpiresAt: 0,
+      ),
+    ),
   );
 
   CanvasSync sync() => CanvasSync(

@@ -12,9 +12,6 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -25,22 +22,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 const PASSWORD: &str = "correct-horse-battery";
 
@@ -111,7 +92,7 @@ async fn wait_closed(ws: &mut Client) {
 #[tokio::test]
 async fn logout_closes_the_live_socket() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
 
     let addr = serve(state.clone()).await;
@@ -145,7 +126,7 @@ async fn logout_closes_the_live_socket() {
 #[tokio::test]
 async fn revoking_a_bot_closes_its_live_socket() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
 
     let admin = store
         .create_account("root", "Root", "not-a-real-hash")
@@ -216,7 +197,7 @@ async fn revoking_a_bot_closes_its_live_socket() {
 #[tokio::test]
 async fn removing_a_device_closes_its_live_socket() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
 
     // A second device, whose socket must survive: the revocation is per-session.
@@ -269,7 +250,7 @@ async fn removing_a_device_closes_its_live_socket() {
 #[tokio::test]
 async fn a_bad_ticket_is_rejected() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let addr = serve(state_for(&store)).await;
+    let addr = serve(support::app::state(store.clone())).await;
 
     let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
     ws.send(WsMessage::Text(
@@ -289,7 +270,7 @@ async fn a_bad_ticket_is_rejected() {
 #[tokio::test]
 async fn deleting_the_account_closes_its_live_socket() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice_access, alice_ticket, _alice) = user_ticket(&store, "alice").await;
 
     let addr = serve(state.clone()).await;
@@ -322,7 +303,7 @@ async fn deleting_the_account_closes_its_live_socket() {
 #[tokio::test]
 async fn a_revocation_before_the_hello_still_closes_the_socket() {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (access, ticket, _user) = user_ticket(&store, "alice").await;
     let session = store
         .authenticate(&access)
