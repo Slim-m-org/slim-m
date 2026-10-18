@@ -87,8 +87,14 @@ in both directions, and the existing suites prove it.
 
 ## What this does not do
 
-No rollup badge on a category header, because there is no unread rollup on a
-category header to begin with; a collapsed category shows a mentioned channel by
-breaking it out of the collapse instead.
+A collapsed category keeps its unread channels visible and its header shows an
+unread dot (a diamond for a mention) when anything inside would light a row.
+A muted channel does not count.
+The owner, 2026-10-18: "unread messages within collapsed categories are not
+visible, so if you get a notification for a channel in a collapsed channel you
+cant find it since the collapsed category has no response to the unread
+message".
+This replaces the earlier line that held back any rollup and broke out only
+mentioned channels.
 No window or taskbar badge either, because the desktop shell has never had one.
 Both stay out of scope here rather than being invented alongside a bug fix.
