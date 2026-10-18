@@ -232,7 +232,7 @@ pub fn peak_bytes(candidate: Candidate, source_len: u64, settings: &Settings) ->
 }
 
 const JPEG_BYTES_PER_PIXEL: u64 = 5;
-const HEIC_BYTES_PER_PIXEL: u64 = 5;
+const HEIC_BYTES_PER_PIXEL: u64 = 7;
 const OTHER_BYTES_PER_PIXEL: u64 = 8;
 const RESIZED_BYTES_PER_PIXEL: u64 = 4;
 const FIXED_BYTES: u64 = 24 * 1024 * 1024;
