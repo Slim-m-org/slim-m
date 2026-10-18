@@ -24,6 +24,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart' show AppPresence;
+import 'package:slimm_platform/platform.dart' show isWindowsHost;
 import 'package:slimm_rtc/rtc.dart';
 import 'package:tray_manager/tray_manager.dart';
 
@@ -43,6 +44,12 @@ import 'tray_menu_actions.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 const trayIconAssetPath = 'assets/icons/tray_icon.png';
+
+/// tray_manager's Windows plugin loads the icon with LoadImage, which reads only .ico.
+const trayIconWindowsAssetPath = 'assets/icons/tray_icon.ico';
+
+String trayIconPathFor({required bool windows}) =>
+    windows ? trayIconWindowsAssetPath : trayIconAssetPath;
 
 class DesktopTrayController with TrayListener {
   DesktopTrayController({
@@ -142,7 +149,9 @@ class DesktopTrayController with TrayListener {
   /// which is the bug as a person meets it, whichever call actually threw.
   Future<void> _setIcon() async {
     try {
-      await TrayManager.instance.setIcon(trayIconAssetPath);
+      await TrayManager.instance.setIcon(
+        trayIconPathFor(windows: isWindowsHost),
+      );
     } catch (error, stack) {
       // A default icon is a worse tray; a menu-less one is no tray at all.
       AppLog.warning(

@@ -10,6 +10,7 @@ import 'package:dbus/dbus.dart';
 import 'package:flutter/services.dart';
 
 import 'autostart.dart';
+import 'autostart_target.dart';
 import 'install_format.dart';
 
 /// The app id every Linux package installs its desktop entry and icon under.
@@ -23,11 +24,13 @@ Future<Autostart?> hostAutostart() async {
     }
     return XdgAutostart(
       entry: XdgAutostart.entryFor(env),
-      executable: Platform.resolvedExecutable,
+      executable: linuxAutostartExecutable(Platform.resolvedExecutable),
     );
   }
   if (Platform.isWindows) {
-    return WindowsRunKeyAutostart(executable: Platform.resolvedExecutable);
+    return WindowsRunKeyAutostart(
+      executable: windowsAutostartExecutable(Platform.resolvedExecutable),
+    );
   }
   if (Platform.isMacOS) {
     final login = MacLoginItemAutostart();
@@ -78,6 +81,14 @@ class XdgAutostart implements Autostart {
     await entry.parent.create(recursive: true);
     await entry.writeAsString(desktopEntry(executable));
   }
+
+  @override
+  Future<void> repair() async {
+    if (!await isEnabled()) return;
+    if (await entry.readAsString() != desktopEntry(executable)) {
+      await setEnabled(true);
+    }
+  }
 }
 
 /// The Background portal registers the login launch on the host; it cannot be
@@ -90,6 +101,10 @@ class FlatpakAutostart implements Autostart {
 
   @override
   Future<bool> isEnabled() async => marker.existsSync();
+
+  // The portal registers the host's own command line, which already names `slim-m` on the PATH.
+  @override
+  Future<void> repair() async {}
 
   @override
   Future<void> setEnabled(bool on) async {
@@ -141,14 +156,33 @@ class WindowsRunKeyAutostart implements Autostart {
           '/t',
           'REG_SZ',
           '/d',
-          '"$executable" $autostartArgument',
+          commandFor(executable),
           '/f'
         ]
       : ['delete', key, '/v', valueName, '/f'];
 
+  static String commandFor(String executable) =>
+      '"$executable" $autostartArgument';
+
+  /// The registered command out of `reg query` output, or null when absent.
+  static String? registeredCommand(String queryOutput) {
+    final match =
+        RegExp(r'REG_SZ\s+(.+?)\s*$', multiLine: true).firstMatch(queryOutput);
+    return match?.group(1);
+  }
+
   @override
   Future<bool> isEnabled() async =>
       (await run('reg', ['query', key, '/v', valueName])).exitCode == 0;
+
+  @override
+  Future<void> repair() async {
+    final result = await run('reg', ['query', key, '/v', valueName]);
+    if (result.exitCode != 0) return;
+    if (registeredCommand('${result.stdout}') != commandFor(executable)) {
+      await setEnabled(true);
+    }
+  }
 
   @override
   Future<void> setEnabled(bool on) async {
@@ -174,4 +208,8 @@ class MacLoginItemAutostart implements Autostart {
   @override
   Future<void> setEnabled(bool on) =>
       _channel.invokeMethod<void>('setEnabled', on);
+
+  // SMAppService registers the bundle itself, whose path survives an update.
+  @override
+  Future<void> repair() async {}
 }

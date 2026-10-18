@@ -15,6 +15,10 @@ class _FakeAutostart implements Autostart {
 
   bool registered;
   final bool fails;
+  int repairs = 0;
+
+  @override
+  Future<void> repair() async => repairs++;
 
   @override
   Future<bool> isEnabled() async => registered;
@@ -76,4 +80,25 @@ void main() {
     await _pump(tester, null);
     expect(find.text('Start on login'), findsNothing);
   });
+
+  test('start repairs the registration through the provider', () async {
+    final fake = _FakeAutostart(registered: true);
+    final container = ProviderContainer(
+      overrides: [autostartProvider.overrideWith((ref) async => fake)],
+    );
+    addTearDown(container.dispose);
+    await repairAutostart(container);
+    expect(fake.repairs, 1);
+  });
+
+  test(
+    'a host with no login launch repairs nothing and does not throw',
+    () async {
+      final container = ProviderContainer(
+        overrides: [autostartProvider.overrideWith((ref) async => null)],
+      );
+      addTearDown(container.dispose);
+      await repairAutostart(container);
+    },
+  );
 }
