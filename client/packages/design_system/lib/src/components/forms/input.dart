@@ -185,7 +185,7 @@ class _AppInputState extends State<AppInput> {
     final hasError = (widget.errorText ?? '').isNotEmpty;
 
     return Semantics(
-      label: widget.semanticLabel,
+      label: widget.obscureText ? null : widget.semanticLabel,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +241,15 @@ class _AppInputState extends State<AppInput> {
             widget.icon!,
             const SizedBox(width: AppSpacing.s8)
           ],
-          Expanded(child: _textField(tokens, textStyle)),
+          // The reveal toggle is its own node, so the label must sit on the field itself.
+          Expanded(
+            child: widget.obscureText
+                ? Semantics(
+                    label: widget.semanticLabel,
+                    child: _textField(tokens, textStyle),
+                  )
+                : _textField(tokens, textStyle),
+          ),
           if (widget.obscureText) ...[
             const SizedBox(width: AppSpacing.s8),
             _revealToggle(),

@@ -8,6 +8,8 @@
 /// a caller combines them.
 library;
 
+import 'dart:ui' show SemanticsFlag;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +38,22 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Hide password'));
       await tester.pump();
       expect(obscured(), isTrue);
+    });
+
+    testWidgets('an obscured field keeps its label on the text field node', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(const AppInput(obscureText: true, semanticLabel: 'Password')),
+      );
+      expect(
+        find.bySemanticsLabel('Password'),
+        findsOneWidget,
+      );
+      final node = tester.getSemantics(find.bySemanticsLabel('Password'));
+      expect(node.hasFlag(SemanticsFlag.isTextField), isTrue);
+      handle.dispose();
     });
 
     testWidgets('a plain field has no reveal toggle', (tester) async {
