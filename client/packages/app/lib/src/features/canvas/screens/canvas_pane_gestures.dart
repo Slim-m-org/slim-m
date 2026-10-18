@@ -97,6 +97,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// gesture change.
   void _selectPlaced(String objectId) {
     if (!_mounted) return;
+    // Undoable like a stroke: placing is an edit, and Ctrl+Z must take it back.
+    _ops.recordDraw([objectId]);
     _document.selectedObjectId.value = objectId;
     _refresh(() => _tool = CanvasTool.pan);
   }

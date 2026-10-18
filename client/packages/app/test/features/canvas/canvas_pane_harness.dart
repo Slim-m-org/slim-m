@@ -128,7 +128,7 @@ class CanvasPaneFixture {
   final StreamController<api.ServerEvent> events =
       StreamController<api.ServerEvent>.broadcast();
 
-  final int viewportStatus;
+  int viewportStatus;
   final bool hasMore;
 
   /// The status `POST .../canvas/ops` answers with, so a test can drive the

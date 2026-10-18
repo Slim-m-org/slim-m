@@ -98,7 +98,7 @@ void main() {
     expect(_penEnabled(tester), isFalse);
   });
 
-  testWidgets('a canvas that failed to load disables the Pen button', (
+  testWidgets('a canvas that failed to load keeps the Pen button, since it retries by itself', (
     tester,
   ) async {
     final container = await _pump(tester);
@@ -106,7 +106,7 @@ void main() {
     _report(container, CanvasEngine.genericLoadError);
     await tester.pumpAndSettle();
 
-    expect(_penEnabled(tester), isFalse);
+    expect(_penEnabled(tester), isTrue);
   });
 
   testWidgets(
