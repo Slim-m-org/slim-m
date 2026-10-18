@@ -18,6 +18,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/animation_gate.dart';
+import '../providers/attachment_preview_bytes.dart';
+import 'image_decode.dart';
+
 class FullscreenImagePage extends StatefulWidget {
   const FullscreenImagePage({
     super.key,
@@ -87,6 +91,9 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
     setState(() => _dragged = 0);
   }
 
+  int _screenEdge(BuildContext context) =>
+      decodeEdge(context, MediaQuery.sizeOf(context).longestSide);
+
   Widget _maybeHero(Widget child) =>
       widget.heroTag == null ? child : Hero(tag: widget.heroTag!, child: child);
 
@@ -104,15 +111,21 @@ class _FullscreenImagePageState extends State<FullscreenImagePage> {
           transformationController: _transform,
           maxScale: _maxScale,
           child: _maybeHero(
-            Image.memory(
-              widget.bytes,
-              // The inline preview hands over to the original without a blank frame.
-              gaplessPlayback: true,
-              fit: BoxFit.contain,
-              semanticLabel: widget.filename,
-              // The inline thumbnail already tried and failed to decode these same bytes; see the viewer's own doc comment.
-              errorBuilder: (context, error, stackTrace) =>
-                  FullscreenDecodeFailure(filename: widget.filename),
+            AnimationGate(
+              child: Image.memory(
+                widget.bytes,
+                // A large animation decodes every frame, so it is capped to the screen; a still keeps its pixels for zoom.
+                cacheWidth: looksAnimated(widget.bytes)
+                    ? _screenEdge(context)
+                    : null,
+                // The inline preview hands over to the original without a blank frame.
+                gaplessPlayback: true,
+                fit: BoxFit.contain,
+                semanticLabel: widget.filename,
+                // The inline thumbnail already tried and failed to decode these same bytes; see the viewer's own doc comment.
+                errorBuilder: (context, error, stackTrace) =>
+                    FullscreenDecodeFailure(filename: widget.filename),
+              ),
             ),
           ),
         ),

@@ -71,8 +71,8 @@ mixin VoiceControllerAudioDevicesMixin on StateNotifier<VoiceState> {
   MicStatus get micStatus => _inputSession.micStatus;
   Stream<MicStatus> get micStatuses => _inputSession.micStatuses;
 
-  /// Settings' stopgap for a mic that went quiet: reopens the capture even
-  /// when the device is unchanged; see [VoiceSession.resetMicrophone].
+  /// The mic button's tap-to-retry once recovery gave up: reopens the capture
+  /// even when the device is unchanged; see [VoiceSession.resetMicrophone].
   Future<bool> resetMicrophone() async {
     final ok = await _inputSession.resetMicrophone();
     if (!ok) state = state.copyWith(error: 'Could not reset the microphone.');

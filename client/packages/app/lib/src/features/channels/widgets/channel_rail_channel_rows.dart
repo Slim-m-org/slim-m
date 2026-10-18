@@ -25,6 +25,7 @@ import 'channel_row_menu.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'rail_join_muted_glyph.dart';
 import 'rail_room_glyphs.dart';
+import 'rail_call_length.dart';
 import 'rail_voice_participants.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
 
@@ -202,9 +203,10 @@ class VoiceChannelRow extends ConsumerWidget {
   /// own press/hover highlight rather than beside it.
   final Widget? trailingExtra;
 
-  Widget? _trailing(int present) {
+  Widget? _trailing(int present, {required bool inCall}) {
     final limit = channel.userLimit ?? 0;
     final marks = [
+      if (present > 0) RailCallLength(channelId: channel.id, inCall: inCall),
       if (channel.roomLocked == true) const RailRoomLockedGlyph(),
       if (limit > 0) RailUserLimit(present: present, limit: limit),
       if (channel.joinMuted) const RailJoinMutedGlyph(),
@@ -233,7 +235,7 @@ class VoiceChannelRow extends ConsumerWidget {
         : tokens.textSecondary.withValues(alpha: 0.7);
     final override = ref.watch(
       channelNotificationOverridesProvider.select(
-        (s) => s.overrideFor(channel.id),
+        (s) => s.effectiveFor(channel),
       ),
     );
     final indicator = unreadIndicatorFor(
@@ -275,7 +277,7 @@ class VoiceChannelRow extends ConsumerWidget {
                   restricted: channel.restricted ?? false,
                   color: iconColor,
                 ),
-          trailing: _trailing(participants.length),
+          trailing: _trailing(participants.length, inCall: inCall),
           trailingExtra: trailingExtra,
           onTap: () => openVoiceChannel(
             context,

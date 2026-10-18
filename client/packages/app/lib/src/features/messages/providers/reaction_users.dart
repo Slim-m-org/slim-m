@@ -64,7 +64,7 @@ class ReactionUsersController extends StateNotifier<ReactionUsersState> {
         nextCursor: page.nextCursor,
       );
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
+      api.reportFailure(api.LogTag.ui, 'refresh who reacted', error, stack);
       if (!mounted || generation != _generation) return;
       state = ReactionUsersState(
         userIds: state.userIds,
@@ -92,7 +92,12 @@ class ReactionUsersController extends StateNotifier<ReactionUsersState> {
         nextCursor: page.nextCursor,
       );
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'load more', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'load more people who reacted',
+        error,
+        stack,
+      );
       if (!mounted || generation != _generation) return;
       state = ReactionUsersState(
         userIds: loaded,

@@ -90,10 +90,11 @@ Proven on Linux by reproducing the trap directly rather than only reasoning abou
 
 ## Suspected
 
-**Screen-share audio (2026-08-13) has a real native implementation waiting for Windows, unlike the camera-blur hook a few entries up, which genuinely has none.**
-`flutter_webrtc`'s `windows/application_loopback_capturer.cc` implements the same `LoopbackCapturer` interface (`common/cpp/include/loopback_capturer.h`) Linux's PulseAudio path does, over WASAPI's application-loopback API, and would be reached through the identical `GetDisplayMedia`/`captureScreenAudio` seam this project's `client/packages/rtc/lib/src/screen_share_audio.dart` now uses for Linux.
-`supportsScreenShareAudio` correctly excludes Windows today, for the same reason every capability in this file is excluded: there is no Windows target to enable it for, not because the underlying capture is missing the way it is on macOS, iOS and Android.
-*What would confirm or refute this*: once Windows is scaffolded, the same enumerate-then-capture-then-check-for-an-audio-track probe this file's other screen-share entry already asks for, extended to request `includeAudio: true` and check whether a real audio track is published.
+**Screen-share audio works on Windows at the OS level, and the client now offers it (2026-10-18).**
+`supportsScreenShareAudio` returns true for Windows; `flutter_webrtc`'s `windows/application_loopback_capturer.cc` captures all system audio except slim-m's own process tree, so there is no call echo.
+Verified on the win11 VM with a probe that replays the fork's WASAPI call sequence: another app's tone was captured (peak 2640), slim-m's own audio was not (peak 1), the include-own-process control was (peak 2543), and silence stayed silent.
+Needs Windows 10 2004 or newer; on older Windows the activation fails and the share is video only, with no crash (read from the fork source, not run).
+*Not yet checked*: the share dialog, the published track and a viewer hearing it, which need the client-windows-ci artifact for the branch, and the VM's own call hop to the host.
 
 **Screen share is entirely unverified on Windows, in either direction.**
 `docs/research/reference-echo-messenger.md` and CLAUDE.md's Linux findings establish real, tested behaviour for Fedora Wayland (a segfault on window enumeration, fixed by never requesting `SourceType.Window`) and a working owner-confirmed screen share on Linux in general.

@@ -38,6 +38,8 @@ extension SlimmApiTransport on SlimmApi {
     bool expectNoContent = false,
     bool isRetry = false,
     void Function(int status)? onStatus,
+    http.Client? over,
+    void Function(Map<String, String> headers)? onHeaders,
   }) async {
     final request = _buildRequest(
       method,
@@ -51,7 +53,9 @@ extension SlimmApiTransport on SlimmApi {
       request,
       '$method $path',
       deadline: bytes == null ? _requestDeadline : _transferDeadline,
+      over: over,
     );
+    onHeaders?.call(response.headers);
 
     // One automatic rotation, then replay. Only for authenticated calls, and
     // never twice for the same request.
@@ -69,6 +73,8 @@ extension SlimmApiTransport on SlimmApi {
         authenticated: authenticated,
         expectNoContent: expectNoContent,
         onStatus: onStatus,
+        over: over,
+        onHeaders: onHeaders,
         isRetry: true,
       );
     }
@@ -190,10 +196,11 @@ extension SlimmApiTransport on SlimmApi {
     http.Request request,
     String label, {
     required Duration deadline,
+    http.Client? over,
   }) async {
     try {
       // Chained, never `Future(() async { ... })`; see the note on this method.
-      return await _http
+      return await (over ?? _http)
           .send(request)
           .then(http.Response.fromStream)
           .timeout(deadline);
@@ -255,7 +262,7 @@ extension SlimmApiTransport on SlimmApi {
     } catch (error, stack) {
       AppLog.swallowed(
           LogTag.net,
-          'A non-JSON body is not itself an error worth surfacing; the status is',
+          'The error response was not JSON; using the HTTP status instead',
           error,
           stack);
     }

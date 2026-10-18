@@ -14,7 +14,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'call_mini_player.dart';
-import 'voice_controller.dart';
+import 'video_interest_relay.dart';
 import 'voice_flags.dart';
 
 /// The platform seam, overridable in tests.
@@ -38,6 +38,12 @@ final pictureInPictureEligibleProvider = Provider<bool>((ref) {
   return connected && ref.watch(miniPlayerFeedProvider) != null;
 });
 
+/// The tile key the floating window's feed is subscribed under.
+String pictureInPictureTileKey(MiniPlayerFeed feed) => videoSubscriptionKey(
+  identity: feed.identity,
+  screenShare: feed.kind == FeedKind.screenShare,
+);
+
 /// What the floating window shows: the feed, only while it is floating and
 /// still eligible, so a call ending underneath it puts the app back.
 final pictureInPictureFeedProvider = Provider<MiniPlayerFeed?>((ref) {
@@ -46,46 +52,9 @@ final pictureInPictureFeedProvider = Provider<MiniPlayerFeed?>((ref) {
   return ref.watch(miniPlayerFeedProvider);
 });
 
-/// Forwards declared video interest to the call, unless a hold or a pause is in force.
-///
-/// The canvas declares which tiles are on screen and the rest get
-/// unsubscribed. Floating a call from the canvas would otherwise cull the very
-/// track the window shows, so the hold declares no opinion, which keeps every
-/// track, and the last real declaration is restored when the hold ends.
-class VideoInterestRelay {
-  VideoInterestRelay(this._apply);
-
-  final void Function(Set<String>?) _apply;
-  Set<String>? _declared;
-  bool _held = false;
-
-  void declare(Set<String>? tileKeys) {
-    _declared = tileKeys;
-    _reconcile();
-  }
-
-  void hold(bool held) {
-    if (_held == held) return;
-    _held = held;
-    _reconcile();
-  }
-
-  void _reconcile() => _apply(_held ? null : _declared);
-}
-
-final videoInterestRelayProvider = Provider<VideoInterestRelay>((ref) {
-  // The canvas declares null from its own dispose, which can run after the container is gone.
-  var disposed = false;
-  ref.onDispose(() => disposed = true);
-  return VideoInterestRelay((keys) {
-    if (disposed) return;
-    ref.read(voiceControllerProvider.notifier).setVideoInterest(keys);
-  });
-});
-
 /// Mounted by watching it from the app chrome: tells the platform when
-/// floating is allowed, mirrors the window's state, and holds video interest
-/// for as long as the window shows the feed.
+/// floating is allowed, mirrors the window's state, and narrows video interest
+/// to the feed for as long as the window shows it.
 final pictureInPictureHostProvider = Provider<void>((ref) {
   final channel = ref.watch(pictureInPictureChannelProvider);
 
@@ -99,6 +68,8 @@ final pictureInPictureHostProvider = Provider<void>((ref) {
   ref.onDispose(modes.cancel);
 
   ref.listen<MiniPlayerFeed?>(pictureInPictureFeedProvider, (_, feed) {
-    ref.read(videoInterestRelayProvider).hold(feed != null);
+    ref
+        .read(videoInterestRelayProvider)
+        .hold(feed == null ? null : {pictureInPictureTileKey(feed)});
   });
 });

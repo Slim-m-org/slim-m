@@ -20,8 +20,6 @@
 /// worse than a missing one. Everything else here acts.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -98,53 +96,25 @@ class VoiceStripIndicator extends ConsumerWidget {
 }
 
 /// The press surface, named for a screen reader as one button that carries the
-/// channel and the clock the visible text shows.
-class _ReturnToCall extends ConsumerStatefulWidget {
+/// channel; the ticking clock stays out of the label so nothing rebuilds per
+/// second.
+class _ReturnToCall extends ConsumerWidget {
   const _ReturnToCall({required this.voice, required this.onPressed});
 
   final VoiceState voice;
   final VoidCallback onPressed;
 
   @override
-  ConsumerState<_ReturnToCall> createState() => _ReturnToCallState();
-}
-
-class _ReturnToCallState extends ConsumerState<_ReturnToCall> {
-  Timer? _tick;
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && widget.voice.connectedAt != null) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final id = widget.voice.channelId;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = voice.channelId;
     final name =
         (id == null
             ? null
             : ref.watch(channelByIdProvider(id)).valueOrNull?.name) ??
         'In a call';
-    final since = widget.voice.connectedAt;
-    final clock = since == null
-        ? null
-        : formatCallClock(
-            DateTime.now().difference(since).isNegative
-                ? Duration.zero
-                : DateTime.now().difference(since),
-          );
     return CallStripPressArea(
-      semanticLabel: ['Return to call', name, ?clock].join(', '),
-      onPressed: widget.onPressed,
+      semanticLabel: 'Return to call, $name',
+      onPressed: onPressed,
     );
   }
 }

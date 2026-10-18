@@ -20,8 +20,18 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show Channel;
 
 import '../../../providers/providers.dart';
+
+/// What [channel] gives members with no choice of their own, or null when it
+/// sets no default (`everything` is the same as none).
+api.NotificationPreference? channelDefaultOf(Channel channel) {
+  final level = api.NotificationPreference.parse(
+    channel.defaultNotification ?? 'everything',
+  );
+  return level == api.NotificationPreference.everything ? null : level;
+}
 
 class ChannelNotificationOverridesState {
   const ChannelNotificationOverridesState({
@@ -48,6 +58,12 @@ class ChannelNotificationOverridesState {
   /// an override is never actually stored at that value.
   api.NotificationPreference? overrideFor(String channelId) =>
       byChannel[channelId];
+
+  /// What [channel] shows and sounds as: this account's own choice for it, else
+  /// the channel's default. The account-wide preference stays out, for the
+  /// reason `unreadIndicatorFor` gives.
+  api.NotificationPreference? effectiveFor(Channel channel) =>
+      byChannel[channel.id] ?? channelDefaultOf(channel);
 
   /// Whether [channelId] is muted entirely, the one state the rail's glyph
   /// renders for.
@@ -139,7 +155,12 @@ class ChannelNotificationOverridesController
         settled: true,
       );
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refresh', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'refresh channel notification settings',
+        error,
+        stack,
+      );
       if (!mounted || generation != _generation) return;
       final message = error is api.ApiException ? error.message : '$error';
       state = ChannelNotificationOverridesState(

@@ -44,8 +44,8 @@ void main() {
 
     expect(find.text('Troubleshooting'), findsNWidgets(2));
     expect(find.text('Debug log'), findsOneWidget);
-    expect(find.text('Copy all'), findsOneWidget);
-    expect(find.text('Clear'), findsOneWidget);
+    expect(find.byTooltip('Copy all'), findsOneWidget);
+    expect(find.byTooltip('Clear'), findsOneWidget);
     expect(find.text('Device check'), findsNothing);
 
     await tester.tap(find.byTooltip('Back to troubleshooting'));
@@ -87,7 +87,7 @@ void main() {
     );
     final container = await _open(tester);
 
-    await tester.tap(find.text('Copy all'));
+    await tester.tap(find.byTooltip('Copy all'));
     await tester.pumpAndSettle();
 
     expect(copied, allOf(contains('overflowed'), contains('reconnected')));
@@ -102,7 +102,7 @@ void main() {
   ) async {
     await _open(tester);
 
-    await tester.tap(find.text('Clear'));
+    await tester.tap(find.byTooltip('Clear'));
     await tester.pumpAndSettle();
 
     expect(find.text('Nothing has gone wrong this session'), findsOneWidget);

@@ -37,7 +37,12 @@ class AccountStore {
         activeOrigin: json['active'] as String?,
       );
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'load failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.auth,
+        'Could not read the saved account list; starting with none',
+        error,
+        stack,
+      );
       return const AccountIndex();
     }
   }
@@ -93,7 +98,12 @@ class AccountStore {
       return legacySession == null ||
           await _keys.read(account.sessionHandle) == legacySession;
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'landed failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.auth,
+        'Could not confirm the saved sign-in was stored',
+        error,
+        stack,
+      );
       return false;
     }
   }

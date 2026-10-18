@@ -12,9 +12,12 @@ import 'package:flutter/widgets.dart';
 /// shrink-wrapped thread builds every row, so mounted does not mean seen.
 /// Starts running so the first frame always loads, then settles after layout.
 class ViewportFreeze extends StatefulWidget {
-  const ViewportFreeze({super.key, required this.child});
+  const ViewportFreeze({super.key, required this.child, this.onVisibility});
 
   final Widget child;
+
+  /// Told the verdict after every layout check, the first one included.
+  final ValueChanged<bool>? onVisibility;
 
   @override
   State<ViewportFreeze> createState() => _ViewportFreezeState();
@@ -60,6 +63,7 @@ class _ViewportFreezeState extends State<ViewportFreeze> {
     _checkQueued = false;
     if (!mounted) return;
     final visible = _inViewport();
+    widget.onVisibility?.call(visible);
     if (visible != _visible) setState(() => _visible = visible);
   }
 

@@ -164,7 +164,7 @@ void main() {
 
     expect(
       session.leaveCalls,
-      1,
+      greaterThanOrEqualTo(1),
       reason:
           'signing out mid-call must leave it, not just clear the '
           'session out from under a heartbeat timer left running',

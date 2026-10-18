@@ -18,11 +18,8 @@ import '../../../../permissions.dart';
 import '../../../../providers/providers.dart';
 import '../../../../providers/toasts.dart';
 import '../../../../routing/routes.dart';
-import '../../../members/widgets/invite_landing_section.dart';
-import '../../widgets/join_gate_section.dart';
 import '../../widgets/join_policy_row.dart';
 import '../../widgets/totp_policy_row.dart';
-import '../../widgets/welcome_section.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_entity_row.dart';
@@ -74,9 +71,6 @@ class InvitesPane extends ConsumerWidget {
             title: 'Joining',
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
-          JoinGateSection(),
-          WelcomeSection(),
-          InviteLandingSection(),
         ],
         if (canInvite) ...const [_CreateInviteCard(), _InviteList()],
       ],
@@ -179,7 +173,7 @@ class _CreateInviteCardState extends ConsumerState<_CreateInviteCard> {
         _roleGrant = null;
       });
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'create the invite', e, stack);
       if (!mounted) return;
       setState(() => _error = describeApiFailure('create the invite', e));
     } finally {

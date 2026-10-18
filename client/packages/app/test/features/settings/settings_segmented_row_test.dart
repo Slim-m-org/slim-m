@@ -103,20 +103,10 @@ void main() {
   });
 
   test('only a problem reads as a warning banner', () {
+    expect(notificationBannerStyle(PushStatus.registered).warn, isFalse);
     expect(
-      notificationBannerStyle(PushStatus.registered, localOnly: false).warn,
-      isFalse,
-    );
-    expect(
-      notificationBannerStyle(
-        PushStatus.unsupportedPlatform,
-        localOnly: false,
-      ).warn,
+      notificationBannerStyle(PushStatus.unsupportedPlatform).warn,
       isTrue,
-    );
-    expect(
-      notificationBannerStyle(PushStatus.unsupportedPlatform, localOnly: true),
-      (warn: false, bell: true),
     );
   });
 }

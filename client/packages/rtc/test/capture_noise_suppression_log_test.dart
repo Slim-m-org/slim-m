@@ -5,6 +5,7 @@ library;
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
 
 void main() {
@@ -14,7 +15,7 @@ void main() {
         restart: ({required webrtcNoiseSuppression}) async {},
         canRestart: () => true,
         onNativeStrongChanged: () {},
-        log: lines.add,
+        log: (m, {level = LogLevel.info}) => lines.add(m),
       );
 
   void readings(CaptureNoiseSuppression c, int count, {required bool active}) {
@@ -30,9 +31,9 @@ void main() {
       readings(c, kStrongInactivePolls * 2, active: false);
       async.elapse(kCaptureRestartDebounce * 2);
 
-      expect(lines.first, 'voice: Strong noise suppression on');
-      expect(lines.where((l) => l.contains('not running')), hasLength(1));
-      expect(lines.last, contains('standard suppression'));
+      expect(lines.first, 'Strong noise suppression turned on');
+      expect(lines.where((l) => l.contains('cannot run')), hasLength(1));
+      expect(lines.last, contains('using standard'));
     });
   });
 
@@ -45,9 +46,9 @@ void main() {
       c.setStrong(true);
       readings(c, kStrongActivePolls, active: true);
 
-      expect(
-          lines.where((l) => l.endsWith('running on this mic')), hasLength(2));
-      expect(lines, contains('voice: Strong noise suppression off'));
+      expect(lines.where((l) => l.endsWith('is running on this microphone')),
+          hasLength(2));
+      expect(lines, contains('Strong noise suppression turned off'));
     });
   });
 }

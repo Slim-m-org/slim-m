@@ -36,6 +36,19 @@ abstract interface class DirectRoute {
 
   /// Opens the event socket over the same route.
   WebSocketChannel connectWebSocket(Uri url);
+
+  /// Forgets a back-off after a failed attempt, so the next request tries the
+  /// advertised address again. For work worth a few hundred milliseconds of
+  /// probing, such as the start of a large upload.
+  void retryNow();
+
+  /// Whether the server advertised an address a connection test can pin to.
+  bool get hasAddresses;
+
+  /// A client that stays on one route and never falls back: the advertised
+  /// address when [direct], the public hostname otherwise. Null when [direct]
+  /// is asked for and there is no address. The caller closes it.
+  http.Client? pinnedClient({required bool direct});
 }
 
 /// The `host:port` entries a client may dial: an IP literal in a private or
@@ -78,7 +91,11 @@ List<int>? _bytes(List<int> Function(String) parse, String host) {
   try {
     return parse(host);
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.net, 'bytes failed, ignored', error, stack);
+    AppLog.swallowed(
+        LogTag.net,
+        'The direct route address is malformed; using the normal route',
+        error,
+        stack);
     return null;
   }
 }

@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/members/providers/activity_feeds.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/spotify/spotify_client.dart';
 import 'package:slimm_app/src/spotify/spotify_link.dart';
+import 'package:slimm_app/src/spotify/spotify_source.dart';
 import 'package:slimm_app/src/spotify/spotify_link_status.dart';
 
 import 'spotify_rig.dart';
@@ -324,11 +325,11 @@ void main() {
         );
     rig.token = () =>
         http.Response(jsonEncode({'error': 'invalid_grant'}), 400);
-    await rig.container
-        .read(spotifySourceProvider)
-        .watch()
-        .first
-        .timeout(const Duration(seconds: 2), onTimeout: () => null);
+    await SpotifyNowPlayingSource(
+      client: rig.container.read(spotifyClientProvider),
+      store: rig.container.read(spotifyTokenStoreProvider),
+      onRevoked: () => rig.container.read(spotifyLinkerProvider).revoked(),
+    ).watch().first.timeout(const Duration(seconds: 2), onTimeout: () => null);
     await rig.settle();
 
     expect(rig.container.read(shareSpotifyProvider), isFalse);

@@ -156,4 +156,27 @@ void main() {
       reason: 'leaving push-to-talk returns to an open mic, Discord-style',
     );
   });
+
+  test(
+    'push-to-talk keeps the capture ready, and leaving it lets go',
+    () async {
+      final session = FakeSession();
+      final controller = harness.controllerWith(session, voiceApi());
+
+      controller.setPushToTalkPreference(true);
+      expect(session.lastKeepMicReady, isTrue);
+
+      controller.setPushToTalkPreference(false);
+      expect(session.lastKeepMicReady, isFalse);
+    },
+  );
+
+  test('a phone going to the background tells the session', () {
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+
+    controller.setAppBackgrounded(true);
+
+    expect(session.lastAppBackgrounded, isTrue);
+  });
 }

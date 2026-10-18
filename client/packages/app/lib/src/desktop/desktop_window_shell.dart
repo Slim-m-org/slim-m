@@ -20,7 +20,6 @@ import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../diagnostics/debug_log.dart';
 import '../features/accounts/providers/account_providers.dart';
 import '../providers/providers.dart';
 import 'close_behavior.dart';
@@ -100,7 +99,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'flushing geometry on quit failed',
+        'Could not save the window position on quit',
         error: error,
         stack: stack,
       );
@@ -112,10 +111,6 @@ class DesktopWindowShell {
   static DesktopTrayController? _trayController;
   static bool _active = false;
   static bool _framelessApplied = false;
-
-  /// Windows hides the native title bar for the splash only; the handoff
-  /// brings it back, since the real window keeps its native frame there.
-  static bool _splashTitleBarHidden = false;
 
   static DesktopPlatform? _debugPlatform;
 
@@ -150,7 +145,6 @@ class DesktopWindowShell {
     _trayController = null;
     _active = false;
     _framelessApplied = false;
-    _splashTitleBarHidden = false;
     _debugPlatform = null;
     _handoffTargetSize = null;
     _handoffFillsDisplay = false;
@@ -178,8 +172,8 @@ class DesktopWindowShell {
   /// existing widget test's tree in a `Column` it never had before.
   static bool get active => _active;
 
-  /// True only once the native frame has actually been hidden - on Linux,
-  /// set by [lockSplashChrome], right after the splash's own first frame is
+  /// True only once the native frame has actually been hidden - on Linux and
+  /// Windows, set by [lockSplashChrome], right after the splash's own first frame is
   /// confirmed rasterized, so the splash reads as frameless for all but that
   /// first instant. Stays true (or false, on a failure) for the rest of the
   /// run: nothing resets it back at handoff, since the splash and the ready
@@ -223,7 +217,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'initial splash geometry failed',
+        'Could not place the startup splash window',
         error: error,
         stack: stack,
       );
@@ -237,7 +231,7 @@ class DesktopWindowShell {
   }
 
   /// Locks the splash's chrome once the window is actually visible:
-  /// resizing off everywhere, and on Linux the native title bar hidden in
+  /// resizing off everywhere, and on Linux and Windows the native title bar hidden in
   /// favor of the frameless bar `DesktopChrome` draws once the app is
   /// ready. `main.dart` calls this once, right after the first frame is
   /// confirmed rasterized (`WidgetsBinding.waitUntilFirstFrameRasterized`).
@@ -259,7 +253,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash chrome lock failed',
+        'Could not lock the startup splash window frame',
         error: error,
         stack: stack,
       );
@@ -269,12 +263,9 @@ class DesktopWindowShell {
   static Future<void> _lockSplashChrome() async {
     await _port.setResizable(false);
     switch (_debugPlatform ?? currentDesktopPlatform()) {
-      case DesktopPlatform.linux:
+      case DesktopPlatform.linux || DesktopPlatform.windows:
         await _port.hideTitleBar();
         _framelessApplied = true;
-      case DesktopPlatform.windows:
-        await _port.hideTitleBar();
-        _splashTitleBarHidden = true;
       case DesktopPlatform.macOS || null:
         break;
     }
@@ -311,7 +302,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash handoff geometry failed',
+        'Could not restore the window size and position after startup',
         error: error,
         stack: stack,
       );
@@ -323,10 +314,6 @@ class DesktopWindowShell {
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
     await _port.hide();
-    if (_splashTitleBarHidden) {
-      await _port.showTitleBar();
-      _splashTitleBarHidden = false;
-    }
 
     final prefs = await container.read(preferencesProvider.future);
     final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;
@@ -418,7 +405,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'splash handoff reveal failed',
+        'Could not show the main window after startup',
         error: error,
         stack: stack,
       );
@@ -428,7 +415,7 @@ class DesktopWindowShell {
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
-        'post-reveal frame wait failed',
+        'The first frame took too long to appear after the window opened',
         error: error,
         stack: stack,
       );
@@ -471,7 +458,12 @@ class DesktopWindowShell {
       await _port.show();
       await _port.restore();
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'raise failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.platform,
+        'Could not bring the window to the front',
+        error,
+        stack,
+      );
     }
   }
 
@@ -496,13 +488,12 @@ class DesktopWindowShell {
     try {
       await _bringUpWindowAndTray(container, platform).timeout(_setupTimeout);
     } catch (error, stack) {
-      container
-          .read(debugLogProvider.notifier)
-          .record(
-            'desktop',
-            'window shell setup failed: $error',
-            detail: stack,
-          );
+      AppLog.warning(
+        LogTag.platform,
+        'Could not set up the window and tray',
+        error: error,
+        stack: stack,
+      );
     }
   }
 

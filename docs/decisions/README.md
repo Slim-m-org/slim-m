@@ -79,3 +79,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0067](0067-module-install-consent.md) | Module install consent | accepted |
 | [0068](0068-multiple-servers-in-one-app.md) | One app, several servers, switched from the top left | accepted |
 | [0069](0069-bot-prefix-assignment.md) | The server assigns each bot a prefix and refuses a command clash | accepted |
+| [0070](0070-space-scoped-settings.md) | Settings that follow the Space | accepted |

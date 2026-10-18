@@ -148,7 +148,7 @@ class PushController extends StateNotifier<PushStatus>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.push,
-        'fcm token refresh stream failed, ignored',
+        'Could not listen for push token changes',
         error,
         stack,
       );
@@ -252,7 +252,7 @@ class PushController extends StateNotifier<PushStatus>
       case ApnsRegistrationFailed(:final reason):
         AppLog.warning(
           LogTag.push,
-          'device registration failed',
+          'Could not register this device for push notifications',
           context: {'platform': 'ios', 'reason': reason},
         );
         state = PushStatus.registrationFailed;
@@ -285,7 +285,7 @@ class PushController extends StateNotifier<PushStatus>
       case FcmRegistrationFailed(:final reason):
         AppLog.warning(
           LogTag.push,
-          'device registration failed',
+          'Could not register this device for push notifications',
           context: {'platform': 'android', 'reason': reason},
         );
         state = PushStatus.registrationFailed;
@@ -310,7 +310,7 @@ class PushController extends StateNotifier<PushStatus>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.push,
-        'request android permission failed, ignored',
+        'Could not ask for the notification permission',
         error,
         stack,
       );
@@ -383,7 +383,12 @@ class PushController extends StateNotifier<PushStatus>
       state = PushStatus.registered;
       unawaited(_reportLifecycle(_currentLabel()));
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'register this device for push', error, stack);
+      reportFailure(
+        LogTag.push,
+        'register this device for push notifications',
+        error,
+        stack,
+      );
       state = PushStatus.serverError;
     }
   }
@@ -392,6 +397,8 @@ class PushController extends StateNotifier<PushStatus>
   /// background (a call ring, a silent push) is never resumed, and its
   /// `inactive` or missing state must not read as a visible app.
   bool _hasBeenResumed = false;
+
+  String? _lastReportedLabel;
 
   String _currentLabel() => _stateLabel(WidgetsBinding.instance.lifecycleState);
 
@@ -424,7 +431,8 @@ class PushController extends StateNotifier<PushStatus>
       unawaited(register());
     }
     final label = _stateLabel(state);
-    if (_isRegisteredWithServer) {
+    // An alt-tab flips focus without changing the label; the heartbeat keeps a foreground report fresh.
+    if (_isRegisteredWithServer && label != _lastReportedLabel) {
       unawaited(_reportLifecycle(label));
     }
   }
@@ -450,7 +458,7 @@ class PushController extends StateNotifier<PushStatus>
     } catch (error, stack) {
       reportFailure(
         LogTag.push,
-        'unregister this device from push',
+        'unregister this device from push notifications',
         error,
         stack,
       );
@@ -466,7 +474,7 @@ class PushController extends StateNotifier<PushStatus>
       } catch (error, stack) {
         AppLog.swallowed(
           LogTag.push,
-          'unregister failed, ignored',
+          'Could not delete the saved push key',
           error,
           stack,
         );
@@ -506,8 +514,14 @@ class PushController extends StateNotifier<PushStatus>
     }
     try {
       await _ref.read(apiProvider).reportPushLifecycle(state: lifecycleLabel);
+      _lastReportedLabel = lifecycleLabel;
     } catch (error, stack) {
-      reportFailure(LogTag.push, 'report the app lifecycle', error, stack);
+      reportFailure(
+        LogTag.push,
+        'tell the server whether the app is in the foreground',
+        error,
+        stack,
+      );
       // A dropped lifecycle ping just leaves the server's guess briefly
       // stale; never a reason to surface an error to the user.
     }

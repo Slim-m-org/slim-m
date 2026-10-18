@@ -107,7 +107,7 @@ class _MemberProfileNoteFieldState
       _original = trimmed;
       _container.invalidate(userNoteProvider(subjectId));
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'persist', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the note', e, stack);
       _container.read(memberModerationErrorProvider.notifier).state =
           describeApiFailure('save your note', e);
     }

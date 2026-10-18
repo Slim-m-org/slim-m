@@ -126,6 +126,12 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("join_muted" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _defaultNotificationMeta =
+      const VerificationMeta('defaultNotification');
+  @override
+  late final GeneratedColumn<String> defaultNotification =
+      GeneratedColumn<String>('default_notification', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createsRoomsMeta =
       const VerificationMeta('createsRooms');
   @override
@@ -184,6 +190,7 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
         categoryId,
         slowModeSeconds,
         joinMuted,
+        defaultNotification,
         createsRooms,
         userLimit,
         roomOwnerId,
@@ -291,6 +298,12 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
       context.handle(_joinMutedMeta,
           joinMuted.isAcceptableOrUnknown(data['join_muted']!, _joinMutedMeta));
     }
+    if (data.containsKey('default_notification')) {
+      context.handle(
+          _defaultNotificationMeta,
+          defaultNotification.isAcceptableOrUnknown(
+              data['default_notification']!, _defaultNotificationMeta));
+    }
     if (data.containsKey('creates_rooms')) {
       context.handle(
           _createsRoomsMeta,
@@ -362,6 +375,8 @@ class $ChannelsTable extends Channels with TableInfo<$ChannelsTable, Channel> {
           .read(DriftSqlType.int, data['${effectivePrefix}slow_mode_seconds'])!,
       joinMuted: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}join_muted'])!,
+      defaultNotification: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}default_notification']),
       createsRooms: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}creates_rooms']),
       userLimit: attachedDatabase.typeMapping
@@ -471,6 +486,11 @@ class Channel extends DataClass implements Insertable<Channel> {
   /// off. False for every existing row until the next channel refresh.
   final bool joinMuted;
 
+  /// `channels.default_notification`: what a member with no choice of their
+  /// own gets here. Null reads as 'everything', as for every row until the
+  /// next channel refresh.
+  final String? defaultNotification;
+
   /// Temporary voice rooms (decision 0065), nullable so an existing row and
   /// a row built in code read as "not a lobby, no limit, not a room".
   final bool? createsRooms;
@@ -501,6 +521,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       this.categoryId,
       required this.slowModeSeconds,
       required this.joinMuted,
+      this.defaultNotification,
       this.createsRooms,
       this.userLimit,
       this.roomOwnerId,
@@ -538,6 +559,9 @@ class Channel extends DataClass implements Insertable<Channel> {
     }
     map['slow_mode_seconds'] = Variable<int>(slowModeSeconds);
     map['join_muted'] = Variable<bool>(joinMuted);
+    if (!nullToAbsent || defaultNotification != null) {
+      map['default_notification'] = Variable<String>(defaultNotification);
+    }
     if (!nullToAbsent || createsRooms != null) {
       map['creates_rooms'] = Variable<bool>(createsRooms);
     }
@@ -586,6 +610,9 @@ class Channel extends DataClass implements Insertable<Channel> {
           : Value(categoryId),
       slowModeSeconds: Value(slowModeSeconds),
       joinMuted: Value(joinMuted),
+      defaultNotification: defaultNotification == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultNotification),
       createsRooms: createsRooms == null && nullToAbsent
           ? const Value.absent()
           : Value(createsRooms),
@@ -625,6 +652,8 @@ class Channel extends DataClass implements Insertable<Channel> {
       categoryId: serializer.fromJson<String?>(json['categoryId']),
       slowModeSeconds: serializer.fromJson<int>(json['slowModeSeconds']),
       joinMuted: serializer.fromJson<bool>(json['joinMuted']),
+      defaultNotification:
+          serializer.fromJson<String?>(json['defaultNotification']),
       createsRooms: serializer.fromJson<bool?>(json['createsRooms']),
       userLimit: serializer.fromJson<int?>(json['userLimit']),
       roomOwnerId: serializer.fromJson<String?>(json['roomOwnerId']),
@@ -653,6 +682,7 @@ class Channel extends DataClass implements Insertable<Channel> {
       'categoryId': serializer.toJson<String?>(categoryId),
       'slowModeSeconds': serializer.toJson<int>(slowModeSeconds),
       'joinMuted': serializer.toJson<bool>(joinMuted),
+      'defaultNotification': serializer.toJson<String?>(defaultNotification),
       'createsRooms': serializer.toJson<bool?>(createsRooms),
       'userLimit': serializer.toJson<int?>(userLimit),
       'roomOwnerId': serializer.toJson<String?>(roomOwnerId),
@@ -679,6 +709,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           Value<String?> categoryId = const Value.absent(),
           int? slowModeSeconds,
           bool? joinMuted,
+          Value<String?> defaultNotification = const Value.absent(),
           Value<bool?> createsRooms = const Value.absent(),
           Value<int?> userLimit = const Value.absent(),
           Value<String?> roomOwnerId = const Value.absent(),
@@ -707,6 +738,9 @@ class Channel extends DataClass implements Insertable<Channel> {
         categoryId: categoryId.present ? categoryId.value : this.categoryId,
         slowModeSeconds: slowModeSeconds ?? this.slowModeSeconds,
         joinMuted: joinMuted ?? this.joinMuted,
+        defaultNotification: defaultNotification.present
+            ? defaultNotification.value
+            : this.defaultNotification,
         createsRooms:
             createsRooms.present ? createsRooms.value : this.createsRooms,
         userLimit: userLimit.present ? userLimit.value : this.userLimit,
@@ -747,6 +781,9 @@ class Channel extends DataClass implements Insertable<Channel> {
           ? data.slowModeSeconds.value
           : this.slowModeSeconds,
       joinMuted: data.joinMuted.present ? data.joinMuted.value : this.joinMuted,
+      defaultNotification: data.defaultNotification.present
+          ? data.defaultNotification.value
+          : this.defaultNotification,
       createsRooms: data.createsRooms.present
           ? data.createsRooms.value
           : this.createsRooms,
@@ -780,6 +817,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           ..write('categoryId: $categoryId, ')
           ..write('slowModeSeconds: $slowModeSeconds, ')
           ..write('joinMuted: $joinMuted, ')
+          ..write('defaultNotification: $defaultNotification, ')
           ..write('createsRooms: $createsRooms, ')
           ..write('userLimit: $userLimit, ')
           ..write('roomOwnerId: $roomOwnerId, ')
@@ -808,6 +846,7 @@ class Channel extends DataClass implements Insertable<Channel> {
         categoryId,
         slowModeSeconds,
         joinMuted,
+        defaultNotification,
         createsRooms,
         userLimit,
         roomOwnerId,
@@ -835,6 +874,7 @@ class Channel extends DataClass implements Insertable<Channel> {
           other.categoryId == this.categoryId &&
           other.slowModeSeconds == this.slowModeSeconds &&
           other.joinMuted == this.joinMuted &&
+          other.defaultNotification == this.defaultNotification &&
           other.createsRooms == this.createsRooms &&
           other.userLimit == this.userLimit &&
           other.roomOwnerId == this.roomOwnerId &&
@@ -860,6 +900,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
   final Value<String?> categoryId;
   final Value<int> slowModeSeconds;
   final Value<bool> joinMuted;
+  final Value<String?> defaultNotification;
   final Value<bool?> createsRooms;
   final Value<int?> userLimit;
   final Value<String?> roomOwnerId;
@@ -884,6 +925,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.categoryId = const Value.absent(),
     this.slowModeSeconds = const Value.absent(),
     this.joinMuted = const Value.absent(),
+    this.defaultNotification = const Value.absent(),
     this.createsRooms = const Value.absent(),
     this.userLimit = const Value.absent(),
     this.roomOwnerId = const Value.absent(),
@@ -909,6 +951,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     this.categoryId = const Value.absent(),
     this.slowModeSeconds = const Value.absent(),
     this.joinMuted = const Value.absent(),
+    this.defaultNotification = const Value.absent(),
     this.createsRooms = const Value.absent(),
     this.userLimit = const Value.absent(),
     this.roomOwnerId = const Value.absent(),
@@ -937,6 +980,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     Expression<String>? categoryId,
     Expression<int>? slowModeSeconds,
     Expression<bool>? joinMuted,
+    Expression<String>? defaultNotification,
     Expression<bool>? createsRooms,
     Expression<int>? userLimit,
     Expression<String>? roomOwnerId,
@@ -962,6 +1006,8 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       if (categoryId != null) 'category_id': categoryId,
       if (slowModeSeconds != null) 'slow_mode_seconds': slowModeSeconds,
       if (joinMuted != null) 'join_muted': joinMuted,
+      if (defaultNotification != null)
+        'default_notification': defaultNotification,
       if (createsRooms != null) 'creates_rooms': createsRooms,
       if (userLimit != null) 'user_limit': userLimit,
       if (roomOwnerId != null) 'room_owner_id': roomOwnerId,
@@ -989,6 +1035,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       Value<String?>? categoryId,
       Value<int>? slowModeSeconds,
       Value<bool>? joinMuted,
+      Value<String?>? defaultNotification,
       Value<bool?>? createsRooms,
       Value<int?>? userLimit,
       Value<String?>? roomOwnerId,
@@ -1013,6 +1060,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
       categoryId: categoryId ?? this.categoryId,
       slowModeSeconds: slowModeSeconds ?? this.slowModeSeconds,
       joinMuted: joinMuted ?? this.joinMuted,
+      defaultNotification: defaultNotification ?? this.defaultNotification,
       createsRooms: createsRooms ?? this.createsRooms,
       userLimit: userLimit ?? this.userLimit,
       roomOwnerId: roomOwnerId ?? this.roomOwnerId,
@@ -1076,6 +1124,9 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
     if (joinMuted.present) {
       map['join_muted'] = Variable<bool>(joinMuted.value);
     }
+    if (defaultNotification.present) {
+      map['default_notification'] = Variable<String>(defaultNotification.value);
+    }
     if (createsRooms.present) {
       map['creates_rooms'] = Variable<bool>(createsRooms.value);
     }
@@ -1117,6 +1168,7 @@ class ChannelsCompanion extends UpdateCompanion<Channel> {
           ..write('categoryId: $categoryId, ')
           ..write('slowModeSeconds: $slowModeSeconds, ')
           ..write('joinMuted: $joinMuted, ')
+          ..write('defaultNotification: $defaultNotification, ')
           ..write('createsRooms: $createsRooms, ')
           ..write('userLimit: $userLimit, ')
           ..write('roomOwnerId: $roomOwnerId, ')
@@ -2936,6 +2988,7 @@ typedef $$ChannelsTableCreateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> categoryId,
   Value<int> slowModeSeconds,
   Value<bool> joinMuted,
+  Value<String?> defaultNotification,
   Value<bool?> createsRooms,
   Value<int?> userLimit,
   Value<String?> roomOwnerId,
@@ -2961,6 +3014,7 @@ typedef $$ChannelsTableUpdateCompanionBuilder = ChannelsCompanion Function({
   Value<String?> categoryId,
   Value<int> slowModeSeconds,
   Value<bool> joinMuted,
+  Value<String?> defaultNotification,
   Value<bool?> createsRooms,
   Value<int?> userLimit,
   Value<String?> roomOwnerId,
@@ -3033,6 +3087,10 @@ class $$ChannelsTableFilterComposer
 
   ColumnFilters<bool> get joinMuted => $composableBuilder(
       column: $table.joinMuted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get defaultNotification => $composableBuilder(
+      column: $table.defaultNotification,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get createsRooms => $composableBuilder(
       column: $table.createsRooms, builder: (column) => ColumnFilters(column));
@@ -3116,6 +3174,10 @@ class $$ChannelsTableOrderingComposer
   ColumnOrderings<bool> get joinMuted => $composableBuilder(
       column: $table.joinMuted, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get defaultNotification => $composableBuilder(
+      column: $table.defaultNotification,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get createsRooms => $composableBuilder(
       column: $table.createsRooms,
       builder: (column) => ColumnOrderings(column));
@@ -3193,6 +3255,9 @@ class $$ChannelsTableAnnotationComposer
   GeneratedColumn<bool> get joinMuted =>
       $composableBuilder(column: $table.joinMuted, builder: (column) => column);
 
+  GeneratedColumn<String> get defaultNotification => $composableBuilder(
+      column: $table.defaultNotification, builder: (column) => column);
+
   GeneratedColumn<bool> get createsRooms => $composableBuilder(
       column: $table.createsRooms, builder: (column) => column);
 
@@ -3249,6 +3314,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> categoryId = const Value.absent(),
             Value<int> slowModeSeconds = const Value.absent(),
             Value<bool> joinMuted = const Value.absent(),
+            Value<String?> defaultNotification = const Value.absent(),
             Value<bool?> createsRooms = const Value.absent(),
             Value<int?> userLimit = const Value.absent(),
             Value<String?> roomOwnerId = const Value.absent(),
@@ -3274,6 +3340,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             categoryId: categoryId,
             slowModeSeconds: slowModeSeconds,
             joinMuted: joinMuted,
+            defaultNotification: defaultNotification,
             createsRooms: createsRooms,
             userLimit: userLimit,
             roomOwnerId: roomOwnerId,
@@ -3299,6 +3366,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             Value<String?> categoryId = const Value.absent(),
             Value<int> slowModeSeconds = const Value.absent(),
             Value<bool> joinMuted = const Value.absent(),
+            Value<String?> defaultNotification = const Value.absent(),
             Value<bool?> createsRooms = const Value.absent(),
             Value<int?> userLimit = const Value.absent(),
             Value<String?> roomOwnerId = const Value.absent(),
@@ -3324,6 +3392,7 @@ class $$ChannelsTableTableManager extends RootTableManager<
             categoryId: categoryId,
             slowModeSeconds: slowModeSeconds,
             joinMuted: joinMuted,
+            defaultNotification: defaultNotification,
             createsRooms: createsRooms,
             userLimit: userLimit,
             roomOwnerId: roomOwnerId,

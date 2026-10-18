@@ -104,7 +104,7 @@ extension SyncControllerCatchUp on SyncController {
         }
         AppLog.debug(
           LogTag.sync,
-          'sync chunk failed, retrying',
+          'A sync request failed; retrying',
           error: error,
           stack: stack,
           context: {'attempt': attempt + 1},

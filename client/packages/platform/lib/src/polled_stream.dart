@@ -42,10 +42,10 @@ Stream<T?> polledStream<T>({
     try {
       current = await reading;
     } on PollSkip catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'poll failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform, 'A poll was skipped', error, stack);
       return;
     } on Object catch (error, stack) {
-      reportFailure(LogTag.platform, 'poll', error, stack);
+      reportFailure(LogTag.platform, 'poll for changes', error, stack);
       current = null;
     } finally {
       inFlight = null;
@@ -66,8 +66,11 @@ Stream<T?> polledStream<T>({
       try {
         await inFlight?.timeout(cancelGrace);
       } on Object catch (error, stack) {
-        AppLog.swallowed(LogTag.platform,
-            'The read\'s outcome no longer matters to anyone', error, stack);
+        AppLog.swallowed(
+            LogTag.platform,
+            'A cancelled poll did not finish in time; ignoring it',
+            error,
+            stack);
       }
       await onCancel?.call();
     },

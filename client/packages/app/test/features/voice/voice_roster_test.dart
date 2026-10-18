@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
@@ -24,6 +25,9 @@ const _tokens = api.TokenPair(
   refreshToken: 'refresh',
   accessExpiresAt: 4102444800000,
 );
+
+final _focus = StateProvider<bool>((ref) => true);
+final _socketLive = StateProvider<bool>((ref) => false);
 
 ProviderContainer _containerWith(
   http.Client httpClient, {
@@ -38,6 +42,10 @@ ProviderContainer _containerWith(
   final container = ProviderContainer(
     overrides: [
       apiProvider.overrideWithValue(apiClient),
+      appFocusedProvider.overrideWith((ref) => ref.watch(_focus)),
+      voiceRosterSocketLiveProvider.overrideWith(
+        (ref) => ref.watch(_socketLive),
+      ),
       if (liveEvents != null) liveEventsProvider.overrideWithValue(liveEvents),
     ],
   );
@@ -277,9 +285,7 @@ void main() {
       async.flushMicrotasks();
 
       // One tick short of the threshold: still ordinary "not known yet" loading, never an error.
-      async.elapse(
-        voiceRosterPollInterval * (persistentRosterFailureThreshold - 2),
-      );
+      async.elapse(voiceRosterPollInterval);
       expect(
         container.read(voiceRosterProvider('general')).hasError,
         isFalse,
@@ -298,9 +304,7 @@ void main() {
       final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
       async.flushMicrotasks();
 
-      async.elapse(
-        voiceRosterPollInterval * (persistentRosterFailureThreshold - 1),
-      );
+      async.elapse(const Duration(seconds: 45));
       final state = container.read(voiceRosterProvider('general'));
       expect(
         state.hasError,
@@ -335,12 +339,10 @@ void main() {
       );
       final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
       async.flushMicrotasks();
-      async.elapse(
-        voiceRosterPollInterval * (persistentRosterFailureThreshold - 1),
-      );
+      async.elapse(const Duration(seconds: 45));
       expect(container.read(voiceRosterProvider('general')).hasError, isTrue);
 
-      async.elapse(voiceRosterPollInterval);
+      async.elapse(const Duration(seconds: 60));
       final state = container.read(voiceRosterProvider('general'));
       expect(state.hasError, isFalse);
       expect(state.value?.single.displayName, 'Alice');
@@ -370,6 +372,72 @@ void main() {
         calls,
         1,
         reason: 'this provider only cares about its own channel id',
+      );
+      sub.close();
+    });
+  });
+
+  test('a hidden window stops polling and refetches once on focus', () {
+    fakeAsync((async) {
+      var calls = 0;
+      final container = _containerWith(
+        MockClient((_) async {
+          calls++;
+          return _roster(const []);
+        }),
+      );
+      final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
+      async.flushMicrotasks();
+      expect(calls, 1);
+
+      container.read(_focus.notifier).state = false;
+      async.flushMicrotasks();
+      async.elapse(const Duration(hours: 1));
+      expect(calls, 1, reason: 'a window in the tray must not poll');
+
+      container.read(_focus.notifier).state = true;
+      async.elapse(const Duration(milliseconds: 1));
+      expect(calls, 2, reason: 'one refresh on focus');
+      async.elapse(voiceRosterPollInterval);
+      expect(calls, 3, reason: 'and the poll resumes');
+      sub.close();
+    });
+  });
+
+  test('a live socket slows the poll to the backstop interval', () {
+    fakeAsync((async) {
+      var calls = 0;
+      final container = _containerWith(
+        MockClient((_) async {
+          calls++;
+          return _roster(const []);
+        }),
+      );
+      container.read(_socketLive.notifier).state = true;
+      final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
+      async.flushMicrotasks();
+      async.elapse(const Duration(minutes: 5));
+      expect(calls, 1 + 5, reason: 'one a minute, not one every 15 seconds');
+      sub.close();
+    });
+  });
+
+  test('failures back off exponentially up to the cap', () {
+    fakeAsync((async) {
+      var calls = 0;
+      final container = _containerWith(
+        MockClient((_) async {
+          calls++;
+          return http.Response('{"error":"busy"}', 503);
+        }),
+      );
+      final sub = container.listen(voiceRosterProvider('general'), (_, __) {});
+      async.flushMicrotasks();
+      async.elapse(const Duration(minutes: 10));
+      expect(calls, lessThan(10), reason: 'a flat 15 seconds would be 41');
+      expect(
+        voiceRosterDelay(live: false, failures: 20),
+        voiceRosterMaxBackoff,
       );
       sub.close();
     });

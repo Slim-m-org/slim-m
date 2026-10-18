@@ -49,7 +49,7 @@ class CanvasCameraMemory {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'An unreadable store just means every canvas opens at the origin, as before',
+        'Could not read saved canvas positions; canvases open at the origin',
         error,
         stack,
       );
@@ -75,7 +75,7 @@ class CanvasCameraMemory {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
-        'Best effort: this session still remembers it in memory',
+        'Could not save the canvas position; it is kept for this session only',
         error,
         stack,
       );

@@ -5,12 +5,17 @@ Both halves are measured: bob's own probe must hear alice drop to silence and
 return, and alice's must keep hearing bob throughout, because deafen is local
 playback and independent of muting.
 """
+import time
+
 import e2e_audio_levels as lv
 import e2e_audio
 import e2e_voice_ui as ui
 from e2e_voice import join_call
 
 MEASURE_SECONDS = 3
+FLOWING_BYTES = 2000
+STOPPED_BYTES = 400
+RESUME_TIMEOUT = 10.0
 HEARD_ABOVE_DB = -45.0
 SILENT_BELOW_DB = lv.SILENCE_DB
 
@@ -18,6 +23,19 @@ SILENT_BELOW_DB = lv.SILENCE_DB
 def _heard(probe, stream):
     series = probe.measure(stream, MEASURE_SECONDS)
     return (e2e_audio.speech_level(series, 1), lv.applied_gain_db(series))
+
+
+def _click_until_bytes_flow(client, probe):
+    """The wall-clock cost of undeafening: click to the first new audio bytes."""
+    client.wait_for("Undeafen")
+    before = probe.inbound()[0]
+    started = time.monotonic()
+    client.click("Undeafen", settle=0)
+    while time.monotonic() - started < RESUME_TIMEOUT:
+        if probe.inbound()[0] - before > 200:
+            return (time.monotonic() - started) * 1000
+        time.sleep(0.02)
+    raise AssertionError("no audio arrived after undeafening")
 
 
 def deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
@@ -38,7 +56,15 @@ def _deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
         print(f"  bob hears alice at {level:.1f} dB before deafening")
         assert level > HEARD_ABOVE_DB, f"bob never heard alice: {level}"
 
+        flowing = b_hears.received_over(MEASURE_SECONDS)
+        print(f"  bob receives {flowing} audio bytes in {MEASURE_SECONDS} s before deafening")
+        assert flowing > FLOWING_BYTES, f"no inbound audio to measure against: {flowing}"
+
         b.click("Deafen", settle=2)
+        received = b_hears.received_over(MEASURE_SECONDS)
+        print(f"  deafened: {received} audio bytes arrive in {MEASURE_SECONDS} s")
+        assert received < STOPPED_BYTES, \
+            f"the server still forwards audio to a deafened bob: {received} bytes"
         level, _ = _heard(b_hears, from_alice)
         still, _ = _heard(a_hears, from_bob)
         print(f"  deafened: bob hears {level:.1f} dB, alice still hears bob at {still:.1f} dB")
@@ -46,7 +72,8 @@ def _deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
         assert still > HEARD_ABOVE_DB, \
             f"deafening bob also silenced his microphone: alice hears {still:.1f} dB"
 
-        b.click("Undeafen", settle=2)
+        resume_ms = _click_until_bytes_flow(b, b_hears)
+        print(f"  undeafened: inbound audio is back {resume_ms:.0f} ms after the click")
         level, _ = _heard(b_hears, from_alice)
         print(f"  undeafened: bob hears alice at {level:.1f} dB again")
         assert level > HEARD_ABOVE_DB, f"bob heard nothing after undeafening: {level}"

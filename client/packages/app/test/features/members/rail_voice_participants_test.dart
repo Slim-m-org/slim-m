@@ -19,7 +19,12 @@ import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_voice_participants.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
+import 'package:slimm_app/src/features/voice/widgets/participant_call_menu.dart';
 import '../../support/fake_api.dart';
+import '../../support/menu_gestures.dart';
+import '../voice/voice_controller_harness.dart' show FakeSession;
 
 const _bob = VoiceParticipant(
   identity: 'user-bob',
@@ -64,6 +69,9 @@ Future<void> _pump(
         membersProvider.overrideWith((ref) async => [_bobProfile]),
         myPermissionsProvider.overrideWithValue(permissions),
         liveEventsProvider.overrideWithValue(const Stream.empty()),
+        voiceControllerProvider.overrideWith(
+          (ref) => VoiceController(ref, session: FakeSession()),
+        ),
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
@@ -156,5 +164,87 @@ void main() {
     // The e2e harness matches a node's label by substring, as here.
     expect(find.bySemanticsLabel(RegExp('Bob, speaking')), findsOneWidget);
     semantics.dispose();
+  });
+
+  const quickActions = [
+    'Volume...',
+    'Mute for me',
+    'Message',
+    'View profile',
+    'Moderate...',
+  ];
+
+  List<String> openLabels(WidgetTester tester) => [
+    for (final item in tester.widgetList<AppMenuItem>(find.byType(AppMenuItem)))
+      item.label,
+  ];
+
+  for (final (how, open) in <(String, Future<void> Function(WidgetTester))>[
+    ('right-click', (t) => rightClickMenu(t, find.text('Bob'))),
+    ('long-press', (t) => longPressMenu(t, find.text('Bob'))),
+  ]) {
+    testWidgets('a rail row offers the lounge actions on $how', (tester) async {
+      await _pump(tester, permissions: Perm.kickMembers);
+      await open(tester);
+      expect(openLabels(tester), quickActions);
+    });
+  }
+
+  testWidgets('the context-menu key opens the rail row menu', (tester) async {
+    await _pump(tester, permissions: Perm.kickMembers);
+    await keyboardMenu(tester);
+    expect(openLabels(tester), quickActions);
+  });
+
+  testWidgets('the rail menu and the lounge tile menu list the same items', (
+    tester,
+  ) async {
+    await _pump(tester, permissions: Perm.kickMembers);
+    await rightClickMenu(tester, find.text('Bob'));
+    final rail = openLabels(tester);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          mockApiOverride((_) async => http.Response('{}', 404)),
+          membersProvider.overrideWith((ref) async => [_bobProfile]),
+          myPermissionsProvider.overrideWithValue(Perm.kickMembers),
+          voiceControllerProvider.overrideWith(
+            (ref) => VoiceController(ref, session: FakeSession()),
+          ),
+        ],
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: Scaffold(
+            body: Center(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  ref.watch(membersProvider);
+                  return CallParticipantTile(
+                    participant: _bob,
+                    contextMenuItemsBuilder: (menuContext, close) =>
+                        participantCallMenuItems(
+                          menuContext,
+                          ref,
+                          participant: _bob,
+                          close: close,
+                        ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await ProviderScope.containerOf(
+      tester.element(find.byType(CallParticipantTile)),
+    ).read(membersProvider.future);
+    await rightClickMenu(tester, find.byType(CallParticipantTile));
+    expect(openLabels(tester), rail);
   });
 }

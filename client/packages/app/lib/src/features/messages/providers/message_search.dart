@@ -133,13 +133,13 @@ Future<MessageSearchResult> _runSearch(
   } on api.ForbiddenException catch (error, stack) {
     api.AppLog.swallowed(
       api.LogTag.ui,
-      'run search failed, ignored',
+      'The server could not search; showing no results',
       error,
       stack,
     );
     return const MessageSearchForbidden();
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'run search', error, stack);
+    api.reportFailure(api.LogTag.ui, 'search messages', error, stack);
     return const MessageSearchFailed();
   }
 }

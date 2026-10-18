@@ -101,6 +101,28 @@ void main() {
     await settle(tester);
   });
 
+  testWidgets('an unfocused app stops refreshing the speed readout', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await tester.tap(find.text('save'));
+    await settle(tester);
+    await feed(tester, 5);
+    final live = tester.widget<Text>(find.textContaining('MB/s')).data;
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    clock.now = clock.now.add(const Duration(seconds: 30));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.widget<Text>(find.textContaining('/s')).data, live);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.widget<Text>(find.textContaining('/s')).data, isNot(live));
+
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+  });
+
   testWidgets('a download carries on, and stays on screen, when the widget '
       'that started it goes away (a channel switch)', (tester) async {
     final channel = await pumpApp(tester);

@@ -32,8 +32,8 @@ class AppLockWindowChannel {
     try {
       await _channel.invokeMethod<void>('setPrivacyShield', enabled);
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'Nothing to degrade to; see the class doc',
-          error, stack);
+      AppLog.swallowed(LogTag.auth,
+          'Could not hide the window contents for the app lock', error, stack);
     }
   }
 }

@@ -249,7 +249,10 @@ class _AppButtonState extends State<AppButton> {
           : null,
       // The label and icon are purely visual: without this their own semantics
       // merge with the explicit label below into a doubled "Save\nSave".
-      child: ExcludeSemantics(child: _content(metrics, look)),
+      // A label inside a SelectionArea would otherwise win the pointer with the text cursor.
+      child: SelectionContainer.disabled(
+        child: ExcludeSemantics(child: _content(metrics, look)),
+      ),
     );
   }
 

@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../providers/toasts.dart';
 import '../../settings/widgets/connections_section.dart' show discordLabel;
 import '../providers/user_linked_accounts.dart';
+import 'linked_account_picture.dart';
 
 class MemberProfileLinks extends ConsumerWidget {
   const MemberProfileLinks({super.key, required this.userId});
@@ -45,7 +46,16 @@ class MemberProfileLinks extends ConsumerWidget {
             child: Row(
               spacing: AppSpacing.s8,
               children: [
-                Icon(AppIcons.link, size: 14, color: tokens.textSecondary),
+                LinkedAccountPicture(
+                  userId: userId,
+                  account: discord,
+                  size: AppAvatarSize.s20,
+                  fallback: Icon(
+                    AppIcons.link,
+                    size: 14,
+                    color: tokens.textSecondary,
+                  ),
+                ),
                 Flexible(
                   child: Text(
                     'Discord · ${discordLabel(discord)}',

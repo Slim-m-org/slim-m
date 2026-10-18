@@ -82,7 +82,8 @@ Each keeps its router, so returning to a server lands where the person left it.
 
 ## What is global and what is per account
 
-Global, shared by every container because they live in `SharedPreferences` and are re-read when a container is activated: theme, density, motion, UI scale, rail width, app lock, and the other `restorablePreferences`, plus voice device preferences.
+Global, shared by every container because they live in `SharedPreferences` and are re-read when a container is activated: UI scale, motion, rail width, app lock, and voice device preferences.
+Theme, density, sounds and the other message and notification preferences became per Space in [0070](0070-space-scoped-settings.md).
 
 Per account, because the data is keyed by server-issued ids or lives in the account's database: drafts, read state, the channel list, per-channel notification settings, the notification schedule, blocks, and everything fetched from the server.
 UUIDv7 ids do not collide across servers, so id-keyed preferences are already safe.

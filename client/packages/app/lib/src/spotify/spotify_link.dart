@@ -43,13 +43,41 @@ final spotifyClientProvider = Provider<SpotifyClient>((ref) {
   );
 });
 
-final spotifySourceProvider = Provider<NowPlayingSource>(
-  (ref) => SpotifyNowPlayingSource(
-    client: ref.read(spotifyClientProvider),
-    store: ref.read(spotifyTokenStoreProvider),
-    onRevoked: () => ref.read(spotifyLinkerProvider).revoked(),
-  ),
-);
+/// One Spotify poll for the whole process, since the link is the person's, not
+/// an account's. It reads through the oldest live container and moves to the
+/// next when that one goes; a revoked grant is told to every container.
+final _spotifyOwners = <Ref>[];
+
+final _spotifyShared = SharedStream<NowPlaying>(() {
+  if (_spotifyOwners.isEmpty) return const Stream<NowPlaying?>.empty();
+  final owner = _spotifyOwners.first;
+  return SpotifyNowPlayingSource(
+    client: owner.read(spotifyClientProvider),
+    store: owner.read(spotifyTokenStoreProvider),
+    onRevoked: () async {
+      for (final each in _spotifyOwners.toList()) {
+        await each.read(spotifyLinkerProvider).revoked();
+      }
+    },
+  ).watch();
+});
+
+final spotifySourceProvider = Provider<NowPlayingSource>((ref) {
+  _spotifyOwners.add(ref);
+  ref.onDispose(() {
+    final wasOwner = _spotifyOwners.first == ref;
+    _spotifyOwners.remove(ref);
+    if (wasOwner) unawaited(_spotifyShared.reopen());
+  });
+  return const _SharedSpotifySource();
+});
+
+class _SharedSpotifySource implements NowPlayingSource {
+  const _SharedSpotifySource();
+
+  @override
+  Stream<NowPlaying?> watch() => _spotifyShared.stream;
+}
 
 /// Opens Spotify's consent page, in the Spotify app when it claims the link.
 /// Overridden in tests.
@@ -123,7 +151,7 @@ class SpotifyLinker {
     try {
       return await _ref.read(spotifyLauncherProvider)(uri);
     } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.ui, 'launch failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.ui, 'Could not open Spotify', error, stack);
       return false;
     }
   }
@@ -181,16 +209,21 @@ class SpotifyLinker {
       await _ref.read(shareSpotifyProvider.notifier).markLinked();
       return true;
     } on SpotifyAuthException catch (e, stack) {
-      reportFailure(LogTag.ui, 'complete', e, stack);
+      reportFailure(LogTag.ui, 'link Spotify', e, stack);
       _fail('Spotify did not link: ${e.message}.');
     } on TimeoutException catch (error, stack) {
-      AppLog.swallowed(LogTag.ui, 'complete failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.ui,
+        'Spotify took too long to answer',
+        error,
+        stack,
+      );
       _fail('Spotify took too long to answer. Try again.');
     } on http.ClientException catch (error, stack) {
-      reportFailure(LogTag.ui, 'complete', error, stack);
+      reportFailure(LogTag.ui, 'link Spotify', error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'complete', error, stack);
+      reportFailure(LogTag.ui, 'link Spotify', error, stack);
       _fail('Spotify sent a reply this app could not read. Try again.');
     }
     return false;
@@ -200,7 +233,7 @@ class SpotifyLinker {
     try {
       return await client.profileName(token).timeout(_exchangeTimeout);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'profile name', error, stack);
+      reportFailure(LogTag.ui, 'read the Spotify profile name', error, stack);
       return null;
     }
   }

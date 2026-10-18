@@ -1192,6 +1192,46 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /users/{userId}/links/discord/avatar:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getLinkedDiscordAvatar
+      tags: [users]
+      summary: Fetch the picture stored for a member's linked Discord account.
+      description: >
+        The server copied the picture when the account was linked, so no
+        viewer's device contacts Discord. 404 when the member has no linked
+        Discord account or it had no custom picture.
+      responses:
+        "200":
+          description: The picture's raw bytes, served as the type sniffed from them.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /users/{userId}/note:
     parameters:
       - name: userId
@@ -4182,6 +4222,12 @@ paths:
         and the original's content type, so a caller must read the response
         `Content-Type` rather than assume the preview's. A value that is not a
         non-negative integer answers 400.
+
+
+        `original=true` asks for the file as it was uploaded, kept beside the
+        compressed copy when the space keeps originals (`original` on the
+        attachment). It is always a download and answers 404 when no original
+        was kept. It takes precedence over `w`.
       parameters:
         - name: w
           in: query
@@ -4189,6 +4235,14 @@ paths:
           description: Preview width in pixels; see the operation description.
           schema:
             type: integer
+        - name: original
+          in: query
+          required: false
+          description: >-
+            `true` for the uploaded original instead of the stored copy; see
+            the operation description.
+          schema:
+            type: boolean
         - name: Range
           in: header
           required: false
@@ -5717,6 +5771,92 @@ paths:
                 $ref: "#/components/schemas/DirectRoute"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/ping:
+    get:
+      operationId: diagnosticsPing
+      tags: [system]
+      summary: Answer at once, for the connection test's latency.
+      description: >
+        The connection test times several of these and takes the median. The
+        answer is tiny on purpose, so the time is the path, not the work.
+        Rate limited per account.
+      responses:
+        "200":
+          description: The server's clock.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsPing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/download:
+    get:
+      operationId: diagnosticsDownload
+      tags: [system]
+      summary: Send throwaway bytes, for the connection test's download speed.
+      description: >
+        Streams `bytes` of incompressible filler as `application/octet-stream`
+        with `Cache-Control: no-store`. `bytes` is 1 to 26214400 (25 MiB) and
+        defaults to 1 MiB; a value outside that range is refused with 400, never
+        trimmed. Touches neither disk nor database. Rate limited per account,
+        far tighter than ordinary reads.
+      parameters:
+        - name: bytes
+          in: query
+          required: false
+          description: How many bytes to send.
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Exactly `bytes` bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /diagnostics/upload:
+    post:
+      operationId: diagnosticsUpload
+      tags: [system]
+      summary: Take and discard bytes, for the connection test's upload speed.
+      description: >
+        Reads the body to the end and throws it away. The body may be at most
+        26214400 bytes (25 MiB): a larger declared `Content-Length` is refused
+        with 413 before any of it is read, and an undeclared body is cut off with
+        413 once it passes the cap. `duration_ms` is how long the server spent
+        reading, which a proxy that buffers the whole request first will make
+        look shorter than the sender's own timing. Rate limited per account,
+        far tighter than ordinary writes.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: What was received.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsUpload"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /push/quiet-hours:
@@ -8568,6 +8708,76 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/media-compression:
+    get:
+      operationId: getSpaceMediaCompression
+      tags: [space]
+      summary: Read the photo compression settings.
+      description: >
+        Gated on MANAGE_SERVER. Compression is off until an admin turns it
+        on, and the other fields only apply while it is on. An upload whose
+        content (sniffed, never its name) is one of the listed photo types is
+        stored as a smaller upright JPEG, or as an optimised PNG when it is a
+        screenshot or has transparency. Animated pictures, video and every
+        other type are stored as sent. `extensions` is the list in force, the
+        defaults when none were chosen.
+      responses:
+        "200":
+          description: The current settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMediaCompression"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    patch:
+      operationId: updateSpaceMediaCompression
+      tags: [space]
+      summary: Change the photo compression settings.
+      description: >
+        Every field is optional and a missing one stays as it is. Extensions
+        are matched without case and may carry a leading dot; one no
+        supported format uses is refused with 400, and an empty list restores
+        the defaults. `metadata` is `keep`, `remove_location` or
+        `remove_all`; the picture is always stored upright. Applies to the
+        next upload; files already stored are kept as they are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                extensions:
+                  type: array
+                  items:
+                    type: string
+                metadata:
+                  type: string
+                  enum: [keep, remove_location, remove_all]
+                keep_original:
+                  type: boolean
+      responses:
+        "200":
+          description: The settings after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMediaCompression"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/screen-share:
     get:
       operationId: getSpaceScreenShareCap
@@ -10757,6 +10967,13 @@ components:
         linked_at:
           type: integer
           format: int64
+        avatar_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: >
+            When the server stored the account's picture; absent or null when
+            it has none. Fetch it from `getLinkedDiscordAvatar`, using this as
+            the cache key.
     SpaceStorage:
       type: object
       required:
@@ -10852,6 +11069,39 @@ components:
         server_max_bytes:
           type: integer
           description: The operator's ceiling, which max_bytes may not exceed.
+    SpaceMediaCompression:
+      type: object
+      required:
+        - enabled
+        - extensions
+        - default_extensions
+        - supported_extensions
+        - metadata
+        - keep_original
+      properties:
+        enabled:
+          type: boolean
+        extensions:
+          type: array
+          items:
+            type: string
+        default_extensions:
+          type: array
+          items:
+            type: string
+        supported_extensions:
+          type: array
+          description: Every extension a list may name.
+          items:
+            type: string
+        metadata:
+          type: string
+          enum: [keep, remove_location, remove_all]
+        keep_original:
+          type: boolean
+          description: >-
+            Keep the uploaded file beside the compressed copy, offered as a
+            download.
     CreateUploadSession:
       type: object
       required: [size]
@@ -12817,6 +13067,14 @@ components:
             SPEAK overwrites are what restrict who may speak. Set with
             `updateChannel` or at `createChannel`. Absent on servers older
             than this field, which a client must treat as false.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            What members with no choice of their own for this channel get.
+            A member's own choice wins, and a default can only narrow their
+            account preference. Absent on older servers, which a client must
+            treat as `everything`.
         creates_rooms:
           type: boolean
           description: >
@@ -12963,6 +13221,12 @@ components:
           description: >
             True creates a voice channel whose joins start with the mic off.
             Absent or false leaves the default off. Refused on a text channel.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            The notification level members get here until they choose their
+            own. Absent means `everything`.
 
     UpdateChannelRequest:
       type: object
@@ -12993,6 +13257,12 @@ components:
           description: >
             Sets the join-muted default. Absent leaves it unchanged. `true` is
             refused on a text channel.
+        default_notification:
+          type: string
+          enum: [everything, mentions, nothing]
+          description: >
+            Sets the default notification level. Absent leaves it unchanged;
+            members' own choices are never rewritten.
         creates_rooms:
           type: boolean
           description: >
@@ -14000,6 +14270,19 @@ components:
           description: >-
             Shown behind a spoiler on this message. A property of the message
             carrying the bytes, not of the bytes; omitted when false.
+        original:
+          type: object
+          description: >-
+            The uploaded original kept beside this copy, fetched with
+            `getAttachment`'s `original=true`; omitted when none was kept.
+          required: [size, filename]
+          properties:
+            size:
+              type: integer
+              format: int64
+            filename:
+              type: string
+              description: The name it was uploaded under.
 
     GifResult:
       type: object
@@ -14740,6 +15023,28 @@ components:
             type: string
           description: >-
             `host:port` entries; empty when the operator has not set any.
+
+    DiagnosticsPing:
+      type: object
+      required: [server_time_ms]
+      properties:
+        server_time_ms:
+          type: integer
+          format: int64
+          description: The server clock in Unix milliseconds.
+
+    DiagnosticsUpload:
+      type: object
+      required: [bytes, duration_ms]
+      properties:
+        bytes:
+          type: integer
+          format: int64
+          description: How many bytes arrived.
+        duration_ms:
+          type: integer
+          format: int64
+          description: Milliseconds the server spent reading the body.
 
     QuietHoursResponse:
       type: object

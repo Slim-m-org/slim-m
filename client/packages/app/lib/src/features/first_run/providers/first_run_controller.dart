@@ -19,9 +19,15 @@ final firstRunClockProvider = Provider<DateTime Function()>(
   (ref) => DateTime.now,
 );
 
-typedef FirstRunState = ({bool active, bool replay, bool voiceHint});
+/// [offered] is whether setup is still owed on this device, for the home to offer it.
+typedef FirstRunState = ({
+  bool active,
+  bool replay,
+  bool voiceHint,
+  bool offered,
+});
 
-const _idle = (active: false, replay: false, voiceHint: false);
+const _idle = (active: false, replay: false, voiceHint: false, offered: false);
 
 class FirstRunController extends StateNotifier<FirstRunState> {
   FirstRunController(this._ref) : super(_idle) {
@@ -39,33 +45,58 @@ class FirstRunController extends StateNotifier<FirstRunState> {
       final store = await _ref.read(storeProvider.future);
       final space = _space = '${_ref.read(chosenServerProvider)}';
       final account = _account = me.id;
+      final done = prefs.getBool(firstRunDoneKey(space, account)) ?? false;
+      final wrote = await hasMessageFrom(store, account);
       final due = firstRunDue(
-        done: prefs.getBool(firstRunDoneKey(space, account)) ?? false,
+        done: done,
         accountCreatedAtMs: me.createdAt,
-        hasOwnMessages: await hasMessageFrom(store, account),
+        hasOwnMessages: wrote,
         now: _ref.read(firstRunClockProvider)(),
       );
       if (!mounted) return;
       final hint = prefs.getBool(firstRunVoiceHintKey(space, account)) ?? false;
-      state = (active: due, replay: false, voiceHint: hint && !due);
+      state = (
+        active: due,
+        replay: false,
+        voiceHint: hint && !due,
+        offered: !done && !wrote,
+      );
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Never the reason the shell fails to open; a missed welcome costs little',
+        'Could not check whether to show the welcome screen; skipping it',
         error,
         stack,
       );
     }
   }
 
-  /// Opens setup again from Settings or the empty pane, whatever was saved.
-  void replay() => state = (active: true, replay: true, voiceHint: false);
+  /// Opens setup for the first time, so finishing or skipping it is remembered.
+  void start() => state = (
+    active: true,
+    replay: false,
+    voiceHint: false,
+    offered: state.offered,
+  );
+
+  /// Opens setup again from Settings, whatever was saved.
+  void replay() => state = (
+    active: true,
+    replay: true,
+    voiceHint: false,
+    offered: state.offered,
+  );
 
   /// Closes the flow for good. [voiceHint] arms the hint; a replay writes nothing.
   Future<void> complete({bool voiceHint = false}) async {
     final replay = state.replay;
     final hint = voiceHint && !replay;
-    state = (active: false, replay: false, voiceHint: hint);
+    state = (
+      active: false,
+      replay: false,
+      voiceHint: hint,
+      offered: replay && state.offered,
+    );
     if (replay) return;
     final space = _space;
     final account = _account;
@@ -76,7 +107,12 @@ class FirstRunController extends StateNotifier<FirstRunState> {
   }
 
   Future<void> dismissVoiceHint() async {
-    state = (active: state.active, replay: state.replay, voiceHint: false);
+    state = (
+      active: state.active,
+      replay: state.replay,
+      voiceHint: false,
+      offered: state.offered,
+    );
     final space = _space;
     final account = _account;
     if (space == null || account == null) return;

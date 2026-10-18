@@ -19,8 +19,8 @@ The meter is the loudest 10 ms frame since the app last asked, so it is the same
 An earlier meter fell 1.5 dB a frame from its last peak, which kept the bar over the line for up to 160 ms after a single keyboard click that the gate had already ignored.
 The settings bar fills in the accent colour while the gate is open and in a neutral one while it is closed, because the hold keeps the gate open for 300 ms after the bar drops below the line.
 With Strong on, the gate also reads rnnoise's speech probability: it opens at once when speech is likely (above 0.6) and the level is over the threshold, otherwise only after the level stays 15 dB over the threshold for two frames, so a single keyboard click does not open it; the hold drops to 100 ms when speech is unlikely.
-The app reads both through `getInputGate` about every 50 ms during a call (`InputGateMonitor` in `slimm_rtc`).
-The local speaking ring follows that voice state directly; remote rings still come from the SFU.
+The app reads both through `getInputGate` (`InputGateMonitor` in `slimm_rtc`), every 50 ms while a meter is on screen and every second otherwise (see Resource use).
+While it reads at the display rate the local speaking ring follows that voice state directly; otherwise it follows the SFU like the remote rings.
 
 ## Settings
 
@@ -62,7 +62,7 @@ It used about 0.05% of one core.
 libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and room noise through.
 "Strong" runs rnnoise 0.2 (xiph, BSD-3-Clause, vendored in the fork under `third_party/rnnoise`) first in the capture chain, so the gate and its meter see the cleaned signal.
 It works on 480-sample frames, one 10 ms frame at 48 kHz, so a capture at any other rate (8, 16, 32 or 44.1 kHz, as Bluetooth hands-free headsets deliver) is resampled to 48 kHz for it and back, which costs well under 3 ms of delay; mono and stereo are both handled.
-The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s (40 polls), the settings row shows "Strong isn't running on this mic.", and hides it after 10 active polls in a row. Since the plugin resamples, that now points at a plugin or device problem rather than the sample rate, and the debug log records it.
+The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s of polls (whatever the rate), the settings row shows "Strong isn't running on this mic.", and hides it after 0.5 s of active polls in a row. Since the plugin resamples, that now points at a plugin or device problem rather than the sample rate, and the debug log records it.
 While Strong is active the mic is opened with libwebrtc's own noise suppression off, because rnnoise alone measured better than the two in series (docs/research/mic-handling.md, P4).
 If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted or on push-to-talk.
 
@@ -103,3 +103,41 @@ Measured on 2026-10-13 against `livekit-server` 1.10.1 with LiveKit's Python SDK
 
 The last row is what `docker-compose.voice.yml` ships.
 Clearing that fast would flicker between words, so the client keeps a ring lit for 300 ms after the SFU drops it (`SpeakingHold` in `slimm_rtc`); the local ring on a host with the input gate already has the gate's own hold and skips this.
+
+## Level outside a call
+
+Owner, 2026-10-18: the setup step and Voice settings said "Join a voice channel to see your level here", and a Reset microphone row asked the user to repair a mic by hand.
+libwebrtc only runs its audio processing (and so the gate and its meter) while a track is being sent, so a plain `getUserMedia` track has no level to read.
+`LoopbackMicSource` in `slimm_rtc` therefore sends the track to a second peer connection in the same process and mutes what arrives, so nothing plays.
+On Linux and Windows the level is `getInputGate`, the same post-suppression reading a call shows; elsewhere it is the sender's `media-source` `audioLevel`, which is not gated or run through rnnoise.
+`MicPreviewController` opens it while a screen holds it (`MicPreviewHold`, which lets go when a route covers the screen), a call is not connecting or connected, and the app is focused, and closes it the moment any of those stops.
+Changing the microphone picker restarts the preview on the new device.
+This path has been unit and widget tested against fakes; it has not been run on real hardware.
+
+## Dead-mic recovery
+
+There is no Reset microphone row.
+A lost track, an unplugged chosen microphone, a new system default (when the capture follows the default) and a capture that reads digital silence for 10 s while unmuted each reopen the capture with a backoff (`MicRecovery`, `SilentMicWatchdog`).
+Hosts without the gate read the sender's own level once a second for the silence check, counting only exact zero as silence.
+Only when recovery gives up does the mic button say "Microphone unavailable, tap to retry", through the existing inline call surface.
+
+## Resource use
+
+Owner, 2026-10-18: "make sure we arent loading those mic indicators and meters when they are not in focus or not needed".
+Everything that samples, captures or animates for a level runs only while something on screen needs it and the app is focused; a call keeps only the reads its safety nets need.
+The shared signal is `levelDisplayHoldsProvider` (a count of mounted meters, from `LevelDisplayHold` and `MicPreviewHold`, which ignore a covered route via `TickerMode`) together with `appLifecycleProvider` being `resumed`.
+`listenLevelDisplayed` listens to those two notifiers directly and tells the session `setLevelDisplayed`.
+It must not go through a derived `Provider`: those refresh on a frame, and frames stop while a window is hidden, so a derived "focused" flag kept the old value exactly when the window was minimised.
+
+| Loop | Runs when | Before | After |
+| --- | --- | --- | --- |
+| Out-of-call preview capture, loopback peers and `getInputGate` poll (`MicPreview`) | a screen holds it, its route is shown, no call is connecting or connected, app resumed | 50 ms; also kept running under a covered route and, minimised, until the next frame | 50 ms; closed (OS mic indicator off) on blur, minimise, background, a covered route, a call, or leaving the screen |
+| In-call gate poll, a meter mounted and shown | dock level bar (mic on), Voice settings meter, setup meter, app resumed | 50 ms always | 50 ms |
+| In-call gate poll, nothing displayed | a call is connected | 50 ms always | 1 s (dead-mic watchdog needs 10 s of silence, the Strong fallback 2 s) |
+| In-call gate poll, nothing displayed, automatic sensitivity on | same | 50 ms | 200 ms (the estimator weights each reading by the time it covers) |
+| Sender level poll for the watchdog (hosts without the gate) | a call is connected | 1 s | 2 s |
+| Local speaking ring from the gate | the gate is read at the display rate | always during a call | only then; otherwise the SFU's flag, which lags about half a second |
+| Speaking ring pulse (`UserAvatar`) | the avatar is speaking and the app is resumed | ran while the window was unfocused | frozen on blur |
+
+Not changed: the call clocks tick once a second and the video stats sampler already runs only while its panel listens.
+Tested on fakes and fake clocks only (`rtc/test/voice_session_level_rate_test.dart`, `app/test/features/voice/mic_resources_test.dart`); a real-hardware check of the OS microphone indicator is still owed.

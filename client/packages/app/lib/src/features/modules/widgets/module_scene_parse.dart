@@ -39,7 +39,7 @@ ModuleScene? parseModuleScene(String raw) {
   } on FormatException catch (error, stack) {
     AppLog.swallowed(
       LogTag.ui,
-      'parse module scene failed, ignored',
+      'A module sent a scene that is not valid JSON; ignoring it',
       error,
       stack,
     );
@@ -207,7 +207,12 @@ SceneOp? _parseImage(Map<Object?, Object?> op) {
   try {
     bytes = base64Decode(encoded);
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.ui, 'parse image failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.ui,
+      'A module sent an image that is not valid base64; skipping it',
+      error,
+      stack,
+    );
     return null;
   }
   if (bytes.isEmpty) return null;

@@ -67,7 +67,7 @@ class FileDownloadTarget implements DownloadTarget {
     } on FileSystemException catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'A close that fails must not stop the cleanup below',
+        'Could not close the partly downloaded file before deleting it',
         error,
         stack,
       );
@@ -79,7 +79,12 @@ class FileDownloadTarget implements DownloadTarget {
         await _chosen.delete();
       }
     } on FileSystemException catch (error, stack) {
-      AppLog.swallowed(LogTag.ui, 'Already gone or unreadable', error, stack);
+      AppLog.swallowed(
+        LogTag.ui,
+        'The empty download file was already gone',
+        error,
+        stack,
+      );
     }
   }
 
@@ -89,7 +94,7 @@ class FileDownloadTarget implements DownloadTarget {
     } on FileSystemException catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'delete quietly failed, ignored',
+        'Could not delete a leftover download file',
         error,
         stack,
       );

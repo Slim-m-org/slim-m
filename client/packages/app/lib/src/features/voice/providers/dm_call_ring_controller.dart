@@ -180,7 +180,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     } on Exception catch (error, stack) {
       api.reportFailure(
         api.LogTag.voice,
-        'answer from outstanding ring',
+        'look up the call that is ringing',
         error,
         stack,
       );
@@ -335,7 +335,12 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
         ),
       );
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, 'start outgoing ring', error, stack);
+      api.reportFailure(
+        api.LogTag.voice,
+        'ring the other person',
+        error,
+        stack,
+      );
       // Best-effort; see this method's own doc.
     }
   }
@@ -368,7 +373,7 @@ class DmCallRingController extends StateNotifier<DmCallRingState> {
     try {
       await _ref.read(apiProvider).declineDmCallRing(ring.channelId);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, 'decline', error, stack);
+      api.reportFailure(api.LogTag.voice, 'decline the call', error, stack);
       // Best-effort: this ring times out on the caller's own side regardless.
     }
   }

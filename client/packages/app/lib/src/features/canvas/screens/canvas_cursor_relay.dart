@@ -42,12 +42,8 @@ class CanvasCursorRelay {
     required this.isBlocked,
     required this.selfId,
     this.sendLeft,
-  }) {
-    _pruneTimer = Timer.periodic(
-      cursorPruneInterval,
-      (_) => cursors.pruneOlderThan(cursorStaleAfter, now: clock.now()),
-    );
-  }
+    this.canSend,
+  });
 
   final CanvasCursors cursors;
 
@@ -70,12 +66,29 @@ class CanvasCursorRelay {
   /// captured once, since a relay outlives a single session in principle.
   final String? Function() selfId;
 
+  /// Whether a position is worth sending now; null always sends.
+  final bool Function()? canSend;
+
   Timer? _pruneTimer;
   DateTime? _lastSent;
+
+  // Armed by the first remote cursor and disarmed once none is left, so an idle canvas holds no timer.
+  void _armPrune() {
+    _pruneTimer ??= Timer.periodic(cursorPruneInterval, (_) {
+      cursors.pruneOlderThan(cursorStaleAfter, now: clock.now());
+      if (cursors.all.isEmpty) _disarmPrune();
+    });
+  }
+
+  void _disarmPrune() {
+    _pruneTimer?.cancel();
+    _pruneTimer = null;
+  }
 
   /// Call on every local pointer move, drawing or not; throttles internally
   /// to [cursorSendInterval] so the caller does not have to.
   void reportLocalPointer(Offset world, {DateTime? now}) {
+    if (canSend != null && !canSend!()) return;
     final at = now ?? clock.now();
     final last = _lastSent;
     if (last != null && at.difference(last) < cursorSendInterval) return;
@@ -110,13 +123,24 @@ class CanvasCursorRelay {
       // Seeds the glide's start from the in-flight position; harmless when a painter is given a zero (reduce-motion) glide, since it then draws the target regardless.
       glide: cursorGlideDuration,
     );
+    _armPrune();
   }
 
   void dispose() {
-    _pruneTimer?.cancel();
+    _disarmPrune();
     cursors.clear();
   }
 }
+
+/// A pointer position reaches nobody while the window is unfocused or the
+/// call holds nobody else; a remote cursor seen on the canvas proves a viewer
+/// who is not in the call, and a viewer outside any call cannot be counted.
+bool shouldRelayCursor({
+  required bool focused,
+  required bool inCallHere,
+  required bool othersInCall,
+  required bool remoteCursors,
+}) => focused && (!inCallHere || othersInCall || remoteCursors);
 
 /// A stable index into a palette of [paletteSize] colours, through the same
 /// `stableIndexFor` hash the avatar tint and role dot use. The cursor palette

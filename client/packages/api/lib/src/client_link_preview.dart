@@ -16,7 +16,10 @@ extension SlimmApiLinkPreview on SlimmApi {
       return LinkPreview.fromJson(json as Map<String, dynamic>);
     } on NotFoundException catch (error, stack) {
       AppLog.swallowed(
-          LogTag.net, 'fetch link preview failed, ignored', error, stack);
+          LogTag.net,
+          'Could not fetch a link preview; showing the plain link',
+          error,
+          stack);
       return null;
     }
   }

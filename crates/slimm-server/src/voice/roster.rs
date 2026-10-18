@@ -8,6 +8,11 @@
 //! among the result a given viewer may actually be told about; this only
 //! reports who the SFU says is connected.
 
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
 use crate::ids::{ChannelId, UserId};
 
 use super::webhook::is_screen_share_source;
@@ -32,6 +37,43 @@ pub struct RoomParticipant {
     /// When this participant joined the room, in unix milliseconds, as the
     /// SFU reports it. `None` when the SFU predates the field.
     pub joined_at_ms: Option<i64>,
+}
+
+/// How long a roster read is reused. Webhook events drop it sooner, so this only bounds a missed webhook.
+const ROSTER_TTL: Duration = Duration::from_secs(2);
+
+struct CachedRoster {
+    fetched: Instant,
+    participants: Vec<RoomParticipant>,
+}
+
+type Slot = Arc<tokio::sync::Mutex<Option<CachedRoster>>>;
+
+/// Roster reads shared per channel: concurrent and repeated polls make one SFU call.
+#[derive(Clone, Default)]
+pub struct RosterCache {
+    entries: Arc<Mutex<HashMap<ChannelId, Slot>>>,
+    epoch: Arc<AtomicU64>,
+}
+
+impl RosterCache {
+    fn slot(&self, channel_id: ChannelId) -> Slot {
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        entries.entry(channel_id).or_default().clone()
+    }
+
+    /// Forgets what is known about the room, for a webhook that says it changed.
+    pub fn invalidate(&self, channel_id: ChannelId) {
+        self.epoch.fetch_add(1, Ordering::AcqRel);
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        entries.remove(&channel_id);
+    }
 }
 
 /// LiveKit's JSON carries int64 fields as strings; accept either form.
@@ -77,6 +119,33 @@ struct TrackInfo {
 }
 
 impl VoiceService {
+    pub fn roster_cache(&self) -> RosterCache {
+        self.roster_cache.clone()
+    }
+
+    /// [`Self::list_participants`] reused for [`ROSTER_TTL`], for the polled roster route only.
+    ///
+    /// Callers that act on who is present (cleanup, call rings) keep asking the SFU directly.
+    pub async fn list_participants_shared(
+        &self,
+        channel_id: ChannelId,
+    ) -> Result<Vec<RoomParticipant>, VoiceError> {
+        let slot = self.roster_cache.slot(channel_id);
+        let mut held = slot.lock().await;
+        if let Some(cached) = held.as_ref().filter(|c| c.fetched.elapsed() < ROSTER_TTL) {
+            return Ok(cached.participants.clone());
+        }
+        let epoch = self.roster_cache.epoch.load(Ordering::Acquire);
+        let participants = self.list_participants(channel_id).await?;
+        if self.roster_cache.epoch.load(Ordering::Acquire) == epoch {
+            *held = Some(CachedRoster {
+                fetched: Instant::now(),
+                participants: participants.clone(),
+            });
+        }
+        Ok(participants)
+    }
+
     /// Lists who is currently connected to a channel's voice room.
     ///
     /// A room nobody has ever joined does not exist yet as far as the SFU is
@@ -165,6 +234,53 @@ mod tests {
 
     fn service_at(url: &str) -> VoiceService {
         VoiceService::for_test(url, "APIkey", "a-secret-at-least-32-chars-long!")
+    }
+
+    async fn counting_room_service() -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = calls.clone();
+        let router = Router::new().route(
+            "/twirp/livekit.RoomService/ListParticipants",
+            post(move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                async {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    Json(json!({ "participants": [] }))
+                }
+            }),
+        );
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        (format!("http://{addr}"), calls)
+    }
+
+    #[tokio::test]
+    async fn polled_roster_reads_share_one_sfu_call_until_the_room_changes() {
+        let (url, calls) = counting_room_service().await;
+        let service = service_at(&url);
+        let channel = ChannelId::generate();
+
+        let reads = (0..5).map(|_| service.list_participants_shared(channel));
+        for read in futures_util::future::join_all(reads).await {
+            read.expect("the mock room service answered");
+        }
+        service.list_participants_shared(channel).await.unwrap();
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "concurrent and repeated reads share a call"
+        );
+
+        service.roster_cache().invalidate(channel);
+        service.list_participants_shared(channel).await.unwrap();
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            2,
+            "a webhook event forces a fresh read"
+        );
     }
 
     #[tokio::test]

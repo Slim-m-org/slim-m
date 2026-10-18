@@ -81,7 +81,8 @@ class ModuleSceneView extends StatefulWidget {
   State<ModuleSceneView> createState() => _ModuleSceneViewState();
 }
 
-class _ModuleSceneViewState extends State<ModuleSceneView> {
+class _ModuleSceneViewState extends State<ModuleSceneView>
+    with WidgetsBindingObserver {
   /// How fast this may ask, and what to do when told it is asking too fast.
   /// Shared by play's timer and the drag queue; see [ScenePacing].
   final _pacing = ScenePacing();
@@ -111,8 +112,21 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
   void initState() {
     super.initState();
     _rememberOwn(widget.initial.state);
+    WidgetsBinding.instance.addObserver(this);
     // A finished decode changes what this paints with no scene or tap involved.
     _images.addListener(_onImageDecoded);
+  }
+
+  // Play asks the server every tick, so it must not run unseen.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _playing) _stopAndRepaint();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!TickerMode.valuesOf(context).enabled && _playing) _stop();
   }
 
   void _onImageDecoded() {
@@ -159,6 +173,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _images.removeListener(_onImageDecoded);
     _images.dispose();
@@ -177,13 +192,13 @@ class _ModuleSceneViewState extends State<ModuleSceneView> {
     try {
       await _runAction(action);
     } on api.RateLimitedException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'run a module action', e, stack);
       await _onRateLimited(e, action, queued: queued);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'run a module action', e, stack);
       _failWith(describeApiFailure('run this', e));
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', error, stack);
+      api.reportFailure(api.LogTag.ui, 'run a module action', error, stack);
       _failWith('Could not run this.');
     } finally {
       // A drag queued behind play's own step has nothing else to restart it.

@@ -49,8 +49,8 @@ class EventConnection {
             raw is String ? raw : utf8.decode(raw as List<int>),
           );
         } on Object catch (error, stack) {
-          AppLog.swallowed(
-              LogTag.sync, 'socket listener failed, ignored', error, stack);
+          AppLog.swallowed(LogTag.sync,
+              'Dropped a server message that could not be read', error, stack);
           return;
         }
         if (event != null && event is! PongEvent) events.add(event);
@@ -114,6 +114,11 @@ class EventConnection {
         );
     }
   }
+
+  /// Whether the socket still answers, for a device that may have slept through
+  /// its death. False means the caller should reconnect.
+  Future<bool> probe({Duration timeout = const Duration(seconds: 5)}) =>
+      _liveness.probe(timeout: timeout);
 
   /// Refreshes "this user is typing" in a channel.
   ///

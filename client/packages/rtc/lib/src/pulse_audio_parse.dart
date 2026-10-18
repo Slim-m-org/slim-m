@@ -20,7 +20,8 @@ List<dynamic> _decode(String json) {
     final decoded = jsonDecode(json);
     return decoded is List ? decoded : const [];
   } on FormatException catch (error, stack) {
-    AppLog.swallowed(LogTag.voice, 'decode failed, ignored', error, stack);
+    AppLog.swallowed(LogTag.voice,
+        'pactl returned output that is not valid JSON', error, stack);
     return const [];
   }
 }

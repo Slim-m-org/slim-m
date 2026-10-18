@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Stops drawing the member's own camera and screen-share preview while
-/// nobody can see the window.
+/// Stops drawing the member's own camera and screen-share preview, and
+/// receiving other members' video, while nobody can see the window.
 ///
-/// Only the local previews: other members' video, audio, the call and what is
-/// published to it are never touched, whatever the window is doing.
+/// Audio, the call and what is published to it are never touched, whatever
+/// the window is doing.
 library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/app_lifecycle.dart';
 import 'picture_in_picture.dart';
+import 'video_interest_relay.dart';
+import 'voice_flags.dart';
 import 'voice_settings_controller.dart';
 
 /// Whether a focus-only loss counts; a phone's `inactive` is a shade pull, not a switch away.
@@ -51,5 +54,32 @@ final localPreviewPausedProvider = Provider<bool>((ref) {
     pauseWhenUnfocused:
         unfocusedSetting && ref.watch(pauseOnUnfocusedAppliesProvider),
     pictureInPicture: ref.watch(inPictureInPictureProvider),
+  );
+});
+
+/// Whether a person can see the window, so remote video is worth receiving.
+final remoteVideoSeenProvider = Provider<bool>((ref) {
+  final unfocusedSetting = ref.watch(
+    voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
+  );
+  return !shouldPauseLocalPreview(
+    lifecycle: ref.watch(appLifecycleProvider),
+    pauseWhenUnfocused:
+        unfocusedSetting && ref.watch(pauseOnUnfocusedAppliesProvider),
+    pictureInPicture: ref.watch(inPictureInPictureProvider),
+  );
+});
+
+/// Mounted from the app chrome: feeds window visibility and a fresh connection into the video interest.
+final videoInterestHostProvider = Provider<void>((ref) {
+  final relay = ref.watch(videoInterestRelayProvider);
+  ref.listen<bool>(remoteVideoSeenProvider, (_, seen) {
+    relay.setSeen(seen);
+  }, fireImmediately: true);
+  ref.listen<bool>(
+    voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),
+    (_, connected) {
+      if (connected) relay.refresh();
+    },
   );
 });

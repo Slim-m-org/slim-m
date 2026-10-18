@@ -23,6 +23,7 @@ import '../../../routing/routes.dart';
 import '../../settings/widgets/settings_notice.dart';
 import '../../settings/screens/admin/channel_permissions_screen.dart';
 import '../widgets/channel_settings_danger_zone.dart';
+import '../widgets/channel_settings_default_notification_section.dart';
 import '../widgets/channel_settings_general_section.dart';
 import '../widgets/channel_settings_join_muted_section.dart';
 import '../widgets/channel_settings_private_row.dart';
@@ -118,6 +119,8 @@ class ChannelSettingsPane extends ConsumerWidget {
             rows: [
               if (canManageRoles) ChannelPrivateRow(channel: channel),
               ChannelSlowModeSection(channel: channel),
+              if (channel.kind != 'dm')
+                ChannelDefaultNotificationSection(channel: channel),
               if (canManageServer && channel.kind != 'dm')
                 ChannelRetentionRow(channelId: channel.id),
               if (channel.kind == 'voice')

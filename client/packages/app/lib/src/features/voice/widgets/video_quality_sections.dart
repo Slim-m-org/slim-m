@@ -3,16 +3,15 @@
 /// sends, and the resolution and frame rate of a screen share.
 library;
 
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../../routing/routes.dart';
 import 'pause_video_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../settings/widgets/settings_segmented_row.dart';
@@ -32,7 +31,6 @@ class VideoQualitySection extends ConsumerWidget {
         .read(voiceControllerProvider.notifier)
         .supportsScreenShareAudio;
 
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -57,6 +55,10 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             _QualityRow<ScreenShareResolution>(
               label: 'Screen share resolution',
+              footnote: screenShareSizeNote(
+                settings.screenShareQuality.resolution,
+                _largestDisplayHeight(),
+              ),
               values: ScreenShareResolution.values,
               selected: settings.screenShareQuality.resolution,
               nameOf: (r) => r.label,
@@ -84,29 +86,6 @@ class VideoQualitySection extends ConsumerWidget {
               ),
             if (ref.watch(pauseOnUnfocusedAppliesProvider))
               const PauseVideoRow(),
-            AppListRow(
-              leading: Container(
-                width: AppSizes.controlLg,
-                height: AppSizes.controlLg,
-                decoration: BoxDecoration(
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                child: Icon(
-                  AppIcons.requestLatency,
-                  size: AppSizes.icon20,
-                  color: tokens.textSecondary,
-                ),
-              ),
-              label: 'Call stats',
-              subtitle: 'Live video numbers for a call.',
-              trailing: Icon(
-                AppIcons.chevronRight,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              onTap: () => context.push(Routes.callStats),
-            ),
           ],
         ),
       ],
@@ -122,10 +101,12 @@ class _QualityRow<T> extends StatelessWidget {
     required this.nameOf,
     required this.onSelected,
     this.description,
+    this.footnote,
   });
 
   final String label;
   final String? description;
+  final String? footnote;
   final List<T> values;
   final T selected;
   final String Function(T value) nameOf;
@@ -135,10 +116,18 @@ class _QualityRow<T> extends StatelessWidget {
   Widget build(BuildContext context) => SettingsSegmentedRow<T>(
     label: label,
     description: description,
+    footnote: footnote,
     value: selected,
     choices: [
       for (final v in values) SettingsChoice(value: v, label: nameOf(v)),
     ],
     onChanged: onSelected,
   );
+}
+
+int? _largestDisplayHeight() {
+  final heights = [
+    for (final d in PlatformDispatcher.instance.displays) d.size.height.round(),
+  ];
+  return heights.isEmpty ? null : heights.reduce((a, b) => a > b ? a : b);
 }

@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT provider, external_id, username, display_name, linked_at,\n                    avatar_updated_at\n             FROM linked_accounts WHERE user_id = ? ORDER BY provider",
+  "describe": {
+    "columns": [
+      {
+        "name": "provider",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "external_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "username",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "linked_at",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "avatar_updated_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "0e25f60036c54255c622af9e9715193cf56019f5d73da6f84ba16cea031fbe88"
+}

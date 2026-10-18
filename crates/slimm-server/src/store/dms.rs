@@ -27,6 +27,7 @@
 use std::collections::HashMap;
 
 use crate::ids::{ChannelId, UserId};
+use crate::notifications::NotificationPreference;
 use crate::permissions::Permissions;
 
 use super::{Channel, Store, User, now_ms};
@@ -228,6 +229,7 @@ impl Store {
             // Never read: a DM has no slow-mode setter of its own.
             slow_mode_seconds: 0,
             join_muted: false,
+            default_notification: NotificationPreference::default(),
             room: super::ChannelRoom::default(),
         })
     }

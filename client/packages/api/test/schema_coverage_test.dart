@@ -57,8 +57,16 @@ const Map<String, String> _allowlist = {
   'PUT /attachments/uploads/{}': 'sends a raw body through '
       'SlimmApi._sendStreamed, the same as POST /attachments does for '
       'uploadAttachmentStream, so there is no _send call to match',
+  'GET /diagnostics/download': 'streams raw filler bytes through the '
+      'connection test\'s probe on a pinned client, to time the transfer, so '
+      'there is no _send call to match',
+  'POST /diagnostics/upload': 'sends a raw generated body through the '
+      'connection test\'s probe on a pinned client, the same shape as PUT '
+      '/attachments/uploads/{}',
   'GET /users/{}/avatar': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
+  'GET /users/{}/links/discord/avatar': 'reads raw bytes through '
+      'SlimmApi._fetchBytes, the same as GET /users/{}/avatar',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
   'GET /invites/{}/banner': 'an unauthenticated picture an Image.network '

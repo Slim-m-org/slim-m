@@ -98,7 +98,7 @@ String videoSubscriptionKind(String key) {
 void Function(Object error) _logRejection(String key, String action) =>
     (error) => AppLog.debug(
           LogTag.voice,
-          'video subscription culler: $action rejected',
+          'Could not $action a remote video; the participant probably left',
           error: error,
           context: {'track': key},
         );

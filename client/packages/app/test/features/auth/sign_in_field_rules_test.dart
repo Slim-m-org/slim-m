@@ -127,15 +127,36 @@ void main() {
   });
 
   group('while creating an account, each rule is said before submitting', () {
-    testWidgets('username: the charset and the length are both enforced, so '
-        'both are said', (tester) async {
+    testWidgets('username: the rule shows only once a character is refused, '
+        'and goes again on the next valid edit', (tester) async {
+      await _pumpSignIn(tester);
+      await toCreateAccount(tester);
+      const rule = 'Letters, digits, _ . and - only. Up to 32 characters.';
+      expect(find.text(rule), findsNothing);
+
+      await tester.enterText(_input('Username'), 'da&na');
+      await tester.pump();
+      expect(find.text(rule), findsOneWidget);
+      expect(
+        tester.widget<AppInput>(_input('Username')).controller!.text,
+        'dana',
+        reason: 'the refused character is dropped, the rest kept',
+      );
+
+      await tester.enterText(_input('Username'), 'danas');
+      await tester.pump();
+      expect(find.text(rule), findsNothing);
+    });
+
+    testWidgets('username: going past the length limit says the rule too', (
+      tester,
+    ) async {
       await _pumpSignIn(tester);
       await toCreateAccount(tester);
 
-      expect(
-        find.text('Letters, digits, _ . and - only. Up to 32 characters.'),
-        findsOneWidget,
-      );
+      await tester.enterText(_input('Username'), 'u' * 33);
+      await tester.pump();
+      expect(find.text(usernameRule), findsOneWidget);
     });
 
     testWidgets('password minimum', (tester) async {

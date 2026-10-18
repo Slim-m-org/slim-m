@@ -16,6 +16,7 @@ library;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show Channel;
 
 import '../../../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
@@ -97,14 +98,17 @@ class MessageAlertPolicy {
     final mentionsSelf = !isDm && await _mentionsSelf(message, selfId);
 
     final overrides = _ref.read(channelNotificationOverridesProvider);
+    final parentId = await _parentChannelId(
+      channel?.parentMessageId,
+      message.channelId,
+    );
     final preference =
         overrides.overrideFor(message.channelId) ??
-        await _parentOverride(
-          channel?.parentMessageId,
-          message.channelId,
-          overrides,
-        ) ??
-        await _accountDefaultIn(message.channelId, isDm: isDm);
+        (parentId == null ? null : overrides.overrideFor(parentId)) ??
+        stricterPreference(
+          await _channelDefault(channel, parentId),
+          await _accountDefaultIn(message.channelId, isDm: isDm),
+        );
     if (!channelEarnsASound(
       channelOverride: preference,
       isDm: isDm,
@@ -184,7 +188,12 @@ class MessageAlertPolicy {
       _selfFailedAt = null;
       _selfFailedForId = null;
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'mentions self', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'look up who you are for mention alerts',
+        error,
+        stack,
+      );
       // Keeps the cache for this account, if there is one.
       _selfFailedAt = DateTime.now();
       _selfFailedForId = selfId;
@@ -198,17 +207,35 @@ class MessageAlertPolicy {
     try {
       return (await client.getUser(selfId)).roles;
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'role names', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'look up your roles for mention alerts',
+        error,
+        stack,
+      );
       return const [];
     }
   }
 
-  /// The override on a thread's parent channel, null for any other channel or
-  /// when the parent cannot be found (the thread then follows the account).
-  Future<api.NotificationPreference?> _parentOverride(
+  /// A channel's own default, or its parent's for a thread: a thread has none
+  /// of its own.
+  Future<api.NotificationPreference?> _channelDefault(
+    Channel? channel,
+    String? parentId,
+  ) async {
+    if (parentId == null) {
+      return channel == null ? null : channelDefaultOf(channel);
+    }
+    final store = await _ref.read(storeProvider.future);
+    final parent = await store.watchChannelRow(parentId).first;
+    return parent == null ? null : channelDefaultOf(parent);
+  }
+
+  /// A thread's parent channel, null for any other channel or when the parent
+  /// cannot be found (the thread then follows the account).
+  Future<String?> _parentChannelId(
     String? parentMessageId,
     String channelId,
-    ChannelNotificationOverridesState overrides,
   ) async {
     if (parentMessageId == null) return null;
     if (!_parentChannels.containsKey(channelId)) {
@@ -216,12 +243,16 @@ class MessageAlertPolicy {
         final parent = await _ref.read(apiProvider).getThreadParent(channelId);
         _parentChannels[channelId] = parent.parentChannelId;
       } on api.ApiException catch (error, stack) {
-        api.reportFailure(api.LogTag.ui, 'role names', error, stack);
+        api.reportFailure(
+          api.LogTag.ui,
+          'look up the parent channel of a thread for alerts',
+          error,
+          stack,
+        );
         return null;
       }
     }
-    final parentId = _parentChannels[channelId];
-    return parentId == null ? null : overrides.overrideFor(parentId);
+    return _parentChannels[channelId];
   }
 
   /// The account default as it applies in [channelId]: "everything" reads as
@@ -253,7 +284,12 @@ class MessageAlertPolicy {
       _canSend[channelId] = (value: value, at: DateTime.now());
       return value;
     } on Object catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'can send in', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'check whether you can send in a channel',
+        error,
+        stack,
+      );
       return cached?.value ?? true;
     }
   }
@@ -287,7 +323,7 @@ class MessageAlertPolicy {
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,
-        'can send in failed, ignored',
+        'Could not read the notification setting in time; using the default',
         error,
         stack,
       );

@@ -23,7 +23,11 @@ class CallHeaderLine extends ConsumerWidget {
     this.mode,
     this.leading,
     this.stacked = false,
+    this.showTitle = true,
   });
+
+  /// False where the channel's name already sits in a header above.
+  final bool showTitle;
 
   /// The facts under the title rather than beside it, where a row of
   /// controls leaves the title too little width for both.
@@ -69,6 +73,7 @@ class CallHeaderLine extends ConsumerWidget {
         ],
       ],
     );
+    if (!showTitle) return live ? factsRow : const SizedBox.shrink();
     if (stacked) {
       return Row(
         children: [

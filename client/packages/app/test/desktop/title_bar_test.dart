@@ -80,6 +80,26 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('on Windows the controls sit at the right edge', (
+      tester,
+    ) async {
+      final handle = await _pump(
+        tester,
+        port: FakeDesktopWindowPort(),
+        platform: DesktopPlatform.windows,
+        onRequestClose: () async {},
+      );
+
+      final width = tester.getSize(find.byType(TitleBar)).width;
+      final close = tester.getRect(find.bySemanticsLabel('Close'));
+      expect(close.right, closeTo(width, 1));
+      expect(
+        tester.getRect(find.bySemanticsLabel('Minimize')).left,
+        lessThan(close.left),
+      );
+      handle.dispose();
+    });
+
     testWidgets('the maximize button flips to Restore once maximized', (
       tester,
     ) async {

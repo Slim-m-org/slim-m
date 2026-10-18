@@ -49,7 +49,7 @@ class _TextLinkState extends State<TextLink> {
                   : null,
               borderRadius: BorderRadius.circular(AppRadii.control),
             ),
-            child: widget.child,
+            child: SelectionContainer.disabled(child: widget.child),
           ),
         ),
       ),

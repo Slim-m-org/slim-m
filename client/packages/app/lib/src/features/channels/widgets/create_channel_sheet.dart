@@ -37,7 +37,9 @@ import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
 import 'private_audience_picker.dart';
+import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import 'channel_default_notification_choices.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
 /// changeable inside the sheet, since it is only a starting guess, not a
@@ -88,6 +90,8 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
   late String _kind = widget.initialKind;
   bool _restricted = false;
   bool _joinMuted = false;
+  api.NotificationPreference _defaultNotification =
+      api.NotificationPreference.everything;
   final Set<String> _audience = {};
   final _createId = newChannelId();
 
@@ -100,6 +104,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           categoryId: widget.categoryId,
           restricted: _restricted,
           joinMuted: _kind == 'voice' && _joinMuted,
+          defaultNotification: _defaultNotification,
           id: _createId,
         );
     final store = await ref.read(storeProvider.future);
@@ -193,6 +198,14 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
             onChanged: (v) => setState(() => _joinMuted = v),
             semanticLabel: 'Members join this channel muted',
           ),
+        SettingsSelectRow<api.NotificationPreference>(
+          label: channelDefaultNotificationLabel,
+          description: channelDefaultNotificationHint,
+          sheetTitle: channelDefaultNotificationLabel,
+          value: _defaultNotification,
+          choices: channelDefaultNotificationChoices,
+          onChanged: (v) => setState(() => _defaultNotification = v),
+        ),
       ],
     );
   }

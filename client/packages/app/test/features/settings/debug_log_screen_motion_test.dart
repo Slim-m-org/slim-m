@@ -41,7 +41,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(_harness(reduceMotion: true));
-    await tester.tap(find.byTooltip('Show detail'));
+    await tester.tap(find.byType(DebugLogEntry));
     await tester.pump();
 
     final justAfterTap = tester.getSize(find.byType(DebugLogEntry)).height;
@@ -57,7 +57,7 @@ void main() {
 
   testWidgets('expanding an entry still animates by default', (tester) async {
     await tester.pumpWidget(_harness(reduceMotion: false));
-    await tester.tap(find.byTooltip('Show detail'));
+    await tester.tap(find.byType(DebugLogEntry));
     await tester.pump();
 
     final justAfterTap = tester.getSize(find.byType(DebugLogEntry)).height;

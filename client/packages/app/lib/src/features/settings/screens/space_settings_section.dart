@@ -35,6 +35,7 @@ import 'admin/channel_permissions_screen.dart';
 import 'admin/dock_screen.dart';
 import 'admin/emoji_screen.dart';
 import 'admin/invites_screen.dart';
+import 'admin/customize_screen.dart';
 import 'admin/performance_screen.dart';
 import 'admin/space_voice_screen.dart';
 import 'admin/removed_members_screen.dart';
@@ -167,6 +168,15 @@ SettingsPaneGroup _configurationGroup(_SpaceAccess access) {
   return SettingsPaneGroup(
     label: 'Configuration',
     panes: [
+      if (access.canManageServer)
+        SettingsPane(
+          id: 'customize',
+          wide: true,
+          label: 'Customize',
+          icon: AppIcons.appearance,
+          compactRoute: Routes.adminCustomize,
+          builder: (_) => const CustomizePane(),
+        ),
       if (access.canManageRoles)
         SettingsPane(
           id: 'roles',

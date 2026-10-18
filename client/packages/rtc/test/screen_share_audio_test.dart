@@ -16,7 +16,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
 void main() {
-  test('web and Linux can publish it', () {
+  test('web, Linux and Windows can publish it', () {
     expect(
       supportsScreenShareAudio(platform: lk.PlatformType.web),
       isTrue,
@@ -25,14 +25,17 @@ void main() {
       supportsScreenShareAudio(platform: lk.PlatformType.linux),
       isTrue,
     );
+    expect(
+      supportsScreenShareAudio(platform: lk.PlatformType.windows),
+      isTrue,
+    );
   });
 
-  test('macOS, iOS, Android and Windows cannot', () {
+  test('macOS, iOS and Android cannot', () {
     for (final platform in [
       lk.PlatformType.macOS,
       lk.PlatformType.iOS,
       lk.PlatformType.android,
-      lk.PlatformType.windows,
     ]) {
       expect(
         supportsScreenShareAudio(platform: platform),
@@ -46,6 +49,7 @@ void main() {
     final onLinuxOrWeb = {
       lk.PlatformType.web,
       lk.PlatformType.linux,
+      lk.PlatformType.windows,
     }.contains(lk.lkPlatform());
     expect(supportsScreenShareAudio(), onLinuxOrWeb);
   });

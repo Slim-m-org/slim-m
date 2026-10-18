@@ -77,7 +77,7 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'An early-startup plugin failure leaves the frame active by default',
+        'Could not tell whether the window is maximized; keeping the resize frame on',
         error,
         stack,
       );

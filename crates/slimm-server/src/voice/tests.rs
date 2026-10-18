@@ -52,6 +52,29 @@ fn blank_livekit_settings_disable_voice_instead_of_refusing_to_start() {
 }
 
 #[test]
+fn the_room_service_override_wins_over_the_public_address() {
+    let config = Config {
+        livekit_url: Some("wss://livekit.example.com".to_owned()),
+        livekit_api_key: Some("APIkey".to_owned()),
+        livekit_api_secret: Some("a-secret-at-least-32-chars-long!".to_owned()),
+        livekit_service_url: Some("http://livekit:7880/".to_owned()),
+        ..Config::default()
+    };
+
+    let service = VoiceService::new(&config).expect("an http override is valid");
+    assert_eq!(service.room_service_url(), Some("http://livekit:7880"));
+    let derived = VoiceService::new(&Config {
+        livekit_service_url: Some("  ".to_owned()),
+        ..config
+    })
+    .expect("a blank override is ignored");
+    assert_eq!(
+        derived.room_service_url(),
+        Some("https://livekit.example.com")
+    );
+}
+
+#[test]
 fn a_fully_configured_trio_still_enables_voice() {
     let config = Config {
         livekit_url: Some("wss://livekit.example.com".to_owned()),

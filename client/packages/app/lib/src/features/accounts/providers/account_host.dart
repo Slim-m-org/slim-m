@@ -11,9 +11,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart'
     show sessionProvider, sessionRestoreNoteProvider;
+import '../../../providers/media_disk_caches.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -131,7 +131,7 @@ class AccountHost extends ChangeNotifier {
     try {
       _index = await store.loadOrMigrate();
     } catch (error, stack) {
-      reportFailure(LogTag.auth, 'start', error, stack);
+      reportFailure(LogTag.auth, 'read the saved accounts', error, stack);
       _index = const AccountIndex();
     }
     final first = _active;
@@ -217,8 +217,7 @@ class AccountHost extends ChangeNotifier {
     runtime._cancels.add(changes.cancel);
     // See SessionStore.describeRejection for why a sign-out needs a reason.
     final endings = session.endings.listen(
-      (reason) =>
-          container.read(debugLogProvider.notifier).record('session', reason),
+      (reason) => AppLog.info(LogTag.auth, reason),
     );
     runtime._cancels.add(endings.cancel);
     final restoreNotes = container.listen<String?>(sessionRestoreNoteProvider, (
@@ -226,7 +225,7 @@ class AccountHost extends ChangeNotifier {
       note,
     ) {
       if (note != null) {
-        container.read(debugLogProvider.notifier).record('session', note);
+        AppLog.info(LogTag.auth, note);
       }
     });
     runtime._cancels.add(restoreNotes.close);
@@ -338,7 +337,7 @@ class AccountHost extends ChangeNotifier {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,
-        'A store that refuses the delete leaves a stale entry, never a signed-in ghost',
+        "Could not delete a removed account's saved sign-in; the entry may linger",
         error,
         stack,
       );
@@ -354,6 +353,11 @@ class AccountHost extends ChangeNotifier {
     await clearAttachmentPreviews(
       runtime.container.read(attachmentPreviewCacheProvider),
       Uri.parse(origin),
+    );
+    await clearMediaDiskCaches(
+      Uri.parse(origin),
+      avatars: runtime.container.read(avatarCacheProvider),
+      originals: runtime.container.read(attachmentOriginalCacheProvider),
     );
     _retire(runtime);
   }
@@ -386,7 +390,7 @@ class AccountHost extends ChangeNotifier {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,
-        'Best effort: the sessions themselves are what matter, and each is saved on its own',
+        'Could not save the account list; each sign-in is saved on its own',
         error,
         stack,
       );

@@ -8,10 +8,12 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
+import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/retention_sweep.dart';
 import '../../../providers/sync_controller.dart';
+import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
@@ -29,6 +31,7 @@ void startAccountServices(ProviderContainer container) {
   container.read(syncControllerProvider);
   container.read(pushControllerProvider);
   container.read(directRouteProvider);
+  container.read(viewingReporterProvider);
   container.read(desktopMessageNotifierProvider);
   container.listen(blocksProvider, (_, _) {});
   container.listen(channelNotificationOverridesProvider, (_, _) {});
@@ -55,12 +58,17 @@ Future<void> signOutVia(ProviderReader read) async {
   try {
     await read(apiProvider).logout();
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.auth, 'sign out via', error, stack);
+    api.reportFailure(api.LogTag.auth, 'sign out on the server', error, stack);
     // The session may already be gone; clear locally either way.
     read(sessionProvider).clear();
   }
   await clearAttachmentPreviews(
     read(attachmentPreviewCacheProvider),
     read(serverUrlProvider),
+  );
+  await clearMediaDiskCaches(
+    read(serverUrlProvider),
+    avatars: read(avatarCacheProvider),
+    originals: read(attachmentOriginalCacheProvider),
   );
 }

@@ -54,10 +54,10 @@ class AppLaunches extends Notifier<Map<String, AppLaunch>> {
           );
       outcome = AppLaunch.answered(result);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'launch the app', e, stack);
+      api.reportFailure(api.LogTag.ui, 'open the app', e, stack);
       outcome = AppLaunch.refused(describeApiFailure('launch this app', e));
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'launch the app', error, stack);
+      api.reportFailure(api.LogTag.ui, 'open the app', error, stack);
       // Anything else must still end the spinner, or Retry is ignored for good.
       outcome = const AppLaunch.refused(
         'Could not launch this app. Try again in a moment.',

@@ -13,6 +13,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/attachment_preview_bytes.dart';
 import '../providers/media_preferences.dart';
 import '../../../message_preview.dart';
+import '../../../widgets/animation_gate.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
 import 'image_decode.dart';
 
@@ -94,12 +95,14 @@ class ReplyAttachmentThumb extends ConsumerWidget {
             )),
           )
           .when(
-            data: (bytes) => Image.memory(
-              bytes,
-              fit: BoxFit.cover,
-              cacheWidth: decodeEdge(context, edge),
-              cacheHeight: decodeEdge(context, edge),
-              errorBuilder: (_, _, _) => glyph(fallback),
+            data: (bytes) => AnimationGate(
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                cacheWidth: decodeEdge(context, edge),
+                cacheHeight: decodeEdge(context, edge),
+                errorBuilder: (_, _, _) => glyph(fallback),
+              ),
             ),
             loading: () => const SizedBox.shrink(),
             error: (_, _) => glyph(fallback),

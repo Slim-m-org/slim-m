@@ -195,7 +195,12 @@ class MemberProfileOverridesController
       if (!mounted) return;
       state = {...state, userId: profile};
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'refetch', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        "refresh a member's profile",
+        error,
+        stack,
+      );
       // Left stale; the next ProfileChanged (or a roster refetch) corrects it.
     }
   }

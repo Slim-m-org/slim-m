@@ -216,6 +216,19 @@ async fn complete(
         uploads.discard(id).await.ok();
         return Err(err);
     }
+    if let Some(replacement) = super::attachment_compress::prepare(
+        &state,
+        &uploads.data_path(id),
+        finished.size,
+        &finished.sniff_prefix,
+        &meta.filename,
+    )
+    .await?
+    {
+        let received = super::attachment_compress::Received::Session(uploads.clone(), id);
+        let summary = replacement.store(&state, ctx.user_id, received).await?;
+        return Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))));
+    }
     // Bytes before the metadata row, the same order `POST /attachments` keeps.
     let placing = state.media.blob_guard().await;
     uploads
@@ -235,6 +248,7 @@ async fn complete(
         )
         .await?;
     drop(placing);
+    state.media.prewarm_preview(&finished.hex_id, content_type);
     Ok((
         StatusCode::CREATED,
         Json(AttachmentDto::from(AttachmentSummary {
@@ -243,6 +257,7 @@ async fn complete(
             content_type: content_type.to_owned(),
             size,
             spoiler: false,
+            original: None,
         })),
     ))
 }

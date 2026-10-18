@@ -141,14 +141,14 @@ class SelfUpdateController {
     } on SelfUpdateFailure catch (failure, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'count launch failed, ignored',
+        'The update could not be installed; showing the reason',
         failure,
         stack,
       );
       ref.read(selfUpdateFailureProvider.notifier).state = failure;
       return null;
     } catch (error, stack) {
-      reportFailure(LogTag.platform, 'count launch', error, stack);
+      reportFailure(LogTag.platform, 'install the update', error, stack);
       ref.read(selfUpdateFailureProvider.notifier).state = SelfUpdateFailure(
         SelfUpdateFailureKind.installFailed,
         'The update could not be installed, so this version is unchanged.',

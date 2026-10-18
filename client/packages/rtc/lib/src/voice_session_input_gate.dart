@@ -17,11 +17,13 @@ mixin VoiceSessionInputGate {
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
   bool _evenOutLoudSounds = true;
+  bool _levelDisplayed = false;
   NoiseFloorEstimator? _autoThreshold;
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
-  void _diag(String line);
+  void _diag(String line, {LogLevel level});
+  void _refreshParticipants();
 
   bool get supportsInputGate => _gate.supported;
 
@@ -41,8 +43,11 @@ mixin VoiceSessionInputGate {
       log: _diag,
     );
     _captureReadings = _gate.readings.listen(
-      (r) =>
-          _capture.onReading(strongActive: r.strongActive, micOpen: _mic.open),
+      (r) => _capture.onReading(
+        strongActive: r.strongActive,
+        micOpen: _mic.open,
+        step: r.step,
+      ),
     );
   }
 
@@ -57,6 +62,12 @@ mixin VoiceSessionInputGate {
           noiseSuppression: _capture.webrtcNoiseSuppression,
         )
       : null;
+
+  /// What the next [MicPort.setEnabled] opens with. [reopen] makes LiveKit
+  /// restart a capture that was released, rather than just unmute it.
+  lk.AudioCaptureOptions _openCaptureOptions({required bool reopen}) =>
+      (_micCaptureOptions() ?? _audioSwitching.captureOptions())
+          .copyWith(stopAudioCaptureOnMute: reopen);
 
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
@@ -87,18 +98,40 @@ mixin VoiceSessionInputGate {
     _autoReadings = null;
     if (!enabled) {
       _autoThreshold = null;
+      _syncGateRate();
       return;
     }
     final estimator = _autoThreshold = NoiseFloorEstimator(
       initialThresholdDb: _gateThresholdDb,
     );
+    _syncGateRate();
     _autoReadings = _gate.readings.listen((reading) {
-      final next = estimator.add(reading.levelDb);
+      final next = estimator.add(reading.levelDb, interval: reading.step);
       if ((next - _gateThresholdDb).abs() < _kAutoThresholdStepDb) return;
       _gateThresholdDb = next;
       _autoThresholds.add(next);
       unawaited(_applyInputGate());
     });
+  }
+
+  /// Whether a meter is on screen in a focused app. Only then are the gate's
+  /// readings taken at the display rate; otherwise just fast enough for the
+  /// dead-mic watchdog, the Strong fallback and automatic sensitivity.
+  void setLevelDisplayed(bool displayed) {
+    if (displayed == _levelDisplayed) return;
+    _levelDisplayed = displayed;
+    _syncGateRate();
+  }
+
+  void _syncGateRate() {
+    _gate.setRate(
+      _levelDisplayed
+          ? InputGateRate.display
+          : _autoThreshold != null
+              ? InputGateRate.adapt
+              : InputGateRate.watch,
+    );
+    _refreshParticipants();
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the

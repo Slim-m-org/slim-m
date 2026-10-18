@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../providers/app_lifecycle.dart' show isSeenNow;
 import '../widgets/banner_host_layout.dart';
 import '../widgets/transfer_meter.dart';
 import 'downloads_controller.dart';
@@ -39,7 +40,7 @@ class _TransfersBannerHostState extends ConsumerState<TransfersBannerHost> {
   void _syncTicker(bool running) {
     if (running && _tick == null) {
       _tick = Timer.periodic(ref.read(transfersTickProvider), (_) {
-        if (mounted) setState(() {});
+        if (mounted && isSeenNow(context)) setState(() {});
       });
     } else if (!running) {
       _tick?.cancel();

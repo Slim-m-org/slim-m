@@ -347,6 +347,17 @@ classes! {
     /// absorbs a retry after a stall; a refill of one per two seconds is
     /// two and a half times the honest rate and still refuses a loop.
     WatchTick,
+    /// The connection test's latency pings (`GET /diagnostics/ping`).
+    ///
+    /// A run sends a dozen across its routes; the burst covers two runs back
+    /// to back and the refill is a person re-running it, never a loop.
+    DiagnosticPing,
+    /// The connection test's speed transfers (`/diagnostics/download` and `/upload`).
+    ///
+    /// Each moves up to 25 MiB, so this is far tighter than the ping class.
+    /// A full run over two routes makes eight, and the burst of twelve leaves
+    /// room for a retry while a sustained refill stays at twelve a minute.
+    DiagnosticTransfer,
 }
 
 impl Class {
@@ -395,6 +406,9 @@ impl Class {
             Class::PresenceActivity => (6.0, 1.0 / 5.0),
             // See this variant's own doc comment for how these were sized.
             Class::WatchTick => (4.0, 1.0 / 2.0),
+            // See this variant's own doc comment for how these were sized.
+            Class::DiagnosticPing => (30.0, 5.0),
+            Class::DiagnosticTransfer => (12.0, 1.0 / 5.0),
         }
     }
 }

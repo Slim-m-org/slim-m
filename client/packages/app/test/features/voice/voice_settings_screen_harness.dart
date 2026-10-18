@@ -55,6 +55,9 @@ http.Client voiceTokenClient() => MockClient((request) async {
 /// Implemented rather than subclassed so a new member on the real session is
 /// a compile error here, matching `voice_controller_test.dart`'s own fake.
 class FakeSession with VideoQualityRecorder implements VoiceSession {
+  /// Every value the controller passed to [setLevelDisplayed].
+  final levelDisplayedCalls = <bool>[];
+
   FakeSession({
     this.supportsScreenShareAudio = true,
     this.supportsAudioInputSelection = true,
@@ -228,6 +231,9 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   @override
   double get inputThresholdDb => currentInputThresholdDb;
+
+  @override
+  void setLevelDisplayed(bool displayed) => levelDisplayedCalls.add(displayed);
 
   @override
   void setAutoInputThreshold(bool enabled) => autoInputThreshold = enabled;

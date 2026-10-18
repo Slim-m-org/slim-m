@@ -10,17 +10,24 @@
 use std::io::{self, Cursor};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use image::codecs::jpeg::JpegEncoder;
 use image::codecs::webp::WebPEncoder;
 use image::metadata::Orientation;
-use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageReader, Limits, imageops};
-use tokio::sync::Semaphore;
+use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageReader, Limits};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
+use super::Media;
 use super::image_header::inspect;
+use super::memory_budget::MemoryBudget;
+use super::preview_scale::fit;
 
 /// Longest-side widths a preview may be asked for. Bucketing bounds the files kept per attachment.
 pub const BUCKETS: [u32; 3] = [320, 640, 1280];
+
+/// Uploads waiting to be previewed ahead of any request; past this the rest are left to be derived on demand.
+const MAX_PREWARM_QUEUE: usize = 8;
 
 /// The bucket used when a caller does not name one.
 pub const DEFAULT_BUCKET: u32 = 640;
@@ -56,6 +63,19 @@ pub enum Preview {
 pub struct Previews {
     dir: PathBuf,
     gate: Arc<Semaphore>,
+    prewarming: Arc<AtomicUsize>,
+    /// The process-wide memory budget compression draws on too.
+    budget: MemoryBudget,
+}
+
+impl Media {
+    /// Starts deriving the previews of a stored upload when it is a still picture they apply to.
+    pub fn prewarm_preview(&self, hex: &str, content_type: &str) {
+        if matches!(content_type, "image/jpeg" | "image/png" | "image/webp") {
+            self.previews
+                .prewarm(hex.to_owned(), self.attachment_file(hex));
+        }
+    }
 }
 
 /// The bucket a requested width rounds up to, or the largest when it exceeds them all.
@@ -67,11 +87,26 @@ pub fn bucket_for(width: u32) -> u32 {
 }
 
 impl Previews {
-    pub(super) fn new(dir: PathBuf) -> Self {
+    pub(super) fn new(dir: PathBuf, budget: MemoryBudget) -> Self {
         Self {
             dir,
             gate: Arc::new(Semaphore::new(1)),
+            prewarming: Arc::new(AtomicUsize::new(0)),
+            budget,
         }
+    }
+
+    pub(super) fn use_budget(&mut self, budget: MemoryBudget) {
+        self.budget = budget;
+    }
+
+    /// Memory for decoding `original`, held until dropped. `Ok(None)` when the file will not be
+    /// decoded at all; `Err` when the budget has no room, so the original is the answer.
+    async fn reserve(&self, original: &Path) -> Result<Option<OwnedSemaphorePermit>, ()> {
+        let Some(estimate) = decode_estimate(original).await else {
+            return Ok(None);
+        };
+        self.budget.admit(estimate).await.map(Some).ok_or(())
     }
 
     fn path(&self, hex: &str, bucket: u32) -> PathBuf {
@@ -83,7 +118,7 @@ impl Previews {
     /// An empty derived file records that the original is the answer, so a
     /// picture that cannot or need not shrink is judged once, not per request.
     pub async fn resolve(&self, hex: &str, original: &Path, bucket: u32) -> io::Result<Preview> {
-        self.resolve_with(hex, original, bucket, derive).await
+        self.resolve_with(hex, original, bucket, derive_one).await
     }
 
     /// The permit moves into the blocking task, so a cancelled request cannot free the gate
@@ -109,13 +144,70 @@ impl Previews {
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
+        let Ok(memory) = self.reserve(original).await else {
+            return Ok(Preview::Original);
+        };
         let original = original.to_path_buf();
         let target = path.clone();
         tokio::task::spawn_blocking(move || {
-            let _permit = permit;
+            let _permit = (permit, memory);
             let derived = derive(&original, bucket)?;
             write_atomic(&target, derived.as_deref().unwrap_or_default())?;
             Ok(derived.map_or(Preview::Original, |_| Preview::Derived(target)))
+        })
+        .await
+        .unwrap_or_else(|e| Err(io::Error::other(e)))
+    }
+
+    /// Derives every bucket of a just-uploaded picture from one decode, in the background.
+    ///
+    /// The first viewer of a photo then finds its preview waiting instead of queueing behind a
+    /// decode, and the gate still admits one raster at a time. A backlog past
+    /// [`MAX_PREWARM_QUEUE`] is skipped, since those pictures are derived when first requested.
+    pub fn prewarm(&self, hex: String, original: PathBuf) {
+        if self.prewarming.fetch_add(1, Ordering::AcqRel) >= MAX_PREWARM_QUEUE {
+            self.prewarming.fetch_sub(1, Ordering::AcqRel);
+            return;
+        }
+        let previews = self.clone();
+        tokio::spawn(async move {
+            if let Err(err) = previews.fill_buckets(&hex, &original).await {
+                tracing::warn!(error = %err, attachment = %hex, "could not prewarm attachment previews");
+            }
+            previews.prewarming.fetch_sub(1, Ordering::AcqRel);
+        });
+    }
+
+    async fn fill_buckets(&self, hex: &str, original: &Path) -> io::Result<()> {
+        let permit = Arc::clone(&self.gate)
+            .acquire_owned()
+            .await
+            .map_err(io::Error::other)?;
+        let mut missing = Vec::new();
+        for bucket in BUCKETS {
+            if existing(&self.path(hex, bucket)).await?.is_none() {
+                missing.push(bucket);
+            }
+        }
+        if missing.is_empty() {
+            return Ok(());
+        }
+        let Ok(memory) = self.reserve(original).await else {
+            return Ok(());
+        };
+        let original = original.to_path_buf();
+        let targets: Vec<(u32, PathBuf)> = missing
+            .into_iter()
+            .map(|bucket| (bucket, self.path(hex, bucket)))
+            .collect();
+        tokio::task::spawn_blocking(move || {
+            let _permit = (permit, memory);
+            let buckets: Vec<u32> = targets.iter().map(|(bucket, _)| *bucket).collect();
+            let derived = derive_many(&original, &buckets)?;
+            for ((_, target), bytes) in targets.iter().zip(derived) {
+                write_atomic(target, bytes.as_deref().unwrap_or_default())?;
+            }
+            Ok(())
         })
         .await
         .unwrap_or_else(|e| Err(io::Error::other(e)))
@@ -185,42 +277,105 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
     placed
 }
 
-/// The preview bytes, or `None` when the original should be served.
+/// The peak memory of deriving previews from `original`: the file, its raster and some working
+/// room. `None` when the file would not be decoded, so needs no reservation.
+async fn decode_estimate(original: &Path) -> Option<u64> {
+    use tokio::io::AsyncReadExt;
+    let mut file = tokio::fs::File::open(original).await.ok()?;
+    let len = file.metadata().await.ok()?.len();
+    if len > MAX_SOURCE_BYTES {
+        return None;
+    }
+    let mut probe = vec![0u8; HEADER_PROBE_BYTES.min(len as usize)];
+    file.read_exact(&mut probe).await.ok()?;
+    let header = inspect(&probe)?;
+    let pixels = u64::from(header.width) * u64::from(header.height);
+    if header.animated || pixels > MAX_SOURCE_PIXELS {
+        return None;
+    }
+    Some(len + pixels * PREVIEW_BYTES_PER_PIXEL + PREVIEW_FIXED_BYTES)
+}
+
+/// The decoded raster plus the resized copies one preview decode keeps.
+const PREVIEW_BYTES_PER_PIXEL: u64 = 4;
+const PREVIEW_FIXED_BYTES: u64 = 16 * 1024 * 1024;
+
+/// The preview bytes at one `bucket`, or `None` when the original should be served.
+fn derive_one(original: &Path, bucket: u32) -> io::Result<Option<Vec<u8>>> {
+    Ok(derive_many(original, &[bucket])?.pop().flatten())
+}
+
+/// The preview bytes at each of `buckets`, from one decode of `original`.
 ///
-/// A picture this cannot decode is `None` too rather than an error: the
-/// original is always a correct answer, and the same picture would fail again.
-fn derive(original: &Path, bucket: u32) -> io::Result<Option<Vec<u8>>> {
+/// `None` entries mean the original should be served. A picture this cannot decode is `None`
+/// too rather than an error: the original is always a correct answer, and the same picture
+/// would fail again.
+fn derive_many(original: &Path, buckets: &[u32]) -> io::Result<Vec<Option<Vec<u8>>>> {
+    let none = || Ok(vec![None; buckets.len()]);
     let len = std::fs::metadata(original)?.len();
     if len > MAX_SOURCE_BYTES {
-        return Ok(None);
+        return none();
     }
     let bytes = std::fs::read(original)?;
     let probe = &bytes[..bytes.len().min(HEADER_PROBE_BYTES)];
     let Some(header) = inspect(probe) else {
-        return Ok(None);
+        return none();
     };
     let decodable = matches!(
         header.content_type,
         "image/jpeg" | "image/png" | "image/webp"
     );
     let pixels = u64::from(header.width) * u64::from(header.height);
-    let fits = header.width.max(header.height) <= bucket;
     if !decodable || header.animated || pixels > MAX_SOURCE_PIXELS {
-        return Ok(None);
+        return none();
     }
-    if fits && len < KEEP_ORIGINAL_BELOW {
-        return Ok(None);
+    let longest = header.width.max(header.height);
+    let wanted = |bucket: u32| longest > bucket || len >= KEEP_ORIGINAL_BELOW;
+    if !buckets.iter().any(|bucket| wanted(*bucket)) {
+        return none();
     }
-    let Some(encoded) = shrink(&bytes, header.content_type, bucket) else {
-        return Ok(None);
+    let Some((full, orientation)) = decode(&bytes) else {
+        return none();
     };
-    Ok((encoded.len() as u64 * 10 < len * 9).then_some(encoded))
+    drop(bytes);
+    Ok(render_buckets(
+        &full,
+        orientation,
+        header.content_type,
+        buckets,
+        len,
+        wanted,
+    ))
 }
 
-/// Decodes, fits within `bucket` on the longest side, applies the EXIF
-/// orientation and re-encodes without any metadata. Orientation is applied to
-/// the small raster, since rotating the full one would double peak memory.
-fn shrink(bytes: &[u8], content_type: &str, bucket: u32) -> Option<Vec<u8>> {
+/// Encodes `full` at each bucket, largest first so every smaller one shrinks the last result, not the whole raster.
+fn render_buckets(
+    full: &DynamicImage,
+    orientation: Orientation,
+    content_type: &str,
+    buckets: &[u32],
+    original_len: u64,
+    wanted: impl Fn(u32) -> bool,
+) -> Vec<Option<Vec<u8>>> {
+    let mut derived = vec![None; buckets.len()];
+    let mut order: Vec<usize> = (0..buckets.len()).collect();
+    order.sort_by_key(|index| std::cmp::Reverse(buckets[*index]));
+    let mut previous: Option<DynamicImage> = None;
+    for index in order {
+        if !wanted(buckets[index]) {
+            continue;
+        }
+        let fitted = fit(previous.as_ref().unwrap_or(full), buckets[index]);
+        let mut upright = fitted.clone();
+        upright.apply_orientation(orientation);
+        derived[index] = encode(&upright, content_type == "image/png")
+            .filter(|encoded| encoded.len() as u64 * 10 < original_len * 9);
+        previous = Some(fitted);
+    }
+    derived
+}
+
+fn decode(bytes: &[u8]) -> Option<(DynamicImage, Orientation)> {
     let mut reader = ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
         .ok()?;
@@ -230,13 +385,7 @@ fn shrink(bytes: &[u8], content_type: &str, bucket: u32) -> Option<Vec<u8>> {
     let mut decoder = reader.into_decoder().ok()?;
     let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
     let full = DynamicImage::from_decoder(decoder).ok()?;
-    let mut small = if full.width().max(full.height()) > bucket {
-        full.resize(bucket, bucket, imageops::FilterType::Triangle)
-    } else {
-        full
-    };
-    small.apply_orientation(orientation);
-    encode(&small, content_type == "image/png")
+    Some((full, orientation))
 }
 
 /// Photographs go to JPEG; a picture with real transparency, or a PNG that
@@ -297,6 +446,7 @@ mod tests {
     async fn a_cancelled_request_keeps_the_gate_until_its_decode_finishes() {
         let previews = Previews::new(
             std::env::temp_dir().join(format!("slimm-preview-{}", uuid::Uuid::now_v7())),
+            MemoryBudget::for_limit(None),
         );
         std::fs::create_dir_all(&previews.dir).unwrap();
         let (started_tx, started_rx) = std::sync::mpsc::channel();

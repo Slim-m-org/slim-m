@@ -72,7 +72,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     try {
       shot = await ref.read(avatarCameraCaptureProvider)!();
     } catch (e, stack) {
-      reportFailure(LogTag.media, 'take', e, stack);
+      reportFailure(LogTag.media, 'take an avatar photo', e, stack);
       setActionError('Could not open the camera.');
       return;
     }
@@ -84,7 +84,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     try {
       file = await ref.read(attachmentPickerProvider(source))();
     } catch (e, stack) {
-      reportFailure(LogTag.media, 'pick file', e, stack);
+      reportFailure(LogTag.media, 'pick an avatar file', e, stack);
       setActionError('Could not open the file picker.');
       return;
     }

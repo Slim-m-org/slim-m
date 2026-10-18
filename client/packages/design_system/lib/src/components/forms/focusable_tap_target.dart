@@ -179,7 +179,8 @@ class _FocusableTapTargetState extends State<FocusableTapTarget> {
                 alignment: Alignment.center,
                 widthFactor: 1,
                 heightFactor: 1,
-                child: ring,
+                // Keeps the click cursor over text inside a SelectionArea.
+                child: SelectionContainer.disabled(child: ring),
               ),
             ),
           ),

@@ -130,6 +130,9 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
         'New sounds for messages, calls, mute and deafen, so they sound like '
         'one app.',
       ),
+      WhatsNewPoint(
+        'A new electronic track for when you are waiting alone in a call.',
+      ),
     ],
   ),
 ];

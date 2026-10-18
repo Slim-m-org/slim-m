@@ -6,7 +6,11 @@ library;
 
 import 'dart:async';
 
+import 'package:slimm_api/api.dart' show LogLevel;
+
+import 'input_gate.dart' show kInputGateDisplayInterval;
 import 'strong_inactivity.dart';
+import 'voice_log.dart';
 
 /// Longest wait between restart attempts after a failure.
 const Duration kMaxRestartBackoff = Duration(seconds: 30);
@@ -25,7 +29,7 @@ class CaptureNoiseSuppression {
   });
 
   /// Where Strong's decisions are written, so a copied debug log explains a noisy mic.
-  final void Function(String line)? log;
+  final VoiceLog? log;
 
   /// Only hosts with the native input gate can run rnnoise at all.
   final bool supported;
@@ -64,7 +68,7 @@ class CaptureNoiseSuppression {
   void setStrong(bool strong) {
     if (strong == _strong) return;
     _strong = strong;
-    _log('Strong noise suppression ${strong ? 'on' : 'off'}');
+    _log('Strong noise suppression turned ${strong ? 'on' : 'off'}');
     _resetFallback();
     onNativeStrongChanged();
     _schedule();
@@ -79,7 +83,10 @@ class CaptureNoiseSuppression {
   void fallBack() {
     if (_fallback) return;
     _fallback = true;
-    _log('Strong could not reopen the mic; using standard suppression');
+    _log(
+      'Strong could not reopen the microphone; using standard suppression',
+      level: LogLevel.warning,
+    );
     _tracker.reset();
   }
 
@@ -103,19 +110,24 @@ class CaptureNoiseSuppression {
     onNativeStrongChanged();
   }
 
-  void onReading({required bool strongActive, required bool micOpen}) {
+  void onReading({
+    required bool strongActive,
+    required bool micOpen,
+    Duration step = kInputGateDisplayInterval,
+  }) {
     if (!supported || !_strong || !micOpen) {
       _tracker.reset();
       return;
     }
     if (strongActive && !_reportedActive) {
       _reportedActive = true;
-      _log('Strong is running on this mic');
+      _log('Strong noise suppression is running on this microphone');
     }
-    if (_tracker.add(strongActive: strongActive) && !_fallback) {
+    if (_tracker.add(strongActive: strongActive, step: step) && !_fallback) {
       _fallback = true;
       _log(
-        'Strong is not running on this mic; using standard suppression',
+        'Strong noise suppression cannot run on this microphone; using standard',
+        level: LogLevel.warning,
       );
       _schedule();
     }
@@ -135,7 +147,8 @@ class CaptureNoiseSuppression {
     _tracker.reset();
   }
 
-  void _log(String message) => log?.call('voice: $message');
+  void _log(String message, {LogLevel level = LogLevel.info}) =>
+      log?.call(message, level: level);
 
   void _schedule() {
     if (_disposed || _inFlight) return;
@@ -166,7 +179,10 @@ class CaptureNoiseSuppression {
       opened(webrtcNoiseSuppression: want);
     } on Object catch (error) {
       if (generation == _generation) {
-        _log('mic restart for noise suppression failed: $error');
+        _log(
+          'Could not restart the microphone for noise suppression: $error',
+          level: LogLevel.warning,
+        );
         _failures++;
         _rearm();
       }

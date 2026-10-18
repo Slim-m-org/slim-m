@@ -141,7 +141,7 @@ class IoDirectRoute implements DirectRoute {
     return _addresses[_next % _addresses.length];
   }
 
-  Future<Socket> _viaDirect(({String host, int port}) to, Uri url) async {
+  Future<SecureSocket> _dial(({String host, int port}) to, Uri url) async {
     Socket? raw;
     try {
       final connect = _connectDirect;
@@ -152,19 +152,55 @@ class IoDirectRoute implements DirectRoute {
               to.port,
               timeout: _directConnectTimeout,
             );
-      final socket = await SecureSocket.secure(
+      return await SecureSocket.secure(
         raw,
         host: url.host,
         context: _context,
       ).timeout(_handshakeTimeout);
+    } on Object {
+      raw?.destroy();
+      rethrow;
+    }
+  }
+
+  @override
+  void retryNow() {
+    if (_active) return;
+    _skipUntil = null;
+    _penalty = _firstPenalty;
+  }
+
+  @override
+  bool get hasAddresses => _addresses.isNotEmpty;
+
+  @override
+  http.Client? pinnedClient({required bool direct}) {
+    if (direct && _addresses.isEmpty) return null;
+    final to = _addresses.isEmpty ? null : _addresses.first;
+    final client = HttpClient()
+      ..connectionFactory = (url, _, __) async => ConnectionTask.fromSocket(
+            direct && to != null
+                ? _dial(to, url)
+                : _public(url, url.isScheme('https')),
+            () {},
+          );
+    return IOClient(client);
+  }
+
+  Future<Socket> _viaDirect(({String host, int port}) to, Uri url) async {
+    try {
+      final socket = await _dial(to, url);
       _isActive = true;
       _probing = false;
       _penalty = _firstPenalty;
       _skipUntil = null;
       return socket;
     } on Object catch (error, stack) {
-      reportFailure(LogTag.net, 'close', error, stack);
-      raw?.destroy();
+      reportFailure(
+          LogTag.net,
+          'connect over the direct route; using the normal route',
+          error,
+          stack);
       _isActive = false;
       _probing = false;
       _next++;

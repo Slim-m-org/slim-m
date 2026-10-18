@@ -10,16 +10,19 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'local_preview_gate.dart';
+import 'video_interest_mount.dart';
 import 'video_state_card.dart';
 
 /// [view] (a tile for [identity]) with its status cards: a share's stall and
 /// pause states, the health chip, and the paused card over the member's own preview.
+/// While mounted it keeps the feed subscribed, unless [declaresInterest] is false (the canvas states its own).
 Widget voiceVideoView({
   required List<VoiceParticipant> participants,
   required ValueListenable<Map<String, VideoTileHealth>> health,
   required String identity,
   required Widget view,
   required bool screenShare,
+  bool declaresInterest = true,
 }) {
   final who = participants.where((p) => p.identity == identity).firstOrNull;
   final name = who?.name ?? 'Someone';
@@ -34,20 +37,27 @@ Widget voiceVideoView({
       child: view,
     );
   }
+  final tileKey = videoSubscriptionKey(
+    identity: identity,
+    screenShare: screenShare,
+  );
   view = VideoHealthOverlay(
     health: health,
-    tileKey: videoSubscriptionKey(identity: identity, screenShare: screenShare),
+    tileKey: tileKey,
     sharerName: screenShare ? name : null,
     sharerIdentity: identity,
     child: view,
   );
-  return who?.isLocal == true
-      ? LocalPreviewGate(
-          identity: identity,
-          name: name,
-          screenShare: screenShare,
-          child: view,
-        )
+  if (who?.isLocal == true) {
+    view = LocalPreviewGate(
+      identity: identity,
+      name: name,
+      screenShare: screenShare,
+      child: view,
+    );
+  }
+  return declaresInterest
+      ? VideoInterestMount(tileKey: tileKey, child: view)
       : view;
 }
 

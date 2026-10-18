@@ -69,7 +69,7 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
       ref.invalidate(meProvider);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', e, stack);
+      api.reportFailure(api.LogTag.ui, 'save the display name', e, stack);
       if (mounted) {
         setState(() => _error = describeApiFailure('save your name', e));
       }

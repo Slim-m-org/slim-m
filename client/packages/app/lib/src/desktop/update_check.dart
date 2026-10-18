@@ -119,7 +119,7 @@ Future<ClientUpdate?> checkForClientUpdate({
       format: installFormat,
     );
   } catch (error, stack) {
-    reportFailure(LogTag.platform, 'update checks disabled', error, stack);
+    reportFailure(LogTag.platform, 'check for an update', error, stack);
     return null;
   } finally {
     if (client == null) owned.close();

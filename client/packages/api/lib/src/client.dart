@@ -5,10 +5,12 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'connection_test.dart';
 import 'direct_route.dart';
 import 'exceptions.dart';
 import 'logging/app_log.dart';
@@ -26,6 +28,7 @@ part 'client_bot_ui.dart';
 part 'client_watch_session.dart';
 part 'client_channel_admin.dart';
 part 'client_canvas.dart';
+part 'client_diagnostics.dart';
 part 'client_direct_route.dart';
 part 'client_dms.dart';
 part 'client_dock.dart';
@@ -95,8 +98,8 @@ class SessionStore {
     _changes.add(tokens);
     if (_onChange case final onChange?) {
       // Caught, or an uncaught error here would poison every later onChange (see FileKeyStore).
-      _pending = _pending.then((_) => onChange(tokens)).catchError(
-          ignoreError(LogTag.net, 'a session-change listener failed, ignored'));
+      _pending = _pending.then((_) => onChange(tokens)).catchError(ignoreError(
+          LogTag.net, 'A listener for session changes threw; ignoring it'));
     }
   }
 
@@ -274,13 +277,16 @@ class SlimmApi {
   /// idempotent: a retry with the same id returns the first channel.
   /// [restricted] denies `@everyone` VIEW_CHANNEL and grants only the
   /// caller, written atomically with the channel row itself so it can never
-  /// be observed public first.
+  /// be observed public first. [defaultNotification] is what members get
+  /// until they choose their own.
   Future<Channel> createChannel({
     required String name,
     String kind = 'text',
     String? categoryId,
     bool restricted = false,
     bool joinMuted = false,
+    NotificationPreference defaultNotification =
+        NotificationPreference.everything,
     String? id,
   }) async {
     final json = await _send(
@@ -293,6 +299,8 @@ class SlimmApi {
         if (categoryId != null) 'category_id': categoryId,
         if (restricted) 'restricted': true,
         if (joinMuted) 'join_muted': true,
+        if (defaultNotification != NotificationPreference.everything)
+          'default_notification': defaultNotification.wire,
       },
     );
     return Channel.fromJson(json as Map<String, dynamic>);

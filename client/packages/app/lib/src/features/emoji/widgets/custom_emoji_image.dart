@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/animation_gate.dart';
 import '../providers/emoji_catalog_provider.dart';
 import '../../messages/widgets/image_decode.dart';
 
@@ -61,12 +62,14 @@ class CustomEmojiImage extends ConsumerWidget {
       width: size,
       height: size,
       child: switch (bytes) {
-        AsyncData(:final value) => Image.memory(
-          value,
-          fit: BoxFit.contain,
-          gaplessPlayback: true,
-          cacheWidth: edge,
-          cacheHeight: edge,
+        AsyncData(:final value) => AnimationGate(
+          child: Image.memory(
+            value,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            cacheWidth: edge,
+            cacheHeight: edge,
+          ),
         ),
         // A fetch that failed says so, distinct from one still queued or in flight below.
         AsyncError() => Icon(

@@ -352,12 +352,12 @@ class CanvasSync {
       try {
         return await client.canvasOps(channelId, afterSeq: afterSeq);
       } on api.RateLimitedException catch (error, stack) {
-        api.reportFailure(api.LogTag.ui, 'fetch page', error, stack);
+        api.reportFailure(api.LogTag.ui, 'load canvas changes', error, stack);
         if (attempt == 2) return null;
         await Future<void>.delayed(delay);
         delay *= 2;
       } on api.ApiException catch (error, stack) {
-        api.reportFailure(api.LogTag.ui, 'fetch page', error, stack);
+        api.reportFailure(api.LogTag.ui, 'load canvas changes', error, stack);
         return null;
       }
     }

@@ -46,7 +46,12 @@ final linkPreviewImageBytesProvider = FutureProvider.autoDispose
             .fetchLinkPreviewImage(token);
         return fetched.bytes;
       } on NotFoundException catch (error, stack) {
-        AppLog.swallowed(LogTag.ui, 'family failed, ignored', error, stack);
+        AppLog.swallowed(
+          LogTag.ui,
+          'The link preview image is gone',
+          error,
+          stack,
+        );
         return null;
       }
     });

@@ -38,7 +38,7 @@ import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
-import '../../voice/providers/picture_in_picture.dart';
+import '../../voice/providers/video_interest_relay.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/widgets/participant_call_menu.dart';
@@ -274,12 +274,12 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onDraftPoint: _strokePreview.reportLocalDraftPoint,
             onDraftEnded: _strokePreview.endLocalDraft,
             callParticipants: _callParticipants(),
-            cameraViewFor: ref
+            cameraViewFor: (identity) => ref
                 .read(voiceControllerProvider.notifier)
-                .cameraViewFor,
-            screenShareViewFor: ref
+                .cameraViewFor(identity, declaresInterest: false),
+            screenShareViewFor: (identity) => ref
                 .read(voiceControllerProvider.notifier)
-                .screenShareViewFor,
+                .screenShareViewFor(identity, declaresInterest: false),
             tileOverrides: _tileOverrides,
             onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
             onVideoInterest: ref.read(videoInterestRelayProvider).declare,

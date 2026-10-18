@@ -12,7 +12,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../diagnostics/debug_log.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import 'app_lock_preference.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
 import 'desktop_splash_preference.dart';
@@ -25,6 +26,8 @@ import 'preference_controller.dart';
 import 'providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
 import '../features/voice/providers/voice_controller.dart';
+import '../features/voice/providers/voice_flags.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 /// Runs [restore], and on any failure records it and carries on: [name]'s
 /// controller keeps its default, which is always a usable answer.
@@ -36,13 +39,12 @@ Future<void> restoreOrDefault(
   try {
     await restore;
   } catch (error, stack) {
-    container
-        .read(debugLogProvider.notifier)
-        .record(
-          'startup',
-          'could not restore $name, using its default',
-          detail: '$error\n$stack',
-        );
+    AppLog.warning(
+      LogTag.data,
+      'Could not restore the saved $name setting; using the default',
+      error: error,
+      stack: stack,
+    );
   }
 }
 
@@ -81,6 +83,29 @@ Future<void> resyncSharedPreferences(ProviderContainer container) {
   return Future.wait([
     for (final entry in restorablePreferences.entries)
       restoreOrDefault(container, entry.key, entry.value(container).restore()),
+  ]);
+}
+
+/// Re-reads the device-wide voice preferences into a container that has not
+/// loaded them, unless it is in a call, where a restore would change a live one.
+Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
+  final flags = container.read(voiceFlagsProvider);
+  if (flags.state == VoiceSessionState.connected || flags.rejoining) return;
+  final voice = container.read(voiceControllerProvider.notifier);
+  await Future.wait([
+    for (final entry in {
+      'camera on join': voice.restoreCameraPreference(),
+      'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
+      'input threshold': voice.restoreInputThreshold().then(
+        (_) => voice.restoreInputThresholdAuto(),
+      ),
+      'even out loud sounds': voice.restoreEvenOutLoudSounds(),
+      'noise suppression': voice.restoreNoiseSuppression(),
+      'video quality': voice.restoreVideoQuality(),
+      'push to talk': voice.restorePushToTalkPreference(),
+      'audio devices': voice.restoreAudioDevicePreferences(),
+    }.entries)
+      restoreOrDefault(container, entry.key, entry.value),
   ]);
 }
 
@@ -134,12 +159,11 @@ Future<void> runStartupStep(
   try {
     await step();
   } catch (error, stack) {
-    container
-        .read(debugLogProvider.notifier)
-        .record(
-          'startup',
-          '$name failed, opening the app anyway',
-          detail: '$error\n$stack',
-        );
+    AppLog.warning(
+      LogTag.data,
+      'Startup step "$name" failed; opening the app anyway',
+      error: error,
+      stack: stack,
+    );
   }
 }

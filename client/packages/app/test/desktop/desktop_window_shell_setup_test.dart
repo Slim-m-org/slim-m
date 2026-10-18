@@ -17,6 +17,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 
@@ -43,12 +44,17 @@ class _HangingPort extends FakeDesktopWindowPort {
 
 ProviderContainer _container() {
   final container = ProviderContainer();
-  addTearDown(container.dispose);
+  AppLog.install(container.read(debugLogProvider.notifier));
+  addTearDown(() {
+    AppLog.install(null);
+    container.dispose();
+  });
   return container;
 }
 
-bool _loggedFromDesktop(ProviderContainer container) =>
-    container.read(debugLogProvider).any((event) => event.source == 'desktop');
+bool _loggedFromDesktop(ProviderContainer container) => container
+    .read(debugLogProvider)
+    .any((event) => event.source == LogTag.platform);
 
 void main() {
   setUp(() {

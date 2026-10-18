@@ -147,6 +147,10 @@ class _StartupScreenState extends State<StartupScreen>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker = createTicker(_tick);
   double _seconds = 0;
+
+  /// Where the clock stood when the ticker last restarted, since a ticker's
+  /// elapsed time begins again at zero.
+  double _base = 0;
   final List<String> _steps = [];
   bool _reduced = false;
 
@@ -172,6 +176,13 @@ class _StartupScreenState extends State<StartupScreen>
   void didUpdateWidget(StartupScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.status != oldWidget.status) _record(widget.status);
+    if (oldWidget.prompt != null && widget.prompt == null) _resume();
+  }
+
+  void _resume() {
+    if (_reduced || _ticker.isActive) return;
+    _base = _seconds;
+    _ticker.start();
   }
 
   void _record(String status) {
@@ -181,8 +192,9 @@ class _StartupScreenState extends State<StartupScreen>
   }
 
   void _tick(Duration elapsed) {
-    setState(() => _seconds = elapsed.inMicroseconds / 1e6);
-    if (widget.leaving && _seconds >= kStartupSettledAt) _ticker.stop();
+    setState(() => _seconds = _base + elapsed.inMicroseconds / 1e6);
+    final idle = widget.leaving || widget.prompt != null;
+    if (idle && _seconds >= kStartupSettledAt) _ticker.stop();
   }
 
   @override

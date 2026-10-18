@@ -226,6 +226,12 @@ final spaceAttachmentLimitProvider =
       (ref) => ref.watch(apiProvider).spaceAttachmentLimit(),
     );
 
+/// The photo compression settings, `GET /space/media-compression`.
+final spaceMediaCompressionProvider =
+    FutureProvider.autoDispose<api.SpaceMediaCompression>(
+      (ref) => ref.watch(apiProvider).spaceMediaCompression(),
+    );
+
 /// Operator-visible storage usage and sweep health, `GET /space/storage`.
 /// Always computed - unlike [spaceAnalyticsProvider] there is no toggle. See
 /// `screens/admin/storage_screen.dart`.
@@ -312,7 +318,12 @@ Future<List<api.DockSource>?> _communitySources(api.SlimmApi client) async {
         if (!s.official) s,
     ];
   } catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'community sources', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      'list the community module sources',
+      error,
+      stack,
+    );
     return null;
   }
 }
@@ -325,7 +336,12 @@ Future<DockSourceSection> _loadSection(
     final entries = await client.listDockModules(source: source.id);
     return DockSourceSection(source: source, entries: entries);
   } catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'community sources', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      "list a module source's modules",
+      error,
+      stack,
+    );
     return DockSourceSection(source: source, entries: const [], failed: true);
   }
 }

@@ -7,6 +7,9 @@
 /// they share one [Wrap]. "Trouble signing in?" lives under the password
 /// instead, because it is about that field and not a way out of the screen.
 ///
+/// While adding a second Space the way back is "Use a different Space", whose
+/// picker keeps the Cancel; a third button here crowded the row.
+///
 /// A Space is one deployment, so to a user "server" and "Space" are the same
 /// thing. One action leads to the onboarding choice, which already offers an
 /// invite, an address, or the official Space - the two routes differ only in
@@ -15,8 +18,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-
-import '../../accounts/widgets/add_server_cancel.dart';
 
 class SignInAlternatives extends StatelessWidget {
   const SignInAlternatives({
@@ -56,7 +57,6 @@ class SignInAlternatives extends StatelessWidget {
         disabled: busy,
         onPressed: onUseDifferentSpace,
       ),
-      AddServerCancel(disabled: busy),
     ],
   );
 }

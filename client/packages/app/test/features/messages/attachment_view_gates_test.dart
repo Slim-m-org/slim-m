@@ -44,6 +44,13 @@ final _gifBytes = base64Decode(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
 );
 
+const _animatedWebp = api.Attachment(
+  id: 'w1',
+  filename: 'loop.webp',
+  contentType: 'image/webp',
+  size: 43,
+);
+
 ProviderContainer _container(List<Override> overrides) {
   SharedPreferences.setMockInitialValues({});
   final container = ProviderContainer(
@@ -258,5 +265,36 @@ void main() {
       findsOneWidget,
       reason: 'focus back, animation back',
     );
+  });
+
+  testWidgets('an animated webp obeys the hover-or-tap setting and the '
+      'unfocused hold, though its type is not gif', (tester) async {
+    // Gif bytes stand in for an animated webp: the sniffer reads bytes, not the type.
+    final container = _container([
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _gifBytes,
+      ),
+    ]);
+    await container
+        .read(gifAutoplayControllerProvider.notifier)
+        .select(GifAutoplay.tapToPlay);
+    final binding = TestWidgetsFlutterBinding.instance;
+    addTearDown(
+      () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+    );
+
+    await _pump(tester, container, _animatedWebp);
+
+    expect(find.byIcon(AppIcons.play), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
+
+    await tester.tap(find.byIcon(AppIcons.play));
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsOneWidget);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsNothing);
+    expect(find.byType(AttachmentFirstFrame), findsOneWidget);
   });
 }

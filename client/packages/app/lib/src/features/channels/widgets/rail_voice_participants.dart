@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The people under a voice channel in the rail. Each row opens that person's
-/// member card on a tap or click, and a menu on a right-click or long press,
-/// so someone can be checked on or moderated without joining the call
-/// (owner backlog 221). Volume and mute for me stay in the call: they act on
-/// a live track, which exists only there.
+/// member card on a tap or click, and the same menu as their call tile on a
+/// right-click or long press (`participantCallMenuItems`), so the two cannot
+/// offer different actions for one person.
 library;
 
 import 'dart:async';
@@ -16,7 +15,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/user_profiles.dart';
 import '../../../widgets/context_menu_region.dart';
-import '../../members/widgets/member_moderation_gates.dart';
+import '../../voice/widgets/participant_call_menu.dart';
 import '../../members/widgets/member_profile.dart';
 import '../../members/widgets/user_avatar.dart';
 
@@ -96,39 +95,9 @@ class _ParticipantRow extends ConsumerStatefulWidget {
 class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
   bool _hovered = false;
 
-  void _open(api.UserProfile profile, {bool moderating = false}) => unawaited(
-    showMemberProfile(
-      context,
-      profile: profile,
-      channelId: widget.channelId,
-      initiallyModerating: moderating,
-    ),
+  void _open(api.UserProfile profile) => unawaited(
+    showMemberProfile(context, profile: profile, channelId: widget.channelId),
   );
-
-  List<Widget> _menu(api.UserProfile profile, VoidCallback close) {
-    // watch: false - see memberModerationGates's own doc for why.
-    final gates = memberModerationGates(ref, profile: profile, watch: false);
-    return [
-      AppMenuItem(
-        label: 'View profile',
-        leading: AppIcons.account,
-        onTap: () {
-          close();
-          _open(profile);
-        },
-      ),
-      if (gates.showModeration)
-        AppMenuItem(
-          label: 'Moderate...',
-          leading: AppIcons.shield,
-          submenu: true,
-          onTap: () {
-            close();
-            _open(profile, moderating: true);
-          },
-        ),
-    ];
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -170,8 +139,14 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
     // Until the profile resolves there is no card to open, so the row stays plain.
     if (profile == null) return face;
     return ContextMenuRegion(
-      itemsBuilder: (context, close) => _menu(profile, close),
-      ownsFocusNode: false,
+      itemsBuilder: (menuContext, close) => participantCallMenuItems(
+        menuContext,
+        ref,
+        participant: participant,
+        close: close,
+        knownProfile: profile,
+        channelId: widget.channelId,
+      ),
       child: ConstrainedBox(
         // A finger needs the touch row height; a pointer keeps the dense rows.
         constraints: BoxConstraints(

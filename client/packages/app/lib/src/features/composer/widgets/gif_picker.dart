@@ -19,6 +19,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
+import '../../../widgets/animation_gate.dart';
 import '../providers/gif_preview_bytes.dart';
 import '../providers/gif_trending.dart';
 import '../../../providers/providers.dart';
@@ -206,7 +207,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         _loading = false;
       });
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'set state', e, stack);
+      api.reportFailure(api.LogTag.media, 'search GIFs', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('search for gifs', e);
@@ -227,7 +228,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.media,
-        'set state failed, ignored',
+        'The picked GIF is no longer available',
         error,
         stack,
       );
@@ -236,7 +237,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       setState(() => _selectingId = null);
       await _reload();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'set state', e, stack);
+      api.reportFailure(api.LogTag.media, 'load trending GIFs', e, stack);
       if (!mounted) return;
       setState(() {
         _error = describeApiFailure('attach that gif', e);
@@ -395,11 +396,13 @@ class _GifTile extends ConsumerWidget {
               fit: StackFit.expand,
               children: [
                 switch (preview) {
-                  AsyncData(value: final Uint8List bytes) => Image.memory(
-                    bytes,
-                    fit: BoxFit.cover,
-                    cacheWidth: decodeEdge(context, 160),
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                  AsyncData(value: final Uint8List bytes) => AnimationGate(
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      cacheWidth: decodeEdge(context, 160),
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
                   ),
                   AsyncError() => const SizedBox.shrink(),
                   _ => const Center(

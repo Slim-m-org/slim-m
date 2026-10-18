@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE attachments SET original_size = ?, original_content_type = ?, original_filename = ?\n             WHERE sha256 = ? AND original_size = 0",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "550c60c8c7e0a065f514a5ba6a6785d0d9cb776703734d21b5f7ebf6a87db532"
+}

@@ -283,12 +283,22 @@ impl Uploads {
             .map_err(AppendError::Io)
     }
 
+    /// Where a session's assembled bytes are, for reading them before they are placed.
+    pub fn data_path(&self, id: Uuid) -> PathBuf {
+        self.session_dir(id).join(DATA_FILE)
+    }
+
     /// Moves a finished session's bytes to their content-hash path, or drops
     /// them when those bytes are already stored, then removes the session.
     pub async fn place(&self, id: Uuid, hex_id: &str) -> io::Result<()> {
+        self.place_at(id, self.attachments_dir.join(hex_id)).await
+    }
+
+    /// [`place`](Self::place) to a path of the caller's choosing, for bytes
+    /// stored under another attachment's name (a kept original).
+    pub async fn place_at(&self, id: Uuid, final_path: PathBuf) -> io::Result<()> {
         self.lock_running().remove(&id);
         let dir = self.session_dir(id);
-        let final_path = self.attachments_dir.join(hex_id);
         blocking(move || {
             if !final_path.exists() {
                 std::fs::rename(dir.join(DATA_FILE), &final_path)?;

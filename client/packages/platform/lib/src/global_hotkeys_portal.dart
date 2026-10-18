@@ -127,7 +127,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
           ? const GlobalHotkeyAvailability.available(portalAvailableMessage)
           : const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     } on Object catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'probe failed, ignored', error, stack);
+      AppLog.swallowed(LogTag.platform,
+          'Could not reach the global shortcuts portal', error, stack);
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     }
   }
@@ -157,7 +158,8 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       }
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.platform, 'probe', error, stack);
+      reportFailure(
+          LogTag.platform, 'close the global shortcuts session', error, stack);
       _endSession();
       return const GlobalHotkeyAvailability.unavailable(portalMissingMessage);
     }
@@ -187,7 +189,7 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'the portal session may already be gone; the grab is released either way',
+        'The global shortcuts portal session was already closed',
         error,
         stack,
       );

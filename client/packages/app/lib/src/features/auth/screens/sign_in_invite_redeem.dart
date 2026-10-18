@@ -10,7 +10,7 @@ Future<void> redeemInviteQuietly(SlimmApi api, String invite) async {
   try {
     await api.redeemInvite(invite);
   } on ApiException catch (error, stack) {
-    reportFailure(LogTag.auth, 'redeem invite quietly', error, stack);
+    reportFailure(LogTag.auth, 'redeem the invite after sign-in', error, stack);
     return;
   }
 }

@@ -13,6 +13,7 @@ export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
+export 'src/share_limit.dart';
 export 'src/capture_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
 export 'src/call_stats_sampler.dart'
@@ -27,11 +28,16 @@ export 'src/input_gate.dart'
         InputGateReading,
         inputLevelFraction,
         kDefaultInputThresholdDb,
-        kInputFloorDb;
+        kInputFloorDb,
+        kInputGateDisplayInterval,
+        InputGateRate;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mic_port.dart';
+export 'src/mic_preview.dart';
+export 'src/mic_preview_loopback.dart' show LoopbackMicSource, systemMicPreview;
 export 'src/mic_recovery.dart';
+export 'src/mic_release.dart';
 export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';
 export 'src/screen_share_audio.dart';

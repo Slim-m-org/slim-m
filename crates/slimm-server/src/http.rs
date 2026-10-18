@@ -23,8 +23,10 @@ use crate::voice::VoiceService;
 pub mod admin_audit;
 mod analytics;
 mod apps;
+mod attachment_compress;
 mod attachment_ids;
 mod attachment_limit;
+mod attachment_original;
 mod attachment_preview;
 mod attachment_range;
 mod attachment_uploads;
@@ -66,6 +68,7 @@ mod invites;
 mod join_gate;
 pub mod link_preview;
 pub mod linked_accounts;
+mod linked_avatar;
 mod member_permissions;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
@@ -74,6 +77,7 @@ use messages::{
     message_components, message_dto, message_enrich, message_mentions, message_validation,
     messages_bulk, messages_bulk_window,
 };
+mod diagnostics;
 mod direct_route;
 mod metrics;
 mod module_caller;
@@ -102,6 +106,7 @@ mod recovery;
 mod reports;
 mod roles;
 use roles::role_reorder;
+mod media_compression;
 mod route_timing;
 mod safety;
 mod saved_messages;
@@ -207,6 +212,7 @@ pub fn router(state: AppState) -> Router {
     // Fresh per call, like `state.limiter`; see `route_timing`'s own doc.
     let route_timings = route_timing::RouteTimings::new();
     let uploads = attachments::upload_routes()
+        .merge(diagnostics::transfer_routes())
         .route_layer(axum::middleware::from_fn(route_timing::record))
         .layer(Extension(route_timings.clone()))
         .layer(ConcurrencyLimitLayer::new(MAX_INFLIGHT_REQUESTS))
@@ -221,6 +227,7 @@ pub fn router(state: AppState) -> Router {
         .merge(admin_audit::routes())
         .merge(analytics::routes())
         .merge(attachment_limit::routes())
+        .merge(media_compression::routes())
         .merge(module_schedule::routes())
         .merge(channel_retention::routes())
         .merge(apps::routes())
@@ -234,6 +241,7 @@ pub fn router(state: AppState) -> Router {
         .merge(channels::routes())
         .merge(channel_order::routes())
         .merge(channel_permissions::routes())
+        .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
         .merge(emoji::routes())

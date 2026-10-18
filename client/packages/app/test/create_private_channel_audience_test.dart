@@ -138,6 +138,8 @@ Future<void> _open(WidgetTester tester, _Server server) async {
 }
 
 Future<void> _create(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Create channel'));
+  await tester.pumpAndSettle();
   await tester.runAsync(() async {
     await tester.tap(find.text('Create channel'));
     await Future<void>.delayed(const Duration(milliseconds: 300));

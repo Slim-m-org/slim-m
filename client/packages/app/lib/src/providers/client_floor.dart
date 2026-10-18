@@ -88,10 +88,20 @@ final clientFloorProvider = FutureProvider<ClientFloor>((ref) async {
       clientVersion: appInfo.version,
     );
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'parse', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      "read the server's minimum app version",
+      error,
+      stack,
+    );
     return ClientFloor.unknown;
   } catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'parse', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      "read the server's minimum app version",
+      error,
+      stack,
+    );
     return ClientFloor.unknown;
   }
 });

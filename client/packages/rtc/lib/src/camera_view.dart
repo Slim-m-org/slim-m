@@ -24,6 +24,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'camera_switching.dart';
 import 'first_frame_gate.dart';
+import 'video_quality.dart';
 import 'track_tile_state.dart';
 
 /// Test-only: how many times each identity's [CameraView] has run `build`,
@@ -45,6 +46,7 @@ class CameraView extends StatefulWidget {
     required this.room,
     required this.identity,
     required this.facing,
+    this.density,
   });
 
   final lk.Room room;
@@ -57,6 +59,9 @@ class CameraView extends StatefulWidget {
   /// [identity] turns out to be the local participant - a flip on this
   /// device says nothing about anyone else's camera.
   final ValueListenable<CameraFacing> facing;
+
+  /// The adaptive-stream density this view reports; see [pixelDensityFor].
+  final ValueListenable<lk.AdaptiveStreamPixelDensity>? density;
 
   @override
   State<CameraView> createState() => _CameraViewState();
@@ -148,13 +153,17 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
       placeholder: const SizedBox.expand(),
       child: OwnedRendererView(
         owned: owned,
-        builder: (renderer) => lk.VideoTrackRenderer(
-          track,
-          fit: lk.VideoViewFit.cover,
-          mirrorMode:
-              mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
-          cachedRenderer: renderer,
-          autoDisposeRenderer: false,
+        builder: (renderer) => withReceiveDensity(
+          widget.density,
+          (density) => lk.VideoTrackRenderer(
+            track,
+            fit: lk.VideoViewFit.cover,
+            mirrorMode:
+                mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
+            cachedRenderer: renderer,
+            autoDisposeRenderer: false,
+            adaptiveStreamPixelDensity: density,
+          ),
         ),
       ),
     );

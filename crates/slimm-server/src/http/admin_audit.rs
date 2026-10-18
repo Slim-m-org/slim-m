@@ -73,6 +73,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     ),
     route(
         Method::PATCH,
+        "/space/media-compression",
+        "space.media_compression",
+        None,
+    ),
+    route(
+        Method::PATCH,
         "/space/link-previews",
         "space.link_previews",
         None,

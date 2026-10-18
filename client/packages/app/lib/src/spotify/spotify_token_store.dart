@@ -55,7 +55,12 @@ class SpotifyTokenStore {
     try {
       return SpotifyTokens.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } on Object catch (error, stack) {
-      reportFailure(LogTag.data, 'load', error, stack);
+      reportFailure(
+        LogTag.data,
+        'read the saved Spotify sign-in',
+        error,
+        stack,
+      );
       await clear();
       return null;
     }
@@ -77,7 +82,7 @@ class SpotifyTokenStore {
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } on Object catch (error, stack) {
-      reportFailure(LogTag.data, 'load pending', error, stack);
+      reportFailure(LogTag.data, 'read the pending Spotify link', error, stack);
       await clearPending();
       return null;
     }

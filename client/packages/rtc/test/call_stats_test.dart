@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:slimm_rtc/rtc.dart';
 
 StatsEntry _outbound(String rid, int w, int h, num bytes, num at) => StatsEntry(
@@ -74,7 +75,38 @@ VideoStatsSample _parse(List<StatsEntry> entries,
       previous: previous,
     );
 
+VideoStatsSample _parseIn(StatsEntry entry, {VideoStatsSample? previous}) =>
+    parseVideoStats(
+      [entry],
+      identity: 'u2',
+      name: 'Riley',
+      source: CallStatsSource.screenShare,
+      local: false,
+      previous: previous,
+    );
+
+rtc.StatsReport _inbound(num bytes, double timestamp) => rtc.StatsReport('in-1',
+    'inbound-rtp', timestamp, {'kind': 'video', 'bytesReceived': bytes});
+
 void main() {
+  group('StatsEntry.fromReport', () {
+    // Native plugins stamp in microseconds; a 2 Mbps share used to read 0.00.
+    test('reads a native microsecond stamp so the bitrate is real', () {
+      final first = _parseIn(StatsEntry.fromReport(_inbound(0, 10e6)));
+      final second = _parseIn(
+        StatsEntry.fromReport(_inbound(500000, 12e6)),
+        previous: first,
+      );
+      // 500,000 bytes over 2 s is 2 Mbps.
+      expect(second.streams.single.bitrateBps, closeTo(2e6, 1));
+    });
+
+    test('reads a browser millisecond stamp as it is', () {
+      final entry = StatsEntry.fromReport(_inbound(0, 12000), web: true);
+      expect(entry.timestampMs, 12000);
+    });
+  });
+
   group('parseVideoStats', () {
     test('reads each simulcast layer, smallest first', () {
       final sample = _parse(_report(1000000, 10000));
@@ -285,12 +317,5 @@ void main() {
         unawaited(sampler.dispose());
       });
     });
-  });
-
-  test(
-      'a native microsecond timestamp reads as milliseconds, a browser one as is',
-      () {
-    expect(statsTimestampMs(1792350739000000), 1792350739000);
-    expect(statsTimestampMs(1792350739000), 1792350739000);
   });
 }

@@ -118,6 +118,56 @@ void main() {
     });
   });
 
+  group('poll rate', () {
+    int polls(_FakeGate fake) =>
+        fake.calls.where((c) => c.$1 == 'getInputGate').length;
+
+    test('display polls every 50 ms, watch once a second, and it can switch',
+        () {
+      fakeAsync((async) {
+        final fake = _FakeGate();
+        final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+        final steps = <Duration>[];
+        gate.readings.listen((r) => steps.add(r.step));
+        gate.start(() {});
+
+        async.elapse(const Duration(seconds: 1));
+        expect(polls(fake), 20, reason: 'display: 20 a second');
+        expect(gate.fast, isTrue);
+
+        gate.setRate(InputGateRate.watch);
+        final before = polls(fake);
+        async.elapse(const Duration(seconds: 5));
+        expect(polls(fake) - before, 5, reason: 'watch: 1 a second');
+        expect(gate.fast, isFalse);
+        expect(steps.last, const Duration(seconds: 1));
+
+        gate.setRate(InputGateRate.adapt);
+        final adapting = polls(fake);
+        async.elapse(const Duration(seconds: 1));
+        expect(polls(fake) - adapting, 5, reason: 'adapt: 5 a second');
+
+        gate.setRate(InputGateRate.display);
+        final again = polls(fake);
+        async.elapse(const Duration(seconds: 1));
+        expect(polls(fake) - again, 20, reason: 'display resumes at once');
+        gate.stop();
+      });
+    });
+
+    test('a rate chosen before start applies when it starts', () {
+      fakeAsync((async) {
+        final fake = _FakeGate();
+        final gate = InputGateMonitor(invoke: fake.invoke, supported: true)
+          ..setRate(InputGateRate.watch);
+        gate.start(() {});
+        async.elapse(const Duration(seconds: 3));
+        expect(polls(fake), 3);
+        gate.stop();
+      });
+    });
+  });
+
   test('a platform error stops polling instead of retrying forever', () {
     fakeAsync((async) {
       final fake = _FakeGate()..fail = true;

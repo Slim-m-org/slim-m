@@ -82,9 +82,34 @@ class AudioDeviceSwitching {
         // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
         deviceId: isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
         noiseSuppression: noiseSuppression,
-        // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
+        // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
         stopAudioCaptureOnMute: false,
       );
+
+  /// Whether the capture rides whatever the system default microphone is.
+  bool get followsSystemDefaultInput => _preferredInputId == null;
+
+  /// Changes whenever a microphone appears, goes, or becomes the system
+  /// default, so a capture on the old default can be told to move.
+  Future<String> inputSignature() async {
+    final ids = [for (final d in await inputs()) d.id]..sort();
+    final fallback = (await _devices.systemDefaultInput())?.id ?? '';
+    return '$fallback|${ids.join(',')}';
+  }
+
+  /// A capture that opens [inputId] without a call, for the level preview.
+  lk.AudioCaptureOptions previewCaptureOptions(String? inputId) =>
+      lk.AudioCaptureOptions(
+        deviceId: isPulseDeviceId(inputId) ? null : inputId,
+        stopAudioCaptureOnMute: false,
+      );
+
+  /// Moves a just-opened preview capture onto a sound-server node.
+  Future<void> routePreviewInput(String? inputId) async {
+    if (isPulseDeviceId(inputId)) {
+      await _pulse.moveOwnStreams(capture: true, deviceId: inputId!);
+    }
+  }
 
   /// Forgets a remembered microphone or speaker that is no longer plugged in,
   /// so the next [roomOptions] asks for the system default instead of a device

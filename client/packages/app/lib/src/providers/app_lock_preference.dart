@@ -42,7 +42,7 @@ class AppLockPreferenceController extends StateNotifier<bool>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.auth,
-        'Off is always a safe default; see HighContrastController\'s own restore',
+        'Could not read the app lock setting; leaving it off',
         error,
         stack,
       );

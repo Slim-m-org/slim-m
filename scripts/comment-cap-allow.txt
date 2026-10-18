@@ -105,7 +105,6 @@ client/packages/app/test/features/channels/touch_targets_test.dart 1
 client/packages/app/test/ui_snapshot_support.dart 3
 client/packages/app/test/ui_snapshot_test.dart 1
 client/packages/app/test/voice_broadcast_handoff_test.dart 1
-client/packages/app/test/features/voice/voice_controller_harness.dart 1
 client/packages/app/test/features/voice/voice_screen_test.dart 3
 client/packages/app/test/features/voice/voice_settings_screen_test.dart 1
 client/packages/app/test/features/voice/voice_share_indicator_test.dart 1
@@ -157,7 +156,7 @@ client/packages/voice_canvas/benchmark/spatial_grid_benchmark.dart 1
 crates/slimm-server/src/cors.rs 4
 crates/slimm-server/src/emoji.rs 2
 crates/slimm-server/src/emoji/import.rs 4
-crates/slimm-server/src/http/attachments.rs 4
+crates/slimm-server/src/http/attachments.rs 3
 crates/slimm-server/src/http/auth.rs 6
 crates/slimm-server/src/http/canvas.rs 4
 crates/slimm-server/src/http/channels.rs 2

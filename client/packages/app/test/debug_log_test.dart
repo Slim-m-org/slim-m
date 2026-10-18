@@ -3,6 +3,7 @@
 /// folded, and persisted across a restart.
 library;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/api_failure.dart';
@@ -23,13 +24,16 @@ class _MemoryPersistence implements DebugLogPersistence {
   }
 }
 
-LogRecord _record(String message, {LogLevel level = LogLevel.info}) =>
-    LogRecord(
-      at: DateTime(2026, 10, 18),
-      level: level,
-      tag: LogTag.sync,
-      message: message,
-    );
+LogRecord _record(
+  String message, {
+  LogLevel level = LogLevel.info,
+  DateTime? at,
+}) => LogRecord(
+  at: at ?? DateTime(2026, 10, 18),
+  level: level,
+  tag: LogTag.sync,
+  message: message,
+);
 
 void main() {
   tearDown(() => AppLog.install(null));
@@ -50,6 +54,56 @@ void main() {
     log.write(_record('other'));
     expect(log.state, hasLength(2));
     expect(log.state.last.count, 4);
+  });
+
+  test('a repeat folds into its earlier entry even with others between', () {
+    final log = DebugLog();
+    log
+      ..write(_record('connect failed', level: LogLevel.warning))
+      ..write(_record('push registered'))
+      ..write(_record('connect failed', level: LogLevel.warning))
+      ..write(_record('connect failed', level: LogLevel.warning));
+    expect(log.state, hasLength(2));
+    expect(log.state.first.message, 'connect failed');
+    expect(log.state.first.count, 3);
+  });
+
+  test('a repeat long after the first is a new entry', () {
+    final log = DebugLog();
+    final start = DateTime(2026, 10, 18, 9);
+    log
+      ..write(_record('connect failed', at: start))
+      ..write(
+        _record('connect failed', at: start.add(const Duration(hours: 1))),
+      );
+    expect(log.state, hasLength(2));
+  });
+
+  test('a long outage writes to disk about once a minute', () {
+    fakeAsync((async) {
+      final disk = _MemoryPersistence();
+      final log = DebugLog(persistence: disk);
+      for (var i = 0; i < 100; i++) {
+        log.write(_record('failure $i'));
+        async.elapse(const Duration(seconds: 3));
+      }
+      expect(
+        disk.saves,
+        inInclusiveRange(4, 6),
+        reason: '300 seconds of failures',
+      );
+      log.dispose();
+    });
+  });
+
+  test('flush writes at once, and only when something changed', () async {
+    final disk = _MemoryPersistence();
+    final log = DebugLog(persistence: disk)..write(_record('pending'));
+    expect(disk.saves, 0, reason: 'nothing reaches disk before the delay');
+    log.flush();
+    log.flush();
+    expect(disk.saves, 1);
+    log.dispose();
   });
 
   test('a flood of debug records cannot push an error out of the ring', () {

@@ -18,6 +18,8 @@ double _opacityOf(WidgetTester tester, Finder child) {
 }
 
 void main() {
+  setUp(resetDesktopEntranceForTest);
+
   testWidgets('the main window fades in once', (tester) async {
     await tester.pumpWidget(
       const Directionality(

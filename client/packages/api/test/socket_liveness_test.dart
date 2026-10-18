@@ -14,6 +14,36 @@ import 'package:slimm_api/src/socket_liveness.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('SocketLiveness.probe', () {
+    test('is true when a frame answers the ping', () {
+      fakeAsync((async) {
+        late SocketLiveness liveness;
+        liveness = SocketLiveness(
+          ping: () => Future.microtask(() => liveness.heard()),
+          onSilent: () {},
+        );
+        bool? alive;
+        liveness.probe().then((v) => alive = v);
+        async.flushMicrotasks();
+        expect(alive, isTrue);
+      });
+    });
+
+    test('is false when nothing comes back within the timeout', () {
+      fakeAsync((async) {
+        var pings = 0;
+        final liveness = SocketLiveness(ping: () => pings++, onSilent: () {});
+        bool? alive;
+        liveness.probe().then((v) => alive = v);
+        async.elapse(const Duration(seconds: 4));
+        expect(alive, isNull);
+        async.elapse(const Duration(seconds: 2));
+        expect(alive, isFalse);
+        expect(pings, 1);
+      });
+    });
+  });
+
   group('SocketLiveness', () {
     test('pings every beat and stays quiet while frames keep arriving', () {
       fakeAsync((async) {

@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' show TokenPair;
 
 import '../invite_pending.dart';
+import '../providers/overlay_cover.dart';
 import '../providers/providers.dart';
 import '../features/channels/providers/threads.dart';
 import '../screens/not_found_screen.dart';
@@ -29,6 +30,7 @@ import '../features/settings/screens/admin/dock_module_screen.dart';
 import '../features/settings/screens/admin/dock_screen.dart';
 import '../features/settings/screens/admin/emoji_screen.dart';
 import '../features/settings/screens/admin/invites_screen.dart';
+import '../features/settings/screens/admin/customize_screen.dart';
 import '../features/settings/screens/admin/performance_screen.dart';
 import '../features/settings/screens/admin/space_voice_screen.dart';
 import '../features/settings/screens/admin/reports_screen.dart';
@@ -76,8 +78,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ? Routes.onboarding
       : Routes.signIn;
 
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+
   return GoRouter(
     initialLocation: signedOutHome(),
+    observers: [
+      OverlayCoverObserver((covering) {
+        if (disposed) return;
+        ref.read(overlayCoverProvider.notifier).state = covering;
+      }),
+    ],
     // Rebuilds the redirect whenever the session changes, which is what makes
     // sign-out and revocation take effect immediately.
     refreshListenable: _SessionListenable(ref),
@@ -124,6 +135,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminInvites,
         pageBuilder: (context, state) =>
             modalPage(context, const InvitesScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminCustomize,
+        pageBuilder: (context, state) =>
+            modalPage(context, const CustomizeScreen()),
       ),
       GoRoute(
         path: Routes.adminRoles,

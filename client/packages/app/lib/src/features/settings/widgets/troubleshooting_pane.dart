@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Troubleshooting pane: the device check and, beside a nav, the debug
-/// log as an inner page of the same pane.
+/// The Troubleshooting pane: the device check, connection test, call stats, a setup replay and,
+/// beside a nav, the debug log as an inner page of the same pane.
 ///
 /// A phone has no room for a second level inside a pane, so the row pushes the
 /// standalone debug log route there instead. Which one happens follows the
@@ -18,10 +18,12 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
+import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'settings_detail_row.dart';
 import 'settings_panes.dart';
+import 'troubleshooting_rows.dart';
 
 /// Whether the debug log is showing inside the pane; dropped with the pane.
 final debugLogOpenProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -41,7 +43,14 @@ class TroubleshootingPane extends ConsumerWidget {
         // Offstage keeps the check's result while the log is open.
         Offstage(
           offstage: open,
-          child: const MediaCapabilitySection(extraRows: [_DebugLogRow()]),
+          child: const MediaCapabilitySection(
+            extraRows: [
+              ConnectionTestRow(),
+              _DebugLogRow(),
+              CallStatsRow(),
+              RunSetupAgainRow(),
+            ],
+          ),
         ),
         if (open) const DebugLogPage(),
       ],
@@ -86,9 +95,12 @@ class TroubleshootingHeading extends ConsumerWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final empty = ref.watch(debugLogProvider).isEmpty;
     void back() => ref.read(debugLogOpenProvider.notifier).state = false;
+    final copyLabel = ref.watch(debugLogFilterProvider).isActive
+        ? 'Copy shown'
+        : 'Copy all';
 
     return SizedBox(
-      height: 40,
+      height: AppSizes.controlLg,
       child: Row(
         spacing: AppSpacing.s8,
         children: [
@@ -126,18 +138,20 @@ class TroubleshootingHeading extends ConsumerWidget {
               ),
             ),
           ),
-          AppButton(
-            label: ref.watch(debugLogFilterProvider).isActive
-                ? 'Copy shown'
-                : 'Copy all',
+          AppIconButton(
             icon: AppIcons.copy,
+            semanticLabel: copyLabel,
+            tooltip: copyLabel,
+            iconSize: AppSizes.icon16,
             onPressed: empty
                 ? null
                 : () => unawaited(copyDebugLog(context, ref)),
           ),
-          AppButton(
-            label: 'Clear',
-            variant: AppButtonVariant.ghost,
+          AppIconButton(
+            icon: AppIcons.delete,
+            semanticLabel: 'Clear',
+            tooltip: 'Clear',
+            iconSize: AppSizes.icon16,
             onPressed: empty ? null : ref.read(debugLogProvider.notifier).clear,
           ),
         ],

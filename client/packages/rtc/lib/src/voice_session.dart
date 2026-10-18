@@ -22,6 +22,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'audio_gain.dart' as rtc_gain;
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
+import 'mic_release.dart';
 import 'input_gate.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
@@ -43,20 +44,22 @@ import 'screen_share.dart';
 import 'screen_share_control.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
+import 'share_limit.dart';
 import 'voice_disconnect_reason.dart';
-import 'video_publish_options.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
+import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'package:slimm_api/api.dart'
-    show AppLog, LogTag, reportFailure, ignoreError;
+    show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
+part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
@@ -76,6 +79,7 @@ class VoiceSession
         VoiceSessionAudioDevices,
         VoiceSessionInputGate,
         VoiceSessionMicRecovery,
+        VoiceSessionMicRelease,
         VoiceSessionListenerAudio {
   VoiceSession({
     RoomFactory? roomFactory,
@@ -85,9 +89,11 @@ class VoiceSession
     InputGateMonitor? inputGate,
     MicPort? micPort,
     Duration? captureRestartDebounce,
-    void Function(String line)? audioLog,
+    VoiceLog? audioLog,
     AudioDevices? audioDevices,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
+    Duration micReleaseGrace = kMicReleaseGrace,
+    bool? mobile,
   })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
@@ -100,10 +106,16 @@ class VoiceSession
         (roomFactory == null
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
+    _gate.setRate(InputGateRate.watch);
     _initCapture(micPort, captureRestartDebounce, _restartCapture);
     if (audioDevices != null) {
       _audioSwitching = AudioDeviceSwitching(audioDevices);
     }
+    _initMicRelease(
+      grace: micReleaseGrace,
+      mobile: mobile ?? lk.lkPlatformIsMobile(),
+      plainOptions: () => _openCaptureOptions(reopen: false),
+    );
     _initMicRecovery(
       timing: micRecoveryTiming,
       // An injected room has no sound stack to watch unless a test brings one.
@@ -121,11 +133,7 @@ class VoiceSession
   /// Settings has chosen; see [VoiceSessionAudioDevices].
   lk.Room _buildRoom() => lk.Room(
         roomOptions: _audioSwitching.roomOptions(
-          lk.RoomOptions(
-            adaptiveStream: true,
-            dynacast: true,
-            defaultVideoPublishOptions: cameraPublishOptions(),
-          ),
+          receiveRoomOptions(),
           noiseSuppression: _capture.webrtcNoiseSuppression,
         ),
       );
@@ -136,6 +144,9 @@ class VoiceSession
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
   late final VideoSubscriptionCuller _videoCuller;
+  final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
+    lk.AdaptiveStreamPixelDensity.auto,
+  );
 
   /// See [videoHealth]; fed by [callStats] while any remote video is subscribed.
   late final _stallWatchdog = VideoStallWatchdog(recover: _recoverStalledVideo);
@@ -147,6 +158,8 @@ class VoiceSession
     targets: () => _callStatsTargets(),
     log: (line) => AppLog.debug(LogTag.voice, line),
   );
+
+  late final shareLimit = ShareLimitMonitor(callStats);
 
   @override
   lk.Room? _room;
@@ -205,6 +218,7 @@ class VoiceSession
   /// kept for the next join.
   void setReceiveVideoQuality(ReceiveVideoQuality quality) {
     _receiveQuality = quality;
+    _receiveDensity.value = pixelDensityFor(quality);
     _refreshParticipants();
   }
 
@@ -246,8 +260,8 @@ class VoiceSession
   }) {
     final previous = _joining ?? Future<void>.value();
     final current = previous
-        .catchError(ignoreError(
-            LogTag.voice, 'a previous queued step failed, already reported'))
+        .catchError(ignoreError(LogTag.voice,
+            'An earlier call setup step failed; it was already reported'))
         .then(
           (_) => _join(
             url: url,
@@ -299,7 +313,7 @@ class VoiceSession
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'set receive video quality', e, stack);
+      reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;
       _lastError = e;
       await _teardown();
@@ -354,7 +368,8 @@ class VoiceSession
     try {
       return await _desktopSources.list();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'screen share sources', e, stack);
+      reportFailure(LogTag.voice,
+          'list the screens and windows that can be shared', e, stack);
       _lastError = e;
       return const [];
     }
@@ -404,7 +419,8 @@ class VoiceSession
         enabled: enabled,
         options: options,
         includeAudio: audio,
-        publishOptions: screenSharePublishOptionsFor(quality),
+        quality: quality,
+        maxHeight: maxHeight,
       ),
       isSharing: () => isSharingScreen(room.localParticipant),
       onSettled: (error) {
@@ -426,7 +442,11 @@ class VoiceSession
   Widget screenShareViewFor(String identity) {
     final room = _room;
     if (room == null) return const SizedBox.shrink();
-    return ScreenShareView(room: room, identity: identity);
+    return ScreenShareView(
+      room: room,
+      identity: identity,
+      density: _receiveDensity,
+    );
   }
 
   /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
@@ -446,6 +466,7 @@ class VoiceSession
       room: room,
       identity: identity,
       facing: _cameraSwitching.facing,
+      density: _receiveDensity,
     );
   }
 
@@ -483,7 +504,7 @@ class VoiceSession
     try {
       return await _cameraSwitching.devices();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'camera devices', e, stack);
+      reportFailure(LogTag.voice, 'list cameras', e, stack);
       _lastError = e;
       return const [];
     }
@@ -494,7 +515,7 @@ class VoiceSession
     try {
       return await _cameraSwitching.flip(_room?.localParticipant);
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'flip camera', e, stack);
+      reportFailure(LogTag.voice, 'switch the camera', e, stack);
       _lastError = e;
       return false;
     }
@@ -510,7 +531,7 @@ class VoiceSession
       _refreshParticipants();
       return true;
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'select camera device', e, stack);
+      reportFailure(LogTag.voice, 'choose the camera', e, stack);
       _lastError = e;
       return false;
     }
@@ -523,6 +544,7 @@ class VoiceSession
     if (_disposed) return;
     _disposed = true;
     _videoCuller.dispose();
+    _receiveDensity.dispose();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();

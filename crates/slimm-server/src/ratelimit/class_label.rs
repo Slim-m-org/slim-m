@@ -35,6 +35,8 @@ impl Class {
             Class::PresenceActivity => "presence_activity",
             Class::Totp => "totp",
             Class::WatchTick => "watch_tick",
+            Class::DiagnosticPing => "diagnostic_ping",
+            Class::DiagnosticTransfer => "diagnostic_transfer",
         }
     }
 }

@@ -177,7 +177,7 @@ bool rollBackMacosIfStuck(MacosInstallLayout layout) {
   } on FileSystemException catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'roll back macos if stuck failed, ignored',
+      'Could not roll back the interrupted update',
       error,
       stack,
     );
@@ -194,7 +194,12 @@ String _readOr(File file, String fallback) {
   try {
     return file.readAsStringSync().trim();
   } on FileSystemException catch (error, stack) {
-    AppLog.swallowed(LogTag.platform, 'read or failed, ignored', error, stack);
+    AppLog.swallowed(
+      LogTag.platform,
+      'Could not read an update marker file',
+      error,
+      stack,
+    );
     return fallback;
   }
 }

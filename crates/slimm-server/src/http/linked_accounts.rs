@@ -21,14 +21,16 @@ use serde::{Deserialize, Serialize};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
+use super::linked_avatar;
 use super::messages::parse_uuid;
 use crate::config::Config;
 use crate::ids::UserId;
 use crate::ratelimit::Class;
 use crate::store::{AccountLinkError, LinkedAccount, now_ms};
 
-const PROVIDER: &str = "discord";
+pub(super) const PROVIDER: &str = "discord";
 const DISCORD_API: &str = "https://discord.com/api";
+const DISCORD_CDN: &str = "https://cdn.discordapp.com";
 const STATE_LIFETIME_MS: i64 = 10 * 60 * 1000;
 const DISCORD_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_NAME_CHARS: usize = 64;
@@ -46,7 +48,9 @@ struct DiscordApp {
     client_secret: String,
     redirect_uri: String,
     api_base: String,
+    cdn_base: String,
     http: reqwest::Client,
+    avatar_http: reqwest::Client,
 }
 
 impl DiscordLinks {
@@ -59,15 +63,32 @@ impl DiscordLinks {
         ) else {
             return Ok(None);
         };
-        Ok(Some(Self::with_api(id, secret, redirect, DISCORD_API)?))
+        Ok(Some(Self::build(
+            (id, secret, redirect),
+            (DISCORD_API, DISCORD_CDN),
+            false,
+        )?))
     }
 
-    /// Points at another API host; tests use it for a local fake Discord.
+    /// Points the API and the picture CDN at one local fake Discord, which
+    /// the picture fetch may then reach on loopback; tests use it.
     pub fn with_api(
         client_id: &str,
         client_secret: &str,
         redirect_uri: &str,
         api_base: &str,
+    ) -> anyhow::Result<Self> {
+        Self::build(
+            (client_id, client_secret, redirect_uri),
+            (api_base, api_base),
+            true,
+        )
+    }
+
+    fn build(
+        (client_id, client_secret, redirect_uri): (&str, &str, &str),
+        (api_base, cdn_base): (&str, &str),
+        allow_private: bool,
     ) -> anyhow::Result<Self> {
         let http = reqwest::Client::builder()
             .timeout(DISCORD_TIMEOUT)
@@ -78,7 +99,9 @@ impl DiscordLinks {
                 client_secret: client_secret.to_owned(),
                 redirect_uri: redirect_uri.to_owned(),
                 api_base: api_base.trim_end_matches('/').to_owned(),
+                cdn_base: cdn_base.trim_end_matches('/').to_owned(),
                 http,
+                avatar_http: linked_avatar::build_client(allow_private),
             }),
         })
     }
@@ -125,6 +148,20 @@ impl DiscordLinks {
             .await?;
         Ok(user)
     }
+
+    /// The account's custom picture, or `None` for the default one or any
+    /// failure fetching it.
+    async fn fetch_avatar(&self, user: &DiscordUser) -> Option<Vec<u8>> {
+        let hash = user.avatar.as_deref()?;
+        if !linked_avatar::is_path_safe(&user.id, hash) {
+            return None;
+        }
+        let url = format!(
+            "{}/avatars/{}/{hash}.png?size=128",
+            self.inner.cdn_base, user.id
+        );
+        linked_avatar::fetch(&self.inner.avatar_http, &url).await
+    }
 }
 
 #[derive(Deserialize)]
@@ -137,6 +174,7 @@ struct DiscordUser {
     id: String,
     username: String,
     global_name: Option<String>,
+    avatar: Option<String>,
 }
 
 pub fn routes() -> Router<AppState> {
@@ -146,6 +184,10 @@ pub fn routes() -> Router<AppState> {
         .route("/me/links/discord", delete(unlink))
         .route("/links/discord/callback", get(callback))
         .route("/users/{user_id}/links", get(list_for_user))
+        .route(
+            "/users/{user_id}/links/discord/avatar",
+            get(linked_avatar::get_discord_avatar),
+        )
 }
 
 #[derive(Serialize)]
@@ -154,6 +196,7 @@ struct LinkedAccountDto {
     username: String,
     display_name: Option<String>,
     linked_at: i64,
+    avatar_updated_at: Option<i64>,
 }
 
 impl From<LinkedAccount> for LinkedAccountDto {
@@ -163,6 +206,7 @@ impl From<LinkedAccount> for LinkedAccountDto {
             username: account.username,
             display_name: account.display_name,
             linked_at: account.linked_at,
+            avatar_updated_at: account.avatar_updated_at,
         }
     }
 }
@@ -265,6 +309,7 @@ async fn callback(
             ));
         }
     };
+    let avatar = discord.fetch_avatar(&user).await;
     let account = LinkedAccount {
         provider: PROVIDER.to_owned(),
         external_id: user.id.chars().take(MAX_NAME_CHARS).collect(),
@@ -273,17 +318,53 @@ async fn callback(
             .global_name
             .map(|name| name.chars().take(MAX_NAME_CHARS).collect()),
         linked_at: now_ms(),
+        avatar_updated_at: avatar.as_ref().map(|_| now_ms()),
     };
     match state.store.save_linked_account(user_id, &account).await {
-        Ok(()) => Ok(page(
-            StatusCode::OK,
-            "Discord is linked. You can close this tab.",
-        )),
+        Ok(()) => {
+            store_avatar(&state, user_id, avatar).await;
+            Ok(page(
+                StatusCode::OK,
+                "Discord is linked. You can close this tab.",
+            ))
+        }
         Err(AccountLinkError::TakenByAnotherMember) => Ok(page(
             StatusCode::CONFLICT,
             "That Discord account is already linked to someone else here.",
         )),
         Err(AccountLinkError::Internal(error)) => Err(error.into()),
+    }
+}
+
+/// Writes the fetched picture, or removes an earlier link's when this one has
+/// none. A file that cannot be written leaves the link without a picture.
+async fn store_avatar(state: &AppState, user_id: UserId, avatar: Option<Vec<u8>>) {
+    let owner = user_id.to_string();
+    let written = match avatar {
+        Some(bytes) => {
+            state
+                .media
+                .write_linked_avatar(PROVIDER, &owner, bytes)
+                .await
+        }
+        None => state.media.delete_linked_avatar(PROVIDER, &owner).await,
+    };
+    if let Err(error) = written {
+        tracing::warn!(%error, "discord link: could not store the picture");
+        if let Err(error) = state.store.clear_linked_avatar(user_id, PROVIDER).await {
+            tracing::warn!(%error, "discord link: could not clear the picture marker");
+        }
+    }
+}
+
+/// Removes every picture file a member's links stored.
+pub(super) async fn purge_avatar_files(state: &AppState, user_id: UserId) {
+    if let Err(error) = state
+        .media
+        .delete_linked_avatar(PROVIDER, &user_id.to_string())
+        .await
+    {
+        tracing::warn!(%error, "failed to delete a linked account's picture file");
     }
 }
 
@@ -294,6 +375,7 @@ async fn unlink(
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     state.store.unlink_account(ctx.user_id, PROVIDER).await?;
+    purge_avatar_files(&state, ctx.user_id).await;
     Ok(StatusCode::NO_CONTENT)
 }
 

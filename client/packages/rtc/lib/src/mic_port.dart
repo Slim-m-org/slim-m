@@ -5,7 +5,11 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
+import 'mic_recovery.dart' show senderLevelToDb;
 
 abstract interface class MicPort {
   /// Whether a microphone track has been published.
@@ -15,6 +19,17 @@ abstract interface class MicPort {
   bool get open;
 
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options);
+
+  /// The capture's level in dBFS from the sender's own stats, or null when the
+  /// platform reports none; only exact digital silence reads as the floor.
+  Future<double?> senderLevelDb();
+
+  /// Stops the capture of the muted track, keeping it published so an unmute
+  /// can reopen it.
+  Future<void> release();
+
+  /// Reopens a released capture and leaves it silent until the next unmute.
+  Future<void> reopenMuted(lk.AudioCaptureOptions options);
 
   /// Reopens the capture with [options].
   Future<void> restart(lk.AudioCaptureOptions options);
@@ -79,11 +94,50 @@ class LiveKitMicPort implements MicPort {
   }
 
   @override
+  Future<void> release() async {
+    await _publication?.track?.stop();
+    if (!_recordsUntilToldToStop) return;
+    try {
+      await _nativeChannel
+          .invokeMethod<void>('stopLocalRecording', <String, dynamic>{});
+    } on Object catch (e) {
+      AppLog.swallowed(
+          LogTag.voice, 'Could not stop native recording', e, null);
+    }
+  }
+
+  /// livekit_client starts the device recording itself on these platforms
+  /// and only a stop call ends it, whatever happens to the track.
+  static bool get _recordsUntilToldToStop =>
+      lk.lkPlatformSupportsExplicitAudioRecordingStart();
+
+  static const _nativeChannel = MethodChannel('livekit_client');
+
+  @override
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
+    final track = _publication?.track;
+    if (track == null) return;
+    await track.restartTrack(options);
+    await track.disable();
+  }
+
+  @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
+    if (enabled && options != null && options.stopAudioCaptureOnMute) {
+      // The reopen uses the track's own options, so they must be current.
+      adoptOptions(options);
+    }
     await _room()?.localParticipant?.setMicrophoneEnabled(
           enabled,
           audioCaptureOptions: options,
         );
+  }
+
+  @override
+  Future<double?> senderLevelDb() async {
+    final stats = await _publication?.track?.getSenderStats();
+    final level = stats?.audioSourceStats?.audioLevel;
+    return level == null ? null : senderLevelToDb(level.toDouble());
   }
 
   @override

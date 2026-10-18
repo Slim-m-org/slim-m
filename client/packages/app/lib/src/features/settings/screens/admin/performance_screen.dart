@@ -30,6 +30,7 @@ import '../settings_screen_scaffold.dart';
 import 'attachment_limit_section.dart';
 import 'canvas_cap_section.dart';
 import 'link_previews_section.dart';
+import 'media_compression_section.dart';
 import '../../../../action_labels.dart';
 
 class PerformanceScreen extends StatelessWidget {
@@ -56,6 +57,7 @@ class PerformancePane extends StatelessWidget {
       _RetentionSection(),
       CanvasCapSection(),
       AttachmentLimitSection(),
+      MediaCompressionSection(),
       LinkPreviewsSection(),
     ],
   );
@@ -181,7 +183,12 @@ class _RetentionSectionState extends ConsumerState<_RetentionSection>
     try {
       return await ref.read(apiProvider).previewSpaceMessageRetention(days);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'preview count', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'preview how many messages the retention change removes',
+        error,
+        stack,
+      );
       return null;
     }
   }

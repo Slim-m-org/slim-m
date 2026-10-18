@@ -24,6 +24,7 @@ extension VoiceSessionStall on VoiceSession {
 
   /// Forgets everything the watch knew; the call is over.
   void _stopStallWatch() {
+    shareLimit.stop();
     unawaited(_stallStats?.cancel());
     _stallStats = null;
     _activeVideoKeys.clear();
@@ -111,7 +112,7 @@ extension VoiceSessionStall on VoiceSession {
     for (final peer in room.remoteParticipants.values) {
       for (final pub in peer.videoTrackPublications) {
         if (_stallKey(peer.identity, pub.source) != key) continue;
-        _diag('video stall: $key, trying ${step.name}');
+        _diag('Video stalled; trying ${step.name}', level: LogLevel.warning);
         unawaited(_runStallStep(room, key, pub, step));
         return;
       }
@@ -151,7 +152,10 @@ extension VoiceSessionStall on VoiceSession {
           }
       }
     } catch (e) {
-      _diag('video stall: ${step.name} failed: $e');
+      _diag(
+        'Video stall recovery (${step.name}) failed: $e',
+        level: LogLevel.warning,
+      );
     }
   }
 }

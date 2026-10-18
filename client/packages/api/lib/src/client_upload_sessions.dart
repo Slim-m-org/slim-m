@@ -75,6 +75,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     Duration Function(int attempt) backoff = _defaultBackoff,
     Duration stallLimit = kUploadStallLimit,
   }) async {
+    _retryDirectRoute();
     final known = length > sessionThreshold
         ? capabilities ??
             await _patiently(
@@ -118,8 +119,8 @@ extension SlimmApiUploadSessions on SlimmApi {
   void abandonUpload(String resumeKey) {
     final id = _resumableUploads.remove(resumeKey);
     if (id == null) return;
-    unawaited(_discardUploadSession(id).catchError(ignoreError(
-        LogTag.net, 'discarding an upload session is best effort')));
+    unawaited(_discardUploadSession(id).catchError(ignoreError(LogTag.net,
+        'Could not discard an unfinished upload on the server; it will expire on its own')));
   }
 
   /// Runs [action], retrying a failure that could recover until [stallLimit].
@@ -195,12 +196,14 @@ extension SlimmApiUploadSessions on SlimmApi {
         _resumableUploads[resumeKey] = session.id;
       } else {
         unawaited(_discardUploadSession(session.id).catchError(ignoreError(
-            LogTag.net, 'discarding an upload session is best effort')));
+            LogTag.net,
+            'Could not discard an unfinished upload on the server; it will expire on its own')));
       }
       rethrow;
     } catch (_) {
       unawaited(_discardUploadSession(session.id).catchError(ignoreError(
-          LogTag.net, 'discarding an upload session is best effort')));
+          LogTag.net,
+          'Could not discard an unfinished upload on the server; it will expire on its own')));
       rethrow;
     } finally {
       await source.close();
@@ -221,12 +224,12 @@ extension SlimmApiUploadSessions on SlimmApi {
       } on ApiException catch (error, stack) {
         AppLog.swallowed(
             LogTag.auth,
-            'Gone or unreachable: a fresh session is the honest start',
+            'The earlier upload is gone or unreachable; starting a fresh one',
             error,
             stack);
       }
-      unawaited(_discardUploadSession(kept).catchError(ignoreError(
-          LogTag.net, 'discarding an upload session is best effort')));
+      unawaited(_discardUploadSession(kept).catchError(ignoreError(LogTag.net,
+          'Could not discard an unfinished upload on the server; it will expire on its own')));
     }
     return create();
   }
@@ -323,7 +326,11 @@ extension SlimmApiUploadSessions on SlimmApi {
     try {
       return (await _getUploadSession(id)).offset;
     } on ApiException catch (error, stack) {
-      AppLog.swallowed(LogTag.auth, 'held bytes failed, ignored', error, stack);
+      AppLog.swallowed(
+          LogTag.auth,
+          'Could not ask the server how much of the upload it holds; starting over',
+          error,
+          stack);
       return null;
     }
   }

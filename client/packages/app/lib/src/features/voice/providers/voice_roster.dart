@@ -15,13 +15,37 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
+import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// How often an unjoined voice channel's roster is re-fetched. A real round
 /// trip to the server's SFU, not a cheap read, so this stays well clear of a
 /// per-frame or per-rebuild cost.
 const voiceRosterPollInterval = Duration(seconds: 15);
+
+/// The poll interval while the socket is live: events already nudge a refetch,
+/// so the poll is only a backstop.
+const voiceRosterLiveInterval = Duration(seconds: 60);
+
+/// The longest a failing poll backs off to.
+const voiceRosterMaxBackoff = Duration(minutes: 2);
+
+/// Whether the live socket is up, so events can be trusted to nudge the roster.
+final voiceRosterSocketLiveProvider = Provider<bool>(
+  (ref) => ref.watch(syncControllerProvider) == SyncStatus.live,
+);
+
+/// The wait before the next poll after [failures] unbroken failures.
+Duration voiceRosterDelay({required bool live, required int failures}) {
+  if (failures > 0) {
+    final factor = 1 << (failures - 1).clamp(0, 10);
+    final backoff = voiceRosterPollInterval * factor;
+    return backoff > voiceRosterMaxBackoff ? voiceRosterMaxBackoff : backoff;
+  }
+  return live ? voiceRosterLiveInterval : voiceRosterPollInterval;
+}
 
 /// Consecutive non-`NotConfigured` failures before this stops treating the
 /// SFU as merely having a bad tick and surfaces it as an [AsyncValue] error
@@ -31,6 +55,12 @@ const voiceRosterPollInterval = Duration(seconds: 15);
 /// here rather than staying silent forever. One flaky tick is not this; a
 /// short unbroken run of them is.
 const persistentRosterFailureThreshold = 3;
+
+/// When [channelId]'s call started by the server's clock, as of the last
+/// roster poll; null for an empty room or a server that does not say.
+final voiceRosterStartProvider = StateProvider.family<DateTime?, String>(
+  (ref, channelId) => null,
+);
 
 /// Who the server reports as connected to [channelId]'s voice room.
 ///
@@ -78,22 +108,34 @@ final voiceRosterProvider = StreamProvider.autoDispose
     .family<List<api.VoiceRosterParticipant>, String>((ref, channelId) {
       final client = ref.watch(apiProvider);
       final controller = StreamController<List<api.VoiceRosterParticipant>>();
-      final poller = _RosterPoller(client, channelId, controller);
-      late final Timer timer;
-      timer = Timer.periodic(
-        voiceRosterPollInterval,
-        (_) => poller.tick(timer),
+      final poller = _RosterPoller(
+        client,
+        channelId,
+        controller,
+        isLive: () => ref.read(voiceRosterSocketLiveProvider),
+        isFocused: () => ref.read(appFocusedProvider),
+        onCallStart: (start) =>
+            ref.read(voiceRosterStartProvider(channelId).notifier).state =
+                start,
       );
-      unawaited(poller.tick(timer));
+      unawaited(poller.tick());
+
+      ref.listen(appFocusedProvider, (_, focused) {
+        if (focused) {
+          unawaited(poller.tick());
+        } else {
+          poller.pause();
+        }
+      });
 
       final liveSub = ref.read(liveEventsProvider).listen((event) {
-        if (_eventChannelId(event) == channelId) {
-          unawaited(poller.tick(timer));
+        if (_eventChannelId(event) == channelId && poller.isFocused()) {
+          unawaited(poller.tick());
         }
       });
 
       ref.onDispose(() {
-        timer.cancel();
+        poller.dispose();
         unawaited(liveSub.cancel());
         unawaited(controller.close());
       });
@@ -110,32 +152,50 @@ String? _eventChannelId(api.ServerEvent event) => switch (event) {
 };
 
 class _RosterPoller {
-  _RosterPoller(this._client, this._channelId, this._controller);
+  _RosterPoller(
+    this._client,
+    this._channelId,
+    this._controller, {
+    required this.isLive,
+    required this.isFocused,
+    required this.onCallStart,
+  });
 
   final api.SlimmApi _client;
   final String _channelId;
   final StreamController<List<api.VoiceRosterParticipant>> _controller;
+  final bool Function() isLive;
+  final bool Function() isFocused;
+  final void Function(DateTime? start) onCallStart;
+  Timer? _timer;
+  bool _stopped = false;
   int _consecutiveFailures = 0;
   bool _inFlight = false;
   bool _askedAgain = false;
 
-  Future<void> _poll(Timer? self) async {
+  Future<void> _poll() async {
     try {
-      final roster = await _client.voiceRoster(_channelId);
+      final snapshot = await _client.voiceRosterSnapshot(_channelId);
+      final roster = snapshot.participants;
       _consecutiveFailures = 0;
       final selfId = _client.session.tokens?.userId;
       final visible = selfId == null
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
-      if (!_controller.isClosed) _controller.add(visible);
+      if (_controller.isClosed) return;
+      final age = snapshot.callAge;
+      onCallStart(
+        age == null || roster.isEmpty ? null : DateTime.now().subtract(age),
+      );
+      _controller.add(visible);
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,
-        'poll failed, ignored',
+        'Could not refresh who is in the call; will try again',
         error,
         stack,
       );
-      self?.cancel();
+      dispose();
       unawaited(_controller.close());
     } on api.ApiException catch (e) {
       // Unavailable, forbidden, rate-limited: try again, unless this has gone on long enough to say so.
@@ -148,20 +208,41 @@ class _RosterPoller {
   }
 
   // Single-flight: a nudge mid-poll re-asks once after it, so answers cannot reorder.
-  Future<void> tick(Timer? self) async {
+  Future<void> tick() async {
+    _timer?.cancel();
     if (_inFlight) {
       _askedAgain = true;
       return;
     }
     _inFlight = true;
     try {
-      await _poll(self);
+      await _poll();
     } finally {
       _inFlight = false;
     }
     if (_askedAgain && !_controller.isClosed) {
       _askedAgain = false;
-      await tick(self);
+      await tick();
+      return;
     }
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (_stopped || !isFocused() || _controller.isClosed) return;
+    final delay = voiceRosterDelay(
+      live: isLive(),
+      failures: _consecutiveFailures,
+    );
+    _timer = Timer(delay, () => unawaited(tick()));
+  }
+
+  /// Stops asking while nothing is in front of the user; focus resumes with a tick.
+  void pause() => _timer?.cancel();
+
+  void dispose() {
+    _stopped = true;
+    _timer?.cancel();
   }
 }

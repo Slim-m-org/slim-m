@@ -36,7 +36,7 @@ Future<bool> openSpotifyAuthorize(
     } on Object catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'No app claimed the link; the browser below still works',
+        'No app handled the Spotify link; using the browser',
         error,
         stack,
       );

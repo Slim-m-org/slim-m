@@ -14,7 +14,9 @@ import 'dart:async';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart';
-import 'package:slimm_api/api.dart' show LogTag, reportFailure;
+import 'package:slimm_api/api.dart' show LogLevel, LogTag, reportFailure;
+
+import 'voice_log.dart';
 
 /// Which of one person's audio a gain or mute is about: their microphone, or
 /// the sound of the screen they are sharing. Keyed apart because they are
@@ -32,6 +34,8 @@ typedef LocalAudioRef = ({
   bool Function() isAudible,
   Future<void> Function() enable,
   Future<void> Function() disable,
+  Future<void> Function() startForwarding,
+  Future<void> Function() stopForwarding,
   Future<Object?> Function(double volume) setVolume,
 });
 
@@ -47,7 +51,7 @@ class _AppliedAudio {
 
 class LocalAudioState {
   /// Receives one line per gain push, for the app's debug log.
-  void Function(String line)? log;
+  VoiceLog? log;
 
   /// Silences every remote participant.
   bool deafened = false;
@@ -140,10 +144,11 @@ class LocalAudioState {
   /// without awaiting from a room-event handler, where a throw would become
   /// an unhandled zone error instead of something anybody could act on.
   ///
-  /// Disabling the media track rather than unsubscribing is deliberate: a
-  /// publication's own `disable()` drops the SFU subscription and needs
-  /// renegotiation before sound comes back, while the track's `enabled` flag
-  /// is local, instant, and instantly reversible.
+  /// Silence is two calls. The media track's `enabled` flag is local and
+  /// instant. The publication's `disable()` then tells the SFU to stop
+  /// forwarding the track, so nothing is sent or decoded for a listener who
+  /// cannot hear it; it keeps the subscription, and sound returns on one
+  /// signalling round trip with no renegotiation.
   Future<Object?> applyTo(lk.Room room) => applyToRefs(refsOf(room));
 
   /// Every subscribed remote audio track in [room], as [LocalAudioRef]s.
@@ -165,6 +170,8 @@ class LocalAudioState {
           isAudible: () => track.mediaStreamTrack.enabled,
           enable: track.enable,
           disable: track.disable,
+          startForwarding: publication.enable,
+          stopForwarding: publication.disable,
           setVolume: (volume) => applyParticipantVolume(track, volume),
         );
       }
@@ -215,7 +222,7 @@ class LocalAudioState {
       try {
         failure = await _applyOne(ref) ?? failure;
       } catch (e, stack) {
-        reportFailure(LogTag.voice, 'pass', e, stack);
+        reportFailure(LogTag.voice, 'apply participant volumes', e, stack);
         failure = e;
       }
     }
@@ -229,14 +236,17 @@ class LocalAudioState {
         (ref.channel == LocalAudioChannel.screen &&
             screenMuted.contains(ref.identity));
     final audible = ref.isAudible();
+    final volume = volumeFor(ref.identity, channel: ref.channel);
+    final forward = !silence && volume > 0;
 
+    final forwardFailure = await _setForwarding(ref, forward);
     if (silence) {
-      Object? failure;
+      Object? failure = forwardFailure;
       if (audible) {
         try {
           await ref.disable();
         } catch (e, stack) {
-          reportFailure(LogTag.voice, 'apply one', e, stack);
+          reportFailure(LogTag.voice, "mute a participant's audio", e, stack);
           failure = e;
         }
       }
@@ -245,22 +255,27 @@ class LocalAudioState {
       return failure;
     }
 
-    final volume = volumeFor(ref.identity, channel: ref.channel);
     final last = _applied[ref.track];
-    if (audible && last != null && last.volume == volume) return null;
+    if (audible &&
+        last != null &&
+        last.volume == volume &&
+        forwardFailure == null) {
+      return null;
+    }
 
-    Object? here;
+    Object? here = forwardFailure;
     try {
       await ref.enable();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'apply one', e, stack);
+      reportFailure(LogTag.voice, "unmute a participant's audio", e, stack);
       here = e;
     }
     // After the enable, never before: re-enabling can reset source volume.
     here = await ref.setVolume(volume) ?? here;
     log?.call(
-      'gain ${ref.channel.name} ${ref.identity} x$volume '
-      'track=${ref.trackId} ${here == null ? 'ok' : 'failed: $here'}',
+      'Volume x$volume for ${ref.channel.name} audio of ${ref.identity} '
+      '(track ${ref.trackId}): ${here == null ? 'applied' : 'failed: $here'}',
+      level: here == null ? LogLevel.debug : LogLevel.warning,
     );
 
     // Remembered only if it both went cleanly and can be seen to have landed.
@@ -269,6 +284,28 @@ class LocalAudioState {
     here == null ? _failures.remove(key) : _failures[key] = here;
     return here;
   }
+
+  /// Tells the SFU to send or stop sending [ref], once per change.
+  Future<Object?> _setForwarding(LocalAudioRef ref, bool forward) async {
+    if (_forwarding[ref.track] == forward) return null;
+    try {
+      await (forward ? ref.startForwarding() : ref.stopForwarding());
+      _forwarding[ref.track] = forward;
+      return null;
+    } catch (e, stack) {
+      reportFailure(
+        LogTag.voice,
+        forward ? 'resume forwarding audio' : 'stop forwarding audio',
+        e,
+        stack,
+      );
+      return e;
+    }
+  }
+
+  /// Whether the SFU was last told to forward each track; a resubscribed
+  /// track is a new object, so it is told again.
+  final Expando<bool> _forwarding = Expando('local audio forwarding');
 
   /// Weakly keyed, so remembering a track never keeps a finished call's
   /// platform objects alive.

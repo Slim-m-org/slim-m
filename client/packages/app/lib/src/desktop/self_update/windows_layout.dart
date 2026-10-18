@@ -42,7 +42,7 @@ class WindowsInstallLayout {
     } on FileSystemException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'pointed version failed, ignored',
+        'Could not read which version is installed',
         error,
         stack,
       );
@@ -68,7 +68,7 @@ class WindowsInstallLayout {
     } on FileSystemException catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'version of folder failed, ignored',
+        'The install folder is not writable; updating in place is off',
         error,
         stack,
       );

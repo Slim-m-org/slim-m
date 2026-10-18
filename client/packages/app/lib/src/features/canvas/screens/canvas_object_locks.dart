@@ -30,7 +30,12 @@ class CanvasObjectLocks {
     try {
       fetched = await client.canvasObjectLocks(channelId);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'fetch', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'load canvas object locks',
+        error,
+        stack,
+      );
       return;
     }
     if (!_disposed) ids.value = fetched;
@@ -54,7 +59,12 @@ class CanvasObjectLocks {
       }
       return true;
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'set locked', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'lock or unlock a canvas object',
+        error,
+        stack,
+      );
       if (!_disposed) ids.value = before;
       return false;
     }

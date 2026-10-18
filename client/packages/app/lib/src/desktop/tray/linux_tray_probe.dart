@@ -39,7 +39,7 @@ class MethodChannelLinuxTrayProbe implements LinuxTrayProbe {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'is host registered failed, ignored',
+        'Could not tell whether a tray host is running',
         error,
         stack,
       );

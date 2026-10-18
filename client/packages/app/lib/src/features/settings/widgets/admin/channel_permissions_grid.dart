@@ -225,7 +225,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       } on api.NotFoundException catch (error, stack) {
         api.AppLog.swallowed(
           api.LogTag.ui,
-          'Already gone, which is what a removal asks for',
+          'The permission override was already removed',
           error,
           stack,
         );
@@ -308,7 +308,12 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         _seedFrom(fresh);
       });
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'set state', error, stack);
+      api.reportFailure(
+        api.LogTag.ui,
+        'reload the saved channel permissions',
+        error,
+        stack,
+      );
       if (mounted) setActionError('Saved, but could not reload the grid.');
     }
   }

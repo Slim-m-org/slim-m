@@ -70,7 +70,7 @@ class AdminAuditLogController extends StateNotifier<AdminAuditLogState> {
         more: page.length >= adminAuditPageSize,
       );
     } on Object catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'load more', e, stack);
+      api.reportFailure(api.LogTag.ui, 'load more audit log entries', e, stack);
       if (!mounted || generation != _generation) return;
       state = AdminAuditLogState(
         items: before == null ? held : onto,

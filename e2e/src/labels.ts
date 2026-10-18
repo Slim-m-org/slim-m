@@ -21,6 +21,7 @@ export const L = {
   "CHANGE_STATUS": "Change your status",
   "DND": "Do not disturb",
   "INVITES": "Invites",
+  "CUSTOMIZE": "Customize",
   "WHO_CAN_JOIN_ROW": "Who can join, currently",
   "JOIN_OPEN": "Anyone with the address",
   "JOIN_INVITE": "People with an invite",

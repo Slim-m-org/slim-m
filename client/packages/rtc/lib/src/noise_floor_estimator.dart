@@ -48,22 +48,36 @@ class NoiseFloorEstimator {
   final double riseDbPerSample;
   final double fallDbPerSample;
 
-  final _window = <double>[];
+  final _window = <({double levelDb, int weight})>[];
+  int _weight = 0;
   double _thresholdDb;
 
   double get thresholdDb => _thresholdDb;
 
   /// The current noise floor, or null before the warm-up is over.
-  double? get floorDb => _window.length < warmupSamples ? null : _floor();
+  double? get floorDb => _weight < warmupSamples ? null : _floor();
 
-  /// Feeds one reading and returns the threshold to use now.
-  double add(double levelDb) {
+  /// Feeds one reading covering [interval] and returns the threshold to use
+  /// now. The window and the step limits count 50 ms samples, so a slower
+  /// poll counts for as many as it spans.
+  double add(
+    double levelDb, {
+    Duration interval = kInputGateDisplayInterval,
+  }) {
     if (levelDb <= _kSilenceDb) return _thresholdDb;
-    _window.add(levelDb);
-    if (_window.length > windowSamples) _window.removeAt(0);
-    if (_window.length < warmupSamples) return _thresholdDb;
+    final weight = math.max(
+      1,
+      interval.inMicroseconds ~/ kInputGateDisplayInterval.inMicroseconds,
+    );
+    _window.add((levelDb: levelDb, weight: weight));
+    _weight += weight;
+    while (_weight > windowSamples && _window.length > 1) {
+      _weight -= _window.removeAt(0).weight;
+    }
+    if (_weight < warmupSamples) return _thresholdDb;
     final target = (_floor() + marginDb).clamp(minThresholdDb, maxThresholdDb);
-    final step = target > _thresholdDb ? riseDbPerSample : fallDbPerSample;
+    final step =
+        (target > _thresholdDb ? riseDbPerSample : fallDbPerSample) * weight;
     final delta = (target - _thresholdDb).clamp(-step, step);
     _thresholdDb += delta;
     return _thresholdDb;
@@ -72,12 +86,18 @@ class NoiseFloorEstimator {
   /// Forgets the window and restarts from [thresholdDb].
   void reset(double thresholdDb) {
     _window.clear();
+    _weight = 0;
     _thresholdDb = thresholdDb;
   }
 
   double _floor() {
-    final sorted = [..._window]..sort();
-    final index = ((sorted.length - 1) * percentile).floor();
-    return sorted[math.min(index, sorted.length - 1)];
+    final sorted = [..._window]..sort((a, b) => a.levelDb.compareTo(b.levelDb));
+    final target = (_weight - 1) * percentile;
+    var seen = 0;
+    for (final entry in sorted) {
+      seen += entry.weight;
+      if (seen > target) return entry.levelDb;
+    }
+    return sorted.last.levelDb;
   }
 }

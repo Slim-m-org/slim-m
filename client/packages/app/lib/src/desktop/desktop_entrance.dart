@@ -19,6 +19,12 @@ const Duration kDesktopEntranceDuration = Duration(milliseconds: 1100);
 /// in the 52px header bar.
 const Rect _railCorner = Rect.fromLTWH(16, 16, 20, 20);
 
+bool _playedThisProcess = false;
+
+/// Lets a test play the entrance again, as a fresh process would.
+@visibleForTesting
+void resetDesktopEntranceForTest() => _playedThisProcess = false;
+
 class DesktopEntrance extends StatefulWidget {
   const DesktopEntrance({super.key, required this.child, this.topInset = 0});
 
@@ -55,9 +61,11 @@ class _DesktopEntranceState extends State<DesktopEntrance>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_controller.isAnimating || _controller.isCompleted) return;
-    if (AppMotion.isReduced(context)) {
+    // A Space switch remounts the shell; only the splash hand-over earns the mark's glide.
+    if (_playedThisProcess || AppMotion.isReduced(context)) {
       _controller.value = 1;
     } else {
+      _playedThisProcess = true;
       _controller.forward();
     }
   }

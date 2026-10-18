@@ -69,6 +69,11 @@ const UNCOVERED: &[(&str, &str)] = &[
          tests/discord_link.rs drives every outcome of it.",
     ),
     (
+        "getLinkedDiscordAvatar",
+        "answers image bytes, not JSON, and only after a Discord link stored \
+         one; tests/discord_link_avatar.rs drives the 200 and the 404.",
+    ),
+    (
         "inviteLandingPage",
         "answers HTML to a browser, not JSON; tests/invite_page.rs drives both outcomes.",
     ),
@@ -102,6 +107,15 @@ const UNCOVERED: &[(&str, &str)] = &[
          series, the gating, and both reachable/unreachable SFU cases are covered by \
          tests/metrics.rs, which stands up a real (and a deliberately closed) HTTP \
          listener instead.",
+    ),
+    (
+        "diagnosticsDownload",
+        "answers raw filler bytes, not JSON; tests/diagnostics.rs drives the size, the cap and the 400.",
+    ),
+    (
+        "diagnosticsUpload",
+        "takes a raw byte body this script's JSON helpers cannot send; tests/diagnostics.rs \
+         drives the 200, the 413 and the rate limit.",
     ),
     (
         "receiveLiveKitWebhook",

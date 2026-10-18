@@ -121,7 +121,12 @@ Future<String> openThreadFromMessage(
     final recent = await client.listMessages(thread.id, limit: 50);
     await store.applyMessages(recent);
   } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'dock thread', error, stack);
+    api.reportFailure(
+      api.LogTag.ui,
+      'load the messages of a thread',
+      error,
+      stack,
+    );
     // Best effort: the transcript's own live socket or a later reopen corrects it.
   }
   return thread.id;

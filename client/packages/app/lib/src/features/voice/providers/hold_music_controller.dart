@@ -8,18 +8,25 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/hold_music_player.dart';
 import '../../../audio/lounge_tracks.dart';
+import '../../../providers/app_lifecycle.dart';
 import 'call_solo.dart';
 import 'voice_controller.dart';
 import 'voice_settings_controller.dart';
 
 const holdMusicGrace = Duration(seconds: 3);
 
-bool shouldPlayHoldMusic(VoiceState voice, VoiceSettingsState settings) =>
+bool shouldPlayHoldMusic(
+  VoiceState voice,
+  VoiceSettingsState settings, {
+  bool backgrounded = false,
+}) =>
+    !backgrounded &&
     settings.holdMusicEnabled &&
     voice.state == VoiceSessionState.connected &&
     isAloneInCall(voice.participants) &&
@@ -38,6 +45,12 @@ class HoldMusicController {
       voiceSettingsControllerProvider,
       (_, _) => _evaluate(),
     );
+    if (_mobile) {
+      _ref.listen<AppLifecycleState>(
+        appLifecycleProvider,
+        (_, _) => _evaluate(),
+      );
+    }
     _ref.listen<LoungeTrack>(
       voiceSettingsControllerProvider.select((s) => s.holdMusicTrack),
       (_, track) => unawaited(_player.setTrack(track)),
@@ -47,6 +60,7 @@ class HoldMusicController {
   }
 
   final Ref _ref;
+  late final bool _mobile = _ref.read(mobileLifecycleHostProvider);
   final HoldMusicPlayer _player;
   final Duration _grace;
   Timer? _pending;
@@ -59,6 +73,9 @@ class HoldMusicController {
     final want = shouldPlayHoldMusic(
       _ref.read(voiceControllerProvider),
       _ref.read(voiceSettingsControllerProvider),
+      backgrounded:
+          _mobile &&
+          isBackgroundedOnPhone(_ref.read(appLifecycleProvider), mobile: true),
     );
     if (!want) {
       _pending?.cancel();

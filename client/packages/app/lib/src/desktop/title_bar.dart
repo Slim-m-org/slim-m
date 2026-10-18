@@ -3,13 +3,9 @@
 /// place window-control layout actually differs per platform, rather than
 /// three separate widgets duplicating the shared drag region and height.
 ///
-/// Ships for Linux only in this change - the only platform with a runner
-/// scaffolded at all (`docs/os_backlog/windows_backlog.md`,
-/// `docs/os_backlog/macos_backlog.md`) - with the macOS traffic-lights
-/// branch and the Windows controls-right branch left as the seam to fill
-/// once each platform is actually built, not as dead code nobody can prove
-/// works. [DesktopWindowShell] only ever hides the native frame on Linux, so
-/// this widget is unreachable on the other two branches in this build.
+/// Linux and Windows draw it in place of the native frame, with the window
+/// controls on the right; macOS keeps its native frame, so the traffic-light
+/// inset branch stays unreachable until macOS goes frameless too.
 ///
 /// The name line shows the Space's name, its connection state, and this
 /// build's own version, rather than the static literal `slim-m` this bar
@@ -147,6 +143,7 @@ class _TitleBarState extends ConsumerState<TitleBar> {
                 port: widget.port,
                 maximized: _maximized,
                 onRequestClose: widget.onRequestClose,
+                closeAtEdge: platform == DesktopPlatform.windows,
               ),
           ],
         ),
@@ -185,11 +182,15 @@ class _WindowControls extends StatelessWidget {
     required this.port,
     required this.maximized,
     required this.onRequestClose,
+    required this.closeAtEdge,
   });
 
   final DesktopWindowPort port;
   final WindowMaximizedTracker maximized;
   final Future<void> Function() onRequestClose;
+
+  /// Windows puts close in the corner, so a maximized window closes from a fling to the top right.
+  final bool closeAtEdge;
 
   @override
   Widget build(BuildContext context) =>
@@ -222,7 +223,7 @@ class _WindowControls extends StatelessWidget {
         variant: AppIconButtonVariant.dangerGhost,
         onPressed: onRequestClose,
       ),
-      const SizedBox(width: AppSpacing.s4),
+      if (!closeAtEdge) const SizedBox(width: AppSpacing.s4),
     ],
   );
 }

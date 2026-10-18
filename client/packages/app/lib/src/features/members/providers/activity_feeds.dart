@@ -19,8 +19,17 @@ import 'activity_sharing_settings.dart';
 /// The platform's now-playing source, or null where there is none. Overridden
 /// in tests with a fake.
 final nowPlayingSourceProvider = Provider<NowPlayingSource?>(
-  (ref) => createNowPlayingSource(),
+  (ref) => _processNowPlaying,
 );
+
+/// One source for the whole process: every account's publisher listens to the
+/// same read loop instead of each polling the player itself.
+final NowPlayingSource? _processNowPlaying = _shareNowPlaying(
+  createNowPlayingSource(),
+);
+
+NowPlayingSource? _shareNowPlaying(NowPlayingSource? source) =>
+    source == null ? null : SharedNowPlayingSource(source);
 
 /// A track as the wire carries it, cleaned and cut to what the server accepts:
 /// it refuses hidden characters and blank text rather than trimming them, and a
@@ -48,7 +57,12 @@ api.PresenceActivity? activityFromNowPlaying(NowPlaying playing) {
 
 /// The platform's game source, or null where there is none. Overridden in
 /// tests with a fake.
-final gameSourceProvider = Provider<GameSource?>((ref) => createGameSource());
+final gameSourceProvider = Provider<GameSource?>((ref) => _processGame);
+
+final GameSource? _processGame = _shareGame(createGameSource());
+
+GameSource? _shareGame(GameSource? source) =>
+    source == null ? null : SharedGameSource(source);
 
 api.PresenceActivity? activityFromGame(RunningGame game) {
   final title = capActivityText(game.name);

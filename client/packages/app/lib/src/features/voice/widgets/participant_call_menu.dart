@@ -20,6 +20,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -30,27 +31,38 @@ import '../../members/widgets/member_actions.dart'
 import '../../members/widgets/member_moderation_gates.dart';
 import '../../members/widgets/member_profile.dart';
 import 'participant_actions.dart';
+import 'participant_stream_menu.dart';
 import 'participant_audio_controls.dart' show ParticipantMuteForMeMenuItem;
 import 'participant_volume_popover.dart';
 
-/// The rows one call participant's quick-actions menu offers - empty for
-/// this device's own tile, which has nothing to say about itself here (no
-/// muting or viewing your own profile from a call tile; the member pane's
-/// own "Profile settings" row already covers that).
+/// The rows one call participant's quick-actions menu offers. This device's
+/// own tile gets only its stream rows: no muting or viewing your own profile
+/// from a call tile; the member pane's "Profile settings" row covers that.
+/// The call lounge tile, the canvas bubble and the rail row all use this.
 List<Widget> participantCallMenuItems(
   BuildContext context,
   WidgetRef ref, {
   required VoiceParticipant participant,
   required VoidCallback close,
+  api.UserProfile? knownProfile,
+  String? channelId,
 }) {
-  if (participant.isLocal) return const [];
+  final streams = participantStreamMenuItems(
+    context,
+    ref,
+    identity: participant.identity,
+    close: close,
+  );
+  if (participant.isLocal) return streams;
 
   final controller = ref.read(voiceControllerProvider.notifier);
-  final profile = ref
-      .read(membersProvider)
-      .valueOrNull
-      ?.where((m) => m.id == participant.identity)
-      .firstOrNull;
+  final profile =
+      knownProfile ??
+      ref
+          .read(membersProvider)
+          .valueOrNull
+          ?.where((m) => m.id == participant.identity)
+          .firstOrNull;
 
   // watch: false - see memberModerationGates's own doc for why.
   final gates = profile == null
@@ -110,7 +122,7 @@ List<Widget> participantCallMenuItems(
           leading: AppIcons.account,
           onTap: () {
             close();
-            showMemberProfile(context, profile: profile!);
+            showMemberProfile(context, profile: profile!, channelId: channelId);
           },
         ),
         ParticipantAction.moderate => AppMenuItem(
@@ -122,10 +134,12 @@ List<Widget> participantCallMenuItems(
             showMemberProfile(
               context,
               profile: profile!,
+              channelId: channelId,
               initiallyModerating: true,
             );
           },
         ),
       },
+    ...streams,
   ];
 }

@@ -99,7 +99,7 @@ Future<void> pasteClipboardImage(
   } on ClipboardImageReadException catch (e, stack) {
     AppLog.swallowed(
       LogTag.ui,
-      'is clipboard paste chord failed, ignored',
+      'Could not paste the clipboard image',
       e,
       stack,
     );

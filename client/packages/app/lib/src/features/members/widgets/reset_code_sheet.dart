@@ -51,7 +51,12 @@ Future<void> showResetCodeSheet(
             .issueResetCode(subjectId, password: password);
         return null;
       } on api.ApiException catch (e, stack) {
-        api.reportFailure(api.LogTag.ui, 'show reauth sheet', e, stack);
+        api.reportFailure(
+          api.LogTag.ui,
+          'issue a password reset code',
+          e,
+          stack,
+        );
         return reauthFailure(e);
       }
     },

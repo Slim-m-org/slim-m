@@ -11,6 +11,8 @@ import 'package:slimm_rtc/rtc.dart';
 mixin VideoQualityRecorder {
   CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
 
+  late final shareLimit = ShareLimitMonitor(callStats);
+
   ValueNotifier<Map<String, VideoTileHealth>> videoHealth = ValueNotifier(
     const {},
   );
@@ -31,6 +33,15 @@ mixin VideoQualityRecorder {
 
   void setStrongNoiseSuppression(bool enabled) =>
       lastStrongNoiseSuppression = enabled;
+
+  bool? lastKeepMicReady;
+  bool? lastAppBackgrounded;
+
+  Future<void> setKeepMicReady(bool keepReady) async =>
+      lastKeepMicReady = keepReady;
+
+  void setAppBackgrounded(bool backgrounded) =>
+      lastAppBackgrounded = backgrounded;
 
   MicStatus micStatus = MicStatus.ok;
   final micStatusChanges = StreamController<MicStatus>.broadcast();

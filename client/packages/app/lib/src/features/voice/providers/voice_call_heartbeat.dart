@@ -26,7 +26,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import '../../../diagnostics/debug_log.dart';
 import '../../../providers/providers.dart';
 
 class VoiceCallHeartbeat {
@@ -86,7 +85,7 @@ class VoiceCallHeartbeat {
       _lastSuccessAt = _now();
     } catch (e) {
       // Best-effort, but a run of failures is worth seeing in diagnostics.
-      _log('Voice heartbeat failed', detail: e);
+      _log('Could not tell the server this call is still going', detail: e);
     }
   }
 
@@ -101,7 +100,6 @@ class VoiceCallHeartbeat {
     }
   }
 
-  void _log(String message, {Object? detail}) => _ref
-      .read(debugLogProvider.notifier)
-      .record('voice', message, detail: detail);
+  void _log(String message, {Object? detail}) =>
+      AppLog.warning(LogTag.voice, message, error: detail);
 }

@@ -51,6 +51,7 @@ export 'src/client.dart'
         usesUploadSessions,
         SlimmApiAuth,
         SlimmApiTotp,
+        SlimmApiDiagnostics,
         SlimmApiDirectRoute,
         SlimmApiLinkedAccounts,
         SlimmApiBotCommands,
@@ -86,6 +87,7 @@ export 'src/client.dart'
         SlimmApiWatchSession,
         SlimmApiWebhooks,
         JoinPolicy;
+export 'src/connection_test.dart';
 export 'src/upload_source.dart';
 export 'src/events.dart'
     show

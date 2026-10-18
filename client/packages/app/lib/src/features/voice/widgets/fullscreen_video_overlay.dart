@@ -118,7 +118,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.voice,
-        'Best-effort: an odd compositor must not stop the video showing',
+        'Could not make the window fullscreen; showing the video anyway',
         error,
         stack,
       );
@@ -134,7 +134,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
       } on StateError catch (error, stack) {
         AppLog.swallowed(
           LogTag.voice,
-          'The whole app is going down with this route; nothing to restore',
+          'The app is closing, so there is nothing to restore',
           error,
           stack,
         );
@@ -143,10 +143,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
         port
             .setFullScreen(false)
             .catchError(
-              ignoreError(
-                LogTag.platform,
-                'leaving window fullscreen is best effort',
-              ),
+              ignoreError(LogTag.platform, 'Could not leave window fullscreen'),
             ),
       );
     });
@@ -311,43 +308,4 @@ class _VideoHeader extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The corner control a tile offers to open its live view full screen.
-///
-/// A sibling in the caller's own `Stack`, never nested inside a tile's
-/// `ExcludeSemantics` - the same shape `RailDragHandle`'s own fix established
-/// for exactly this trap: a `GestureDetector` excluded from semantics, with
-/// an explicit outer [Semantics] as the sole source of the button's
-/// accessible name, so it does not inherit or bleed into the tile's own.
-class ExpandVideoButton extends StatelessWidget {
-  const ExpandVideoButton({
-    super.key,
-    required this.label,
-    required this.onTap,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: label,
-    onTap: onTap,
-    child: GestureDetector(
-      excludeFromSemantics: true,
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.55),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(AppIcons.expand, size: 14, color: Colors.white),
-      ),
-    ),
-  );
 }

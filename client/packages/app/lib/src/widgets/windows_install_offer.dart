@@ -35,7 +35,7 @@ class _WindowsInstallOfferState extends ConsumerState<WindowsInstallOffer> {
     } on SelfUpdateFailure catch (failure, stack) {
       AppLog.swallowed(
         LogTag.platform,
-        'set state failed, ignored',
+        'The Windows install offer failed; showing the reason',
         failure,
         stack,
       );

@@ -41,6 +41,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use axum::Router;
+use axum::body::Bytes;
 use axum::extract::{Path, State};
 use axum::http::{HeaderValue, header};
 use axum::response::Response;
@@ -143,6 +144,12 @@ impl LinkPreviews {
             .filter(|_| self.active.load(Ordering::Relaxed))
     }
 
+    fn live_shared(&self) -> Option<Arc<Enabled>> {
+        self.inner
+            .clone()
+            .filter(|_| self.active.load(Ordering::Relaxed))
+    }
+
     fn enabled(&self) -> Result<&Enabled, ApiError> {
         self.live()
             .ok_or(ApiError::NotConfigured("link previews are not enabled"))
@@ -236,8 +243,10 @@ async fn preview(
         return Err(ApiError::NotFound("no preview available"));
     }
     let cell = service.cache.in_flight(&key);
+    let fetched_here = std::sync::atomic::AtomicBool::new(false);
     let outcome = cell
         .get_or_init(|| async {
+            fetched_here.store(true, Ordering::Relaxed);
             match fetch_preview(&service.client, &params.url, service.allow_private).await {
                 Ok(Some(preview)) => cache::Outcome::Found(service.cache.insert(&key, preview)),
                 Ok(None) | Err(FetchError::Unavailable) => {
@@ -251,7 +260,12 @@ async fn preview(
         .clone();
     service.cache.finish(&key, &cell);
     match outcome {
-        cache::Outcome::Found(cached) => Ok(axum::Json(to_dto(&params.url, cached))),
+        cache::Outcome::Found(cached) => {
+            if fetched_here.load(Ordering::Relaxed) {
+                warm_image(&state.link_previews, cached.image_token.clone());
+            }
+            Ok(axum::Json(to_dto(&params.url, cached)))
+        }
         cache::Outcome::Missing => Err(ApiError::NotFound("no preview available")),
         cache::Outcome::Refused => Err(ApiError::BadRequest("that link cannot be previewed")),
     }
@@ -263,21 +277,58 @@ async fn image(
     Path(token): Path<String>,
 ) -> Result<Response, ApiError> {
     let service = state.link_previews.enabled()?;
-    if let Some(bytes) = service.cache.image_bytes(&token) {
-        return serve_image(bytes);
+    serve_image(load_image(service, &token).await?)
+}
+
+/// The image behind [token], fetched once however many readers ask at the same time, and a
+/// failure remembered briefly so a dead image costs one outbound fetch, not one per reader.
+async fn load_image(service: &Enabled, token: &str) -> Result<Bytes, ApiError> {
+    if let Some(bytes) = service.cache.image_bytes(token) {
+        return Ok(bytes);
     }
-    let url = service.cache.image_url(&token).ok_or(ApiError::NotFound(
+    let url = service.cache.image_url(token).ok_or(ApiError::NotFound(
         "that preview image is no longer available",
     ))?;
-    let bytes = fetch_image(&service.client, &url, service.allow_private).await?;
-    service.cache.store_image_bytes(&token, bytes.clone());
-    serve_image(bytes)
+    if service.cache.recently_missing(token) {
+        return Err(ApiError::NotFound("no preview available"));
+    }
+    let cell = service.cache.image_in_flight(token);
+    let outcome = cell
+        .get_or_init(|| async {
+            match fetch_image(&service.client, &url, service.allow_private).await {
+                Ok(bytes) => {
+                    let bytes = Bytes::from(bytes);
+                    service.cache.store_image_bytes(token, bytes.clone());
+                    Ok(bytes)
+                }
+                Err(err) => {
+                    if err == FetchError::Unavailable {
+                        service.cache.record_miss(token);
+                    }
+                    Err(err)
+                }
+            }
+        })
+        .await
+        .clone();
+    service.cache.finish_image(token, &cell);
+    Ok(outcome?)
+}
+
+/// Starts fetching a fresh preview's image, so the cards that render it find the bytes waiting.
+fn warm_image(previews: &LinkPreviews, token: Option<String>) {
+    let (Some(token), Some(service)) = (token, previews.live_shared()) else {
+        return;
+    };
+    tokio::spawn(async move {
+        let _ = load_image(&service, &token).await;
+    });
 }
 
 /// Serves proxied image bytes with a content type sniffed from the bytes
 /// themselves, never the upstream header, and `nosniff` so a browser cannot
 /// be talked into treating a mislabelled body as HTML.
-fn serve_image(bytes: Vec<u8>) -> Result<Response, ApiError> {
+fn serve_image(bytes: Bytes) -> Result<Response, ApiError> {
     let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;
     if !content_type.starts_with("image/") {
         return Err(ApiError::Unavailable);

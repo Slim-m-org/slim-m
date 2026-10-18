@@ -9,6 +9,7 @@ class LinkedAccount {
     required this.username,
     required this.linkedAt,
     this.displayName,
+    this.avatarUpdatedAt,
   });
 
   factory LinkedAccount.fromJson(Map<String, dynamic> json) => LinkedAccount(
@@ -16,12 +17,16 @@ class LinkedAccount {
         username: json['username'] as String,
         displayName: json['display_name'] as String?,
         linkedAt: json['linked_at'] as int,
+        avatarUpdatedAt: json['avatar_updated_at'] as int?,
       );
 
   final String provider;
   final String username;
   final String? displayName;
   final int linkedAt;
+
+  /// Null when the server stored no picture; also the cache key for one.
+  final int? avatarUpdatedAt;
 
   bool get isDiscord => provider == LinkedAccount.discord;
 

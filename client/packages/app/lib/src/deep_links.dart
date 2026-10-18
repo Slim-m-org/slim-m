@@ -159,7 +159,7 @@ final deepLinkControllerProvider = Provider<void>((ref) {
     },
     onError: (Object error, StackTrace stack) => AppLog.warning(
       LogTag.platform,
-      'deep link stream failed',
+      'The invite link listener failed',
       error: error,
       stack: stack,
     ),

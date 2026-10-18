@@ -14,7 +14,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../diagnostics/debug_log.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
+
 import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -40,14 +41,12 @@ class _MediaCapabilitySectionState
 
   Future<void> _run() async {
     setState(() => _status = _CheckStatus.running);
-    final log = ref.read(debugLogProvider.notifier);
     try {
       final results = await ref.read(mediaCapabilitiesProvider).probeAll();
-      log.record(
-        'capabilities',
-        'Checked device media capabilities',
-        level: DiagnosticSeverity.info,
-        detail: results.entries.map((e) => '${e.key}: ${e.value}').join('\n'),
+      AppLog.info(
+        LogTag.voice,
+        'Checked which microphone, camera and screen capture this device supports',
+        error: results.entries.map((e) => '${e.key}: ${e.value}').join('\n'),
       );
       if (!mounted) return;
       setState(() {
@@ -55,11 +54,10 @@ class _MediaCapabilitySectionState
         _results = results;
       });
     } catch (e) {
-      log.record(
-        'capabilities',
-        'Could not check device media capabilities',
-        level: DiagnosticSeverity.warning,
-        detail: e,
+      AppLog.warning(
+        LogTag.voice,
+        'Could not check which microphone, camera and screen capture this device supports',
+        error: e,
       );
       if (!mounted) return;
       setState(() {

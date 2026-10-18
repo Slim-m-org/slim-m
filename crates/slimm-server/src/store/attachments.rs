@@ -20,6 +20,7 @@ use sqlx::QueryBuilder;
 
 pub(super) mod refs;
 
+use super::attachment_originals::insert_attachment;
 use super::{Store, now_ms};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
@@ -52,6 +53,23 @@ pub struct AttachmentSummary {
     pub size: i64,
     /// Shown behind a spoiler on this message.
     pub spoiler: bool,
+    /// The uploaded original kept beside this copy, when the space kept one.
+    pub original: Option<OriginalInfo>,
+}
+
+/// An uploaded original kept beside a compressed attachment.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OriginalInfo {
+    pub size: i64,
+    /// The name it was uploaded under, which a download saves it as.
+    pub filename: String,
+}
+
+impl OriginalInfo {
+    /// `None` for a row that kept no original (a size of 0).
+    pub(super) fn from_columns(size: i64, filename: String) -> Option<Self> {
+        (size > 0).then_some(Self { size, filename })
+    }
 }
 
 /// Why linking an already-uploaded attachment to a message failed.
@@ -108,33 +126,8 @@ impl Store {
         filename: &str,
         uploader: Option<UserId>,
     ) -> anyhow::Result<()> {
-        let now = now_ms();
         let mut tx = self.begin_write().await?;
-        sqlx::query!(
-            "INSERT INTO attachments (sha256, size, content_type, key_version, is_encrypted, filename, created_at)
-             VALUES (?, ?, ?, 0, 0, ?, ?)
-             ON CONFLICT (sha256) DO UPDATE SET created_at = excluded.created_at",
-            sha256,
-            size,
-            content_type,
-            filename,
-            now
-        )
-        .execute(&mut *tx)
-        .await?;
-        if let Some(uploader) = uploader {
-            sqlx::query!(
-                "INSERT INTO attachment_uploaders (sha256, uploaded_by, uploaded_at, filename)
-                 VALUES (?, ?, ?, ?)
-                 ON CONFLICT (sha256, uploaded_by) DO UPDATE SET filename = excluded.filename",
-                sha256,
-                uploader,
-                now,
-                filename
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
+        insert_attachment(&mut tx, sha256, size, content_type, filename, uploader).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -147,7 +140,8 @@ impl Store {
     ) -> anyhow::Result<Option<AttachmentSummary>> {
         let row = sqlx::query!(
             r#"SELECT sha256 AS "sha256!: Vec<u8>", filename AS "filename!",
-                      content_type AS "content_type!", size AS "size!"
+                      content_type AS "content_type!", size AS "size!",
+                      original_size AS "original_size!", original_filename AS "original_filename!"
                FROM attachments WHERE sha256 = ?"#,
             sha256
         )
@@ -159,6 +153,7 @@ impl Store {
             content_type: r.content_type,
             size: r.size,
             spoiler: false,
+            original: OriginalInfo::from_columns(r.original_size, r.original_filename),
         }))
     }
 
@@ -252,7 +247,7 @@ impl Store {
         // length and SQLite has no array binding.
         let mut builder = QueryBuilder::new(
             "SELECT ma.message_id, a.sha256, COALESCE(ma.filename, a.filename) AS filename, \
-                    a.content_type, a.size, ma.spoiler \
+                    a.content_type, a.size, a.original_size, a.original_filename, ma.spoiler \
              FROM message_attachments ma \
              JOIN attachments a ON a.sha256 = ma.sha256 \
              WHERE ma.message_id IN (",
@@ -276,6 +271,10 @@ impl Store {
                 content_type: row.try_get("content_type")?,
                 size: row.try_get("size")?,
                 spoiler: row.try_get("spoiler")?,
+                original: OriginalInfo::from_columns(
+                    row.try_get("original_size")?,
+                    row.try_get("original_filename")?,
+                ),
             };
             match grouped.iter_mut().find(|(id, _)| *id == message_id) {
                 Some((_, list)) => list.push(summary),
@@ -338,7 +337,7 @@ impl Store {
     /// bounded by the very ceiling the sum is checked against.
     pub async fn total_attachment_bytes(&self) -> anyhow::Result<i64> {
         let total = sqlx::query_scalar!(
-            r#"SELECT COALESCE(SUM(size), 0) AS "total!: i64" FROM attachments"#
+            r#"SELECT COALESCE(SUM(size + original_size), 0) AS "total!: i64" FROM attachments"#
         )
         .fetch_one(&self.pool)
         .await?;

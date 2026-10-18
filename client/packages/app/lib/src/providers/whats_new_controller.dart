@@ -85,7 +85,7 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Never the reason a launch fails to reach the shell; stay silent',
+        'Could not check what is new; skipping it',
         error,
         stack,
       );
@@ -107,7 +107,7 @@ class WhatsNewController extends StateNotifier<List<WhatsNewEntry>> {
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
-        'Best effort: worst case the same entries are shown again next launch',
+        'Could not remember the shown release notes; they may show again',
         error,
         stack,
       );
@@ -122,3 +122,21 @@ final whatsNewControllerProvider =
     StateNotifierProvider<WhatsNewController, List<WhatsNewEntry>>(
       (ref) => WhatsNewController(ref),
     );
+
+/// Counts home panes on screen, so the gate leaves the update to their card.
+///
+/// Plain state rather than a notifying provider: the gate reads it at the
+/// moment an update lands, and the home registers synchronously on mount.
+class WhatsNewHomeHosts {
+  int _count = 0;
+
+  bool get present => _count > 0;
+
+  void attach() => _count++;
+
+  void detach() => _count--;
+}
+
+final whatsNewHomeHostsProvider = Provider<WhatsNewHomeHosts>(
+  (ref) => WhatsNewHomeHosts(),
+);

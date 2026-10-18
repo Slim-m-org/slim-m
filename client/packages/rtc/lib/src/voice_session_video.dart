@@ -55,6 +55,9 @@ extension VoiceSessionVideo on VoiceSession {
     );
     _applyShareAudioBlock(room);
     _syncStallWatch();
+    shareLimit.sync(
+      sharing: room.localParticipant?.isScreenShareEnabled() ?? false,
+    );
   }
 
   /// A share's audio is its own publication, which the culler never sees, so a blocked share's is unsubscribed here and only here.
@@ -71,7 +74,10 @@ extension VoiceSessionVideo on VoiceSession {
         if (blocked == !pub.subscribed) continue;
         unawaited(
           (blocked ? pub.unsubscribe() : pub.subscribe()).catchError(
-            (Object e) => _diag('share audio block: $e'),
+            (Object e) => _diag(
+              'Could not change screen share audio: $e',
+              level: LogLevel.warning,
+            ),
           ),
         );
       }

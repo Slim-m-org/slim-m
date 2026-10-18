@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The performance pane carries both memory dials - attachment preview quality
 /// and the image-cache cap - each stating its current value with the default
-/// marked, and none of the app-behaviour rows that moved to General.
+/// marked, and message history, but none of the desktop startup rows.
 library;
 
 import 'package:flutter/material.dart';
@@ -31,8 +31,8 @@ void main() {
     expect(find.text('Always (default)'), findsNWidgets(2));
     expect(find.text('Sharp (default)'), findsOneWidget);
     expect(find.text('100 MB (default)'), findsOneWidget);
-    // App behaviour lives on the General pane, not here.
-    expect(find.text('Message page size'), findsNothing);
+    // History is what this device keeps around, so it lives here; startup does not.
+    expect(find.text('Message page size'), findsOneWidget);
     expect(find.text('Startup splash'), findsNothing);
     expect(find.text('Start on login'), findsNothing);
   });

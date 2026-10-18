@@ -5,18 +5,13 @@
 /// depends on a call being up.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 /// Which video track a sample describes.
 enum CallStatsSource { camera, screenShare }
 
 /// One entry of a `getStats` report, detached from the plugin type.
-/// A stats timestamp in milliseconds. Browsers report milliseconds, while the
-/// native plugin reports libwebrtc's microseconds, which made every desktop
-/// bitrate read a thousand times too low.
-num statsTimestampMs(num timestamp) =>
-    timestamp > 1e14 ? timestamp / 1000 : timestamp;
-
 class StatsEntry {
   const StatsEntry({
     required this.type,
@@ -25,10 +20,13 @@ class StatsEntry {
     this.values = const {},
   });
 
-  factory StatsEntry.fromReport(rtc.StatsReport report) => StatsEntry(
+  /// A browser reports `timestamp` in milliseconds; every native plugin
+  /// (desktop, Android, iOS) reports microseconds, so [web] picks the unit.
+  factory StatsEntry.fromReport(rtc.StatsReport report, {bool web = kIsWeb}) =>
+      StatsEntry(
         type: report.type,
         id: report.id,
-        timestampMs: statsTimestampMs(report.timestamp),
+        timestampMs: web ? report.timestamp : report.timestamp / 1000,
         values: {for (final e in report.values.entries) '${e.key}': e.value},
       );
 

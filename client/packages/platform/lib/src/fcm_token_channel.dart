@@ -133,7 +133,8 @@ class FcmTokenChannel {
           ? const FcmRegistrationFailed('no FCM token was returned')
           : FcmTokenReady(token);
     } catch (e, stack) {
-      AppLog.swallowed(LogTag.push, 'fetch failed, ignored', e, stack);
+      AppLog.swallowed(
+          LogTag.push, 'Could not get a push token from Firebase', e, stack);
       return FcmRegistrationFailed(e.toString());
     }
   }

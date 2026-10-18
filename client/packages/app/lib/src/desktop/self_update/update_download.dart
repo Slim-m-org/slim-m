@@ -39,7 +39,7 @@ Future<int?> freeSpaceOf(Directory directory) async {
   } catch (error, stack) {
     AppLog.swallowed(
       LogTag.platform,
-      'free space of failed, ignored',
+      'Could not read the free disk space',
       error,
       stack,
     );
@@ -101,7 +101,7 @@ Future<void> _fillPart(
     } on SelfUpdateFailure {
       rethrow;
     } catch (error, stack) {
-      reportFailure(LogTag.platform, 'free space of', error, stack);
+      reportFailure(LogTag.platform, 'download the update', error, stack);
       last = error;
     }
   }

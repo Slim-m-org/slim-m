@@ -70,7 +70,7 @@ extension SyncControllerEvents on SyncController {
         );
       case ErrorEvent(:final needsResync) when needsResync:
         // The server closed a connection that fell behind; a restart re-runs catch-up.
-        unawaited(start());
+        unawaited(_resyncAfterLag());
       case _:
         break;
     }
@@ -123,7 +123,7 @@ extension SyncControllerEvents on SyncController {
     } on ApiException catch (error, stack) {
       AppLog.swallowed(
         LogTag.sync,
-        'channel refresh refused, skipping the event',
+        'Could not refresh channels after a server event; skipping it',
         error,
         stack,
       );
@@ -153,10 +153,7 @@ extension SyncControllerEvents on SyncController {
     if (cursor == null || seq <= cursor + 1) return false;
     unawaited(
       reconcile().catchError(
-        ignoreError(
-          LogTag.sync,
-          'a reconcile failure is retried by the next drop',
-        ),
+        ignoreError(LogTag.sync, 're-check state after the connection dropped'),
       ),
     );
     return true;
@@ -192,7 +189,7 @@ extension SyncControllerEvents on SyncController {
           reconcile().catchError(
             ignoreError(
               LogTag.sync,
-              'a reconcile failure is retried by the next drop',
+              're-check state after the connection dropped',
             ),
           ),
         );

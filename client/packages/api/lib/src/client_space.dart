@@ -253,6 +253,31 @@ extension SlimmApiSpace on SlimmApi {
     return SpaceAttachmentLimit.fromJson(json as Map<String, dynamic>);
   }
 
+  Future<SpaceMediaCompression> spaceMediaCompression() async {
+    final json = await _send('GET', '/space/media-compression');
+    return SpaceMediaCompression.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Only the fields given change; an empty [extensions] restores the defaults.
+  Future<SpaceMediaCompression> setSpaceMediaCompression({
+    bool? enabled,
+    List<String>? extensions,
+    String? metadata,
+    bool? keepOriginal,
+  }) async {
+    final json = await _send(
+      'PATCH',
+      '/space/media-compression',
+      body: {
+        if (enabled != null) 'enabled': enabled,
+        if (extensions != null) 'extensions': extensions,
+        if (metadata != null) 'metadata': metadata,
+        if (keepOriginal != null) 'keep_original': keepOriginal,
+      },
+    );
+    return SpaceMediaCompression.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Operator-visible storage usage and sweep health. Always computes -
   /// there is no on/off toggle the way `spaceAnalytics` has.
   Future<SpaceStorage> fetchSpaceStorage() async {

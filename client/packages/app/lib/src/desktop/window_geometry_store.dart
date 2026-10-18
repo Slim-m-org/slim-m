@@ -32,7 +32,12 @@ class WindowGeometryStore {
       );
       return healSplashCorruption(decoded);
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.platform, 'read failed, ignored', error, stack);
+      AppLog.swallowed(
+        LogTag.platform,
+        'Could not read the saved window position; using the default',
+        error,
+        stack,
+      );
       return null;
     }
   }

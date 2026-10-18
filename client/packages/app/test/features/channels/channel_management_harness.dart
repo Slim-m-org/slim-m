@@ -38,6 +38,7 @@ Channel channel(
   String kind = 'text',
   String? topic,
   String? categoryId,
+  String? defaultNotification,
 }) => Channel(
   id: id,
   name: name,
@@ -51,6 +52,7 @@ Channel channel(
   mentionedSeq: 0,
   slowModeSeconds: 0,
   joinMuted: false,
+  defaultNotification: defaultNotification,
   isPersonalSpace: false,
 );
 

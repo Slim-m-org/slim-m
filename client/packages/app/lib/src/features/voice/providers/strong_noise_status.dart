@@ -31,7 +31,7 @@ class _StrongInactiveNotifier extends StateNotifier<bool> {
     ) {
       final reading = next.valueOrNull;
       if (reading == null || !ref.read(_strongExpectedProvider)) return;
-      _add(reading.strongActive);
+      _add(reading.strongActive, reading.step);
     });
   }
 
@@ -42,7 +42,8 @@ class _StrongInactiveNotifier extends StateNotifier<bool> {
     state = false;
   }
 
-  void _add(bool active) => state = _tracker.add(strongActive: active);
+  void _add(bool active, Duration step) =>
+      state = _tracker.add(strongActive: active, step: step);
 }
 
 final strongNoiseInactiveProvider =

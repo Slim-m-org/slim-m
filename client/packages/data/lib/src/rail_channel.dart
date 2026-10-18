@@ -29,6 +29,7 @@ typedef RailChannelKey = ({
   bool isPersonalSpace,
   String? dmParticipantId,
   bool? restricted,
+  String? defaultNotification,
   bool unread,
   bool mentioned,
 });
@@ -42,6 +43,7 @@ RailChannelKey railChannelKey(Channel channel) => (
       isPersonalSpace: channel.isPersonalSpace,
       dmParticipantId: channel.dmParticipantId,
       restricted: channel.restricted,
+      defaultNotification: channel.defaultNotification,
       unread: channel.cursor > channel.lastReadSeq ||
           (channel.manuallyUnread ?? false),
       mentioned: channel.mentionedSeq > channel.lastReadSeq,

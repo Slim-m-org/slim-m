@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../../../routing/routes.dart';
 import '../widgets/settings_section_header.dart';
@@ -117,12 +118,14 @@ class PersonalSettingsScreen extends ConsumerWidget {
               icon: AppIcons.performance,
               builder: (context) => const PerformanceSettingsSection(),
             ),
-            SettingsPane(
-              id: 'general',
-              label: ActionLabels.general,
-              icon: AppIcons.settings,
-              builder: (context) => const GeneralSettingsSection(),
-            ),
+            // Its rows all describe the desktop shell, so nowhere else has a General pane.
+            if (isDesktopHost)
+              SettingsPane(
+                id: 'general',
+                label: ActionLabels.general,
+                icon: AppIcons.settings,
+                builder: (context) => const GeneralSettingsSection(),
+              ),
           ],
         ),
         SettingsPaneGroup(

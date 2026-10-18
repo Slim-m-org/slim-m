@@ -36,20 +36,20 @@ sealed class ServerEvent {
     try {
       decoded = jsonDecode(raw);
     } catch (error, stack) {
-      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
-          error, stack);
+      AppLog.swallowed(LogTag.sync,
+          'Dropped a server event that was not valid JSON', error, stack);
       return null;
     }
     if (decoded is! Map<String, dynamic>) return null;
     try {
       return _fromFrame(decoded);
     } on TypeError catch (error, stack) {
-      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
-          error, stack);
+      AppLog.swallowed(LogTag.sync,
+          'Dropped a server event with an unexpected shape', error, stack);
       return null;
     } on FormatException catch (error, stack) {
-      AppLog.swallowed(LogTag.sync, 'event frame could not be parsed, dropped',
-          error, stack);
+      AppLog.swallowed(LogTag.sync,
+          'Dropped a server event with an unexpected shape', error, stack);
       return null;
     }
   }

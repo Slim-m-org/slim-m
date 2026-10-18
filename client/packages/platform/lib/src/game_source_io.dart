@@ -71,8 +71,8 @@ class SystemGameProbe implements GameProbe {
       try {
         names.add(await File('${entry.path}/comm').readAsString());
       } on FileSystemException catch (error, stack) {
-        AppLog.swallowed(
-            LogTag.platform, 'linux processes failed, ignored', error, stack);
+        AppLog.swallowed(LogTag.platform,
+            'Could not read a running process name', error, stack);
         continue;
       }
     }
@@ -125,7 +125,7 @@ class SystemGameProbe implements GameProbe {
       }
     } on Object catch (error, stack) {
       AppLog.swallowed(
-          LogTag.platform, 'steam app name failed, ignored', error, stack);
+          LogTag.platform, 'Could not read a Steam game name', error, stack);
       return null;
     }
     return null;
