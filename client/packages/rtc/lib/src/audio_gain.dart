@@ -65,3 +65,20 @@ Future<Object?> applyParticipantVolume(lk.Track track, double volume) async {
     return e;
   }
 }
+
+/// Calls [onArrive] with the track id of every remote audio element the moment
+/// the browser gets it, before it has played a sample; the returned function
+/// stops watching. Does nothing off the web.
+void Function() watchAudioArrivals(void Function(String trackId) onArrive) {
+  if (!lk.lkPlatformIs(lk.PlatformType.web)) return () {};
+  return web_gain.watchWebAudioArrivals(onArrive);
+}
+
+/// Sets [gain] on a just-arrived track, synchronously; web only, errors logged.
+void holdArrivedAudio(String trackId, double gain) {
+  final failure = web_gain.applyWebGain(trackId, gain);
+  if (failure != null) {
+    AppLog.swallowed(LogTag.voice, 'hold arrived audio failed, ignored',
+        failure, StackTrace.current);
+  }
+}

@@ -4,6 +4,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+import unittest.mock
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -36,7 +37,7 @@ class FakePage:
 
 class SeriesTest(unittest.TestCase):
     def test_converts_rms_to_db_and_milliseconds_to_seconds(self):
-        raw = json.dumps([[1000, 0.5, 1.0], [1050, 0.0, 0.1]])
+        raw = json.dumps([[1000, 0.5, 1.0, ""], [1050, 0.0, 0.1, ""]])
         page = FakePage({"since(": raw})
         series = e2e_audio.AudioProbe(page).series("s1", 900)
         self.assertEqual(len(series), 2)
@@ -159,19 +160,71 @@ class RegisterTest(unittest.TestCase):
 
 
 class LiveVideoTest(unittest.TestCase):
-    def _probe(self, videos):
-        return e2e_audio.AudioProbe(FakePage({"videos()": json.dumps(videos)}))
+    SID = "TR_share1"
 
-    def test_black_and_undecoded_video_does_not_count(self):
-        videos = [
-            {"width": 640, "height": 360, "frames": 10, "mean": 90.0},
-            {"width": 640, "height": 360, "frames": 10, "mean": 0.5},
-            {"width": 0, "height": 0, "frames": 0, "mean": 0.0},
-            {"width": 640, "height": 360, "frames": 0, "mean": 80.0},
-        ]
-        live = multishare.live_videos(self._probe(videos))
+    def _frames(self, sequence, **extra):
+        base = {"index": 0, "width": 640, "height": 360, "mean": 90.0, "spread": 18.0,
+                "stream": "u1", "sfu": "PA_x|" + self.SID, "display": False}
+        base.update(extra)
+        return [dict(base, frames=n) for n in sequence]
+
+    def _live(self, samples):
+        """live_videos over successive probe reads, one list per read."""
+        reads = iter(json.dumps(v) for v in samples)
+        page = FakePage({"videos()": lambda: next(reads)})
+        with patch.object(multishare.time, "sleep"):
+            return multishare.live_videos(e2e_audio.AudioProbe(page), [self.SID])
+
+    def test_a_video_that_keeps_decoding_is_live(self):
+        live = self._live([self._frames([10]), self._frames([40])])
         self.assertEqual(len(live), 1)
-        self.assertEqual(live[0]["mean"], 90.0)
+
+    def test_a_frozen_frame_is_not_live(self):
+        self.assertEqual(self._live([self._frames([10]), self._frames([10])]), [])
+
+    def test_black_or_undecoded_video_does_not_count(self):
+        self.assertEqual(self._live(
+            [self._frames([10], mean=0.5), self._frames([40], mean=0.5)]), [])
+        self.assertEqual(self._live(
+            [self._frames([0], width=0), self._frames([0], width=0)]), [])
+
+    def test_a_flat_bright_fill_is_not_a_picture(self):
+        self.assertEqual(self._live(
+            [self._frames([10], spread=0.0), self._frames([40], spread=0.0)]), [])
+
+    def test_unrelated_videos_are_ignored(self):
+        other = self._frames([10], stream="u2", sfu="PA_y|TR_camera", index=1)
+        later = self._frames([40], stream="u2", sfu="PA_y|TR_camera", index=1)
+        live = self._live([self._frames([10]) + other,
+                           self._frames([40]) + later])
+        self.assertEqual([v["stream"] for v in live], ["u1"])
+
+    def test_a_local_capture_counts_as_a_share_tile(self):
+        mine = self._frames([5], stream="local", display=True)
+        later = self._frames([30], stream="local", display=True)
+        self.assertEqual(len(self._live([mine, later])), 1)
+
+    def test_one_stream_rendered_twice_is_refused(self):
+        twice = (self._frames([10]) + self._frames([10], index=1))
+        later = (self._frames([40]) + self._frames([40], index=1))
+        reads = iter([json.dumps(twice), json.dumps(later)] * 4)
+        page = FakePage({"videos()": lambda: next(reads)}, name="carol")
+        with patch.object(multishare.time, "sleep"):
+            with self.assertRaisesRegex(AssertionError, "rendered more than once"):
+                multishare.wait_for_videos(
+                    e2e_audio.AudioProbe(page), [self.SID], 2, timeout=5)
+
+
+class BrowserCleanupTest(unittest.TestCase):
+    def test_a_browser_that_ignores_sigterm_is_killed(self):
+        import signal
+        import subprocess
+        proc = unittest.mock.MagicMock(pid=123)
+        proc.wait.side_effect = [subprocess.TimeoutExpired("chrome", 1), 0]
+        with patch.object(e2e_browsers.os, "killpg") as killpg:
+            e2e_browsers._stop(proc)
+        self.assertEqual([c.args[1] for c in killpg.call_args_list],
+                         [signal.SIGTERM, signal.SIGKILL])
 
 
 class RegistryTest(unittest.TestCase):

@@ -21,7 +21,8 @@ DEFAULT_MIC = "System default"
 MAX_GAP_SECONDS = 1.5
 # Below this, against the unswitched voice, a window counts as the voice being gone.
 GONE_BELOW_BASE_DB = 25.0
-SETTLE_SECONDS = 6
+# A lost voice that never returns is a failure, not an unbounded wait.
+RECOVER_TIMEOUT_SECONDS = 30
 
 
 def _audio_sender(client):
@@ -40,6 +41,26 @@ def _wait_for_device(client, differs_from, timeout=20):
         time.sleep(0.5)
     raise AssertionError(
         f"{client.name}: the published track stayed on {differs_from!r}")
+
+
+def _gap_until_audio_is_back(listener, stream, start, loud_db):
+    """Read one continuous series from `start` until the voice is loud again.
+
+    Returns the longest silence in it, trailing silence included, so a dropout
+    longer than any single read still shows up as the gap.
+    """
+    deadline = time.time() + RECOVER_TIMEOUT_SECONDS
+    while True:
+        series = [(t, eff) for t, eff, _ in listener.series(stream, start)]
+        recent = [lvl for t, lvl in series if t >= series[-1][0] - 1.0] if series else []
+        if recent and max(recent) >= loud_db:
+            return lv.longest_gap_seconds(series, loud_db, until=series[-1][0]), series
+        if time.time() > deadline:
+            gap = lv.longest_gap_seconds(series, loud_db, until=series[-1][0]) if series else 0
+            raise AssertionError(
+                f"the peer never heard bob again after the switch "
+                f"(longest silence {gap:.1f}s within {RECOVER_TIMEOUT_SECONDS}s)")
+        time.sleep(0.5)
 
 
 def _wait_for_sender(client, timeout=30):
@@ -71,8 +92,11 @@ def _back_to_call(client):
 
 
 def mic_choice_changes_the_published_track(a, b, room_id, bob_id):
-    e2e_audio.install(a)
-    e2e_audio.install(b)
+    with e2e_audio.installed(a), e2e_audio.installed(b):
+        _mic_choice_changes_the_published_track(a, b, room_id, bob_id)
+
+
+def _mic_choice_changes_the_published_track(a, b, room_id, bob_id):
     join_call(a, b, room_id)
     listener = e2e_audio.AudioProbe(a)
     try:
@@ -90,11 +114,8 @@ def mic_choice_changes_the_published_track(a, b, room_id, bob_id):
         print(f"  bob switched mid-call to {after['label']!r} "
               f"({after['settings']['deviceId'][:10]})")
         assert after["label"] != before["label"], after
-        time.sleep(SETTLE_SECONDS)
-
-        series = listener.series(stream, start)
         loud = base - GONE_BELOW_BASE_DB
-        gap = lv.longest_gap_seconds([(t, eff) for t, eff, _ in series], loud)
+        gap, _ = _gap_until_audio_is_back(listener, stream, start, loud)
         tail = e2e_audio.speech_level(listener.measure(stream, 4))
         print(f"  the peer's longest silence across the switch: {gap:.2f}s; "
               f"heard afterwards at {tail:.1f} dB")

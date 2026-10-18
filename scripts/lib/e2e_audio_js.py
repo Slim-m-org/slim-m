@@ -7,6 +7,10 @@ a listener would hear, not what a widget says: for each remote audio element
 it reports the level after the app's own gain graph, or after the element's
 mute and volume when there is no graph (the app splices one in only for a
 volume other than 100%, see rtc/lib/src/gain_graph_registry.dart).
+
+A window where the element is not actually playing, or where the app's own
+AudioContext is suspended under a tap, is flagged and reads as silence; the
+Python side refuses to judge a measurement made of such windows.
 """
 
 PROBE = r"""
@@ -89,9 +93,15 @@ PROBE = r"""
       if (!stream || !stream.id) return;
       var pre = level(preGain(stream));
       var tap = tapFor(stream);
-      var eff = tap ? level(tap.analyser) : (el.muted ? 0 : pre * el.volume);
+      var playing = !el.paused && !el.ended && el.readyState >= 2;
+      var flag = '';
+      if (!playing) flag = 'stalled';
+      else if (tap && tap.gain.context.state === 'suspended') flag = 'suspended';
+      var eff = tap ? level(tap.analyser)
+                    : (!playing || el.muted ? 0 : pre * el.volume);
+      if (flag) eff = 0;
       var list = st.series[stream.id] || (st.series[stream.id] = []);
-      list.push([now, eff, pre]);
+      list.push([now, eff, pre, flag]);
       if (list.length > 4000) list.splice(0, list.length - 4000);
       st.series[stream.id].elementId = el.id;
     });
@@ -124,6 +134,15 @@ PROBE = r"""
     });
     return out;
   };
+  function msidOf(trackId){
+    for (var i = 0; i < st.pcs.length; i++) {
+      var d = st.pcs[i].remoteDescription;
+      if (!d) continue;
+      var m = new RegExp('a=msid:(\\S+) ' + trackId).exec(d.sdp);
+      if (m) return m[1];
+    }
+    return '';
+  }
   st.videos = function(){
     var out = [];
     document.querySelectorAll('video').forEach(function(v, index){
@@ -131,7 +150,12 @@ PROBE = r"""
       var q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : {};
       var rec = {index: index, width: w, height: h,
                  frames: q.totalVideoFrames || 0, mean: 0, spread: 0,
-                 stream: v.srcObject && v.srcObject.id};
+                 stream: (v.srcObject && v.srcObject.id) || '', sfu: '',
+                 display: false};
+      var vt = v.srcObject && v.srcObject.getVideoTracks
+        ? v.srcObject.getVideoTracks()[0] : null;
+      if (vt) rec.sfu = msidOf(vt.id);
+      if (vt) rec.display = !!(vt.getSettings && vt.getSettings().displaySurface);
       var box = v.getBoundingClientRect();
       rec.boxW = Math.round(box.width); rec.boxH = Math.round(box.height);
       if (w > 0 && h > 0) {

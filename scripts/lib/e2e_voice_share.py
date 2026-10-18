@@ -63,8 +63,11 @@ def _wait_for_share_audio(room_id, bob_id, timeout=45):
 
 
 def stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
-    e2e_audio.install(a)
-    e2e_audio.install(b, extra=e2e_audio_js.SHARE_TONE)
+    with e2e_audio.installed(a), e2e_audio.installed(b, extra=e2e_audio_js.SHARE_TONE):
+        _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id)
+
+
+def _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
     _share_audio_setting(b, True)
     join_call(a, b, room_id)
     probe = e2e_audio.AudioProbe(a)

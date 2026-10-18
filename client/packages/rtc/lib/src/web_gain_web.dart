@@ -99,3 +99,46 @@ final _registry = GainGraphRegistry<_Graph>(
 
 Object? applyWebGain(String trackCid, double gain) =>
     _registry.apply('$_elementPrefix$trackCid', gain);
+
+@JS('MutationObserver')
+extension type _Observer._(JSObject _) implements JSObject {
+  external _Observer(JSFunction callback);
+  external void observe(JSObject target, JSObject options);
+  external void disconnect();
+}
+
+@JS('document.body')
+external JSObject get _body;
+
+@JS('document.querySelectorAll')
+external _NodeList _querySelectorAll(String selector);
+
+extension type _NodeList._(JSObject _) implements JSObject {
+  external int get length;
+  external _IdElement? item(int index);
+}
+
+extension type _IdElement._(JSObject _) implements JSObject {
+  external String get id;
+}
+
+/// Reports each new `livekit_audio_*` element once, in the microtask after the
+/// browser inserts it, which is before the stream behind it has produced sound.
+void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) {
+  final seen = <String>{};
+  void scan() {
+    final found = _querySelectorAll('audio[id^="$_elementPrefix"]');
+    final present = <String>{};
+    for (var i = 0; i < found.length; i++) {
+      final id = found.item(i)!.id;
+      present.add(id);
+      if (seen.add(id)) onArrive(id.substring(_elementPrefix.length));
+    }
+    seen.retainAll(present);
+  }
+
+  final observer = _Observer(((JSAny? _, JSAny? __) => scan()).toJS);
+  observer.observe(
+      _body, {'childList': true, 'subtree': true}.jsify()! as JSObject);
+  return () => observer.disconnect();
+}

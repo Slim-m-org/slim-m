@@ -4,3 +4,6 @@ library;
 
 Object? applyWebGain(String trackCid, double gain) =>
     UnsupportedError('Web Audio gain only exists in a browser');
+
+void Function() watchWebAudioArrivals(void Function(String trackId) onArrive) =>
+    () {};
