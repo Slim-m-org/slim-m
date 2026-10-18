@@ -14,6 +14,7 @@ export 'src/canvas_document.dart';
 export 'src/canvas_external_pointers.dart';
 export 'src/canvas_grid_layer.dart';
 export 'src/canvas_hit_test.dart';
+export 'src/canvas_object_previews.dart';
 export 'src/canvas_painters.dart'
     show CursorPainter, DraftStroke, RemoteDraftPainter;
 export 'src/canvas_presence_layout.dart';

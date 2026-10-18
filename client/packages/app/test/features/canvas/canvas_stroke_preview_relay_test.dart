@@ -250,7 +250,7 @@ void main() {
   });
 
   test(
-    'applyRemote with ended true drops the draft immediately, not on a timer',
+    'applyRemote with ended true keeps the ink until the committed stroke settles it',
     () {
       final drafts = RemoteStrokeDrafts();
       addTearDown(drafts.dispose);
@@ -268,6 +268,8 @@ void main() {
 
       relay.applyRemote('alice', 'd1', const [], true);
 
+      expect(drafts.all.single.ended, isTrue);
+      drafts.settleAuthor('alice');
       expect(drafts.all, isEmpty);
     },
   );

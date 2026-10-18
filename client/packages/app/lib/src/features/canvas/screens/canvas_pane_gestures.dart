@@ -119,13 +119,19 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// drag point rather than once at [_onSelectStart], so releasing the key
   /// mid-drag takes effect immediately rather than on the next gesture.
   /// Alt moves freely; touch has no modifier, so it always snaps.
-  void _onSelectDrag(Offset world) => _ops.dragSelect(
-    world,
-    lockAspect: !HardwareKeyboard.instance.isShiftPressed,
-    snap: !HardwareKeyboard.instance.isAltPressed,
-  );
+  void _onSelectDrag(Offset world) {
+    _ops.dragSelect(
+      world,
+      lockAspect: !HardwareKeyboard.instance.isShiftPressed,
+      snap: !HardwareKeyboard.instance.isAltPressed,
+    );
+    if (_ops.activeMove case final move?) {
+      _objectPreview.reportLocal(move.id, move.box);
+    }
+  }
 
   Future<void> _onSelectEnd() async {
+    _objectPreview.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     _refresh();
   }

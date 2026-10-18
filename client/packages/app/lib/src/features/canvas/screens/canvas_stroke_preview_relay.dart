@@ -18,15 +18,12 @@ import '../../../ids.dart';
 import 'canvas_cursor_relay.dart' show canvasParticipantColorIndex;
 
 /// How often this device's own buffered draft points are flushed at most.
-/// Slower than `canvas_cursor_relay.dart`'s own 80ms `cursorSendInterval`,
-/// because each frame here carries more than two numbers; the server's
-/// byte-rate budget (`Class::CanvasStrokePreview` in
-/// `crates/slimm-server/src/ratelimit.rs`) is sized against this exact
-/// interval.
-const Duration strokePreviewSendInterval = Duration(milliseconds: 90);
+/// 20 frames a second so a stroke grows near real time; the server's
+/// byte-rate budget (`Class::CanvasStrokePreview`) is sized against it.
+const Duration strokePreviewSendInterval = Duration(milliseconds: 50);
 
 /// How many points one flush may send. A well-behaved client never needs
-/// this much in one 90ms window; it exists so a burst of very fast pointer
+/// this much in one 50ms window; it exists so a burst of very fast pointer
 /// motion still produces a bounded frame rather than one that grows with
 /// how long the pause since the last flush was. The oldest points in an
 /// over-full buffer are dropped, not the newest: where the pen is *now*
@@ -135,7 +132,7 @@ class CanvasStrokePreviewRelay {
   ) {
     if (userId == selfId() || isBlocked(userId)) return;
     if (ended) {
-      drafts.end(objectId);
+      drafts.finish(objectId, now: clock.now());
       return;
     }
     if (points.isEmpty) return;

@@ -156,7 +156,8 @@ async fn passes_presence_gates(
     // Typing, a cursor and a stroke preview all leak presence and must fail closed on a blip.
     if let Event::TypingStarted { user_id, .. }
     | Event::CanvasCursorMoved { user_id, .. }
-    | Event::CanvasStrokePreview { user_id, .. } = *event
+    | Event::CanvasStrokePreview { user_id, .. }
+    | Event::CanvasObjectPreview { user_id, .. } = *event
     {
         let confirmed_visible = matches!(
             signals::presence_status(store, hub, ctx.user_id, user_id).await,
@@ -436,6 +437,7 @@ async fn channel_frame(
         | Event::CanvasObjectsRestored { .. }
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
+        | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }

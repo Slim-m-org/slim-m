@@ -119,6 +119,36 @@ async fn a_viewer_with_both_bits_receives_the_cursor() {
     assert_eq!(frame["y"], -4.0);
 }
 
+/// Leaving the canvas is relayed so viewers hide the cursor at once.
+#[tokio::test]
+async fn a_pointer_leaving_the_canvas_is_relayed() {
+    let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;
+    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    alice_ws
+        .send(WsMessage::Text(
+            json!({
+                "type": "canvas.cursor", "channel_id": channel.to_string(),
+                "x": 0.0, "y": 0.0, "left": true,
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let frame = next_of_type(&mut bob_ws, "canvas.cursor.moved").await;
+    assert_eq!(frame["left"], true);
+    assert_eq!(frame["user_id"], alice_id.to_string());
+}
+
 #[tokio::test]
 async fn a_member_denied_use_canvas_never_sees_a_cursor() {
     let (store, _guard) = support::new_store("slimm-canvas-cursor-live").await;

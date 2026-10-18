@@ -19,6 +19,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasObjectsRestored { .. }
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
+        | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }

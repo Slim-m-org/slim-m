@@ -42,6 +42,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasObjectsRestored { .. }
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
+        | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }

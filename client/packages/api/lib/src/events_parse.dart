@@ -373,6 +373,7 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         userId: decoded['user_id'] as String,
         x: (decoded['x'] as num).toDouble(),
         y: (decoded['y'] as num).toDouble(),
+        left: decoded['left'] == true,
       ),
     'canvas.stroke_preview.updated'
         when decoded['channel_id'] is String &&
@@ -387,6 +388,25 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         points: (decoded['points'] as List<dynamic>)
             .map((p) => (p as num).toDouble())
             .toList(growable: false),
+        ended: decoded['ended'] as bool,
+      ),
+    'canvas.object_preview.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['object_id'] is String &&
+            decoded['x'] is num &&
+            decoded['y'] is num &&
+            decoded['w'] is num &&
+            decoded['h'] is num &&
+            decoded['ended'] is bool =>
+      CanvasObjectPreview(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        objectId: decoded['object_id'] as String,
+        x: (decoded['x'] as num).toDouble(),
+        y: (decoded['y'] as num).toDouble(),
+        w: (decoded['w'] as num).toDouble(),
+        h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
     'canvas.object.moved'

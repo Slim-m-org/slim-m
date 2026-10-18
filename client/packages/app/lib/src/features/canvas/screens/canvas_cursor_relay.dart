@@ -41,6 +41,7 @@ class CanvasCursorRelay {
     required this.resolveLabel,
     required this.isBlocked,
     required this.selfId,
+    this.sendLeft,
   }) {
     _pruneTimer = Timer.periodic(
       cursorPruneInterval,
@@ -58,6 +59,9 @@ class CanvasCursorRelay {
   /// Sends this device's own position onward, already throttled by the time
   /// this is called.
   final void Function(double x, double y) send;
+
+  /// Tells everyone this device's pointer left the canvas.
+  final VoidCallback? sendLeft;
 
   final String Function(String userId) resolveLabel;
   final bool Function(String userId) isBlocked;
@@ -79,11 +83,23 @@ class CanvasCursorRelay {
     send(world.dx, world.dy);
   }
 
+  /// Call when the local pointer leaves the canvas or a touch lifts. Sent at
+  /// most once per stretch over the canvas, and never throttled away.
+  void reportLocalPointerLeft() {
+    if (_lastSent == null) return;
+    _lastSent = null;
+    sendLeft?.call();
+  }
+
   /// Call for every live `CanvasCursorMoved` naming this channel. Silently
   /// drops this device's own echo and a blocked author's position, the same
   /// treatment `TypingController` already gives a blocked typist.
-  void applyRemote(String userId, double x, double y) {
+  void applyRemote(String userId, double x, double y, {bool left = false}) {
     if (userId == selfId() || isBlocked(userId)) return;
+    if (left) {
+      cursors.remove(userId);
+      return;
+    }
     cursors.upsert(
       id: userId,
       x: x,

@@ -99,6 +99,7 @@ export 'src/events.dart'
         CanvasObjectsRemoved,
         CanvasObjectsRestored,
         CanvasStrokePreview,
+        CanvasObjectPreview,
         CallRinging,
         CallRingEnded,
         CategoryChanged,

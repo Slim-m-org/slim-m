@@ -14,6 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_object_preview_relay.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -81,6 +82,15 @@ class CanvasReceiver {
     client: fakeClientFor(const []),
   );
 
+  late final CanvasObjectPreviewRelay _objectPreviews =
+      CanvasObjectPreviewRelay(
+        previews: RemoteObjectPreviews(document),
+        send: (_, _, _) {},
+        isBlocked: (_) => false,
+        selfId: () => null,
+        isDraggingLocally: (_) => false,
+      );
+
   void deliver(CanonOp op) {
     dispatchCanvasLiveEvent(
       eventFor(op, _channelId),
@@ -92,6 +102,7 @@ class CanvasReceiver {
       strokePreviewRelay: () => throw UnimplementedError(
         'this model never generates a stroke preview event',
       ),
+      objectPreviewRelay: () => _objectPreviews,
       applyPlacedObject: (object) {
         final input = canvasStrokeInputFrom(object);
         if (input != null) document.applyPlaced(input);
