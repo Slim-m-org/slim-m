@@ -26,3 +26,20 @@ Future<void> _setOpCursor(
         .write(ChannelsCompanion(opCursor: Value(seq)));
   });
 }
+
+/// One channel's server read marker, as [MessageStore.setReadMarkers] takes it.
+typedef ReadMarker = ({String channelId, int seq, bool? manuallyUnread});
+
+Future<void> _setReadMarkers(
+  MessageStore store,
+  Iterable<ReadMarker> markers,
+) =>
+    store.db.transaction(() async {
+      for (final marker in markers) {
+        await store.setReadMarker(
+          marker.channelId,
+          marker.seq,
+          manuallyUnread: marker.manuallyUnread,
+        );
+      }
+    });

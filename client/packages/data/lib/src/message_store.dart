@@ -476,6 +476,11 @@ class MessageStore {
     });
   }
 
+  /// [setReadMarker] for many channels in one transaction, so streams over the
+  /// channel list wake once rather than once per channel.
+  Future<void> setReadMarkers(Iterable<ReadMarker> markers) =>
+      _setReadMarkers(this, markers);
+
   /// Caps every channel's delivered rows to the newest [ceiling], deleting
   /// whatever is older. Body in `message_store_retention.dart`, which also
   /// explains why this is safe to call unconditionally rather than only for

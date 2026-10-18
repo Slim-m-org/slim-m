@@ -107,14 +107,15 @@ class ChannelRefresher {
       reportFailure(LogTag.ui, 'load read markers', error, stack);
       return;
     }
-    for (final read in states) {
-      if (!isCurrent()) return;
-      await store.setReadMarker(
-        read.channelId,
-        read.state.lastReadSeq,
-        manuallyUnread: read.state.manuallyUnread,
-      );
-    }
+    if (!isCurrent()) return;
+    await store.setReadMarkers([
+      for (final read in states)
+        (
+          channelId: read.channelId,
+          seq: read.state.lastReadSeq,
+          manuallyUnread: read.state.manuallyUnread,
+        ),
+    ]);
   }
 
   /// A server that predates `GET /read-states` answers 404 to it, and only

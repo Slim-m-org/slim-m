@@ -208,6 +208,27 @@ void main() {
     expect(await _lastReadSeqOf(store, 'chan-1'), 2);
   });
 
+  test('a batch of read markers wakes the channel list once', () async {
+    await store.upsertChannels([
+      for (var i = 0; i < 6; i++)
+        api.Channel(id: 'b$i', name: 'b$i', kind: 'text', createdAt: 0),
+    ]);
+    var emissions = 0;
+    final sub = store.watchChannels().listen((_) => emissions++);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    emissions = 0;
+
+    await store.setReadMarkers([
+      for (var i = 0; i < 6; i++)
+        (channelId: 'b$i', seq: i + 1, manuallyUnread: null),
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(emissions, 1);
+    expect(await _lastReadSeqOf(store, 'b5'), 6);
+    await sub.cancel();
+  });
+
   test('reset clears the channel but keeps unsent and failed work', () async {
     await store.applyMessages([
       _message(id: 'm1', seq: 1),
