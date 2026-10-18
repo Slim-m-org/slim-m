@@ -66,9 +66,9 @@ pub struct SkipSummary {
     pub foreground_device: usize,
     pub debounced: usize,
     pub users: Vec<UserId>,
-    /// Device and age in ms of each foreground report that silenced a recipient.
     /// The device ids behind each viewing or recently-active skip, as `kind:device`.
     pub signal_devices: Vec<String>,
+    /// Device and age in ms of each foreground report that silenced a recipient.
     pub foreground_reports: Vec<(DeviceId, Option<i64>)>,
 }
 
