@@ -179,8 +179,9 @@ void main() {
           container.read(syncControllerProvider.notifier);
           container.read(sessionProvider).set(_tokens);
           for (var i = 0; i < 250; i++) {
-            if (container.read(syncControllerProvider) == SyncStatus.live)
+            if (container.read(syncControllerProvider) == SyncStatus.live) {
               break;
+            }
             await Future<void>.delayed(const Duration(milliseconds: 20));
           }
           expect(tickets, 1);
