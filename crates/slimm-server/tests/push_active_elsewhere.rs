@@ -6,14 +6,10 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
-use slimm_server::hub::Hub;
 use slimm_server::ids::{MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::{NewMessage, Store};
 use slimm_server::viewing::ACTIVE_WINDOW;
 use tokio::net::TcpListener;
@@ -24,22 +20,6 @@ mod support;
 
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub: Hub::new(),
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 async fn seed_everyone(store: &Store) {
     store
@@ -143,7 +123,7 @@ async fn push_skips_a_recipient_active_on_another_device_until_the_window_ends()
 async fn an_active_viewing_frame_counts_even_with_no_channel_open_and_ends_with_the_socket() {
     let (store, _guard) = support::new_store("slimm-push-active-elsewhere").await;
     seed_everyone(&store).await;
-    let state = state_for(&store);
+    let state = support::app::state(store.clone());
     let (alice, ticket) = account(&store, "alice").await;
     let addr = serve(state.clone()).await;
     let mut ws = connect(addr, &ticket).await;

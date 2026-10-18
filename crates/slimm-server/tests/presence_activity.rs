@@ -9,11 +9,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -22,24 +19,10 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::app::request_authed as request;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store, hub: Hub) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
@@ -103,20 +86,6 @@ async fn next_presence_for(ws: &mut Client, user_id: &str) -> Value {
     outcome.unwrap_or_else(|_| panic!("no presence.changed for {user_id} arrived in time"))
 }
 
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(body) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(body.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
 async fn send(state: &AppState, req: Request<Body>) -> StatusCode {
     http::router(state.clone())
         .oneshot(req)
@@ -172,7 +141,7 @@ async fn presence_where(ws: &mut Client, user_id: &str, pred: impl Fn(&Value) ->
 #[tokio::test]
 async fn activity_fans_out_and_clears_on_delete_and_on_disconnect() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice = alice_id.to_string();
@@ -212,7 +181,7 @@ async fn activity_fans_out_and_clears_on_delete_and_on_disconnect() {
 #[tokio::test]
 async fn hidden_user_activity_is_invisible_to_others_but_not_to_self() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice = alice_id.to_string();
@@ -255,7 +224,7 @@ async fn hidden_user_activity_is_invisible_to_others_but_not_to_self() {
 #[tokio::test]
 async fn malformed_and_over_long_activity_is_refused() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (access, _ticket, _id) = user_ticket(&store, "alice").await;
     let too_long = "x".repeat(slimm_server::presence_activity::MAX_TEXT_CHARS + 1);
     for body in [
@@ -276,7 +245,7 @@ const ART: &str = "https://i.scdn.co/image/ab67616d0000b273bc2dd68b840b1d4b7c9e5
 #[tokio::test]
 async fn art_and_source_round_trip_for_a_viewer() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (alice_access, alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     let (bob_access, _bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
     let alice = alice_id.to_string();
@@ -298,7 +267,7 @@ async fn art_and_source_round_trip_for_a_viewer() {
 #[tokio::test]
 async fn art_url_outside_the_allowlist_is_refused() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (access, _ticket, _id) = user_ticket(&store, "alice").await;
     let long_source = "s".repeat(slimm_server::presence_activity::MAX_SOURCE_CHARS + 1);
     for extra in [
@@ -323,7 +292,7 @@ async fn art_url_outside_the_allowlist_is_refused() {
 #[tokio::test]
 async fn activity_writes_are_rate_limited() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let (access, _ticket, _id) = user_ticket(&store, "alice").await;
     for n in 0..6 {
         let status = put_activity(&state, &access, track(&format!("t{n}"))).await;

@@ -9,11 +9,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::auth::Auth;
 use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
-use slimm_server::push::PushSender;
-use slimm_server::ratelimit::RateLimiter;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
@@ -22,24 +19,10 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::app::request_authed as request;
+
 type Client =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-fn state_for(store: &Store, hub: Hub) -> AppState {
-    AppState {
-        store: store.clone(),
-        auth: Auth::new(2).unwrap(),
-        hub,
-        limiter: RateLimiter::new(),
-        push: PushSender::disabled(),
-        voice: slimm_server::voice::VoiceService::disabled(),
-        media: slimm_server::media::Media::for_tests(),
-        gifs: slimm_server::http::gifs::GifSearch::disabled(),
-        link_previews: slimm_server::http::link_preview::LinkPreviews::disabled(),
-        dock: slimm_server::http::dock::Dock::disabled(),
-        code_runner: slimm_server::code_runner::CodeRunner::disabled(),
-    }
-}
 
 /// Opens a session whose device signed in as `client_kind` and mints its ws ticket.
 async fn ticket_as(
@@ -113,20 +96,6 @@ async fn next_presence_for(ws: &mut Client, user_id: &str) -> Value {
     outcome.unwrap_or_else(|_| panic!("no presence.changed for {user_id} arrived in time"))
 }
 
-fn request(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
-    let builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("authorization", format!("Bearer {token}"));
-    match body {
-        Some(body) => builder
-            .header("content-type", "application/json")
-            .body(Body::from(body.to_string()))
-            .unwrap(),
-        None => builder.body(Body::empty()).unwrap(),
-    }
-}
-
 async fn send(state: &AppState, req: Request<Body>) -> StatusCode {
     http::router(state.clone())
         .oneshot(req)
@@ -155,7 +124,7 @@ async fn devices_over_rest(state: &AppState, token: &str, target: &str) -> Value
 #[tokio::test]
 async fn presence_lists_the_client_kinds_of_every_live_socket() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;
     let bob = new_user(&store, "bob").await;
@@ -193,7 +162,7 @@ async fn presence_lists_the_client_kinds_of_every_live_socket() {
 #[tokio::test]
 async fn a_session_with_no_recorded_kind_reads_as_unknown() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;
     let bob = new_user(&store, "bob").await;
@@ -207,7 +176,7 @@ async fn a_session_with_no_recorded_kind_reads_as_unknown() {
 #[tokio::test]
 async fn an_appear_offline_member_leaks_no_client_kind() {
     let (store, _guard) = support::new_store("slimm-presence-test").await;
-    let state = state_for(&store, Hub::new());
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
     let alice = new_user(&store, "alice").await;
     let bob = new_user(&store, "bob").await;
