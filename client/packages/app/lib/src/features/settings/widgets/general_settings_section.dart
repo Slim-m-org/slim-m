@@ -9,9 +9,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../../../providers/desktop_splash_preference.dart';
+import '../../../routing/routes.dart';
+import '../../first_run/providers/first_run_controller.dart';
 import '../../messages/providers/message_page_size.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
@@ -22,6 +26,7 @@ class GeneralSettingsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -30,6 +35,24 @@ class GeneralSettingsSection extends ConsumerWidget {
             title: 'Startup',
             children: [const StartOnLoginRow(), _splashRow(ref)],
           ),
+        SettingsSectionCard(
+          title: 'Setup',
+          children: [
+            AppListRow(
+              label: 'Run setup again',
+              subtitle: 'Profile, notifications and voice, one step at a time.',
+              trailing: Icon(
+                AppIcons.chevronRight,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+              onTap: () {
+                ref.read(firstRunControllerProvider.notifier).replay();
+                context.go(Routes.channels);
+              },
+            ),
+          ],
+        ),
         SettingsSectionCard(
           title: 'History',
           description: 'How many messages load when you scroll back.',
