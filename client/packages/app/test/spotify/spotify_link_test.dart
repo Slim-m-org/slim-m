@@ -356,6 +356,25 @@ void main() {
     expect(rig.calls, isEmpty);
   });
 
+  test('linked with the show-track switch off publishes nothing', () async {
+    final rig = SpotifyRig();
+    addTearDown(rig.dispose);
+    await rig.start();
+    await _begin(rig);
+    await rig.linker.handleCallback(rig.redirect());
+    await rig.settle();
+    expect(rig.calls, contains('PUT /presence/activity'));
+
+    await rig.container.read(shareSpotifyProvider.notifier).setEnabled(false);
+    await rig.settle();
+    expect(_status(rig), isA<SpotifyConnected>(), reason: 'still linked');
+    rig.calls.clear();
+    rig.spotify.clear();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(rig.calls.where((c) => c.startsWith('PUT')), isEmpty);
+    expect(rig.spotify, isEmpty);
+  });
+
   test('a linked device sends the track while visible', () async {
     final rig = SpotifyRig();
     addTearDown(rig.dispose);

@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/settings/providers/linked_accounts.dart';
 import 'package:slimm_app/src/features/settings/widgets/connections_section.dart';
@@ -77,6 +78,43 @@ Future<void> _shot(WidgetTester tester, String name) async {
 
 void main() {
   setUpAll(loadRealFonts);
+
+  testWidgets('the show-track text lines up with the Spotify title', (
+    tester,
+  ) async {
+    final rig = await _pump(
+      tester,
+      window: const Size(390, 844),
+      brightness: Brightness.light,
+    );
+    await tester.tap(_spotifyButton('Link'));
+    await _settle(tester);
+    await tester.runAsync(() => rig.linker.handleCallback(rig.redirect()));
+    await _settle(tester);
+
+    final title = tester.getTopLeft(find.text('Spotify')).dx;
+    expect(tester.getTopLeft(find.text('Show my Spotify track')).dx, title);
+    expect(tester.getTopLeft(find.text('Discord')).dx, title);
+  });
+
+  testWidgets('a long account name stays on one line', (tester) async {
+    final rig = await _pump(
+      tester,
+      window: const Size(390, 844),
+      brightness: Brightness.light,
+    );
+    const name =
+        'An extremely long Spotify display name that cannot possibly '
+        'fit beside the unlink button on a phone';
+    rig.profile = () => http.Response('{"display_name":"$name"}', 200);
+    await tester.tap(_spotifyButton('Link'));
+    await _settle(tester);
+    await tester.runAsync(() => rig.linker.handleCallback(rig.redirect()));
+    await _settle(tester);
+
+    final height = tester.getSize(find.text(name)).height;
+    expect(height, lessThan(AppText.caption.fontSize! * 2));
+  });
 
   final cases = [
     ('phone', const Size(390, 844)),
