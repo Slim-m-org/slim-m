@@ -56,6 +56,12 @@ Duration voiceRosterDelay({required bool live, required int failures}) {
 /// short unbroken run of them is.
 const persistentRosterFailureThreshold = 3;
 
+/// When [channelId]'s call started by the server's clock, as of the last
+/// roster poll; null for an empty room or a server that does not say.
+final voiceRosterStartProvider = StateProvider.family<DateTime?, String>(
+  (ref, channelId) => null,
+);
+
 /// Who the server reports as connected to [channelId]'s voice room.
 ///
 /// A hidden participant is never in this list for any viewer but themselves;
@@ -108,6 +114,9 @@ final voiceRosterProvider = StreamProvider.autoDispose
         controller,
         isLive: () => ref.read(voiceRosterSocketLiveProvider),
         isFocused: () => ref.read(appFocusedProvider),
+        onCallStart: (start) =>
+            ref.read(voiceRosterStartProvider(channelId).notifier).state =
+                start,
       );
       unawaited(poller.tick());
 
@@ -149,6 +158,7 @@ class _RosterPoller {
     this._controller, {
     required this.isLive,
     required this.isFocused,
+    required this.onCallStart,
   });
 
   final api.SlimmApi _client;
@@ -156,6 +166,7 @@ class _RosterPoller {
   final StreamController<List<api.VoiceRosterParticipant>> _controller;
   final bool Function() isLive;
   final bool Function() isFocused;
+  final void Function(DateTime? start) onCallStart;
   Timer? _timer;
   bool _stopped = false;
   int _consecutiveFailures = 0;
@@ -164,13 +175,19 @@ class _RosterPoller {
 
   Future<void> _poll() async {
     try {
-      final roster = await _client.voiceRoster(_channelId);
+      final snapshot = await _client.voiceRosterSnapshot(_channelId);
+      final roster = snapshot.participants;
       _consecutiveFailures = 0;
       final selfId = _client.session.tokens?.userId;
       final visible = selfId == null
           ? roster
           : roster.where((p) => p.userId != selfId).toList(growable: false);
-      if (!_controller.isClosed) _controller.add(visible);
+      if (_controller.isClosed) return;
+      final age = snapshot.callAge;
+      onCallStart(
+        age == null || roster.isEmpty ? null : DateTime.now().subtract(age),
+      );
+      _controller.add(visible);
     } on api.NotConfiguredException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.voice,

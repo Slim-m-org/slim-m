@@ -8,10 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
 import 'package:slimm_app/src/features/voice/widgets/popout_window_view.dart';
+import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
 class _SoundSession extends FakeSession {
@@ -74,7 +76,8 @@ void main() {
   ) async {
     await _pumpTile(tester, sound: true, sharer: _sharer());
 
-    await tester.tap(find.byTooltip('Stream volume'));
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.tap(find.text('Stream volume'));
     await tester.pumpAndSettle();
 
     expect(find.text("Ada's screen audio"), findsOneWidget);
@@ -85,13 +88,17 @@ void main() {
   testWidgets('a silent share offers no stream volume', (tester) async {
     await _pumpTile(tester, sound: false, sharer: _sharer());
 
-    expect(find.byTooltip('Stream volume'), findsNothing);
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    expect(find.text('Stream volume'), findsNothing);
+    expect(find.text('Full screen'), findsOneWidget);
   });
 
   testWidgets('your own share offers no stream volume', (tester) async {
     await _pumpTile(tester, sound: true, sharer: _sharer(isLocal: true));
 
-    expect(find.byTooltip('Stream volume'), findsNothing);
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    expect(find.text('Stream volume'), findsNothing);
+    expect(find.text('Full screen'), findsOneWidget);
   });
 
   for (final sound in [true, false]) {

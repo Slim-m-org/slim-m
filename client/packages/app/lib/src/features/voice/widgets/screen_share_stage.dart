@@ -8,13 +8,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/call_mini_player.dart';
 import '../../../widgets/double_click_detector.dart';
-import 'fullscreen_video_overlay.dart';
 import '../../messages/widgets/media_label.dart';
-import 'popout_video_button.dart';
+import '../providers/popout_window.dart';
 import 'share_stage_controls.dart';
 import '../../../widgets/context_menu_region.dart';
 
@@ -35,7 +35,7 @@ import '../../../widgets/context_menu_region.dart';
 /// screen") rather than a bare label ("Your screen"): it is what is left to
 /// confirm a live share once `local_screen_share_banner.dart`'s own banner
 /// is withheld here to avoid saying the identical thing twice.
-class ScreenShareStage extends StatelessWidget {
+class ScreenShareStage extends ConsumerWidget {
   const ScreenShareStage({
     super.key,
     required this.sharerName,
@@ -72,21 +72,17 @@ class ScreenShareStage extends StatelessWidget {
   /// The live share view, from `VoiceController.screenShareViewFor`.
   final Widget child;
 
-  /// Opens this share full screen. Null only in the tests that build this
-  /// widget in isolation with nothing behind it to expand into.
+  /// Opens this share full screen, on a double click or from the menu. Null
+  /// only in the tests that build this widget in isolation.
   final VoidCallback? onExpand;
 
-  /// The remote sharer's identity, which offers the pop-out button; null for
+  /// The remote sharer's identity, which offers the pop-out row; null for
   /// the local share, which is never previewed back to the sharer.
   final String? popOutIdentity;
 
-  bool get _hasStageActions =>
-      onStopWatching != null || onFocus != null || onStreamVolume != null;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final icons = MediaQuery.sizeOf(context).width >= shareStageIconsMinWidth;
     final stage = PointerRevealed(
       builder: (context, revealed) => DoubleClickDetector(
         onDoubleClick: onExpand,
@@ -105,68 +101,6 @@ class ScreenShareStage extends StatelessWidget {
                   child: child,
                 ),
               ),
-              if (onExpand != null)
-                Positioned(
-                  left: 4,
-                  top: 4,
-                  child: ExpandVideoButton(
-                    label: isLocal
-                        ? 'View your screen full screen'
-                        : "View $sharerName's screen full screen",
-                    onTap: onExpand!,
-                  ),
-                ),
-              if (popOutIdentity != null && !isLocal)
-                Positioned(
-                  left: 36,
-                  top: 4,
-                  child: PopOutVideoButton(
-                    feed: (
-                      identity: popOutIdentity!,
-                      name: sharerName,
-                      kind: FeedKind.screenShare,
-                    ),
-                  ),
-                ),
-              if (icons && _hasStageActions)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (onStreamVolume != null) ...[
-                        Builder(
-                          builder: (anchor) => ShareStageButton(
-                            icon: AppIcons.speaker,
-                            label: 'Stream volume',
-                            onTap: () => onStreamVolume!(anchor),
-                          ),
-                        ),
-                        if (onFocus != null || onStopWatching != null)
-                          const SizedBox(width: 4),
-                      ],
-                      if (onFocus != null)
-                        ShareStageButton(
-                          icon: focused
-                              ? AppIcons.collapse
-                              : AppIcons.shareFocus,
-                          label: focused
-                              ? 'Show all shares'
-                              : 'Focus this share',
-                          onTap: onFocus!,
-                        ),
-                      if (onFocus != null && onStopWatching != null)
-                        const SizedBox(width: 4),
-                      if (onStopWatching != null)
-                        ShareStageButton(
-                          icon: AppIcons.tileHide,
-                          label: 'Stop watching',
-                          onTap: onStopWatching!,
-                        ),
-                    ],
-                  ),
-                ),
               if (showCaption)
                 Positioned(
                   left: 6,
@@ -190,16 +124,26 @@ class ScreenShareStage extends StatelessWidget {
         ),
       ),
     );
-    if (!_hasStageActions) return stage;
+    final popOutId = popOutIdentity;
+    final canPopOut =
+        popOutId != null && !isLocal && ref.watch(popOutSupportedProvider);
     final volume = onStreamVolume;
     return ContextMenuRegion(
       itemsBuilder: (_, close) => shareStageMenuItems(
         close,
         sharerName: sharerName,
-        onStopWatching: onStopWatching,
+        onPopOut: canPopOut
+            ? () => ref.read(popOutFeedProvider.notifier).state = (
+                identity: popOutId,
+                name: sharerName,
+                kind: FeedKind.screenShare,
+              )
+            : null,
+        onStreamVolume: volume == null ? null : () => volume(context),
         onFocus: onFocus,
         focused: focused,
-        onStreamVolume: volume == null ? null : () => volume(context),
+        onStopWatching: onStopWatching,
+        onFullscreen: onExpand,
       ),
       child: stage,
     );

@@ -196,7 +196,7 @@ class _CallHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final channelId = voice.channelId;
     if (channelId == null) return const SizedBox.shrink();
-    return CallHeaderLine(channelId: channelId);
+    return CallHeaderLine(channelId: channelId, showTitle: false);
   }
 }
 

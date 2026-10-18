@@ -1,91 +1,46 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The controls that choose which screen shares a viewer watches: the stage
-/// tile's icon buttons, its long-press menu rows, and the opt-back-in chip.
+/// the shared context-menu rows, and the opt-back-in chip.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-/// Window width from which a share tile shows icon buttons; below it the
-/// same verbs live in the tile's long-press menu (decision: width, not platform).
-const double shareStageIconsMinWidth = 600;
-
-/// A round overlay button on a share tile, with a tooltip for pointers.
-class ShareStageButton extends StatelessWidget {
-  const ShareStageButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: label,
-    excludeFromSemantics: true,
-    child: Semantics(
-      button: true,
-      label: label,
-      onTap: onTap,
-      child: GestureDetector(
-        excludeFromSemantics: true,
-        onTap: onTap,
-        child: Container(
-          width: 28,
-          height: 28,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.55),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 14, color: Colors.white),
-        ),
-      ),
-    ),
-  );
-}
-
-/// The long-press menu rows for a share tile; a null callback drops its row.
+/// The context-menu rows for one stream, shared by the share tile and the
+/// participant menus; a null callback drops its row.
 List<Widget> shareStageMenuItems(
   VoidCallback close, {
   required String sharerName,
-  VoidCallback? onStopWatching,
+  VoidCallback? onPopOut,
+  VoidCallback? onStreamVolume,
   VoidCallback? onFocus,
   bool focused = false,
-  VoidCallback? onStreamVolume,
-}) => [
-  if (onStreamVolume != null)
-    AppMenuItem(
-      label: 'Stream volume',
-      leading: AppIcons.speaker,
-      onTap: () {
-        close();
-        onStreamVolume();
-      },
-    ),
-  if (onFocus != null)
-    AppMenuItem(
-      label: focused ? 'Show all shares' : 'Focus $sharerName\'s screen',
-      leading: focused ? AppIcons.collapse : AppIcons.shareFocus,
-      onTap: () {
-        close();
-        onFocus();
-      },
-    ),
-  if (onStopWatching != null)
-    AppMenuItem(
-      label: 'Stop watching',
-      leading: AppIcons.tileHide,
-      onTap: () {
-        close();
-        onStopWatching();
-      },
-    ),
-];
+  VoidCallback? onStopWatching,
+  VoidCallback? onFullscreen,
+}) {
+  Widget row(String label, IconData icon, VoidCallback act) => AppMenuItem(
+    label: label,
+    leading: icon,
+    onTap: () {
+      close();
+      act();
+    },
+  );
+  return [
+    if (onPopOut != null) row('Pop out stream', AppIcons.popOut, onPopOut),
+    if (onStreamVolume != null)
+      row('Stream volume', AppIcons.speaker, onStreamVolume),
+    if (onFocus != null)
+      row(
+        focused ? 'Show all shares' : "Focus $sharerName's screen",
+        focused ? AppIcons.collapse : AppIcons.shareFocus,
+        onFocus,
+      ),
+    if (onStopWatching != null)
+      row('Hide stream', AppIcons.tileHide, onStopWatching),
+    if (onFullscreen != null) row('Full screen', AppIcons.expand, onFullscreen),
+  ];
+}
 
 /// "Name is sharing" with a Watch action, for a share the viewer stopped.
 class ShareWatchChip extends StatelessWidget {

@@ -81,6 +81,7 @@ def _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
         assert tone > -45, f"the share's audio is silent: {tone:.1f} dB"
         assert abs(_heard(probe, screen)[0]) <= TOLERANCE_DB
 
+        ui.open_share_menu(a, "Bob's screen", "Stream volume")
         a.click("Stream volume", settle=1.5)
         a.wait_for(SCREEN_LABEL)
         shown = ui.set_slider(a, SCREEN_LABEL, 50)

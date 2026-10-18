@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
 VoiceParticipant _p(String id, {bool sharing = true, bool local = false}) =>
@@ -144,7 +145,8 @@ void main() {
     tester,
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await tester.tap(find.byTooltip('Focus this share').last);
+    await rightClickMenu(tester, find.byType(ScreenShareStage).last);
+    await tester.tap(find.text("Focus b's screen"));
     await tester.pumpAndSettle();
 
     expect(find.byType(ScreenShareStage), findsOneWidget);
@@ -152,7 +154,8 @@ void main() {
     expect(find.byKey(const ValueKey('share-thumb-b')), findsNothing);
     expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Show all shares'));
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.tap(find.text('Show all shares'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsNWidgets(2));
     await _leave(call);
@@ -160,7 +163,8 @@ void main() {
 
   testWidgets('tapping a thumbnail moves focus to it', (tester) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await tester.tap(find.byTooltip('Focus this share').first);
+    await rightClickMenu(tester, find.byType(ScreenShareStage).first);
+    await tester.tap(find.text("Focus a's screen"));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
     await tester.pumpAndSettle();
@@ -174,7 +178,8 @@ void main() {
     (tester) async {
       final call = await _connected(tester, [_p('a'), _p('b')], _wide);
 
-      await tester.tap(find.byTooltip('Stop watching').first);
+      await rightClickMenu(tester, find.byType(ScreenShareStage).first);
+      await tester.tap(find.text('Hide stream'));
       await tester.pumpAndSettle();
       expect(find.byType(ScreenShareStage), findsOneWidget);
       expect(find.byKey(const Key('fake-share-view-a')), findsNothing);
@@ -197,22 +202,20 @@ void main() {
       _p('a'),
       _p('me', local: true, sharing: false),
     ], _wide);
-    await tester.tap(find.byTooltip('Stop watching'));
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.tap(find.text('Hide stream'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsNothing);
     expect(find.byType(ShareWatchChip), findsOneWidget);
     await _leave(call);
   });
 
-  testWidgets('on a phone Stop watching is in the long-press menu', (
+  testWidgets('on a phone Hide stream is in the long-press menu', (
     tester,
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _phone);
-    expect(find.byTooltip('Stop watching'), findsNothing);
-
-    await tester.longPress(_tile('a'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Stop watching'));
+    await longPressMenu(tester, _tile('a'));
+    await tester.tap(find.text('Hide stream'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsOneWidget);
     expect(find.text('a is sharing'), findsOneWidget);
@@ -223,7 +226,8 @@ void main() {
     tester,
   ) async {
     final call = await _connected(tester, [_p('a'), _p('b')], _wide);
-    await tester.tap(find.byTooltip('Stop watching').first);
+    await rightClickMenu(tester, find.byType(ScreenShareStage).first);
+    await tester.tap(find.text('Hide stream'));
     await tester.pumpAndSettle();
 
     call.session.emitParticipants([_p('a', sharing: false), _p('b')]);

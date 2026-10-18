@@ -12,6 +12,7 @@
 /// view opened for.
 library;
 
+import '../../support/menu_gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -93,7 +94,8 @@ Future<_Fixture> _openedFullscreen(WidgetTester tester) async {
   await tester.pump();
   await tester.pumpAndSettle();
 
-  await tester.tap(find.byType(ExpandVideoButton));
+  await rightClickMenu(tester, find.text('Alice'));
+  await tester.tap(find.text('Camera full screen'));
   await tester.pumpAndSettle();
   expect(find.byType(FullscreenVideoView), findsOneWidget);
 

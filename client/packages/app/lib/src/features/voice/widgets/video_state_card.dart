@@ -12,7 +12,7 @@ import '../../members/widgets/user_avatar.dart';
 class VideoStateCard extends StatelessWidget {
   const VideoStateCard({
     super.key,
-    required this.icon,
+    this.icon,
     required this.title,
     this.subtitle,
     required this.identity,
@@ -22,7 +22,7 @@ class VideoStateCard extends StatelessWidget {
     this.dimsVideoBehind = false,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final String title;
   final String? subtitle;
   final String identity;
@@ -65,8 +65,10 @@ class VideoStateCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(icon, size: 14, color: tokens.textSecondary),
-                          const SizedBox(width: AppSpacing.s4),
+                          if (icon != null) ...[
+                            Icon(icon, size: 14, color: tokens.textSecondary),
+                            const SizedBox(width: AppSpacing.s4),
+                          ],
                           Flexible(
                             child: Text(
                               title,
