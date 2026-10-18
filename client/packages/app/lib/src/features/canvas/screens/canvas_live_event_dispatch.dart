@@ -138,6 +138,8 @@ void dispatchCanvasLiveEvent(
           :final ended,
         )
         when channelId == paneChannelId:
+      // The server relays any object id, so a locked or unknown one must not be shown moving.
+      if (objectLocks.isLocked(objectId) || !document.isAlive(objectId)) return;
       // Never through sync.applyLive, the same reason a cursor is not: no seq.
       objectPreviewRelay().applyRemote(userId, objectId, (
         x: x,
