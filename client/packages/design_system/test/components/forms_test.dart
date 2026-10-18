@@ -8,8 +8,6 @@
 /// a caller combines them.
 library;
 
-import 'dart:ui' show SemanticsFlag;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,8 +49,10 @@ void main() {
         find.bySemanticsLabel('Password'),
         findsOneWidget,
       );
-      final node = tester.getSemantics(find.bySemanticsLabel('Password'));
-      expect(node.hasFlag(SemanticsFlag.isTextField), isTrue);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Password')),
+        isSemantics(isTextField: true),
+      );
       handle.dispose();
     });
 
