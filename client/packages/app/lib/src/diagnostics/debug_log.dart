@@ -92,6 +92,9 @@ void installDiagnostics(ProviderContainer container) {
   // See SessionStore.describeRejection for why a sign-out needs a reason.
   final sessions = container.read(sessionProvider);
   sessions.endings.listen((reason) => log.record('session', reason));
+  container.listen<String?>(sessionRestoreNoteProvider, (_, note) {
+    if (note != null) log.record('session', note);
+  });
 
   final previousOnError = FlutterError.onError;
   FlutterError.onError = (details) {
