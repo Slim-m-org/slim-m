@@ -64,6 +64,7 @@ mod invites;
 mod join_gate;
 pub mod link_preview;
 pub mod linked_accounts;
+mod member_permissions;
 mod members;
 use members::{member_nicknames, members_bulk, members_list};
 mod messages;
@@ -124,6 +125,7 @@ use voice::{voice_calls, voice_ring, voice_rooms, voice_webhook};
 mod watch_session;
 mod webhooks;
 mod webhooks_admin;
+mod welcome;
 mod ws;
 
 /// The wire-protocol envelope version a client negotiates on connect. Bumped
@@ -231,6 +233,7 @@ pub fn router(state: AppState) -> Router {
         .merge(emoji::routes())
         .merge(invites::routes())
         .merge(members::routes())
+        .merge(member_permissions::routes())
         .merge(member_nicknames::routes())
         .merge(members_bulk::routes())
         .merge(messages::routes())

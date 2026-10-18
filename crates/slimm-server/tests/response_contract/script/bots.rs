@@ -26,6 +26,8 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         )
         .await;
     c.get("listBots", "/bots", root).await;
+    c.get("getSuggestedBotPrefix", "/bots/suggested-prefix", root)
+        .await;
 
     let bot_id = text(&created["bot"], "user_id");
     let bot_token = text(&created, "token");
@@ -39,6 +41,12 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
             "prefix": "!",
             "commands": [{ "name": "ping", "description": "check if I'm alive" }]
         }),
+    )
+    .await;
+    c.get(
+        "getMemberPermissions",
+        &format!("/members/{bot_id}/permissions"),
+        &bot_token,
     )
     .await;
     c.get("getBotCommands", &format!("/bots/{bot_id}/commands"), root)

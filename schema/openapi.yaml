@@ -3074,6 +3074,42 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /members/{userId}/permissions:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The member's or bot's UUID.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMemberPermissions
+      tags: [bots]
+      summary: A member's effective deployment-wide permissions, for a bot.
+      description: >-
+        Bot-only, read-only: lets a permission-gated command resolve who may
+        run it without the bot holding MANAGE_ROLES. Returns the same bitmask
+        `Me.permissions` gives the caller about itself, with any timeout
+        already subtracted. It cannot change a role.
+      responses:
+        "200":
+          description: The member's permissions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPermissions"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /members/{userId}/nickname:
     parameters:
       - name: userId
@@ -7137,6 +7173,12 @@ paths:
         holding the requested `permissions` (default none). Refused for a
         caller that is itself a bot, so one compromised credential cannot
         mint another that survives revoking it.
+
+        The bot is assigned a command prefix: the `prefix` sent, else a free
+        one the server picks. Two bots may share a prefix, but the server
+        refuses a command registration that clashes with another live bot's
+        (see `setBotCommands`). A `prefix` follows the same shape rules as one
+        registered with commands.
       requestBody:
         required: true
         content:
@@ -7158,6 +7200,29 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /bots/suggested-prefix:
+    get:
+      operationId: getSuggestedBotPrefix
+      tags: [bots]
+      summary: A command prefix no live bot holds.
+      description: >-
+        Offered by the create-bot form so an admin accepts a free prefix
+        rather than guessing. Gated on MANAGE_SERVER. See
+        docs/decisions/0069-bot-prefix-assignment.md.
+      responses:
+        "200":
+          description: A free prefix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestedBotPrefix"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7224,6 +7289,11 @@ paths:
         within the set; a description is 1 to 100 characters; a `usage` hint
         is at most 80 characters; a `permission` is exactly one bit from
         `Permissions`, the same bitmask `getChannelPermissions` returns.
+
+        The prefix must be the one assigned to the bot (`Me.bot_prefix`); a
+        bot with none adopts the prefix it registers. Answers 409 naming the
+        other bot when a live bot already registered the same prefix and
+        command name, or when the prefix is not the assigned one.
       requestBody:
         required: true
         content:
@@ -7239,6 +7309,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -10057,6 +10129,11 @@ components:
           description: >
             The caller's own stored presence choice, as `SetVisibilityRequest`
             takes it. Self-view only: never on `UserProfile` or any frame.
+        bot_prefix:
+          type: [string, "null"]
+          description: >-
+            For a bot, the command prefix an admin assigned it; absent for a
+            person and for a bot with none.
 
     UpdateMeRequest:
       type: object
@@ -10264,6 +10341,16 @@ components:
           description: >
             What "Space default" means for members' noise suppression; see
             the same field on `/version`.
+        welcome_enabled:
+          type: boolean
+          description: Whether a welcome message is posted when someone joins. Off by default.
+        welcome_channel_id:
+          type: [string, "null"]
+          format: uuid
+          description: The text channel the welcome is posted in, or null for none.
+        welcome_message:
+          type: string
+          description: The welcome template; `{user}` and `{space}` are filled in. Empty when none.
         totp_policy:
           type: string
           enum: [off, optional, required_for_elevated]
@@ -10325,6 +10412,20 @@ components:
           description: At most 280 characters, no control or invisible characters.
         strong_noise_suppression:
           type: boolean
+        welcome_enabled:
+          type: boolean
+          description: >
+            Turning it on needs a text channel and a message, already stored
+            or sent in the same request.
+        welcome_channel_id:
+          type: string
+          description: A text channel's id; an empty string clears it.
+        welcome_message:
+          type: string
+          description: >
+            At most 500 characters, line breaks allowed, no other control or
+            invisible character. `{user}` becomes an @mention of the new
+            member and `{space}` the Space's name.
       description: >
         Only the fields present are written, so a client changing one setting
         cannot overwrite another from a stale copy. An empty body is refused.
@@ -11620,10 +11721,38 @@ components:
           description: >-
             What the managed role currently grants. Change it with `PATCH
             /bots/{botId}/permissions`, or by editing the role directly.
+        prefix:
+          type: [string, "null"]
+          description: >-
+            The prefix assigned to the bot. Absent for a bot that never
+            registered one.
+    SuggestedBotPrefix:
+      type: object
+      required: [prefix]
+      properties:
+        prefix:
+          type: string
+    MemberPermissions:
+      type: object
+      required: [user_id, permissions]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        permissions:
+          type: integer
+          format: int64
+          description: The deployment-wide permission bitmask, timeout subtracted.
     CreateBotRequest:
       type: object
       required: [username]
       properties:
+        prefix:
+          type: [string, "null"]
+          description: >-
+            The command prefix to assign, 1 to 16 characters with no
+            whitespace and not `/`, `@` or `:`. A free one is picked when
+            absent.
         username:
           type: string
           description: >-

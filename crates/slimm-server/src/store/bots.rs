@@ -58,6 +58,8 @@ pub struct Bot {
     /// The bot's managed role and its permissions; the role outlives a revoke (ADR 0028).
     pub role_id: Option<RoleId>,
     pub permissions: Permissions,
+    /// The prefix assigned to this bot; null for one that has never registered.
+    pub prefix: Option<String>,
 }
 
 /// A newly created bot and the one time its token is ever legible.
@@ -103,6 +105,19 @@ impl Store {
         permissions: Permissions,
         created_by: UserId,
     ) -> Result<NewBot, CreateBotError> {
+        self.create_bot_with_prefix(username, display_name, permissions, created_by, None)
+            .await
+    }
+
+    /// [`Self::create_bot`] with the prefix the admin assigned; `prefix` is already validated.
+    pub async fn create_bot_with_prefix(
+        &self,
+        username: &str,
+        display_name: &str,
+        permissions: Permissions,
+        created_by: UserId,
+        prefix: Option<&str>,
+    ) -> Result<NewBot, CreateBotError> {
         let user_id = UserId::generate();
         let device_id = DeviceId::generate();
         let session_id = SessionId::generate();
@@ -113,12 +128,13 @@ impl Store {
 
         let mut tx = self.begin_write().await?;
         let inserted = sqlx::query!(
-            "INSERT INTO users (id, username, display_name, created_at, is_bot)
-             VALUES (?, ?, ?, ?, 1)",
+            "INSERT INTO users (id, username, display_name, created_at, is_bot, bot_prefix)
+             VALUES (?, ?, ?, ?, 1, ?)",
             user_id,
             username,
             display_name,
-            now
+            now,
+            prefix
         )
         .execute(&mut *tx)
         .await;
@@ -208,6 +224,7 @@ impl Store {
                 token_last_used_at: None,
                 role_id: Some(role_id),
                 permissions,
+                prefix: prefix.map(str::to_owned),
             },
             token,
         })
@@ -226,7 +243,7 @@ impl Store {
         let include_removed = i64::from(include_removed);
         let rows = sqlx::query!(
             r#"SELECT u.id AS "user_id!: UserId", u.username, u.display_name,
-                      u.created_at,
+                      u.created_at, u.bot_prefix,
                       t.name AS token_name, t.last_used_at,
                       r.id AS "role_id: RoleId", r.permissions AS "permissions: Permissions"
                FROM users u
@@ -253,6 +270,7 @@ impl Store {
                 token_last_used_at: r.last_used_at,
                 role_id: r.role_id,
                 permissions: r.permissions.unwrap_or(Permissions::NONE),
+                prefix: r.bot_prefix,
             })
             .collect())
     }
@@ -350,7 +368,7 @@ impl Store {
         tx.commit().await?;
 
         let bot = sqlx::query!(
-            r#"SELECT u.id AS "user_id!: UserId", u.username, u.display_name, u.created_at,
+            r#"SELECT u.id AS "user_id!: UserId", u.username, u.display_name, u.created_at, u.bot_prefix,
                       t.name AS "token_name?", t.last_used_at AS "last_used_at?"
                FROM users u
                LEFT JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL
@@ -368,6 +386,7 @@ impl Store {
             token_last_used_at: bot.last_used_at,
             role_id: Some(role_id),
             permissions,
+            prefix: bot.bot_prefix,
         })
     }
 

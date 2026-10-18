@@ -23,13 +23,14 @@ use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Bot, CreateBotError, UpdateBotPermissionsError};
+use crate::store::{Bot, CreateBotError, UpdateBotPermissionsError, validate_bot_prefix};
 
 const BODY_LIMIT: usize = 1024;
 
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/bots", get(list).post(create))
+        .route("/bots/suggested-prefix", get(suggested_prefix))
         .route("/bots/{bot_id}/revoke", post(revoke))
         .route("/bots/{bot_id}/permissions", patch(set_permissions))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
@@ -42,6 +43,13 @@ struct CreateBotDto {
     /// The bot's managed-role grant. Defaults to none.
     #[serde(default)]
     permissions: i64,
+    /// The prefix this bot answers to; a free one is picked when absent.
+    prefix: Option<String>,
+}
+
+#[derive(Serialize)]
+struct SuggestedPrefixDto {
+    prefix: String,
 }
 
 #[derive(Deserialize)]
@@ -69,6 +77,9 @@ struct BotDto {
     role_id: Option<String>,
     /// What that role currently grants; `0` once revoked.
     permissions: i64,
+    /// The prefix assigned to this bot; absent until one is assigned or adopted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    prefix: Option<String>,
 }
 
 impl From<Bot> for BotDto {
@@ -82,6 +93,7 @@ impl From<Bot> for BotDto {
             token_last_used_at: bot.token_last_used_at,
             role_id: bot.role_id.map(|id| id.to_string()),
             permissions: bot.permissions.bits(),
+            prefix: bot.prefix,
         }
     }
 }
@@ -107,6 +119,19 @@ async fn list(
     require_manage_server(&state, ctx.user_id).await?;
     let bots = state.store.list_bots(params.include_removed).await?;
     Ok(Json(bots.into_iter().map(BotDto::from).collect()))
+}
+
+/// A prefix no live bot holds, for the create form to offer.
+async fn suggested_prefix(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+) -> Result<Json<SuggestedPrefixDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    Ok(Json(SuggestedPrefixDto {
+        prefix: state.store.suggest_bot_prefix().await?,
+    }))
 }
 
 /// Bot names follow the same rules a person's username does, so a bot is
@@ -139,9 +164,23 @@ async fn create(
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, body.permissions)?;
 
+    let prefix = match body.prefix.as_deref().map(str::trim) {
+        Some(prefix) => {
+            validate_bot_prefix(prefix).map_err(ApiError::BadRequest)?;
+            prefix.to_owned()
+        }
+        None => state.store.suggest_bot_prefix().await?,
+    };
+
     match state
         .store
-        .create_bot(username, display_name, permissions, ctx.user_id)
+        .create_bot_with_prefix(
+            username,
+            display_name,
+            permissions,
+            ctx.user_id,
+            Some(&prefix),
+        )
         .await
     {
         Ok(new_bot) => Ok((

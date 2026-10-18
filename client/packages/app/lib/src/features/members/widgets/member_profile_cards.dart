@@ -27,7 +27,6 @@ import 'member_actions.dart';
 import 'member_moderation_gates.dart';
 import 'member_notify_off_hours_item.dart';
 import 'member_profile_activity.dart';
-import 'member_profile_bot_commands.dart';
 import 'member_profile_identity.dart';
 import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
@@ -230,7 +229,6 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             until: profile.timedOutUntil!,
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
-        if (profile.isBot) MemberProfileBotCommands(botId: profile.id),
         if (canMessage || !hasNote) _messageRow(canMessage, canCall, hasNote),
         if (hasNote || _noteRevealed)
           MemberProfileNoteField(

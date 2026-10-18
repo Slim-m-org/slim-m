@@ -22,6 +22,7 @@ mod apps;
 mod attachments;
 mod bootstrap;
 mod bot_commands;
+mod bot_prefix;
 mod bot_ui;
 mod bots;
 mod calls;
@@ -82,6 +83,7 @@ mod sessions;
 mod sign_in_alert;
 mod space;
 mod space_landing;
+mod space_welcome;
 mod storage;
 mod thread_listing;
 mod threads;
@@ -106,7 +108,7 @@ pub use bootstrap::Bootstrap;
 pub use bot_commands::{
     BotCommand, BotCommandRegistration, MAX_BOT_COMMAND_DESCRIPTION_LEN, MAX_BOT_COMMAND_NAME_LEN,
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
-    SetBotCommandsError, VisibleBotCommand,
+    SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
@@ -184,6 +186,7 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
+pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
 pub use threads::{

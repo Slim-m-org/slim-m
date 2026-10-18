@@ -50,6 +50,11 @@ final botsProvider = FutureProvider.autoDispose<List<api.Bot>>(
   (ref) => ref.watch(apiProvider).listBots(),
 );
 
+/// A command prefix no live bot holds, offered when creating a bot.
+final suggestedBotPrefixProvider = FutureProvider.autoDispose<String>(
+  (ref) => ref.watch(apiProvider).suggestedBotPrefix(),
+);
+
 /// Every webhook in the deployment, newest first.
 final webhooksProvider = FutureProvider.autoDispose<List<api.Webhook>>(
   (ref) => ref.watch(apiProvider).listWebhooks(),

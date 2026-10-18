@@ -278,6 +278,7 @@ class _ComposerState extends ConsumerState<Composer> {
     final query = autocompleteQueryAt(
       widget.controller.text,
       widget.controller.selection.baseOffset,
+      botPrefixes: _botCommands.map((c) => c.prefix),
     );
     // True while the counter is or was on screen, so its own value keeps redrawing.
     final countMatters =

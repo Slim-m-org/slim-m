@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT welcome_author_id AS \"id: UserId\" FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "04201f182616d01a1f90d8e5ff6cb1d0c56444e0a5c69e8a9a1e228fc7af076b"
+}

@@ -18,6 +18,10 @@ enum AutocompleteKind {
 
   /// `/`, and only as the very first thing in the message.
   command,
+
+  /// A bot's own registered prefix, and only as the very first thing in the
+  /// message. Lists just the commands of the bots that registered it.
+  botCommand,
 }
 
 /// Emoji needs two characters before it offers anything.
@@ -35,6 +39,7 @@ class AutocompleteQuery {
     required this.term,
     required this.start,
     required this.end,
+    this.prefix = '',
   });
 
   final AutocompleteKind kind;
@@ -48,16 +53,20 @@ class AutocompleteQuery {
   final int start;
   final int end;
 
+  /// The bot prefix a [AutocompleteKind.botCommand] query matched; empty otherwise.
+  final String prefix;
+
   @override
   bool operator ==(Object other) =>
       other is AutocompleteQuery &&
       other.kind == kind &&
+      other.prefix == prefix &&
       other.term == term &&
       other.start == start &&
       other.end == end;
 
   @override
-  int get hashCode => Object.hash(kind, term, start, end);
+  int get hashCode => Object.hash(kind, term, start, end, prefix);
 
   @override
   String toString() => 'AutocompleteQuery($kind, "$term", $start..$end)';
@@ -79,8 +88,18 @@ class AutocompleteQuery {
 /// - **`/` only counts at offset zero.** A slash command is the whole message
 ///   or it is not a command, which is also what keeps every path and every
 ///   `and/or` out of it.
-AutocompleteQuery? autocompleteQueryAt(String text, int caret) {
+///
+/// [botPrefixes] are the prefixes bots registered in this channel; the message
+/// starting with one, with the caret still in that first word, opens a
+/// [AutocompleteKind.botCommand] query (the longest matching prefix wins).
+AutocompleteQuery? autocompleteQueryAt(
+  String text,
+  int caret, {
+  Iterable<String> botPrefixes = const [],
+}) {
   if (caret < 0 || caret > text.length) return null;
+  final botQuery = _botPrefixQuery(text, caret, botPrefixes);
+  if (botQuery != null) return botQuery;
 
   for (var i = caret - 1; i >= 0; i--) {
     final ch = text[i];
@@ -98,6 +117,28 @@ AutocompleteQuery? autocompleteQueryAt(String text, int caret) {
     return _queryAtTrigger(text, caret, i, kind);
   }
   return null;
+}
+
+AutocompleteQuery? _botPrefixQuery(
+  String text,
+  int caret,
+  Iterable<String> botPrefixes,
+) {
+  String? matched;
+  for (final prefix in botPrefixes) {
+    if (!text.startsWith(prefix) || caret < prefix.length) continue;
+    if (matched == null || prefix.length > matched.length) matched = prefix;
+  }
+  if (matched == null) return null;
+  final term = text.substring(matched.length, caret);
+  if (term.contains(RegExp(r'\s'))) return null;
+  return AutocompleteQuery(
+    kind: AutocompleteKind.botCommand,
+    term: term.toLowerCase(),
+    start: 0,
+    end: caret,
+    prefix: matched,
+  );
 }
 
 bool _isSpace(String ch) => ch == ' ' || ch == '\n' || ch == '\t';

@@ -249,6 +249,7 @@ async fn register(
     };
 
     state.hub.publish(Event::MemberJoined(account.id));
+    super::welcome::post_welcome(&state, account.id).await;
 
     let tokens = state
         .store

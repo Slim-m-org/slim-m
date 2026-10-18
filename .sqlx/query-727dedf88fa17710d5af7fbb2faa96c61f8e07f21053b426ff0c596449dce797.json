@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT bot_prefix FROM users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "bot_prefix",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "727dedf88fa17710d5af7fbb2faa96c61f8e07f21053b426ff0c596449dce797"
+}

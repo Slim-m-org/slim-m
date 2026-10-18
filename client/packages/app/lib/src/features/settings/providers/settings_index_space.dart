@@ -20,6 +20,18 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('invites', 'Join gate', keywords: ['approval', 'verification']),
   SettingsEntry(
     'invites',
+    'Welcome message',
+    keywords: ['greeter', 'greeting', 'new member', 'join'],
+  ),
+  SettingsEntry(
+    'invites',
+    'Welcome new members',
+    description: 'Posts once in a channel when someone joins.',
+    keywords: ['greeter', 'greeting'],
+  ),
+  SettingsEntry('invites', 'Welcome channel', keywords: ['greeter']),
+  SettingsEntry(
+    'invites',
     'Landing page',
     description: 'What an invite link shows before sign-in.',
   ),

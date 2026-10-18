@@ -32,6 +32,9 @@ class SpaceSettings {
     this.bannerUpdatedAt,
     this.iconUpdatedAt,
     this.strongNoiseSuppression = false,
+    this.welcomeEnabled = false,
+    this.welcomeChannelId,
+    this.welcomeMessage = '',
   });
 
   /// The Space's name, shown in the channel list header and on invites.
@@ -52,6 +55,15 @@ class SpaceSettings {
   /// What "Space default" means for members' noise suppression.
   final bool strongNoiseSuppression;
 
+  /// Whether a welcome message is posted when someone joins.
+  final bool welcomeEnabled;
+
+  /// The text channel the welcome is posted in, or null for none.
+  final String? welcomeChannelId;
+
+  /// The welcome template, with `{user}` and `{space}` placeholders.
+  final String welcomeMessage;
+
   /// `totp_policy` is absent from a server older than decision 0048, which
   /// reads as [TotpPolicy.optional] rather than failing the whole settings load
   /// over a field the rest of the screen does not need.
@@ -66,6 +78,9 @@ class SpaceSettings {
         iconUpdatedAt: json['icon_updated_at'] as int?,
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
+        welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
+        welcomeChannelId: json['welcome_channel_id'] as String?,
+        welcomeMessage: json['welcome_message'] as String? ?? '',
       );
 }
 
@@ -81,20 +96,26 @@ extension SlimmApiSpace on SlimmApi {
   /// A field is omitted rather than echoed back when the caller does not mean
   /// to change it: the server writes only what is present, so a screen holding
   /// a stale snapshot cannot overwrite the operator's other choice. At least
-  /// one is required.
+  /// one is required. An empty [welcomeChannelId] clears the welcome channel.
   Future<SpaceSettings> setSpaceSettings({
     String? name,
     JoinPolicy? joinPolicy,
     TotpPolicy? totpPolicy,
     String? description,
     bool? strongNoiseSuppression,
+    bool? welcomeEnabled,
+    String? welcomeChannelId,
+    String? welcomeMessage,
   }) async {
     assert(
       name != null ||
           joinPolicy != null ||
           totpPolicy != null ||
           description != null ||
-          strongNoiseSuppression != null,
+          strongNoiseSuppression != null ||
+          welcomeEnabled != null ||
+          welcomeChannelId != null ||
+          welcomeMessage != null,
       'a settings PATCH must carry at least one field',
     );
     final json = await _send(
@@ -107,6 +128,9 @@ extension SlimmApiSpace on SlimmApi {
         if (description != null) 'description': description,
         if (strongNoiseSuppression != null)
           'strong_noise_suppression': strongNoiseSuppression,
+        if (welcomeEnabled != null) 'welcome_enabled': welcomeEnabled,
+        if (welcomeChannelId != null) 'welcome_channel_id': welcomeChannelId,
+        if (welcomeMessage != null) 'welcome_message': welcomeMessage,
       },
     );
     return SpaceSettings.fromJson(json as Map<String, dynamic>);
