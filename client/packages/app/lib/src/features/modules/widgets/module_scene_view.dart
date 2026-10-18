@@ -126,7 +126,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!TickerMode.of(context) && _playing) _stop();
+    if (!TickerMode.valuesOf(context).enabled && _playing) _stop();
   }
 
   void _onImageDecoded() {

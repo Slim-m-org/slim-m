@@ -29,7 +29,7 @@ Future<void> _pump(
             initial: parseModuleScene(_scene)!,
             runCommand: (_) async {
               onCall();
-              return api.RunModuleCommandResult(ok: true, output: _scene);
+              return const api.RunModuleCommandResult(ok: true, output: _scene);
             },
           ),
         ),

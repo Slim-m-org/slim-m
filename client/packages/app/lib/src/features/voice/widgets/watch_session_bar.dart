@@ -7,8 +7,6 @@
 /// docs/decisions/0050-watch-party-sync-authority-and-direct-play.md.
 library;
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -16,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../format.dart' show formatPlaybackTime;
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/watch_room.dart';
+import 'second_clock.dart';
 
 /// Mounts [WatchSessionBar] only while a bot is on the call.
 ///
@@ -53,32 +52,18 @@ class WatchSessionBar extends ConsumerStatefulWidget {
   ConsumerState<WatchSessionBar> createState() => _WatchSessionBarState();
 }
 
-class _WatchSessionBarState extends ConsumerState<WatchSessionBar> {
-  Timer? _second;
-
-  @override
-  void initState() {
-    super.initState();
-    _second = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _second?.cancel();
-    super.dispose();
-  }
-
+class _WatchSessionBarState extends ConsumerState<WatchSessionBar>
+    with SecondTickMixin {
   @override
   Widget build(BuildContext context) {
     final room = ref.watch(watchRoomProvider(widget.channelId)).valueOrNull;
     final now = ref.watch(watchClockProvider)();
-    if (room == null || room.isStale(now)) return const SizedBox.shrink();
-    final position = room.positionAt(now);
+    final live = room != null && !room.isStale(now);
+    tickWhile(live);
+    if (!live) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s12),
-      child: _Bar(room: room, position: position),
+      child: _Bar(room: room, position: room.positionAt(now)),
     );
   }
 }
