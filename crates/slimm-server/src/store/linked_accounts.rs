@@ -13,6 +13,8 @@ pub struct LinkedAccount {
     pub username: String,
     pub display_name: Option<String>,
     pub linked_at: i64,
+    /// When the server stored the account's picture; `None` when it has none.
+    pub avatar_updated_at: Option<i64>,
 }
 
 /// Why a link was not saved.
@@ -87,19 +89,22 @@ impl Store {
     ) -> Result<(), AccountLinkError> {
         let result = sqlx::query!(
             "INSERT INTO linked_accounts
-                 (user_id, provider, external_id, username, display_name, linked_at)
-             VALUES (?, ?, ?, ?, ?, ?)
+                 (user_id, provider, external_id, username, display_name, linked_at,
+                  avatar_updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (user_id, provider) DO UPDATE SET
                  external_id = excluded.external_id,
                  username = excluded.username,
                  display_name = excluded.display_name,
-                 linked_at = excluded.linked_at",
+                 linked_at = excluded.linked_at,
+                 avatar_updated_at = excluded.avatar_updated_at",
             user_id,
             account.provider,
             account.external_id,
             account.username,
             account.display_name,
-            account.linked_at
+            account.linked_at,
+            account.avatar_updated_at
         )
         .execute(&self.pool)
         .await;
@@ -115,13 +120,39 @@ impl Store {
     pub async fn linked_accounts(&self, user_id: UserId) -> anyhow::Result<Vec<LinkedAccount>> {
         let rows = sqlx::query_as!(
             LinkedAccount,
-            "SELECT provider, external_id, username, display_name, linked_at
+            "SELECT provider, external_id, username, display_name, linked_at,
+                    avatar_updated_at
              FROM linked_accounts WHERE user_id = ? ORDER BY provider",
             user_id
         )
         .fetch_all(&self.pool)
         .await?;
         Ok(rows)
+    }
+
+    /// Forgets the stored picture after its file could not be written.
+    pub async fn clear_linked_avatar(&self, user_id: UserId, provider: &str) -> anyhow::Result<()> {
+        sqlx::query!(
+            "UPDATE linked_accounts SET avatar_updated_at = NULL
+             WHERE user_id = ? AND provider = ?",
+            user_id,
+            provider
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Whether `user_id` has a stored picture for `provider`.
+    pub async fn has_linked_avatar(&self, user_id: UserId, provider: &str) -> anyhow::Result<bool> {
+        let row = sqlx::query!(
+            "SELECT avatar_updated_at FROM linked_accounts WHERE user_id = ? AND provider = ?",
+            user_id,
+            provider
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.is_some_and(|row| row.avatar_updated_at.is_some()))
     }
 
     /// Whether there was a link to remove.

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE linked_accounts SET avatar_updated_at = NULL\n             WHERE user_id = ? AND provider = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "349ca74483273ddb40255832049f50f1d13e5f43187303b20faf18dbb690c06e"
+}

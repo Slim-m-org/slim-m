@@ -14,6 +14,11 @@ extension SlimmApiLinkedAccounts on SlimmApi {
     return _linkedAccounts(json);
   }
 
+  /// The picture the server stored for [userId]'s linked Discord account.
+  /// Throws [NotFoundException] when there is none.
+  Future<FetchedBytes> fetchLinkedDiscordAvatar(String userId) =>
+      _fetchBytes('/users/$userId/links/discord/avatar');
+
   /// Discord's authorize URL, to open in a browser. Throws
   /// [NotConfiguredException] when the server has no Discord application.
   Future<String> startDiscordLink() async {

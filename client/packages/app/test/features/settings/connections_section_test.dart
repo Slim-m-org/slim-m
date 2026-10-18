@@ -209,4 +209,43 @@ void main() {
     expect(h.container.read(appFocusedProvider), isTrue);
     await _unmount(tester);
   });
+
+  testWidgets('linked with a picture: the row shows it, not the link icon', (
+    tester,
+  ) async {
+    await _pump(tester, (request) {
+      if (request.url.path == '/users/user-1/links/discord/avatar') {
+        return http.Response.bytes(
+          _onePixelPng,
+          200,
+          headers: {'content-type': 'image/png'},
+        );
+      }
+      return _json(200, [
+        {...linkedJson, 'avatar_updated_at': 7},
+      ]);
+    });
+
+    expect(find.byType(AppAvatar), findsOneWidget);
+    expect(find.byIcon(AppIcons.link), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('linked without a picture, or unlinked: the link icon stays', (
+    tester,
+  ) async {
+    await _pump(tester, (_) => _json(200, [linkedJson]));
+    expect(find.byType(AppAvatar), findsNothing);
+    expect(find.byIcon(AppIcons.link), findsOneWidget);
+    await _unmount(tester);
+
+    await _pump(tester, (_) => _json(200, []));
+    expect(find.byType(AppAvatar), findsNothing);
+    expect(find.byIcon(AppIcons.link), findsOneWidget);
+    await _unmount(tester);
+  });
 }
+
+final _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);

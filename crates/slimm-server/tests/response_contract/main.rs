@@ -69,6 +69,11 @@ const UNCOVERED: &[(&str, &str)] = &[
          tests/discord_link.rs drives every outcome of it.",
     ),
     (
+        "getLinkedDiscordAvatar",
+        "answers image bytes, not JSON, and only after a Discord link stored \
+         one; tests/discord_link_avatar.rs drives the 200 and the 404.",
+    ),
+    (
         "inviteLandingPage",
         "answers HTML to a browser, not JSON; tests/invite_page.rs drives both outcomes.",
     ),

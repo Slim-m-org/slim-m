@@ -82,4 +82,23 @@ void main() {
     expect(seen.single.method, 'DELETE');
     expect(seen.single.url.path, '/me/links/discord');
   });
+
+  test('avatar_updated_at is read, and absent means no picture', () {
+    final withPicture =
+        LinkedAccount.fromJson({..._link, 'avatar_updated_at': 5});
+    expect(withPicture.avatarUpdatedAt, 5);
+    expect(LinkedAccount.fromJson(_link).avatarUpdatedAt, isNull);
+  });
+
+  test('fetchLinkedDiscordAvatar returns the stored bytes', () async {
+    final seen = <http.Request>[];
+    final api = _api(
+      seen,
+      (_) => http.Response.bytes([1, 2], 200,
+          headers: {'content-type': 'image/png'}),
+    );
+    final fetched = await api.fetchLinkedDiscordAvatar('u-2');
+    expect(fetched.bytes, [1, 2]);
+    expect(seen.single.url.path, '/users/u-2/links/discord/avatar');
+  });
 }
