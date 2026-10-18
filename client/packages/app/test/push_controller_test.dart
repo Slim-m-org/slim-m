@@ -139,7 +139,10 @@ class _FakePermissionRequester implements AndroidPermissionRequester {
 }
 
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(
+    () => binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+  );
   setUpAll(registerAndroidLocalNotificationsPluginForTest);
   // Every registration now reads the content-preview setting, which needs it.
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -871,6 +874,131 @@ void main() {
       });
     });
 
+    test('a background launch that was never resumed reports background and '
+        'starts no heartbeat', () {
+      fakeAsync((async) {
+        final binding = TestWidgetsFlutterBinding.ensureInitialized();
+        binding.resetInternalState();
+        addTearDown(
+          () =>
+              binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+        );
+        final lifecycleReports = <String>[];
+        _mock(
+          (call) async => switch (call.method) {
+            'getToken' => 'abcd1234',
+            _ => null,
+          },
+        );
+        final container = _container(
+          session: SessionStore(tokens: _tokens),
+          httpClient: _lifecycleRecorder(lifecycleReports),
+          channel: ApnsTokenChannel(isIOS: true),
+        );
+
+        container.read(pushControllerProvider.notifier);
+        async.flushMicrotasks();
+        async.elapse(const Duration(minutes: 3));
+
+        expect(lifecycleReports, ['background']);
+
+        container.dispose();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('inactive before the app was ever resumed is not foreground', () {
+      fakeAsync((async) {
+        final binding = TestWidgetsFlutterBinding.ensureInitialized();
+        binding.resetInternalState();
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        addTearDown(
+          () =>
+              binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed),
+        );
+        final lifecycleReports = <String>[];
+        _mock(
+          (call) async => switch (call.method) {
+            'getToken' => 'abcd1234',
+            _ => null,
+          },
+        );
+        final container = _container(
+          session: SessionStore(tokens: _tokens),
+          httpClient: _lifecycleRecorder(lifecycleReports),
+          channel: ApnsTokenChannel(isIOS: true),
+        );
+
+        container.read(pushControllerProvider.notifier);
+        async.flushMicrotasks();
+        async.elapse(const Duration(minutes: 3));
+
+        expect(lifecycleReports, ['background']);
+
+        container.dispose();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('inactive after a resume is still foreground (Control Centre)', () {
+      fakeAsync((async) {
+        final binding = TestWidgetsFlutterBinding.ensureInitialized();
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        final lifecycleReports = <String>[];
+        _mock(
+          (call) async => switch (call.method) {
+            'getToken' => 'abcd1234',
+            _ => null,
+          },
+        );
+        final container = _container(
+          session: SessionStore(tokens: _tokens),
+          httpClient: _lifecycleRecorder(lifecycleReports),
+          channel: ApnsTokenChannel(isIOS: true),
+        );
+        container.read(pushControllerProvider.notifier);
+        async.flushMicrotasks();
+
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+        async.flushMicrotasks();
+
+        expect(lifecycleReports, ['foreground', 'foreground']);
+
+        container.dispose();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('the heartbeat stops reporting once the app is no longer resumed', () {
+      fakeAsync((async) {
+        final binding = TestWidgetsFlutterBinding.ensureInitialized();
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        final lifecycleReports = <String>[];
+        _mock(
+          (call) async => switch (call.method) {
+            'getToken' => 'abcd1234',
+            _ => null,
+          },
+        );
+        final container = _container(
+          session: SessionStore(tokens: _tokens),
+          httpClient: _lifecycleRecorder(lifecycleReports),
+          channel: ApnsTokenChannel(isIOS: true),
+        );
+        container.read(pushControllerProvider.notifier);
+        async.flushMicrotasks();
+        expect(lifecycleReports, ['foreground']);
+
+        binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        async.elapse(const Duration(minutes: 3));
+
+        expect(lifecycleReports, ['foreground', 'background']);
+
+        container.dispose();
+        async.flushMicrotasks();
+      });
+    });
+
     test('backgrounding stops the heartbeat: it does not go on re-reporting '
         '"foreground" for a screen nobody is looking at', () {
       fakeAsync((async) {
@@ -923,6 +1051,17 @@ void main() {
     });
   });
 }
+
+/// Records the `state` of every lifecycle report into [reports].
+http.Client _lifecycleRecorder(List<String> reports) =>
+    MockClient((request) async {
+      if (request.method == 'PUT' && request.url.path == '/push/lifecycle') {
+        reports.add(
+          (jsonDecode(request.body) as Map<String, dynamic>)['state'] as String,
+        );
+      }
+      return http.Response('', 204);
+    });
 
 /// A key store whose [delete] always fails, standing in for a storage-layer
 /// failure partway through sign-out.

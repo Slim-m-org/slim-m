@@ -9,12 +9,24 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart';
+
+/// Whether this build runs on a phone, where an embedder that has not yet
+/// reported a state means a background launch rather than a window waiting to
+/// open. A provider so a test can pick either side; `isDesktopHost` is always
+/// true under `flutter test`.
+final mobileLifecycleHostProvider = Provider<bool>(
+  (ref) => isIOSHost || isAndroidHost,
+);
 
 class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     with WidgetsBindingObserver {
-  AppLifecycleNotifier()
+  /// A state the embedder has not reported counts as hidden on a phone, so a
+  /// process woken in the background never claims the user is looking at it.
+  AppLifecycleNotifier({required bool mobile})
     : super(
-        WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed,
+        WidgetsBinding.instance.lifecycleState ??
+            (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
       ) {
     WidgetsBinding.instance.addObserver(this);
   }
@@ -32,7 +44,8 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
 
 final appLifecycleProvider =
     StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>(
-      (ref) => AppLifecycleNotifier(),
+      (ref) =>
+          AppLifecycleNotifier(mobile: ref.watch(mobileLifecycleHostProvider)),
     );
 
 /// Whether the window is focused and visible right now.
