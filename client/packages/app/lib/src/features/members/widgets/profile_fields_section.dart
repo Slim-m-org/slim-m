@@ -247,7 +247,8 @@ class ProfileFieldPair extends StatelessWidget {
     required this.second,
   });
 
-  static const double kPairMinWidth = 480;
+  /// Wide enough that each half fits seven 36px colour swatches on one row.
+  static const double kPairMinWidth = 560;
 
   final Widget first;
   final Widget second;
