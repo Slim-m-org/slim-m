@@ -69,6 +69,7 @@ class _FakePlayer implements Player {
   final errors = StreamController<String>.broadcast();
   final playing = StreamController<bool>.broadcast();
   final buffering = StreamController<bool>.broadcast();
+  final lifecycle = <String>[];
   final opened = <Playable>[];
   final autoplay = <bool>[];
   bool disposed = false;
@@ -85,6 +86,7 @@ class _FakePlayer implements Player {
 
   @override
   Future<void> open(Playable playable, {bool play = true}) async {
+    lifecycle.add('open');
     opened.add(playable);
     autoplay.add(play);
   }
@@ -97,6 +99,13 @@ class _FakePlayer implements Player {
     await buffering.close();
   }
 
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
+}
+
+/// Stands in for the render context a headless test cannot create.
+class _FakeVideoController implements VideoController {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName}');
@@ -134,6 +143,10 @@ Future<void> _pumpFaked(
         ),
         attachmentVideoSourceProvider.overrideWithValue(() => source),
         attachmentPlayerProvider.overrideWithValue(() => player),
+        attachmentVideoControllerProvider.overrideWithValue((_) {
+          player.lifecycle.add('controller');
+          return _FakeVideoController();
+        }),
         attachmentVideoSurfaceProvider.overrideWithValue(
           (player, controller, onToggleFullscreen) =>
               const SizedBox(key: Key('ready-surface')),
@@ -251,6 +264,17 @@ void main() {
       expect(find.text('Loading video…'), findsNothing);
     });
 
+    testWidgets('the render context exists before the file opens', (
+      tester,
+    ) async {
+      final player = _FakePlayer();
+      await _pumpFaked(tester, _ScriptedSource([media]), player);
+      await tester.pump();
+      await tester.pump();
+
+      expect(player.lifecycle, ['controller', 'open']);
+    });
+
     testWidgets('a failure while playing is shown as an error', (tester) async {
       final player = _FakePlayer();
       await _pumpFaked(tester, _ScriptedSource([media]), player);
@@ -310,6 +334,9 @@ void main() {
             ),
             attachmentVideoSourceProvider.overrideWithValue(() => source),
             attachmentPlayerProvider.overrideWithValue(() => player),
+            attachmentVideoControllerProvider.overrideWithValue(
+              (_) => _FakeVideoController(),
+            ),
             attachmentVideoSurfaceProvider.overrideWithValue(
               (player, controller, onToggleFullscreen) =>
                   const SizedBox(key: Key('ready-surface')),

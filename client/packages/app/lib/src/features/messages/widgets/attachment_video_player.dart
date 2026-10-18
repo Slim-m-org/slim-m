@@ -50,6 +50,10 @@ final attachmentPlayerProvider = Provider<Player Function()>(
   (ref) => Player.new,
 );
 
+/// Attaches the render context, injectable because it needs a GL texture.
+final attachmentVideoControllerProvider =
+    Provider<VideoController Function(Player)>((ref) => VideoController.new);
+
 /// Builds the picture and controls once the player is ready, injectable for
 /// the same reason as [attachmentPlayerProvider]: a `Video` needs a GL texture.
 typedef AttachmentVideoSurfaceBuilder =
@@ -83,7 +87,9 @@ class AttachmentVideoPlayer extends ConsumerStatefulWidget {
 class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     with GuardedActionState<AttachmentVideoPlayer> {
   late final Player _player = ref.read(attachmentPlayerProvider)();
-  late final VideoController _videoController = VideoController(_player);
+  late final VideoController _videoController = ref.read(
+    attachmentVideoControllerProvider,
+  )(_player);
   late final AttachmentVideoSource _source = ref.read(
     attachmentVideoSourceProvider,
   )();
@@ -153,6 +159,8 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
         },
       );
       if (!mounted) return;
+      // mpv picks its video output when a file opens, so without a render context first the file plays as audio over black.
+      _videoController;
       await _player.open(media, play: false);
       if (!mounted) return;
       setState(() => _ready = true);
