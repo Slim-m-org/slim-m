@@ -30,20 +30,33 @@ class _MemoryCache implements ByteCache {
 
   @override
   Future<void> write(String key, Uint8List bytes) async => entries[key] = bytes;
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async =>
+      entries.removeWhere((key, _) => key.startsWith(prefix));
 }
 
-ProviderContainer _container(ByteCache cache, List<Uri> requests) {
+final _png = [0x89, 0x50, 0x4E, 0x47, 1, 2, 3];
+final _local = attachmentPreviewScope(Uri.parse('http://localhost:8080'));
+
+ProviderContainer _container(
+  ByteCache cache,
+  List<Uri> requests, {
+  List<int>? body,
+  Uri? server,
+}) {
   final container = ProviderContainer(
     overrides: [
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       attachmentPreviewCacheProvider.overrideWithValue(cache),
+      if (server != null) serverUrlProvider.overrideWithValue(server),
       apiProvider.overrideWith(
         (ref) => api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
           session: ref.watch(sessionProvider),
           httpClient: MockClient((request) async {
             requests.add(request.url);
-            return http.Response.bytes([1, 2, 3], 200);
+            return http.Response.bytes(body ?? _png, 200);
           }),
         ),
       ),
@@ -70,11 +83,11 @@ void main() {
 
     final bytes = await _read(_container(cache, requests), 'img', 640);
 
-    expect(bytes, [1, 2, 3]);
+    expect(bytes, _png);
     expect(requests.single.path, '/attachments/img');
     expect(requests.single.queryParameters, {'w': '640'});
     await Future<void>.delayed(Duration.zero);
-    expect(cache.entries['img-640'], [1, 2, 3]);
+    expect(cache.entries['$_local-img-640'], _png);
   });
 
   test('a second launch over the same cache makes no request', () async {
@@ -88,7 +101,7 @@ void main() {
 
     expect(first, hasLength(1));
     expect(second, isEmpty);
-    expect(bytes, [1, 2, 3]);
+    expect(bytes, _png);
   });
 
   test('a different bucket is a different entry', () async {
@@ -102,7 +115,63 @@ void main() {
     expect(requests.map((u) => u.queryParameters['w']), ['320', '1280']);
   });
 
+  test('another server never reads this one\'s cached preview', () async {
+    final cache = _MemoryCache();
+    await _read(_container(cache, []), 'img', 640);
+    await Future<void>.delayed(Duration.zero);
+
+    final other = <Uri>[];
+    await _read(
+      _container(cache, other, server: Uri.parse('https://evil.example')),
+      'img',
+      640,
+    );
+
+    expect(other, hasLength(1));
+    expect(cache.entries, hasLength(2));
+  });
+
+  test('bytes that are not an image are shown but never cached', () async {
+    final cache = _MemoryCache();
+    await _read(_container(cache, [], body: [1, 2, 3]), 'img', 640);
+    await Future<void>.delayed(Duration.zero);
+    expect(cache.entries, isEmpty);
+  });
+
+  test('a poisoned cache entry is refetched', () async {
+    final cache = _MemoryCache()
+      ..entries['$_local-img-640'] = Uint8List.fromList([9, 9, 9]);
+    final requests = <Uri>[];
+    final bytes = await _read(_container(cache, requests), 'img', 640);
+    expect(bytes, _png);
+    expect(requests, hasLength(1));
+  });
+
+  test('clearing a server drops only its previews', () async {
+    final cache = _MemoryCache();
+    final server = Uri.parse('http://localhost:8080');
+    cache.entries['$_local-a-320'] = Uint8List(1);
+    cache.entries['other-a-320'] = Uint8List(1);
+    await clearAttachmentPreviews(cache, server);
+    expect(cache.entries.keys, ['other-a-320']);
+  });
+
   group('DiskByteCache', () {
+    test('removeWithPrefix deletes matching files only', () async {
+      final d = Directory.systemTemp.createTempSync('byte-cache-p-');
+      addTearDown(() => d.deleteSync(recursive: true));
+      final cache = DiskByteCache(
+        dirName: 'c',
+        ceilingBytes: 999,
+        directory: d,
+      );
+      await cache.write('aa-1', Uint8List(1));
+      await cache.write('bb-1', Uint8List(1));
+      await cache.removeWithPrefix('aa-');
+      expect(await cache.read('aa-1'), isNull);
+      expect(await cache.read('bb-1'), isNotNull);
+    });
+
     late Directory dir;
 
     setUp(() => dir = Directory.systemTemp.createTempSync('byte-cache-'));

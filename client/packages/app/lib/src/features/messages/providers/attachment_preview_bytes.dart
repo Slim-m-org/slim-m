@@ -10,6 +10,7 @@ library;
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
@@ -56,17 +57,44 @@ ByteCache createAttachmentPreviewCache() => kIsWeb
 /// Previews are around a hundred times smaller than originals.
 final _recentPreviews = KeepAliveCache(48);
 
+/// Namespaces one server's cached previews so no other server can read or
+/// overwrite them, and so signing out can drop exactly that server's files.
+String attachmentPreviewScope(Uri server) {
+  final digest = Sha256().toSync().hashSync(server.origin.codeUnits).bytes;
+  return digest.take(8).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+}
+
+/// Whether [bytes] open with the signature of an image format a decoder takes.
+bool looksLikeImage(Uint8List b) {
+  bool at(int offset, List<int> sig) =>
+      b.length >= offset + sig.length &&
+      [
+        for (var i = 0; i < sig.length; i++) b[offset + i] == sig[i],
+      ].every((m) => m);
+  return at(0, [0x89, 0x50, 0x4E, 0x47]) ||
+      at(0, [0xFF, 0xD8, 0xFF]) ||
+      at(0, [0x47, 0x49, 0x46, 0x38]) ||
+      at(0, [0x42, 0x4D]) ||
+      (at(0, [0x52, 0x49, 0x46, 0x46]) && at(8, [0x57, 0x45, 0x42, 0x50])) ||
+      at(4, [0x66, 0x74, 0x79, 0x70]);
+}
+
+/// Forgets every preview cached for [server], when its account goes away.
+Future<void> clearAttachmentPreviews(ByteCache cache, Uri server) =>
+    cache.removeWithPrefix('${attachmentPreviewScope(server)}-');
+
 typedef AttachmentPreviewKey = ({String id, int bucket});
 
 final attachmentPreviewBytesProvider = FutureProvider.autoDispose
     .family<Uint8List, AttachmentPreviewKey>((ref, key) async {
-      final cacheKey = '${key.id}-${key.bucket}';
+      final scope = attachmentPreviewScope(ref.watch(serverUrlProvider));
+      final cacheKey = '$scope-${key.id}-${key.bucket}';
       _recentPreviews.hold(ref, cacheKey);
       var disposed = false;
       ref.onDispose(() => disposed = true);
       final cache = ref.watch(attachmentPreviewCacheProvider);
       final cached = await cache.read(cacheKey);
-      if (cached != null) return cached;
+      if (cached != null && looksLikeImage(cached)) return cached;
       final api = ref.watch(apiProvider);
       final bytes = await fetchAttachmentRetrying(
         ref,
@@ -74,7 +102,8 @@ final attachmentPreviewBytesProvider = FutureProvider.autoDispose
         isDisposed: () => disposed,
         onGiveUp: () => _recentPreviews.release(cacheKey),
       );
-      if (bytes.length <= attachmentPreviewEntryMaxBytes) {
+      if (bytes.length <= attachmentPreviewEntryMaxBytes &&
+          looksLikeImage(bytes)) {
         unawaited(cache.write(cacheKey, bytes));
       }
       return bytes;

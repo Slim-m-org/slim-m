@@ -22,6 +22,9 @@ abstract interface class ByteCache {
 
   /// Stores [bytes] under [key], or drops them if the disk will not take them.
   Future<void> write(String key, Uint8List bytes);
+
+  /// Drops every entry whose key starts with [prefix].
+  Future<void> removeWithPrefix(String prefix);
 }
 
 /// Keeps [ceilingBytes] of files under [dirName] in the application support
@@ -88,6 +91,20 @@ class DiskByteCache implements ByteCache {
     }
   }
 
+  @override
+  Future<void> removeWithPrefix(String prefix) async {
+    try {
+      final encoded = Uri.encodeComponent(prefix);
+      await for (final entity in (await _cacheDir()).list()) {
+        if (entity is File && p.basename(entity.path).startsWith(encoded)) {
+          await entity.delete();
+        }
+      }
+    } catch (_) {
+      // An undeletable file stays until eviction reaches it.
+    }
+  }
+
   bool _dueForTrim() {
     _writesSinceTrim++;
     if (_trimmedOnce && _writesSinceTrim < trimEveryWrites) return false;
@@ -127,4 +144,7 @@ class NoopByteCache implements ByteCache {
 
   @override
   Future<void> write(String key, Uint8List bytes) async {}
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async {}
 }

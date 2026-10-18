@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/accounts/providers/account_services.dart';
+import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
+import 'package:slimm_app/src/providers/disk_byte_cache.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
@@ -42,7 +46,60 @@ class _NoopPushController extends PushController {
   Future<void> register() async {}
 }
 
+class _PreviewCache implements ByteCache {
+  final keys = <String>{};
+
+  @override
+  Future<Uint8List?> read(String key) async => null;
+
+  @override
+  Future<void> write(String key, Uint8List bytes) async {}
+
+  @override
+  Future<void> removeWithPrefix(String prefix) async =>
+      keys.removeWhere((k) => k.startsWith(prefix));
+}
+
 void main() {
+  test('signing out drops the cached previews of that server', () async {
+    final cache = _PreviewCache();
+    final server = Uri.parse('http://localhost:8080');
+    cache.keys.addAll([
+      '${attachmentPreviewScope(server)}-a-320',
+      '${attachmentPreviewScope(Uri.parse('https://other.example'))}-a-320',
+    ]);
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
+        pushControllerProvider.overrideWith((ref) => _NoopPushController(ref)),
+        storeProvider.overrideWith((ref) async => throw StateError('n/a')),
+        attachmentPreviewCacheProvider.overrideWithValue(cache),
+        apiProvider.overrideWith(
+          (ref) => api.SlimmApi(
+            baseUrl: server,
+            session: ref.watch(sessionProvider),
+            httpClient: MockClient((_) async => http.Response('', 204)),
+          ),
+        ),
+        voiceControllerProvider.overrideWith(
+          (ref) => VoiceController(ref, session: FakeSession()),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await signOutVia(container.read);
+    await pumpEventQueue();
+
+    expect(cache.keys, hasLength(1));
+    expect(
+      cache.keys.single,
+      startsWith(attachmentPreviewScope(Uri.parse('https://other.example'))),
+    );
+  });
+
   testWidgets('signing out mid-call leaves the call rather than stranding its '
       'heartbeat against a session about to be cleared', (tester) async {
     final session = FakeSession();
