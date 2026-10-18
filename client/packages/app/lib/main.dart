@@ -41,6 +41,7 @@ import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
 import 'src/diagnostics/debug_log_persistence.dart';
+import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
 import 'src/providers/notification_tap_router.dart';
@@ -229,6 +230,7 @@ Future<void> _bootstrapApp(
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
   if (launchedAtLogin) unawaited(DesktopWindowShell.requestClose());
   unawaited(container.read(selfUpdateProvider).confirmStart());
+  unawaited(repairAutostart(container));
 }
 
 /// Restores the splash on/off and duration preferences and turns them into

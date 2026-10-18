@@ -17,6 +17,10 @@ abstract class Autostart {
 
   /// Registers or removes the login launch.
   Future<void> setEnabled(bool on);
+
+  /// Rewrites a registration that points somewhere other than this install's
+  /// stable launcher; does nothing while the login launch is off.
+  Future<void> repair();
 }
 
 /// This host's login launch, or null where there is none (web, phones, or a

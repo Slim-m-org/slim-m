@@ -83,6 +83,8 @@ jobs:
         shell: pwsh
         working-directory: packaging/windows/launcher
         run: |
+          go generate ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go vet ./...
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           go test ./...
@@ -98,6 +100,8 @@ jobs:
           $version = $env:TAG -replace "^client-v", ""
           $release = "client/packages/app/build/windows/x64/runner/Release"
           Move-Item packaging/windows/launcher/slim-m.exe $release
+          # Linker import libraries, never loaded at run time.
+          Remove-Item "$release/*.lib", "$release/*.exp"
           Copy-Item packaging/windows/install.ps1, packaging/windows/install.cmd, packaging/windows/README.md $release
           Set-Content -Path "$release/VERSION" -Value $version -NoNewline
           Compress-Archive -Path client/packages/app/build/windows/x64/runner/Release/* -DestinationPath "slim-m-client-$version-windows-x64.zip"
