@@ -48,7 +48,7 @@ mod moderation_seq;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
 use memory_guard::MemoryGuard;
-pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading};
+pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
 
 /// How many events the durable channel buffers per subscriber before the

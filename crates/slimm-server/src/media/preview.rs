@@ -16,10 +16,11 @@ use image::codecs::jpeg::JpegEncoder;
 use image::codecs::webp::WebPEncoder;
 use image::metadata::Orientation;
 use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageReader, Limits};
-use tokio::sync::Semaphore;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use super::Media;
 use super::image_header::inspect;
+use super::memory_budget::MemoryBudget;
 use super::preview_scale::fit;
 
 /// Longest-side widths a preview may be asked for. Bucketing bounds the files kept per attachment.
@@ -63,6 +64,8 @@ pub struct Previews {
     dir: PathBuf,
     gate: Arc<Semaphore>,
     prewarming: Arc<AtomicUsize>,
+    /// The process-wide memory budget compression draws on too.
+    budget: MemoryBudget,
 }
 
 impl Media {
@@ -84,12 +87,26 @@ pub fn bucket_for(width: u32) -> u32 {
 }
 
 impl Previews {
-    pub(super) fn new(dir: PathBuf) -> Self {
+    pub(super) fn new(dir: PathBuf, budget: MemoryBudget) -> Self {
         Self {
             dir,
             gate: Arc::new(Semaphore::new(1)),
             prewarming: Arc::new(AtomicUsize::new(0)),
+            budget,
         }
+    }
+
+    pub(super) fn use_budget(&mut self, budget: MemoryBudget) {
+        self.budget = budget;
+    }
+
+    /// Memory for decoding `original`, held until dropped. `Ok(None)` when the file will not be
+    /// decoded at all; `Err` when the budget has no room, so the original is the answer.
+    async fn reserve(&self, original: &Path) -> Result<Option<OwnedSemaphorePermit>, ()> {
+        let Some(estimate) = decode_estimate(original).await else {
+            return Ok(None);
+        };
+        self.budget.admit(estimate).await.map(Some).ok_or(())
     }
 
     fn path(&self, hex: &str, bucket: u32) -> PathBuf {
@@ -127,10 +144,13 @@ impl Previews {
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
+        let Ok(memory) = self.reserve(original).await else {
+            return Ok(Preview::Original);
+        };
         let original = original.to_path_buf();
         let target = path.clone();
         tokio::task::spawn_blocking(move || {
-            let _permit = permit;
+            let _permit = (permit, memory);
             let derived = derive(&original, bucket)?;
             write_atomic(&target, derived.as_deref().unwrap_or_default())?;
             Ok(derived.map_or(Preview::Original, |_| Preview::Derived(target)))
@@ -172,13 +192,16 @@ impl Previews {
         if missing.is_empty() {
             return Ok(());
         }
+        let Ok(memory) = self.reserve(original).await else {
+            return Ok(());
+        };
         let original = original.to_path_buf();
         let targets: Vec<(u32, PathBuf)> = missing
             .into_iter()
             .map(|bucket| (bucket, self.path(hex, bucket)))
             .collect();
         tokio::task::spawn_blocking(move || {
-            let _permit = permit;
+            let _permit = (permit, memory);
             let buckets: Vec<u32> = targets.iter().map(|(bucket, _)| *bucket).collect();
             let derived = derive_many(&original, &buckets)?;
             for ((_, target), bytes) in targets.iter().zip(derived) {
@@ -253,6 +276,29 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
     }
     placed
 }
+
+/// The peak memory of deriving previews from `original`: the file, its raster and some working
+/// room. `None` when the file would not be decoded, so needs no reservation.
+async fn decode_estimate(original: &Path) -> Option<u64> {
+    use tokio::io::AsyncReadExt;
+    let mut file = tokio::fs::File::open(original).await.ok()?;
+    let len = file.metadata().await.ok()?.len();
+    if len > MAX_SOURCE_BYTES {
+        return None;
+    }
+    let mut probe = vec![0u8; HEADER_PROBE_BYTES.min(len as usize)];
+    file.read_exact(&mut probe).await.ok()?;
+    let header = inspect(&probe)?;
+    let pixels = u64::from(header.width) * u64::from(header.height);
+    if header.animated || pixels > MAX_SOURCE_PIXELS {
+        return None;
+    }
+    Some(len + pixels * PREVIEW_BYTES_PER_PIXEL + PREVIEW_FIXED_BYTES)
+}
+
+/// The decoded raster plus the resized copies one preview decode keeps.
+const PREVIEW_BYTES_PER_PIXEL: u64 = 4;
+const PREVIEW_FIXED_BYTES: u64 = 16 * 1024 * 1024;
 
 /// The preview bytes at one `bucket`, or `None` when the original should be served.
 fn derive_one(original: &Path, bucket: u32) -> io::Result<Option<Vec<u8>>> {
@@ -400,6 +446,7 @@ mod tests {
     async fn a_cancelled_request_keeps_the_gate_until_its_decode_finishes() {
         let previews = Previews::new(
             std::env::temp_dir().join(format!("slimm-preview-{}", uuid::Uuid::now_v7())),
+            MemoryBudget::for_limit(None),
         );
         std::fs::create_dir_all(&previews.dir).unwrap();
         let (started_tx, started_rx) = std::sync::mpsc::channel();

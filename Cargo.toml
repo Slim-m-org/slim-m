@@ -67,6 +67,8 @@ jiff = { version = "0.2", default-features = false, features = ["std", "tzdb-bun
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp", "tiff"] }
 # The upload photo compressor: pure-Rust JPEG encode, resize and HEIC decode, plus oxipng's lossless PNG pass. See docs/dependencies.md.
 jpeg-encoder = "0.7"
+# Scaled DCT decode, so a huge JPEG headed for a small cap never holds its full-size pixels.
+jpeg-decoder = { version = "0.3", default-features = false }
 fast_image_resize = "6"
 zune-heic = "0.5"
 oxipng = { version = "10", default-features = false }

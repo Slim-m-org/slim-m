@@ -291,7 +291,7 @@ It is used for the camera source only, because `photo_manager` above cannot capt
 Permissions: iOS reuses `NSCameraUsageDescription` (its text now also names profile photos) and Android reuses the `CAMERA` permission already declared for calls, so the two plugins add no new keys.
 Real-camera capture on a phone is untested here and needs a device.
 
-## Photo compression (jpeg-encoder, fast_image_resize, zune-heic, oxipng)
+## Photo compression (jpeg-encoder, jpeg-decoder, fast_image_resize, zune-heic, oxipng)
 
 The upload photo compressor (`media/compress`, decision record in `docs/research/media-compression.md`).
 All are permissive-licensed.

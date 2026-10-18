@@ -45,6 +45,7 @@ wasmi.workspace = true
 jiff.workspace = true
 image.workspace = true
 jpeg-encoder.workspace = true
+jpeg-decoder.workspace = true
 fast_image_resize.workspace = true
 zune-heic.workspace = true
 oxipng.workspace = true

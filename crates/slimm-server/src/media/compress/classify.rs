@@ -14,7 +14,14 @@ const GRAPHIC_COLORS: u32 = 2048;
 /// exactly and it spends many colours; a screenshot is the reverse. Even a
 /// denoised phone photo of a plain wall stays under the flat-share line.
 pub fn is_graphic(image: &DynamicImage) -> bool {
-    let rgb = image.to_rgb8();
+    let converted;
+    let rgb = match image.as_rgb8() {
+        Some(rgb) => rgb,
+        None => {
+            converted = image.to_rgb8();
+            &converted
+        }
+    };
     let width = rgb.width() as usize;
     if width < 2 {
         return true;

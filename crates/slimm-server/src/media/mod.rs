@@ -31,6 +31,8 @@ use futures_util::Stream;
 use uuid::Uuid;
 
 pub mod compress;
+mod memory_budget;
+pub use memory_budget::MemoryBudget;
 mod content_type;
 mod image_header;
 mod linked_avatar;
@@ -179,6 +181,7 @@ pub struct Media {
     /// Held while bytes are placed with their row, or a row's absence is
     /// checked and its bytes unlinked; see `crate::blobs`.
     blobs: Arc<tokio::sync::Mutex<()>>,
+    memory: MemoryBudget,
     /// Set only by [`Media::for_tests`]; always `None` in a real deployment,
     /// whose media root outlives the process on purpose.
     temp_root: Option<Arc<TempRoot>>,
@@ -213,12 +216,14 @@ impl Media {
         std::fs::create_dir_all(&previews_dir)?;
         let uploads_dir = root.join("uploads");
         std::fs::create_dir_all(&uploads_dir)?;
+        let memory = MemoryBudget::for_limit(crate::hub::memory_limit_bytes());
         Ok(Self {
             uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
             blobs: Arc::default(),
+            memory: memory.clone(),
             attachments_dir,
             avatars_dir,
-            previews: preview::Previews::new(previews_dir),
+            previews: preview::Previews::new(previews_dir, memory.clone()),
             max_attachment_bytes,
             max_total_attachment_bytes: None,
             upload_timeout: DEFAULT_UPLOAD_TIMEOUT,

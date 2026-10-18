@@ -67,17 +67,42 @@ pub(super) async fn prepare(
     let Some(kind) = compress::eligible_kind(prefix, &policy) else {
         return Ok(None);
     };
-    let bytes = match tokio::fs::read(path).await {
-        Ok(bytes) => bytes,
-        Err(err) => {
-            tracing::warn!(error = %err, "could not read an upload to compress it");
-            return Ok(None);
+    let (slot, bytes) = match header_candidate(path, kind).await {
+        Some(candidate) => {
+            let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
+            let Some(slot) = state.media.admit_memory(estimate).await else {
+                refused(estimate);
+                return Ok(None);
+            };
+            (slot, read_upload(path).await)
         }
+        None => {
+            // The size is not known until the file is read, so the source bytes are reserved first.
+            let Some(slot) = state.media.admit_memory(size).await else {
+                return Ok(None);
+            };
+            (slot, read_upload(path).await)
+        }
+    };
+    let Some(bytes) = bytes else {
+        return Ok(None);
     };
     let Some(candidate) = compress::inspect(kind, &bytes) else {
         return Ok(None);
     };
-    let _slot = state.media.compression_slot(candidate.pixels).await;
+    let mut slot = slot;
+    let estimate = compress::peak_bytes(candidate, size, &compress::DEFAULT_SETTINGS);
+    let held = slot.num_permits() as u64 * MIB;
+    if held < estimate {
+        match state.media.admit_memory(estimate - held).await {
+            Some(rest) => slot.merge(rest),
+            None => {
+                refused(estimate);
+                return Ok(None);
+            }
+        }
+    }
+    let _slot = slot;
     let compressed = tokio::task::spawn_blocking(move || {
         compress::compress(candidate, &bytes, &policy, &compress::DEFAULT_SETTINGS)
     })
@@ -100,6 +125,40 @@ pub(super) async fn prepare(
             original,
         }
     }))
+}
+
+const MIB: u64 = 1024 * 1024;
+
+/// How much of the file is read to learn its dimensions before it is read whole.
+const HEADER_BYTES: usize = 1024 * 1024;
+
+fn refused(estimate: u64) {
+    tracing::warn!(
+        estimate,
+        "no room to compress an upload; storing it as sent"
+    );
+}
+
+async fn read_upload(path: &Path) -> Option<Vec<u8>> {
+    match tokio::fs::read(path).await {
+        Ok(bytes) => Some(bytes),
+        Err(err) => {
+            tracing::warn!(error = %err, "could not read an upload to compress it");
+            None
+        }
+    }
+}
+
+/// The file's format and size from its first bytes alone, so its memory can be reserved before it is read.
+async fn header_candidate(path: &Path, kind: compress::Kind) -> Option<compress::Candidate> {
+    use tokio::io::AsyncReadExt;
+    let mut head = Vec::with_capacity(HEADER_BYTES);
+    let file = tokio::fs::File::open(path).await.ok()?;
+    file.take(HEADER_BYTES as u64)
+        .read_to_end(&mut head)
+        .await
+        .ok()?;
+    compress::inspect(kind, &head)
 }
 
 /// The upload's name, with the extension of the format it was converted to when that changed.
@@ -178,6 +237,9 @@ impl Replacement {
             }
         }
         drop(placing);
+        state
+            .media
+            .prewarm_preview(&hex_id, compressed.content_type);
         Ok(AttachmentSummary {
             id: hex_id,
             filename,
