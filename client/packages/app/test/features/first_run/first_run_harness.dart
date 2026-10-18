@@ -4,6 +4,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -83,6 +84,9 @@ Future<FirstRunRig> pumpFirstRun(
   PushStatus pushStatus = PushStatus.noTokenYet,
   List<Channel>? channels,
   String? inviter,
+  bool description = true,
+  bool icon = false,
+  Uint8List? banner,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -113,7 +117,12 @@ Future<FirstRunRig> pumpFirstRun(
           session: ref.watch(sessionProvider),
           httpClient: MockClient((request) async {
             requests.add(request);
-            return _handle(request);
+            return _handle(
+              request,
+              description: description,
+              icon: icon,
+              banner: banner,
+            );
           }),
         ),
       ),
@@ -191,8 +200,29 @@ final defaultChannels = [
   harnessChannel('lobby', 'voice', 0),
 ];
 
-http.Response _handle(http.Request request) {
+http.Response _handle(
+  http.Request request, {
+  required bool description,
+  required bool icon,
+  Uint8List? banner,
+}) {
   final path = request.url.path;
+  if (path == '/space/icon') {
+    return http.Response.bytes(
+      tinyPng,
+      200,
+      headers: {'content-type': 'image/png'},
+    );
+  }
+  if (path == '/space/banner') {
+    return banner == null
+        ? http.Response('{"error":"not_found"}', 404)
+        : http.Response.bytes(
+            banner,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+  }
   if (path == '/space/settings') {
     return http.Response('{"error":"forbidden"}', 403);
   }
@@ -202,7 +232,9 @@ http.Response _handle(http.Request request) {
       'version': '0.0.0',
       'protocol': 1,
       'space_name': 'Lamplight',
-      'space_description': 'A small place for the game night crowd.',
+      if (icon) 'icon_updated_at': 1,
+      if (description)
+        'space_description': 'A small place for the game night crowd.',
     });
   }
   if (path == '/push/preference') {
@@ -220,3 +252,8 @@ http.Response _handle(http.Request request) {
   if (path.endsWith('/avatar')) return http.Response('', 404);
   return _json(<String, Object>{});
 }
+
+/// A 1x1 PNG, enough for the banner to decode.
+final tinyPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
