@@ -146,19 +146,15 @@ async fn resolve_permissions(
     }
 }
 
-/// Whether the per-viewer presence rules let a typing, cursor, stroke or voice event through.
+/// Whether the per-viewer presence rules let a typing or voice event through.
 async fn passes_presence_gates(
     store: &Store,
     hub: &Hub,
     ctx: &SessionContext,
     event: &Event,
 ) -> bool {
-    // Typing, a cursor and a stroke preview all leak presence and must fail closed on a blip.
-    if let Event::TypingStarted { user_id, .. }
-    | Event::CanvasCursorMoved { user_id, .. }
-    | Event::CanvasStrokePreview { user_id, .. }
-    | Event::CanvasObjectPreview { user_id, .. } = *event
-    {
+    // Typing leaks presence and must fail closed on a blip; canvas frames pass the view and canvas gates above, since a drawer on a shared canvas is already visible to it.
+    if let Event::TypingStarted { user_id, .. } = *event {
         let confirmed_visible = matches!(
             signals::presence_status(store, hub, ctx.user_id, user_id).await,
             Ok(Some(status)) if status != crate::presence::Status::Offline

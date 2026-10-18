@@ -190,10 +190,11 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
     assert_nothing_of_type(&mut carol_ws, "canvas.stroke_preview.updated").await;
 }
 
-/// A preview also leaks presence the same way a cursor does, so a user who
-/// chose to appear offline must not have their drawing announced.
+/// Hiding presence does not hide live ink from people who can view the
+/// same canvas: they already see the committed result, and withholding the
+/// live frames made every hidden drawer's work appear only when finished.
 #[tokio::test]
-async fn a_hidden_users_preview_is_not_announced() {
+async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
     use slimm_server::presence::Visibility;
     let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
@@ -219,7 +220,8 @@ async fn a_hidden_users_preview_is_not_announced() {
     )
     .await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    assert_eq!(frame["user_id"], alice_id.to_string());
 }
 
 /// A point outside the bounded world (or non-finite) is dropped outright,

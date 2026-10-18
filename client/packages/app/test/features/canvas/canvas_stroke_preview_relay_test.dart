@@ -6,6 +6,8 @@
 /// `canvas_cursor_relay_test.dart` gives the pair this extends.
 library;
 
+import 'dart:convert';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_stroke_preview_relay.dart';
@@ -89,7 +91,7 @@ void main() {
   });
 
   test(
-    'a frame carries at most maxStrokePreviewPointsPerFrame points, keeping the most recent',
+    'a frame carries at most maxStrokePreviewPointsPerFrame points, thinned evenly, keeping the newest',
     () {
       fakeAsync((async) {
         final drafts = RemoteStrokeDrafts();
@@ -113,12 +115,57 @@ void main() {
 
         final points = sent.single.$2;
         expect(points.length, maxStrokePreviewPointsPerFrame * 2);
-        // The oldest 5 points (0..4) are dropped; the frame starts at 5.
-        expect(points.first, 5.0);
+        expect(points.first, 0.0);
         expect(points.last, (maxStrokePreviewPointsPerFrame + 4).toDouble());
       });
     },
   );
+
+  test('a 1000 Hz stroke stays inside the server byte budget', () {
+    // Class::CanvasStrokePreview: burst 24576 bytes, refill 12288 a second.
+    const burst = 24576.0;
+    const refill = 12288.0;
+    fakeAsync((async) {
+      final drafts = RemoteStrokeDrafts();
+      var tokens = burst;
+      var frames = 0;
+      var refused = 0;
+      final relay = CanvasStrokePreviewRelay(
+        drafts: drafts,
+        paletteSize: 6,
+        send: (id, points, ended) {
+          final wire = jsonEncode({
+            'type': 'canvas.stroke_preview',
+            'channel_id': '0192f0c0-0000-7000-8000-000000000001',
+            'object_id': id,
+            'points': points,
+            'ended': ended,
+          }).length;
+          tokens = (tokens + refill * 0.05).clamp(0.0, burst);
+          frames++;
+          if (wire > tokens) {
+            refused++;
+          } else {
+            tokens -= wire;
+          }
+        },
+        isBlocked: (_) => false,
+        selfId: () => 'self',
+      );
+      addTearDown(drafts.dispose);
+      addTearDown(relay.dispose);
+
+      for (var ms = 0; ms < 8000; ms++) {
+        relay.reportLocalDraftPoint(
+          Offset(ms / 3.7 + 0.123456789, 200 + 90 * (ms % 97) / 7.3),
+        );
+        async.elapse(const Duration(milliseconds: 1));
+      }
+
+      expect(frames, greaterThan(100));
+      expect(refused, 0);
+    });
+  });
 
   test(
     'endLocalDraft flushes what remains, marked ended, and stops the timer',
