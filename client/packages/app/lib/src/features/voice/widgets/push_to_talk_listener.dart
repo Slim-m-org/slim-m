@@ -19,8 +19,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
+import '../../../providers/app_lifecycle.dart';
 import '../providers/global_hotkeys_controller.dart';
 import '../providers/push_to_talk_gate.dart';
+import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 
 /// Wraps [child] with no visual effect of its own; mount once, high in the
@@ -79,5 +81,15 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    if (ref.watch(mobileLifecycleHostProvider)) {
+      ref.listen<AppLifecycleState>(
+        appLifecycleProvider,
+        (_, state) => ref
+            .read(voiceControllerProvider.notifier)
+            .setAppBackgrounded(isBackgroundedOnPhone(state, mobile: true)),
+      );
+    }
+    return widget.child;
+  }
 }

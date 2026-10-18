@@ -22,6 +22,13 @@ abstract interface class MicPort {
   /// platform reports none; only exact digital silence reads as the floor.
   Future<double?> senderLevelDb();
 
+  /// Stops the capture of the muted track, keeping it published so an unmute
+  /// can reopen it.
+  Future<void> release();
+
+  /// Reopens a released capture and leaves it silent until the next unmute.
+  Future<void> reopenMuted(lk.AudioCaptureOptions options);
+
   /// Reopens the capture with [options].
   Future<void> restart(lk.AudioCaptureOptions options);
 
@@ -85,7 +92,24 @@ class LiveKitMicPort implements MicPort {
   }
 
   @override
+  Future<void> release() async {
+    await _publication?.track?.stop();
+  }
+
+  @override
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
+    final track = _publication?.track;
+    if (track == null) return;
+    await track.restartTrack(options);
+    await track.disable();
+  }
+
+  @override
   Future<void> setEnabled(bool enabled, lk.AudioCaptureOptions? options) async {
+    if (enabled && options != null && options.stopAudioCaptureOnMute) {
+      // The reopen uses the track's own options, so they must be current.
+      adoptOptions(options);
+    }
     await _room()?.localParticipant?.setMicrophoneEnabled(
           enabled,
           audioCaptureOptions: options,

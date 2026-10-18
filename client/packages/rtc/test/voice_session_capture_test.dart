@@ -48,6 +48,12 @@ class _FakeMic implements MicPort {
       restarts.add(options.noiseSuppression);
 
   @override
+  Future<void> release() async {}
+
+  @override
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {}
+
+  @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
 
   @override
@@ -142,7 +148,13 @@ void main() {
     addTearDown(ungated.session.dispose);
     ungated.session.setStrongNoiseSuppression(true);
     await ungated.join();
-    expect(ungated.mic.enables.single.$2, isNull);
+    final options = ungated.mic.enables.single.$2!;
+    expect(options.noiseSuppression, isTrue);
+    expect(
+      options.stopAudioCaptureOnMute,
+      isFalse,
+      reason: 'a mute holds the device for the grace period on every host',
+    );
   });
 
   test('a mid-call switch to Strong reopens the mic once, not while muted',

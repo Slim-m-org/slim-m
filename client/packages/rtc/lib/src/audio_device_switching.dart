@@ -82,7 +82,7 @@ class AudioDeviceSwitching {
         // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
         deviceId: isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
         noiseSuppression: noiseSuppression,
-        // Reopening on unmute flips Bluetooth profiles and clips the first syllable.
+        // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
         stopAudioCaptureOnMute: false,
       );
 

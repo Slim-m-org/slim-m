@@ -547,7 +547,8 @@ void main() {
   });
 
   group('server forwarding', () {
-    test('deafening stops the SFU sending and undeafening resumes it', () async {
+    test('deafening stops the SFU sending and undeafening resumes it',
+        () async {
       final state = LocalAudioState();
       final voice = _FakeTrack('maya');
       final screen = _FakeTrack('maya', channel: LocalAudioChannel.screen);

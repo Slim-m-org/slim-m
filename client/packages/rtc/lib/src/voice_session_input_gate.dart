@@ -58,6 +58,12 @@ mixin VoiceSessionInputGate {
         )
       : null;
 
+  /// What the next [MicPort.setEnabled] opens with. [reopen] makes LiveKit
+  /// restart a capture that was released, rather than just unmute it.
+  lk.AudioCaptureOptions _openCaptureOptions({required bool reopen}) =>
+      (_micCaptureOptions() ?? _audioSwitching.captureOptions())
+          .copyWith(stopAudioCaptureOnMute: reopen);
+
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
 
