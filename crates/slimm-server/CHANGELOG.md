@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.96.1](https://github.com/Slim-m-org/slim-m/compare/server-v0.96.0...server-v0.96.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* the mic restart loop, voice settings surviving joins, windows device list, volume taper, blank threads and stale voice rosters ([#2259](https://github.com/Slim-m-org/slim-m/issues/2259)) ([5591a1a](https://github.com/Slim-m-org/slim-m/commit/5591a1a1b74182cad40c48a53e4e8f0bed617e90))
+
 ## [0.96.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.95.0...server-v0.96.0) (2026-10-18)
 
 
