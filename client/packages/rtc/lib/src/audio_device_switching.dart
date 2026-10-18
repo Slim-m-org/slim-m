@@ -98,7 +98,9 @@ class AudioDeviceSwitching {
   /// default, so a capture on the old default can be told to move.
   Future<String> inputSignature() async {
     final ids = [for (final d in await inputs()) d.id]..sort();
-    final fallback = (await _devices.systemDefaultInput())?.id ?? '';
+    final fallback = (await _devices.systemDefaultInput())?.id ??
+        await _pulse.defaultNode(capture: true) ??
+        '';
     return '$fallback|${ids.join(',')}';
   }
 

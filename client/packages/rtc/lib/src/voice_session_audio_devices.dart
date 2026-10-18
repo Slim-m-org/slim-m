@@ -28,7 +28,7 @@ mixin VoiceSessionAudioDevices {
   bool get supportsInputGate;
 
   AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
-    const HardwareAudioDevices(),
+    HardwareAudioDevices(),
   );
 
   /// Whether picking a specific microphone actually changes the live call;

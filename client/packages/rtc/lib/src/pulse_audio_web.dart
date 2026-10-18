@@ -5,11 +5,14 @@ library;
 import 'voice_models.dart';
 
 typedef PactlRunner = Future<Object> Function(List<String> args);
+typedef PactlSubscriber = Stream<String> Function();
 
 class PulseAudio {
-  PulseAudio({PactlRunner? run, int? processId});
+  PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId});
 
   static bool get supported => false;
+
+  Stream<void> get deviceChanges => const Stream.empty();
 
   Future<List<AudioDevice>?> sources() async => null;
 
