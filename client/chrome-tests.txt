@@ -213,6 +213,7 @@ rtc/test/voice_roster_snapshot_test.dart
 rtc/test/voice_session_leave_race_test.dart
 rtc/test/voice_session_screen_share_teardown_test.dart
 rtc/test/voice_session_test.dart
+rtc/test/web_audio_arrivals_test.dart
 voice_canvas/test/canvas_camera_wheel_test.dart
 voice_canvas/test/canvas_cursors_test.dart
 voice_canvas/test/canvas_drag_cost_test.dart
