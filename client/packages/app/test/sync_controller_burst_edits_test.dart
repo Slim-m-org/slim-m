@@ -6,6 +6,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 
 import 'support/sync_harness.dart';
@@ -187,6 +188,7 @@ void main() {
       }),
       seeded: [rigMessage('m1', 1, 'msg 1')],
       opCursor: 5,
+      overrides: [syncChunkRetryDelaysProvider.overrideWithValue(const [])],
     );
     rig.signIn();
     await rig.waitFor(() => rig.status.name == 'live');

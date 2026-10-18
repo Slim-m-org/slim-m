@@ -5,6 +5,21 @@
 /// Split out of `sync_controller.dart`, which sat at the 500-line ceiling.
 part of 'sync_controller.dart';
 
+/// Cursors per `/sync` request, under the server's 200-scope ceiling.
+const syncScopeChunk = 150;
+
+/// Waits between retries of one failed chunk; its length is the retry count.
+final syncChunkRetryDelaysProvider = Provider<List<Duration>>(
+  (ref) => const [Duration(milliseconds: 500), Duration(seconds: 2)],
+);
+
+bool _isTransientSyncFailure(Object error) => switch (error) {
+  TransportException() || UnavailableException() => true,
+  RateLimitedException() => true,
+  ServerException(:final statusCode) => statusCode >= 500,
+  _ => false,
+};
+
 extension SyncControllerCatchUp on SyncController {
   /// Catches every known scope up, round after round until none is behind.
   ///
@@ -28,37 +43,69 @@ extension SyncControllerCatchUp on SyncController {
     void Function()? onFirstRound,
   }) async {
     var first = true;
+    Set<String>? only;
     while (true) {
-      final more = await _catchUpRound(generation, api, store);
+      final behind = await _catchUpRound(generation, api, store, only: only);
       if (generation != _generation) return;
       if (first) onFirstRound?.call();
       first = false;
-      if (!more) return;
+      if (behind.isEmpty) return;
+      only = behind;
       // Next tick rather than straight through, so a long backlog does not block the first paint.
       await Future<void>.delayed(Duration.zero);
       if (generation != _generation) return;
     }
   }
 
-  /// One `/sync` request over every scope, applying its deltas in order.
-  /// Answers whether any scope still has more to fetch.
-  Future<bool> _catchUpRound(
+  /// One pass over the known scopes (or just [only]) in [syncScopeChunk]-sized
+  /// requests, each applied before the next so a later failure keeps the
+  /// progress. Answers the scopes that still have more to fetch.
+  Future<Set<String>> _catchUpRound(
     int generation,
     SlimmApi api,
-    MessageStore store,
-  ) async {
-    final cursors = await store.allCursors();
-    if (cursors.isEmpty) return false;
-
-    final deltas = await api.sync(cursors);
-    var more = false;
-    for (final delta in deltas) {
-      if (generation != _generation) return false;
-      final deltaMore = await _applyDelta(generation, api, store, delta);
-      if (deltaMore == null) return false;
-      more = more || deltaMore;
+    MessageStore store, {
+    Set<String>? only,
+  }) async {
+    final all = await store.allCursors();
+    final cursors = only == null
+        ? all
+        : all.where((c) => only.contains(c.channelId)).toList();
+    final behind = <String>{};
+    for (var at = 0; at < cursors.length; at += syncScopeChunk) {
+      final chunk = cursors.sublist(
+        at,
+        min(at + syncScopeChunk, cursors.length),
+      );
+      final deltas = await _syncChunk(generation, api, chunk);
+      for (final delta in deltas) {
+        if (generation != _generation) return const {};
+        final deltaMore = await _applyDelta(generation, api, store, delta);
+        if (deltaMore == null) return const {};
+        if (deltaMore) behind.add(delta.channelId);
+      }
     }
-    return more;
+    return behind;
+  }
+
+  /// One chunk's `/sync`, retried on a transient failure after the delays in
+  /// [syncChunkRetryDelaysProvider]; anything else, or the last failure, throws.
+  Future<List<ScopeDelta>> _syncChunk(
+    int generation,
+    SlimmApi api,
+    List<ScopeCursor> chunk,
+  ) async {
+    final delays = _ref.read(syncChunkRetryDelaysProvider);
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await api.sync(chunk);
+      } catch (error) {
+        if (attempt >= delays.length || !_isTransientSyncFailure(error)) {
+          rethrow;
+        }
+        await Future<void>.delayed(delays[attempt]);
+        if (generation != _generation) return const [];
+      }
+    }
   }
 
   /// Applies one scope's delta. Answers whether it has more to fetch, or null
