@@ -9,12 +9,10 @@ library;
 import 'dart:async';
 
 import 'package:clock/clock.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_cursor_relay.dart' show cursorSendInterval;
-
-/// Frame pace of the ease; the document repaints the scene once per tick.
-const Duration objectPreviewTickInterval = Duration(milliseconds: 16);
 
 class CanvasObjectPreviewRelay {
   CanvasObjectPreviewRelay({
@@ -41,7 +39,8 @@ class CanvasObjectPreviewRelay {
 
   static Duration _fullGlide() => objectPreviewGlideDuration;
 
-  Timer? _ticker;
+  Ticker? _ticker;
+  Timer? _deadline;
   DateTime? _lastSent;
   String? _activeObjectId;
 
@@ -81,18 +80,37 @@ class CanvasObjectPreviewRelay {
   /// The committed move arrived: it is the exact final box.
   void settle(String objectId) => previews.settle(objectId);
 
+  /// A frame callback rather than a periodic timer: it fires in step with
+  /// paint, and none arrive while the app is hidden.
   void _startTicking() {
-    _ticker ??= Timer.periodic(objectPreviewTickInterval, (_) {
-      if (!previews.tick(clock.now())) {
-        _ticker?.cancel();
-        _ticker = null;
-      }
+    final ticker = _ticker ??= Ticker(_onFrame);
+    if (!ticker.isActive) ticker.start();
+    _watchDeadline();
+  }
+
+  void _onFrame(Duration _) {
+    if (!previews.tick(clock.now())) _ticker?.stop();
+  }
+
+  /// One-shot wake for a frozen preview's give-up time, since no frames run
+  /// then; re-armed from its own firing while previews remain.
+  void _watchDeadline() {
+    if (_deadline != null) return;
+    final next = previews.nextDeadline;
+    if (next == null) return;
+    final wait = next.difference(clock.now()) + const Duration(milliseconds: 1);
+    _deadline = Timer(wait.isNegative ? Duration.zero : wait, () {
+      _deadline = null;
+      previews.expire(clock.now());
+      _watchDeadline();
     });
   }
 
   void dispose() {
-    _ticker?.cancel();
+    _ticker?.dispose();
     _ticker = null;
+    _deadline?.cancel();
+    _deadline = null;
     previews.clear();
   }
 }

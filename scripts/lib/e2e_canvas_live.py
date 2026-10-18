@@ -9,7 +9,8 @@ cursor at the same point, so any difference is the stroke itself.
 """
 import time
 
-from e2e_canvas import at, origin
+import e2e_labels as L
+from e2e_canvas import at, origin, wait_for_kind_count
 
 PATH = [(60, 200), (100, 230), (140, 200), (180, 230), (220, 200)]
 SETTLE = 0.8
@@ -55,8 +56,18 @@ def remote_cursor_shows(a, b):
     print("  a's cursor appeared on b's canvas")
 
 
-def stroke_shows_before_release(a, b):
-    """`b` sees the stroke while `a` still holds the pointer down."""
+def strokes_on_server(admin_api, channel_id):
+    return sum(1 for o in admin_api.canvas_objects(channel_id)
+               if o["kind"] == "stroke")
+
+
+def stroke_shows_before_release(a, b, admin_api, channel_id):
+    """`b` sees the stroke while `a` still holds the pointer down.
+
+    The stroke is committed on release, so it is undone afterwards: the
+    scenarios after this one count the canvas's strokes.
+    """
+    already = strokes_on_server(admin_api, channel_id)
     org = origin(b)
     rect = around(org, PATH)
     org = origin(a)
@@ -80,6 +91,9 @@ def stroke_shows_before_release(a, b):
         b.shot("no-live-stroke")
         raise AssertionError("b saw nothing of a's stroke before release")
     print("  b saw a's stroke while a still held the pointer")
+    wait_for_kind_count(admin_api, channel_id, "stroke", already + 1)
+    a.click(L.UNDO)
+    wait_for_kind_count(admin_api, channel_id, "stroke", already)
 
 
 def move_shows_before_release(a, b, admin_api, channel_id):

@@ -21,6 +21,15 @@ pub(super) const TTL: Duration = Duration::from_secs(5);
 /// One connection's cached per-channel permission sets.
 pub(super) struct PermissionCache {
     entries: HashMap<ChannelId, Entry>,
+    timeout: Option<TimeoutEntry>,
+}
+
+/// The member's timeout expiry as last read, kept as an instant rather than a
+/// flag so a timeout that runs out is honoured without a fresh read.
+struct TimeoutEntry {
+    until_ms: Option<i64>,
+    asked_at: Instant,
+    epoch: u64,
 }
 
 struct Entry {
@@ -33,7 +42,24 @@ impl PermissionCache {
     pub(super) fn new() -> Self {
         Self {
             entries: HashMap::new(),
+            timeout: None,
         }
+    }
+
+    /// The cached timeout expiry (`Some(None)` is a cached "not timed out"), or `None` to go and ask.
+    pub(super) fn timeout_until(&self, now: Instant, epoch: u64) -> Option<Option<i64>> {
+        let entry = self.timeout.as_ref()?;
+        let fresh = now.duration_since(entry.asked_at) < TTL && entry.epoch == epoch;
+        fresh.then_some(entry.until_ms)
+    }
+
+    /// Records a timeout answer; the epoch must have been read before the query, as for [`Self::insert`].
+    pub(super) fn insert_timeout(&mut self, until_ms: Option<i64>, now: Instant, epoch: u64) {
+        self.timeout = Some(TimeoutEntry {
+            until_ms,
+            asked_at: now,
+            epoch,
+        });
     }
 
     /// The cached answer for `channel_id`, or `None` to go and ask.
@@ -128,6 +154,16 @@ mod tests {
         cache.insert(other, Permissions::NONE, now, 7);
         assert_eq!(cache.get(channel, now, 8), None);
         assert_eq!(cache.get(other, now, 8), None);
+    }
+
+    #[test]
+    fn a_timeout_answer_follows_the_same_epoch_and_window() {
+        let (mut cache, _, now) = cache();
+        assert_eq!(cache.timeout_until(now, 7), None);
+        cache.insert_timeout(Some(5), now, 7);
+        assert_eq!(cache.timeout_until(now, 7), Some(Some(5)));
+        assert_eq!(cache.timeout_until(now, 8), None);
+        assert_eq!(cache.timeout_until(now + TTL, 7), None);
     }
 
     #[test]

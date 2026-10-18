@@ -43,6 +43,7 @@ mod account_frames;
 mod authorization;
 mod authorization_bits;
 mod canvas_frames;
+mod canvas_gate;
 mod channel_scope;
 mod deployment_frames;
 mod ephemeral_frames;
@@ -172,6 +173,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
+                                    &mut cache,
                                     &channel_id,
                                     signals::CursorAt { x, y, left },
                                 )
@@ -190,6 +192,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
+                                    &mut cache,
                                     signals::StrokePreviewFrame {
                                         channel_id,
                                         object_id,
@@ -214,6 +217,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
+                                    &mut cache,
                                     signals::ObjectPreviewFrame {
                                         channel_id,
                                         object_id,

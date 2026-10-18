@@ -102,4 +102,66 @@ void main() {
 
     expect(previews.isActive, isFalse);
   });
+
+  test('once the glide has landed, further ticks leave the document alone', () {
+    previews.apply('a', _at(100), now: _t0);
+    expect(previews.tick(_ms(50)), isTrue);
+    expect(previews.tick(_ms(100)), isFalse);
+    expect(previews.isActive, isFalse);
+
+    var notified = 0;
+    document.addListener(() => notified++);
+    for (var ms = 116; ms < 3000; ms += 16) {
+      previews.tick(_ms(ms));
+    }
+
+    expect(notified, 0);
+    expect(document.objectBounds('a')!.x, 100);
+  });
+
+  test('a frame after the hold retargets and wakes the glide again', () {
+    previews.apply('a', _at(100), now: _t0);
+    previews.tick(_ms(100));
+    previews.apply('a', _at(160), now: _ms(2000));
+
+    expect(previews.isActive, isTrue);
+    previews.tick(_ms(2100));
+    expect(document.objectBounds('a')!.x, 160);
+  });
+
+  test('a repeated box neither moves the object nor notifies', () {
+    previews.apply('a', _at(100), now: _t0);
+    previews.tick(_ms(100));
+    previews.apply('a', _at(100), now: _ms(200));
+
+    var notified = 0;
+    document.addListener(() => notified++);
+    previews.tick(_ms(220));
+
+    expect(notified, 0);
+  });
+
+  test('the deadline is the sooner of the settle grace and the stale limit',
+      () {
+    expect(previews.nextDeadline, isNull);
+    previews.apply('a', _at(100), now: _t0);
+    expect(previews.nextDeadline, _t0.add(objectPreviewStaleAfter));
+
+    previews.end('a', now: _ms(200));
+    expect(previews.nextDeadline, _ms(200).add(objectPreviewSettleGrace));
+  });
+
+  test('expire puts an abandoned object back and tells the document', () {
+    previews.apply('a', _at(100), now: _t0);
+    previews.tick(_ms(100));
+    var notified = 0;
+    document.addListener(() => notified++);
+
+    expect(previews.expire(_ms(100)), isFalse);
+    expect(notified, 0);
+    expect(previews.expire(_t0.add(objectPreviewStaleAfter * 2)), isTrue);
+    expect(notified, 1);
+    expect(document.objectBounds('a')!.x, 0);
+    expect(previews.nextDeadline, isNull);
+  });
 }

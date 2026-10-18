@@ -204,7 +204,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("canvas: the other client sees your cursor",
          lambda: e2e_canvas_live.remote_cursor_shows(a, b)),
         ("canvas: the other client sees a stroke before you let go",
-         lambda: e2e_canvas_live.stroke_shows_before_release(a, b)),
+         lambda: e2e_canvas_live.stroke_shows_before_release(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
         ("canvas: a pasted image renders, not just a box",
          lambda: e2e_canvas.paste_image_and_hydrate(
              a, b, server, admin, admin.channel_named(L.VOICE_CHANNEL)["id"],

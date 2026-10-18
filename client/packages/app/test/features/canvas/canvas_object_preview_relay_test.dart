@@ -5,7 +5,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:fake_async/fake_async.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_cursor_relay.dart'
     show cursorSendInterval;
@@ -72,45 +72,75 @@ void main() {
     ]);
   });
 
-  test('a remote box eases in over frames rather than jumping', () {
-    fakeAsync((async) {
+  testWidgets('a remote box eases in over frames rather than jumping', (
+    tester,
+  ) async {
+    relay.applyRemote('bob', 'a', _box(100), false);
+    expect(document.objectBounds('a')!.x, 0);
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 48));
+    final midway = document.objectBounds('a')!.x;
+    expect(midway, greaterThan(0));
+    expect(midway, lessThan(100));
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(document.objectBounds('a')!.x, 100);
+    // The give-up timer is still armed; the harness checks before tearDown.
+    relay.dispose();
+  });
+
+  testWidgets(
+    'frames stop once the glide lands, and a held box asks for none',
+    (tester) async {
       relay.applyRemote('bob', 'a', _box(100), false);
-      expect(document.objectBounds('a')!.x, 0);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 16));
 
-      async.elapse(const Duration(milliseconds: 48));
-      final midway = document.objectBounds('a')!.x;
-      expect(midway, greaterThan(0));
-      expect(midway, lessThan(100));
-
-      async.elapse(const Duration(milliseconds: 100));
+      expect(SchedulerBinding.instance.hasScheduledFrame, isFalse);
+      var notified = 0;
+      document.addListener(() => notified++);
+      await tester.pump(const Duration(seconds: 2));
+      expect(notified, 0);
       expect(document.objectBounds('a')!.x, 100);
-    });
+      relay.dispose();
+    },
+  );
+
+  testWidgets('a frozen preview still puts the object back at its deadline', (
+    tester,
+  ) async {
+    relay.applyRemote('bob', 'a', _box(100), false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(document.objectBounds('a')!.x, 100);
+
+    await tester.pump(objectPreviewStaleAfter + const Duration(seconds: 1));
+    expect(document.objectBounds('a')!.x, 0);
   });
 
-  test('the committed move settles the exact final box', () {
-    fakeAsync((async) {
-      relay.applyRemote('bob', 'a', _box(99.5), true);
-      async.elapse(const Duration(milliseconds: 200));
-      relay.settle('a');
-      document.moveObject('a', 100, 0, 10, 10);
+  testWidgets('the committed move settles the exact final box', (tester) async {
+    relay.applyRemote('bob', 'a', _box(99.5), true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    relay.settle('a');
+    document.moveObject('a', 100, 0, 10, 10);
 
-      async.elapse(const Duration(seconds: 10));
-      expect(document.objectBounds('a')!.x, 100);
-    });
+    await tester.pump(const Duration(seconds: 10));
+    expect(document.objectBounds('a')!.x, 100);
   });
 
-  test(
+  testWidgets(
     'own echoes, blocked users and a local drag of the same object are ignored',
-    () {
-      fakeAsync((async) {
-        relay.applyRemote('me', 'a', _box(100), false);
-        relay.applyRemote('blocked', 'a', _box(100), false);
-        dragging = true;
-        relay.applyRemote('bob', 'a', _box(100), false);
-        async.elapse(const Duration(seconds: 1));
+    (tester) async {
+      relay.applyRemote('me', 'a', _box(100), false);
+      relay.applyRemote('blocked', 'a', _box(100), false);
+      dragging = true;
+      relay.applyRemote('bob', 'a', _box(100), false);
+      await tester.pump(const Duration(seconds: 1));
 
-        expect(document.objectBounds('a')!.x, 0);
-      });
+      expect(document.objectBounds('a')!.x, 0);
     },
   );
 }

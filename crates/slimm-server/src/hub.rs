@@ -57,20 +57,20 @@ use moderation_seq::{ModerationClock, is_moderation};
 /// bound a canvas frame is sized against.
 pub(crate) const CHANNEL_CAPACITY: usize = 1024;
 
-/// How many events the ephemeral channel buffers per subscriber before the
-/// slowest one starts losing the oldest.
+/// How many events the ephemeral channel buffers before the slowest
+/// subscriber starts losing the oldest.
 ///
-/// Sized against the two event classes it carries, both rate-limited (see
-/// `crate::ratelimit::Class::CanvasCursor` and `::CanvasStrokePreview`):
-/// `CanvasCursorMoved` sustains at most 15/sec/drawer, and a stroke preview is
-/// metered by bytes rather than count but a well-behaved client flushes on the
-/// order of once per animation frame, so it never dominates. A phone
-/// backgrounded during an active canvas session with, say, 4 other drawers
-/// each cursoring at the full 15/sec rate produces 60 events/sec; 512 gives
-/// that roughly 8.5 seconds of buffer before the *oldest* (never the newest,
-/// see `Class::CanvasCursor`'s own budget) frame is dropped - and dropping
-/// here costs nothing more than a slightly stale cursor, never a resync.
-pub(crate) const EPHEMERAL_CHANNEL_CAPACITY: usize = 512;
+/// Sized against the busiest classes it carries, all rate-limited (see
+/// `crate::ratelimit::Class`): per drawer a cursor sustains 15/sec, an object
+/// preview 15/sec, and a stroke preview is byte-metered but flushed about 20
+/// times a second, so one drawer is up to roughly 50 events/sec. Four drawers
+/// seen by a backgrounded phone is 200/sec; 4096 gives that about 20 seconds
+/// before the oldest frame is dropped, and a stale cursor costs nothing.
+///
+/// A tokio broadcast channel keeps one shared ring of slots, not one per
+/// subscriber, so memory is this many `Event`-sized slots in total, and the
+/// point lists inside are `Arc`-shared.
+pub(crate) const EPHEMERAL_CHANNEL_CAPACITY: usize = 4096;
 
 /// Ceiling on simultaneously open WebSocket connections.
 const MAX_CONNECTIONS: usize = 1024;
