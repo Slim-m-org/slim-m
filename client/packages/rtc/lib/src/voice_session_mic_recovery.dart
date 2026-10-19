@@ -10,6 +10,7 @@ mixin VoiceSessionMicRecovery {
   lk.Room? get _room;
   VoiceSessionState get _state;
   MicPort get _mic;
+  Future<void> _applyInputGate();
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
   CaptureNoiseSuppression get _capture;
@@ -56,11 +57,7 @@ mixin VoiceSessionMicRecovery {
     _micWatchdog = SilentMicWatchdog(
       timing: timing,
       onSilent: () {
-        _logMic(
-          'Microphone is sending silence; restarting the capture',
-          level: LogLevel.warning,
-        );
-        unawaited(_restartMicCapture('silent'));
+        unawaited(_onGateSilent());
       },
       onGaveUp: () {
         _logMic(
@@ -77,6 +74,37 @@ mixin VoiceSessionMicRecovery {
       (_) => _micRecovery.onLost('track ended or unpublished'),
     );
     _micLevels = _gate.readings.listen(_observeGateReading);
+  }
+
+  bool _gateStallLogged = false;
+
+  /// The gate read the floor; the sender's own level decides whether that is
+  /// a dead capture or a gate that is not processing, which a restart cannot cure.
+  Future<void> _onGateSilent() async {
+    double? sent;
+    try {
+      sent = await _mic.senderLevelDb();
+    } on Object {
+      sent = null;
+    }
+    if (sent != null && sent > kInputFloorDb + 1) {
+      if (!_gateStallLogged) {
+        _gateStallLogged = true;
+        _logMic(
+          'The input gate reads silence but the microphone is sending; '
+          'reinstalling the gate instead of restarting the capture',
+          level: LogLevel.warning,
+        );
+      }
+      _micWatchdog.reset();
+      unawaited(_applyInputGate());
+      return;
+    }
+    _logMic(
+      'Microphone is sending silence; restarting the capture',
+      level: LogLevel.warning,
+    );
+    unawaited(_restartMicCapture('silent'));
   }
 
   /// Strong suppression turns a quiet room into near-silence, which read as a

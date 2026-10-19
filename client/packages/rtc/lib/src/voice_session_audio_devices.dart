@@ -26,6 +26,7 @@ mixin VoiceSessionAudioDevices {
   CaptureNoiseSuppression get _capture;
   MicPort get _mic;
   bool get supportsInputGate;
+  Future<void> _applyInputGate();
 
   AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
     HardwareAudioDevices(),
@@ -51,6 +52,8 @@ mixin VoiceSessionAudioDevices {
   /// A new stream starts on the sound server's default; this moves it onto
   /// the pick, now and again once playback has had a moment to open.
   void _followPreferredDevices() {
+    // A reopened capture has no gate or suppressor on it until they are sent again.
+    unawaited(_applyInputGate());
     Future<void> apply() =>
         _audioSwitching.applyServerRouting().catchError(ignoreError(
             LogTag.voice,
