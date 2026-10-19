@@ -16,6 +16,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'canvas_board.dart';
 import 'canvas_external_pointers.dart';
 import 'canvas_scene.dart';
 import 'canvas_snap.dart';
@@ -65,6 +66,8 @@ class CanvasDocument extends ChangeNotifier {
 
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
+  ui.Rect? _board;
+  bool _atFit = true;
 
   /// True for exactly as long as [setCamera] is actively pinning the camera
   /// to `worldLimit` - the only feedback a person gets that panning or
@@ -458,16 +461,74 @@ class CanvasDocument extends ChangeNotifier {
   /// not changed.
   void setCamera(Camera next) {
     final clamped = _clamp(next);
-    worldEdgeHit.value = clamped.x != next.x || clamped.y != next.y;
+    final board = _board;
+    worldEdgeHit.value =
+        board == null && (clamped.x != next.x || clamped.y != next.y);
+    if (board != null) {
+      _atFit = clamped.zoom <= boardFitZoom(board, _viewport) + 1e-9;
+    }
     if (clamped == _camera) return;
     _camera = clamped;
     _reculled();
   }
 
+  /// Fixes the shared board: the camera then never leaves it and opens fitted.
+  /// Null lifts the constraint.
+  void setBoard(ui.Rect? board) {
+    if (board == _board) return;
+    _board = board;
+    _atFit = true;
+    _camera =
+        board == null ? _clamp(_camera) : boardFitCamera(board, _viewport);
+    _reculled();
+  }
+
+  ui.Rect? get board => _board;
+
+  /// Whether [world] may start a new mark: always without a board, else inside it.
+  bool acceptsPlacementAt(ui.Offset world) =>
+      _board == null || _board!.contains(world);
+
+  /// [world] pulled inside the board, so ink dragged past its edge stays on it.
+  ui.Offset clampToBoard(ui.Offset world) {
+    final board = _board;
+    if (board == null) return world;
+    return ui.Offset(
+      world.dx.clamp(board.left, board.right).toDouble(),
+      world.dy.clamp(board.top, board.bottom).toDouble(),
+    );
+  }
+
+  /// Whether the whole board is in view, as opposed to a temporary zoom.
+  bool get isFitted => _board != null && _atFit;
+
+  /// Brings the whole board back into view.
+  void fitBoard() {
+    final board = _board;
+    if (board != null) setCamera(boardFitCamera(board, _viewport));
+  }
+
+  /// The part of the board in view, or null when no board is set.
+  ui.Rect? get visibleBoard {
+    final board = _board;
+    return board == null ? null : visibleBoardPart(worldView, board);
+  }
+
+  /// Shows [view] (a board rectangle) fitted to this viewport's own aspect.
+  void showBoardView(ui.Rect view) {
+    final board = _board;
+    if (board != null) setCamera(cameraForBoardView(view, board, _viewport));
+  }
+
   void setViewport(Size size) {
     if (size == _viewport) return;
     _viewport = size;
-    _camera = _clamp(_camera);
+    final board = _board;
+    _camera =
+        board != null && _atFit ? boardFitCamera(board, size) : _clamp(_camera);
+    if (board != null) {
+      _atFit = _camera.zoom <= boardFitZoom(board, size) + 1e-9;
+    }
     _reculled();
   }
 
@@ -480,6 +541,8 @@ class CanvasDocument extends ChangeNotifier {
       );
 
   Camera _clamp(Camera next) {
+    final board = _board;
+    if (board != null) return clampCameraToBoard(next, board, _viewport);
     final zoom = next.zoom.clamp(minZoom, maxZoom);
     final w = _viewport.width / zoom;
     final h = _viewport.height / zoom;

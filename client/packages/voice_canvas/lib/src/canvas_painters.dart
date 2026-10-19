@@ -39,14 +39,48 @@ part 'canvas_painters_shapes.dart';
 /// The background lattice, at a spacing quantised to the zoom so the mesh
 /// keeps roughly the same density on screen at any scale.
 class GridPainter extends CustomPainter {
-  GridPainter({required this.document, required this.line})
+  GridPainter({required this.document, required this.line, this.letterbox})
       : super(repaint: document);
 
   final CanvasDocument document;
   final Color line;
 
+  /// The tint outside the shared board; null leaves it unframed.
+  final Color? letterbox;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final board = document.board;
+    if (board == null || letterbox == null) return _paintLattice(canvas, size);
+    final camera = document.camera;
+    final frame = Rect.fromLTWH(
+      (board.left - camera.x) * camera.zoom,
+      (board.top - camera.y) * camera.zoom,
+      board.width * camera.zoom,
+      board.height * camera.zoom,
+    );
+    canvas
+      ..save()
+      ..clipRect(frame);
+    _paintLattice(canvas, size);
+    canvas.restore();
+    canvas.drawPath(
+      Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(Offset.zero & size)
+        ..addRect(frame),
+      Paint()..color = letterbox!,
+    );
+    canvas.drawRect(
+      frame,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  void _paintLattice(Canvas canvas, Size size) {
     final zoom = document.camera.zoom;
     final spacing = gridSpacingFor(zoom);
 

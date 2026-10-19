@@ -66,7 +66,16 @@ typedef DraftPointAdded = void Function(Offset worldPoint);
 /// (erase, move, resize), added once this canvas grew objects worth acting
 /// on, and are additional to the three named tools rather than a fourth and
 /// fifth placement choice.
-enum CanvasTool { pan, pen, note, shape, eraser }
+enum CanvasTool {
+  pan,
+  pen,
+  note,
+  shape,
+  eraser;
+
+  /// Whether a press starts a new mark, as opposed to selecting or erasing.
+  bool get placesInk => this == pen || this == note || this == shape;
+}
 
 /// The canvas itself.
 ///
@@ -107,6 +116,7 @@ class CanvasSurface extends StatefulWidget {
     this.selectionOutline,
     this.selectionHandleFill,
     this.selectionHandleBorder,
+    this.touchHandles = false,
     this.noteColor,
     this.shapeColor,
     this.noteTextInk = const Color(0xFF1A1A1A),
@@ -136,6 +146,9 @@ class CanvasSurface extends StatefulWidget {
   final Color? selectionOutline;
   final Color? selectionHandleFill;
   final Color? selectionHandleBorder;
+
+  /// Draws selection handles at the touch size.
+  final bool touchHandles;
 
   /// The muted fill and glyph colour for an image whose bytes could not be
   /// fetched or decoded. See [StrokePainter]'s own doc for why this draws
@@ -373,6 +386,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
           handleFill: widget.selectionHandleFill ?? widget.selectionOutline!,
           handleBorder:
               widget.selectionHandleBorder ?? widget.selectionOutline!,
+          touchHandles: widget.touchHandles,
         );
 
   int _pointers = 0;

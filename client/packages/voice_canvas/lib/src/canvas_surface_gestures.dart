@@ -77,6 +77,10 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       return;
     }
     if (!widget.enabled) return;
+    if (widget.tool.placesInk &&
+        !widget.document.acceptsPlacementAt(_toWorld(event.localPosition))) {
+      return;
+    }
     switch (widget.tool) {
       case CanvasTool.eraser:
         _pendingErasePoint = _toWorld(event.localPosition);
@@ -183,7 +187,11 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         widget.onDraftEnded?.call();
         // A single point still commits: it paints as a dot, not nothing.
         if (screen.length < 2 && !wasAlone) return;
-        widget.onStroke(screen.map(_toWorld).toList(growable: false));
+        widget.onStroke(
+          screen
+              .map((p) => widget.document.clampToBoard(_toWorld(p)))
+              .toList(growable: false),
+        );
     }
   }
 
