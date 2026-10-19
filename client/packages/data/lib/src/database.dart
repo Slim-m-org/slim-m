@@ -289,58 +289,83 @@ class SlimmDatabase extends _$SlimmDatabase {
   @override
   int get schemaVersion => 24;
 
+  /// An older build that opens this cache stamps its own lower version on it
+  /// and keeps the newer columns, so the next upgrade meets columns it already has.
+  Future<void> _addColumnOnce(
+    Migrator m,
+    TableInfo<Table, Object?> table,
+    GeneratedColumn column,
+  ) async {
+    final existing = await customSelect(
+      'SELECT name FROM pragma_table_info(?)',
+      variables: [Variable.withString(table.actualTableName)],
+    ).get();
+    if (existing.any((row) => row.read<String>('name') == column.name)) return;
+    await m.addColumn(table, column);
+  }
+
   /// Each step runs when the upgrade starts below its version (and at or
   /// above [_UpgradeStep.minFrom]); order matters, a step may rely on earlier ones.
   List<_UpgradeStep> _upgradeSteps(Migrator m) => [
         _UpgradeStep(
-            2, () => m.addColumn(messages, messages.authorDisplayName)),
+            2, () => _addColumnOnce(m, messages, messages.authorDisplayName)),
         // Channels are refetched whole on every sync, so this column can be
         // added in place. See the doc comment above.
-        _UpgradeStep(4, () => m.addColumn(channels, channels.topic)),
-        _UpgradeStep(5, () => m.addColumn(channels, channels.isPersonalSpace)),
-        _UpgradeStep(6, () => m.addColumn(channels, channels.dmParticipantId)),
-        _UpgradeStep(7, () => m.addColumn(channels, channels.opCursor)),
-        _UpgradeStep(8, () => m.addColumn(channels, channels.position)),
-        _UpgradeStep(9, () => m.addColumn(messages, messages.replyToId)),
-        _UpgradeStep(10, () => m.addColumn(channels, channels.parentMessageId)),
-        _UpgradeStep(11, () => m.addColumn(messages, messages.failureReason)),
+        _UpgradeStep(4, () => _addColumnOnce(m, channels, channels.topic)),
+        _UpgradeStep(
+            5, () => _addColumnOnce(m, channels, channels.isPersonalSpace)),
+        _UpgradeStep(
+            6, () => _addColumnOnce(m, channels, channels.dmParticipantId)),
+        _UpgradeStep(7, () => _addColumnOnce(m, channels, channels.opCursor)),
+        _UpgradeStep(8, () => _addColumnOnce(m, channels, channels.position)),
+        _UpgradeStep(9, () => _addColumnOnce(m, messages, messages.replyToId)),
+        _UpgradeStep(
+            10, () => _addColumnOnce(m, channels, channels.parentMessageId)),
+        _UpgradeStep(
+            11, () => _addColumnOnce(m, messages, messages.failureReason)),
         _UpgradeStep(12, () async {
-          await m.addColumn(channels, channels.categoryId);
+          await _addColumnOnce(m, channels, channels.categoryId);
           await m.createTable(channelCategories);
         }),
         _UpgradeStep(13, () async {
-          await m.addColumn(messages, messages.forwardedMessageId);
-          await m.addColumn(messages, messages.forwardedChannelId);
-          await m.addColumn(messages, messages.forwardedAuthorId);
-          await m.addColumn(messages, messages.forwardedAuthorDisplayName);
-          await m.addColumn(messages, messages.forwardedAuthorAvatarUpdatedAt);
-          await m.addColumn(messages, messages.forwardedCreatedAt);
-          await m.addColumn(messages, messages.forwardedContent);
+          await _addColumnOnce(m, messages, messages.forwardedMessageId);
+          await _addColumnOnce(m, messages, messages.forwardedChannelId);
+          await _addColumnOnce(m, messages, messages.forwardedAuthorId);
+          await _addColumnOnce(
+              m, messages, messages.forwardedAuthorDisplayName);
+          await _addColumnOnce(
+              m, messages, messages.forwardedAuthorAvatarUpdatedAt);
+          await _addColumnOnce(m, messages, messages.forwardedCreatedAt);
+          await _addColumnOnce(m, messages, messages.forwardedContent);
         }),
-        _UpgradeStep(14, () => m.addColumn(channels, channels.mentionedSeq)),
-        _UpgradeStep(15, () => m.addColumn(channels, channels.slowModeSeconds)),
-        _UpgradeStep(16, () => m.addColumn(channels, channels.restricted)),
-        _UpgradeStep(17, () => m.addColumn(channels, channels.manuallyUnread)),
-        _UpgradeStep(18, () => m.createTable(channelDrafts)),
-        _UpgradeStep(19, () => m.addColumn(channels, channels.joinMuted)),
         _UpgradeStep(
-            20, () => m.addColumn(messages, messages.forwardedRemoved)),
+            14, () => _addColumnOnce(m, channels, channels.mentionedSeq)),
+        _UpgradeStep(
+            15, () => _addColumnOnce(m, channels, channels.slowModeSeconds)),
+        _UpgradeStep(
+            16, () => _addColumnOnce(m, channels, channels.restricted)),
+        _UpgradeStep(
+            17, () => _addColumnOnce(m, channels, channels.manuallyUnread)),
+        _UpgradeStep(18, () => m.createTable(channelDrafts)),
+        _UpgradeStep(19, () => _addColumnOnce(m, channels, channels.joinMuted)),
+        _UpgradeStep(
+            20, () => _addColumnOnce(m, messages, messages.forwardedRemoved)),
         _UpgradeStep(21, () => m.createTable(pendingAttachments)),
         _UpgradeStep(22, () async {
-          await m.addColumn(channels, channels.createsRooms);
-          await m.addColumn(channels, channels.userLimit);
-          await m.addColumn(channels, channels.roomOwnerId);
-          await m.addColumn(channels, channels.roomLocked);
+          await _addColumnOnce(m, channels, channels.createsRooms);
+          await _addColumnOnce(m, channels, channels.userLimit);
+          await _addColumnOnce(m, channels, channels.roomOwnerId);
+          await _addColumnOnce(m, channels, channels.roomLocked);
         }),
         // A table made by the v21 step above already has the column.
         _UpgradeStep(
           23,
           minFrom: 21,
-          () =>
-              m.addColumn(pendingAttachments, pendingAttachments.mentionReply),
+          () => _addColumnOnce(
+              m, pendingAttachments, pendingAttachments.mentionReply),
         ),
-        _UpgradeStep(
-            24, () => m.addColumn(channels, channels.defaultNotification)),
+        _UpgradeStep(24,
+            () => _addColumnOnce(m, channels, channels.defaultNotification)),
         // v2's null display names and the pre-op-stream epoch are both
         // unreachable by a keyset sync. See the doc comment above.
         _UpgradeStep(7, () async {
