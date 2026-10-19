@@ -42,16 +42,21 @@ List<BotCallGroup> botCallGroups(
       BotCallGroup(bot: bot, controls: bot.callControls),
 ];
 
-/// [channelId]'s bot controls for every dock a call shows in, or null when no
-/// bot on the call offers any.
-Widget? botCallControlsFor(WidgetRef ref, String channelId) {
+/// The bots on [channelId]'s call that offer controls, live.
+List<BotCallGroup> botCallGroupsFor(WidgetRef ref, String channelId) {
   final participants = ref.watch(
     voiceControllerProvider.select((voice) => voice.participants),
   );
-  final groups = botCallGroups(
+  return botCallGroups(
     ref.watch(channelBotUiProvider(channelId)).valueOrNull ?? const [],
     {for (final p in participants) p.identity},
   );
+}
+
+/// [channelId]'s bot controls for every dock a call shows in, or null when no
+/// bot on the call offers any.
+Widget? botCallControlsFor(WidgetRef ref, String channelId) {
+  final groups = botCallGroupsFor(ref, channelId);
   if (groups.isEmpty) return null;
   return BotCallControls(channelId: channelId, groups: groups);
 }

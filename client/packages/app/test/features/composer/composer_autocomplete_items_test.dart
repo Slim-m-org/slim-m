@@ -278,4 +278,43 @@ void main() {
       expect(rows.map((r) => r.label), ['~stop']);
     });
   });
+
+  group('mention matching by display name', () {
+    List<String> labels(String term, List<api.UserProfile> roster) =>
+        autocompleteSuggestions(
+          query: _q(AutocompleteKind.mention, term),
+          custom: const [],
+          members: roster,
+        ).map((r) => r.insert).toList();
+
+    test('a display name prefix beats usernames that merely contain it', () {
+      final roster = [
+        for (var i = 0; i < 9; i++) _member('u-$i', 'a${i}ki', 'Person $i'),
+        _member('u-kiki', 'moderningot', 'Kiki'),
+      ];
+      expect(labels('ki', roster).first, '@moderningot ');
+    });
+
+    test('exact outranks prefix', () {
+      final roster = [
+        _member('u-1', 'kikiwi', 'Kikiwi'),
+        _member('u-2', 'kiki', 'Other'),
+      ];
+      expect(labels('kiki', roster), ['@kiki ', '@kikiwi ']);
+    });
+
+    test('ignores case and accents', () {
+      final roster = [_member('u-1', 'jo', 'José')];
+      expect(labels('jose', roster), ['@jo ']);
+      expect(labels('JOSÉ', roster.map((m) => m).toList()), ['@jo ']);
+    });
+
+    test('matches the start of a later word in a multi-word name', () {
+      final roster = [
+        _member('u-1', 'zed', 'Big Kiki'),
+        _member('u-2', 'ski', 'Nobody'),
+      ];
+      expect(labels('ki', roster), ['@zed ', '@ski ']);
+    });
+  });
 }

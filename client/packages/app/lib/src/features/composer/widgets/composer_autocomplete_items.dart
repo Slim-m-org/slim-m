@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../modules/module_detail.dart';
 import 'composer_autocomplete_query.dart';
+import 'mention_match.dart';
 import '../../emoji/widgets/emoji_catalog.dart';
 
 /// Most rows to offer at once.
@@ -187,18 +188,22 @@ List<api.UserProfile> _memberCandidates(
   List<api.UserProfile> members,
   String? selfId,
 ) {
-  final candidates = members.where((m) => m.id != selfId).where((m) {
-    if (term.isEmpty) return true;
-    return m.username.toLowerCase().contains(term) ||
-        m.displayName.toLowerCase().contains(term);
-  }).toList();
-
-  candidates.sort((a, b) {
-    final aStarts = a.username.toLowerCase().startsWith(term);
-    final bStarts = b.username.toLowerCase().startsWith(term);
-    if (aStarts != bStarts) return aStarts ? -1 : 1;
-    return a.username.toLowerCase().compareTo(b.username.toLowerCase());
-  });
+  final ranked =
+      <(int, api.UserProfile)>[
+        for (final m in members)
+          if (m.id != selfId)
+            if (mentionRank(term, m) case final rank?) (rank, m),
+      ]..sort((a, b) {
+        if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
+        final byName = foldForMatch(
+          a.$2.displayName,
+        ).compareTo(foldForMatch(b.$2.displayName));
+        if (byName != 0) return byName;
+        return a.$2.username.toLowerCase().compareTo(
+          b.$2.username.toLowerCase(),
+        );
+      });
+  final candidates = [for (final (_, m) in ranked) m];
   return candidates;
 }
 
