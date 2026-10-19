@@ -37,6 +37,7 @@ pub use self::canvas_geometry::{
 pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
 
 pub(super) mod canvas_audit;
+pub(super) mod canvas_edit;
 pub(super) mod canvas_geometry;
 pub(super) mod canvas_media_slots;
 pub(super) mod canvas_move;

@@ -89,6 +89,10 @@ enum CanvasOpBodyDto {
         object_id: String,
         z_index: i64,
     },
+    Edit {
+        object_id: String,
+        props: serde_json::Value,
+    },
 }
 
 impl CanvasOpDto {
@@ -148,6 +152,10 @@ impl CanvasOpDto {
             CanvasOpBody::Reorder { object_id, z_index } => CanvasOpBodyDto::Reorder {
                 object_id: object_id.to_string(),
                 z_index,
+            },
+            CanvasOpBody::Edit { object_id, props } => CanvasOpBodyDto::Edit {
+                object_id: object_id.to_string(),
+                props: serde_json::from_str(&props).unwrap_or(serde_json::Value::Null),
             },
         };
         Self {

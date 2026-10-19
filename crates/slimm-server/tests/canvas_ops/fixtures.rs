@@ -151,6 +151,18 @@ pub(crate) fn move_op(id: &str, object_id: &str, bounds: (f64, f64, f64, f64)) -
     json!({ "id": id, "kind": "move", "object_id": object_id, "x": x, "y": y, "w": w, "h": h })
 }
 
+pub(crate) fn note(id: &str, text: &str) -> Value {
+    json!({
+        "id": id, "kind": "note",
+        "x": 10.0, "y": 20.0, "w": 220.0, "h": 140.0,
+        "props": { "text": text, "color": "annotation" },
+    })
+}
+
+pub(crate) fn edit_op(id: &str, object_id: &str, props: Value) -> Value {
+    json!({ "id": id, "kind": "edit", "object_id": object_id, "props": props })
+}
+
 pub(crate) fn reorder_op(id: &str, object_id: &str, z_index: i64) -> Value {
     json!({ "id": id, "kind": "reorder", "object_id": object_id, "z_index": z_index })
 }

@@ -22,6 +22,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. } => Some(Permissions::USE_CANVAS),
         Event::MessageCreated { .. }

@@ -147,6 +147,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. }
         | Event::SessionRevoked(_)
@@ -244,6 +245,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CanvasObjectsRestored { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. }
         | Event::SessionRevoked(_)

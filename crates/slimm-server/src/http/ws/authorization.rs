@@ -436,6 +436,7 @@ async fn channel_frame(
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::to_frame"),
         // The deployment-wide and channel-deletion cases already returned above.

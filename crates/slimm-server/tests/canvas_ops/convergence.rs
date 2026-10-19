@@ -65,7 +65,7 @@ async fn replay_log(store: &Store, channel: ChannelId) -> HashMap<CanvasObjectId
                     }
                 }
                 // Reorder moves z_index only, which this reducer does not model; see its doc.
-                CanvasOpBody::Reorder { .. } => {}
+                CanvasOpBody::Reorder { .. } | CanvasOpBody::Edit { .. } => {}
             }
         }
         if page.has_more {

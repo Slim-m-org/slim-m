@@ -219,7 +219,9 @@ async fn replay_surviving_log(store: &Store, channel: ChannelId) -> HashSet<Canv
                         dead.remove(id);
                     }
                 }
-                CanvasOpBody::Move { .. } | CanvasOpBody::Reorder { .. } => {}
+                CanvasOpBody::Move { .. }
+                | CanvasOpBody::Reorder { .. }
+                | CanvasOpBody::Edit { .. } => {}
             }
         }
         if page.has_more {

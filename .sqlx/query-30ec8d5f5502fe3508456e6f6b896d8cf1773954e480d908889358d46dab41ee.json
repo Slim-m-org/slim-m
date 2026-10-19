@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(created_at) AS \"max: i64\" FROM canvas_ops\n                       WHERE kind IN ('place', 'remove', 'clear', 'restore', 'move', 'reorder', 'edit')",
+  "describe": {
+    "columns": [
+      {
+        "name": "max: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "30ec8d5f5502fe3508456e6f6b896d8cf1773954e480d908889358d46dab41ee"
+}

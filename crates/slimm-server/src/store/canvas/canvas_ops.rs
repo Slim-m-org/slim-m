@@ -103,6 +103,10 @@ pub enum CanvasOpBody {
         object_id: CanvasObjectId,
         z_index: i64,
     },
+    Edit {
+        object_id: CanvasObjectId,
+        props: String,
+    },
 }
 
 /// Writes the op row a placement produces, under the `seq` the object itself
@@ -192,7 +196,7 @@ impl Store {
                       o.target_op AS "target_op: CanvasOpId", o.created_at AS "created_at!: i64",
                       o.move_x AS "move_x: f64", o.move_y AS "move_y: f64",
                       o.move_w AS "move_w: f64", o.move_h AS "move_h: f64",
-                      o.reorder_z AS "reorder_z: i64",
+                      o.reorder_z AS "reorder_z: i64", o.edit_props AS "edit_props: String",
                       obj.id AS "obj_id?: CanvasObjectId", obj.kind AS "obj_kind?: String",
                       obj.z_index AS "obj_z_index?: i64", obj.x AS "obj_x?: f64",
                       obj.y AS "obj_y?: f64", obj.w AS "obj_w?: f64", obj.h AS "obj_h?: f64",
@@ -349,7 +353,21 @@ impl Store {
                                 .context("canvas_op_reorder_z guarantees this")?,
                         }
                     }
-                    other => anyhow::bail!("canvas_op_kind admits only 6 kinds, got {other}"),
+                    "edit" => {
+                        let object_id = targets_by_seq
+                            .get(&row.seq)
+                            .and_then(|ids| ids.first())
+                            .copied()
+                            .context("an edit op always writes its own target row")?;
+                        CanvasOpBody::Edit {
+                            object_id,
+                            props: row
+                                .edit_props
+                                .clone()
+                                .context("canvas_op_edit_props guarantees this")?,
+                        }
+                    }
+                    other => anyhow::bail!("canvas_op_kind admits only 7 kinds, got {other}"),
                 };
                 Ok(CanvasOpEntry {
                     seq: row.seq,
