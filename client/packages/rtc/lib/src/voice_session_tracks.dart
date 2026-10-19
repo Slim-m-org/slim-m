@@ -207,6 +207,7 @@ extension VoiceSessionTracks on VoiceSession {
     if (_state == next || _disposed) return;
     _state = next;
     _syncMicWatch(next);
+    _syncHealthWatch(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_applyInputGate());
       _gate.start(_refreshParticipants);

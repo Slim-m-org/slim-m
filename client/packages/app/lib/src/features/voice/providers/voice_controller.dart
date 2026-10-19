@@ -438,6 +438,9 @@ class VoiceController extends StateNotifier<VoiceState>
   @override
   bool get supportsScreenShareAudio => _session.supportsScreenShareAudio;
 
+  /// Per-person audio quality and the last call's summary.
+  VoiceHealth get health => _session.health;
+
   /// Live per-track video numbers; sampled only while something listens.
   CallStatsSampler get callStats => _session.callStats;
 

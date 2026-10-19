@@ -93,9 +93,13 @@ class CallParticipantTile extends StatelessWidget {
     this.onExpand,
     this.width = kCallTileMinWidth,
     this.contextMenuItemsBuilder,
+    this.poorConnection = false,
   });
 
   final VoiceParticipant participant;
+
+  /// Whether this person's audio is breaking up; the tile then says so quietly.
+  final bool poorConnection;
 
   /// How wide this tile renders, video box and avatar included - the name
   /// label and mute badge stay their own fixed size regardless. Callers
@@ -134,6 +138,7 @@ class CallParticipantTile extends StatelessWidget {
       participant.isLocal ? '${participant.name}, you' : participant.name,
       participant.isMuted ? 'muted' : 'microphone on',
       if (participant.isDeafened) 'deafened',
+      if (poorConnection) _poorLabel(participant),
       if (participant.isSpeaking) 'speaking',
       if (participant.isScreenSharing) 'sharing their screen',
     ];
@@ -199,6 +204,12 @@ class CallParticipantTile extends StatelessWidget {
           bottom: AppSpacing.s12,
           child: label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
         ),
+        if (poorConnection)
+          Positioned(
+            left: AppSpacing.s8,
+            top: AppSpacing.s8,
+            child: _PoorConnectionBadge(participant: participant),
+          ),
         // Top corner, so the name keeps the tile's whole width and its "(you)".
         Positioned(
           right: AppSpacing.s8,
@@ -266,6 +277,40 @@ class CallParticipantTile extends StatelessWidget {
   }
 }
 
+String _poorLabel(VoiceParticipant p) =>
+    p.isLocal ? 'your connection is unstable' : 'connection is unstable';
+
+/// Top-left, away from the state badges, so a tile that has several never covers its avatar.
+class _PoorConnectionBadge extends StatelessWidget {
+  const _PoorConnectionBadge({required this.participant});
+
+  final VoiceParticipant participant;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Tooltip(
+      message: _poorLabel(participant),
+      child: Container(
+        width: 22,
+        height: 22,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: tokens.surfaceRaised,
+          shape: BoxShape.circle,
+          border: Border.all(color: tokens.borderSubtle),
+        ),
+        child: Icon(
+          AppIcons.connectionPoor,
+          key: poorConnectionBadgeKey,
+          size: 12,
+          color: tokens.warnText,
+        ),
+      ),
+    );
+  }
+}
+
 class _StateBadge extends StatelessWidget {
   const _StateBadge({required this.participant});
 
@@ -314,6 +359,9 @@ class _StateBadge extends StatelessWidget {
     child: icon,
   );
 }
+
+/// The unstable-connection glyph on a call tile, for tests to find.
+const poorConnectionBadgeKey = ValueKey('participant-poor-connection-badge');
 
 /// The deafened glyph on a call tile, for tests to find.
 const deafenedBadgeKey = ValueKey('participant-deafened-badge');
