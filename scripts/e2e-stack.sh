@@ -19,6 +19,7 @@
 #   E2E_API_PORT [8095]   the server
 #   E2E_WEB_PORT [8356]   the static web build
 #   E2E_LK_PORT [7880]    LiveKit's HTTP/WebSocket port on the host
+#   E2E_WEB_DIR           serve this prebuilt web bundle instead of the tree's own
 #   E2E_REBUILD           set to rebuild the web client even if one exists
 #   E2E_PASSWORD          pin the seeded accounts' password (default: random)
 set -euo pipefail
@@ -110,7 +111,7 @@ start_server() {
 
 serve_web() {
   echo "== web build =="
-  local web_dir="$ROOT/client/packages/app/build/web"
+  local web_dir="${E2E_WEB_DIR:-$ROOT/client/packages/app/build/web}"
   # The two gitignored binaries drift needs at runtime; absent, no local database.
   bash "$ROOT/client/packages/app/tool/fetch_web_assets.sh"
   if [[ ! -f "$web_dir/main.dart.js" || -n "${E2E_REBUILD:-}" ]]; then
