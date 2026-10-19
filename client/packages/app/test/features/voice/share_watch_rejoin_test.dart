@@ -7,7 +7,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/share_watch.dart';
-import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
