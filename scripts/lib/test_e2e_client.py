@@ -64,3 +64,36 @@ class EvTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BootClient(e2e_client.Client):
+    def __init__(self, boots_after_reload):
+        super().__init__("t", 0)
+        self.boots_after_reload = boots_after_reload
+        self.reloaded = False
+        self.shots = []
+
+    def send(self, method, params=None):
+        if method == "Page.reload":
+            self.reloaded = True
+        return {}
+
+    def ev(self, expr):
+        return self.reloaded and self.boots_after_reload
+
+    def shot(self, tag):
+        self.shots.append(tag)
+
+
+class WaitForBootTest(unittest.TestCase):
+    def test_a_page_that_never_booted_is_reloaded_once_and_then_boots(self):
+        client = BootClient(boots_after_reload=True)
+        client._wait_for_boot(timeout=4)
+        self.assertTrue(client.reloaded)
+        self.assertEqual(client.shots, [])
+
+    def test_a_page_that_still_does_not_boot_leaves_a_shot_and_fails(self):
+        client = BootClient(boots_after_reload=False)
+        with self.assertRaisesRegex(AssertionError, "never booted"):
+            client._wait_for_boot(timeout=2)
+        self.assertEqual(client.shots, ["app-never-booted"])
