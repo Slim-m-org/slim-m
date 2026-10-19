@@ -19,7 +19,7 @@ import time
 
 import desktop_audio as da
 import e2e_api
-import e2e_audio
+import e2e_labels as L
 import e2e_netem
 import e2e_xp as xp
 import make_noise_bed
@@ -110,6 +110,7 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
     inputs = {**paths, "spans": spans, "events": events}
     xp.e2e_browsers.register(server, admin_api, USER, secret)
     tokens = _tokens(server, secret)
+    channel = admin_api.channel_named(L.VOICE_CHANNEL)["id"]
     wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", ",".join(ARMS)).split(",") if a]
     owner_before = da.default_devices()
     results = {}
@@ -117,7 +118,7 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
             da.virtual_mic(paths["mix"]):
         with xp.one_listener(server, secret, admin_api, sign_in, paths["clean"]) as listener:
             for name in wanted:
-                results[name] = _arm(name, listener, inputs, server, tokens, room_id,
+                results[name] = _arm(name, listener, inputs, server, tokens, channel,
                                      compositor, directory, bundle)
     assert da.default_devices() == owner_before, "the owner's default audio devices changed"
     with open(os.path.join(directory, "desktop.json"), "w") as fh:
