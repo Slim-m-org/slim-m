@@ -362,7 +362,7 @@ String _describeTrendingFailure(Object? error) => error is api.ApiException
     ? describeApiFailure('load trending gifs', error)
     : 'Could not load trending gifs.';
 
-class _GifTile extends ConsumerWidget {
+class _GifTile extends ConsumerStatefulWidget {
   const _GifTile({
     required this.result,
     required this.busy,
@@ -379,44 +379,71 @@ class _GifTile extends ConsumerWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GifTile> createState() => _GifTileState();
+}
+
+class _GifTileState extends ConsumerState<_GifTile> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final result = widget.result;
     final preview = ref.watch(gifPreviewBytesProvider(result.id));
+    // Keyboard focus only: a tap focuses too, and a ring on every tap would flash.
+    final ringed =
+        _focused &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
     return Semantics(
       button: true,
       label: result.title.isEmpty ? 'Pick a GIF' : 'Pick: ${result.title}',
       child: InkWell(
-        onTap: busy ? null : onTap,
+        onTap: widget.busy ? null : widget.onTap,
+        onFocusChange: (focused) => setState(() => _focused = focused),
         borderRadius: BorderRadius.circular(AppRadii.control),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.control),
-          child: ColoredBox(
-            color: tokens.surfaceBase,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                switch (preview) {
-                  AsyncData(value: final Uint8List bytes) => AnimationGate(
-                    child: Image.memory(
-                      bytes,
-                      fit: BoxFit.cover,
-                      cacheWidth: decodeEdge(context, 160),
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                    ),
+        child: Container(
+          key: ringed ? const ValueKey('gif-tile-focus-ring') : null,
+          foregroundDecoration: ringed
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadii.control),
+                  border: Border.all(
+                    color: tokens.focusRing,
+                    width: focusRingWidth,
                   ),
-                  AsyncError() => const SizedBox.shrink(),
-                  _ => const Center(child: AppSpinner(size: AppSpinnerSize.sm)),
-                },
-                if (selecting)
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceBase.withValues(alpha: 0.65),
+                )
+              : null,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            child: ColoredBox(
+              color: tokens.surfaceBase,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  switch (preview) {
+                    AsyncData(value: final Uint8List bytes) => AnimationGate(
+                      child: Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        cacheWidth: decodeEdge(context, 160),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                      ),
                     ),
-                    child: const Center(
-                      child: AppSpinner(size: AppSpinnerSize.md),
+                    AsyncError() => const SizedBox.shrink(),
+                    _ => const Center(
+                      child: AppSpinner(size: AppSpinnerSize.sm),
                     ),
-                  ),
-              ],
+                  },
+                  if (widget.selecting)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceBase.withValues(alpha: 0.65),
+                      ),
+                      child: const Center(
+                        child: AppSpinner(size: AppSpinnerSize.md),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
