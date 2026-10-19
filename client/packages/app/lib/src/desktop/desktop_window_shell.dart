@@ -15,6 +15,8 @@
 /// frame that record originally described.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
@@ -448,8 +450,14 @@ class DesktopWindowShell {
   /// natively, in `my_application.cc`'s own early return, before this ran.
   static Future<void> _onSecondInstanceCall(MethodCall call) async {
     if (call.method != 'focus') return;
+    _secondLaunches.add(null);
     await raise();
   }
+
+  static final _secondLaunches = StreamController<void>.broadcast();
+
+  /// Fires each time another launch hands over to this running instance.
+  static Stream<void> get secondLaunches => _secondLaunches.stream;
 
   /// Brings the window forward for a notification click or a second launch.
   static Future<void> raise() async {

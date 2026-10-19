@@ -52,6 +52,8 @@ Future<void> installWindowsUpdate({
   required InstallFormat format,
   required WindowsInstallLayout? layout,
   Unpack unpack = unpackZip,
+  RenameDirectory rename = renameDirectoryOnce,
+  List<Duration> backoff = renameBackoff,
 }) async {
   if (format != InstallFormat.tarball || layout == null || !layout.isWritable) {
     throw const SelfUpdateFailure(
@@ -61,7 +63,7 @@ Future<void> installWindowsUpdate({
     );
   }
   try {
-    await _publishVersion(update, layout, unpack);
+    await _publishVersion(update, layout, unpack, rename, backoff);
     final before = layout.pointedVersion(LayoutNames.current);
     if (before != null && before != update.version) {
       writeWindowsPointer(layout, LayoutNames.previous, before);
@@ -83,6 +85,8 @@ Future<void> _publishVersion(
   VerifiedUpdate update,
   WindowsInstallLayout layout,
   Unpack unpack,
+  RenameDirectory rename,
+  List<Duration> backoff,
 ) async {
   final target = layout.versionDir(update.version);
   if (isWindowsVersionComplete(target)) return;
@@ -99,7 +103,12 @@ Future<void> _publishVersion(
       );
     }
     safeDelete(target);
-    await scratch.rename(target.path);
+    await renameDirectoryWithRetry(
+      scratch,
+      target.path,
+      rename: rename,
+      backoff: backoff,
+    );
   } catch (_) {
     safeDelete(scratch);
     rethrow;

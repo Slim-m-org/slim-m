@@ -4,6 +4,8 @@
 /// cannot fetch.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../update_check.dart' show isNewer;
 import 'update_manifest.dart' show isPlainVersion;
 
@@ -61,4 +63,31 @@ bool _hasSignedManifest(Object? assets) {
       if (asset is Map<String, dynamic>) asset['name'],
   };
   return names.contains('manifest.json') && names.contains('manifest.json.sig');
+}
+
+/// How long a release found by the check may stand in for a second lookup.
+const recentReleaseMaxAge = Duration(minutes: 10);
+
+ClientRelease? _recent;
+DateTime? _recentAt;
+
+/// Remembers [release], so the install that follows the check skips a second
+/// call against GitHub's 60 requests an hour limit.
+void rememberLatestClientRelease(ClientRelease release, {DateTime? now}) {
+  _recent = release;
+  _recentAt = now ?? DateTime.now();
+}
+
+/// The release the check found within [recentReleaseMaxAge], or null.
+ClientRelease? recentLatestClientRelease({DateTime? now}) {
+  final at = _recentAt;
+  if (at == null) return null;
+  final age = (now ?? DateTime.now()).difference(at);
+  return age < recentReleaseMaxAge ? _recent : null;
+}
+
+@visibleForTesting
+void forgetLatestClientRelease() {
+  _recent = null;
+  _recentAt = null;
 }

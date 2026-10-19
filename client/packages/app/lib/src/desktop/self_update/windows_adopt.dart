@@ -41,6 +41,8 @@ Future<WindowsInstallLayout> adoptWindowsInstall({
   required String version,
   required Directory root,
   CreateShortcut createShortcut = createStartMenuShortcut,
+  RenameDirectory rename = renameDirectoryOnce,
+  List<Duration> backoff = renameBackoff,
 }) async {
   if (!canAdoptWindowsInstall(executable)) {
     throw const SelfUpdateFailure(
@@ -51,7 +53,13 @@ Future<WindowsInstallLayout> adoptWindowsInstall({
   final layout = WindowsInstallLayout(root);
   try {
     root.createSync(recursive: true);
-    await _publishBundle(p.dirname(executable), layout, version);
+    await _publishBundle(
+      p.dirname(executable),
+      layout,
+      version,
+      rename,
+      backoff,
+    );
     _installLauncher(p.dirname(executable), layout);
     await createShortcut(layout.launcher);
     final before = layout.pointedVersion(LayoutNames.current);
@@ -81,6 +89,8 @@ Future<void> _publishBundle(
   String source,
   WindowsInstallLayout layout,
   String version,
+  RenameDirectory rename,
+  List<Duration> backoff,
 ) async {
   final target = layout.versionDir(version);
   if (isWindowsVersionComplete(target)) return;
@@ -89,7 +99,12 @@ Future<void> _publishBundle(
   try {
     await Isolate.run(() => _copyTree(Directory(source), scratch));
     safeDelete(target);
-    await scratch.rename(target.path);
+    await renameDirectoryWithRetry(
+      scratch,
+      target.path,
+      rename: rename,
+      backoff: backoff,
+    );
   } catch (_) {
     safeDelete(scratch);
     rethrow;
