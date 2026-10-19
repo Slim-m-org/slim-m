@@ -9,6 +9,8 @@ says where the board starts on the page whatever the zoom is.
 """
 import time
 
+import e2e_labels as L
+
 BOARD_W = 1920
 BOARD_H = 1080
 _TALL = 1500
@@ -23,7 +25,14 @@ def _metrics(client, width, height):
 
 
 def fit_to_board_zoom_one(client):
-    """Sizes the window so the surface is the board's width and taller."""
+    """Sizes the window so the surface is the board's width and taller.
+
+    The docked member list goes first: Escape closes it (the scenarios press
+    Escape to dismiss menus), and the surface would widen under a window sized
+    with it open.
+    """
+    if client.find(L.CLOSE_MEMBER_LIST):
+        client.click(L.CLOSE_MEMBER_LIST)
     _metrics(client, _WIDE_START, _TALL)
     rect = client.canvas_rect()
     _metrics(client, _WIDE_START - (rect["width"] - BOARD_W), _TALL)

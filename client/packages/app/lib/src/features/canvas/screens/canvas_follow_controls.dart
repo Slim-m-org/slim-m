@@ -163,6 +163,7 @@ class _PersonButton extends StatelessWidget {
         ? 'Following ${target.name}, tap to stop'
         : 'Follow ${target.name}',
     excludeSemantics: true,
+    onTap: onTap,
     child: Tooltip(
       message: selected
           ? 'Stop following ${target.name}'

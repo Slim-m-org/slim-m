@@ -132,6 +132,38 @@ void main() {
     expect(engine.viewRelay.following.value, isNull);
   });
 
+  testWidgets('a screen reader can follow and unfollow, by the semantic tap', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true, tool: null);
+    final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.cursors.upsert(
+      id: 'u2',
+      x: 500,
+      y: 300,
+      label: 'Amy',
+      colorIndex: 0,
+    );
+    await tester.pump();
+
+    tester.semantics.tap(find.semantics.byLabel('Follow Amy'));
+    await tester.pump();
+    expect(engine.viewRelay.following.value, 'u2');
+
+    tester.semantics.tap(find.semantics.byLabel('Following Amy, tap to stop'));
+    await tester.pump();
+    expect(engine.viewRelay.following.value, isNull);
+    handle.dispose();
+  });
+
   testWidgets('tapping a cursor on the canvas follows its owner', (
     tester,
   ) async {

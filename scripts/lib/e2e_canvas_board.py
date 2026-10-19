@@ -11,6 +11,7 @@ import time
 
 import e2e_labels as L
 import e2e_png
+from e2e_input import _modifier_key
 from e2e_api import wait_until
 from e2e_board_frame import (BOARD_H, BOARD_W, board_frame, board_point,
                              fit_to_board_zoom_one, set_window)
@@ -56,6 +57,7 @@ def same_relative_position_on_different_windows(a, b, admin_api, channel_id):
     page = [board_point(a, p) for p in ZIGZAG]
     a.drag(page)
     a.gestures(False)
+    a.hover(5, 5, settle=1.5)
     wait_until(lambda: len(admin_api.canvas_objects(channel_id)),
                lambda n: n > base, "the zigzag never reached the server")
     for c in (a, b):
@@ -80,23 +82,34 @@ def same_relative_position_on_different_windows(a, b, admin_api, channel_id):
 
 
 def zoom_percent(client):
-    node = client.wait_for("Fit view, zoom")
+    node = client.wait_for(L.FIT_VIEW + ", zoom")
     return int(_ZOOM.search(node["t"]).group(1))
 
 
-def _ctrl_wheel(client, delta):
+def _ctrl_wheel(client, delta, notches=5):
+    """Ctrl plus wheel over the surface, the way a mouse zooms it.
+
+    Flutter reads Control from the key events, not from the wheel event's own
+    modifiers, so the key is pressed around the notches.
+    """
     rect = client.canvas_rect()
     client.gestures(True)
-    client.send("Input.dispatchMouseEvent", {
-        "type": "mouseWheel", "x": rect["x"] + rect["width"] / 2,
-        "y": rect["y"] + rect["height"] / 2, "deltaX": 0, "deltaY": delta,
-        "modifiers": 2})
+    client.send("Input.dispatchKeyEvent",
+                _modifier_key("Control", "ControlLeft", 17, "keyDown", 2))
+    for _ in range(notches):
+        client.send("Input.dispatchMouseEvent", {
+            "type": "mouseWheel", "x": rect["x"] + rect["width"] / 2,
+            "y": rect["y"] + rect["height"] / 2, "deltaX": 0, "deltaY": delta,
+            "modifiers": 2})
+        time.sleep(0.1)
+    client.send("Input.dispatchKeyEvent",
+                _modifier_key("Control", "ControlLeft", 17, "keyUp", 0))
     client.gestures(False)
     time.sleep(1.0)
 
 
 def _follow_label(client):
-    node = client.find("Follow ")
+    node = client.find(L.FOLLOW_PREFIX)
     return node["t"] if node else None
 
 
@@ -111,31 +124,31 @@ def follow_and_bring_everyone(a, b):
     label = _follow_label(b)
     assert label, "b has no one to follow while a is in the canvas and the call"
     b.click(label)
-    _ctrl_wheel(a, -500)
+    _ctrl_wheel(a, -100, notches=2)
     assert zoom_percent(a) > 100
     _wait_zoom(b, lambda z: z > 100, "never followed a's zoom")
     print("  b follows a: a zoomed in, so b did")
 
-    a.click("Fit view")
+    a.click(L.FIT_VIEW)
     _wait_zoom(b, lambda z: z == 100, "did not follow a back to the fit")
 
-    _ctrl_wheel(a, -500)
+    _ctrl_wheel(a, -100, notches=2)
     _wait_zoom(b, lambda z: z > 100, "stopped following early")
-    _ctrl_wheel(b, 300)
+    _ctrl_wheel(b, -100, notches=1)
     assert not b.find("Following"), "b still follows after its own zoom"
     assert _follow_label(b), "b's follow control did not come back"
-    a.click("Fit view")
+    a.click(L.FIT_VIEW)
     time.sleep(1.5)
     assert zoom_percent(b) > 100, "b followed a after it stopped following"
     print("  b's own zoom ended the follow, and a's next move left b alone")
 
-    b.click("Fit view")
+    b.click(L.FIT_VIEW)
     _wait_zoom(b, lambda z: z == 100, "b could not fit")
-    _ctrl_wheel(a, -500)
-    a.click("Bring everyone to me")
+    _ctrl_wheel(a, -100, notches=2)
+    a.click(L.BRING_EVERYONE)
     _wait_zoom(b, lambda z: z > 100, "was not brought to a")
     print("  bring everyone to me jumped b to a's view")
 
-    a.click("Fit view")
-    b.click("Fit view")
+    a.click(L.FIT_VIEW)
+    b.click(L.FIT_VIEW)
     _wait_zoom(b, lambda z: z == 100, "b could not fit afterwards")

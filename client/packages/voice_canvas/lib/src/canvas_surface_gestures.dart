@@ -381,8 +381,19 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// would drift the day only one changed; this is the one place either
   /// caller reads it from.
   void _signal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
     final document = widget.document;
+    // On the web a ctrl-wheel or trackpad pinch arrives as a scale event, never as a scroll.
+    if (event is PointerScaleEvent) {
+      document.setCamera(
+        cameraAfterZoom(
+          document.camera,
+          focal: event.localPosition,
+          zoomTarget: document.camera.zoom * event.scale,
+        ),
+      );
+      return;
+    }
+    if (event is! PointerScrollEvent) return;
     final keys = HardwareKeyboard.instance;
     document.setCamera(
       cameraAfterWheelScroll(
