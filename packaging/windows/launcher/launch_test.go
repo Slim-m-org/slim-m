@@ -33,7 +33,7 @@ func put(t *testing.T, root, name, content string) {
 func TestStartsTheCurrentVersion(t *testing.T) {
 	root := layout(t, "0.88.0")
 	put(t, root, "current", "0.88.0\r\n")
-	dir, err := choose(root)
+	dir, err := choose(root, false)
 	if err != nil || dir != versionDir(root, "0.88.0") {
 		t.Fatalf("got %q, %v", dir, err)
 	}
@@ -48,7 +48,7 @@ func TestCountsStartsOfAPendingVersionThenRollsBackOnTheThird(t *testing.T) {
 	put(t, root, "previous", "0.88.0")
 	put(t, root, "pending", "0.89.0")
 	for i, want := range []string{"1", "2"} {
-		dir, err := choose(root)
+		dir, err := choose(root, false)
 		if err != nil || dir != versionDir(root, "0.89.0") {
 			t.Fatalf("start %d: %q, %v", i+1, dir, err)
 		}
@@ -56,7 +56,7 @@ func TestCountsStartsOfAPendingVersionThenRollsBackOnTheThird(t *testing.T) {
 			t.Fatalf("start %d counted %q", i+1, got)
 		}
 	}
-	dir, err := choose(root)
+	dir, err := choose(root, false)
 	if err != nil || dir != versionDir(root, "0.88.0") {
 		t.Fatalf("third start: %q, %v", dir, err)
 	}
@@ -75,7 +75,7 @@ func TestStaleMarkerForAnotherVersionIsIgnored(t *testing.T) {
 	put(t, root, "current", "0.88.0")
 	put(t, root, "pending", "0.89.0")
 	put(t, root, "pending.tries", "5")
-	if dir, err := choose(root); err != nil || dir != versionDir(root, "0.88.0") {
+	if dir, err := choose(root, false); err != nil || dir != versionDir(root, "0.88.0") {
 		t.Fatalf("got %q, %v", dir, err)
 	}
 }
@@ -85,7 +85,7 @@ func TestNeverRollsBackWithoutAPreviousVersion(t *testing.T) {
 	put(t, root, "current", "0.89.0")
 	put(t, root, "pending", "0.89.0")
 	put(t, root, "pending.tries", "9")
-	if dir, err := choose(root); err != nil || dir != versionDir(root, "0.89.0") {
+	if dir, err := choose(root, false); err != nil || dir != versionDir(root, "0.89.0") {
 		t.Fatalf("got %q, %v", dir, err)
 	}
 }
@@ -94,7 +94,7 @@ func TestAMissingCurrentFolderFallsBackToPrevious(t *testing.T) {
 	root := layout(t, "0.88.0")
 	put(t, root, "current", "0.89.0")
 	put(t, root, "previous", "0.88.0")
-	dir, err := choose(root)
+	dir, err := choose(root, false)
 	if err != nil || dir != versionDir(root, "0.88.0") || read(root, "current") != "0.88.0" {
 		t.Fatalf("got %q, %v", dir, err)
 	}
@@ -102,11 +102,11 @@ func TestAMissingCurrentFolderFallsBackToPrevious(t *testing.T) {
 
 func TestReportsWhenThereIsNothingToStart(t *testing.T) {
 	root := layout(t)
-	if _, err := choose(root); err == nil {
+	if _, err := choose(root, false); err == nil {
 		t.Fatal("no pointer must be an error")
 	}
 	put(t, root, "current", "0.89.0")
-	if _, err := choose(root); err == nil {
+	if _, err := choose(root, false); err == nil {
 		t.Fatal("a pointer to a missing folder with no previous must be an error")
 	}
 }
@@ -135,7 +135,7 @@ func TestStartsBesideARunningInstanceAreNotCounted(t *testing.T) {
 	t.Cleanup(func() { processAlive = osProcessAlive })
 
 	for i := 0; i < 5; i++ {
-		dir, err := choose(root)
+		dir, err := choose(root, false)
 		if err != nil || dir != versionDir(root, "0.89.0") {
 			t.Fatalf("start %d: %q, %v", i+1, dir, err)
 		}
@@ -157,10 +157,47 @@ func TestAStartAfterTheInstanceIsGoneIsCountedAgain(t *testing.T) {
 	processAlive = func(int) bool { return false }
 	t.Cleanup(func() { processAlive = osProcessAlive })
 
-	if _, err := choose(root); err != nil {
+	if _, err := choose(root, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := read(root, "pending.tries"); got != "1" {
 		t.Fatalf("counted %q", got)
+	}
+}
+
+func TestARelaunchIsCountedEvenWhileItsPredecessorExits(t *testing.T) {
+	root := layout(t, "0.88.0", "0.89.0")
+	put(t, root, "current", "0.89.0")
+	put(t, root, "previous", "0.88.0")
+	put(t, root, "pending", "0.89.0")
+	put(t, root, "running.pid", "4242")
+	processAlive = func(pid int) bool { return pid == 4242 }
+	t.Cleanup(func() { processAlive = osProcessAlive })
+
+	if _, err := choose(root, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(root, "pending.tries"); got != "1" {
+		t.Fatalf("counted %q", got)
+	}
+}
+
+func TestOnlyARelaunchReplacesTheRecordedPidOfALiveInstance(t *testing.T) {
+	cases := []struct{ running, relaunch, want bool }{
+		{false, false, true},
+		{true, false, false},
+		{true, true, true},
+		{false, true, true},
+	}
+	for _, c := range cases {
+		if got := shouldRecordPid(c.running, c.relaunch); got != c.want {
+			t.Errorf("running=%v relaunch=%v: got %v", c.running, c.relaunch, got)
+		}
+	}
+}
+
+func TestRecognisesTheRelaunchArgument(t *testing.T) {
+	if !isRelaunch([]string{"--relaunch"}) || isRelaunch([]string{"--other"}) || isRelaunch(nil) {
+		t.Fatal("relaunch detection is wrong")
 	}
 }
