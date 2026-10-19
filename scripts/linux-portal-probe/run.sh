@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# Counts the xdg-desktop-portal ScreenCast sessions two screen shares open
-# against a nested KWin. One chooser per share means exactly two sessions.
-# FORK_PATH points the probe at a local flutter-webrtc checkout.
+# Counts the xdg-desktop-portal ScreenCast sessions screen shares open against
+# a nested KWin. Cases: app (2 shares, 2 sessions), long (3 shares across a 35
+# s gap, 3 sessions, nothing retried), noenum (1 share with no enumeration,
+# 2 sessions, the unguarded path). FORK_PATH points at a local checkout.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -35,21 +36,32 @@ kwin=\$!
 sleep 4
 export WAYLAND_DISPLAY=slimm-portal-probe
 dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
-dbus-monitor --session "interface='org.freedesktop.portal.ScreenCast'" >"$work/dbus.log" 2>&1 &
+dbus-monitor --session "interface='org.freedesktop.portal.ScreenCast'" >"$work/dbus-\$1.log" 2>&1 &
 monitor=\$!
 sleep 1
-timeout 60 "$work/app/build/linux/x64/debug/bundle/portal_probe" >"$work/probe.log" 2>&1
+PROBE_MODE=\$1 timeout 120 "$work/app/build/linux/x64/debug/bundle/portal_probe" >"$work/probe-\$1.log" 2>&1
 kill "\$monitor" "\$kwin" 2>/dev/null || true
 INNER
 chmod +x "$work/inner.sh"
 
-env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- "$work/inner.sh" || true
+status=0
+check() {
+  local mode="$1" shares="$2" sessions="$3" tracks opened
+  env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- "$work/inner.sh" "$mode" >/dev/null 2>&1 || true
+  tracks="$(grep -c 'PROBE share . tracks=1' "$work/probe-$mode.log" || true)"
+  opened="$(grep -c 'interface=org.freedesktop.portal.ScreenCast; member=CreateSession' "$work/dbus-$mode.log" || true)"
+  echo "$mode: shares started $tracks (want $shares), portal sessions $opened (want $sessions)"
+  grep -iE 'error|critical|fail' "$work/probe-$mode.log" | grep -v 'a11y\|AT-SPI\|atk_socket\|bus can' | head -5 || true
+  if [ "$tracks" != "$shares" ] || [ "$opened" != "$sessions" ]; then
+    status=1
+  fi
+}
 
-tracks="$(grep -c 'PROBE share . tracks=1' "$work/probe.log" || true)"
-sessions="$(grep -c 'interface=org.freedesktop.portal.ScreenCast; member=CreateSession' "$work/dbus.log" || true)"
-echo "shares started: $tracks, portal sessions opened: $sessions"
-if [ "$tracks" != 2 ] || [ "$sessions" != 2 ]; then
-  echo "FAIL: expected 2 shares and exactly 2 sessions (one chooser each)" >&2
+check app 2 2
+check noenum 1 2
+check long 3 3
+if [ "$status" != 0 ]; then
+  echo "FAIL" >&2
   exit 1
 fi
 echo "PASS"
