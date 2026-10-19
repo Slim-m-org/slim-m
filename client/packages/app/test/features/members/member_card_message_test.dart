@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
+import 'package:slimm_app/src/features/voice/providers/member_voice_channel.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -96,6 +97,10 @@ Future<({List<String> requests, List<int> closed})> _pump(
         membersProvider.overrideWith((ref) async => const []),
         rolesProvider.overrideWith((ref) async => const <api.Role>[]),
         storeProvider.overrideWith((ref) async => store),
+        // The card's voice chip would otherwise leave a drift stream timer pending.
+        visibleVoiceChannelsProvider.overrideWith(
+          (ref) => const Stream.empty(),
+        ),
         mockApiOverride((request) {
           requests.add('${request.method} ${request.url.path}');
           return answer(request);
