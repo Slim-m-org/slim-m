@@ -144,6 +144,27 @@ void main() {
     expect(find.text('Quiet'), findsNothing);
   });
 
+  testWidgets('an offline bot dims its controls and a tap sends nothing', (
+    tester,
+  ) async {
+    final requests = <Map<String, dynamic>>[];
+    const offline = api.ChannelBotUi(
+      botUserId: 'jelly',
+      botUsername: 'jellyfin',
+      botDisplayName: 'Jellyfin',
+      messageMenu: [],
+      callControls: [
+        api.BotUiEntry(id: 'pause', label: 'Pause', icon: 'pause'),
+      ],
+      offline: true,
+    );
+    await _pump(tester, requests, bots: [offline]);
+    expect(find.byTooltip('Pause - bot offline'), findsOneWidget);
+    await tester.tap(find.byTooltip('Pause - bot offline'));
+    await tester.pump();
+    expect(requests, isEmpty);
+  });
+
   testWidgets('a phone width wraps the row instead of overflowing', (
     tester,
   ) async {

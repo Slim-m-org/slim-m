@@ -151,7 +151,9 @@ class _RowState extends State<_Row> {
     }
 
     return Semantics(
-      label: suggestion.label,
+      label: suggestion.offline
+          ? '${suggestion.label}, bot offline'
+          : suggestion.label,
       button: true,
       selected: selected,
       child: MouseRegion(
@@ -175,7 +177,11 @@ class _RowState extends State<_Row> {
                   child: Text(
                     suggestion.label,
                     overflow: TextOverflow.ellipsis,
-                    style: AppText.ui.copyWith(color: tokens.textPrimary),
+                    style: AppText.ui.copyWith(
+                      color: suggestion.offline
+                          ? tokens.textDisabled
+                          : tokens.textPrimary,
+                    ),
                   ),
                 ),
                 if (suggestion.detail != null) ...[
@@ -187,7 +193,9 @@ class _RowState extends State<_Row> {
                       textAlign: TextAlign.right,
                       style: AppText.code.copyWith(
                         fontSize: 11,
-                        color: tokens.textSecondary,
+                        color: suggestion.offline
+                            ? tokens.textDisabled
+                            : tokens.textSecondary,
                       ),
                     ),
                   ),

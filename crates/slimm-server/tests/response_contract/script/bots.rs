@@ -31,6 +31,11 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
 
     let bot_id = text(&created["bot"], "user_id");
     let bot_token = text(&created, "token");
+    let bot_uuid = uuid::Uuid::parse_str(&bot_id).unwrap();
+    c.state
+        .hub
+        .presence()
+        .connect(slimm_server::ids::UserId(bot_uuid));
 
     c.json(
         "setBotCommands",

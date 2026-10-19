@@ -61,11 +61,14 @@ struct BotUiDto {
     bot_display_name: String,
     message_menu: Vec<UiEntry>,
     call_controls: Vec<UiEntry>,
+    /// The bot has no live socket, so using an entry gets no answer.
+    offline: bool,
 }
 
-impl From<VisibleBotUi> for BotUiDto {
-    fn from(v: VisibleBotUi) -> Self {
+impl BotUiDto {
+    fn new(v: VisibleBotUi, offline: bool) -> Self {
         Self {
+            offline,
             bot_user_id: v.bot_user_id.to_string(),
             bot_username: v.bot_username,
             bot_display_name: v.bot_display_name,
@@ -91,7 +94,15 @@ async fn list_channel_ui(
         return Ok(Json(Vec::new()));
     }
     let bots = state.store.visible_bot_ui(channel_id, caller).await?;
-    Ok(Json(bots.into_iter().map(BotUiDto::from).collect()))
+    let presence = state.hub.presence();
+    Ok(Json(
+        bots.into_iter()
+            .map(|b| {
+                let offline = !presence.is_connected(b.bot_user_id);
+                BotUiDto::new(b, offline)
+            })
+            .collect(),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -137,6 +148,9 @@ async fn use_entry(
             .await?;
     if !bot_can_hear {
         return Err(GONE);
+    }
+    if !state.hub.presence().is_connected(bot_id) {
+        return Err(ApiError::Conflict("that bot is offline right now"));
     }
     let entry = state
         .store

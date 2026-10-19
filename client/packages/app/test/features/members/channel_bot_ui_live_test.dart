@@ -52,4 +52,60 @@ void main() {
     await container.read(channelBotUiProvider('c1').future);
     expect(fetches, 2, reason: 'the open channel picks up the new controls');
   });
+
+  test(
+    'a listed bot going offline refetches, and another user does not',
+    () async {
+      var fetches = 0;
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(events.stream),
+          mockApiOverride((request) async {
+            if (request.url.path == '/channels/c1/bot-ui') fetches++;
+            return http.Response(
+              jsonEncode([
+                {
+                  'bot_user_id': 'bot-1',
+                  'bot_username': 'b',
+                  'bot_display_name': 'B',
+                  'message_menu': <Object>[],
+                  'call_controls': <Object>[],
+                  'offline': fetches > 1,
+                },
+              ]),
+              200,
+              headers: const {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final held = container.listen(channelBotUiProvider('c1'), (_, _) {});
+      addTearDown(held.close);
+      final first = await container.read(channelBotUiProvider('c1').future);
+      expect(first.single.offline, isFalse);
+
+      events.add(
+        const api.PresenceChanged(
+          userId: 'someone',
+          status: api.PresenceState.offline,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(fetches, 1, reason: 'a member going offline is not a bot');
+
+      events.add(
+        const api.PresenceChanged(
+          userId: 'bot-1',
+          status: api.PresenceState.offline,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final second = await container.read(channelBotUiProvider('c1').future);
+      expect(second.single.offline, isTrue);
+    },
+  );
 }

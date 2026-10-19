@@ -57,6 +57,7 @@ class ChannelBotUi {
     required this.botDisplayName,
     required this.messageMenu,
     required this.callControls,
+    this.offline = false,
   });
 
   final String botUserId;
@@ -65,12 +66,16 @@ class ChannelBotUi {
   final List<BotUiEntry> messageMenu;
   final List<BotUiEntry> callControls;
 
+  /// The bot has no live socket, so using one of its entries is refused.
+  final bool offline;
+
   factory ChannelBotUi.fromJson(Map<String, dynamic> json) => ChannelBotUi(
         botUserId: json['bot_user_id'] as String,
         botUsername: json['bot_username'] as String,
         botDisplayName: json['bot_display_name'] as String,
         messageMenu: _entries(json['message_menu']),
         callControls: _entries(json['call_controls']),
+        offline: json['offline'] as bool? ?? false,
       );
 
   static List<BotUiEntry> _entries(Object? raw) => (raw as List<dynamic>? ?? [])

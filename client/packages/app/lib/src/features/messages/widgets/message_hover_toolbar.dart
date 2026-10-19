@@ -3,13 +3,10 @@
 /// reply in thread, edit on your own messages, and an overflow that opens the
 /// row's existing context menu.
 ///
-/// It stays inside the row's box instead of straddling the row above. A child
-/// laid out past its parent's edge paints but cannot be hit, so a straddling
-/// plate was half dead, and on the first row of a transcript its top half fell
-/// outside the viewport.
-///
-/// For the same reason a non-compact row is never shorter than [height], so a
-/// one-line grouped row cannot leave part of the plate outside its hit region.
+/// It hangs from the row's top right in the overlay (`message_toolbar_anchor.dart`),
+/// not inside the row, because a control laid out past its parent's edge paints
+/// but cannot be hit. A row shorter than [height] keeps its density spacing and
+/// the plate overhangs the row below it, whole and clickable.
 library;
 
 import 'package:flutter/material.dart';
