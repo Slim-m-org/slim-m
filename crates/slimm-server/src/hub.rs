@@ -145,6 +145,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasMediaSlotChanged { .. }
@@ -205,6 +206,7 @@ fn is_ephemeral(event: &Event) -> bool {
         Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
@@ -532,6 +534,15 @@ mod epoch_tests {
             object_id: crate::ids::CanvasObjectId::generate(),
             points: Arc::new(vec![0.0, 0.0]),
             ended: false,
+        });
+        hub.publish(Event::CanvasView {
+            channel_id: ChannelId::generate(),
+            user_id: UserId::generate(),
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+            summon: false,
         });
         hub.publish(Event::CanvasObjectPreview {
             channel_id: ChannelId::generate(),

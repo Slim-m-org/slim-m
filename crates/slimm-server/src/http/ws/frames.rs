@@ -291,6 +291,16 @@ pub(super) enum ServerFrame {
         h: f64,
         ended: bool,
     },
+    #[serde(rename = "canvas.view.updated")]
+    CanvasView {
+        channel_id: String,
+        user_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        summon: bool,
+    },
     #[serde(rename = "canvas.object.moved")]
     CanvasObjectMoved {
         channel_id: String,
@@ -471,5 +481,18 @@ pub(super) enum ClientFrame {
         h: f64,
         #[serde(default)]
         ended: bool,
+    },
+    /// The world rectangle this client is looking at, so others can follow it
+    /// or be summoned to it; gated like a cursor, see
+    /// [`super::signals::handle_canvas_view`].
+    #[serde(rename = "canvas.view")]
+    CanvasView {
+        channel_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        #[serde(default)]
+        summon: bool,
     },
 }

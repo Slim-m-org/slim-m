@@ -409,6 +409,23 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
+    'canvas.view.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['x'] is num &&
+            decoded['y'] is num &&
+            decoded['w'] is num &&
+            decoded['h'] is num &&
+            decoded['summon'] is bool =>
+      CanvasView(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        x: (decoded['x'] as num).toDouble(),
+        y: (decoded['y'] as num).toDouble(),
+        w: (decoded['w'] as num).toDouble(),
+        h: (decoded['h'] as num).toDouble(),
+        summon: decoded['summon'] as bool,
+      ),
     'canvas.object.moved'
         when decoded['channel_id'] is String &&
             decoded['seq'] is int &&

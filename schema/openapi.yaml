@@ -15520,6 +15520,7 @@ components:
         - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
         - $ref: "#/components/schemas/ClientCanvasObjectPreview"
+        - $ref: "#/components/schemas/ClientCanvasView"
 
     ClientHello:
       type: object
@@ -15654,6 +15655,40 @@ components:
             Marks this as the gesture's last frame, whether or not it went
             on to commit a real object.
 
+    ClientCanvasView:
+      type: object
+      required: [type, channel_id, x, y, w, h]
+      description: >
+        The world rectangle of the shared board this client is looking at, so
+        others can follow it or be summoned to it. Ephemeral and never
+        persisted. Rate-limited per connection like a cursor, with the same
+        permission bar; `w` and `h` must be positive.
+      properties:
+        type:
+          type: string
+          enum: [canvas.view]
+        channel_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        summon:
+          type: boolean
+          default: false
+          description: >
+            Asks every receiver to jump to this rectangle once ("bring
+            everyone to me").
+
     ClientCanvasObjectPreview:
       type: object
       required: [type, channel_id, object_id, x, y, w, h]
@@ -15734,6 +15769,7 @@ components:
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
         - $ref: "#/components/schemas/CanvasObjectPreviewUpdated"
+        - $ref: "#/components/schemas/CanvasViewUpdated"
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
@@ -15907,6 +15943,40 @@ components:
           items: { type: number, format: double }
         ended:
           type: boolean
+
+    CanvasViewUpdated:
+      type: object
+      required: [type, channel_id, user_id, x, y, w, h, summon]
+      description: >-
+        The world rectangle a member is looking at, gated the same way
+        `canvas.cursor.moved` is. Carries no `seq`.
+      properties:
+        type:
+          type: string
+          enum: [canvas.view.updated]
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        summon:
+          type: boolean
+          description: >
+            Asks every receiver to jump to this rectangle once ("bring
+            everyone to me").
 
     CanvasObjectPreviewUpdated:
       type: object

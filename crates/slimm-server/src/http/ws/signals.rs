@@ -398,6 +398,59 @@ pub(super) async fn handle_canvas_stroke_preview(
     });
 }
 
+/// One `canvas.view` frame's fields.
+pub(super) struct ViewFrame {
+    pub(super) channel_id: String,
+    /// `[x, y, w, h]` in world units.
+    pub(super) rect: [f64; 4],
+    pub(super) summon: bool,
+}
+
+/// Relays the world rectangle a member is looking at. Gated exactly like a
+/// cursor (view plus `USE_CANVAS`, no timeout check) and silent on every
+/// rejection.
+pub(super) async fn handle_canvas_view(
+    store: &Store,
+    hub: &Hub,
+    limiter: &RateLimiter,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+    frame: ViewFrame,
+) {
+    let Ok(channel_id) = uuid::Uuid::parse_str(&frame.channel_id) else {
+        return;
+    };
+    let channel_id = ChannelId(channel_id);
+    let [x, y, w, h] = frame.rect;
+    if frame
+        .rect
+        .iter()
+        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
+        || w <= 0.0
+        || h <= 0.0
+    {
+        return;
+    }
+    if !limiter.check(Class::CanvasView, &format!("u:{}", ctx.user_id)) {
+        return;
+    }
+    hub.presence().touch(ctx.user_id);
+
+    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Pointer).await {
+        return;
+    }
+
+    hub.publish(Event::CanvasView {
+        channel_id,
+        user_id: ctx.user_id,
+        x,
+        y,
+        w,
+        h,
+        summon: frame.summon,
+    });
+}
+
 /// One `canvas.object_preview` frame's fields.
 pub(super) struct ObjectPreviewFrame {
     pub(super) channel_id: String,

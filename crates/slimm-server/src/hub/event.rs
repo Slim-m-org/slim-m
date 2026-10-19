@@ -586,6 +586,21 @@ pub enum Event {
         h: f64,
         ended: bool,
     },
+    /// The part of the shared board a member is looking at, in world units.
+    ///
+    /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, a
+    /// missed one is corrected by the next. `summon` asks every receiver to
+    /// jump to this view once ("bring everyone to me"); without it the frame
+    /// only matters to members following `user_id`.
+    CanvasView {
+        channel_id: ChannelId,
+        user_id: UserId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        summon: bool,
+    },
     /// A placed object was repositioned.
     ///
     /// Carries the whole new box, the same reason [`Event::CanvasObjectPlaced`]
