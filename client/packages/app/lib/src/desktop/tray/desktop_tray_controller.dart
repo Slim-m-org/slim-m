@@ -117,6 +117,26 @@ class DesktopTrayController with TrayListener {
     );
   }
 
+  /// Windows draws no menu of its own: the plugin only reports the click.
+  @override
+  void onTrayIconRightMouseDown() {
+    if (!_windows) return;
+    unawaited(_popUpMenu());
+  }
+
+  Future<void> _popUpMenu() async {
+    try {
+      await TrayManager.instance.popUpContextMenu(bringAppToFront: true);
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'Could not show the tray menu',
+        error: error,
+        stack: stack,
+      );
+    }
+  }
+
   void dispose() {
     host?.removeListener(_onHostChanged);
     TrayManager.instance.removeListener(this);
