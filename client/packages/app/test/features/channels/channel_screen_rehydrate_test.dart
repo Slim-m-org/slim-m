@@ -10,6 +10,7 @@
 /// new channel.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/native.dart';
@@ -156,4 +157,84 @@ void main() {
     }
     await db.close();
   });
+
+  testWidgets('a channel closed while its extras load reports no failure', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final records = <api.LogRecord>[];
+    api.AppLog.install(_RecordingSink(records));
+    addTearDown(() => api.AppLog.install(null));
+
+    final db = SlimmDatabase(NativeDatabase.memory());
+    final store = MessageStore(db);
+    await store.upsertChannels([
+      const api.Channel(id: 'c1', name: 'first', kind: 'text', createdAt: 0),
+    ]);
+    final held = Completer<http.Response>();
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        storeProvider.overrideWith((ref) async => store),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
+        mockApiOverride((request) async {
+          final hydrate =
+              request.method == 'GET' &&
+              request.url.path == '/channels/c1/messages' &&
+              request.url.queryParameters['before'] == null;
+          if (hydrate) return held.future;
+          if (request.method == 'GET' && request.url.path == '/me') {
+            return http.Response(
+              jsonEncode(_meJson()),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return _emptyList();
+        }),
+      ],
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(body: ChannelScreen(channelId: 'c1')),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: SizedBox.shrink()),
+      ),
+    );
+    held.complete(_emptyList());
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    expect(
+      records.where((r) => r.message.contains('load recent channel messages')),
+      isEmpty,
+    );
+
+    container.dispose();
+    await db.close();
+  });
+}
+
+class _RecordingSink implements api.LogSink {
+  _RecordingSink(this.records);
+
+  final List<api.LogRecord> records;
+
+  @override
+  void write(api.LogRecord record) => records.add(record);
 }
