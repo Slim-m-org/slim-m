@@ -93,4 +93,20 @@ void main() {
       },
     );
   }
+
+  testWidgets('the rail fades its bottom edge while rows sit below it', (
+    tester,
+  ) async {
+    await _open(tester, const Size(1280, 600));
+    double fade() => tester
+        .widget<AnimatedOpacity>(
+          find.byKey(const ValueKey('settings-rail-fade')),
+        )
+        .opacity;
+    expect(fade(), 1);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
+    await tester.pumpAndSettle();
+    expect(fade(), 0);
+  });
 }

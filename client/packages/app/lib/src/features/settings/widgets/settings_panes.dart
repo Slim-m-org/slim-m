@@ -24,6 +24,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/close_screen.dart';
 import 'settings_hairline.dart';
+import 'settings_rail_fade.dart';
 import 'settings_section_header.dart';
 import 'settings_search.dart';
 import '../providers/settings_index.dart';
@@ -458,17 +459,19 @@ class _Nav extends StatelessWidget {
 
   Widget _list(BuildContext context) {
     return rail
-        ? ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              for (final (index, group) in groups.indexed) ...[
-                if (group.label case final label?)
-                  _GroupLabel(label, first: index == 0)
-                else
-                  const SizedBox(height: AppSpacing.s20),
-                for (final pane in group.panes) _row(context, pane),
+        ? SettingsRailFade(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final (index, group) in groups.indexed) ...[
+                  if (group.label case final label?)
+                    _GroupLabel(label, first: index == 0)
+                  else
+                    const SizedBox(height: AppSpacing.s20),
+                  for (final pane in group.panes) _row(context, pane),
+                ],
               ],
-            ],
+            ),
           )
         // Compact: each group a raised card on the page, the same two tones the wide nav and its panes show.
         : ListView(
