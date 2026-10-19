@@ -169,6 +169,9 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+/// Below this the name column and five clock labels no longer fit.
+const double _fullTimelineWidth = 520;
+
 class _LastCall extends ConsumerWidget {
   const _LastCall({
     required this.call,
@@ -185,7 +188,12 @@ class _LastCall extends ConsumerWidget {
   final bool latest;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) =>
+      LayoutBuilder(builder: (context, box) => _build(context, ref, box));
+
+  Widget _build(BuildContext context, WidgetRef ref, BoxConstraints box) {
+    // The pane shares the window with the chat panel, so its own width decides.
+    final compact = this.compact || box.maxWidth < _fullTimelineWidth;
     final model = CallTimelineModel.from(call, now: now);
     final use24 = watchUse24Hour(ref, context);
     String clock(int at) =>
