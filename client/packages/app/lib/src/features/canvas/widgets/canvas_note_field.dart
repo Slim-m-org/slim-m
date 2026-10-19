@@ -104,7 +104,9 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
     if (query == null) return null;
     return switch (query.kind) {
       AutocompleteKind.mention || AutocompleteKind.emoji => query,
-      AutocompleteKind.command || AutocompleteKind.botCommand => null,
+      AutocompleteKind.command ||
+      AutocompleteKind.botCommand ||
+      AutocompleteKind.botOption => null,
     };
   }
 
