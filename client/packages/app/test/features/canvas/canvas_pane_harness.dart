@@ -341,10 +341,16 @@ class CanvasPaneFixture {
   );
 }
 
+/// Pumps the pane. Most suites were written against a free camera at the
+/// origin with the pen armed, so [board] false lifts the shared-board frame and
+/// [tool] arms that tool by its label; the board and open-on-pan suites ask for
+/// the real defaults with `board: true, tool: null`.
 Future<void> pumpCanvasPane(
   WidgetTester tester,
-  ProviderContainer container,
-) async {
+  ProviderContainer container, {
+  bool board = false,
+  String? tool = 'Pen',
+}) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
@@ -356,6 +362,16 @@ Future<void> pumpCanvasPane(
   );
   await tester.pump();
   await tester.pump();
+  if (!board) {
+    surfaceDocument(tester)
+      ..setBoard(null)
+      ..setCamera(const Camera());
+  }
+  final button = find.bySemanticsLabel(tool ?? '');
+  if (tool != null && button.evaluate().isNotEmpty) {
+    await tester.tap(button, warnIfMissed: false);
+    await tester.pump();
+  }
 }
 
 CanvasDocument surfaceDocument(WidgetTester tester) {

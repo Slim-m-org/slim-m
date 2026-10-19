@@ -83,11 +83,10 @@ class CanvasToolButtons extends StatelessWidget {
       _withOptions(
         CanvasTool.pen,
         'Pen options',
-        AppIconButton(
-          icon: AppIcons.pen,
-          semanticLabel: 'Pen',
-          tooltip: canDraw ? 'Pen' : "Can't draw right now",
+        _PenButton(
+          pen: pen,
           active: tool == CanvasTool.pen,
+          canDraw: canDraw,
           onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
               ? () => onToolChanged(CanvasTool.pen)
               : null,
@@ -127,6 +126,52 @@ class CanvasToolButtons extends StatelessWidget {
             'note, shape or image',
         active: tool == CanvasTool.eraser,
         onPressed: () => onToolChanged(CanvasTool.eraser),
+      ),
+    ],
+  );
+}
+
+/// The pen button, with a sample of the armed colour and thickness under the
+/// glyph at the size the stroke will have on the drawer's own screen.
+class _PenButton extends StatelessWidget {
+  const _PenButton({
+    required this.pen,
+    required this.active,
+    required this.canDraw,
+    required this.onPressed,
+  });
+
+  final CanvasPenStyle pen;
+  final bool active;
+  final bool canDraw;
+  final VoidCallback? onPressed;
+
+  static const double _sampleLength = 14;
+  static const double _sampleInset = 5;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    alignment: Alignment.bottomCenter,
+    children: [
+      AppIconButton(
+        icon: AppIcons.pen,
+        semanticLabel: 'Pen',
+        tooltip: canDraw ? 'Pen' : "Can't draw right now",
+        active: active,
+        onPressed: onPressed,
+      ),
+      Positioned(
+        bottom: _sampleInset,
+        child: IgnorePointer(
+          child: Container(
+            width: _sampleLength,
+            height: pen.width,
+            decoration: BoxDecoration(
+              color: pen.color,
+              borderRadius: BorderRadius.circular(pen.width / 2),
+            ),
+          ),
+        ),
       ),
     ],
   );

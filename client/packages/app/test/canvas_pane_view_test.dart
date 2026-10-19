@@ -17,60 +17,28 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
-  /// The one route back once panning or zooming has gone somewhere nothing
-  /// is - see `worldLimit`'s own doc for why this was previously missing.
-  /// An empty canvas has no content to fit, so the origin is still correct
-  /// here - `cameraToFit`'s own fallback for a null `contentBounds`.
-  testWidgets('the zoom chip\'s fit jumps an empty canvas back to the world '
-      'origin', (tester) async {
-    final fixture = CanvasPaneFixture();
-    final container = fixture.container();
-    addTearDown(container.dispose);
-    addTearDown(fixture.events.close);
-    await pumpCanvasPane(tester, container);
-    await tester.pumpAndSettle();
-
-    surfaceDocument(
-      tester,
-    ).setCamera(const Camera(x: 4000, y: -1500, zoom: 3.2));
-    expect(
-      surfaceDocument(tester).camera,
-      const Camera(x: 4000, y: -1500, zoom: 3.2),
-    );
-
-    await tester.tap(find.byTooltip('Fit view'));
-    await tester.pumpAndSettle();
-
-    expect(surfaceDocument(tester).camera, const Camera());
-  });
-
-  /// With real content, Recenter fits that content into view rather than
-  /// resetting to the origin - the bug this replaced: "Recenter" used to be
-  /// "reset to origin" regardless of where the drawing actually lived.
-  testWidgets('the zoom chip\'s fit fits content placed away from the '
-      'origin into view, not the world origin', (tester) async {
+  /// The one route back once a temporary zoom has gone somewhere: the whole
+  /// shared board, whatever sits on it.
+  testWidgets('the zoom chip\'s fit brings the whole board back', (
+    tester,
+  ) async {
     final fixture = CanvasPaneFixture()
       ..objects = [canvasNoteJson('note', x: 5000)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
-    await pumpCanvasPane(tester, container);
+    await pumpCanvasPane(tester, container, board: true);
     await tester.pumpAndSettle();
+    final document = surfaceDocument(tester);
 
-    surfaceDocument(
-      tester,
-    ).setCamera(const Camera(x: -9000, y: -9000, zoom: 3.2));
+    document.setCamera(const Camera(x: 4000, y: 1500, zoom: 3.2));
+    expect(document.isFitted, isFalse);
 
     await tester.tap(find.byTooltip('Fit view'));
     await tester.pumpAndSettle();
 
-    final view = surfaceDocument(tester).worldView;
-    final bounds = surfaceDocument(tester).contentBounds!;
-    expect(
-      view.overlaps(bounds) && view.contains(bounds.center),
-      isTrue,
-      reason: 'the note at world x=5000 must land inside the new view',
-    );
+    expect(document.isFitted, isTrue);
+    expect(document.visibleBoard, canvasBoard);
   });
 
   /// The desktop convention every other drawing surface honours: Delete or

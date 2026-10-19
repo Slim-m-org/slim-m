@@ -50,7 +50,7 @@ Future<void> _pump(
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
-  await pumpCanvasPane(tester, container);
+  await pumpCanvasPane(tester, container, tool: null);
   await tester.pumpAndSettle();
 }
 
@@ -77,11 +77,10 @@ void main() {
     ];
     expect([...xs]..sort(), xs, reason: 'left to right');
     final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
-    // The pen opens selected, so its caret widens only the pen-to-note gap.
-    for (final i in [2, 3]) {
-      expect(gaps[i], closeTo(gaps.first, 0.01), reason: 'even rhythm');
+    // Pan opens selected and has no caret, so the rhythm is even.
+    for (final gap in gaps) {
+      expect(gap, closeTo(gaps.first, 0.01), reason: 'even rhythm');
     }
-    expect(gaps[1] - gaps.first, AppSizes.rowPointer, reason: 'the caret');
     expect(gaps.first, greaterThan(AppSpacing.s4));
   });
 
@@ -117,6 +116,7 @@ void main() {
   testWidgets('a modified letter does not arm a tool', (tester) async {
     await _pump(tester, CanvasPaneFixture(), const Size(1000, 700));
 
+    await _press(tester, LogicalKeyboardKey.keyP);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await _press(tester, LogicalKeyboardKey.keyH);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
@@ -151,10 +151,10 @@ void main() {
     expect(_activeTool(tester), CanvasTool.pan);
   });
 
-  testWidgets('a wide window opens on the pen', (tester) async {
+  testWidgets('a wide window opens on pan, never the pen', (tester) async {
     await _pump(tester, CanvasPaneFixture(), const Size(1000, 700));
 
-    expect(_activeTool(tester), CanvasTool.pen);
+    expect(_activeTool(tester), CanvasTool.pan);
   });
 
   testWidgets('a compact window opens on pan', (tester) async {

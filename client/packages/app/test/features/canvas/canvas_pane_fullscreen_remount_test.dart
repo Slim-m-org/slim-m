@@ -59,8 +59,8 @@ void main() {
     expect(container.read(canvasFullscreenProvider), isNull);
     expect(
       tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool,
-      CanvasTool.pen,
-      reason: 'leaving fullscreen restores the default tool',
+      CanvasTool.pan,
+      reason: 'leaving fullscreen restores the default tool, which is pan',
     );
   });
 }

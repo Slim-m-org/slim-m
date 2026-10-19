@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'canvas_pane.dart';
 
+/// How close a tap must land to someone's cursor to follow them, in screen pixels.
+const double _cursorTapReachPx = 20;
+
 /// The select tool, undo, clear and the camera-bubble roster: split out of
 /// `_CanvasPaneState` once this fix pushed the file past the 500-line hard
 /// limit, the same reason `canvas_ops_controller_reorder.dart` splits its
@@ -102,7 +105,30 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = CanvasTool.pan);
   }
 
+  /// Whether the roster is docked beside the canvas, as the shell decides it.
+  bool get _memberPaneDocked =>
+      ref.watch(memberPaneVisibleProvider) &&
+      LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
+
+  void _closeMemberPane() =>
+      ref.read(memberPaneVisibleProvider.notifier).state = false;
+
+  /// A tap on someone's cursor follows them instead of selecting under it.
+  bool _followCursorAt(Offset world) {
+    final reach = _cursorTapReachPx / _document.camera.zoom;
+    final hit = _cursors.all
+        .where((c) => (Offset(c.x, c.y) - world).distance <= reach)
+        .firstOrNull;
+    if (hit == null) return false;
+    final relay = _engine.viewRelay;
+    relay.following.value == hit.id
+        ? relay.stopFollowing()
+        : relay.follow(hit.id);
+    return true;
+  }
+
   void _onSelectStart(Offset world) {
+    if (_followCursorAt(world)) return;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
