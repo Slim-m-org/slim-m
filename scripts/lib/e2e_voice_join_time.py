@@ -14,6 +14,7 @@ import time
 import e2e_audio
 import e2e_join_probe_js
 import e2e_labels as L
+import e2e_netem
 from e2e_voice import _tap_label, participants_with_mics
 
 # Cumulative stages in the order a sequential join reaches them.
@@ -21,6 +22,8 @@ STAGES = ("tokenStart", "tokenEnd", "wsStart", "wsOpen", "ice", "micRequested",
           "micOpened", "publishStart", "published", "firstPacket",
           "firstSamples")
 TARGET_P50_MS = 1500
+# Extra profiles for this scenario; the SFU's egress is all netem can shape here.
+WAN_PROFILES = {"wan70": "delay 70ms 5ms"}
 ARRIVAL_TIMEOUT = 25
 
 
@@ -88,8 +91,26 @@ def _join_once(client, channel):
                          f"{ARRIVAL_TIMEOUT}s: {marks}")
 
 
+def _impair(profile):
+    e2e_netem.ensure_image()
+    if profile in WAN_PROFILES:
+        return e2e_netem.apply_args(WAN_PROFILES[profile])
+    return e2e_netem.apply(profile)
+
+
 def join_time(a, b, room_id, channel=L.VOICE_CHANNEL):
     runs_wanted = int(os.environ.get("JOIN_RUNS", "12"))
+    profile = os.environ.get("JOIN_NETEM", "clean")
+    if profile == "clean":
+        return _join_time(a, b, room_id, channel, runs_wanted)
+    print(f"  profile {profile}: {_impair(profile)}")
+    try:
+        _join_time(a, b, room_id, channel, runs_wanted)
+    finally:
+        e2e_netem.clear()
+
+
+def _join_time(a, b, room_id, channel, runs_wanted):
     with e2e_audio.installed(a, extra=e2e_join_probe_js.PROBE), \
             e2e_audio.installed(b):
         _measure(a, b, room_id, channel, runs_wanted)
