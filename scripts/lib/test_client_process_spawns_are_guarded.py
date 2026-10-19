@@ -24,7 +24,7 @@ GUARDED = {
     "client/packages/platform/lib/src/game_source_io.dart":
         "createGameSource returns null off linux, windows and macos",
     "client/packages/rtc/lib/src/os_mic_block_io.dart":
-        "windowsMicBlocked reads the consent store with reg.exe on windows only, false elsewhere",
+        "osBlocksMicrophone reads the consent store with reg.exe on windows only, false elsewhere",
     "client/packages/rtc/lib/src/pulse_audio_io.dart":
         "PulseAudio spawns pactl on linux only; every method returns empty elsewhere",
     "client/packages/platform/lib/src/persistent_key_store.dart":
