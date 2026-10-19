@@ -3,6 +3,8 @@
 /// platform lets us tell apart; `camera_failure.dart` is the camera's own.
 library;
 
+import 'package:livekit_client/livekit_client.dart' as lk;
+
 import 'os_mic_block.dart';
 
 enum MicFailureReason {
@@ -21,10 +23,15 @@ enum MicFailureReason {
   unknown,
 }
 
-/// Reads the `DOMException` names web, iOS and macOS fail with and the
-/// `NotAllowedError` text Android's permission pre-check uses.
+/// Reads the `DOMException` names web fails with, the `NotAllowedError` text
+/// Android's permission pre-check uses, and the exception livekit 2.12+ throws
+/// on iOS and macOS before the microphone opens.
 MicFailureReason classifyMicFailure(Object error) {
   final text = error.toString();
+  if (error is lk.TrackCreateException &&
+      text.contains('Microphone permission')) {
+    return MicFailureReason.permissionDenied;
+  }
   if (text.contains('NotAllowedError') || text.contains('PermissionDenied')) {
     return MicFailureReason.permissionDenied;
   }
