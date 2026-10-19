@@ -26,6 +26,17 @@ extension SlimmApiVoice on SlimmApi {
         expectNoContent: true,
       );
 
+  /// Tells the call whether this client has deafened itself, for the icon
+  /// beside their name. The server publishes it; a client cannot set its own
+  /// participant attributes.
+  Future<void> setVoiceDeafened(String channelId, {required bool deafened}) =>
+      _send(
+        'PUT',
+        '/channels/$channelId/voice/deafened',
+        body: {'deafened': deafened},
+        expectNoContent: true,
+      );
+
   /// Refreshes proof that this client is still on a channel's call.
   ///
   /// Idempotent, and meant to be sent on a plain interval for as long as the
