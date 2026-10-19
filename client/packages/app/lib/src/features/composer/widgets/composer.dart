@@ -285,6 +285,7 @@ class _ComposerState extends ConsumerState<Composer> {
       widget.controller.text,
       widget.controller.selection.baseOffset,
       botPrefixes: _botCommands.map((c) => c.prefix),
+      botTriggers: botChoiceTriggers(_botCommands),
     );
     // True while the counter is or was on screen, so its own value keeps redrawing.
     final countMatters =

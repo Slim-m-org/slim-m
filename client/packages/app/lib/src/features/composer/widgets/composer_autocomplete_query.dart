@@ -22,6 +22,10 @@ enum AutocompleteKind {
   /// A bot's own registered prefix, and only as the very first thing in the
   /// message. Lists just the commands of the bots that registered it.
   botCommand,
+
+  /// A word typed after a bot command whose option has fixed choices; the
+  /// list is those choices, filtered by what has been typed so far.
+  botOption,
 }
 
 /// Emoji needs two characters before it offers anything.
@@ -40,6 +44,8 @@ class AutocompleteQuery {
     required this.start,
     required this.end,
     this.prefix = '',
+    this.command = '',
+    this.argIndex = 0,
   });
 
   final AutocompleteKind kind;
@@ -56,17 +62,26 @@ class AutocompleteQuery {
   /// The bot prefix a [AutocompleteKind.botCommand] query matched; empty otherwise.
   final String prefix;
 
+  /// The lowercased `prefix` + keyword a [AutocompleteKind.botOption] query follows; empty otherwise.
+  final String command;
+
+  /// Which option of [command] the caret is in: the count of words before it.
+  final int argIndex;
+
   @override
   bool operator ==(Object other) =>
       other is AutocompleteQuery &&
       other.kind == kind &&
       other.prefix == prefix &&
+      other.command == command &&
+      other.argIndex == argIndex &&
       other.term == term &&
       other.start == start &&
       other.end == end;
 
   @override
-  int get hashCode => Object.hash(kind, term, start, end, prefix);
+  int get hashCode =>
+      Object.hash(kind, term, start, end, prefix, command, argIndex);
 
   @override
   String toString() => 'AutocompleteQuery($kind, "$term", $start..$end)';
@@ -92,14 +107,20 @@ class AutocompleteQuery {
 /// [botPrefixes] are the prefixes bots registered in this channel; the message
 /// starting with one, with the caret still in that first word, opens a
 /// [AutocompleteKind.botCommand] query (the longest matching prefix wins).
+/// [botTriggers] are the lowercased `prefix` + keyword of every bot command
+/// with a choice list; the caret past the first word of one opens a
+/// [AutocompleteKind.botOption] query.
 AutocompleteQuery? autocompleteQueryAt(
   String text,
   int caret, {
   Iterable<String> botPrefixes = const [],
+  Set<String> botTriggers = const {},
 }) {
   if (caret < 0 || caret > text.length) return null;
   final botQuery = _botPrefixQuery(text, caret, botPrefixes);
   if (botQuery != null) return botQuery;
+  final optionQuery = _botOptionQuery(text, caret, botTriggers);
+  if (optionQuery != null) return optionQuery;
 
   for (var i = caret - 1; i >= 0; i--) {
     final ch = text[i];
@@ -138,6 +159,32 @@ AutocompleteQuery? _botPrefixQuery(
     start: 0,
     end: caret,
     prefix: matched,
+  );
+}
+
+AutocompleteQuery? _botOptionQuery(
+  String text,
+  int caret,
+  Set<String> botTriggers,
+) {
+  if (botTriggers.isEmpty) return null;
+  final firstSpace = text.indexOf(RegExp(r'\s'));
+  if (firstSpace < 0 || caret <= firstSpace) return null;
+  final trigger = text.substring(0, firstSpace).toLowerCase();
+  if (!botTriggers.contains(trigger)) return null;
+  final typed = text.substring(firstSpace, caret);
+  final words = typed.trim().isEmpty
+      ? <String>[]
+      : typed.trim().split(RegExp(r'\s+'));
+  final inWord = !_isSpace(typed[typed.length - 1]);
+  final term = inWord ? words.last : '';
+  return AutocompleteQuery(
+    kind: AutocompleteKind.botOption,
+    term: term.toLowerCase(),
+    start: caret - term.length,
+    end: caret,
+    command: trigger,
+    argIndex: inWord ? words.length - 1 : words.length,
   );
 }
 

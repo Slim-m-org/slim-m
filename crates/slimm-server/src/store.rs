@@ -21,6 +21,7 @@ mod analytics;
 mod apps;
 mod attachments;
 mod bootstrap;
+mod bot_command_options;
 mod bot_commands;
 mod bot_prefix;
 mod bot_ui;
@@ -110,6 +111,7 @@ pub use apps::{AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
+pub use bot_command_options::BotCommandOption;
 pub use bot_commands::{
     BotCommand, BotCommandRegistration, MAX_BOT_COMMAND_DESCRIPTION_LEN, MAX_BOT_COMMAND_NAME_LEN,
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,

@@ -6,6 +6,33 @@ library;
 import 'models_attachments.dart';
 import 'models_embeds.dart';
 
+/// One positional argument of a bot command; [choices] empty means free form.
+class BotCommandOption {
+  const BotCommandOption({
+    required this.name,
+    this.required = false,
+    this.choices = const [],
+  });
+
+  final String name;
+  final bool required;
+  final List<String> choices;
+
+  factory BotCommandOption.fromJson(Map<String, dynamic> json) =>
+      BotCommandOption(
+        name: json['name'] as String,
+        required: json['required'] as bool? ?? false,
+        choices: (json['choices'] as List<dynamic>? ?? const [])
+            .cast<String>()
+            .toList(growable: false),
+      );
+}
+
+List<BotCommandOption> _optionsFromJson(Object? json) =>
+    (json as List<dynamic>? ?? const [])
+        .map((o) => BotCommandOption.fromJson(o as Map<String, dynamic>))
+        .toList(growable: false);
+
 /// One bot command offered in a channel, from `GET
 /// /channels/{channelId}/bot-commands`; already permission- and
 /// visibility-filtered server-side.
@@ -18,6 +45,7 @@ class ChannelBotCommand {
     required this.name,
     required this.description,
     this.usage,
+    this.options = const [],
   });
 
   final String botUserId;
@@ -32,6 +60,9 @@ class ChannelBotCommand {
   final String description;
   final String? usage;
 
+  /// Positional arguments; the composer picks from [BotCommandOption.choices].
+  final List<BotCommandOption> options;
+
   factory ChannelBotCommand.fromJson(Map<String, dynamic> json) =>
       ChannelBotCommand(
         botUserId: json['bot_user_id'] as String,
@@ -41,6 +72,7 @@ class ChannelBotCommand {
         name: json['name'] as String,
         description: json['description'] as String,
         usage: json['usage'] as String?,
+        options: _optionsFromJson(json['options']),
       );
 }
 
@@ -50,17 +82,20 @@ class RegisteredBotCommand {
     required this.name,
     required this.description,
     this.usage,
+    this.options = const [],
   });
 
   final String name;
   final String description;
   final String? usage;
+  final List<BotCommandOption> options;
 
   factory RegisteredBotCommand.fromJson(Map<String, dynamic> json) =>
       RegisteredBotCommand(
         name: json['name'] as String,
         description: json['description'] as String,
         usage: json['usage'] as String?,
+        options: _optionsFromJson(json['options']),
       );
 }
 

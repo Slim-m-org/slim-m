@@ -18,6 +18,9 @@ import 'composer_autocomplete_items.dart';
 import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../members/widgets/user_avatar.dart';
 
+/// Room for [maxAutocompleteRows] rows; a longer pick list scrolls.
+const double _maxListHeight = AppSizes.controlMd * maxAutocompleteRows;
+
 class ComposerAutocomplete extends StatelessWidget {
   const ComposerAutocomplete({
     super.key,
@@ -50,24 +53,29 @@ class ComposerAutocomplete extends StatelessWidget {
           boxShadow: AppShadows.menu,
         ),
         padding: const EdgeInsets.all(6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (i, suggestion) in suggestions.indexed)
-              _Row(
-                suggestion: suggestion,
-                selected: i == selected,
-                onTap: () => onPick(suggestion),
-                onHover: () => onHover(i),
-              ),
-          ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: _maxListHeight),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final (i, suggestion) in suggestions.indexed)
+                  _Row(
+                    suggestion: suggestion,
+                    selected: i == selected,
+                    onTap: () => onPick(suggestion),
+                    onHover: () => onHover(i),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _Row extends StatelessWidget {
+class _Row extends StatefulWidget {
   const _Row({
     required this.suggestion,
     required this.selected,
@@ -81,7 +89,34 @@ class _Row extends StatelessWidget {
   final VoidCallback onHover;
 
   @override
+  State<_Row> createState() => _RowState();
+}
+
+class _RowState extends State<_Row> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selected) _scrollIntoView();
+  }
+
+  @override
+  void didUpdateWidget(_Row oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) _scrollIntoView();
+  }
+
+  void _scrollIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Scrollable.ensureVisible(context);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final suggestion = widget.suggestion;
+    final selected = widget.selected;
+    final onTap = widget.onTap;
+    final onHover = widget.onHover;
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     final Widget leading;

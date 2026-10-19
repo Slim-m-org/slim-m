@@ -18,7 +18,7 @@ use super::messages::parse_uuid;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{BotCommand, SetBotCommandsError, VisibleBotCommand};
+use crate::store::{BotCommand, BotCommandOption, SetBotCommandsError, VisibleBotCommand};
 
 /// Lists newly added command names left out because another bot holds them.
 const DROPPED_HEADER: &str = "x-slimm-dropped-commands";
@@ -43,6 +43,8 @@ struct BotCommandDto {
     usage: Option<String>,
     #[serde(default)]
     permission: Option<i64>,
+    #[serde(default)]
+    options: Vec<BotCommandOption>,
 }
 
 impl From<BotCommandDto> for BotCommand {
@@ -52,6 +54,7 @@ impl From<BotCommandDto> for BotCommand {
             description: dto.description,
             usage: dto.usage,
             permission: dto.permission,
+            options: dto.options,
         }
     }
 }
@@ -77,6 +80,8 @@ struct RegisteredCommandDto {
     description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     usage: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    options: Vec<BotCommandOption>,
 }
 
 /// Bulk-overwrites the caller's own registration; refused for a non-bot.
@@ -136,6 +141,7 @@ async fn get_commands(
                     name: c.name,
                     description: c.description,
                     usage: c.usage,
+                    options: c.options,
                 })
                 .collect(),
         },
@@ -156,6 +162,8 @@ struct ChannelBotCommandDto {
     description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     usage: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    options: Vec<BotCommandOption>,
 }
 
 impl From<VisibleBotCommand> for ChannelBotCommandDto {
@@ -168,6 +176,7 @@ impl From<VisibleBotCommand> for ChannelBotCommandDto {
             name: v.command.name,
             description: v.command.description,
             usage: v.command.usage,
+            options: v.command.options,
         }
     }
 }

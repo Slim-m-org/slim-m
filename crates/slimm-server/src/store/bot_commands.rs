@@ -8,6 +8,9 @@ use crate::hidden_chars::is_hidden_char;
 use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 
+use super::bot_command_options::{
+    BotCommandOption, options_from_json, options_to_json, validate_bot_options,
+};
 use super::{Store, now_ms};
 
 /// Caps kept in prose in `schema/openapi.yaml` per this project's convention
@@ -29,6 +32,8 @@ pub struct BotCommand {
     pub usage: Option<String>,
     /// A single [`Permissions`] bit; a composer hint only, never enforced.
     pub permission: Option<i64>,
+    /// Positional arguments, with the fixed choices of each.
+    pub options: Vec<BotCommandOption>,
 }
 
 /// A bot's whole registration: its own prefix, plus every command it
@@ -122,6 +127,7 @@ fn validate_bot_command(command: &BotCommand) -> Result<(), &'static str> {
             "a command's description and usage must not hold control or invisible characters",
         );
     }
+    validate_bot_options(&command.options)?;
     if let Some(bit) = command.permission {
         let perm = Permissions::from_bits(bit);
         let single_bit = bit > 0 && (bit & (bit - 1)) == 0;
@@ -182,15 +188,17 @@ impl Store {
         .await?;
         for (position, command) in commands.iter().enumerate() {
             let position = position as i64;
+            let options = options_to_json(&command.options);
             sqlx::query!(
-                "INSERT INTO bot_commands (bot_user_id, name, description, usage, permission, position)
-                 VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO bot_commands (bot_user_id, name, description, usage, permission, position, options)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
                 bot_user_id,
                 command.name,
                 command.description,
                 command.usage,
                 command.permission,
-                position
+                position,
+                options
             )
             .execute(&mut *tx)
             .await?;
@@ -215,7 +223,7 @@ impl Store {
             return Ok(None);
         };
         let rows = sqlx::query!(
-            "SELECT name, description, usage, permission
+            "SELECT name, description, usage, permission, options
              FROM bot_commands WHERE bot_user_id = ? ORDER BY position ASC",
             bot_user_id
         )
@@ -230,6 +238,7 @@ impl Store {
                     description: r.description,
                     usage: r.usage,
                     permission: r.permission,
+                    options: options_from_json(r.options.as_deref()),
                 })
                 .collect(),
         }))
@@ -245,7 +254,7 @@ impl Store {
     ) -> anyhow::Result<Vec<VisibleBotCommand>> {
         let rows = sqlx::query!(
             r#"SELECT u.id AS "bot_user_id!: UserId", u.username, u.display_name,
-                      r.prefix, c.name, c.description, c.usage, c.permission
+                      r.prefix, c.name, c.description, c.usage, c.permission, c.options
                FROM bot_command_registrations r
                JOIN users u ON u.id = r.bot_user_id
                JOIN bot_commands c ON c.bot_user_id = r.bot_user_id
@@ -291,6 +300,7 @@ impl Store {
                     description: row.description,
                     usage: row.usage,
                     permission: row.permission,
+                    options: options_from_json(row.options.as_deref()),
                 },
             });
         }

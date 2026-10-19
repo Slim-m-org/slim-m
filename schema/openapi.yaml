@@ -12579,6 +12579,35 @@ components:
             A single bit from `Permissions`. Hides this command in the
             composer for a caller who lacks it in the current channel; never
             checked against the message the bot itself goes on to receive.
+        options:
+          type: array
+          default: []
+          description: >-
+            The command's positional arguments, at most 5. The composer offers
+            a pick list for one with `choices` after the keyword.
+          items:
+            $ref: "#/components/schemas/BotCommandOption"
+    BotCommandOption:
+      type: object
+      required: [name]
+      description: >-
+        One positional argument of a command. A name is 1 to 32 characters of
+        letters, digits, `-` and `_`, unique case-insensitively within the
+        command. At most 25 `choices`, each 1 to 100 characters with no
+        whitespace, unique case-insensitively. Advertisement only: a message
+        carrying another value is still delivered to the bot.
+      properties:
+        name:
+          type: string
+        required:
+          type: boolean
+          default: false
+        choices:
+          type: array
+          default: []
+          description: The only values the argument accepts; empty means free form.
+          items:
+            type: string
     SetBotCommandsRequest:
       type: object
       required: [prefix]
@@ -13025,6 +13054,10 @@ components:
           type: string
         usage:
           type: [string, "null"]
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotCommandOption"
     BotCommandRegistration:
       type: object
       required: [commands]
@@ -13056,6 +13089,10 @@ components:
           type: string
         usage:
           type: [string, "null"]
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/BotCommandOption"
     IncomingWebhookPayload:
       type: object
       description: >-

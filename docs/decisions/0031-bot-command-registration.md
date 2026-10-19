@@ -106,6 +106,14 @@ Landed as its own PR, after the core registration surface, per the coordinating 
 - **Mention help card.** `@mentioning` a bot shows a card visible only to the person composing the message, naming the bot, its prefix, and its commands - built entirely client-side from the same registration data the composer already fetched for discovery, so it needs no new server primitive, works even when the bot is offline, and never leaves the device: no fan-out, no history row, nothing to sync or search. It appears once per distinct bot mentioned while composing (not once per keystroke, not once per repeated mention of the same bot), and a bot with nothing registered shows no card at all rather than an empty one.
 - **Deliberately not built here: a server-side ephemeral message primitive.** A bot replying privately to one person - "you lack permission," "your balance is 500" - is a real, valuable feature, but it is security-sensitive in a way that deserves its own design: it must never reach another user's socket, persist into another user's history, or surface in search or sync. That is carded separately rather than folded into a client-only help card that happens to look similar.
 
+## Addendum: command options with fixed choices
+
+A command may declare up to 5 positional `options`, each a name, a `required` flag and up to 25 `choices` (migration 0135, a JSON column on `bot_commands`).
+The server validates the shape at registration only: a bad option refuses the whole registration with a 400.
+An invocation is still the plain message the bot receives, so a value outside the list is delivered and the bot enforces it; slimbots does that for a command declared with `choices=`.
+The composer shows a keyboard-navigable pick list, filtered as you type, once the keyword and a space are typed and the option under the caret has choices.
+An option without choices is free form and offers nothing.
+
 ## What this record does not decide
 
 - Whether advertisement ever grows into a real interaction model. The `name`-keyed shape is left stable enough to support that later, but nothing here designs it.
