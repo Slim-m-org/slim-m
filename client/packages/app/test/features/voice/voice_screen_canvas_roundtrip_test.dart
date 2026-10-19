@@ -303,7 +303,7 @@ void main() {
           'however this screen was mounted',
     );
     expect(
-      find.text('Join muted'),
+      find.text('Rejoin muted'),
       findsOneWidget,
       reason: 'left, on the idle pane',
     );
@@ -345,7 +345,7 @@ void main() {
             'still land on the left-this-call screen, not a silent rejoin',
       );
       expect(
-        find.text('Join muted'),
+        find.text('Rejoin muted'),
         findsOneWidget,
         reason: 'left, on the idle pane',
       );

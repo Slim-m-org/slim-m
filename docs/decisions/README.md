@@ -82,3 +82,5 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0070](0070-space-scoped-settings.md) | Settings that follow the Space | accepted |
 | [0071](0071-move-members.md) | Moving members between voice channels | accepted |
 | [0074](0074-profile-banner-image.md) | Profile banner image | accepted |
+| [0076](0076-remappable-call-shortcuts.md) | Mute, deafen and push-to-talk can be remapped | accepted |
+| [0077](0077-hang-up-summary.md) | A summary and Rejoin after hanging up a voice channel | accepted |

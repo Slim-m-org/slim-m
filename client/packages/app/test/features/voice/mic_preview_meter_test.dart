@@ -116,6 +116,27 @@ void main() {
     await _leave(tester);
   });
 
+  testWidgets('on the web the capture waits for Test microphone', (
+    tester,
+  ) async {
+    final source = FakeMicSource(level: -20);
+    await tester.pumpWidget(
+      wrap(
+        const FirstRunVoiceStep(webAskFirst: true),
+        overrides: _overrides(source),
+      ),
+    );
+    await _settle(tester);
+    expect(source.opened, isEmpty, reason: 'no prompt before the member asks');
+    expect(find.text('Your level'), findsNothing);
+
+    await tester.tap(find.text('Test microphone'));
+    await _settle(tester);
+    expect(source.opened, [null]);
+    expect(find.text('Your level'), findsOneWidget);
+    await _leave(tester);
+  });
+
   testWidgets('picking another microphone moves the preview to it', (
     tester,
   ) async {

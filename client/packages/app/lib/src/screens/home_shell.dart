@@ -60,6 +60,7 @@ import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
+import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
@@ -88,6 +89,8 @@ class HomeShell extends ConsumerWidget {
     final layout = LayoutClass.of(context);
     final width = MediaQuery.sizeOf(context).width;
     final selected = selectedChannelId(context);
+    // Rebuilds the key bindings when a shortcut is remapped.
+    ref.watch(shortcutOverridesProvider);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
     _holdSessionProviders(ref);
     final facts = _shellFacts(ref, layout, width, selected);
@@ -350,6 +353,7 @@ class HomeShell extends ConsumerWidget {
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
+    final deafenCall = activatorFor(AppAction.toggleDeafenCall);
     final cameraCall = activatorFor(AppAction.toggleCameraCall);
     final shareCall = activatorFor(AppAction.toggleShareCall);
     final leaveCall = activatorFor(AppAction.leaveCall);
@@ -371,6 +375,10 @@ class HomeShell extends ConsumerWidget {
         muteCall: () => ref
             .read(pushToTalkGateProvider)
             .toggleMute(HoldSource.inWindow, () => call()?.toggleMute()),
+      if (deafenCall != null)
+        deafenCall: () => ref
+            .read(pushToTalkGateProvider)
+            .toggleDeafen(HoldSource.inWindow, () => call()?.toggleDeafen()),
       if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),

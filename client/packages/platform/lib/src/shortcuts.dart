@@ -38,6 +38,9 @@ enum AppAction {
   /// Toggle this device's own microphone during a call.
   toggleMuteCall,
 
+  /// Deafen or undeafen this device (stop hearing everyone) during a call.
+  toggleDeafenCall,
+
   /// Toggle this device's own camera during a call.
   toggleCameraCall,
 
@@ -57,6 +60,7 @@ enum AppAction {
         AppAction.openSettings => 'Open settings',
         AppAction.openInbox => 'Open the inbox',
         AppAction.toggleMuteCall => 'Mute or unmute (in a call)',
+        AppAction.toggleDeafenCall => 'Deafen or undeafen (in a call)',
         AppAction.toggleCameraCall => 'Turn camera on or off (in a call)',
         AppAction.toggleShareCall => 'Start or stop screen share (in a call)',
         AppAction.leaveCall => 'Leave the call',
@@ -126,11 +130,17 @@ Map<ShortcutActivator, AppAction> defaultBindings({bool forWeb = kIsWeb}) => {
           AppAction.previousChannel,
       // Mute/camera/share match Discord/Zoom; leave (hang up) follows the same shape with no convention of its own.
       _primary(LogicalKeyboardKey.keyM, shift: true): AppAction.toggleMuteCall,
+      _primary(LogicalKeyboardKey.keyD, shift: true):
+          AppAction.toggleDeafenCall,
       _primary(LogicalKeyboardKey.keyV, shift: true):
           AppAction.toggleCameraCall,
       _primary(LogicalKeyboardKey.keyS, shift: true): AppAction.toggleShareCall,
       _primary(LogicalKeyboardKey.keyH, shift: true): AppAction.leaveCall,
     };
+
+/// What the person remapped, applied wherever a caller passes no overrides of
+/// its own so every hint and binding follows without threading a provider.
+Map<AppAction, ShortcutActivator?> userShortcutOverrides = const {};
 
 /// The active bindings, defaults overlaid with a user's overrides.
 ///
@@ -138,9 +148,10 @@ Map<ShortcutActivator, AppAction> defaultBindings({bool forWeb = kIsWeb}) => {
 /// which someone using a screen reader or an alternative input device may well
 /// want.
 Map<ShortcutActivator, AppAction> resolveBindings({
-  Map<AppAction, ShortcutActivator?> overrides = const {},
+  Map<AppAction, ShortcutActivator?>? overrides,
   bool forWeb = kIsWeb,
 }) {
+  overrides ??= userShortcutOverrides;
   final resolved = <ShortcutActivator, AppAction>{};
   final overridden = overrides.keys.toSet();
 
@@ -169,7 +180,7 @@ Map<ShortcutActivator, AppAction> resolveBindings({
 /// allowed to produce - a caller shows nothing rather than an empty keycap.
 List<String> describeAppAction(
   AppAction action, {
-  Map<AppAction, ShortcutActivator?> overrides = const {},
+  Map<AppAction, ShortcutActivator?>? overrides,
   bool forWeb = kIsWeb,
 }) {
   final activator = activatorFor(
@@ -201,7 +212,7 @@ String _keyLabel(LogicalKeyboardKey key) => switch (key) {
 
 ShortcutActivator? activatorFor(
   AppAction action, {
-  Map<AppAction, ShortcutActivator?> overrides = const {},
+  Map<AppAction, ShortcutActivator?>? overrides,
   bool forWeb = kIsWeb,
 }) {
   final resolved = resolveBindings(overrides: overrides, forWeb: forWeb);

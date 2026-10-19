@@ -91,11 +91,11 @@ String _location(WidgetTester tester) =>
     GoRouter.of(tester.element(find.byType(HomeShell))).state.uri.toString();
 
 void main() {
-  testWidgets('a call under five minutes ends with no recap toast', (
+  testWidgets('a call under half a minute ends with no recap toast', (
     tester,
   ) async {
     final s = await _inCall(tester, 390);
-    s.voice.callLength = const Duration(minutes: 4, seconds: 59);
+    s.voice.callLength = const Duration(seconds: 29);
 
     await s.voice.leave();
     await tester.pumpAndSettle();
@@ -115,7 +115,7 @@ void main() {
 
     expect(_location(tester), Routes.channel('t1'));
     expect(find.byType(ChannelScreen), findsOneWidget);
-    expect(find.text('Join muted'), findsNothing);
+    expect(find.text('Rejoin muted'), findsNothing);
     final toasts = s.container.read(toastsProvider);
     expect(toasts.single.message, 'Call ended - 6 min.');
     expect(toasts.single.severity, AppToastSeverity.success);
@@ -182,7 +182,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_location(tester), Routes.channel('c1'));
-    expect(find.text('Join muted'), findsOneWidget);
+    expect(find.text('Rejoin muted'), findsOneWidget);
 
     await teardown(tester, s.container, s.db);
   });

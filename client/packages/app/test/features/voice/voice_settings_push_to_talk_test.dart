@@ -15,6 +15,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
+import 'package:slimm_app/src/features/voice/widgets/push_to_talk_key_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';
@@ -86,13 +87,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(pttToggle);
     await tester.pumpAndSettle();
+    final change = find.descendant(
+      of: find.byType(PushToTalkKeyRow),
+      matching: find.text('Change'),
+    );
     await tester.scrollUntilVisible(
-      find.text('Change'),
+      change,
       200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Change'));
+    await tester.tap(change);
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
     await tester.pumpAndSettle();
@@ -139,7 +144,7 @@ void main() {
 
       final keyCap = find.bySemanticsLabel(RegExp('Push-to-talk key: V'));
       expect(keyCap, findsOneWidget);
-      expect(find.text('Change'), findsOneWidget);
+      expect(find.text('Change'), findsNWidgets(3));
 
       semantics.dispose();
     },

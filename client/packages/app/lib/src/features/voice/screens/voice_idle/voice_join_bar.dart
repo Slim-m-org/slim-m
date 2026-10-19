@@ -26,7 +26,11 @@ class VoiceJoinBar extends ConsumerWidget {
     required this.onJoin,
     this.errorMessage,
     this.canRetry = true,
+    this.rejoin = false,
   });
+
+  /// The person just left this call, so the button says Rejoin.
+  final bool rejoin;
 
   final String channelId;
   final bool compact;
@@ -122,8 +126,9 @@ class VoiceJoinBar extends ConsumerWidget {
   }
 
   String _joinLabel(List<api.VoiceRosterParticipant> here) {
-    if (compact) return 'Join';
-    return here.isEmpty ? 'Join muted' : 'Join · ${here.length} here';
+    final verb = rejoin ? 'Rejoin' : 'Join';
+    if (compact) return verb;
+    return here.isEmpty ? '$verb muted' : '$verb · ${here.length} here';
   }
 
   String _statusLine(bool checked, List<api.VoiceRosterParticipant> here) {
@@ -137,9 +142,10 @@ class VoiceJoinBar extends ConsumerWidget {
   Widget _joinButton(String label, List<api.VoiceRosterParticipant> here) {
     return AppButton(
       label: errorMessage == null ? label : 'Try again',
-      semanticLabel: here.isEmpty
-          ? 'Join the call muted'
-          : 'Join the call muted, ${here.length} here',
+      semanticLabel: [
+        rejoin ? 'Rejoin the call muted' : 'Join the call muted',
+        if (here.isNotEmpty) '${here.length} here',
+      ].join(', '),
       variant: AppButtonVariant.primary,
       onPressed: onJoin,
     );

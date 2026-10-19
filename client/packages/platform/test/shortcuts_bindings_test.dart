@@ -13,6 +13,7 @@ import 'package:slimm_platform/platform.dart';
 
 void main() {
   serverSwitchShortcutTests();
+  deafenAndRemapTests();
 
   test('with no overrides the defaults are all present', () {
     final resolved = resolveBindings();
@@ -57,6 +58,37 @@ void serverSwitchShortcutTests() {
 
     test('are left to the browser on the web build', () {
       expect(serverSwitchActivators(forWeb: true), isEmpty);
+    });
+  });
+}
+
+void deafenAndRemapTests() {
+  group('deafen and the user overrides', () {
+    tearDown(() => userShortcutOverrides = const {});
+
+    test('deafen has its own default chord, distinct from every other', () {
+      final resolved = resolveBindings(forWeb: false);
+      final deafen = resolved.entries
+          .where((e) => e.value == AppAction.toggleDeafenCall)
+          .single
+          .key;
+      expect(
+        resolved.entries.where((e) => e.key == deafen),
+        hasLength(1),
+      );
+      expect(describeAppAction(AppAction.toggleDeafenCall), isNotEmpty);
+    });
+
+    test('userShortcutOverrides is what a caller with none sees', () {
+      const custom = SingleActivator(LogicalKeyboardKey.f9);
+      userShortcutOverrides = {AppAction.toggleMuteCall: custom};
+      expect(activatorFor(AppAction.toggleMuteCall), custom);
+      expect(describeAppAction(AppAction.toggleMuteCall), ['F9']);
+      expect(
+        activatorFor(AppAction.toggleMuteCall, overrides: const {}),
+        isNot(custom),
+        reason: 'an explicit map still wins',
+      );
     });
   });
 }

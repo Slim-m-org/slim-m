@@ -31,9 +31,14 @@ String formatCallDuration(Duration d) {
 /// marking it as a summary of the call that just ended, not who is in it
 /// right now.
 class CallRecapCard extends StatelessWidget {
-  const CallRecapCard({super.key, required this.recap});
+  const CallRecapCard({
+    super.key,
+    required this.recap,
+    this.title = 'Your last call',
+  });
 
   final CallRecap recap;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +48,7 @@ class CallRecapCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Your last call',
+            title,
             textAlign: TextAlign.center,
             style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),

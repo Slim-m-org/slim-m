@@ -15,6 +15,8 @@ import '../../../channels/providers/channel_by_id_provider.dart';
 import '../../../settings/providers/display_preferences.dart';
 import '../../providers/voice_call_history.dart';
 import '../../../../routing/breakpoints.dart';
+import '../../providers/call_recap.dart';
+import '../../widgets/call_recap_card.dart';
 import 'call_history_rows.dart';
 import 'call_moments_view.dart';
 import 'call_timeline_model.dart';
@@ -29,6 +31,7 @@ class VoiceChannelIdle extends ConsumerWidget {
     required this.onOpenCanvas,
     this.errorMessage,
     this.canRetry = true,
+    this.recap,
     this.clock,
   });
 
@@ -37,6 +40,9 @@ class VoiceChannelIdle extends ConsumerWidget {
   final VoidCallback onOpenCanvas;
   final String? errorMessage;
   final bool canRetry;
+
+  /// The call this device just hung up here, shown above the join bar.
+  final CallRecap? recap;
 
   /// Now, in epoch milliseconds; a test pins it.
   final int Function()? clock;
@@ -57,8 +63,12 @@ class VoiceChannelIdle extends ConsumerWidget {
             (c) => c.startedAt == selectedAt,
             orElse: () => finished.first,
           );
+    final ended = recap;
     final sections = <Widget>[
+      if (ended != null && ended.isWorthShowing)
+        CallRecapCard(recap: ended, title: 'Call ended'),
       VoiceJoinBar(
+        rejoin: ended != null,
         channelId: channelId,
         compact: compact,
         lastCallAt: finished.isEmpty ? null : finished.first.endedAt,

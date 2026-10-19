@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -182,11 +183,22 @@ class _PermissionBlock extends ConsumerWidget {
   }
 }
 
-class FirstRunVoiceStep extends ConsumerWidget {
-  const FirstRunVoiceStep({super.key});
+/// [webAskFirst] holds the capture back until the member taps, because a
+/// browser answers the first capture with a permission prompt.
+class FirstRunVoiceStep extends ConsumerStatefulWidget {
+  const FirstRunVoiceStep({super.key, this.webAskFirst = kIsWeb});
+
+  final bool webAskFirst;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FirstRunVoiceStep> createState() => _FirstRunVoiceStepState();
+}
+
+class _FirstRunVoiceStepState extends ConsumerState<FirstRunVoiceStep> {
+  late bool _meterOn = !widget.webAskFirst;
+
+  @override
+  Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -199,7 +211,17 @@ class FirstRunVoiceStep extends ConsumerWidget {
           child: const AudioDeviceSection(embedded: true),
         ),
         const SizedBox(height: AppSpacing.s16),
-        const MicPreviewHold(child: _LevelMeter()),
+        if (_meterOn)
+          const MicPreviewHold(child: _LevelMeter())
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: AppButton(
+              label: 'Test microphone',
+              variant: AppButtonVariant.secondary,
+              onPressed: () => setState(() => _meterOn = true),
+            ),
+          ),
       ],
     );
   }

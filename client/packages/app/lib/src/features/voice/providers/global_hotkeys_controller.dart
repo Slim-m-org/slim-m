@@ -12,6 +12,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'push_to_talk_gate.dart';
+import 'shortcut_overrides.dart';
 import 'voice_controller.dart';
 import 'voice_settings_controller.dart';
 
@@ -20,12 +21,10 @@ const noGlobalCaptureMessage =
 const captureLostMessage =
     'Background capture stopped, so this works only while slim-m is focused.';
 
-/// The shortcut the mute row shows; global capture registers the same chord.
-HotkeyChord get muteChord {
-  final activator = activatorFor(AppAction.toggleMuteCall);
-  if (activator is! SingleActivator) {
-    return const HotkeyChord(LogicalKeyboardKey.keyM, ctrl: true, shift: true);
-  }
+/// The chord [action] currently has, which global capture registers too.
+HotkeyChord chordFor(AppAction action, HotkeyChord fallback) {
+  final activator = activatorFor(action);
+  if (activator is! SingleActivator) return fallback;
   return HotkeyChord(
     activator.trigger,
     ctrl: activator.control,
@@ -34,6 +33,16 @@ HotkeyChord get muteChord {
     meta: activator.meta,
   );
 }
+
+HotkeyChord get muteChord => chordFor(
+  AppAction.toggleMuteCall,
+  const HotkeyChord(LogicalKeyboardKey.keyM, ctrl: true, shift: true),
+);
+
+HotkeyChord get deafenChord => chordFor(
+  AppAction.toggleDeafenCall,
+  const HotkeyChord(LogicalKeyboardKey.keyD, ctrl: true, shift: true),
+);
 
 final globalHotkeySourceProvider = Provider<GlobalHotkeySource?>((ref) {
   if (!isDesktopHost) return null;
@@ -56,6 +65,7 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     _events = source.events.listen(_onEvent);
     _ref.listen(voiceSettingsControllerProvider, (_, _) => _sync());
     _ref.listen(voiceControllerProvider, (_, _) => _sync());
+    _ref.listen(shortcutOverridesProvider, (_, _) => _sync());
     unawaited(_start());
   }
 
@@ -89,15 +99,24 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
           description: 'Mute or unmute',
           chord: muteChord,
         ),
+      if (inCall)
+        GlobalHotkeyBinding(
+          id: GlobalHotkeyId.toggleDeafen,
+          description: 'Deafen or undeafen',
+          chord: deafenChord,
+        ),
     ];
   }
+
+  String _chordKey(HotkeyChord c) =>
+      '${c.key.keyId}${c.ctrl ? 'c' : ''}${c.alt ? 'a' : ''}${c.shift ? 's' : ''}${c.meta ? 'm' : ''}';
 
   Future<void> _sync() async {
     final source = _source;
     if (source == null || _binding || state?.available != true) return;
     final wanted = _wanted();
     final signature = [
-      for (final b in wanted) '${b.id.name}:${b.chord.key.keyId}',
+      for (final b in wanted) '${b.id.name}:${_chordKey(b.chord)}',
     ].join(',');
     if (signature == _bound) return;
     if (!_ref.read(voiceSettingsControllerProvider).pushToTalkEnabled) {
@@ -135,6 +154,8 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
         }
       case GlobalHotkeyId.toggleMute:
         if (event.phase == GlobalHotkeyPhase.pressed) _toggleMute(gate);
+      case GlobalHotkeyId.toggleDeafen:
+        if (event.phase == GlobalHotkeyPhase.pressed) _toggleDeafen(gate);
       case null:
         return;
     }
@@ -147,6 +168,12 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
       HoldSource.global,
       () => unawaited(voice.toggleMicrophone()),
     );
+  }
+
+  void _toggleDeafen(PushToTalkGate gate) {
+    final voice = _ref.read(voiceControllerProvider.notifier);
+    if (voice.state.state != VoiceSessionState.connected) return;
+    gate.toggleDeafen(HoldSource.global, () => unawaited(voice.toggleDeafen()));
   }
 
   @override

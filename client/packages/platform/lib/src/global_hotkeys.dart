@@ -12,7 +12,7 @@ import 'global_hotkeys_stub.dart' if (dart.library.io) 'global_hotkeys_io.dart'
     as impl;
 
 /// What a global hotkey does; [name] doubles as its id on the wire.
-enum GlobalHotkeyId { pushToTalk, toggleMute }
+enum GlobalHotkeyId { pushToTalk, toggleMute, toggleDeafen }
 
 /// A key plus the modifiers that must be held with it.
 class HotkeyChord {

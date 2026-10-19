@@ -166,21 +166,29 @@ void main() {
     });
 
     test(
-      'four minutes fifty-nine seconds is too short, five minutes is not',
+      'twenty-nine seconds is too short, thirty seconds is not, and a short call that is not noise is shown',
       () {
         expect(
           recapOf(
-            duration: const Duration(minutes: 4, seconds: 59),
+            duration: const Duration(seconds: 29),
             alone: false,
           ).isWorthShowing,
           isFalse,
         );
         expect(
           recapOf(
-            duration: const Duration(minutes: 5),
+            duration: const Duration(seconds: 30),
             alone: false,
           ).isWorthShowing,
           isTrue,
+        );
+        expect(
+          recapOf(
+            duration: const Duration(minutes: 3),
+            alone: false,
+          ).isWorthShowing,
+          isTrue,
+          reason: 'a three minute call used to get no recap at all',
         );
       },
     );
@@ -212,6 +220,24 @@ void main() {
         alone: false,
       );
       expect(recap.isWorthShowing, isTrue);
+    });
+  });
+
+  group('callCompanyLabel', () {
+    CallParticipantActivity who(String name) => CallParticipantActivity(
+      identity: name,
+      name: name,
+      joinedAt: DateTime(2026),
+    );
+
+    test('names one, two, or the first and a count', () {
+      expect(callCompanyLabel(const []), '');
+      expect(callCompanyLabel([who('Kiki')]), 'Kiki');
+      expect(callCompanyLabel([who('Kiki'), who('Ann')]), 'Kiki and Ann');
+      expect(
+        callCompanyLabel([who('Kiki'), who('Ann'), who('Bo')]),
+        'Kiki and 2 others',
+      );
     });
   });
 }
