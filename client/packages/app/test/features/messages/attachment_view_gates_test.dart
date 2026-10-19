@@ -150,7 +150,9 @@ void main() {
     tester,
   ) async {
     final container = _container([
-      attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _gifBytes,
+      ),
     ]);
 
     await _pump(tester, container, _gif);
@@ -162,7 +164,9 @@ void main() {
   testWidgets('set to hover or tap, a gif holds under a play badge until the '
       'tap', (tester) async {
     final container = _container([
-      attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _gifBytes,
+      ),
     ]);
     await container
         .read(gifAutoplayControllerProvider.notifier)
@@ -185,7 +189,9 @@ void main() {
   testWidgets('a pointer resting on a held gif plays it, and leaving holds it '
       'again', (tester) async {
     final container = _container([
-      attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _gifBytes,
+      ),
     ]);
     await container
         .read(gifAutoplayControllerProvider.notifier)
@@ -226,7 +232,9 @@ void main() {
     tester,
   ) async {
     final container = _container([
-      attachmentBytesProvider(_gif.id).overrideWith((ref) async => _gifBytes),
+      attachmentPreviewBytesProvider.overrideWith(
+        (ref, key) async => _gifBytes,
+      ),
     ]);
     await container
         .read(gifAutoplayControllerProvider.notifier)

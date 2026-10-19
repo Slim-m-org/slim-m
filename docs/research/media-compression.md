@@ -128,3 +128,27 @@ The default upload limit is 1 GiB (`SLIMM_ATTACHMENT_MAX_BYTES`), so a 40 MB pho
   `docker build -f docker/server.Dockerfile` builds it on the Alpine musl builder without changes.
 - Not preserved on re-encode: HDR gain maps and multi-picture data (Ultra HDR), and the EXIF thumbnail.
   Keep original retains them.
+
+## Preview memory for large photos and GIFs
+
+Previews are derived from the stored file at upload, behind the same memory budget.
+A baseline JPEG above 40 MP (up to 160 MP) is decoded at a 1/2, 1/4 or 1/8 DCT scale (`jpeg-decoder`), enough to keep the 1280 bucket sharp, so a 48 MP or 108 MP photo gets real previews; before, `?w=` returned the 34 MB original.
+A progressive JPEG that large, or any other format past 40 MP, is still served as the original, since its coefficients or raster cannot fit.
+A GIF, and an animated WebP or PNG, gets its first frame as a still at each bucket (`?w=` for a GIF, `?w=&still=true` for the others); the decode reads one frame, not the animation.
+
+Shipped musl image, `docker run --memory=512m --memory-swap=512m`, compression off, one or four uploads at once to a fresh container, all three buckets then requested, `/healthz` polled every 30 ms.
+`anon` is the process's own memory above its 30 MB idle; `peak` is the cgroup's, which also counts file cache from the uploaded bytes.
+Time runs from the first upload to the last preview served.
+
+| case | anon over idle | cgroup peak | time | max /healthz | OOM |
+|---|---|---|---|---|---|
+| 48 MP JPEG (34 MB), one | 57 MB | 152 MB | 0.7 s | 1 ms | no |
+| 108 MP JPEG (19 MB), one | 50 MB | 112 MB | 0.5 s | 1 ms | no |
+| GIF 1280x720, 30 frames (38 MB), one | 63 MB | 144 MB | 0.3 s | 1 ms | no |
+| 48 MP JPEG, four at once | 71 MB | 250 MB | 2.5 s | 8 ms | no |
+| 108 MP JPEG, four at once | 86 MB | 199 MB | 1.9 s | 6 ms | no |
+| GIF, four at once | 143 MB | 341 MB | 0.6 s | 5 ms | no |
+
+The 48 MP preview buckets came out at 27 KB, 71 KB and 182 KB (the 108 MP photo alike), against the 34 MB original.
+The GIF stills were 18 KB, 97 KB and 507 KB for a 38 MB file.
+The 108 MP file here was upscaled from the 48 MP one, so it is smaller on disk than a phone original; the decode cost follows pixels, not bytes.

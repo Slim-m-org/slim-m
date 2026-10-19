@@ -20,6 +20,8 @@ import '../../messages/widgets/attachment_picker.dart';
 import '../../messages/widgets/image_drop_zone.dart';
 import 'avatar_crop_sheet.dart';
 import 'avatar_photo_menu.dart';
+import 'banner_settings_row.dart';
+import 'identity_row.dart';
 import 'edit_display_name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_section_header.dart';
@@ -137,7 +139,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
         title: 'Identity',
         topGap: kDenseSectionTopGap,
         children: [
-          _IdentityRow(
+          IdentityRow(
             leading: ExcludeSemantics(
               child: Stack(
                 alignment: Alignment.center,
@@ -175,7 +177,8 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
               ),
             ],
           ),
-          _IdentityRow(
+          const BannerSettingsRow(),
+          IdentityRow(
             caption: 'Display name',
             title: me?.displayName ?? '',
             trailing: [
@@ -190,7 +193,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
               ),
             ],
           ),
-          _IdentityRow(
+          IdentityRow(
             caption: 'Username',
             title: me == null ? '' : '@${me.username}',
             mono: true,
@@ -227,68 +230,5 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
   Future<void> _removeAndClear() async {
     clearActionError();
     await _remove();
-  }
-}
-
-/// One `.row` of the Identity card: a lead, a two-line label (caption above
-/// value when there is no lead) and trailing actions.
-class _IdentityRow extends StatelessWidget {
-  const _IdentityRow({
-    required this.title,
-    required this.trailing,
-    this.leading,
-    this.caption,
-    this.mono = false,
-  });
-
-  final Widget? leading;
-  final String title;
-  final String? caption;
-  final bool mono;
-  final List<Widget> trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final metrics = SettingsRowMetrics.of(context);
-    final captionText = caption == null
-        ? null
-        : Text(
-            caption!,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          );
-    final titleText = Text(
-      title,
-      overflow: TextOverflow.ellipsis,
-      style: (mono ? AppText.code : AppText.ui).copyWith(
-        color: tokens.textPrimary,
-      ),
-    );
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: metrics.minHeight),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: metrics.inset,
-          vertical: metrics.vertical,
-        ),
-        child: Row(
-          spacing: AppSpacing.s12,
-          children: [
-            ?leading,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                spacing: 2,
-                children: leading == null
-                    ? [?captionText, titleText]
-                    : [titleText, ?captionText],
-              ),
-            ),
-            ...trailing,
-          ],
-        ),
-      ),
-    );
   }
 }

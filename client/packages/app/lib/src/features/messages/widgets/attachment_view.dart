@@ -198,15 +198,13 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       tile ?? kInlineImageMax,
       scale: previewScale,
     );
-    // A gif animates, so it is always the original; a still draws its preview.
-    final bytesAsync = _isGif
-        ? ref.watch(attachmentBytesProvider(attachment.id))
-        : ref.watch(
-            attachmentPreviewBytesProvider((
-              id: attachment.id,
-              bucket: attachmentPreviewBucket(decodeWidth),
-            )),
-          );
+    // A gif answers its first frame; the original is fetched only once it plays.
+    final bytesAsync = ref.watch(
+      attachmentPreviewBytesProvider((
+        id: attachment.id,
+        bucket: attachmentPreviewBucket(decodeWidth),
+      )),
+    );
     return bytesAsync.when(
       loading: () => _captioned(
         caption,
@@ -227,16 +225,22 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
       ),
       data: (bytes) {
         final animated = _isGif || looksAnimated(bytes);
+        final standIn = _isGif && !looksAnimated(bytes);
         final playGated =
             animated && gifAutoplay == GifAutoplay.tapToPlay && !_revealed;
         // Whatever the setting, an animation nobody is looking at holds its first frame.
         final still = animated && !focused;
         // An animation held from autoplay shows its first frame, animating on hover or tap.
         if (playGated) {
-          return _gatedGif(bytes, caption: caption, decodeWidth: decodeWidth);
+          return _gatedGif(
+            bytes,
+            playBytes: standIn && _hovered ? _original(bytes) : bytes,
+            caption: caption,
+            decodeWidth: decodeWidth,
+          );
         }
         return _openableImage(
-          bytes,
+          standIn && !still ? _original(bytes) : bytes,
           caption: caption,
           decodeWidth: decodeWidth,
           still: still,
@@ -245,8 +249,14 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
     );
   }
 
+  /// The moving original once it has arrived, the first frame until then.
+  Uint8List _original(Uint8List firstFrame) =>
+      ref.watch(attachmentBytesProvider(attachment.id)).valueOrNull ??
+      firstFrame;
+
   Widget _gatedGif(
     Uint8List bytes, {
+    required Uint8List playBytes,
     required String caption,
     required int decodeWidth,
   }) {
@@ -267,7 +277,7 @@ class _AttachmentViewState extends ConsumerState<AttachmentView>
               if (_hovered)
                 Positioned.fill(
                   child: Image.memory(
-                    bytes,
+                    playBytes,
                     fit: BoxFit.contain,
                     cacheWidth: decodeWidth,
                   ),

@@ -22,6 +22,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
 use super::user_avatars::{delete_avatar, get_avatar, upload_avatar};
+use super::user_banners::{delete_banner, get_banner, upload_banner};
 use super::user_status::{
     PROFILE_COLOR_COUNT, validate_about, validate_profile_color, validate_profile_color_rgb,
     validate_pronouns, validate_status_text,
@@ -55,10 +56,12 @@ pub fn routes() -> Router<AppState> {
         .route("/users", get(list_users))
         .route("/users/{user_id}", get(get_user))
         .route("/users/{user_id}/avatar", get(get_avatar))
+        .route("/users/{user_id}/banner", get(get_banner))
         .layer(DefaultBodyLimit::max(BODY_LIMIT));
 
     let avatar_upload = Router::new()
         .route("/me/avatar", post(upload_avatar).delete(delete_avatar))
+        .route("/me/banner", post(upload_banner).delete(delete_banner))
         .layer(DefaultBodyLimit::max(AVATAR_MAX_BYTES as usize));
 
     profile.merge(avatar_upload)
@@ -83,6 +86,9 @@ pub(super) struct UserDto {
     /// query parameter on `GET /users/{userId}/avatar`, which ignores the
     /// query string itself and just serves whatever is currently stored.
     avatar_updated_at: Option<i64>,
+    /// When this user's profile banner image was last set, or `null` for the
+    /// profile colour. A cache-busting version on `GET /users/{userId}/banner`.
+    banner_updated_at: Option<i64>,
     /// Role names this member holds, for a client to render a badge (e.g.
     /// "Op") beside them. Excludes `@everyone`: every member holds that one,
     /// so including it would put a meaningless badge on every row. Empty
@@ -197,6 +203,7 @@ pub(super) async fn to_dtos(store: &Store, users: Vec<User>) -> anyhow::Result<V
                 nickname,
                 created_at: user.created_at,
                 avatar_updated_at: user.avatar_updated_at,
+                banner_updated_at: user.banner_updated_at,
                 roles: held.iter().map(|(_, name)| name.clone()).collect(),
                 role_ids: held.iter().map(|(id, _)| id.to_string()).collect(),
                 hoisted_role_id: hoisted.get(&user.id).map(|role| role.id.to_string()),
@@ -224,6 +231,7 @@ struct MeDto {
     display_name: String,
     created_at: i64,
     avatar_updated_at: Option<i64>,
+    banner_updated_at: Option<i64>,
     /// The caller's base, deployment-level permission bitmask: the
     /// `@everyone` role plus every role they hold, ignoring any per-channel
     /// overwrite. A client uses this to decide which actions to show, but
@@ -330,6 +338,7 @@ async fn get_me(
         display_name: user.display_name,
         created_at: user.created_at,
         avatar_updated_at: user.avatar_updated_at,
+        banner_updated_at: user.banner_updated_at,
         permissions: permissions.bits(),
         timed_out_until: timeout.as_ref().map(|t| t.until),
         timeout_reason: timeout.and_then(|t| t.reason),

@@ -1052,6 +1052,97 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+
+  /me/banner:
+    post:
+      operationId: uploadBanner
+      tags: [users]
+      summary: Upload (or replace) the caller's profile banner.
+      description: >
+        An image or a gif drawn behind the caller's profile card instead of
+        the profile colour. Same upload path, size and pixel limits as an
+        avatar; the client crops it to the banner shape first. Decision 0074.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: The caller's updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteBanner
+      tags: [users]
+      summary: Remove the caller's profile banner.
+      description: The profile colour shows again.
+      responses:
+        "204":
+          description: The banner was removed (or there was none).
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /users/{userId}/banner:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The user's UUID.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getBanner
+      tags: [users]
+      summary: Fetch a user's profile banner bytes.
+      description: >
+        Gated on authentication only, like `getAvatar`. 404 for a user with
+        no banner, and for a deleted or anonymized account exactly like
+        `getUser`.
+      responses:
+        "200":
+          description: >-
+            The banner's raw bytes, served as the type sniffed from the stored
+            bytes.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /me/links:
     get:
       operationId: listMyLinkedAccounts
@@ -4216,12 +4307,18 @@ paths:
         (anything above 1280 gets 1280), the EXIF orientation is applied and
         all metadata is dropped. The preview is a JPEG, or a lossless WebP for
         a picture with transparency or flat graphics, and is generated once
-        and stored next to the original. An animated picture, any other type,
-        a picture too large to decode, one that is no smaller as a preview,
-        and one that fails to decode are answered with the original bytes
-        and the original's content type, so a caller must read the response
-        `Content-Type` rather than assume the preview's. A value that is not a
-        non-negative integer answers 400.
+        and stored next to the original. A GIF is answered with its first
+        frame at the same sizes, as a still JPEG or lossless WebP, so a held
+        animation costs a still rather than the whole file; fetch without `w`
+        for the moving original. An animated WebP or PNG is answered the same
+        way only when `still=true` is also sent, and otherwise with the
+        original. A JPEG above 40 megapixels (up to 160) is decoded at a
+        reduced scale when its coefficients are not progressive. Any other
+        type, a picture too large to decode, one that is no smaller as a
+        preview, and one that fails to decode are answered with the original
+        bytes and the original's content type, so a caller must read the
+        response `Content-Type` rather than assume the preview's. A value
+        that is not a non-negative integer answers 400.
 
 
         `original=true` asks for the file as it was uploaded, kept beside the
@@ -4235,6 +4332,14 @@ paths:
           description: Preview width in pixels; see the operation description.
           schema:
             type: integer
+        - name: still
+          in: query
+          required: false
+          description: >-
+            With `w`, `true` also answers an animated WebP or PNG with its
+            first frame; see the operation description.
+          schema:
+            type: boolean
         - name: original
           in: query
           required: false
@@ -10399,6 +10504,13 @@ components:
             serves whatever is currently stored. Absent on servers older
             than the avatar feature, which a client must treat as unknown
             (no cache key), not as "no avatar".
+        banner_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: >
+            When this user's profile banner image was last set, or null for
+            the profile colour. A cache-busting query parameter on
+            `getBanner`. Absent on servers older than the banner feature.
         roles:
           type: array
           items:
@@ -10552,6 +10664,10 @@ components:
           type: [integer, "null"]
           format: int64
           description: Same meaning as `UserProfile.avatar_updated_at`.
+        banner_updated_at:
+          type: [integer, "null"]
+          format: int64
+          description: Same meaning as `UserProfile.banner_updated_at`.
         permissions:
           type: integer
           format: int64

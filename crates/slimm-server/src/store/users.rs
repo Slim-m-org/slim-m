@@ -43,6 +43,7 @@ struct UserRow {
     display_name: String,
     created_at: i64,
     avatar_updated_at: Option<i64>,
+    banner_updated_at: Option<i64>,
     status_text: Option<String>,
     pronouns: Option<String>,
     about: Option<String>,
@@ -60,6 +61,7 @@ impl From<UserRow> for User {
             display_name: r.display_name,
             created_at: r.created_at,
             avatar_updated_at: r.avatar_updated_at,
+            banner_updated_at: r.banner_updated_at,
             status_text: r.status_text,
             pronouns: r.pronouns,
             about: r.about,
@@ -84,7 +86,7 @@ impl Store {
             UserRow,
             r#"SELECT id AS "id!: UserId", username AS "username!",
                       display_name AS "display_name!", created_at AS "created_at!",
-                      avatar_updated_at, status_text, pronouns, about,
+                      avatar_updated_at, banner_updated_at, status_text, pronouns, about,
                       profile_color, profile_color_rgb, is_bot AS "is_bot!",
                       is_webhook AS "is_webhook!"
                FROM users WHERE id = ? AND deleted_at IS NULL"#,
@@ -107,8 +109,8 @@ impl Store {
             // Built rather than a fixed `query!` because the id list is variable
             // length and SQLite has no array binding.
             let mut builder = QueryBuilder::new(
-                "SELECT id, username, display_name, created_at, avatar_updated_at, status_text, \
-                 pronouns, about, profile_color, profile_color_rgb, is_bot, is_webhook \
+                "SELECT id, username, display_name, created_at, avatar_updated_at, banner_updated_at, \
+                 status_text, pronouns, about, profile_color, profile_color_rgb, is_bot, is_webhook \
                  FROM users \
                  WHERE deleted_at IS NULL AND id IN (",
             );
@@ -294,7 +296,7 @@ impl Store {
             UserRow,
             r#"SELECT id AS "id!: UserId", username AS "username!",
                       display_name AS "display_name!", created_at AS "created_at!",
-                      avatar_updated_at, status_text, pronouns, about,
+                      avatar_updated_at, banner_updated_at, status_text, pronouns, about,
                       profile_color, profile_color_rgb, is_bot AS "is_bot!",
                       is_webhook AS "is_webhook!"
                FROM users WHERE deleted_at IS NULL AND is_webhook = 0 AND id > ?
@@ -367,6 +369,38 @@ impl Store {
         let affected = sqlx::query!(
             "UPDATE users SET avatar_updated_at = ? WHERE id = ? AND deleted_at IS NULL",
             now,
+            user_id
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        if affected == 0 {
+            return Ok(None);
+        }
+        self.user_profile(user_id).await
+    }
+
+    /// Stamps `banner_updated_at` after the banner bytes are written, the same file-then-row order as an avatar.
+    pub async fn set_banner_updated(&self, user_id: UserId) -> anyhow::Result<Option<User>> {
+        let now = super::now_ms();
+        let affected = sqlx::query!(
+            "UPDATE users SET banner_updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+            now,
+            user_id
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        if affected == 0 {
+            return Ok(None);
+        }
+        self.user_profile(user_id).await
+    }
+
+    /// Clears the caller's banner so the profile colour shows again; the file is removed by the caller.
+    pub async fn clear_banner(&self, user_id: UserId) -> anyhow::Result<Option<User>> {
+        let affected = sqlx::query!(
+            "UPDATE users SET banner_updated_at = NULL WHERE id = ? AND deleted_at IS NULL",
             user_id
         )
         .execute(&self.pool)

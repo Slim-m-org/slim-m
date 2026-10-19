@@ -31,6 +31,7 @@ import 'member_profile_identity.dart';
 import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
 import 'member_profile_sections.dart';
+import 'profile_banner.dart';
 import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
 import '../../../widgets/run_guarded.dart';
@@ -92,6 +93,7 @@ class SelfMemberCard extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        MemberProfileBanner(profile: profile),
         MemberProfileHeader(
           profile: profile,
           isSelf: true,
@@ -209,6 +211,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        MemberProfileBanner(profile: profile),
         MemberProfileHeader(
           profile: profile,
           isSelf: false,

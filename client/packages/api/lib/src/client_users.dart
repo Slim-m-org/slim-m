@@ -127,4 +127,18 @@ extension SlimmApiUsers on SlimmApi {
   /// permission applies.
   Future<FetchedBytes> fetchAvatar(String userId) =>
       _fetchBytes('/users/$userId/avatar');
+
+  /// Uploads (or replaces) the caller's profile banner, an image or a gif.
+  Future<UserProfile> uploadBanner(List<int> bytes) async {
+    final json = await _send('POST', '/me/banner', bytes: bytes);
+    return UserProfile.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Removes the caller's banner, so the profile colour shows again.
+  Future<void> deleteBanner() =>
+      _send('DELETE', '/me/banner', expectNoContent: true);
+
+  /// Fetches a user's banner bytes; 404 for a user with none.
+  Future<FetchedBytes> fetchBanner(String userId) =>
+      _fetchBytes('/users/$userId/banner');
 }

@@ -52,6 +52,17 @@ pub(super) async fn profile_calls(c: &mut Contract, root: &str, admin_id: &str, 
     c.get("getAvatar", &format!("/users/{admin_id}/avatar"), root)
         .await;
     c.bare("deleteAvatar", "DELETE", "/me/avatar", root).await;
+    c.call(
+        "uploadBanner",
+        "POST",
+        "/me/banner",
+        Some(root),
+        Payload::Bytes(PNG.to_vec()),
+    )
+    .await;
+    c.get("getBanner", &format!("/users/{admin_id}/banner"), root)
+        .await;
+    c.bare("deleteBanner", "DELETE", "/me/banner", root).await;
 
     c.json(
         "setPresenceActivity",

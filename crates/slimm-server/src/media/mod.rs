@@ -38,6 +38,7 @@ mod image_header;
 mod linked_avatar;
 pub mod originals;
 pub mod preview;
+mod preview_derive;
 mod preview_scale;
 mod stream;
 mod upload_session;
@@ -404,6 +405,23 @@ impl Media {
 
     pub async fn delete_avatar(&self, user_id: &str) -> io::Result<()> {
         remove(self.avatar_path(user_id)).await
+    }
+
+    /// A profile banner shares the avatar directory under a `banner-` prefix, which no UUID has.
+    fn user_banner_path(&self, user_id: &str) -> PathBuf {
+        self.avatar_path(&format!("banner-{user_id}"))
+    }
+
+    pub async fn write_user_banner(&self, user_id: &str, bytes: Vec<u8>) -> io::Result<()> {
+        write_atomic(self.user_banner_path(user_id), bytes).await
+    }
+
+    pub async fn read_user_banner(&self, user_id: &str) -> io::Result<Vec<u8>> {
+        read(self.user_banner_path(user_id)).await
+    }
+
+    pub async fn delete_user_banner(&self, user_id: &str) -> io::Result<()> {
+        remove(self.user_banner_path(user_id)).await
     }
 
     /// The space banner shares the avatar directory; its key is not a UUID,

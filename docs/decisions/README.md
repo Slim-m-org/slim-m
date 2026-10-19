@@ -81,3 +81,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0069](0069-bot-prefix-assignment.md) | The server assigns each bot a prefix and refuses a command clash | accepted |
 | [0070](0070-space-scoped-settings.md) | Settings that follow the Space | accepted |
 | [0071](0071-move-members.md) | Moving members between voice channels | accepted |
+| [0074](0074-profile-banner-image.md) | Profile banner image | accepted |
