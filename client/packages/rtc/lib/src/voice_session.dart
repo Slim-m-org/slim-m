@@ -26,6 +26,7 @@ import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'mic_release.dart';
 import 'input_gate.dart';
+import 'join_timings.dart';
 import 'mic_failure.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
@@ -61,6 +62,7 @@ import 'package:slimm_api/api.dart'
 part 'voice_session_audio_devices.dart';
 part 'voice_session_health.dart';
 part 'voice_session_input_gate.dart';
+part 'voice_session_join.dart';
 part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
@@ -101,7 +103,9 @@ class VoiceSession
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
-  })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
+    JoinTimings? joinTimings,
+  })  : _joinTimings = joinTimings ?? JoinTimings(),
+        _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
@@ -114,7 +118,8 @@ class VoiceSession
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort, captureRestartDebounce, _restartCapture);
+    _initCapture(micPort ?? _standInMic(roomFactory), captureRestartDebounce,
+        _restartCapture);
     _audioSwitching = _switchingFor(audioDevices, liveOutput, osMicBlocked);
     _initMicRelease(
       grace: micReleaseGrace,
@@ -144,6 +149,7 @@ class VoiceSession
       );
 
   late final RoomFactory _roomFactory;
+  final JoinTimings _joinTimings;
   final BroadcastBridge _broadcast;
   final DesktopSources _desktopSources;
   final CameraSwitching _cameraSwitching;
@@ -249,12 +255,10 @@ class VoiceSession
   /// to know about permissions. Rejoining an already-connected session leaves
   /// the old one first rather than stacking two connections.
   ///
-  /// Overlapping calls serialize rather than race: both would otherwise pass
-  /// the `_room != null` check before either assigns it, and two rooms then
-  /// fight over one session's state, stranding the UI on connecting. A second
-  /// tap of Join, or a channel switch mid-connect, now waits for the first
-  /// attempt to settle and then runs, which ends in the state the *last*
-  /// caller asked for.
+  /// Overlapping calls serialize rather than race, because two rooms would
+  /// otherwise fight over one session's state and strand the UI on connecting.
+  /// A second tap of Join, or a channel switch mid-connect, waits for the first
+  /// attempt to settle, so the state ends as the *last* caller asked for.
   Future<void> join({
     required String url,
     required String token,
@@ -299,10 +303,10 @@ class VoiceSession
     _room = room;
     _listen(room);
     try {
+      _beginJoinWork(microphone: microphoneEnabled);
       await room.connect(url, token);
-      // A leave (or a newer join) may already have taken this room while
-      // connect was in flight; whoever superseded us already tore it down,
-      // so there is nothing left here to publish to or report on.
+      _joinTimings.mark(JoinStage.connected);
+      // A leave or newer join took this room mid-connect and tore it down.
       if (!identical(_room, room)) return;
       // Publishing is separate from connecting on purpose: a join preview
       // can arrive muted, and a token without SPEAK must not fail the join.
@@ -331,12 +335,9 @@ class VoiceSession
   /// silently deafen the next call before anyone asked for that, with
   /// nothing in [VoiceState] (which does reset) around to say so.
   ///
-  /// None of that happens for a leave a newer join has already superseded.
-  /// [_teardown] clears `_room` before it awaits anything, so a join
-  /// starting while a disconnect is still in flight builds its room
-  /// unobstructed - and would then have this call's trailing reset land on
-  /// top of it, reporting a connecting or connected call as idle and
-  /// clearing the audio state it had just been given.
+  /// None of that happens for a leave a newer join has already superseded:
+  /// [_teardown] clears `_room` before it awaits, so a join starting mid-leave
+  /// would otherwise have this trailing reset land on top of its new call.
   Future<void> leave() async {
     final generation = ++_generation;
     await _teardown();
