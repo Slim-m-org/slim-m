@@ -235,7 +235,7 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'voice',
     'Hold a key to talk',
-    description: 'Hold the key to talk; your mic stays on between presses.',
+    description: 'Hold the key to talk; your mic indicator stays on in calls.',
     keywords: ['push to talk', 'ptt', 'keybind', 'hotkey'],
     conditional: true,
     available: _desktop,

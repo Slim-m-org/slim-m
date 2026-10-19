@@ -10,6 +10,7 @@ mixin VoiceSessionMicRelease {
   late final lk.AudioCaptureOptions Function() _plainOpenOptions;
   void _diag(String line, {LogLevel level});
   late final MicRelease _micRelease;
+  CaptureNoiseSuppression get _capture;
 
   void _initMicRelease({
     required Duration grace,
@@ -32,9 +33,26 @@ mixin VoiceSessionMicRelease {
   /// Keeps the capture open while muted, so push to talk keys down instantly.
   Future<void> setKeepMicReady(bool keepReady) async {
     _micRelease.setKeepReady(keepReady);
-    if (!keepReady || !_micRelease.released || _room == null) return;
-    await _mic.reopenMuted(_plainOpenOptions());
-    _micRelease.reopened();
+    if (!keepReady || _room == null) return;
+    if (_micRelease.released) {
+      await _mic.reopenMuted(_plainOpenOptions());
+      _micRelease.reopened();
+    } else {
+      await _primeMutedMic();
+    }
+  }
+
+  /// A push-to-talk call joins muted with no track, so the first key down
+  /// would otherwise open the device and publish; this does that up front.
+  Future<void> _primeMutedMic() async {
+    if (!_micRelease.keepReady || _mic.hasTrack || _room == null) return;
+    try {
+      await _mic.reopenMuted(_plainOpenOptions());
+      _micRelease.onMuted();
+      _capture.opened(webrtcNoiseSuppression: _capture.webrtcNoiseSuppression);
+    } catch (e) {
+      _diag('Could not ready the microphone: $e', level: LogLevel.warning);
+    }
   }
 
   /// A phone that goes to the background releases a muted microphone at once.

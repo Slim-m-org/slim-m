@@ -306,6 +306,7 @@ class VoiceSession
       if (cameraEnabled) {
         await _trySetCamera(true);
       }
+      if (!microphoneEnabled) await _primeMutedMic();
       if (!identical(_room, room)) return;
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
