@@ -367,16 +367,11 @@ class VoiceSession
   ///
   /// Calling this is what makes a later [setScreenShareEnabled] able to find
   /// anything at all: see [DesktopSources].
-  Future<List<ScreenShareSource>> screenShareSources() async {
-    try {
-      return await _desktopSources.list();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice,
-          'list the screens and windows that can be shared', e, stack);
-      _lastError = e;
-      return const [];
-    }
-  }
+  Future<List<ScreenShareSource>> screenShareSources() => _reported(
+        'list the screens and windows that can be shared',
+        const [],
+        _desktopSources.list,
+      );
 
   /// Mutes or unmutes the local microphone.
   ///
@@ -503,40 +498,41 @@ class VoiceSession
   /// The cameras this desktop (or browser) offers, for the picker. Calling
   /// this is what makes a later [selectCameraDevice] able to find anything,
   /// the same reason [screenShareSources] has to run first.
-  Future<List<CameraDevice>> cameraDevices() async {
-    try {
-      return await _cameraSwitching.devices();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'list cameras', e, stack);
-      _lastError = e;
-      return const [];
-    }
-  }
+  Future<List<CameraDevice>> cameraDevices() =>
+      _reported('list cameras', const [], _cameraSwitching.devices);
 
   /// Flips the published camera between front and back, mobile only.
-  Future<bool> flipCamera() async {
-    try {
-      return await _cameraSwitching.flip(_room?.localParticipant);
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'switch the camera', e, stack);
-      _lastError = e;
-      return false;
-    }
-  }
+  Future<bool> flipCamera() => _reported(
+        'switch the camera',
+        false,
+        () => _cameraSwitching.flip(_room?.localParticipant),
+      );
 
   /// Switches the published camera to [device], desktop's answer to
   /// [flipCamera] where more than one webcam can exist.
   Future<bool> selectCameraDevice(CameraDevice device) async {
     final room = _room;
     if (room == null) return false;
-    try {
+    return _reported('choose the camera', false, () async {
       await _cameraSwitching.select(room, device);
       _refreshParticipants();
       return true;
+    });
+  }
+
+  /// Runs [run]; a failure is reported, kept as [lastError], and answered
+  /// with [fallback] so a picker or toggle never throws into the UI.
+  Future<T> _reported<T>(
+    String action,
+    T fallback,
+    Future<T> Function() run,
+  ) async {
+    try {
+      return await run();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'choose the camera', e, stack);
+      reportFailure(LogTag.voice, action, e, stack);
       _lastError = e;
-      return false;
+      return fallback;
     }
   }
 
