@@ -25,7 +25,6 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
-import '../providers/canvas_camera_memory.dart';
 import '../providers/canvas_grid_snap.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
@@ -34,7 +33,6 @@ import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'canvas_activity_log.dart';
-import 'canvas_camera_keeper.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_forbidden_message.dart';
@@ -112,13 +110,13 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       }
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
+    document.setBoard(canvasBoard);
     document.addListener(_onCameraMoved);
     _ref.listen<bool>(
       canvasGridSnapProvider,
       (_, snap) => document.snapToGrid.value = snap,
       fireImmediately: true,
     );
-    unawaited(_camera.restore(mounted: () => mounted));
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
   }
@@ -344,20 +342,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// those content notifications re-read a null [_fetched] and rescheduled a
   /// fetch for the unmoved viewport - forever, since the answer stays
   /// truncated for the same reason each time.
-  late final CanvasCameraKeeper _camera = CanvasCameraKeeper(
-    _ref.read(canvasCameraMemoryProvider),
-    channelId,
-    document,
-  );
 
   void _onCameraMoved() {
     final view = document.worldView;
     if (view == _lastCameraView) return;
     final isFirstView = _lastCameraView == null;
     _lastCameraView = view;
-    if (document.camera != const Camera() || _camera.hasSaved) {
-      _camera.remember();
-    }
     final fetched = _fetched;
     if (fetched != null &&
         fetched.contains(view.topLeft) &&
@@ -465,7 +455,6 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     hydrator.dispose();
     _loadRetry.cancel();
     _panDebounce?.cancel();
-    _camera.flush();
     _queue?.close();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();

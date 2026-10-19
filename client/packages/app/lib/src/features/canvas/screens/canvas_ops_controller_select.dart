@@ -101,8 +101,13 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
     final id =
-        hitTestBoxAt(document, world, allowed: allowed) ??
-        _hitTestSelectableStroke(world, allowed);
+        hitTestBoxAt(
+          document,
+          world,
+          allowed: allowed,
+          slopPx: touch ? touchHitSlopPx : 0,
+        ) ??
+        _hitTestSelectableStroke(world, allowed, touch);
     document.selectedObjectId.value = id;
     if (id == null || document.kindOf(id) == CanvasObjectKind.stroke) return;
     final bounds = document.objectBounds(id);
@@ -170,8 +175,14 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   String? _hitTestSelectableStroke(
     Offset world,
     bool Function(CanvasStroke stroke) allowed,
+    bool touch,
   ) {
-    final id = hitTestStroke(document, world, allowed: allowed);
+    final id = hitTestStroke(
+      document,
+      world,
+      allowed: allowed,
+      slopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
+    );
     if (id == null || document.kindOf(id) != CanvasObjectKind.stroke) {
       return null;
     }

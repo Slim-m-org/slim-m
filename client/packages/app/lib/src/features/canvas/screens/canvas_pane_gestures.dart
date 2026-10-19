@@ -174,15 +174,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  /// Fits the camera to whatever is actually drawn, falling back to the
-  /// world origin only when there is nothing to fit - a plain camera move,
-  /// so it needs no `setState` any more than a scroll or a pinch does. See
-  /// `worldLimit`'s own doc for the "no route back" gap this closes, and
-  /// `cameraToFit`'s own doc for why the origin fallback is still correct
-  /// for an empty canvas.
-  void _onRecenter() => _document.setCamera(
-    cameraToFit(_document.contentBounds, _document.viewport),
-  );
+  /// Brings the whole shared board back into view.
+  void _onRecenter() => _document.fitBoard();
 
   /// Delete/Backspace over the current Move-tool selection, the desktop
   /// convention every other drawing surface honours - the overflow menu's
@@ -201,6 +194,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   void _onStroke(List<Offset> worldPoints) {
     final selfId = ref.read(meProvider).valueOrNull?.id;
     final ids = <String>[];
+    final width = canvasPenWorldWidth(_pen.width, _document.camera.zoom);
     for (final segment in splitStroke(worldPoints)) {
       final id = newCanvasObjectId();
       ids.add(id);
@@ -214,7 +208,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
           w: segment.w,
           h: segment.h,
           points: segment.points,
-          width: _pen.width,
+          width: width,
           colorKey: _pen.colorKey,
           authorId: selfId,
         ),
@@ -228,7 +222,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
           h: segment.h,
           props: {
             'points': segment.points,
-            'width': _pen.width,
+            'width': width,
             'color': _pen.colorKey,
           },
         ),
@@ -246,7 +240,12 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final manageCanvas = ref
         .read(myChannelPermissionsProvider(widget.channelId))
         .hasPermission(Perm.manageCanvas);
-    _ops.onErasePoint(world, manageCanvas: manageCanvas, selfId: me?.id);
+    _ops.onErasePoint(
+      world,
+      manageCanvas: manageCanvas,
+      selfId: me?.id,
+      touch: AppTouchTargets.of(context),
+    );
   }
 
   Future<void> _onEraseEnd() async {

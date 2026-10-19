@@ -31,7 +31,7 @@ void main() {
     final draft = draftAlongTheSameLine();
     addTearDown(draft.dispose);
     final draftCanvas = RecordingCanvas();
-    DraftPainter(draft: draft, document: document, ink: ink, width: 4)
+    DraftPainter(draft: draft, document: document, ink: ink, width: 4 * zoom)
         .paint(draftCanvas, const Size(400, 400));
 
     expect(committedCanvas.deviceStrokeWidths, [4.0 * zoom]);
@@ -145,7 +145,7 @@ void main() {
     );
   });
 
-  test('a draft holding one point paints a dot at the stroke width', () {
+  test('a draft holding one point paints a dot at the pen screen width', () {
     final document = documentWithCommittedStroke(2);
     addTearDown(document.dispose);
     final draft = DraftStroke()..begin(const Offset(40, 40));
@@ -155,7 +155,7 @@ void main() {
     DraftPainter(draft: draft, document: document, ink: ink, width: 4)
         .paint(canvas, const Size(400, 400));
 
-    expect(canvas.deviceStrokeWidths, [8.0]);
+    expect(canvas.deviceStrokeWidths, [4.0]);
   });
 }
 

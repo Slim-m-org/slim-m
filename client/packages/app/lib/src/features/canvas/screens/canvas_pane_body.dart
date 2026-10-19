@@ -432,6 +432,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           selectionOutline: tokens.accentFill,
           selectionHandleFill: tokens.surfaceRaised,
           selectionHandleBorder: tokens.accentFill,
+          touchHandles: AppTouchTargets.of(context),
           noteColor: AppCanvasColors.note,
           shapeColor: AppCanvasColors.shape,
           noteTextInk: tokens.textPrimary,
