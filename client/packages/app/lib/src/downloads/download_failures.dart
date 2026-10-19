@@ -39,25 +39,29 @@ class DownloadFailureHost extends ConsumerWidget {
             left: AppSpacing.s16,
             right: AppSpacing.s16,
             bottom: AppSpacing.s16,
-            child: SafeArea(
-              top: false,
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: _maxWidth),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: AppSpacing.s8,
-                    children: [
-                      for (final task in failed)
-                        AppErrorState(
-                          message:
-                              task.message ??
-                              'Could not save ${task.attachment.filename}.',
-                          onRetry: () => downloads.start(task.attachment),
-                          onDismiss: () => downloads.dismiss(task.id),
-                        ),
-                    ],
+            // Above every Scaffold, so it brings the Material its text styles from.
+            child: Material(
+              type: MaterialType.transparency,
+              child: SafeArea(
+                top: false,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _maxWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: AppSpacing.s8,
+                      children: [
+                        for (final task in failed)
+                          AppErrorState(
+                            message:
+                                task.message ??
+                                'Could not save ${task.attachment.filename}.',
+                            onRetry: () => downloads.start(task.attachment),
+                            onDismiss: () => downloads.dismiss(task.id),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),

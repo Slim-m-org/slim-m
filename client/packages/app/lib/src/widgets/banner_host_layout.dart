@@ -22,7 +22,9 @@ class BannerHostLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      ?banner,
+      // Outside every Scaffold, so a Text here has no Material of its own to take a style from.
+      if (banner != null)
+        Material(type: MaterialType.transparency, child: banner),
       Expanded(
         child: MediaQuery.removePadding(
           context: context,
