@@ -25,7 +25,9 @@ String notificationStateLabel(api.NotificationPreference? current) =>
       null => 'Default',
     };
 
-AppMenuItem notificationsMenuItem(
+/// Wrapped so the submenu can open beside this very entry, where the row menu
+/// it replaces stood.
+Widget notificationsMenuItem(
   BuildContext context,
   ProviderContainer container,
   String channelId,
@@ -37,37 +39,50 @@ AppMenuItem notificationsMenuItem(
   final current = container
       .read(channelNotificationOverridesProvider)
       .overrideFor(channelId);
-  return AppMenuItem(
-    label: 'Notifications',
-    leading: current == api.NotificationPreference.nothing
-        ? AppIcons.notificationsOff
-        : AppIcons.notificationsOn,
-    trailing: Text(
-      notificationStateLabel(current),
-      style: AppText.caption.copyWith(color: tokens.textSecondary),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+  return Builder(
+    builder: (itemContext) => AppMenuItem(
+      label: 'Notifications',
+      leading: current == api.NotificationPreference.nothing
+          ? AppIcons.notificationsOff
+          : AppIcons.notificationsOn,
+      trailing: Text(
+        notificationStateLabel(current),
+        style: AppText.caption.copyWith(color: tokens.textSecondary),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      submenu: true,
+      onTap: () {
+        final entry = _entryRect(itemContext);
+        close();
+        unawaited(
+          _showNotificationsMenu(
+            context,
+            container,
+            channelId,
+            entry,
+            muteLabel: muteLabel,
+            channelDefault: channelDefault,
+          ),
+        );
+      },
     ),
-    submenu: true,
-    onTap: () {
-      close();
-      unawaited(
-        _showNotificationsMenu(
-          context,
-          container,
-          channelId,
-          muteLabel: muteLabel,
-          channelDefault: channelDefault,
-        ),
-      );
-    },
   );
+}
+
+Rect? _entryRect(BuildContext itemContext) {
+  final box = itemContext.findRenderObject() as RenderBox?;
+  final overlay =
+      Overlay.of(itemContext).context.findRenderObject() as RenderBox?;
+  if (box == null || overlay == null) return null;
+  return box.localToGlobal(Offset.zero, ancestor: overlay) & box.size;
 }
 
 Future<void> _showNotificationsMenu(
   BuildContext anchor,
   ProviderContainer container,
-  String channelId, {
+  String channelId,
+  Rect? entry, {
   required String muteLabel,
   api.NotificationPreference? channelDefault,
 }) {
@@ -86,11 +101,6 @@ Future<void> _showNotificationsMenu(
       builder: (context) => AppSheetMenu(children: items(context)),
     );
   }
-  final box = anchor.findRenderObject() as RenderBox?;
-  final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
-  final origin = box == null || overlay == null
-      ? Offset.zero
-      : box.localToGlobal(Offset.zero, ancestor: overlay);
   return showGeneralDialog<void>(
     context: anchor,
     barrierDismissible: true,
@@ -98,8 +108,8 @@ Future<void> _showNotificationsMenu(
     barrierColor: Colors.transparent,
     transitionDuration: AppMotion.reduced(anchor, AppMotion.base),
     pageBuilder: (context, _, _) => AnchoredMemberPopover(
-      origin: origin,
-      anchorSize: box?.size ?? Size.zero,
+      origin: entry?.topLeft ?? Offset.zero,
+      anchorSize: entry?.size ?? Size.zero,
       child: AppMenu(children: items(context)),
     ),
     transitionBuilder: (context, animation, _, child) =>

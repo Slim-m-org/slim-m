@@ -263,16 +263,50 @@ void main() {
     await tester.tap(entry);
     await tester.pumpAndSettle();
 
-    for (var i = 0; i < 4 && fixture.stored == null; i++) {
+    for (var i = 0; i < 6 && !_focusedItemSays('Mentions only'); i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 100)),
-      );
-      await tester.pumpAndSettle();
-      if (find.text('Mute channel').evaluate().isEmpty) break;
     }
-    expect(fixture.requests, isNotEmpty, reason: 'a key press chose an entry');
+    expect(_focusedItemSays('Mentions only'), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 100)),
+    );
+    await tester.pumpAndSettle();
+    expect(fixture.stored, api.NotificationPreference.mentions);
   });
+
+  testWidgets('the wide choices open beside the entry, clear of the header', (
+    tester,
+  ) async {
+    final fixture = _Fixture();
+    await _pumpRow(tester, fixture, width: 1000);
+    final header = tester.getRect(find.text('Channels'));
+    await _openRowMenu(tester, phone: false);
+    final entry = tester.getRect(
+      find.widgetWithText(AppMenuItem, 'Notifications'),
+    );
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
+
+    final popover = tester.getRect(find.byType(AppMenu));
+    expect(popover.overlaps(entry), isFalse, reason: 'beside, not over');
+    expect(popover.top, closeTo(entry.top, 8));
+    expect(popover.overlaps(header), isFalse);
+  });
+}
+
+/// True when focus sits on the one menu entry named [label], not on a scope
+/// that holds several.
+bool _focusedItemSays(String label) {
+  final focused = FocusManager.instance.primaryFocus?.context as Element?;
+  final texts = <String>[];
+  void walk(Element element) {
+    final widget = element.widget;
+    if (widget is Text && widget.data != null) texts.add(widget.data!);
+    element.visitChildElements(walk);
+  }
+
+  focused?.visitChildElements(walk);
+  return texts.contains(label) && texts.length <= 2;
 }
