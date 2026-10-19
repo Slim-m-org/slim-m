@@ -90,6 +90,9 @@ abstract final class AppIcons {
   static const IconData send = LucideIcons.send300;
   static const IconData reply = LucideIcons.reply300;
   static const IconData forward = LucideIcons.forward300;
+
+  /// Sending someone to another voice channel.
+  static const IconData moveToCall = LucideIcons.arrowRightLeft300;
   static const IconData thread = LucideIcons.messagesSquare300;
   static const IconData edit = LucideIcons.pencil300;
   static const IconData retry = LucideIcons.rotateCw300;

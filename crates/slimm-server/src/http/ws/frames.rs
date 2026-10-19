@@ -370,6 +370,16 @@ pub(super) enum ServerFrame {
         client_kind: Option<String>,
         signed_in_at: i64,
     },
+    /// A moderator moved this account to another call; see
+    /// [`crate::hub::Event::VoiceMoved`]. Delivered only to that account.
+    #[serde(rename = "voice.moved")]
+    VoiceMoved {
+        from_channel_id: String,
+        to_channel_id: String,
+        to_channel_name: String,
+        moved_by_id: String,
+        moved_by_name: String,
+    },
     #[serde(rename = "pong")]
     Pong,
     #[serde(rename = "error")]

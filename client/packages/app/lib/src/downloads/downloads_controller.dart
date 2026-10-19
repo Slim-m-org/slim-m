@@ -2,7 +2,7 @@
 /// Attachment downloads, owned at app scope.
 ///
 /// Nothing here belongs to a widget: a download keeps running when the user
-/// switches channels, and the transfers banner reads it from anywhere. Each
+/// switches channels, and the failure card reads it from anywhere. Each
 /// run streams the response into a [DownloadTarget] and can be cancelled,
 /// which closes the connection (the server stops reading the file when the
 /// socket goes) and deletes the partial file.
@@ -12,9 +12,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
 
 import '../api_failure.dart';
 import '../providers/providers.dart';
+import '../providers/toasts.dart';
 import '../widgets/transfer_meter.dart';
 import 'download_target.dart';
 
@@ -232,6 +234,12 @@ class DownloadsController extends Notifier<List<DownloadTask>> {
       _runs.remove(id);
       if (saved) {
         _update(id, (t) => t.copyWith(phase: DownloadPhase.done));
+        ref
+            .read(toastsProvider.notifier)
+            .show(
+              'Saved ${attachment.filename}.',
+              severity: AppToastSeverity.success,
+            );
       } else {
         dismiss(id);
       }

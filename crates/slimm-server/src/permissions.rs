@@ -83,6 +83,9 @@ impl Permissions {
     /// report or delete a message. Deployment-wide, not per-channel; see
     /// `docs/decisions/0028-bot-accounts.md`.
     pub const VIEW_MODERATION_HISTORY: Self = Self(1 << 18);
+    /// Move a participant from one voice call to another; needed in both
+    /// channels. See `docs/decisions/0071-move-members.md`.
+    pub const MOVE_MEMBERS: Self = Self(1 << 19);
 
     /// The union of every defined permission. What administrator resolves to.
     pub const ALL: Self = Self(
@@ -104,7 +107,8 @@ impl Permissions {
             | Self::MANAGE_SERVER.0
             | Self::MENTION_EVERYONE.0
             | Self::RUN_CODE.0
-            | Self::VIEW_MODERATION_HISTORY.0,
+            | Self::VIEW_MODERATION_HISTORY.0
+            | Self::MOVE_MEMBERS.0,
     );
 
     /// Wraps a raw bitmask, for example one loaded from the database.
@@ -332,6 +336,7 @@ mod tests {
             Permissions::MENTION_EVERYONE,
             Permissions::RUN_CODE,
             Permissions::VIEW_MODERATION_HISTORY,
+            Permissions::MOVE_MEMBERS,
         ];
         let union = named
             .into_iter()

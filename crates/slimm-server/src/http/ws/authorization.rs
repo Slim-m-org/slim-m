@@ -459,6 +459,7 @@ async fn channel_frame(
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))
 }

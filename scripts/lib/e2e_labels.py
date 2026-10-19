@@ -125,7 +125,7 @@ MENU_SELECT = "Select messages"
 MENU_REPORT = "Report message"
 MENU_BLOCK = "Block user"
 QUICK_REACTIONS = ("Thumbs up", "Heart", "Laughing", "Celebrate", "Eyes")
-MENU_VERBS = ("Copy text", "Copy link", "Forward message", "Save message",
+MENU_VERBS = ("Copy text", "Copy message link", "Forward message", "Save message",
               "Pin")
 MENU_SECOND_PAGE = (MENU_SELECT, MENU_REPORT, MENU_BLOCK)
 

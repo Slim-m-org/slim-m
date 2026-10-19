@@ -90,7 +90,7 @@ export const L = {
   ],
   "MENU_VERBS": [
     "Copy text",
-    "Copy link",
+    "Copy message link",
     "Forward message",
     "Save message",
     "Pin"

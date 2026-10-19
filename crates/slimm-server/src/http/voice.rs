@@ -25,6 +25,7 @@ use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
 pub(super) mod voice_calls;
+pub(super) mod voice_move;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
 pub(super) mod voice_webhook;
@@ -44,6 +45,10 @@ pub fn routes() -> Router<AppState> {
         .route(
             "/channels/{channel_id}/voice/participants/{user_id}/kick",
             post(kick),
+        )
+        .route(
+            "/channels/{channel_id}/voice/participants/{user_id}/move",
+            post(voice_move::move_participant),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }

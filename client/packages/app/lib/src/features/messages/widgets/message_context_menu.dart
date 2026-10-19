@@ -43,7 +43,13 @@ class MessageActions {
     required this.onSave,
     this.onStartSelecting,
     this.botSections = const [],
+    this.linkUrls = const [],
+    this.onCopyLinkAddress,
   });
+
+  /// The web addresses in the message, each offered as "Copy link address".
+  final List<String> linkUrls;
+  final void Function(String url)? onCopyLinkAddress;
 
   /// Enters the transcript's selection mode with this message picked, for
   /// deleting several at once.

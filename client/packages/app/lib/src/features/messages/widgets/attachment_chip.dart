@@ -31,7 +31,7 @@ class _AttachmentChipState extends ConsumerState<AttachmentChip>
   api.Attachment get attachment => widget.attachment;
 
   /// Hands the download to the app-scoped controller, which outlives this
-  /// chip; progress and Cancel live in the transfers banner.
+  /// chip; the spinner here is its progress and a failure floats over the shell.
   void _save() {
     clearActionError();
     unawaited(ref.read(downloadsProvider.notifier).start(attachment));

@@ -123,10 +123,19 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
       ),
       if (_a.canCopyLink)
         AppMenuItem(
-          label: 'Copy link',
+          label: 'Copy message link',
           leading: AppIcons.link,
           onTap: () => _run(_a.onCopyLink),
         ),
+      for (final url in _a.linkUrls)
+        if (_a.onCopyLinkAddress case final copy?)
+          AppMenuItem(
+            label: _a.linkUrls.length == 1
+                ? 'Copy link address'
+                : 'Copy link address (${_hostOf(url)})',
+            leading: AppIcons.link,
+            onTap: () => _run(() => copy(url)),
+          ),
       if (_a.canForward)
         AppMenuItem(
           label: 'Forward message',
@@ -196,3 +205,5 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
       ),
   ];
 }
+
+String _hostOf(String url) => Uri.tryParse(url)?.host ?? url;

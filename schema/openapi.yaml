@@ -7088,6 +7088,70 @@ paths:
         "503":
           $ref: "#/components/responses/Unavailable"
 
+  /channels/{channelId}/voice/participants/{userId}/move:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: moveVoiceParticipant
+      tags: [voice]
+      summary: Move a participant to another voice channel.
+      description: >
+        Requires MOVE_MEMBERS and VIEW_CHANNEL in both the source and the
+        destination channel. The person must be on the source call and allowed
+        to view and join the destination, which must be a voice channel that is
+        not full. Sends the moved account a `voice.moved` frame, takes them out
+        of the source room, and records a `voice_move` entry in the moderation
+        history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_channel_id]
+              properties:
+                to_channel_id:
+                  type: string
+                  format: uuid
+      responses:
+        "204":
+          description: The participant was moved.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: >
+            The person is not on the source call, cannot join the destination,
+            or the destination is full.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /voice/webhook:
     post:
       operationId: receiveLiveKitWebhook
@@ -12148,6 +12212,7 @@ components:
             - reset_code_issue
             - nickname_set
             - nickname_clear
+            - voice_move
         reason:
           type: [string, "null"]
         until:
@@ -15793,6 +15858,7 @@ components:
         - $ref: "#/components/schemas/InteractionCreated"
         - $ref: "#/components/schemas/InteractionAnswered"
         - $ref: "#/components/schemas/NewDeviceSignIn"
+        - $ref: "#/components/schemas/VoiceMoved"
         - $ref: "#/components/schemas/ServerPong"
         - $ref: "#/components/schemas/ServerError"
     CanvasObjectPlaced:
@@ -16875,6 +16941,37 @@ components:
           type: integer
           format: int64
           description: Unix milliseconds.
+
+    VoiceMoved:
+      type: object
+      required:
+        - type
+        - from_channel_id
+        - to_channel_id
+        - to_channel_name
+        - moved_by_id
+        - moved_by_name
+      description: >
+        A moderator moved this account to another call. Delivered only to the
+        moved account's connections. The client leaves the call it was in and
+        joins `to_channel_id` through the ordinary token route.
+      properties:
+        type:
+          type: string
+          enum: [voice.moved]
+        from_channel_id:
+          type: string
+          format: uuid
+        to_channel_id:
+          type: string
+          format: uuid
+        to_channel_name:
+          type: string
+        moved_by_id:
+          type: string
+          format: uuid
+        moved_by_name:
+          type: string
 
     VoiceActivityChanged:
       type: object

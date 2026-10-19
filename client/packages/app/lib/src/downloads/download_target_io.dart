@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Desktop saves straight to the picked path; phones buffer for their own save flow.
+/// Desktop saves straight into the Downloads folder; phones buffer for their own save flow.
 library;
 
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'download_target.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -14,13 +15,39 @@ Future<DownloadTarget?> openPlatformDownloadTarget(String filename) async {
   if (!(Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
     return MemoryDownloadTarget(filename);
   }
-  // Desktop pickers write the bytes they are given to the chosen path; an empty list claims it.
+  final downloads = await getDownloadsDirectory();
+  if (downloads != null) {
+    return FileDownloadTarget.open(await freeDownloadFile(downloads, filename));
+  }
+  // No Downloads folder: ask, and give the picker an empty list, which makes it claim the path.
   final saved = await FilePicker.saveFile(
     fileName: filename,
     bytes: Uint8List(0),
   );
   if (saved == null) return null;
   return FileDownloadTarget.open(File.fromUri(saved));
+}
+
+/// A path in [directory] for [filename] that nothing occupies yet, as
+/// `name (2).ext` when the plain name is taken, so a save never overwrites.
+Future<File> freeDownloadFile(Directory directory, String filename) async {
+  final plain = filename.split(RegExp(r'[\\/]')).last;
+  final name = plain.isEmpty || plain == '.' || plain == '..'
+      ? 'download'
+      : plain;
+  final dot = name.lastIndexOf('.');
+  final stem = dot > 0 ? name.substring(0, dot) : name;
+  final extension = dot > 0 ? name.substring(dot) : '';
+  for (var n = 1; ; n++) {
+    final candidate = File(
+      '${directory.path}${Platform.pathSeparator}'
+      '${n == 1 ? name : '$stem ($n)$extension'}',
+    );
+    if (!await candidate.exists() &&
+        !await File('${candidate.path}.part').exists()) {
+      return candidate;
+    }
+  }
 }
 
 /// Writes to `<chosen>.part` and renames over [chosen] only when complete, so

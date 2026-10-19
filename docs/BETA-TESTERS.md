@@ -13,7 +13,7 @@ The older `slimm://join?server=...&code=...` form still works, and so does a bar
 See `docs/OPEN-QUESTIONS.md` item 21.
 
 **A link to one message is `slimm://message?...` and works the other way round.**
-"Copy link" on a message produces one, and tapping it opens the app on that message.
+"Copy message link" on a message produces one, and tapping it opens the app on that message.
 It only does anything while signed in, and only when the link names the deployment you are signed into.
 A link to somebody else's server is ignored, for the same reason an invite is ignored while signed in: one deployment is one community in v1.
 
