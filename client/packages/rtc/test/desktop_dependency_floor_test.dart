@@ -64,6 +64,34 @@ void main() {
       );
     },
   );
+
+  test('flutter_webrtc is pinned past the first-share double chooser', () {
+    final ref = _forkRef();
+    expect(
+      _doubleChooserRefs,
+      isNot(contains(ref)),
+      reason: 'flutter_webrtc $ref opens one xdg-desktop-portal chooser for '
+          'libwebrtc\'s own screen list and a second for the capture, so the '
+          'first Linux share asks twice. Run scripts/linux-portal-probe/run.sh '
+          'before moving the pin.',
+    );
+  });
+}
+
+/// Fork commits whose first share opens two portal choosers.
+const _doubleChooserRefs = {'a5d9427e64b50dda1c74ac54e769bbacd0655282'};
+
+String _forkRef() {
+  final lines = File('${_workspaceRoot().path}/pubspec.lock').readAsLinesSync();
+  final start = lines.indexWhere((l) => l == '  flutter_webrtc:');
+  expect(start, greaterThanOrEqualTo(0),
+      reason: 'flutter_webrtc is not locked');
+  final resolved = RegExp(r'^      resolved-ref: "?([0-9a-f]{40})"?');
+  for (var j = start + 1; j < lines.length && j < start + 10; j++) {
+    final match = resolved.firstMatch(lines[j]);
+    if (match != null) return match.group(1)!;
+  }
+  fail('flutter_webrtc has no resolved-ref in the lockfile');
 }
 
 /// Reads the version pub actually resolved for [package] out of the
