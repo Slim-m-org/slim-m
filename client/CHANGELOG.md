@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.114.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.113.1...client-v0.114.0) (2026-10-19)
+
+
+### Features
+
+* windows mic and device fixes, auto update hardening, shared canvas board, editable notes, move members, livekit 2.13 and the rest of batch 14 ([#2270](https://github.com/Slim-m-org/slim-m/issues/2270)) ([f0d9d83](https://github.com/Slim-m-org/slim-m/commit/f0d9d83f4e441efe2bdcdc82a527e94815dc37f3))
+
 ## [0.113.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.113.0...client-v0.113.1) (2026-10-19)
 
 
