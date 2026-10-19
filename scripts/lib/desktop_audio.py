@@ -55,6 +55,7 @@ def virtual_mic(wav):
             ["ffmpeg", "-v", "error", "-re", "-stream_loop", "-1", "-i", wav,
              "-f", "pulse", "-ac", "1", "-ar", "48000", "-device", SINK, "slimm_vq_feed"],
             stdin=subprocess.DEVNULL, start_new_session=True)
+        full_volume()
         yield feeder
     finally:
         if feeder is not None:
@@ -64,6 +65,23 @@ def virtual_mic(wav):
         for module in reversed(modules):
             with contextlib.suppress(subprocess.CalledProcessError):
                 _pactl("unload-module", module)
+
+
+def full_volume():
+    """Restores 100% on the feeder's stream and the mic: a remembered 0% would play silence."""
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        for block in _pactl("list", "sink-inputs").split("Sink Input #")[1:]:
+            if "slimm_vq_feed" in block:
+                ident = block.split()[0]
+                _pactl("set-sink-input-mute", ident, "0")
+                _pactl("set-sink-input-volume", ident, "100%")
+                for kind in ("source",):
+                    _pactl(f"set-{kind}-mute", MIC, "0")
+                    _pactl(f"set-{kind}-volume", MIC, "100%")
+                return
+        time.sleep(0.3)
+    raise AssertionError("the microphone feeder never appeared as a playback stream")
 
 
 def default_devices():

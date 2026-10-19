@@ -82,12 +82,14 @@ def _arm(name, listener, inputs, server, tokens, channel, compositor, directory,
     clean, mix = (dsp.read_wav(inputs[k]) for k in ("clean", "mix"))
     rows = {}
     try:
+        da.full_volume()
         app.start(compositor)
         app.wait_for("SLIMM_HARNESS joined", 150)
         for pid in app.app_pids():
             assert not da.touches_owner_data(pid), f"pid {pid} holds the owner's app data"
         for profile in [p for p in os.environ.get(
                 "E2E_DESKTOP_PROFILES", "clean,loss5-jitter30,burst").split(",") if p]:
+            da.full_volume()
             samples, _, dropped = _listen(listener, profile)
             xp.save_wav(os.path.join(directory, f"rx-{name}-{profile}.wav"), samples)
             rows[profile] = {"dropped_frames": dropped, "seconds": round(len(samples) / 48000, 1)}
