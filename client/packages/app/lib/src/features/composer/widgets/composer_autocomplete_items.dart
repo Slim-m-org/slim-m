@@ -124,6 +124,18 @@ Set<String> botChoiceTriggers(List<api.ChannelBotCommand> botCommands) => {
       '${command.prefix}${command.name}'.toLowerCase(),
 };
 
+/// [autocompleteQueryAt] with the bot prefixes and choice triggers of [botCommands].
+AutocompleteQuery? composerQueryAt(
+  String text,
+  int caret,
+  List<api.ChannelBotCommand> botCommands,
+) => autocompleteQueryAt(
+  text,
+  caret,
+  botPrefixes: botCommands.map((c) => c.prefix),
+  botTriggers: botChoiceTriggers(botCommands),
+);
+
 /// The choices of the option under the caret, prefix matches first. Not
 /// capped at [maxAutocompleteRows]: a pick list is the whole set, and the
 /// overlay scrolls it.
