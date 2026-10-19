@@ -56,6 +56,8 @@ class DisplayDensityPreview extends StatelessWidget {
               avatar: avatar,
               top: density.rowGap,
               name: 'Ada',
+              headMarker: marker,
+              density: density,
               time: '9:41a',
               line: 'Does the new spacing read better?',
             ),
@@ -88,8 +90,12 @@ class _Sample extends StatelessWidget {
     required this.name,
     required this.time,
     required this.line,
+    this.headMarker = ContinuationMarker.none,
+    this.density = AppDensity.normal,
   });
 
+  final ContinuationMarker headMarker;
+  final AppDensity density;
   final double avatar;
   final double top;
   final String name;
@@ -99,51 +105,63 @@ class _Sample extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Padding(
-      padding: EdgeInsets.only(top: top),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Sample people with no picture, so the known form skips a profile lookup for an id that does not exist.
-          UserAvatar.known(
-            name: name,
-            userId: 'density-preview-$name',
-            avatarUpdatedAt: null,
-            size: avatar,
-          ),
-          const SizedBox(width: AppSpacing.s12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text.rich(
-                  TextSpan(
-                    text: name,
-                    children: [
-                      TextSpan(
-                        text: '  $time',
-                        style: AppText.micro.copyWith(
-                          fontFamily: AppFonts.mono,
-                          fontWeight: AppWeights.regular,
-                          color: tokens.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  style: AppText.ui.copyWith(
-                    color: tokens.textPrimary,
-                    fontWeight: AppWeights.semi,
-                  ),
-                ),
-                Text(
-                  line,
-                  style: AppText.body.copyWith(color: tokens.textPrimary),
-                ),
-              ],
+    return Stack(
+      children: [
+        if (headMarker != ContinuationMarker.none)
+          ContinuationHeadRail(
+            geometry: ContinuationGeometry.of(
+              context,
+              gutter: 0,
+              density: density,
             ),
           ),
-        ],
-      ),
+        Padding(
+          padding: EdgeInsets.only(top: top),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sample people with no picture, so the known form skips a profile lookup for an id that does not exist.
+              UserAvatar.known(
+                name: name,
+                userId: 'density-preview-$name',
+                avatarUpdatedAt: null,
+                size: avatar,
+              ),
+              const SizedBox(width: AppSpacing.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        text: name,
+                        children: [
+                          TextSpan(
+                            text: '  $time',
+                            style: AppText.micro.copyWith(
+                              fontFamily: AppFonts.mono,
+                              fontWeight: AppWeights.regular,
+                              color: tokens.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      style: AppText.ui.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: AppWeights.semi,
+                      ),
+                    ),
+                    Text(
+                      line,
+                      style: AppText.body.copyWith(color: tokens.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

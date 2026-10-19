@@ -68,13 +68,26 @@ class ContinuationHeadRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).extension<AppTokens>()!.borderSubtle;
-    return Positioned(
-      left: geometry.railLeft,
-      top: geometry.headTop,
-      bottom: 0,
-      width: ContinuationRail.thickness,
-      child: IgnorePointer(
-        child: ColoredBox(key: railKey, color: color),
+    return Positioned.fill(
+      // A row no taller than its avatar leaves no room, and padding clamps to nothing.
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: geometry.railLeft,
+          top: geometry.headTop,
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: IgnorePointer(
+            child: ColoredBox(
+              key: railKey,
+              color: color,
+              child: const SizedBox(
+                width: ContinuationRail.thickness,
+                height: double.infinity,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
