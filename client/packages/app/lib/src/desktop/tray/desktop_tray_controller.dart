@@ -117,6 +117,28 @@ class DesktopTrayController with TrayListener {
     );
   }
 
+  /// Windows convention: a left-click brings the window back, even from the tray or behind others.
+  @override
+  void onTrayIconMouseDown() {
+    if (!_windows) return;
+    unawaited(_raiseWindow());
+  }
+
+  Future<void> _raiseWindow() async {
+    try {
+      await port.show();
+      await port.restore();
+      await port.focus();
+    } catch (error, stack) {
+      AppLog.warning(
+        LogTag.platform,
+        'Could not bring the window to the front',
+        error: error,
+        stack: stack,
+      );
+    }
+  }
+
   /// Windows draws no menu of its own: the plugin only reports the click,
   /// and without the foreground grab it never closes the menu on an outside click.
   @override
