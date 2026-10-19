@@ -40,11 +40,19 @@ def _tc(command, container=LIVEKIT_CONTAINER):
                    "sh", "-c", command)
 
 
+# A full outage of what the SFU sends, kept out of PROFILES so a sweep does not run it.
+CUT = "loss 100%"
+
+
 def apply(profile, container=LIVEKIT_CONTAINER):
     """Impair the SFU's egress per `profile`; returns the qdisc as tc reports it."""
     args = PROFILES[profile]
     if args is None:
         return clear(container)
+    return apply_args(args, container)
+
+
+def apply_args(args, container=LIVEKIT_CONTAINER):
     _tc(f"tc qdisc replace dev {DEVICE} root netem {args}", container)
     return _tc(f"tc qdisc show dev {DEVICE}", container).strip()
 
@@ -53,3 +61,19 @@ def clear(container=LIVEKIT_CONTAINER):
     _tc(f"tc qdisc del dev {DEVICE} root 2>/dev/null; tc qdisc show dev {DEVICE}",
         container)
     return "clean"
+
+
+def _stamped(command, container):
+    """Runs `command` in the sidecar and returns the host epoch ms read right after it."""
+    out = _tc(f"{command}; date +%s%3N", container)
+    return int(out.strip().splitlines()[-1])
+
+
+def cut(container=LIVEKIT_CONTAINER):
+    """Starts a full outage; returns the epoch ms it took hold."""
+    return _stamped(f"tc qdisc replace dev {DEVICE} root netem {CUT}", container)
+
+
+def restore(container=LIVEKIT_CONTAINER):
+    """Ends the outage; returns the epoch ms the link came back."""
+    return _stamped(f"tc qdisc del dev {DEVICE} root", container)

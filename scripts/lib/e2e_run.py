@@ -47,6 +47,9 @@ import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
 import e2e_voice_noise
+import e2e_voice_desktop
+import e2e_voice_experience
+import e2e_voice_latency
 import e2e_voice_quality
 import e2e_voice_volume
 import e2e_voice_network
@@ -328,6 +331,18 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice quality: known clips played both ways are scored per network "
          "profile (opt in with E2E_ONLY)",
          lambda: e2e_voice_quality.run_if_selected(
+             server, secret, admin, sign_in, room_id)),
+        ("voice latency: chirps through the call give the mouth-to-ear delay per "
+         "network profile (opt in with E2E_ONLY)",
+         lambda: e2e_voice_latency.run_if_selected(
+             server, secret, admin, sign_in, room_id)),
+        ("voice experience: join time, the speaking ring and a 10 s network cut "
+         "(opt in with E2E_ONLY)",
+         lambda: e2e_voice_experience.run_if_selected(
+             server, secret, admin, sign_in, room_id)),
+        ("voice desktop: the real Linux client against noise, Strong and the gate "
+         "(opt in with E2E_ONLY)",
+         lambda: e2e_voice_desktop.run_if_selected(
              server, secret, admin, sign_in, room_id)),
         # Last, because it wipes bob's browser storage and signs him in again.
         ("account: usernames ignore case, registering and signing in",
