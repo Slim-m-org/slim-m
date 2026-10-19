@@ -15,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/downloads/transfers_banner.dart';
+import 'package:slimm_app/src/downloads/download_failures.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_bytes.dart';
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -138,7 +138,7 @@ void main() {
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
           home: const Scaffold(
-            body: TransfersBannerHost(child: AttachmentView(attachment: pdf)),
+            body: DownloadFailureHost(child: AttachmentView(attachment: pdf)),
           ),
         ),
       ),
@@ -165,11 +165,12 @@ void main() {
       expect(dialog.filenames, [pdf.filename]);
       expect(dialog.targets.single.bytes, [9, 9, 9]);
       expect(dialog.targets.single.finished, isTrue);
+      await tester.pump(const Duration(seconds: 5));
     },
   );
 
   testWidgets(
-    'a save failure surfaces through the transfers banner\'s AppErrorState, '
+    'a save failure surfaces through the download failure card\'s AppErrorState, '
     'never a SnackBar',
     (tester) async {
       final server = FakeAttachmentServer(status: 403);
