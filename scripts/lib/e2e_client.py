@@ -130,9 +130,14 @@ class Client:
 
     def _wait_for_boot(self, timeout=90):
         deadline = time.time() + timeout
+        reload_at = time.time() + timeout / 2
         while time.time() < deadline:
             if self.ev("document.querySelector('flutter-view, flt-glass-pane') !== null"):
                 return
+            if reload_at and time.time() > reload_at:
+                # A bootstrap asset that failed to load (seen once for canvaskit) never retries itself.
+                reload_at = 0
+                self.send("Page.reload", {})
             time.sleep(1)
         self.shot("app-never-booted")
         raise AssertionError(f"{self.name}: the app never booted within {timeout}s")

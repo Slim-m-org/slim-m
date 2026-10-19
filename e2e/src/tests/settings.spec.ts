@@ -26,7 +26,11 @@ test('switching to the dark theme in Settings repaints the app and is remembered
     await expect.poll(async () => luminance(await pixelAt(alice.page, BACKDROP.x, BACKDROP.y))).toBeLessThan(80);
   });
   await step('the choice was written to storage, so it survives a reload', async () => {
-    const stored = await alice.page.evaluate(() => JSON.parse(localStorage.getItem('flutter.slimm.appearance.theme') ?? 'null'));
+    // Theme is kept per Space, under 'flutter.slimm.space.<origin>.slimm.appearance.theme'.
+    const stored = await alice.page.evaluate(() => {
+      const key = Object.keys(localStorage).find((k) => k.startsWith('flutter.') && k.endsWith('slimm.appearance.theme'));
+      return key ? JSON.parse(localStorage.getItem(key) ?? 'null') : null;
+    });
     expect(stored).toBe('dark');
   });
 });
