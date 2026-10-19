@@ -10,6 +10,7 @@
 /// [moduleSoundSettingsProvider] toggle). This file only knows how.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -19,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/modules/widgets/module_scene.dart' show SceneNote;
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 import 'scene_synth.dart' as scene_synth;
+import 'sound_output_router.dart';
 
 abstract class ModuleSoundPlayer {
   Future<void> playNotes(List<SceneNote> notes);
@@ -30,6 +32,11 @@ abstract class ModuleSoundPlayer {
 /// [AudioPlayersSoundPlayer] uses for notification chimes - see that class's
 /// own doc comment for why.
 class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
+  AudioPlayersModuleSoundPlayer({this.afterPlay});
+
+  /// Routes the clip's stream to the chosen speaker once it starts.
+  final Future<void> Function()? afterPlay;
+
   /// Built on first use, for the GStreamer reason [AudioPlayersSoundPlayer] gives.
   AudioPlayer? _created;
   AudioPlayer get _player => _created ??= AudioPlayer();
@@ -54,6 +61,7 @@ class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
       volume: AudioPlayersSoundPlayer.playbackVolume,
       ctx: AudioPlayersSoundPlayer.sharedAmbientContext,
     );
+    unawaited(afterPlay?.call());
   }
 
   @override
@@ -75,7 +83,9 @@ Uint8List _renderWav(List<List<double>> notes) {
 /// One player for the whole signed-in session, matching
 /// `notificationSoundControllerProvider`'s own lifetime and disposal shape.
 final moduleSoundPlayerProvider = Provider<ModuleSoundPlayer>((ref) {
-  final player = AudioPlayersModuleSoundPlayer();
+  final player = AudioPlayersModuleSoundPlayer(
+    afterPlay: ref.read(soundOutputRouterProvider).followChosenOutput,
+  );
   ref.onDispose(player.dispose);
   return player;
 });

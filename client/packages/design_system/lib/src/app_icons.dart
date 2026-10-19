@@ -176,6 +176,9 @@ abstract final class AppIcons {
   static const IconData micOff = LucideIcons.micOff300;
   static const IconData headphones = LucideIcons.headphones300;
 
+  /// Someone who cannot hear the call: deafened, next to [micOff].
+  static const IconData headphonesOff = LucideIcons.headphoneOff300;
+
   /// What a member's activity line shows, by kind: listening to something, or
   /// playing a game. Presence copy, never a status dot.
   static const IconData listening = LucideIcons.headphones300;

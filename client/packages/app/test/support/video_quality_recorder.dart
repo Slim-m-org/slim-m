@@ -11,8 +11,6 @@ import 'package:slimm_rtc/rtc.dart';
 mixin VideoQualityRecorder {
   CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
 
-  late final shareLimit = ShareLimitMonitor(callStats);
-
   ValueNotifier<Map<String, VideoTileHealth>> videoHealth = ValueNotifier(
     const {},
   );
@@ -51,6 +49,14 @@ mixin VideoQualityRecorder {
   Stream<MicStatus> get micStatuses => micStatusChanges.stream;
 
   String? audioInputInUse;
+
+  MicFailureReason? micFailure;
+  final micFailureChanges = StreamController<MicFailureReason?>.broadcast();
+
+  Stream<MicFailureReason?> get micFailures => micFailureChanges.stream;
+
+  /// The speaker the test says playback is routed to.
+  String? audioOutputInUse;
 
   Future<bool> resetMicrophone() async {
     microphoneResets++;

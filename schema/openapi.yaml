@@ -7042,6 +7042,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /channels/{channelId}/voice/deafened:
+    parameters:
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: setVoiceDeafened
+      tags: [voice]
+      summary: Tell the room whether the caller has deafened themselves.
+      description: >
+        Sets or clears a participant attribute that everyone in the call
+        reads. Needs VIEW_CHANNEL and CONNECT. Idempotent, and a no-op when
+        the caller is not in the room.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deafened]
+              properties:
+                deafened:
+                  type: boolean
+      responses:
+        "204":
+          description: The room has been told.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "501":
+          description: This deployment has no voice configured.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
   /voice/webhook:
     post:
       operationId: receiveLiveKitWebhook

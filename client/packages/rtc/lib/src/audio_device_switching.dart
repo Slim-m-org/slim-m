@@ -17,16 +17,25 @@ typedef LiveInputSwitch = Future<void> Function(
   lk.MediaDevice device,
 );
 
+/// Points a live [lk.Room]'s playback at [device]; a seam like [LiveInputSwitch].
+typedef LiveOutputSwitch = Future<void> Function(
+  lk.Room room,
+  lk.MediaDevice device,
+);
+
 class AudioDeviceSwitching {
   AudioDeviceSwitching(
     this._devices, {
     LiveInputSwitch? liveInput,
+    LiveOutputSwitch? liveOutput,
     PulseAudio? pulse,
   })  : _liveInput = liveInput ?? switchLiveInput,
+        _liveOutput = liveOutput ?? _switchLiveOutput,
         _pulse = pulse ?? PulseAudio();
 
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
+  final LiveOutputSwitch _liveOutput;
 
   /// Applies a pick that came from the sound server's list rather than
   /// libwebrtc's; see `pulse_audio_io.dart`.
@@ -96,6 +105,9 @@ class AudioDeviceSwitching {
 
   /// The microphone in use now, or null for the system default.
   String? get inputInUse => _preferredInputId;
+
+  /// The speaker in use now, or null for the system default.
+  String? get outputInUse => _preferredOutputId;
 
   /// Whether the capture rides whatever the system default microphone is.
   bool get followsSystemDefaultInput => _preferredInputId == null;
@@ -256,8 +268,24 @@ class AudioDeviceSwitching {
       await _pulse.moveOwnStreams(capture: false, deviceId: target.id);
       return;
     }
-    await room.setAudioOutputDevice(_asMediaDevice(target, 'audiooutput'));
+    await _liveOutput(room, _asMediaDevice(target, 'audiooutput'));
   }
+
+  /// Opening the microphone makes the native plugin select the default
+  /// speaker again, so the pick is applied once more after every open.
+  /// Server nodes are moved by [applyServerRouting] instead.
+  Future<void> reapplyOutput(lk.Room? room) async {
+    final id = _preferredOutputId;
+    if (room == null || id == null || isPulseDeviceId(id)) return;
+    if (!supportsOutputSelection) return;
+    final device = resolveAudioDevice(await outputs(), id);
+    if (device != null) {
+      await _liveOutput(room, _asMediaDevice(device, 'audiooutput'));
+    }
+  }
+
+  static Future<void> _switchLiveOutput(lk.Room room, lk.MediaDevice device) =>
+      room.setAudioOutputDevice(device);
 
   lk.MediaDevice _asMediaDevice(AudioDevice device, String kind) =>
       lk.MediaDevice(device.id, device.label, kind, device.groupId);

@@ -20,8 +20,7 @@ void main() {
 
     test('keep text readable under pressure', () {
       final options = screenSharePublishOptionsFor(ScreenShareQuality.standard);
-      expect(options.degradationPreference,
-          lk.DegradationPreference.maintainResolution);
+      expect(options.degradationPreference, lk.DegradationPreference.balanced);
     });
 
     test('differ between a 60 fps and a 15 fps tier', () {

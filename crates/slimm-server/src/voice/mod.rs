@@ -115,6 +115,10 @@ pub fn room_for_channel(channel_id: ChannelId) -> String {
     format!("channel-{channel_id}")
 }
 
+/// The participant attribute carrying a deafened listener, read by every client.
+pub const DEAFENED_ATTRIBUTE: &str = "deafened";
+const DEAFENED_ATTRIBUTE_ON: &str = "true";
+
 /// Mints LiveKit room tokens and evicts participants.
 #[derive(Clone)]
 pub struct VoiceService {
@@ -391,6 +395,36 @@ impl VoiceService {
             "RemoveParticipant",
             &room,
             serde_json::json!({ "room": room, "identity": user_id.to_string() }),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Publishes whether [`user_id`] has deafened themselves, as a participant
+    /// attribute everyone in the room reads. Clients may not set their own
+    /// attributes (the token withholds `canUpdateOwnMetadata`, which would also
+    /// let them rename themselves), so the server sets this one on their behalf.
+    pub async fn set_participant_deafened(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        deafened: bool,
+    ) -> Result<(), VoiceError> {
+        let Some(enabled) = self.inner.as_ref() else {
+            return Err(VoiceError::Unavailable);
+        };
+        let room = room_for_channel(channel_id);
+        // LiveKit drops an attribute set to the empty string.
+        let value = if deafened { DEAFENED_ATTRIBUTE_ON } else { "" };
+        self.room_service_call(
+            enabled,
+            "UpdateParticipant",
+            &room,
+            serde_json::json!({
+                "room": room,
+                "identity": user_id.to_string(),
+                "attributes": { (DEAFENED_ATTRIBUTE): value },
+            }),
         )
         .await?;
         Ok(())

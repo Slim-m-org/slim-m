@@ -18,9 +18,9 @@ import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../widgets/audio_device_section.dart';
+import '../widgets/mic_trouble_notice.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
-import '../../settings/widgets/settings_info_line.dart';
 import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
@@ -193,7 +193,7 @@ class _MicrophoneSection extends ConsumerWidget {
                 ),
               ),
               if (preview?.status == MicPreviewStatus.unavailable)
-                SettingsInfoLine(preview!.caption, padding: EdgeInsets.zero),
+                const MicTroubleNotice(padding: EdgeInsets.zero),
             ],
           ),
         ),

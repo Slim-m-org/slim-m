@@ -105,7 +105,7 @@ class _AvatarMarker extends StatelessWidget {
                 size: _avatarSize,
                 speaking: participant.isSpeaking,
               ),
-              if (participant.isMuted)
+              if (participant.isMuted || participant.isDeafened)
                 Positioned(
                   right: -2,
                   bottom: -2,
@@ -118,7 +118,9 @@ class _AvatarMarker extends StatelessWidget {
                       border: Border.all(color: tokens.surfaceBase, width: 2),
                     ),
                     child: Icon(
-                      AppIcons.micOff,
+                      participant.isMuted
+                          ? AppIcons.micOff
+                          : AppIcons.headphonesOff,
                       size: 12,
                       color: tokens.textSecondary,
                     ),

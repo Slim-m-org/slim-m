@@ -14,6 +14,8 @@
 /// See docs/dependencies.md for the alternatives this was weighed against.
 library;
 
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 
 import 'releasable_player.dart';
@@ -74,6 +76,11 @@ abstract class SoundPlayer {
 /// session, route, or focus a live call already holds - see the library
 /// doc comment above for why that is this package's whole reason to exist.
 class AudioPlayersSoundPlayer implements SoundPlayer {
+  AudioPlayersSoundPlayer({this.afterPlay});
+
+  /// Runs once a sound has started, to route its stream to the chosen speaker.
+  final Future<void> Function()? afterPlay;
+
   /// Both players are built on first use: constructing one on Linux throws a
   /// native exception, uncatchable from Dart, when GStreamer's playbin is missing.
   AudioPlayer? _createdPlayer;
@@ -130,6 +137,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
       volume: playbackVolume,
       ctx: sharedAmbientContext,
     );
+    unawaited(afterPlay?.call());
   }
 
   @override
@@ -142,6 +150,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
       volume: playbackVolume,
       ctx: sharedAmbientContext,
     );
+    unawaited(afterPlay?.call());
   }
 
   @override

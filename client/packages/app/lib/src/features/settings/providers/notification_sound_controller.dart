@@ -35,6 +35,7 @@ import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/notification_sound.dart';
+import '../../../audio/sound_output_router.dart';
 import '../../voice/providers/dm_call_ring_controller.dart';
 import '../../../providers/live_events.dart';
 import '../../messages/providers/message_alert_policy.dart';
@@ -61,7 +62,11 @@ class NotificationSoundController {
     HapticsCue? callRingHaptic,
     HapticsCue? mentionHaptic,
     HapticsCue? toggleHaptic,
-  }) : _player = player ?? AudioPlayersSoundPlayer(),
+  }) : _player =
+           player ??
+           AudioPlayersSoundPlayer(
+             afterPlay: _ref.read(soundOutputRouterProvider).followChosenOutput,
+           ),
        _messageHaptic = messageHaptic ?? AppHaptics.selection,
        _callRingHaptic = callRingHaptic ?? AppHaptics.impact,
        _mentionHaptic = mentionHaptic ?? AppHaptics.warning,
@@ -104,6 +109,9 @@ class NotificationSoundController {
   void _haptic(HapticsCue cue) {
     if (_ref.read(hapticsSettingsProvider)) cue();
   }
+
+  /// Plays a short chime for the Test speaker button, whatever the sound toggles say.
+  Future<void> playSpeakerTest() => _player.play(NotificationSound.selfJoin);
 
   void _playUi(NotificationSound sound) {
     if (_uiSounds) unawaited(_player.play(sound));

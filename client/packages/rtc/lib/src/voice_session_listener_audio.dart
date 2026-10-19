@@ -94,6 +94,7 @@ mixin VoiceSessionListenerAudio {
     if (room == null) return false;
     _audio.deafened = deafened;
     await _applyLocalAudioState(room);
+    _refreshParticipants();
     return true;
   }
 

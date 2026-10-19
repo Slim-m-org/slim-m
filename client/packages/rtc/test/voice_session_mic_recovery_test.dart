@@ -332,6 +332,8 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     expect(rig.mic.restarts, hasLength(2));
+    expect(rig.session.micStatus, MicStatus.unavailable);
+    expect(rig.session.micFailure, MicFailureReason.silent);
   });
 
   test('a gate reading the floor while the sender is live restarts nothing',

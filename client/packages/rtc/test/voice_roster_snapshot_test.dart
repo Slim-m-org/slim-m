@@ -87,4 +87,36 @@ void main() {
       expect(anyLiveVideo(const [], lk.TrackSource.camera), isFalse);
     });
   });
+
+  group('deafened attribute', () {
+    test('only the exact attribute value counts', () {
+      expect(deafenedFromAttributes({kDeafenedAttribute: 'true'}), isTrue);
+      expect(deafenedFromAttributes({kDeafenedAttribute: ''}), isFalse);
+      expect(deafenedFromAttributes({kDeafenedAttribute: 'yes'}), isFalse);
+      expect(deafenedFromAttributes(const {}), isFalse);
+      expect(deafenedFromAttributes({'name': 'true'}), isFalse);
+    });
+
+    test('a participant that became deafened is not equal to before', () {
+      const before = VoiceParticipant(
+        identity: 'a',
+        name: 'A',
+        isSpeaking: false,
+        isMuted: false,
+        isLocal: false,
+        isScreenSharing: false,
+      );
+      const after = VoiceParticipant(
+        identity: 'a',
+        name: 'A',
+        isSpeaking: false,
+        isMuted: false,
+        isLocal: false,
+        isScreenSharing: false,
+        isDeafened: true,
+      );
+      expect(before == after, isFalse);
+      expect(before.hashCode == after.hashCode, isFalse);
+    });
+  });
 }

@@ -107,6 +107,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
       if (participant.isScreenSharing) AppIcons.screenShare,
       if (participant.isCameraOn) AppIcons.camera,
       if (participant.isMuted) AppIcons.micOff,
+      if (participant.isDeafened) AppIcons.headphonesOff,
     ];
     final face = SizedBox(
       height: _rowHeight,

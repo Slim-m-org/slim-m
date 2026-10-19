@@ -130,6 +130,7 @@ class CallParticipantTile extends StatelessWidget {
     final parts = <String>[
       participant.isLocal ? '${participant.name}, you' : participant.name,
       participant.isMuted ? 'muted' : 'microphone on',
+      if (participant.isDeafened) 'deafened',
       if (participant.isSpeaking) 'speaking',
       if (participant.isScreenSharing) 'sharing their screen',
     ];
@@ -266,27 +267,49 @@ class _StateBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tokens.surfaceRaised,
-        shape: BoxShape.circle,
-        border: Border.all(color: tokens.borderSubtle),
-      ),
-      child: Icon(
-        participant.isScreenSharing
-            ? AppIcons.screenShare
-            : participant.isMuted
-            ? AppIcons.micOff
-            : AppIcons.mic,
-        size: 12,
-        color: participant.isMuted ? tokens.textSecondary : tokens.accent,
-      ),
+    final main = Icon(
+      participant.isScreenSharing
+          ? AppIcons.screenShare
+          : participant.isMuted
+          ? AppIcons.micOff
+          : AppIcons.mic,
+      size: 12,
+      color: participant.isMuted ? tokens.textSecondary : tokens.accent,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: AppSpacing.s4,
+      children: [
+        if (participant.isDeafened)
+          _circle(
+            tokens,
+            Icon(
+              AppIcons.headphonesOff,
+              key: deafenedBadgeKey,
+              size: 12,
+              color: tokens.textSecondary,
+            ),
+          ),
+        _circle(tokens, main),
+      ],
     );
   }
+
+  Widget _circle(AppTokens tokens, Widget icon) => Container(
+    width: 22,
+    height: 22,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: tokens.surfaceRaised,
+      shape: BoxShape.circle,
+      border: Border.all(color: tokens.borderSubtle),
+    ),
+    child: icon,
+  );
 }
+
+/// The deafened glyph on a call tile, for tests to find.
+const deafenedBadgeKey = ValueKey('participant-deafened-badge');
 
 /// The running clock a call shows: `mm:ss`, or `h:mm:ss` past the hour.
 String formatCallClock(Duration d) {

@@ -64,12 +64,19 @@ String _mbps(double bps) => '${(bps / 1e6).toStringAsFixed(2)} Mbps';
 String _sendTrouble(VideoStreamStats s) {
   final reason = s.limitationReason;
   return [
-    if (reason != null && reason != 'none') 'limited by $reason',
+    if (reason != null && reason != 'none') _limitText(reason),
     if ((s.limitationResolutionChanges ?? 0) > 0)
       '${s.limitationResolutionChanges} size changes',
     if ((s.pliCount ?? 0) > 0) '${s.pliCount} keyframe requests',
   ].join('  ');
 }
+
+/// Why the encoder sent less than asked: it lowers quality by itself.
+String _limitText(String reason) => switch (reason) {
+  'cpu' => 'lowered automatically, this computer cannot keep up',
+  'bandwidth' => 'lowered automatically, the connection cannot carry more',
+  _ => 'lowered automatically ($reason)',
+};
 
 String _receiveTrouble(VideoStreamStats s) => [
   if ((s.freezeCount ?? 0) > 0)
