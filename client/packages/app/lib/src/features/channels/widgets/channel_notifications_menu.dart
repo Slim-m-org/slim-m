@@ -16,19 +16,14 @@ import '../../members/widgets/member_profile_popover.dart'
 import '../providers/channel_notification_overrides_controller.dart';
 import 'row_menu_notifications.dart';
 
-/// What the Notifications entry says this conversation is set to.
-String notificationStateLabel(
-  api.NotificationPreference? current,
-  api.NotificationPreference? channelDefault,
-) => switch (current) {
-  api.NotificationPreference.nothing => 'Muted',
-  api.NotificationPreference.mentions => 'Mentions only',
-  api.NotificationPreference.everything => 'All messages',
-  null =>
-    channelDefault == null
-        ? 'Default'
-        : channelDefaultMenuLabel(channelDefault),
-};
+/// The short word the Notifications entry shows beside its name.
+String notificationStateLabel(api.NotificationPreference? current) =>
+    switch (current) {
+      api.NotificationPreference.nothing => 'Muted',
+      api.NotificationPreference.mentions => 'Mentions',
+      api.NotificationPreference.everything => 'All',
+      null => 'Default',
+    };
 
 AppMenuItem notificationsMenuItem(
   BuildContext context,
@@ -48,7 +43,7 @@ AppMenuItem notificationsMenuItem(
         ? AppIcons.notificationsOff
         : AppIcons.notificationsOn,
     trailing: Text(
-      notificationStateLabel(current, channelDefault),
+      notificationStateLabel(current),
       style: AppText.caption.copyWith(color: tokens.textSecondary),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,

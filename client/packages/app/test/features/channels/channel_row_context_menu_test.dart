@@ -160,7 +160,7 @@ void main() {
   );
 
   testWidgets(
-    'every caller, manager or not, sees Mute channel and Mentions only',
+    'every caller, manager or not, sees Notifications with mute and mentions only',
     (tester) async {
       final channel = _channel('c1', 'general');
       await tester.pumpWidget(_harness(_router(channel, canManage: false)));
@@ -170,10 +170,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Mute channel'),
+        find.text('Notifications'),
         findsOneWidget,
         reason: 'muting is a personal preference, not a MANAGE_CHANNELS action',
       );
+      expect(find.text('Mute channel'), findsNothing);
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mute channel'), findsOneWidget);
       expect(find.text('Mentions only'), findsOneWidget);
     },
   );
@@ -301,8 +305,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Open channel'), findsOneWidget);
-      expect(find.text('Mute channel'), findsOneWidget);
-      expect(find.text('Mentions only'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Mute channel'), findsNothing);
       expect(find.text('Channel settings...'), findsOneWidget);
       expect(
         find.textContaining('channel-settings:'),
@@ -393,6 +397,8 @@ void main() {
       await tester.pump();
 
       await tester.tap(find.byIcon(AppIcons.moreVertical));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Notifications'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Mute channel'));
       await tester.pumpAndSettle();

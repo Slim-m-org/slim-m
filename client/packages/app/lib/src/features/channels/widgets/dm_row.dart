@@ -166,6 +166,7 @@ class DmRow extends ConsumerWidget {
       itemsBuilder: (menuContext, close) => _menuItems(menuContext, ref, close),
       // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
       ownsFocusNode: false,
+      menuWidth: 240,
       child: AppListRow(
         label: channel.name,
         selected: selected,

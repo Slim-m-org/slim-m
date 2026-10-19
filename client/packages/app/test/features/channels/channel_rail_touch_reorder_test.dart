@@ -163,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RailDragLift), findsNothing);
     expect(
-      find.text('Mute channel'),
+      find.text('Notifications'),
       findsOneWidget,
       reason: 'the hold opened the menu',
     );
@@ -195,7 +195,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(
-      find.text('Mute channel'),
+      find.text('Notifications'),
       findsNothing,
       reason: 'a drag does not open the menu',
     );
