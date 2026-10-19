@@ -74,6 +74,9 @@ class GridPainter extends CustomPainter {
   bool shouldRepaint(GridPainter oldDelegate) => false;
 }
 
+/// Styles a note's text: markdown, mentions and emoji as spans over [base].
+typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
+
 /// The committed ink.
 class StrokePainter extends CustomPainter {
   StrokePainter({
@@ -84,6 +87,8 @@ class StrokePainter extends CustomPainter {
     this.shapeColor,
     this.textInk = const Color(0xFF1A1A1A),
     this.textFontFamily,
+    this.noteSpans,
+    this.noteSpansRevision = 0,
     this.placeholderFill = const Color(0xFFB9C0C8),
     this.placeholderIcon = const Color(0xFF6C757E),
     this.elevationShadow = const [],
@@ -108,6 +113,13 @@ class StrokePainter extends CustomPainter {
   /// riding whatever the accent happens to be.
   final Color textInk;
   final String? textFontFamily;
+
+  /// How a note's text becomes spans; null paints it as plain text.
+  final NoteSpanBuilder? noteSpans;
+
+  /// Bumped by the owner when what [noteSpans] reads changes, so cached note
+  /// layouts rebuild.
+  final int noteSpansRevision;
 
   /// The muted fill and glyph stroke for an image whose bytes could not be
   /// fetched or decoded. Default to plain neutral greys so a caller with no

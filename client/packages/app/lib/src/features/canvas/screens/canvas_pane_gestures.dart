@@ -103,6 +103,93 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = CanvasTool.pan);
   }
 
+  /// Undo, redo, paste and delete over the canvas's own selection.
+  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => {
+    const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
+        unawaited(_onUndo()),
+    const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
+        unawaited(_onUndo()),
+    const SingleActivator(
+      LogicalKeyboardKey.keyZ,
+      control: true,
+      shift: true,
+    ): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(
+      LogicalKeyboardKey.keyZ,
+      meta: true,
+      shift: true,
+    ): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
+        unawaited(_imagePaste.pasteFromKeystroke()),
+    const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
+        unawaited(_imagePaste.pasteFromKeystroke()),
+    const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
+    const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
+  };
+
+  /// How soon a second click on a note makes a double click.
+  static const _doubleClickWindow = Duration(milliseconds: 400);
+
+  /// A finished select gesture that never became a drag: a double click with
+  /// a mouse, or a single tap with a finger or a pen, on the selected note.
+  void _onSelectTap(Offset world, PointerDeviceKind kind) {
+    final id = _document.selectedObjectId.value;
+    final bounds = id == null ? null : _document.objectBounds(id);
+    final onNote =
+        id != null &&
+        bounds != null &&
+        _document.kindOf(id) == CanvasObjectKind.note &&
+        Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h).contains(world);
+    if (!onNote) {
+      _lastNoteClick = null;
+      return;
+    }
+    if (kind == PointerDeviceKind.mouse) {
+      final last = _lastNoteClick;
+      final now = clock.now();
+      _lastNoteClick = (id: id, at: now);
+      if (last == null ||
+          last.id != id ||
+          now.difference(last.at) > _doubleClickWindow) {
+        return;
+      }
+      _lastNoteClick = null;
+    }
+    _onEditNote(id);
+  }
+
+  /// Opens the in-place editor, unless the note is locked or the canvas is
+  /// refusing writes; the select tool and the menu only ever offer notes this
+  /// person may edit.
+  void _onEditNote(String id) {
+    final error = ref.read(canvasEngineProvider(widget.channelId)).error;
+    if (_ops.isLocked(id) || canvasErrorBlocksDrawing(error)) return;
+    _refresh(() => _editingNoteId = id);
+  }
+
+  Future<void> _onNoteEditSave(String id, String text) async {
+    _refresh(() => _editingNoteId = null);
+    await _ops.editNote(id, text);
+    _refresh();
+  }
+
+  void _onNoteEditCancel() => _refresh(() => _editingNoteId = null);
+
+  NoteSpanStyle _noteSpanStyle(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final members = ref.watch(membersProvider).valueOrNull ?? const [];
+    return NoteSpanStyle(
+      knownUsernames: {for (final m in members) m.username.toLowerCase()},
+      mentionInk: tokens.accent,
+      mentionFill: tokens.accentSoft,
+      linkInk: tokens.accent,
+    );
+  }
+
   void _onSelectStart(Offset world) {
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.

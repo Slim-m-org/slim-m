@@ -61,17 +61,9 @@ extension _StrokePainterShapes on StrokePainter {
     // Keyed on all the layout depends on: a pan holds these steady and hits, a zoom or resize changes one and rebuilds.
     final painter = _noteLabels.painterFor(
       stroke.id,
-      (text, camera.zoom, stroke.w, stroke.h),
+      (text, camera.zoom, stroke.w, stroke.h, noteSpansRevision),
       () => TextPainter(
-        text: TextSpan(
-          text: text,
-          style: TextStyle(
-            fontFamily: textFontFamily,
-            fontSize: fontSize,
-            color: textInk,
-            height: lineHeightMultiple,
-          ),
-        ),
+        text: _noteSpan(text, fontSize, lineHeightMultiple),
         textDirection: TextDirection.ltr,
         maxLines: noteMaxLines(
           box.height,
@@ -86,6 +78,16 @@ extension _StrokePainterShapes on StrokePainter {
     canvas.clipRect(box.deflate(pad));
     painter.paint(canvas, box.topLeft + const Offset(pad, pad));
     canvas.restore();
+  }
+
+  InlineSpan _noteSpan(String text, double fontSize, double height) {
+    final base = TextStyle(
+      fontFamily: textFontFamily,
+      fontSize: fontSize,
+      color: textInk,
+      height: height,
+    );
+    return noteSpans?.call(text, base) ?? TextSpan(text: text, style: base);
   }
 
   /// A shape's own box, drawn as whichever of [CanvasShapeKind] it names. A

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Mints canvas mutation ops - remove, clear, restore, move, reorder - and
+/// Mints canvas mutation ops - remove, clear, restore, move, reorder, edit - and
 /// the undo ledger that reverses them.
 ///
 /// Plain Dart, like `CanvasSync`: nothing here is observed inside a frame,
@@ -30,6 +30,9 @@ part 'canvas_ops_controller_reorder.dart';
 /// 500-line hard limit a second time, the same reason and the same shape
 /// `canvas_ops_controller_reorder.dart` already split off.
 part 'canvas_ops_controller_select.dart';
+
+/// Editing a note's text, and the undo entry that reverses it.
+part 'canvas_ops_controller_edit.dart';
 
 /// How many gestures [CanvasOpsController] can reverse. About the product,
 /// not the memory: a deeper stack that dies on pane close is a promise the
@@ -179,6 +182,10 @@ class CanvasOpsController {
         objectId,
         fromZIndex,
       ),
+      _EditEntry(:final objectId, :final fromText) => await _undoEdit(
+        objectId,
+        fromText,
+      ),
     };
     if (redo == null || epoch != _editEpoch) return;
     _redoStack.addLast(redo);
@@ -202,6 +209,10 @@ class CanvasOpsController {
       _RedoReorder(:final objectId, :final toZIndex) => await _redoReorder(
         objectId,
         toZIndex,
+      ),
+      _RedoEdit(:final objectId, :final toText) => await _redoEdit(
+        objectId,
+        toText,
       ),
     };
     if (undoEntry != null) _pushUndo(undoEntry, keepRedo: true);

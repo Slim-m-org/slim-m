@@ -428,6 +428,19 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         w: (decoded['w'] as num).toDouble(),
         h: (decoded['h'] as num).toDouble(),
       ),
+    'canvas.object.edited'
+        when decoded['channel_id'] is String &&
+            decoded['seq'] is int &&
+            decoded['op_id'] is String &&
+            decoded['object_id'] is String &&
+            decoded['props'] is Map<String, dynamic> =>
+      CanvasObjectEdited(
+        channelId: decoded['channel_id'] as String,
+        seq: decoded['seq'] as int,
+        opId: decoded['op_id'] as String,
+        objectId: decoded['object_id'] as String,
+        props: decoded['props'] as Map<String, dynamic>,
+      ),
     'canvas.object.reordered'
         when decoded['channel_id'] is String &&
             decoded['seq'] is int &&

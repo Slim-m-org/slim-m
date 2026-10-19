@@ -5,6 +5,9 @@ part of 'canvas_surface.dart';
 /// as a tap rather than a drag - see [_CanvasSurfaceGestures._resolveShapeDrag].
 const double _shapeDragThreshold = 4.0;
 
+/// How far, in screen pixels, a select gesture may travel and still be a tap.
+const double _selectTapSlop = 6.0;
+
 /// Every pointer, scroll and scale handler [_CanvasSurfaceState.build]
 /// wires up, plus the coordinate conversion and cursor choice they share.
 /// A `part of` file rather than a mixin: the eraser and placement tools
@@ -69,6 +72,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       return;
     }
     if (_totalPointers > 1) {
+      _selectDownAt = null;
       final hadDraft = !_draft.isEmpty;
       _draft.cancel();
       if (hadDraft) widget.onDraftEnded?.call();
@@ -81,6 +85,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.eraser:
         _pendingErasePoint = _toWorld(event.localPosition);
       case CanvasTool.pan:
+        _selectDownAt = event.localPosition;
         widget.onSelectStart?.call(_toWorld(event.localPosition));
       case CanvasTool.note:
         _pendingPlacementTool = CanvasTool.note;
@@ -127,6 +132,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         widget.onErase?.call(_toWorld(event.localPosition));
       case CanvasTool.pan:
+        if (_selectDownAt case final down? when _movedPastTap(down, event)) {
+          _selectDownAt = null;
+        }
         widget.onSelectDrag?.call(_toWorld(event.localPosition));
       case CanvasTool.note:
         break;
@@ -137,6 +145,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         widget.onDraftPoint?.call(_toWorld(event.localPosition));
     }
   }
+
+  bool _movedPastTap(Offset down, PointerEvent event) =>
+      (event.localPosition - down).distance > _selectTapSlop;
 
   /// A touch or pen has no hover, so lifting it is leaving the canvas.
   void _reportLeftIfTouch(PointerEvent event) {
@@ -173,7 +184,13 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         if (_totalPointers == 0) widget.onEraseEnd?.call();
       case CanvasTool.pan:
-        if (_totalPointers == 0) widget.onSelectEnd?.call();
+        if (_totalPointers != 0) return;
+        final tapAt = _selectDownAt;
+        _selectDownAt = null;
+        widget.onSelectEnd?.call();
+        if (tapAt != null && !_movedPastTap(tapAt, event)) {
+          widget.onSelectTap?.call(_toWorld(event.localPosition), event.kind);
+        }
       case CanvasTool.note:
       case CanvasTool.shape:
         break;
@@ -199,6 +216,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
     _pendingPlacementTool = null;
     _pendingPlacementWorld = null;
+    _selectDownAt = null;
     _shapeDraft.cancel();
     _pendingErasePoint = null;
     switch (widget.tool) {

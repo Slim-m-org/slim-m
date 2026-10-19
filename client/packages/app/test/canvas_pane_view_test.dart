@@ -9,6 +9,7 @@
 /// original file is about. Both share `canvas_pane_harness.dart`'s fixture.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/permissions.dart';
@@ -88,8 +89,10 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
+    // A mouse click selects; a finger tap on a note opens its editor instead.
     final gesture = await tester.startGesture(
       screenFor(tester, const Offset(15, 15)),
+      kind: PointerDeviceKind.mouse,
     );
     await gesture.up();
     await tester.pumpAndSettle();
@@ -119,6 +122,7 @@ void main() {
     await tester.pump();
     final gesture = await tester.startGesture(
       screenFor(tester, const Offset(15, 15)),
+      kind: PointerDeviceKind.mouse,
     );
     await gesture.up();
     await tester.pumpAndSettle();

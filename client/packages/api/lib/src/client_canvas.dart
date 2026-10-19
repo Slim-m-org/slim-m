@@ -64,15 +64,15 @@ extension SlimmApiCanvas on SlimmApi {
     return CanvasObject.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Submits a canvas mutation - `remove`, `clear`, `restore`, `move`, or
-  /// `reorder` - idempotent by [id] exactly as [placeCanvasObject] is: a
+  /// Submits a canvas mutation - `remove`, `clear`, `restore`, `move`,
+  /// `reorder`, or `edit` - idempotent by [id] exactly as [placeCanvasObject] is: a
   /// replay answers with the stored op, `fresh: false`, and publishes
   /// nothing.
   ///
   /// Exactly one of [objectIds] (`remove`), [beforeSeq] (`clear`),
-  /// [targetOp] (`restore`), [objectId] plus [x]/[y]/[w]/[h] (`move`), or
-  /// [objectId] plus [zIndex] (`reorder`) is meaningful for a given [kind];
-  /// the server rejects any other combination with a 400.
+  /// [targetOp] (`restore`), [objectId] plus [x]/[y]/[w]/[h] (`move`),
+  /// [objectId] plus [zIndex] (`reorder`), or [objectId] plus [props]
+  /// (`edit`) is meaningful for a given [kind]; the server rejects any other combination with a 400.
   Future<CanvasOpResult> submitCanvasOp(
     String channelId, {
     required String id,
@@ -86,6 +86,7 @@ extension SlimmApiCanvas on SlimmApi {
     double? w,
     double? h,
     int? zIndex,
+    Map<String, Object?>? props,
   }) async {
     final json = await _send(
       'POST',
@@ -102,6 +103,7 @@ extension SlimmApiCanvas on SlimmApi {
         if (w != null) 'w': w,
         if (h != null) 'h': h,
         if (zIndex != null) 'z_index': zIndex,
+        if (props != null) 'props': props,
       },
     );
     return CanvasOpResult.fromJson(json as Map<String, dynamic>);

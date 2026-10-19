@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -47,29 +48,31 @@ void main() {
     "the menu's own longest label fits on one line without truncating",
     (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          theme: buildTheme(Brightness.light, AppTokens.light),
-          home: Scaffold(
-            body: CanvasOverflowMenu(
-              onPasteImage: () {},
-              canDraw: true,
-              onToggleFullscreen: () {},
-              canManage: false,
-              onClear: () async {},
-              selection: ValueNotifier(null),
-              onBringToFront: (_) {},
-              onSendToBack: (_) {},
-              onDeleteSelected: (_) {},
-              activityLogOpen: false,
-              onToggleActivityLog: () {},
-              tool: CanvasTool.pan,
-              shapeKind: CanvasShapeKind.rectangle,
-              onShapeKindChanged: (_) {},
-              hasSelfBubble: true,
-              selfBubbleHidden: false,
-              onToggleSelfBubbleHidden: () {},
-              hiddenTiles: const [],
-              onShowTile: (_) {},
+        ProviderScope(
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AppTokens.light),
+            home: Scaffold(
+              body: CanvasOverflowMenu(
+                onPasteImage: () {},
+                canDraw: true,
+                onToggleFullscreen: () {},
+                canManage: false,
+                onClear: () async {},
+                selection: ValueNotifier(null),
+                onBringToFront: (_) {},
+                onSendToBack: (_) {},
+                onDeleteSelected: (_) {},
+                activityLogOpen: false,
+                onToggleActivityLog: () {},
+                tool: CanvasTool.pan,
+                shapeKind: CanvasShapeKind.rectangle,
+                onShapeKindChanged: (_) {},
+                hasSelfBubble: true,
+                selfBubbleHidden: false,
+                onToggleSelfBubbleHidden: () {},
+                hiddenTiles: const [],
+                onShowTile: (_) {},
+              ),
             ),
           ),
         ),

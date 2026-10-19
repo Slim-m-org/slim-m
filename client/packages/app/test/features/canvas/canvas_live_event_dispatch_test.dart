@@ -339,6 +339,70 @@ void main() {
     expect(log.entries.single.actorId, isNull);
   });
 
+  test('a live edit replaces the note text and records with no actor', () {
+    document.applyPlaced(
+      const CanvasStrokeInput(
+        id: 'n',
+        seq: 1,
+        zIndex: 1,
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 60,
+        points: [],
+        width: 0,
+        colorKey: 'note',
+        kind: CanvasObjectKind.note,
+        text: 'before',
+      ),
+    );
+    sync.seedFromViewport(0);
+    dispatch(
+      const api.CanvasObjectEdited(
+        channelId: 'c1',
+        seq: 1,
+        opId: 'op-1',
+        objectId: 'n',
+        props: {'text': 'after **bold**'},
+      ),
+    );
+
+    expect(document.noteTextOf('n'), 'after **bold**');
+    expect(log.entries.single.kind, CanvasActivityKind.edited);
+    expect(log.entries.single.actorId, isNull);
+  });
+
+  test('an edit for a different channel changes nothing', () {
+    document.applyPlaced(
+      const CanvasStrokeInput(
+        id: 'n',
+        seq: 1,
+        zIndex: 1,
+        x: 0,
+        y: 0,
+        w: 100,
+        h: 60,
+        points: [],
+        width: 0,
+        colorKey: 'note',
+        kind: CanvasObjectKind.note,
+        text: 'before',
+      ),
+    );
+    dispatch(
+      const api.CanvasObjectEdited(
+        channelId: 'other',
+        seq: 1,
+        opId: 'op-1',
+        objectId: 'n',
+        props: {'text': 'after'},
+      ),
+    );
+
+    expect(document.noteTextOf('n'), 'before');
+    expect(log.entries, isEmpty);
+  });
+
   test('an event for a different channel records nothing', () {
     dispatch(api.CanvasObjectPlaced(channelId: 'other', object: _object('a')));
 

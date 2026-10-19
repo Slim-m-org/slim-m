@@ -62,6 +62,29 @@ extension CanvasDocumentSelection on CanvasDocument {
     return true;
   }
 
+  /// A live note's current text, or null if [id] is unknown, removed, or not
+  /// a note.
+  String? noteTextOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null || !stroke.alive) return null;
+    return stroke.kind == CanvasObjectKind.note ? stroke.text : null;
+  }
+
+  /// Replaces a live note's text in place. Returns false if [id] is unknown,
+  /// removed, or not a note. The caller repaints with [CanvasDocument.refresh].
+  bool setNoteText(String id, String text) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.note) {
+      return false;
+    }
+    stroke.text = text;
+    return true;
+  }
+
   /// The lowest and highest `zIndex` this document currently holds live, or
   /// null if it holds nothing.
   ///

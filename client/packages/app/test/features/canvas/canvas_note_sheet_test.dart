@@ -13,19 +13,22 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_note_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 Future<void> _open(WidgetTester tester) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: buildTheme(Brightness.light, AppTokens.light),
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showCanvasNoteSheet(context),
-            child: const Text('open'),
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showCanvasNoteSheet(context),
+              child: const Text('open'),
+            ),
           ),
         ),
       ),
