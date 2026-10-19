@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: UserId\", username AS \"username!\",\n                      display_name AS \"display_name!\", created_at AS \"created_at!\",\n                      avatar_updated_at, status_text, pronouns, about,\n                      profile_color, profile_color_rgb, is_bot AS \"is_bot!\",\n                      is_webhook AS \"is_webhook!\"\n               FROM users WHERE id = ? AND deleted_at IS NULL",
+  "query": "SELECT id AS \"id!: UserId\", username AS \"username!\",\n                      display_name AS \"display_name!\", created_at AS \"created_at!\",\n                      avatar_updated_at, banner_updated_at, status_text, pronouns, about,\n                      profile_color, profile_color_rgb, is_bot AS \"is_bot!\",\n                      is_webhook AS \"is_webhook!\"\n               FROM users WHERE id = ? AND deleted_at IS NULL",
   "describe": {
     "columns": [
       {
@@ -29,38 +29,43 @@
         "type_info": "Integer"
       },
       {
-        "name": "status_text",
+        "name": "banner_updated_at",
         "ordinal": 5,
-        "type_info": "Text"
+        "type_info": "Integer"
       },
       {
-        "name": "pronouns",
+        "name": "status_text",
         "ordinal": 6,
         "type_info": "Text"
       },
       {
-        "name": "about",
+        "name": "pronouns",
         "ordinal": 7,
         "type_info": "Text"
       },
       {
-        "name": "profile_color",
+        "name": "about",
         "ordinal": 8,
-        "type_info": "Integer"
+        "type_info": "Text"
       },
       {
-        "name": "profile_color_rgb",
+        "name": "profile_color",
         "ordinal": 9,
         "type_info": "Integer"
       },
       {
-        "name": "is_bot!",
+        "name": "profile_color_rgb",
         "ordinal": 10,
         "type_info": "Integer"
       },
       {
-        "name": "is_webhook!",
+        "name": "is_bot!",
         "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_webhook!",
+        "ordinal": 12,
         "type_info": "Integer"
       }
     ],
@@ -78,9 +83,10 @@
       true,
       true,
       true,
+      true,
       false,
       false
     ]
   },
-  "hash": "aa353014ac74a4ae0bf53b199c643cafb9bf8e8af85a7790a2de929bbd59e09b"
+  "hash": "e12686fe8da5ab8947a6c54600c63bb489ce9a6b8f6f7a5489cbfc8005813636"
 }

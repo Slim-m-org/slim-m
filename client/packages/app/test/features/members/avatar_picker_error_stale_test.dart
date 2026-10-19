@@ -28,7 +28,7 @@ import '../../support/fake_api.dart';
 /// The Change button, found by its text rather than its `Semantics` label:
 /// once `AppErrorState` is also on screen, `tester.tap(find.bySemanticsLabel(...))`
 /// no longer lands the tap on the real button.
-Finder _cameraBadge() => find.text('Change');
+Finder _cameraBadge() => find.text('Change').first;
 
 const _tokens = TokenPair(
   userId: 'self',

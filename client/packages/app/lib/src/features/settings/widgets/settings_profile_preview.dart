@@ -18,9 +18,9 @@ import '../../members/providers/user_profiles.dart';
 import '../../members/widgets/member_profile_identity.dart';
 import 'settings_section_header.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../../members/widgets/profile_banner.dart';
 import '../../members/widgets/profile_colour.dart';
 
-const double _bannerHeight = 56;
 const double _avatarSize = AppAvatarSize.s72;
 const double _avatarRing = 4;
 const double _overlap = 36;
@@ -53,10 +53,11 @@ class SettingsProfilePreview extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              ProfileBanner(
                 key: const Key('profile-preview-banner'),
-                height: _bannerHeight,
-                color: banner,
+                userId: me.id,
+                bannerUpdatedAt: me.bannerUpdatedAt,
+                colour: banner,
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),

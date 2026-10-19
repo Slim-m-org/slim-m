@@ -125,6 +125,7 @@ mod sync_ops;
 mod threads;
 mod totp;
 mod user_avatars;
+mod user_banners;
 mod user_notes;
 mod user_status;
 mod users;
