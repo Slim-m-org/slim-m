@@ -19,6 +19,8 @@ import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/labeled_field.dart';
 import '../../../members/widgets/bot_permission_toggles.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../widgets/bot_env_block.dart';
+import '../../widgets/bot_status_badge.dart';
 import '../../widgets/settings_disclosure.dart';
 import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
@@ -26,6 +28,7 @@ import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import '../../../../action_labels.dart';
+import '../../../../format.dart';
 
 class BotsScreen extends StatelessWidget {
   const BotsScreen({super.key});
@@ -148,6 +151,11 @@ class _BotsPaneState extends ConsumerState<BotsPane>
             value: created.token,
             valueSemanticsLabel: 'Bot token for ${created.bot.username}',
             copyLabel: 'Copy token',
+            extraCopyLabel: 'Copy env block',
+            extraCopyValue: botEnvBlock(
+              url: ref.read(serverUrlProvider),
+              token: created.token,
+            ),
             onDismiss: () => setState(() => _justCreated = null),
           ),
         SettingsSectionCard(
@@ -281,11 +289,12 @@ class _BotRowState extends ConsumerState<_BotRow>
       icon: AppIcons.botAction,
       title: bot.displayName,
       meta: '@${bot.username}',
+      badge: bot.isRevoked ? null : BotStatusBadge(online: bot.online),
       detail: bot.isRevoked
           ? 'Revoked. Kept for what it wrote.'
           : [
               if (bot.prefix case final prefix?) 'Prefix $prefix.',
-              bot.tokenLastUsedAt == null ? 'Never used yet.' : 'Token active.',
+              if (!bot.online) _lastSeen(bot.tokenLastUsedAt),
               count == 0
                   ? 'No permissions granted yet'
                   : count == 1
@@ -319,6 +328,10 @@ class _BotRowState extends ConsumerState<_BotRow>
     );
   }
 }
+
+String _lastSeen(int? lastUsedMs) => lastUsedMs == null
+    ? 'Never connected.'
+    : 'Last seen ${formatRelativeAgeMs(lastUsedMs)}.';
 
 /// Opens the permission editor for one bot's managed role.
 Future<void> showBotPermissionsSheet(BuildContext context, api.Bot bot) {
