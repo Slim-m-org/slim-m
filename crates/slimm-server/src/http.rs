@@ -96,7 +96,6 @@ mod polls;
 mod post_commit;
 mod presence;
 mod push;
-mod quiet_hours;
 mod reaction_emoji;
 mod reactions;
 mod read_states;
@@ -264,7 +263,6 @@ pub fn router(state: AppState) -> Router {
         .merge(presence::routes())
         .merge(reactions::routes())
         .merge(push::routes())
-        .merge(quiet_hours::routes())
         .merge(notification_schedule::routes())
         .merge(pins::routes())
         .merge(saved_messages::routes())

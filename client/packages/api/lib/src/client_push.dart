@@ -6,13 +6,6 @@ part of 'client.dart';
 ///
 /// Split out of `client.dart` purely to stay under this repo's line budget;
 /// it used to sit directly on [SlimmApi] as a "--- Push ---" section.
-///
-/// `GET`/`PUT`/`DELETE /push/quiet-hours` have no client binding here any
-/// more: the app now uses `SlimmApiNotificationSchedule`
-/// (`client_notification_schedule.dart`) exclusively. The routes themselves
-/// are untouched server-side for back-compat; see
-/// `schema_coverage_test.dart`'s allowlist and
-/// `docs/decisions/0033-notification-schedule.md`.
 extension SlimmApiPush on SlimmApi {
   /// Registers, or replaces, this device's push registration. The server seals
   /// a content-free envelope to [pushPublicKey]; only this device holds the
