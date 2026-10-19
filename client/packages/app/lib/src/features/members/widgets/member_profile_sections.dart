@@ -49,9 +49,9 @@ class MemberProfileHeader extends ConsumerWidget {
     final timedOut = timeoutActive(profile.timedOutUntil);
     final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
     final extras = [
-      // A nickname hides the account's own name everywhere else, so say it here.
+      // A nickname hides the account's own name everywhere else, so show it here.
       if (profile.nickname != null && profile.accountDisplayName != null)
-        'account name ${profile.accountDisplayName}',
+        profile.accountDisplayName!,
       ?profile.pronouns,
     ];
 
