@@ -135,4 +135,27 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.114.0',
+    headline: 'Mics that stay working, one shared canvas, and editable notes',
+    points: [
+      WhatsNewPoint(
+        'Windows mics no longer cut out when someone joins or leaves, and '
+        'your chosen mic and speaker stick.',
+      ),
+      WhatsNewPoint(
+        'Everyone sees the canvas the same way on any screen, and you can '
+        'follow someone or bring everyone to you.',
+      ),
+      WhatsNewPoint('Canvas notes can be edited, with markdown and @mentions.'),
+      WhatsNewPoint(
+        'Right click someone in a call for their volume, hide their camera, '
+        'or move them to another channel.',
+      ),
+      WhatsNewPoint(
+        'Shortcuts for mute, deafen and push to talk can be changed, and '
+        'downloads save straight to your Downloads folder.',
+      ),
+    ],
+  ),
 ];
