@@ -87,3 +87,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0075](0075-livekit-client-2-13.md) | livekit_client 2.13.1, with the flutter_webrtc fork left where it is | accepted |
 | [0076](0076-remappable-call-shortcuts.md) | Mute, deafen and push-to-talk can be remapped | accepted |
 | [0077](0077-hang-up-summary.md) | A summary and Rejoin after hanging up a voice channel | accepted |
+| [0079](0079-message-toolbar-in-the-overlay.md) | The message hover toolbar lives in the overlay | accepted |
