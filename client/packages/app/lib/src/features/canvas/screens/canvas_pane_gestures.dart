@@ -15,8 +15,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = tool);
   }
 
-  CanvasTool get _defaultTool =>
-      canvasDefaultTool(compact: AppTouchTargets.of(context));
+  CanvasTool get _defaultTool => canvasDefaultTool();
 
   /// Arms the tool whose key [event] is, unless its button is absent or disabled, or a text field is taking the key.
   KeyEventResult _onToolKey(

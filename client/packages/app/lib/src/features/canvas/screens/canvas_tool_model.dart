@@ -14,12 +14,8 @@ const canvasToolOrder = [
   CanvasTool.eraser,
 ];
 
-/// Open question in decision 0047: true makes pan the opening tool at every width.
-const canvasPanDefaultsEverywhere = false;
-
-/// Width decides, never platform (desktop-vs-mobile law 1), so a phone gets pan and a desktop window gets the pen.
-CanvasTool canvasDefaultTool({required bool compact}) =>
-    canvasPanDefaultsEverywhere || compact ? CanvasTool.pan : CanvasTool.pen;
+/// Every open starts on pan, so a stray press never leaves ink.
+CanvasTool canvasDefaultTool() => CanvasTool.pan;
 
 extension CanvasToolInput on CanvasTool {
   LogicalKeyboardKey get shortcutKey => switch (this) {
