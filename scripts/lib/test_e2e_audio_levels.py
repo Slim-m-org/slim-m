@@ -50,6 +50,11 @@ class VolumeTest(unittest.TestCase):
     def test_double_volume_is_about_plus_six_db(self):
         self.assertAlmostEqual(lv.volume_to_db(2.0), 6.0206, places=3)
 
+    def test_the_slider_follows_the_cube_below_normal_and_is_linear_above(self):
+        self.assertAlmostEqual(lv.slider_to_gain(0.5), 0.125)
+        self.assertEqual(lv.slider_to_gain(1.0), 1.0)
+        self.assertEqual(lv.slider_to_gain(1.5), 1.5)
+
     def test_zero_is_silence(self):
         self.assertEqual(lv.volume_to_db(0.0), lv.SILENCE_DB)
 

@@ -51,6 +51,11 @@ def speech_loss_db(speech_off_db, speech_on_db):
     return speech_off_db - speech_on_db
 
 
+def slider_to_gain(slider):
+    """The playback gain for a slider position: the cube below 100%, linear above (audio_gain.dart)."""
+    return slider ** 3 if slider <= 1.0 else slider
+
+
 def volume_to_db(volume):
     """The level change a playback multiplier should produce; silence for 0."""
     if volume <= 0:

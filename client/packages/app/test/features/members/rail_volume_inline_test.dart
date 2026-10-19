@@ -118,4 +118,17 @@ void main() {
       expect(find.byType(AppSlider), findsNothing);
     },
   );
+
+  testWidgets(
+    'clicking the slider track sets the volume and keeps the menu open',
+    (tester) async {
+      await _pump(tester, permissions: 0);
+      await rightClickMenu(tester, find.text('Bob'));
+      final rect = tester.getRect(find.byType(AppSlider));
+      await tester.tapAt(Offset(rect.left + rect.width * 0.2, rect.center.dy));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppSlider), findsOneWidget);
+      expect(tester.widget<Text>(find.textContaining('%')).data, isNot('100%'));
+    },
+  );
 }
