@@ -32,6 +32,16 @@ mixin VoiceSessionAudioDevices {
     HardwareAudioDevices(),
   );
 
+  /// The warm-up must know whether a call holds the devices; see [HardwareAudioDevices.inCall].
+  AudioDeviceSwitching _switchingFor(AudioDevices? devices) =>
+      AudioDeviceSwitching(
+        devices ??
+            HardwareAudioDevices(
+              inCall: () => _room != null,
+              chosenInput: () => _audioSwitching.chosenInput,
+            ),
+      );
+
   /// Whether picking a specific microphone actually changes the live call;
   /// see [AudioDeviceSwitching.supportsInputSelection].
   bool get supportsAudioInputSelection =>
