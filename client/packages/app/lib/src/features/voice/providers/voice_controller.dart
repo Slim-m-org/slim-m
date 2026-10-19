@@ -27,7 +27,9 @@ import 'mic_failure_advice.dart';
 import 'voice_camera_failure.dart';
 import 'voice_deafen_publish.dart';
 import 'voice_camera_preference.dart';
+import 'join_timings_provider.dart';
 import 'voice_join_muted.dart';
+import 'voice_token_prefetch.dart';
 import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
 import 'volume_drag_throttle.dart';
@@ -67,6 +69,7 @@ class VoiceController extends StateNotifier<VoiceState>
   }) : _session =
            session ??
            VoiceSession(
+             joinTimings: _ref.read(joinTimingsProvider),
              audioLog: (line, {level = api.LogLevel.info}) =>
                  api.AppLog.at(level, api.LogTag.voice, line),
            ),
@@ -233,6 +236,7 @@ class VoiceController extends StateNotifier<VoiceState>
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;
+    _ref.read(joinTimingsProvider).begin();
     // Set before the first await, so an arrival elsewhere reads this as busy (VoiceState.joining); clearJustLeft because any real join attempt is never a stale rejoin to suppress.
     state = state.copyWith(
       channelId: channelId,
@@ -279,7 +283,10 @@ class VoiceController extends StateNotifier<VoiceState>
     bool mutedByCaller,
     bool Function() superseded,
   ) async {
-    final token = await _ref.read(apiProvider).voiceToken(channelId);
+    final timings = _ref.read(joinTimingsProvider)
+      ..mark(JoinStage.tokenRequested);
+    final token = await _ref.read(voiceTokenPrefetchProvider).claim(channelId);
+    timings.mark(JoinStage.tokenReceived);
     final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
     if (superseded()) return;
     final insecureReason = insecureSfuReason(token.url);
@@ -323,6 +330,7 @@ class VoiceController extends StateNotifier<VoiceState>
     bool retryable = false,
   }) {
     if (superseded()) return;
+    _ref.read(joinTimingsProvider).finish();
     state = state.copyWith(
       state: VoiceSessionState.failed,
       error: error,

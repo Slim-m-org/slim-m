@@ -28,6 +28,7 @@ import 'rail_room_glyphs.dart';
 import 'rail_call_length.dart';
 import 'rail_voice_participants.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
+import '../../voice/widgets/voice_prefetch_region.dart';
 
 /// Pairs a channel row with its kebab, handed to
 /// [AppListRow.trailingExtra] (via [row]'s own builder) rather than composed
@@ -259,31 +260,34 @@ class VoiceChannelRow extends ConsumerWidget {
       children: [
         RailMoveDropTarget(
           channelId: channel.id,
-          child: AppListRow(
-            label: channel.name,
-            // The leading glyph is excluded from semantics, so its privacy is said here.
-            semanticLabel:
-                channel.restricted == true && channel.createsRooms != true
-                ? '${channel.name}, ${ChannelKindIcon.voiceLabel}'
-                : null,
-            selected: selected,
-            unread: indicator.unread,
-            mentioned: indicator.mentioned,
-            muted: override == api.NotificationPreference.nothing,
-            leading: channel.createsRooms == true
-                ? RailLobbyIcon(color: iconColor)
-                : ChannelKindIcon(
-                    isVoice: true,
-                    restricted: channel.restricted ?? false,
-                    color: iconColor,
-                  ),
-            trailing: _trailing(participants.length, inCall: inCall),
-            trailingExtra: trailingExtra,
-            onTap: () => openVoiceChannel(
-              context,
-              ProviderScope.containerOf(context, listen: false),
-              channel.id,
-              alreadySelected: selected,
+          child: VoicePrefetchRegion(
+            channelId: channel.id,
+            child: AppListRow(
+              label: channel.name,
+              // The leading glyph is excluded from semantics, so its privacy is said here.
+              semanticLabel:
+                  channel.restricted == true && channel.createsRooms != true
+                  ? '${channel.name}, ${ChannelKindIcon.voiceLabel}'
+                  : null,
+              selected: selected,
+              unread: indicator.unread,
+              mentioned: indicator.mentioned,
+              muted: override == api.NotificationPreference.nothing,
+              leading: channel.createsRooms == true
+                  ? RailLobbyIcon(color: iconColor)
+                  : ChannelKindIcon(
+                      isVoice: true,
+                      restricted: channel.restricted ?? false,
+                      color: iconColor,
+                    ),
+              trailing: _trailing(participants.length, inCall: inCall),
+              trailingExtra: trailingExtra,
+              onTap: () => openVoiceChannel(
+                context,
+                ProviderScope.containerOf(context, listen: false),
+                channel.id,
+                alreadySelected: selected,
+              ),
             ),
           ),
         ),

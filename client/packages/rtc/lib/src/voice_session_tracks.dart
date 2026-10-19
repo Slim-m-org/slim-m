@@ -27,6 +27,11 @@ extension VoiceSessionTracks on VoiceSession {
     );
     _cancelEvents = room.events.listen((event) {
       _mic.onRoomEvent(event);
+      if (event is lk.TrackSubscribedEvent &&
+          event.track is lk.RemoteAudioTrack &&
+          event.publication.source == lk.TrackSource.microphone) {
+        unawaited(_watchFirstRemoteAudio(event.track as lk.RemoteAudioTrack));
+      }
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
@@ -74,6 +79,7 @@ extension VoiceSessionTracks on VoiceSession {
   /// uncancelled listener would still reach `_onDisconnected` mid-teardown,
   /// which `_onDisconnected`'s own doc says a `leave()` must never do.
   Future<void> _teardown() async {
+    _joinTimings.finish();
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer = null;
     // Synchronously, and before anything else; see this method's own doc.
@@ -120,6 +126,9 @@ extension VoiceSessionTracks on VoiceSession {
         _diag('Reopened the microphone in ${opened.elapsedMilliseconds} ms');
       }
       enabled ? _micRelease.reopened() : _micRelease.onMuted();
+      if (enabled) {
+        _joinTimings.mark(JoinStage.micPublished);
+      }
       if (enabled && options != null) {
         if (!hadTrack) {
           _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
