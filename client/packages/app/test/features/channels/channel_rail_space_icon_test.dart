@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 

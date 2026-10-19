@@ -18,7 +18,7 @@ import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 /// The insets of an iPhone with a notch, in logical points: 59 for the

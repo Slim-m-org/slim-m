@@ -75,9 +75,9 @@ Guessing a device zone from inside a SQL migration was rejected outright - there
 The window itself is inverted: quiet hours named the window to go quiet in, and this table names the window to stay on in, so the migration writes `(end_minute, start_minute)` rather than `(start_minute, end_minute)`.
 This is not a special case - the complement of a circular interval `[start, end)`, read the same clock-face way the old `QuietHours::contains` and `DayWindow` both did, is exactly `[end, start)` - so swapping the two fields is the whole transformation, verified in `notification_schedule_migration.rs` against a database seeded before 0081 ran.
 
-The old `quiet_hours_start_minute`/`quiet_hours_end_minute` columns and the `/push/quiet-hours` routes are untouched.
-An old client, or an API consumer that predates this feature, keeps working exactly as before.
-What moved is enforcement: `push::recipients` now reads the new schedule, not those columns, so writing through the old routes alone no longer changes anything about a live account's push.
+Migration 0081 left the old `quiet_hours_start_minute`/`quiet_hours_end_minute` columns and the `/push/quiet-hours` routes in place for older clients.
+Enforcement moved at once: `push::recipients` read the new schedule, not those columns, so writing through the old routes changed nothing about a live account's push.
+Migration 0138 later dropped the columns and the routes were removed, since no client called them any more.
 
 ## Why `jiff`, not `chrono-tz`
 

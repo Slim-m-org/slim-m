@@ -22,6 +22,7 @@ import 'package:slimm_app/src/spotify/spotify_client.dart';
 import 'package:slimm_app/src/spotify/spotify_config.dart';
 import 'package:slimm_app/src/spotify/spotify_link.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../support/fake_api.dart';
 
 const _tokens = api.TokenPair(

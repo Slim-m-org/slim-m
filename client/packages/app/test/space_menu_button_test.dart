@@ -18,7 +18,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import 'support/fake_api.dart';
 

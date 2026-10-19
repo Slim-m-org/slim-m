@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/members/widgets/invite_landing_section.da
 import 'package:slimm_app/src/features/members/widgets/invite_landing_view.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../composer/composer_harness.dart' show FakePlatformFile;
 import '../../support/fake_api.dart';

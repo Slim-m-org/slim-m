@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/call_stats_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_stats_lines.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_settings_screen_harness.dart';

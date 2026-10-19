@@ -7,6 +7,7 @@ import 'package:slimm_app/src/features/accounts/providers/account.dart';
 import 'package:slimm_app/src/features/accounts/providers/account_store.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _session =
     '{"user_id":"u1","access_token":"a","refresh_token":"r","access_expires_at":0}';

@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/role_detail.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_display_tab.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/role_members_tab.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

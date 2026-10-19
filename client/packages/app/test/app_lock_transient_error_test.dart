@@ -12,6 +12,7 @@ import 'package:slimm_app/src/providers/app_lock_controller.dart';
 import 'package:slimm_app/src/providers/app_lock_preference.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 class _ThrowingAuth implements LocalAuthentication {
   @override

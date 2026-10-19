@@ -46,7 +46,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/members/widgets/member_profile.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../support/reduced_motion_harness.dart';
 import '../../support/fake_sync.dart';

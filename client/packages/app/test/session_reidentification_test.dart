@@ -17,7 +17,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 void main() {
   test('a second sign-in in the same process fetches the new account\'s own '

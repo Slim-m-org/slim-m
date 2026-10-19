@@ -5964,72 +5964,6 @@ paths:
           $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
-  /push/quiet-hours:
-    get:
-      operationId: getQuietHours
-      tags: [push]
-      summary: Read the caller's own quiet-hours window.
-      description: >
-        Account-wide, the same scope as `GET /push/preference`. A genuine
-        round trip, not a local echo. `null` means disabled, the default,
-        and what every account that predates this feature keeps on upgrade.
-      responses:
-        "200":
-          description: The window now in effect, or `null` if disabled.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QuietHoursResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-    put:
-      operationId: setQuietHours
-      tags: [push]
-      summary: Set the caller's own quiet-hours window.
-      description: >
-        Minutes since midnight UTC: entered in local time by the client and
-        converted to UTC before this call, so the server never needs to
-        know the account's time zone. `start_minute` may be greater than
-        `end_minute` for a window that crosses midnight - 23:00-08:00 is the
-        ordinary shape, not an edge case. Legacy: the window is stored and read
-        back, but nothing uses it to decide push since the notification
-        schedule replaced it, so use `setNotificationSchedule` to silence an
-        account.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/QuietHours"
-      responses:
-        "200":
-          description: The window now in effect.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QuietHours"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-    delete:
-      operationId: clearQuietHours
-      tags: [push]
-      summary: Disable the caller's own quiet-hours window.
-      description: >
-        Idempotent: clearing a window that was never set, or was already
-        cleared, is not an error.
-      responses:
-        "204":
-          description: Quiet hours are now disabled.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
 
   /notifications/schedule:
     get:
@@ -6039,8 +5973,7 @@ paths:
       description: >
         `null` means never configured, distinct from a schedule with every
         weekday empty - see docs/decisions/0033-notification-schedule.md.
-        `/push/quiet-hours` is untouched and still readable; this is the
-        schedule that actually gates push (`push::recipients`).
+        This is the schedule that gates push (`push::recipients`).
       responses:
         "200":
           description: The schedule now in effect, or `null` if never configured.
@@ -15290,25 +15223,6 @@ components:
             message in a DM. `nothing` is no push at all, ever, including a
             DM.
 
-    QuietHours:
-      type: object
-      required: [start_minute, end_minute]
-      properties:
-        start_minute:
-          type: integer
-          minimum: 0
-          maximum: 1439
-          description: Minutes since midnight UTC that the window opens.
-        end_minute:
-          type: integer
-          minimum: 0
-          maximum: 1439
-          description: >
-            Minutes since midnight UTC that the window closes, exclusive.
-            May be less than `start_minute` for a window that crosses
-            midnight (23:00-08:00 is the ordinary shape); must not equal
-            `start_minute`.
-
     DirectRoute:
       type: object
       required: [addresses]
@@ -15341,19 +15255,6 @@ components:
           type: integer
           format: int64
           description: Milliseconds the server spent reading the body.
-
-    QuietHoursResponse:
-      type: object
-      required: [quiet_hours]
-      properties:
-        quiet_hours:
-          oneOf:
-            - $ref: "#/components/schemas/QuietHours"
-            - type: "null"
-          description: >-
-            Always present as a key: null means quiet hours are disabled,
-            the same convention `Message.poll` follows for "genuinely none"
-            versus omitted.
 
     NotificationScheduleDay:
       type: object

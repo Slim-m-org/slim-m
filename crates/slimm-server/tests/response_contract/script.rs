@@ -420,25 +420,8 @@ async fn push_calls(c: &mut Contract, root: &str, channel: &str, bob_id: &str) {
     channel_notification_override_calls(c, root, channel).await;
     c.get("getDirectRoute", "/direct-route", root).await;
     c.get("diagnosticsPing", "/diagnostics/ping", root).await;
-    quiet_hours_calls(c, root).await;
     notification_schedule_calls::notification_schedule_calls(c, root, channel, bob_id).await;
     c.bare("deregisterPush", "DELETE", "/push", root).await;
-}
-
-/// Set, read, and clear the account-wide quiet-hours window, in that order
-/// so the read call sees a real window rather than only the disabled case.
-async fn quiet_hours_calls(c: &mut Contract, root: &str) {
-    c.json(
-        "setQuietHours",
-        "PUT",
-        "/push/quiet-hours",
-        root,
-        json!({ "start_minute": 23 * 60, "end_minute": 8 * 60 }),
-    )
-    .await;
-    c.get("getQuietHours", "/push/quiet-hours", root).await;
-    c.bare("clearQuietHours", "DELETE", "/push/quiet-hours", root)
-        .await;
 }
 
 /// Set, list, and clear a per-channel override, in that order so the list

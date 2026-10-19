@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/messages/providers/message_alert_policy.d
 import 'package:slimm_app/src/features/settings/providers/notification_schedule_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 const _tokens = api.TokenPair(

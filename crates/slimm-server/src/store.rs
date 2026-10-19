@@ -68,7 +68,6 @@ mod poll_runoff;
 mod polls;
 mod presence;
 mod push;
-mod quiet_hours;
 mod reactions;
 mod read_markers;
 mod read_state;

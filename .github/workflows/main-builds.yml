@@ -47,7 +47,7 @@ on:
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"
       - "!client/packages/app/pubspec.yaml"
-  # By hand, to recover a run a later push cancelled; docs/ci.md's concurrency section.
+  # By hand, to recover a run a later push cancelled; docs/ci-details.md's main-builds section.
   workflow_dispatch:
     inputs:
       server:
@@ -93,7 +93,7 @@ jobs:
         with:
           fetch-depth: 0
       # Include patterns only, and `packaging` deliberately its own output.
-      # docs/ci.md's main-builds section has why both of those are load-bearing.
+      # docs/ci-details.md's main-builds section has why both of those are load-bearing.
       # Push only: a manual run has no push range to diff, and its three inputs
       # say what to build outright. An unset output is an empty string, which
       # the `== 'true' ||` above folds into the input cleanly.
@@ -113,7 +113,7 @@ jobs:
               - 'packaging/**'
               - '.github/workflows/copr-publish.yml'
 
-      # The filter asks what this push touched; this asks what is still undeployed. See docs/ci.md's concurrency section.
+      # The filter asks what this push touched; this asks what is still undeployed. See docs/ci-details.md's main-builds section.
       - id: undeployed
         if: github.event_name == 'push'
         env:

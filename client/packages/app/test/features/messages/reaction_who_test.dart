@@ -23,7 +23,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.da
 import 'package:slimm_app/src/features/messages/widgets/reaction_users_list.dart';
 import 'package:slimm_app/src/features/messages/widgets/reactions_row.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import 'message_row_harness.dart' as row;
 import '../../support/fake_api.dart';

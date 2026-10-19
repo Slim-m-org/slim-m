@@ -27,9 +27,3 @@ Color? profileRingColour(api.UserProfile profile, Color surface) {
 
 /// 0xRRGGBB for [colour], what the server stores.
 int rgbOf(Color colour) => rgbOfColour(colour);
-
-/// `#RRGGBB` for [colour].
-String hexOf(Color colour) => hexOfColour(colour);
-
-/// The colour a `#RRGGBB` or `RRGGBB` string names, or null when it names none.
-Color? colourFromHex(String text) => colourFromHexText(text);

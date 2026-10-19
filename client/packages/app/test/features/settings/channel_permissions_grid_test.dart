@@ -20,7 +20,7 @@ import 'package:slimm_app/src/features/settings/widgets/admin/channel_permission
 import 'package:slimm_app/src/features/settings/widgets/admin/channel_permissions_grid_rows.dart';
 import 'package:slimm_data/data.dart' show Channel;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

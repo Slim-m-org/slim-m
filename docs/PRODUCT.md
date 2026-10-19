@@ -2,17 +2,17 @@
 # What slim-m does today
 
 This is an inventory of the product as it actually stands, derived by reading the server's route table (`crates/slimm-server/src/http.rs` and `http/*.rs`, gated against `schema/openapi.yaml`) and the client's screens, routes, and providers, not by reading the planning docs.
-`docs/BRIEF.md`, `docs/STRATEGY.md`, and `docs/ROADMAP.md` describe the product that was planned; this describes the product that existed when it was last derived, on 2026-08-11, against server 0.37.0 and client 0.39.0 (`.release-please-manifest.server.json`, `.release-please-manifest.client.json`).
-Those manifests now read server 0.40.0 and client 0.44.0, so read the inventory below as a floor rather than as current: everything in it shipped, and things have shipped since that are not in it.
-`CLAUDE.md` used to be a session log and was the best record of how each thing got that way; PR #666 rewrote it into a short durable-context file and moved that history into git and `docs/`, so it is no longer the place to look for it.
-Read this file for the inventory, `docs/decisions/` for why a thing is shaped the way it is, and the git history for how it got there.
+`docs/BRIEF.md`, `docs/STRATEGY.md`, and `docs/ROADMAP.md` describe the product that was planned; this describes the product as it stood on 2026-08-11, at server 0.37.0 and client 0.39.0.
+It has not been re-derived since, so read it as a floor rather than as current: everything in it shipped, and a great deal has shipped after it that is not here.
+`.release-please-manifest.server.json` and `.release-please-manifest.client.json` hold the current versions.
+For what exists now, read `schema/openapi.yaml` for the wire surface and `docs/decisions/` for each feature and why it is shaped the way it is.
+`CLAUDE.md` is a short durable-context file; the history of how each thing got that way lives in git and `docs/`.
 This file is meant to be re-derived the same way, not hand-maintained by memory.
-The header above is the one part kept current by hand, precisely so a reader can see how far the rest has drifted without having to re-derive it first.
 
 ## What it is
 
 From `docs/BRIEF.md`: a lightweight, cross-platform, open source messaging platform with optional self-hosting, recreating the core Discord experience (group chats and direct messages with text, voice, and screen sharing) rather than cloning it feature for feature, with an infinite collaborative Voice Canvas during calls as the signature feature.
-It ships as a Flutter client (iOS, Android, Linux, plus a web build used mainly for testing) talking to a single Rust server process with an embedded SQLite database, plus a separate stateless Go push relay that only wakes backgrounded mobile clients.
+It ships as a Flutter client (iOS, Android, Linux, plus a web build served by an optional `slim-m-web` image, see `docs/OPERATING.md`) talking to a single Rust server process with an embedded SQLite database, plus a separate stateless Go push relay that only wakes backgrounded mobile clients.
 One deployment is one community: there is no multi-tenant hosting and no federation between deployments.
 
 ## Capabilities today
