@@ -22,6 +22,7 @@ import '../../canvas/widgets/canvas_open_button.dart';
 import '../../voice/widgets/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
+import 'channel_topic_text.dart';
 import '../../members/widgets/member_pane.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
 import '../../messages/widgets/threads_sheet.dart';
@@ -91,7 +92,7 @@ class ChannelHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final membersVisible = ref.watch(memberPaneVisibleProvider);
+    final membersVisible = memberPaneWanted(ref, MediaQuery.sizeOf(context));
     // The pane only docks where LayoutClass.fitsMemberPane says there is
     // room; a toggle shown past that would sit lit over a pane that never appears.
     final canToggleMembers =
@@ -166,22 +167,14 @@ class ChannelHeader extends ConsumerWidget {
                         color: tokens.borderSubtle,
                       ),
                       const SizedBox(width: AppSpacing.s12),
-                      Expanded(
-                        child: Text(
-                          topic,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
+                      Expanded(child: ChannelTopicText(topic: topic)),
                     ],
                   ],
                 );
               },
             ),
           ),
+          const SizedBox(width: AppSpacing.s12),
           AppIconButton(
             icon: AppIcons.pin,
             semanticLabel: 'Pinned messages',
@@ -228,9 +221,12 @@ class ChannelHeader extends ConsumerWidget {
               icon: AppIcons.members,
               semanticLabel: 'Toggle member list',
               active: membersVisible,
-              onPressed: () =>
-                  ref.read(memberPaneVisibleProvider.notifier).state =
-                      !membersVisible,
+              onPressed: () {
+                ref.read(memberPaneVisibleProvider.notifier).state =
+                    !membersVisible;
+                ref.read(memberPaneOpenedByHandProvider.notifier).state =
+                    !membersVisible;
+              },
             ),
           ],
         ],

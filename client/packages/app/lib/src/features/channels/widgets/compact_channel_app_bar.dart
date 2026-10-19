@@ -23,6 +23,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
+import 'channel_topic_text.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
 import '../../messages/widgets/threads_sheet.dart';
 
@@ -154,13 +155,7 @@ class _Title extends StatelessWidget {
             ),
           ],
         ),
-        if (topic != null && topic.isNotEmpty)
-          Text(
-            topic,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
+        if (topic != null && topic.isNotEmpty) ChannelTopicText(topic: topic),
       ],
     );
   }

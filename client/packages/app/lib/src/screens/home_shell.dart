@@ -87,13 +87,17 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final layout = LayoutClass.of(context);
-    final width = MediaQuery.sizeOf(context).width;
     final selected = selectedChannelId(context);
     // Rebuilds the key bindings when a shortcut is remapped.
     ref.watch(shortcutOverridesProvider);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
     _holdSessionProviders(ref);
-    final facts = _shellFacts(ref, layout, width, selected);
+    final facts = _shellFacts(
+      ref,
+      layout,
+      MediaQuery.sizeOf(context),
+      selected,
+    );
     final scaffold = _scaffold(context, ref, layout, facts);
 
     final shell = WhatsNewGate(
@@ -147,9 +151,10 @@ class HomeShell extends ConsumerWidget {
   _ShellFacts _shellFacts(
     WidgetRef ref,
     LayoutClass layout,
-    double width,
+    Size size,
     String? selected,
   ) {
+    final width = size.width;
     // CanvasBar is the only header while open (ConversationPane's doc); the compact app bar below would otherwise stack a second one above it.
     final canvasOpen =
         selected != null && ref.watch(canvasOpenProvider) == selected;
@@ -181,7 +186,7 @@ class HomeShell extends ConsumerWidget {
         !notFound &&
         !canvasFullscreen &&
         !showThread &&
-        ref.watch(memberPaneVisibleProvider);
+        memberPaneWanted(ref, size);
     final dockedPane = switch ((showThread, showMembers)) {
       (true, _) => kThreadPaneWidth,
       (_, true) => AppMemberPane.width,
