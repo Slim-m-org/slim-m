@@ -10,7 +10,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart' show isDesktopHost;
 import '../widgets/mic_preview_hold.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -21,13 +20,11 @@ import '../widgets/audio_device_section.dart';
 import '../widgets/mic_trouble_notice.dart';
 import '../widgets/camera_on_join_section.dart';
 import '../widgets/input_sensitivity_section.dart';
-import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
 import '../../../audio/lounge_tracks.dart';
-import '../widgets/global_hotkey_rows.dart';
-import '../widgets/push_to_talk_key_row.dart';
+import '../widgets/voice_shortcuts_section.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 
@@ -44,6 +41,7 @@ class VoiceSettingsBody extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
     children: [
       _MicrophoneSection(),
+      VoiceShortcutsSection(),
       _DevicesSection(),
       VideoQualitySection(),
       _SoundsSection(),
@@ -85,43 +83,6 @@ class _SensitivitySection extends ConsumerWidget {
   }
 }
 
-/// Desktop only: holding a physical key means nothing without one, and this
-/// stays out of the tree entirely on a phone rather than offering a control
-/// that could never do anything there.
-class _PushToTalkSection extends ConsumerWidget {
-  const _PushToTalkSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!isDesktopHost) return const SizedBox.shrink();
-    final settings = ref.watch(voiceSettingsControllerProvider);
-
-    return SettingsRowGroup(
-      children: [
-        SettingsToggleRow(
-          label: 'Hold a key to talk',
-          description:
-              'Hold the key to talk; your mic stays on between presses.',
-          value: settings.pushToTalkEnabled,
-          semanticLabel: 'Push-to-talk',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setPushToTalkEnabled(value),
-        ),
-        if (settings.pushToTalkEnabled)
-          PushToTalkKeyRow(
-            current: settings.pushToTalkKey,
-            onChanged: (key) => ref
-                .read(voiceSettingsControllerProvider.notifier)
-                .setPushToTalkKey(key),
-          ),
-        if (settings.pushToTalkEnabled) const GlobalHotkeyStatusLine(),
-        const MuteShortcutRows(),
-      ],
-    );
-  }
-}
-
 /// A live level for the local microphone: the native gate's own reading on a
 /// host that has one, otherwise the call's speaking flag as a two-level meter
 /// in a call and the preview capture's measured level outside one.
@@ -150,15 +111,14 @@ class _MicrophoneSection extends ConsumerWidget {
         : preview?.status != MicPreviewStatus.live;
 
     if (hostHasInputGate(ref)) {
-      return SettingsSectionCard(
+      return const SettingsSectionCard(
         title: 'Microphone',
         description: 'Sound below the line is not sent.',
         children: [
-          const InputSensitivityMeter(),
-          const AutoSensitivityToggle(),
-          const NoiseSuppressionSection(),
-          const EvenOutLoudSoundsToggle(),
-          if (isDesktopHost) const _PushToTalkSection(),
+          InputSensitivityMeter(),
+          AutoSensitivityToggle(),
+          NoiseSuppressionSection(),
+          EvenOutLoudSoundsToggle(),
         ],
       );
     }
@@ -198,7 +158,6 @@ class _MicrophoneSection extends ConsumerWidget {
           ),
         ),
         const _SensitivitySection(),
-        if (isDesktopHost) const _PushToTalkSection(),
       ],
     );
   }

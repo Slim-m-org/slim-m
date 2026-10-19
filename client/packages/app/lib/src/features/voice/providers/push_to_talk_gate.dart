@@ -31,6 +31,7 @@ class PushToTalkGate {
   final bool Function() _windowFocused;
   final _holds = <HoldSource>{};
   (HoldSource, DateTime)? _lastMute;
+  (HoldSource, DateTime)? _lastDeafen;
 
   static bool _bindingWindowFocused() {
     final state = WidgetsBinding.instance.lifecycleState;
@@ -70,16 +71,22 @@ class PushToTalkGate {
 
   /// Runs [toggle] unless the other source already toggled for this press.
   void toggleMute(HoldSource source, VoidCallback toggle) {
-    final now = _now();
-    final last = _lastMute;
-    if (last != null &&
-        last.$1 != source &&
-        now.difference(last.$2) < muteDuplicateWindow) {
-      return;
-    }
-    _lastMute = (source, now);
+    if (_isDuplicate(source, _lastMute)) return;
+    _lastMute = (source, _now());
     toggle();
   }
+
+  /// [toggleMute] for the deafen shortcut, which has its own press to dedupe.
+  void toggleDeafen(HoldSource source, VoidCallback toggle) {
+    if (_isDuplicate(source, _lastDeafen)) return;
+    _lastDeafen = (source, _now());
+    toggle();
+  }
+
+  bool _isDuplicate(HoldSource source, (HoldSource, DateTime)? last) =>
+      last != null &&
+      last.$1 != source &&
+      _now().difference(last.$2) < muteDuplicateWindow;
 }
 
 final pushToTalkGateProvider = Provider<PushToTalkGate>(PushToTalkGate.new);

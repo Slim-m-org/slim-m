@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/global_hotkeys_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/push_to_talk_gate.dart';
+import 'package:slimm_app/src/features/voice/providers/shortcut_overrides.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/global_hotkey_rows.dart';
 import 'package:slimm_app/src/features/voice/widgets/push_to_talk_listener.dart';
@@ -30,6 +31,7 @@ class FakeHotkeySource implements GlobalHotkeySource {
 
   final GlobalHotkeyAvailability probeResult;
   final binds = <List<GlobalHotkeyId>>[];
+  final chords = <List<HotkeyChord>>[];
   final _events = StreamController<GlobalHotkeyEvent>.broadcast();
 
   @override
@@ -43,6 +45,7 @@ class FakeHotkeySource implements GlobalHotkeySource {
     List<GlobalHotkeyBinding> bindings,
   ) async {
     binds.add([for (final b in bindings) b.id]);
+    chords.add([for (final b in bindings) b.chord]);
     return probeResult;
   }
 
@@ -282,11 +285,68 @@ void main() {
     expect(c.source.binds.last, [
       GlobalHotkeyId.pushToTalk,
       GlobalHotkeyId.toggleMute,
+      GlobalHotkeyId.toggleDeafen,
     ]);
     await c.voice.leave();
   });
 
+  testWidgets('the global deafen shortcut toggles deafen once per press', (
+    tester,
+  ) async {
+    final c = await connect(tester);
+    await global(
+      tester,
+      c.source,
+      GlobalHotkeyId.toggleDeafen,
+      GlobalHotkeyPhase.pressed,
+    );
+    expect(c.voice.state.deafened, isTrue);
+    await global(
+      tester,
+      c.source,
+      GlobalHotkeyId.toggleDeafen,
+      GlobalHotkeyPhase.released,
+    );
+    expect(c.voice.state.deafened, isTrue);
+    await c.voice.leave();
+  });
+
+  testWidgets('a remapped mute chord is registered again', (tester) async {
+    final c = await connect(tester);
+    final before = c.source.binds.length;
+    await harness.container
+        .read(shortcutOverridesProvider.notifier)
+        .set(
+          AppAction.toggleMuteCall,
+          const SingleActivator(LogicalKeyboardKey.keyU, alt: true),
+        );
+    await tester.pumpAndSettle();
+    expect(c.source.binds.length, greaterThan(before));
+    final mute = c.source.chords.last[1];
+    expect(mute.key, LogicalKeyboardKey.keyU);
+    expect(mute.alt, isTrue);
+    expect(mute.ctrl, isFalse);
+    await c.voice.leave();
+  });
+
   group('mute duplicate suppression', () {
+    test('deafen dedupes across sources on its own clock', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final now = DateTime(2026);
+      final gate = PushToTalkGate(
+        container.read(Provider((ref) => ref)),
+        now: () => now,
+      );
+      var deafens = 0;
+      var mutes = 0;
+      gate.toggleDeafen(HoldSource.inWindow, () => deafens++);
+      gate.toggleDeafen(HoldSource.global, () => deafens++);
+      gate.toggleMute(HoldSource.global, () => mutes++);
+      expect(deafens, 1);
+      expect(mutes, 1, reason: 'a deafen press does not swallow a mute press');
+    });
+
     test('the other source within the window is ignored', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -331,7 +391,7 @@ void main() {
           overrides: [globalHotkeySourceProvider.overrideWithValue(source)],
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),
-            home: const Scaffold(body: MuteShortcutRows()),
+            home: const Scaffold(body: GlobalHotkeyStatusLine()),
           ),
         ),
       );
@@ -344,7 +404,6 @@ void main() {
         find.text('Works when slim-m is in the background.'),
         findsOneWidget,
       );
-      expect(find.text('Mute shortcut'), findsOneWidget);
     });
 
     testWidgets('shows why it falls back when the source refuses', (

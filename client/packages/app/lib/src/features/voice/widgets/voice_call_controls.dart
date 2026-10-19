@@ -50,6 +50,7 @@ import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
 import '../../../providers/providers.dart' show apiProvider;
 import '../providers/mic_status.dart';
+import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart'
@@ -116,6 +117,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// something the matching button could not. `HomeShell` binds the keys.
   late final CallShortcutHandlers _shortcuts = CallShortcutHandlers(
     toggleMute: () => widget.controller.toggleMicrophone(),
+    toggleDeafen: () => unawaited(widget.controller.toggleDeafen()),
     toggleCamera: () => unawaited(widget.controller.toggleCamera()),
     toggleShare: () {
       if (_shareRequestInFlight) return;
@@ -153,6 +155,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
   @override
   Widget build(BuildContext context) {
     final voice = widget.voice;
+    // Tooltips name the shortcut, so a remap redraws them.
+    ref.watch(shortcutOverridesProvider);
     final touch = AppTouchTargets.of(context);
     final shareOptions = _shareOptions(context);
     final listenOnly = listenOnlyReason(ref, voice);

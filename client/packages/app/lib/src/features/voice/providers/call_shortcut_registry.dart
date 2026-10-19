@@ -15,12 +15,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class CallShortcutHandlers {
   const CallShortcutHandlers({
     required this.toggleMute,
+    required this.toggleDeafen,
     required this.toggleCamera,
     required this.toggleShare,
     required this.leave,
   });
 
   final VoidCallback toggleMute;
+  final VoidCallback toggleDeafen;
   final VoidCallback toggleCamera;
   final VoidCallback toggleShare;
   final VoidCallback leave;

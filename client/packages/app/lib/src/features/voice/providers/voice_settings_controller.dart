@@ -13,6 +13,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../../audio/lounge_tracks.dart';
 
 import '../../../providers/providers.dart';
+import 'shortcut_overrides.dart' show kDefaultPushToTalkKey;
 import 'voice_controller.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
@@ -145,7 +146,7 @@ class VoiceSettingsState {
     this.cameraQuality = CameraQuality.balanced,
     this.cameraOnJoin = false,
     this.pushToTalkEnabled = false,
-    this.pushToTalkKey = LogicalKeyboardKey.keyV,
+    this.pushToTalkKey = kDefaultPushToTalkKey,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
     this.inputThresholdAuto = false,
@@ -311,7 +312,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
       // Any key a person picked; `V` for voice until they pick one.
       pushToTalkKey: storedKeyId == null
-          ? LogicalKeyboardKey.keyV
+          ? kDefaultPushToTalkKey
           : LogicalKeyboardKey.findKeyByKeyId(storedKeyId) ??
                 LogicalKeyboardKey.keyV,
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,

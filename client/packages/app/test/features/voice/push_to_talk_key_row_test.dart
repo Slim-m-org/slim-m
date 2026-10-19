@@ -65,7 +65,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(picked, isEmpty);
-    expect(find.text('Press a key, or Escape to cancel'), findsOneWidget);
+    expect(find.text('That key cannot be used.'), findsOneWidget);
   });
 
   test('a saved key outside the old four letters loads back', () async {
