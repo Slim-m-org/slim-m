@@ -133,8 +133,6 @@ class _HoverRevealState extends State<_HoverReveal> {
   );
 }
 
-const _revealDuration = Duration(milliseconds: 150);
-
 /// The whole video is the drag handle, since the window has no title bar.
 class _DragSurface extends StatelessWidget {
   const _DragSurface({required this.frame});
@@ -174,7 +172,7 @@ class _TopBar extends StatelessWidget {
         ignoring: !shown,
         child: AnimatedOpacity(
           opacity: shown ? 1 : 0,
-          duration: _revealDuration,
+          duration: AppMotion.reduced(context, AppMotion.fast),
           child: Row(
             children: [
               Expanded(
@@ -227,7 +225,7 @@ class _Controls extends StatelessWidget {
       bottom: AppSpacing.s8,
       child: AnimatedOpacity(
         opacity: shown ? 1 : 0,
-        duration: _revealDuration,
+        duration: AppMotion.reduced(context, AppMotion.fast),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           spacing: AppSpacing.s8,
