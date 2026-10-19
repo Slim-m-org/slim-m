@@ -20,10 +20,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
+import 'audio_glitch_watch.dart';
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'mic_release.dart';
 import 'input_gate.dart';
+import 'mic_failure.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -44,7 +46,6 @@ import 'screen_share.dart';
 import 'screen_share_control.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
-import 'share_limit.dart';
 import 'voice_disconnect_reason.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
@@ -91,6 +92,8 @@ class VoiceSession
     Duration? captureRestartDebounce,
     VoiceLog? audioLog,
     AudioDevices? audioDevices,
+    LiveOutputSwitch? liveOutput,
+    OsMicBlockProbe? osMicBlocked,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
@@ -108,7 +111,7 @@ class VoiceSession
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
     _initCapture(micPort, captureRestartDebounce, _restartCapture);
-    _audioSwitching = _switchingFor(audioDevices);
+    _audioSwitching = _switchingFor(audioDevices, liveOutput, osMicBlocked);
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
@@ -156,8 +159,6 @@ class VoiceSession
     targets: () => _callStatsTargets(),
     log: (line) => AppLog.debug(LogTag.voice, line),
   );
-
-  late final shareLimit = ShareLimitMonitor(callStats);
 
   @override
   lk.Room? _room;

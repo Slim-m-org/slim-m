@@ -23,6 +23,10 @@ mixin VoiceSessionMicRecovery {
   late final MicRecovery _micRecovery;
   late final SilentMicWatchdog _micWatchdog;
   final _micStatuses = StreamController<MicStatus>.broadcast();
+  final _micFailures = StreamController<MicFailureReason?>.broadcast();
+  MicFailureReason? _micFailure;
+  // ignore: prefer_final_fields
+  OsMicBlockProbe _osMicBlocked = platformMicBlocked;
   StreamSubscription<void>? _micLost;
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
@@ -33,6 +37,23 @@ mixin VoiceSessionMicRecovery {
   /// Whether the mic is healthy, being brought back, or given up on.
   MicStatus get micStatus => _micStatus;
   Stream<MicStatus> get micStatuses => _micStatuses.stream;
+
+  /// Why the last attempt to open the microphone failed; null while it works.
+  MicFailureReason? get micFailure => _micFailure;
+  Stream<MicFailureReason?> get micFailures => _micFailures.stream;
+
+  /// Records [reason] at once, then upgrades it when the OS says it is blocking us.
+  Future<void> _noteMicFailure(MicFailureReason reason) async {
+    _setMicFailure(reason);
+    final refined = await refineMicFailure(reason, _osMicBlocked);
+    if (refined != reason && _micFailure == reason) _setMicFailure(refined);
+  }
+
+  void _setMicFailure(MicFailureReason? next) {
+    if (next == _micFailure) return;
+    _micFailure = next;
+    if (!_micFailures.isClosed) _micFailures.add(next);
+  }
 
   void _initMicRecovery({
     required MicRecoveryTiming timing,
@@ -65,6 +86,7 @@ mixin VoiceSessionMicRecovery {
           level: LogLevel.warning,
         );
         _setMicStatus(MicStatus.unavailable);
+        unawaited(_noteMicFailure(MicFailureReason.silent));
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
@@ -141,6 +163,7 @@ mixin VoiceSessionMicRecovery {
     await _micLevels?.cancel();
     await _deviceChanges?.cancel();
     await _micStatuses.close();
+    await _micFailures.close();
   }
 
   void _logMic(String message, {LogLevel level = LogLevel.info}) =>
@@ -156,12 +179,45 @@ mixin VoiceSessionMicRecovery {
   void _setMicStatus(MicStatus next) {
     if (next == _micStatus) return;
     _micStatus = next;
+    if (next == MicStatus.ok) _setMicFailure(null);
     if (!_micStatuses.isClosed) _micStatuses.add(next);
+  }
+
+  late final _glitchWatch = AudioGlitchWatch(
+    sources: _remoteVoiceStats,
+    log: _logMic,
+  );
+
+  Map<String, AudioStatsSource> _remoteVoiceStats() {
+    final out = <String, AudioStatsSource>{};
+    final remotes = _room?.remoteParticipants.values.toList() ?? const [];
+    for (final p in remotes) {
+      for (final pub in p.audioTrackPublications) {
+        final track = pub.track;
+        if (track is lk.RemoteAudioTrack &&
+            pub.source == lk.TrackSource.microphone) {
+          out[p.name.isEmpty ? p.identity : p.name] = () async {
+            final s = await track.getReceiverStats();
+            return s == null
+                ? null
+                : AudioReceiveSample(
+                    concealedSamples: s.concealedSamples,
+                    durationSeconds: s.totalSamplesDuration,
+                    packetsLost: s.packetsLost,
+                    jitterSeconds: s.jitter,
+                    clockRate: s.clockRate,
+                  );
+          };
+        }
+      }
+    }
+    return out;
   }
 
   /// Follows the call: device changes are watched only while it is up.
   void _syncMicWatch(VoiceSessionState state) {
     if (state == VoiceSessionState.connected) {
+      _glitchWatch.start();
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
         unawaited(_rememberInputs());
@@ -178,6 +234,7 @@ mixin VoiceSessionMicRecovery {
   }
 
   void _stopMicWatch() {
+    _glitchWatch.stop();
     _micWanted = false;
     _deviceDebounce?.cancel();
     _deviceDebounce = null;
@@ -188,6 +245,7 @@ mixin VoiceSessionMicRecovery {
     _deviceChanges = null;
     _micRecovery.reset();
     _micWatchdog.reset();
+    _setMicFailure(null);
   }
 
   /// A mic that would not open at join (permission, a device that was not ready)
@@ -219,6 +277,7 @@ mixin VoiceSessionMicRecovery {
       inputDropped = reconciled.inputDropped;
       inputChanged = inputDropped || reconciled.inputRestored;
       await _audioSwitching.applyServerRouting();
+      await _audioSwitching.reapplyOutput(_room);
     } on Object catch (e) {
       _logMic(
         'Could not follow the audio device change: $e',

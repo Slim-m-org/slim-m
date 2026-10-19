@@ -106,6 +106,7 @@ class _Rig {
       roomFactory: _EmptyRoom.new,
       micPort: mic,
       audioDevices: devices,
+      liveOutput: (room, device) async => outputs.add(device.deviceId),
       micRecoveryTiming: _timing,
       micReleaseGrace: const Duration(milliseconds: 30),
       captureRestartDebounce: const Duration(milliseconds: 10),
@@ -121,6 +122,7 @@ class _Rig {
 
   final mic = _Mic();
   final devices = _Devices();
+  final outputs = <String>[];
   late final VoiceSession session;
 
   Future<void> choose() async {
@@ -154,6 +156,7 @@ Future<void> _settle([int ms = 120]) =>
     Future<void>.delayed(Duration(milliseconds: ms));
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late _Rig rig;
 
   Future<_Rig> start({bool micOn = true, double levelDb = -40.0}) async {
@@ -284,5 +287,13 @@ void main() {
     rig.devices.speakers = const [];
     await rig.join();
     rig.expectAllChosen();
+  });
+
+  test('the chosen speaker is applied after every capture reopen', () async {
+    await start();
+    rig.mic.end();
+    await _until(() => rig.mic.opened.length >= 2);
+    await _until(() => rig.outputs.length >= 2);
+    expect(rig.outputs.toSet(), {'spk-1'});
   });
 }
