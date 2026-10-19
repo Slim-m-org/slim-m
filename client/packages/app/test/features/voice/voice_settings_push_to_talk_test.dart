@@ -14,13 +14,56 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogRecord, LogSink;
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';
 
+class _Records implements LogSink {
+  final messages = <String>[];
+
+  @override
+  void write(LogRecord record) => messages.add(record.message);
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  tearDown(() => AppLog.install(null));
+
+  testWidgets('every change to push-to-talk leaves a log line naming why', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'slimm.voice.push_to_talk_enabled': true,
+    });
+    final records = _Records();
+    AppLog.install(records);
+    await tester.pumpWidget(
+      wrap(const VoiceSettingsBody(), overrides: ungatedSession()),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      records.messages.where((m) => m.contains('read from stored settings')),
+      hasLength(1),
+    );
+
+    final pttToggle = find.byWidgetPredicate(
+      (w) => w is AppToggle && w.semanticLabel == 'Push-to-talk',
+    );
+    await tester.scrollUntilVisible(
+      pttToggle,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(pttToggle);
+    await tester.pumpAndSettle();
+    expect(
+      records.messages.where((m) => m.contains('off by the settings toggle')),
+      hasLength(1),
+    );
+  });
 
   testWidgets('turning on push-to-talk persists it', (tester) async {
     await tester.pumpWidget(
