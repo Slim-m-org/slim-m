@@ -625,6 +625,17 @@ pub enum Event {
         object_id: CanvasObjectId,
         z_index: i64,
     },
+    /// A note's props were replaced (decision 0072). Carries the whole new
+    /// props so a receiver repaints without a refetch; the actor is absent for
+    /// the reason [`Event::CanvasObjectMoved`] gives, since editing another
+    /// member's note needs `MANAGE_CANVAS`.
+    CanvasObjectEdited {
+        channel_id: ChannelId,
+        seq: Seq,
+        op_id: CanvasOpId,
+        object_id: CanvasObjectId,
+        props: String,
+    },
     /// A participant's camera or screen-share tile was moved, resized,
     /// locked or sent to the back - decision 0010's reversal, which made
     /// this shared state rather than a per-viewer local one.

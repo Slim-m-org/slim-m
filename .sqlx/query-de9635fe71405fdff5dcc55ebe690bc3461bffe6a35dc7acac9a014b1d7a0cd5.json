@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.seq AS \"seq!: i64\", o.id AS \"id!: CanvasOpId\", o.kind AS \"kind!\",\n                      o.actor_id AS \"actor_id: UserId\", o.bound_seq AS \"bound_seq: i64\",\n                      o.target_op AS \"target_op: CanvasOpId\", o.created_at AS \"created_at!: i64\",\n                      o.move_x AS \"move_x: f64\", o.move_y AS \"move_y: f64\",\n                      o.move_w AS \"move_w: f64\", o.move_h AS \"move_h: f64\",\n                      o.reorder_z AS \"reorder_z: i64\",\n                      obj.id AS \"obj_id?: CanvasObjectId\", obj.kind AS \"obj_kind?: String\",\n                      obj.z_index AS \"obj_z_index?: i64\", obj.x AS \"obj_x?: f64\",\n                      obj.y AS \"obj_y?: f64\", obj.w AS \"obj_w?: f64\", obj.h AS \"obj_h?: f64\",\n                      obj.props AS \"obj_props?: String\", obj.author_id AS \"obj_author_id?: UserId\",\n                      obj.seq AS \"obj_seq?: Seq\", obj.created_at AS \"obj_created_at?: i64\"\n               FROM canvas_ops o\n               LEFT JOIN canvas_objects obj\n                 ON obj.channel_id = o.channel_id AND obj.seq = o.seq\n                 AND o.kind = 'place' AND obj.deleted_at IS NULL\n               WHERE o.channel_id = ? AND o.seq > ?\n               ORDER BY o.seq ASC\n               LIMIT ?",
+  "query": "SELECT o.seq AS \"seq!: i64\", o.id AS \"id!: CanvasOpId\", o.kind AS \"kind!\",\n                      o.actor_id AS \"actor_id: UserId\", o.bound_seq AS \"bound_seq: i64\",\n                      o.target_op AS \"target_op: CanvasOpId\", o.created_at AS \"created_at!: i64\",\n                      o.move_x AS \"move_x: f64\", o.move_y AS \"move_y: f64\",\n                      o.move_w AS \"move_w: f64\", o.move_h AS \"move_h: f64\",\n                      o.reorder_z AS \"reorder_z: i64\", o.edit_props AS \"edit_props: String\",\n                      obj.id AS \"obj_id?: CanvasObjectId\", obj.kind AS \"obj_kind?: String\",\n                      obj.z_index AS \"obj_z_index?: i64\", obj.x AS \"obj_x?: f64\",\n                      obj.y AS \"obj_y?: f64\", obj.w AS \"obj_w?: f64\", obj.h AS \"obj_h?: f64\",\n                      obj.props AS \"obj_props?: String\", obj.author_id AS \"obj_author_id?: UserId\",\n                      obj.seq AS \"obj_seq?: Seq\", obj.created_at AS \"obj_created_at?: i64\"\n               FROM canvas_ops o\n               LEFT JOIN canvas_objects obj\n                 ON obj.channel_id = o.channel_id AND obj.seq = o.seq\n                 AND o.kind = 'place' AND obj.deleted_at IS NULL\n               WHERE o.channel_id = ? AND o.seq > ?\n               ORDER BY o.seq ASC\n               LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -64,58 +64,63 @@
         "type_info": "Integer"
       },
       {
-        "name": "obj_id?: CanvasObjectId",
+        "name": "edit_props: String",
         "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "obj_id?: CanvasObjectId",
+        "ordinal": 13,
         "type_info": "Blob"
       },
       {
         "name": "obj_kind?: String",
-        "ordinal": 13,
+        "ordinal": 14,
         "type_info": "Text"
       },
       {
         "name": "obj_z_index?: i64",
-        "ordinal": 14,
+        "ordinal": 15,
         "type_info": "Integer"
       },
       {
         "name": "obj_x?: f64",
-        "ordinal": 15,
-        "type_info": "Float"
-      },
-      {
-        "name": "obj_y?: f64",
         "ordinal": 16,
         "type_info": "Float"
       },
       {
-        "name": "obj_w?: f64",
+        "name": "obj_y?: f64",
         "ordinal": 17,
         "type_info": "Float"
       },
       {
-        "name": "obj_h?: f64",
+        "name": "obj_w?: f64",
         "ordinal": 18,
         "type_info": "Float"
       },
       {
-        "name": "obj_props?: String",
+        "name": "obj_h?: f64",
         "ordinal": 19,
+        "type_info": "Float"
+      },
+      {
+        "name": "obj_props?: String",
+        "ordinal": 20,
         "type_info": "Text"
       },
       {
         "name": "obj_author_id?: UserId",
-        "ordinal": 20,
+        "ordinal": 21,
         "type_info": "Blob"
       },
       {
         "name": "obj_seq?: Seq",
-        "ordinal": 21,
+        "ordinal": 22,
         "type_info": "Integer"
       },
       {
         "name": "obj_created_at?: i64",
-        "ordinal": 22,
+        "ordinal": 23,
         "type_info": "Integer"
       }
     ],
@@ -135,6 +140,7 @@
       true,
       true,
       true,
+      true,
       false,
       false,
       false,
@@ -148,5 +154,5 @@
       false
     ]
   },
-  "hash": "db3091e900ec6c4d628bebcc8853407d2ac16871092c141dbbbb693daa6df453"
+  "hash": "de9635fe71405fdff5dcc55ebe690bc3461bffe6a35dc7acac9a014b1d7a0cd5"
 }

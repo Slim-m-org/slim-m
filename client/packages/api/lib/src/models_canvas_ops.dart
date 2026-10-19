@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas op stream: the single ordering authority every mutation -
-/// place, remove, clear, restore, move, reorder - writes into, and the paged
+/// place, remove, clear, restore, move, reorder, edit - writes into, and the paged
 /// catch-up feed a client reconciling after a drop reads it back through. A
 /// sibling of `models_canvas.dart`, which holds the object and
 /// viewport-read shapes.
@@ -81,6 +81,15 @@ sealed class CanvasOp {
           createdAt: createdAt,
           objectId: json['object_id'] as String,
           zIndex: json['z_index'] as int,
+        ),
+      'edit' => CanvasEditOp(
+          seq: seq,
+          id: id,
+          actorId: actorId,
+          createdAt: createdAt,
+          objectId: json['object_id'] as String,
+          props: (json['props'] as Map<String, dynamic>?) ??
+              const <String, dynamic>{},
         ),
       _ => CanvasUnknownOp(
           seq: seq,
@@ -187,6 +196,21 @@ class CanvasReorderOp extends CanvasOp {
   final int zIndex;
 }
 
+/// A note's props were replaced by [props], without touching its bounds.
+class CanvasEditOp extends CanvasOp {
+  const CanvasEditOp({
+    required super.seq,
+    required super.id,
+    required super.actorId,
+    required super.createdAt,
+    required this.objectId,
+    required this.props,
+  });
+
+  final String objectId;
+  final Map<String, dynamic> props;
+}
+
 /// A kind this client does not recognise. Never skipped by a catch-up:
 /// silently ignoring an unknown kind could mean leaving ink on screen the
 /// server has since removed, so a caller resets rather than skips it.
@@ -233,7 +257,7 @@ class CanvasOpsPage {
 }
 
 /// The answer to submitting one canvas op (`remove`, `clear`, `restore`,
-/// `move`, or `reorder`).
+/// `move`, `reorder`, or `edit`).
 class CanvasOpResult {
   const CanvasOpResult({required this.op, required this.fresh});
 

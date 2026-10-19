@@ -101,6 +101,9 @@ class CanvasDocument extends ChangeNotifier {
   /// Alignment guides of a drag or resize that is snapping right now.
   final ValueNotifier<List<SnapGuide>> snapGuides = ValueNotifier(const []);
 
+  /// Whether moves and resizes snap to the grid; set by the viewer, per device.
+  final ValueNotifier<bool> snapToGrid = ValueNotifier<bool>(false);
+
   Camera get camera => _camera;
   Size get viewport => _viewport;
 
@@ -502,6 +505,7 @@ class CanvasDocument extends ChangeNotifier {
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
     snapGuides.dispose();
+    snapToGrid.dispose();
     worldEdgeHit.dispose();
     scene.dispose();
     super.dispose();

@@ -182,6 +182,26 @@ class CanvasObjectMoved extends ServerEvent {
   final double h;
 }
 
+/// A note's props were replaced.
+///
+/// Carries the whole new props, so a receiver repaints without a refetch. The
+/// actor is absent for the reason [CanvasObjectMoved]'s is.
+class CanvasObjectEdited extends ServerEvent {
+  const CanvasObjectEdited({
+    required this.channelId,
+    required this.seq,
+    required this.opId,
+    required this.objectId,
+    required this.props,
+  });
+
+  final String channelId;
+  final int seq;
+  final String opId;
+  final String objectId;
+  final Map<String, dynamic> props;
+}
+
 /// A participant's camera or screen-share tile was moved, resized, locked
 /// or sent to the back or front - shared and persistent since decision
 /// 0010's reversal, so this reaches every viewer, not only the one who

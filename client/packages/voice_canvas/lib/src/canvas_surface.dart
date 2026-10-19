@@ -85,6 +85,7 @@ class CanvasSurface extends StatefulWidget {
     this.onErase,
     this.onEraseEnd,
     this.onSelectStart,
+    this.onSelectTap,
     this.onSelectDrag,
     this.onSelectEnd,
     this.onNotePlace,
@@ -110,6 +111,8 @@ class CanvasSurface extends StatefulWidget {
     this.noteColor,
     this.shapeColor,
     this.noteTextInk = const Color(0xFF1A1A1A),
+    this.noteSpans,
+    this.noteSpansRevision = 0,
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
@@ -128,6 +131,10 @@ class CanvasSurface extends StatefulWidget {
   final Color? noteColor;
   final Color? shapeColor;
   final Color noteTextInk;
+
+  /// See [StrokePainter.noteSpans] and [StrokePainter.noteSpansRevision].
+  final NoteSpanBuilder? noteSpans;
+  final int noteSpansRevision;
 
   /// The selection outline and resize-handle colours. Null renders no
   /// selection layer at all, the same "pay nothing for it unwired" choice
@@ -234,6 +241,11 @@ class CanvasSurface extends StatefulWidget {
   /// move, the same shape [onEraseEnd] already uses.
   final VoidCallback? onSelectEnd;
 
+  /// Fires after [onSelectEnd] for a select gesture that never travelled
+  /// past a tap's slop, with the kind of pointer that made it, so the caller
+  /// can tell a double click from a touch tap.
+  final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
+
   /// Fires once for a tap while [tool] is [CanvasTool.note], at the point
   /// the pointer went down - a tap rather than a drag, since a note's box is
   /// a fixed default size the caller places and the person resizes it
@@ -315,6 +327,8 @@ class _CanvasSurfaceState extends State<CanvasSurface>
         shapeColor: widget.shapeColor,
         textInk: widget.noteTextInk,
         textFontFamily: widget.cursorLabelFontFamily,
+        noteSpans: widget.noteSpans,
+        noteSpansRevision: widget.noteSpansRevision,
         placeholderFill: widget.placeholderFill,
         placeholderIcon: widget.placeholderIcon,
         elevationShadow: widget.elevationShadow,
@@ -376,6 +390,10 @@ class _CanvasSurfaceState extends State<CanvasSurface>
         );
 
   int _pointers = 0;
+
+  /// Where the select tool's pointer went down, until it moves past a tap's
+  /// slop or a second pointer joins.
+  Offset? _selectDownAt;
 
   /// A note or shape placement [_down] armed, resolved only once every
   /// pointer has lifted - see [_resolvePendingPlacement]. Needed because

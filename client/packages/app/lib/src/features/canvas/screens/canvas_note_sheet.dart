@@ -1,59 +1,19 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The note tool's own sheet: text entered here, and only here, is what a
-/// placed note ever carries.
+/// The note tool's own sheet: where a new note's text is typed, with the same
+/// input features the message composer has.
 ///
-/// There is no in-place edit anywhere on this canvas - a stroke's ink cannot
-/// be redrawn, an image's bytes cannot be swapped - so a note follows the
-/// same rule and is never edited after placement. That is what makes this
-/// sheet the one and only place a note's text is ever typed, and why a note
-/// never appears on the shared canvas mid-composition: nothing is sent until
-/// this sheet's own submit, so there is nothing for another participant to
-/// see somebody "typing into".
+/// Nothing is sent until this sheet's own submit, so there is nothing for
+/// another participant to see somebody "typing into". A placed note is edited
+/// in place instead (`CanvasNoteEditor`).
 library;
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-/// The exact wire cost of a note's `props`: `text` JSON-escaped inside
-/// `{"text":"..."}` and UTF-8 encoded, the same bytes the server's
-/// `MAX_PROPS_BYTES` counts.
-///
-/// A *character* count was tried first and was wrong: `serde_json` (server
-/// side) and `jsonEncode` (here) both leave any non-ASCII byte unescaped, so
-/// a character costing more than one UTF-8 byte - ordinary CJK text, for
-/// one, not a hostile string - costs that many wire bytes per unit of a
-/// character count. 1800 CJK characters is 5,412 wire bytes, already over
-/// the server's 4 KiB ceiling; only a control character's `\u00XX` escape is
-/// worse, at 6 bytes each. Measuring the real encoded size is what a length
-/// limit means here, not an approximation of it.
-int noteWireBytes(String text) =>
-    utf8.encode(jsonEncode({'text': text})).length;
+import '../widgets/canvas_note_field.dart';
 
-/// A comfortable margin under the server's `MAX_PROPS_BYTES` (4 KiB), leaving
-/// room for the request's own envelope fields alongside `props`.
-const int maxNoteTextBytes = 4000;
-
-/// Refuses an edit that would push [noteWireBytes] over [maxBytes], rather
-/// than truncating mid-character: reverting to the last value that fit is
-/// simple and can never split a surrogate pair or a grapheme cluster the way
-/// slicing a string at a computed cut point could.
-class _NoteByteLimitFormatter extends TextInputFormatter {
-  const _NoteByteLimitFormatter(this.maxBytes);
-
-  final int maxBytes;
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (noteWireBytes(newValue.text) <= maxBytes) return newValue;
-    return oldValue;
-  }
-}
+export '../widgets/canvas_note_limits.dart'
+    show maxNoteTextBytes, noteWireBytes;
 
 /// Opens the note sheet and answers with the entered text, or null if the
 /// person cancelled without typing anything worth keeping.
@@ -73,9 +33,21 @@ class _CanvasNoteSheet extends StatefulWidget {
 
 class _CanvasNoteSheetState extends State<_CanvasNoteSheet> {
   final _text = TextEditingController();
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _text.addListener(() => setState(() {}));
+    // Asked for, not autofocus alone: the sheet's route can still be settling when this builds.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
+    _focus.dispose();
     _text.dispose();
     super.dispose();
   }
@@ -120,21 +92,11 @@ class _CanvasNoteSheetState extends State<_CanvasNoteSheet> {
               horizontal: AppSpacing.s12,
               vertical: AppSpacing.s8,
             ),
-            child: TextField(
+            child: CanvasNoteField(
               controller: _text,
-              autofocus: true,
-              minLines: 3,
-              maxLines: 8,
-              inputFormatters: const [
-                _NoteByteLimitFormatter(maxNoteTextBytes),
-              ],
-              style: AppText.body.copyWith(color: tokens.textPrimary),
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                isDense: true,
-                hintText: 'What do you want to remember?',
-              ),
-              onChanged: (_) => setState(() {}),
+              focusNode: _focus,
+              onSave: _submit,
+              hintText: 'What do you want to remember?',
             ),
           ),
           const SizedBox(height: AppSpacing.s12),

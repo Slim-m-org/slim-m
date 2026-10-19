@@ -27,6 +27,7 @@ pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
         Event::CanvasObjectPreview { channel_id, .. } => *channel_id,
         Event::CanvasObjectMoved { channel_id, .. } => *channel_id,
         Event::CanvasObjectReordered { channel_id, .. } => *channel_id,
+        Event::CanvasObjectEdited { channel_id, .. } => *channel_id,
         Event::CanvasMediaSlotChanged { channel_id, .. } => *channel_id,
         Event::CanvasObjectLockChanged { channel_id, .. } => *channel_id,
         _ => return None,
@@ -155,6 +156,19 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             op_id: op_id.to_string(),
             object_id: object_id.to_string(),
             z_index,
+        },
+        Event::CanvasObjectEdited {
+            channel_id,
+            seq,
+            op_id,
+            object_id,
+            props,
+        } => ServerFrame::CanvasObjectEdited {
+            channel_id: channel_id.to_string(),
+            seq: seq.0,
+            op_id: op_id.to_string(),
+            object_id: object_id.to_string(),
+            props: serde_json::from_str(&props).unwrap_or(serde_json::Value::Null),
         },
         Event::CanvasMediaSlotChanged {
             channel_id,

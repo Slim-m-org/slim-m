@@ -15,6 +15,7 @@ extension _CanvasSurfacePainters on _CanvasSurfaceState {
         o.noteColor != w.noteColor ||
         o.shapeColor != w.shapeColor ||
         o.noteTextInk != w.noteTextInk ||
+        o.noteSpansRevision != w.noteSpansRevision ||
         o.cursorLabelFontFamily != w.cursorLabelFontFamily ||
         o.placeholderFill != w.placeholderFill ||
         o.placeholderIcon != w.placeholderIcon ||

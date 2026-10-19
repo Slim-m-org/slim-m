@@ -24,7 +24,9 @@
 library;
 
 import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +38,9 @@ import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
+import '../widgets/canvas_note_editor.dart';
+import '../widgets/canvas_note_spans.dart';
+import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
 import '../../voice/providers/video_interest_relay.dart';
@@ -94,6 +99,12 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// [CanvasTool.pan] the mode itself forced.
   CanvasTool? _toolBeforeFullscreen;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
+
+  /// The note whose in-place editor is open, if any.
+  String? _editingNoteId;
+
+  /// The last mouse click on a note, so a second one soon after is a double click.
+  ({String id, DateTime at})? _lastNoteClick;
   CanvasPenStyle _pen = const CanvasPenStyle();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
@@ -186,6 +197,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       objectPreviewGlideDuration,
     );
     ref.listen(voiceFlagsProvider, _closeWhenCallEnds);
+    final noteSpanStyle = _noteSpanStyle(context);
+    final editingNote = _editingNoteId != null;
     return CanvasObjectLocksScope(
       locks: _engine.objectLocks,
       child: CallbackShortcuts(
@@ -193,30 +206,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
           // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
           if (fullscreen)
             const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen,
-          const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
-              unawaited(_onUndo()),
-          const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
-              unawaited(_onUndo()),
-          const SingleActivator(
-            LogicalKeyboardKey.keyZ,
-            control: true,
-            shift: true,
-          ): () =>
-              unawaited(_onRedo()),
-          const SingleActivator(
-            LogicalKeyboardKey.keyZ,
-            meta: true,
-            shift: true,
-          ): () =>
-              unawaited(_onRedo()),
-          const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
-              unawaited(_onRedo()),
-          const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
-              unawaited(_imagePaste.pasteFromKeystroke()),
-          const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
-              unawaited(_imagePaste.pasteFromKeystroke()),
-          const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
-          const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
+          // None of these while a note is being typed in: Backspace and Ctrl+Z belong to its field.
+          if (!editingNote) ..._canvasEditShortcuts(),
         },
         child: Focus(
           autofocus: true,
@@ -255,6 +246,21 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onSelectStart: _onSelectStart,
             onSelectDrag: _onSelectDrag,
             onSelectEnd: () => unawaited(_onSelectEnd()),
+            onSelectTap: _onSelectTap,
+            onEditNote: _onEditNote,
+            noteSpans: (text, base) =>
+                buildNoteSpans(text, base, noteSpanStyle),
+            noteSpansRevision: noteSpanStyle.revision,
+            noteEditor: _editingNoteId == null
+                ? null
+                : CanvasNoteEditor(
+                    key: ValueKey(_editingNoteId),
+                    document: _document,
+                    objectId: _editingNoteId!,
+                    onSave: (text) =>
+                        unawaited(_onNoteEditSave(_editingNoteId!, text)),
+                    onCancel: _onNoteEditCancel,
+                  ),
             onNotePlace: (world) => unawaited(_onNotePlace(world)),
             onShapePlace: (world, size) =>
                 unawaited(_onShapePlace(world, size)),

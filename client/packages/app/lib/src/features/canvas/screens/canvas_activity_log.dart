@@ -39,6 +39,7 @@ enum CanvasActivityKind {
   placed,
   moved,
   reordered,
+  edited,
   removed,
   cleared,
   restored,
@@ -142,6 +143,8 @@ class CanvasActivityLog extends ChangeNotifier {
         _add(_entry(op.id, CanvasActivityKind.moved, actorId, 1));
       case api.CanvasReorderOp(:final actorId):
         _add(_entry(op.id, CanvasActivityKind.reordered, actorId, 1));
+      case api.CanvasEditOp(:final actorId):
+        _add(_entry(op.id, CanvasActivityKind.edited, actorId, 1));
       case api.CanvasUnknownOp():
         break;
     }
@@ -173,6 +176,11 @@ class CanvasActivityLog extends ChangeNotifier {
   /// `CanvasObjectReordered`'s own wire doc.
   void recordReorderedLive(String opId) =>
       _add(_entry(opId, CanvasActivityKind.reordered, null, 1));
+
+  /// A live `CanvasObjectEdited` frame: editing another member's note needs
+  /// `MANAGE_CANVAS`, so like a move it names no actor.
+  void recordEditedLive(String opId) =>
+      _add(_entry(opId, CanvasActivityKind.edited, null, 1));
 
   /// A hard reset happened: whatever changed between the old cursor and the
   /// fresh snapshot's head is unrecoverable, and this is the one line that
@@ -299,6 +307,8 @@ String describeCanvasActivityEntry(
       who == null
           ? "An object's stacking order changed."
           : "$who changed an object's stacking order.",
+    CanvasActivityKind.edited =>
+      who == null ? 'A note was edited.' : '$who edited a note.',
     CanvasActivityKind.removed => _describeCounted(entry.count, who, 'removed'),
     CanvasActivityKind.cleared =>
       who == null ? 'The canvas was cleared.' : '$who cleared the canvas.',
@@ -336,6 +346,7 @@ String _kindLabel(CanvasActivityKind kind) => switch (kind) {
   CanvasActivityKind.placed => 'placed',
   CanvasActivityKind.moved => 'moved',
   CanvasActivityKind.reordered => 'reordered',
+  CanvasActivityKind.edited => 'edited',
   CanvasActivityKind.removed => 'removed',
   CanvasActivityKind.cleared => 'cleared',
   CanvasActivityKind.restored => 'restored',

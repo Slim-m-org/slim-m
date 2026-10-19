@@ -475,3 +475,71 @@ async fn an_op_that_changes_nothing_publishes_no_frame() {
     let next = tokio::time::timeout(Duration::from_millis(300), read_frame(&mut alice_ws)).await;
     assert!(next.is_err(), "an affected-0 clear must publish nothing");
 }
+
+/// An edited note reaches everyone with USE_CANVAS carrying its new props,
+/// and nobody without it (decision 0072).
+#[tokio::test]
+async fn an_edited_note_reaches_the_channel_with_its_new_props() {
+    let (store, _guard) = new_store().await;
+    let state = support::app::state(store.clone());
+    let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (_carol_access, carol_ticket, carol) = user_ticket(&store, "carol").await;
+    store
+        .set_member_overwrite(channel, carol, Permissions::NONE, Permissions::USE_CANVAS)
+        .await
+        .unwrap();
+
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut carol_ws = connect(addr, &carol_ticket).await;
+
+    let note_id = Uuid::now_v7().to_string();
+    let placed = http::router(state.clone())
+        .oneshot(post_json(
+            &format!("/channels/{channel}/canvas/objects"),
+            &alice_access,
+            json!({ "id": note_id, "kind": "note", "x": 0.0, "y": 0.0, "w": 220.0, "h": 140.0,
+                    "props": { "text": "before" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(placed.status(), StatusCode::CREATED);
+    assert_eq!(
+        read_frame(&mut alice_ws).await["type"],
+        "canvas.object.placed"
+    );
+
+    let edited = http::router(state.clone())
+        .oneshot(post_json(
+            &format!("/channels/{channel}/canvas/ops"),
+            &alice_access,
+            json!({ "id": Uuid::now_v7().to_string(), "kind": "edit", "object_id": note_id,
+                    "props": { "text": "after" } }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(edited.status(), StatusCode::CREATED);
+    let frame = read_frame(&mut alice_ws).await;
+    assert_eq!(frame["type"], "canvas.object.edited");
+    assert_eq!(frame["object_id"], note_id);
+    assert_eq!(frame["props"]["text"], "after");
+
+    let carol_next =
+        tokio::time::timeout(Duration::from_millis(300), read_frame(&mut carol_ws)).await;
+    assert!(
+        carol_next.is_err(),
+        "carol has no USE_CANVAS and must not see the edit"
+    );
+}
+
+fn post_json(path: &str, token: &str, body: Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(path)
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}

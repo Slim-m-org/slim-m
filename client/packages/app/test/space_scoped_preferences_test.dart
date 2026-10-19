@@ -120,6 +120,7 @@ const _deviceKeys = <String>{
   'slimm.appearance.motion',
   'slimm.appearance.ui_scale',
   'slimm.canvas.self_bubble.hidden',
+  'slimm.canvas.snap_to_grid',
   'slimm.database.key',
   'slimm.desktop.window_geometry',
   'slimm.first_run.done.',

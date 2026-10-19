@@ -177,6 +177,20 @@ void dispatchCanvasLiveEvent(
         document.refresh();
         activityLog?.recordReorderedLive(opId);
       });
+    case api.CanvasObjectEdited(
+          :final channelId,
+          :final seq,
+          :final opId,
+          :final objectId,
+          :final props,
+        )
+        when channelId == paneChannelId:
+      sync.applyLive(seq, () {
+        final text = props['text'];
+        if (text is String) document.setNoteText(objectId, text);
+        document.refresh();
+        activityLog?.recordEditedLive(opId);
+      });
     case api.CanvasMediaSlotChanged(:final channelId)
         when channelId == paneChannelId:
       // Never through sync.applyLive: a slot carries no seq, the same reason a cursor does not.

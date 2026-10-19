@@ -13873,7 +13873,8 @@ components:
         (absent once the object has since been removed); a `remove` or
         `restore` carries `object_ids`; a `clear` carries `before_seq`; a
         `restore` also carries `target_op`; a `move` carries `object_id`,
-        `x`, `y`, `w` and `h`; a `reorder` carries `object_id` and `z_index`.
+        `x`, `y`, `w` and `h`; a `reorder` carries `object_id` and `z_index`;
+        an `edit` carries `object_id` and `props`.
       properties:
         seq:
           type: integer
@@ -13886,7 +13887,7 @@ components:
             idempotency key); client-minted for every other kind.
         kind:
           type: string
-          enum: [place, remove, clear, restore, move, reorder]
+          enum: [place, remove, clear, restore, move, reorder, edit]
         actor_id:
           type: [string, "null"]
           format: uuid
@@ -13937,6 +13938,10 @@ components:
           type: integer
           format: int64
           description: A `reorder`'s new paint order, from -2^52 to 2^52.
+        props:
+          type: object
+          additionalProperties: true
+          description: The whole props an `edit` wrote to a note.
 
     CanvasOpPage:
       type: object
@@ -13974,7 +13979,7 @@ components:
         `object_id`, `x`, `y`, `w` and `h`, and none of `object_ids`,
         `before_seq`, `target_op` or `z_index`; a `reorder` takes `object_id`
         and `z_index`, and none of `object_ids`, `before_seq`, `target_op`,
-        `x`, `y`, `w` or `h`.
+        `x`, `y`, `w` or `h`; an `edit` takes `object_id` and `props` only.
       properties:
         id:
           type: string
@@ -13982,7 +13987,7 @@ components:
           description: Client-minted UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [remove, clear, restore, move, reorder]
+          enum: [remove, clear, restore, move, reorder, edit]
         object_ids:
           type: array
           minItems: 1
@@ -14032,6 +14037,13 @@ components:
           description: >-
             Required for `reorder`. The object's new paint order. Any
             integer is legal, unlike `x`/`y`/`w`/`h` there is no ceiling.
+        props:
+          type: object
+          additionalProperties: true
+          description: >-
+            Required for `edit`: the note's whole new props, replacing the old
+            ones. Only a note can be edited (400 otherwise); the same 4 KiB
+            limit as a placement applies, and a locked note answers 409.
 
     CanvasOpResult:
       type: object
@@ -15963,6 +15975,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectPreviewUpdated"
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
+        - $ref: "#/components/schemas/CanvasObjectEdited"
         - $ref: "#/components/schemas/CanvasMediaSlotChanged"
         - $ref: "#/components/schemas/CanvasObjectLockChanged"
         - $ref: "#/components/schemas/ReportsChanged"
@@ -16244,6 +16257,34 @@ components:
         z_index:
           type: integer
           format: int64
+
+    CanvasObjectEdited:
+      type: object
+      required: [type, channel_id, seq, op_id, object_id, props]
+      description: >-
+        A note's props were replaced by an `edit` op, gated the same way
+        `canvas.object.placed` is. Carries the whole new props, so a receiver
+        repaints the note without a refetch. The actor is absent, matching
+        `canvas.object.moved`. Delivered only for a fresh, effective edit.
+      properties:
+        type:
+          type: string
+          enum: [canvas.object.edited]
+        channel_id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        op_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+        props:
+          type: object
+          additionalProperties: true
 
     CanvasObjectLockList:
       type: object

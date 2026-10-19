@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! A note's props replaced after placement (decision 0072), authorized like a
+//! move: your own note needs nothing more, anyone else's needs `MANAGE_CANVAS`,
+//! and a locked note stays as it is.
+
+use super::canvas_object_locks::locked_among;
+use super::canvas_ops_write::SubmitOpError;
+use crate::ids::{CanvasObjectId, ChannelId, UserId};
+
+pub(in crate::store) async fn apply_edit(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    channel_id: ChannelId,
+    actor_id: UserId,
+    may_moderate: bool,
+    object_id: CanvasObjectId,
+    props: &str,
+) -> Result<(&'static str, i64, Vec<CanvasObjectId>, Option<i64>), SubmitOpError> {
+    let Some(found) = sqlx::query!(
+        r#"SELECT author_id AS "author_id: UserId", kind AS "kind!",
+                  deleted_at AS "deleted_at: i64", props AS "props!"
+           FROM canvas_objects WHERE id = ? AND channel_id = ?"#,
+        object_id,
+        channel_id
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    else {
+        return Err(SubmitOpError::NotFound);
+    };
+    if !may_moderate && found.author_id != Some(actor_id) {
+        return Err(SubmitOpError::NotAuthorized);
+    }
+    if found.kind != "note" {
+        return Err(SubmitOpError::NotEditable);
+    }
+    if !locked_among(tx, &[object_id]).await?.is_empty() {
+        return Err(SubmitOpError::Locked);
+    }
+    if found.deleted_at.is_some() || found.props == props {
+        return Ok(("edit", 0, Vec::new(), None));
+    }
+    sqlx::query!(
+        "UPDATE canvas_objects SET props = ? WHERE id = ?",
+        props,
+        object_id
+    )
+    .execute(&mut **tx)
+    .await?;
+    Ok(("edit", 1, vec![object_id], None))
+}

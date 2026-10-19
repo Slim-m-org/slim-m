@@ -49,6 +49,7 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
+    this.onEditNote,
     this.canDraw = true,
   });
 
@@ -94,6 +95,10 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// The empty-space menu's "Recenter view" item - the pane's own
   /// always-available camera reset, identical to the overflow menu's copy.
   final VoidCallback onRecenter;
+
+  /// The object menu's "Edit note" item, shown over a note only: the touch
+  /// and keyboard-free route to the editor a double click opens.
+  final ValueChanged<String>? onEditNote;
 
   @override
   State<CanvasObjectContextMenu> createState() =>
@@ -239,6 +244,12 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) widget.onSendToBack(id);
   }
 
+  void _editNote() {
+    final id = _target;
+    _close();
+    if (id != null) widget.onEditNote?.call(id);
+  }
+
   void _delete() {
     final id = _target;
     _close();
@@ -312,9 +323,19 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
         locks != null &&
         id != null &&
         (widget.canManage || widget.document.authorIdOf(id) == widget.selfId);
+    final isNote =
+        widget.onEditNote != null &&
+        id != null &&
+        widget.document.kindOf(id) == CanvasObjectKind.note;
     return AppMenu(
       width: 200,
       children: [
+        if (isNote)
+          AppMenuItem(
+            label: 'Edit note',
+            leading: AppIcons.edit,
+            onTap: locked || !widget.canDraw ? null : _editNote,
+          ),
         // A locked object refuses a restack or an erase, so those wait for Unlock.
         AppMenuItem(
           label: 'Bring to front',

@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_tools_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -31,16 +32,18 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 /// nothing above it for that menu to open into, which is a fixture problem,
 /// not a real one - production never renders this row anywhere but there.
 Widget wrapCanvasToolsRow(Widget child, {double width = 800, bool? touch}) =>
-    MaterialApp(
-      theme: buildTheme(Brightness.dark, AppTokens.dark),
-      home: Scaffold(
-        body: Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            width: width,
-            child: touch == null
-                ? child
-                : AppTouchTargets(enabled: touch, child: child),
+    ProviderScope(
+      child: MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              width: width,
+              child: touch == null
+                  ? child
+                  : AppTouchTargets(enabled: touch, child: child),
+            ),
           ),
         ),
       ),

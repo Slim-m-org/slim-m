@@ -71,7 +71,7 @@ impl Store {
                 // See this function's own doc for why every kind is named.
                 let max = sqlx::query_scalar!(
                     r#"SELECT MAX(created_at) AS "max: i64" FROM canvas_ops
-                       WHERE kind IN ('place', 'remove', 'clear', 'restore', 'move', 'reorder')"#
+                       WHERE kind IN ('place', 'remove', 'clear', 'restore', 'move', 'reorder', 'edit')"#
                 )
                 .fetch_one(&mut **tx)
                 .await?;

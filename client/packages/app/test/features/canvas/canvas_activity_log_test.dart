@@ -191,6 +191,29 @@ void main() {
       expect(log.entries.single.actorId, 'mod');
     });
 
+    test('an edit op records as an edit and keeps its disclosed actor', () {
+      final log = CanvasActivityLog(isBlocked: (_) => false);
+      addTearDown(log.dispose);
+
+      log.recordOp(
+        const api.CanvasEditOp(
+          seq: 8,
+          id: 'op-8',
+          actorId: 'mod',
+          createdAt: 0,
+          objectId: 'x',
+          props: {'text': 'new'},
+        ),
+      );
+
+      expect(log.entries.single.kind, CanvasActivityKind.edited);
+      expect(log.entries.single.actorId, 'mod');
+      expect(
+        describeCanvasActivityEntry(log.entries.single, nameFor: (_) => 'Maya'),
+        'Maya edited a note.',
+      );
+    });
+
     test('an unknown op kind is not recorded at all', () {
       final log = CanvasActivityLog(isBlocked: (_) => false);
       addTearDown(log.dispose);

@@ -165,11 +165,9 @@ class CanvasStrokeInput {
   /// which bytes to fetch and decode. Null for every other kind.
   final String? attachmentId;
 
-  /// A [CanvasObjectKind.note]'s own text, set once at creation. Null for
-  /// every other kind. There is no in-place edit on this canvas for any kind
-  /// - a stroke's ink cannot be redrawn and an image's bytes cannot be
-  /// swapped - so a note follows the same rule: revising the text means
-  /// erasing and re-placing, not editing this field after the fact.
+  /// A [CanvasObjectKind.note]'s own text. Null for every other kind. Only a
+  /// note can be revised after placement ([CanvasDocument.setNoteText]); a
+  /// stroke's ink and an image's bytes cannot.
   final String? text;
 
   /// A [CanvasObjectKind.shape]'s own primitive. Null for every other kind.
@@ -248,8 +246,8 @@ class CanvasStroke {
   /// case a future retry path ever sets a real bitmap after a failure.
   bool imageLoadFailed;
 
-  /// See [CanvasStrokeInput.text].
-  final String? text;
+  /// See [CanvasStrokeInput.text]. Mutable since a note can be edited.
+  String? text;
 
   /// See [CanvasStrokeInput.shapeKind].
   final CanvasShapeKind? shapeKind;

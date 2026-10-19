@@ -310,6 +310,14 @@ pub(super) enum ServerFrame {
         object_id: String,
         z_index: i64,
     },
+    #[serde(rename = "canvas.object.edited")]
+    CanvasObjectEdited {
+        channel_id: String,
+        seq: i64,
+        op_id: String,
+        object_id: String,
+        props: serde_json::Value,
+    },
     #[serde(rename = "canvas.media_slot.changed")]
     CanvasMediaSlotChanged {
         channel_id: String,

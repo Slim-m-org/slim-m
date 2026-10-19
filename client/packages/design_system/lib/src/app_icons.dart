@@ -254,6 +254,9 @@ abstract final class AppIcons {
   /// surface a screen reader otherwise cannot read at all.
   static const IconData activityLog = LucideIcons.history300;
 
+  /// Snapping moves to the canvas grid.
+  static const IconData snapToGrid = LucideIcons.grid2X2300;
+
   /// Jumps the canvas camera back to the world origin - the one route back
   /// short of closing and reopening the pane, see `worldLimit`'s own doc.
   static const IconData recenter = LucideIcons.locate300;
