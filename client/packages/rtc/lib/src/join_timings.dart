@@ -6,14 +6,14 @@ library;
 ///
 /// [connected] is when LiveKit's connect returns, which is after the signalling
 /// socket is open and the primary peer connection is up, so it covers both.
-/// With the microphone opened in parallel [micOpened] can land before it.
+/// [micPublished] covers opening the capture and publishing it, which the
+/// SDK does in one call.
 enum JoinStage {
   click,
   tokenRequested,
   tokenReceived,
   connectStarted,
   connected,
-  micOpened,
   micPublished,
   firstRemoteAudio,
 }

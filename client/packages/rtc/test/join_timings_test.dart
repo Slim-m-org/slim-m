@@ -24,7 +24,6 @@ void main() {
     at(1002, JoinStage.tokenRequested);
     at(1050, JoinStage.tokenReceived);
     at(1051, JoinStage.connectStarted);
-    at(1300, JoinStage.micOpened);
     at(1400, JoinStage.connected);
     at(1450, JoinStage.micPublished);
     at(1900, JoinStage.firstRemoteAudio);
@@ -33,8 +32,7 @@ void main() {
     expect(
       finished.single.line,
       'Join timings in ms from the click: click=0 tokenRequested=2 '
-      'tokenReceived=50 connectStarted=51 connected=400 micOpened=300 '
-      'micPublished=450 firstRemoteAudio=900',
+      'tokenReceived=50 connectStarted=51 connected=400 micPublished=450 firstRemoteAudio=900',
     );
     expect(finished.single.complete, isTrue);
   });

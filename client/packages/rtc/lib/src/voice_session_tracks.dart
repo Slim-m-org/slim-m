@@ -102,9 +102,6 @@ extension VoiceSessionTracks on VoiceSession {
       await _step(room.disconnect);
       await _step(room.dispose);
     }
-    if (_mic case final MicPreopen preopen) {
-      await _step(preopen.discardPreopened);
-    }
   }
 
   Future<bool> _trySetMicrophone(bool enabled) async {
@@ -130,7 +127,6 @@ extension VoiceSessionTracks on VoiceSession {
       }
       enabled ? _micRelease.reopened() : _micRelease.onMuted();
       if (enabled) {
-        _joinTimings.mark(JoinStage.micOpened);
         _joinTimings.mark(JoinStage.micPublished);
       }
       if (enabled && options != null) {
