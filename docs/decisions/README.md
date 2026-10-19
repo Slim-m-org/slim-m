@@ -80,3 +80,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0068](0068-multiple-servers-in-one-app.md) | One app, several servers, switched from the top left | accepted |
 | [0069](0069-bot-prefix-assignment.md) | The server assigns each bot a prefix and refuses a command clash | accepted |
 | [0070](0070-space-scoped-settings.md) | Settings that follow the Space | accepted |
+| [0073](0073-shared-canvas-board.md) | The canvas is one shared board | accepted |
