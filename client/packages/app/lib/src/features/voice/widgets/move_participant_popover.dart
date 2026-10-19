@@ -134,9 +134,17 @@ class _MoveDestinationsState extends ConsumerState<MoveDestinations> {
       if (_failure != null) AppErrorState(message: _failure!),
     ];
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
+    // Without explicit child nodes the menu merges every row into one label.
+    final rows = [
+      Semantics(
+        container: true,
+        explicitChildNodes: true,
+        child: Column(mainAxisSize: MainAxisSize.min, children: children),
+      ),
+    ];
     return compact
-        ? AppSheetMenu(width: _width, children: children)
-        : AppMenu(width: _width, children: children);
+        ? AppSheetMenu(width: _width, children: rows)
+        : AppMenu(width: _width, children: rows);
   }
 }
 

@@ -27,7 +27,8 @@ def _pick_destination(client):
                 time.sleep(1.5)
                 return
         time.sleep(0.5)
-    raise AssertionError(f"{client.name}: no {DESTINATION!r} in the Move to list")
+    seen = [(n["t"], n["x"], n["y"]) for n in client.nodes()]
+    raise AssertionError(f"{client.name}: no {DESTINATION!r} in the Move to list: {seen}")
 
 
 def _wait_for_room(room, identity, timeout=FOLLOW_TIMEOUT):
@@ -40,6 +41,11 @@ def _wait_for_room(room, identity, timeout=FOLLOW_TIMEOUT):
 
 
 def moving_a_member_takes_their_call_with_them(a, b, admin, lounge_room, bob_id):
+    with e2e_audio.installed(b):
+        _move_and_listen(a, b, admin, lounge_room, bob_id)
+
+
+def _move_and_listen(a, b, admin, lounge_room, bob_id):
     admin.call("POST", "/channels", {"name": DESTINATION, "kind": "voice"})
     annex = admin.channel_named(DESTINATION)
     annex_room = f"channel-{annex['id']}"
@@ -57,16 +63,16 @@ def moving_a_member_takes_their_call_with_them(a, b, admin, lounge_room, bob_id)
         print("  bob was moved and joined the destination room on his own")
 
         _click_channel_row(a, DESTINATION)
+        a.click("Switch to this call", settle=1)
         parts = participants_with_mics(annex_room, expected=2)
         assert len(parts) == 2, f"destination has {len(parts)} participants, expected 2"
-        with e2e_audio.installed(b):
-            probe = e2e_audio.AudioProbe(b)
-            probe.wait_for_streams(1)
-            alice_id = next(p["identity"] for p in parts if p["identity"] != bob_id)
-            stream = ui.stream_for(probe, annex_room, alice_id)
-            level = e2e_audio.speech_level(probe.measure(stream, MEASURE_SECONDS), 1)
-            print(f"  bob hears alice in the destination at {level:.1f} dB")
-            assert level > HEARD_ABOVE_DB, f"bob could not hear alice: {level}"
+        probe = e2e_audio.AudioProbe(b)
+        probe.wait_for_streams(1)
+        alice_id = next(p["identity"] for p in parts if p["identity"] != bob_id)
+        stream = ui.stream_for(probe, annex_room, alice_id)
+        level = e2e_audio.speech_level(probe.measure(stream, MEASURE_SECONDS), 1)
+        print(f"  bob hears alice in the destination at {level:.1f} dB")
+        assert level > HEARD_ABOVE_DB, f"bob could not hear alice: {level}"
     finally:
         ui.leave_if_in_call(a, b)
         admin.call("DELETE", f"/channels/{annex['id']}")
