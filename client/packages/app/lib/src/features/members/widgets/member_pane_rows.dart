@@ -21,6 +21,7 @@ import '../providers/presence_activity.dart';
 import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_profile.dart';
+import 'member_voice_chip.dart';
 import 'user_avatar.dart';
 
 /// Test-only: how many times each member's row has actually run `build`,
@@ -155,7 +156,7 @@ class MemberRow extends ConsumerWidget {
         muted: status == AppPresence.offline,
         // On screen presence is only a dot and an opacity; this is how it is spoken.
         stateDescription: status.word,
-        trailing: _badge(badge, displayed.isBot, box.maxWidth),
+        trailing: _trailing(badge, displayed.isBot, box.maxWidth),
         leading: UserAvatar.known(
           userId: profile.id,
           avatarUpdatedAt: displayed.avatarUpdatedAt,
@@ -188,6 +189,25 @@ class MemberRow extends ConsumerWidget {
     final underOwnHeading =
         sectionRoleId != null && displayed.roleIds.firstOrNull == sectionRoleId;
     return underOwnHeading ? null : displayed.roles.first;
+  }
+
+  Widget? _trailing(String? label, bool isBot, double rowWidth) {
+    final badge = _badge(label, isBot, rowWidth);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: ConstrainedBox(
+            // Beside a role badge the chip yields, so the member's name keeps its room.
+            constraints: BoxConstraints(
+              maxWidth: rowWidth * (badge == null ? 0.4 : 0.25),
+            ),
+            child: MemberVoiceChip(userId: profile.id, endGap: badge != null),
+          ),
+        ),
+        ?badge,
+      ],
+    );
   }
 
   Widget? _badge(String? label, bool isBot, double rowWidth) {
