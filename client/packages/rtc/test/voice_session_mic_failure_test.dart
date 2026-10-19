@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'support/no_audio_devices.dart';
 
 class _EmptyRoom extends lk.Room {
   @override
@@ -62,6 +63,7 @@ Future<void> _settle() =>
 (VoiceSession, _Mic) _rig({bool osBlocked = false}) {
   final mic = _Mic();
   final session = VoiceSession(
+    audioDevices: const NoAudioDevices(),
     roomFactory: _EmptyRoom.new,
     micPort: mic,
     inputGate: InputGateMonitor.disabled(),
