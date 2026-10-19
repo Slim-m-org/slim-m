@@ -19,27 +19,24 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../modules/widgets/dock_height_reporter.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_activity_panel.dart';
 import 'canvas_bar.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_forbidden_message.dart';
-import 'canvas_follow_controls.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
+import 'canvas_pane_overlays.dart';
+import 'canvas_pane_surface.dart';
+import 'canvas_pane_surface_actions.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
-import 'canvas_presence_roster.dart';
 import 'canvas_summary.dart';
 import 'canvas_truncated_notice.dart';
-import 'canvas_selection_semantics.dart';
-import 'canvas_world_edge_glow.dart';
-import 'canvas_zoom_indicator.dart';
 
 class CanvasPaneBody extends StatefulWidget {
   const CanvasPaneBody({
@@ -331,39 +328,19 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 child: Stack(
                   children: [
                     _activityLogOpen ? _panel() : _surface(tokens),
-                    if (!_activityLogOpen && widget.viewRelay == null)
-                      CanvasPresenceRoster(
-                        callParticipants: widget.callParticipants,
-                        cursors: widget.cursors,
-                      ),
-                    if (!_activityLogOpen &&
-                        widget.viewRelay != null &&
-                        widget.cursors != null)
-                      CanvasFollowControls(
-                        relay: widget.viewRelay!,
-                        cursors: widget.cursors!,
+                    if (!_activityLogOpen)
+                      CanvasPeerControls(
+                        document: widget.document,
                         participants: widget.callParticipants,
+                        cursors: widget.cursors,
+                        relay: widget.viewRelay,
                         selfId: widget.selfId,
-                        onBringEveryone: () => widget.viewRelay!.summonEveryone(
-                          widget.document.visibleBoard ?? canvasBoard,
-                        ),
                       ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.s12),
-                        // The dock's own hidden-tiles list has to notice a hide or show landing in tileOverrides, which nothing else here rebuilds this widget for.
-                        child: DockHeightReporter(
-                          child: ListenableBuilder(
-                            listenable: widget.tileOverrides,
-                            builder: (context, _) => CanvasCallDock(
-                              call: widget.callDock,
-                              canvas: _dockData(),
-                              compact: compact,
-                            ),
-                          ),
-                        ),
-                      ),
+                    CanvasDockOverlay(
+                      call: widget.callDock,
+                      canvas: _dockData(),
+                      tileOverrides: widget.tileOverrides,
+                      compact: compact,
                     ),
                   ],
                 ),
@@ -428,135 +405,60 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     ),
   );
 
-  Widget _surface(AppTokens tokens) => ValueListenableBuilder<int>(
-    valueListenable: widget.document.objectCount,
-    builder: (context, count, child) => Semantics(
-      container: true,
-      label: widget.loading
-          ? 'Canvas, loading'
-          : 'Canvas, ${canvasSummary(widget.document)}',
-      child: Stack(
-        children: [
-          child!,
-          // A blank canvas otherwise looks identical to a broken one; the screen-reader label above already says so for a screen reader, and this is the sighted-user half of that same guarantee.
-          if (widget.loading)
-            CanvasLoadingHint(tokens: tokens)
-          // Not over an error banner (see the hint's own doc), nor over a call's participant tiles, where "nothing here yet" contradicts the video feeds already on screen.
-          else if (count == 0 &&
-              widget.error == null &&
-              widget.callParticipants.isEmpty)
-            CanvasEmptyHint(tokens: tokens),
-        ],
+  Widget _surface(AppTokens tokens) => CanvasSurfaceStatus(
+    document: widget.document,
+    tokens: tokens,
+    loading: widget.loading,
+    hasError: widget.error != null,
+    hasCallParticipants: widget.callParticipants.isNotEmpty,
+    child: CanvasPaneSurface(
+      actions: CanvasPaneSurfaceActions(
+        onDraftEnded: widget.onDraftEnded,
+        onDraftPoint: widget.onDraftPoint,
+        onPointerLeft: widget.onPointerLeft,
+        onPointerMoved: widget.onPointerMoved,
+        onShapePlace: widget.onShapePlace,
+        onNotePlace: widget.onNotePlace,
+        onSelectTap: widget.onSelectTap,
+        onSelectEnd: widget.onSelectEnd,
+        onSelectDrag: widget.onSelectDrag,
+        onSelectStart: widget.onSelectStart,
+        onEraseEnd: widget.onEraseEnd,
+        onErase: widget.onErase,
+        onStroke: widget.onStroke,
+        onCommitTile: widget.onCommitTile,
+        onVideoInterest: widget.onVideoInterest,
+        onToolChanged: widget.onToolChanged,
+        onBringToFront: widget.onBringToFront,
+        onSendToBack: widget.onSendToBack,
+        onDeleteSelected: widget.onDeleteSelected,
+        onPasteImageAt: widget.onPasteImageAt,
+        onEditNote: widget.onEditNote,
+        onRecenter: widget.onRecenter,
+        onBringIntoBoard: widget.onBringIntoBoard,
+        participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
+        cameraViewFor: widget.cameraViewFor,
+        screenShareViewFor: widget.screenShareViewFor,
       ),
-    ),
-    child: Stack(
-      children: [
-        // Below everything, including CanvasPresenceBackdrop - a grid line must never paint over a sent-to-back tile's own video, the bug this ordering fixes.
-        CanvasGridLayer(
-          document: widget.document,
-          line: tokens.borderSubtle,
-          letterbox: tokens.surfaceSunken,
-        ),
-        // Before CanvasSurface, so a sent-to-back tile's own pixels sit under real ink - see canvas_presence_layer.dart's own doc for why its controls stay in the layer below regardless.
-        CanvasPresenceBackdrop(
-          document: widget.document,
-          participants: widget.callParticipants,
-          cameraViewFor: widget.cameraViewFor,
-          screenShareViewFor: widget.screenShareViewFor,
-          overrides: widget.tileOverrides,
-          hideSelfCamera: widget.selfBubbleHidden,
-          resolver: _presenceFrames,
-        ),
-        CanvasSurface(
-          document: widget.document,
-          ink: AppCanvasColors.annotation,
-          inkColors: canvasPenInkByKey,
-          penInk: widget.pen.color,
-          strokeWidth: widget.pen.width,
-          // AppTokens.stripe: its own doc reserves it for exactly this state.
-          placeholderFill: tokens.stripe,
-          placeholderIcon: tokens.textDisabled,
-          // AppShadows.float: its own doc names a dragged canvas object as exactly what this token is for.
-          elevationShadow: AppShadows.float,
-          selectionOutline: tokens.accentFill,
-          selectionHandleFill: tokens.surfaceRaised,
-          selectionHandleBorder: tokens.accentFill,
-          touchHandles: AppTouchTargets.of(context),
-          noteColor: AppCanvasColors.note,
-          shapeColor: AppCanvasColors.shape,
-          noteTextInk: tokens.textPrimary,
-          noteSpans: widget.noteSpans,
-          noteSpansRevision: widget.noteSpansRevision,
-          onStroke: widget.onStroke,
-          tool: widget.tool,
-          onErase: widget.onErase,
-          onEraseEnd: widget.onEraseEnd,
-          onSelectStart: widget.onSelectStart,
-          onSelectDrag: widget.onSelectDrag,
-          onSelectEnd: widget.onSelectEnd,
-          onSelectTap: widget.onSelectTap,
-          onNotePlace: widget.onNotePlace,
-          onShapePlace: widget.onShapePlace,
-          shapeKind: widget.shapeKind,
-          cursors: widget.cursors,
-          cursorColors: widget.cursorColors,
-          cursorLabelFontFamily: AppFonts.sans,
-          // Zero under reduce motion, which keeps the stepped positions.
-          cursorGlide: AppMotion.reduced(context, cursorGlideDuration),
-          onPointerMoved: widget.onPointerMoved,
-          onPointerLeft: widget.onPointerLeft,
-          remoteDrafts: widget.remoteDrafts,
-          onDraftPoint: widget.onDraftPoint,
-          onDraftEnded: widget.onDraftEnded,
-        ),
-        CanvasObjectContextMenu(
-          document: widget.document,
-          canManage: widget.canManage,
-          selfId: widget.selfId,
-          requests: _menuRequests,
-          tool: widget.tool,
-          onToolChanged: widget.onToolChanged,
-          onBringToFront: widget.onBringToFront,
-          onSendToBack: widget.onSendToBack,
-          onDeleteSelected: widget.onDeleteSelected,
-          onPasteImageAt: widget.onPasteImageAt,
-          onAddNoteAt: widget.onNotePlace,
-          onEditNote: widget.onEditNote,
-          canDraw: !canvasErrorBlocksDrawing(widget.error),
-          onRecenter: widget.onRecenter,
-        ),
-        CanvasSelectionSemantics(
-          document: widget.document,
-          onOpenActions: _menuRequests.request,
-        ),
-        // Last, on top of CanvasObjectContextMenu's hit catcher - see canvas_presence_tile.dart's own doc for why a right-click on a tile is absorbed rather than reaching an object underneath it.
-        CanvasPresenceLayer(
-          document: widget.document,
-          participants: widget.callParticipants,
-          cameraViewFor: widget.cameraViewFor,
-          screenShareViewFor: widget.screenShareViewFor,
-          overrides: widget.tileOverrides,
-          onCommit: widget.onCommitTile,
-          onVideoInterest: widget.onVideoInterest,
-          hideSelfCamera: widget.selfBubbleHidden,
-          tool: widget.tool,
-          participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
-          resolver: _presenceFrames,
-        ),
-        ?widget.noteEditor,
-        // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
-        CanvasWorldEdgeGlow(
-          document: widget.document,
-          tileOverrides: widget.tileOverrides,
-          tokens: tokens,
-        ),
-        CanvasZoomIndicator(
-          document: widget.document,
-          tokens: tokens,
-          onFit: widget.onRecenter,
-          onBringIn: widget.onBringIntoBoard,
-        ),
-      ],
+      callParticipants: widget.callParticipants,
+      canManage: widget.canManage,
+      cursorColors: widget.cursorColors,
+      cursors: widget.cursors,
+      document: widget.document,
+      error: widget.error,
+      noteEditor: widget.noteEditor,
+      noteSpans: widget.noteSpans,
+      noteSpansRevision: widget.noteSpansRevision,
+      pen: widget.pen,
+      remoteDrafts: widget.remoteDrafts,
+      selfBubbleHidden: widget.selfBubbleHidden,
+      selfId: widget.selfId,
+      shapeKind: widget.shapeKind,
+      tileOverrides: widget.tileOverrides,
+      tool: widget.tool,
+      tokens: tokens,
+      menuRequests: _menuRequests,
+      presenceFrames: _presenceFrames,
     ),
   );
 }
