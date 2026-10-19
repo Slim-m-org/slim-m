@@ -25,5 +25,6 @@ extension SyncControllerReset on SyncController {
     );
     if (generation != _generation) return;
     await store.applyMessages(fresh);
+    _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
   }
 }
