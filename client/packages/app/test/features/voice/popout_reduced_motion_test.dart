@@ -34,9 +34,7 @@ Future<double> _controlsOpacityAfterHover(
 }) async {
   final container = ProviderContainer(
     overrides: [
-      voiceControllerProvider.overrideWith(
-        (ref) => _Call(ref, FakeSession()),
-      ),
+      voiceControllerProvider.overrideWith((ref) => _Call(ref, FakeSession())),
     ],
   );
   addTearDown(container.dispose);
