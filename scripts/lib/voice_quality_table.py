@@ -23,7 +23,9 @@ def row(profile, sides):
     mos = [s["mos"] for s in sides.values() if s.get("mos")]
     got = [m["ovrl"] for m in mos if m.get("ovrl") is not None]
     ref = [m["ovrl_reference"] for m in mos if m.get("ovrl_reference") is not None]
+    vis = [m["visqol"] for m in mos if m.get("visqol") is not None]
     cells = [profile, f"{min(sims):.3f}",
+             f"{sum(vis) / len(vis):.2f}" if vis else "-",
              f"{sum(got) / len(got):.2f}" if got else "-",
              f"{sum(ref) / len(ref):.2f}" if ref else "-"]
     cells += [str(counts[c]) for c in CLASSES]
@@ -34,7 +36,7 @@ def row(profile, sides):
 def table(directory):
     with open(os.path.join(directory, "results.json")) as fh:
         results = json.load(fh)
-    head = ["profile", "min similarity", "MOS", "MOS of the sent speech", *CLASSES, "concealed samples",
+    head = ["profile", "min similarity", "ViSQOL MOS", "DNSMOS", "DNSMOS of the sent speech", *CLASSES, "concealed samples",
             "concealment events", "packets lost", "jitter buffer ms", "kbps"]
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     lines += [row(p, results[p]) for p in results]

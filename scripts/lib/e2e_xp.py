@@ -93,6 +93,19 @@ def timed_join(client):
     return ev_json(client, f"window.__xp.events.slice({mark})")
 
 
+def wait_remote_audio(client, timeout=60):
+    """Blocks until a live remote audio track is playing on the page."""
+    probe = ("Array.prototype.some.call(document.querySelectorAll('audio'), function(e){"
+             "return e.srcObject && e.srcObject.getAudioTracks().some(function(t){"
+             "return t.readyState === 'live'; }); })")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if client.ev(probe):
+            return
+        time.sleep(0.5)
+    raise AssertionError(f"{client.name}: no remote audio track came up")
+
+
 def start_tap(client, name, remote):
     call = "tapRemote" if remote else "tapLocal"
     client.ev(f"window.__xp.{call}({json.dumps(name)});")
