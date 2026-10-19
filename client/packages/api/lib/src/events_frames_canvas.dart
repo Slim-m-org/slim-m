@@ -154,6 +154,30 @@ class CanvasObjectPreview extends ServerEvent {
   final bool ended;
 }
 
+/// The part of the shared board a member is looking at, in world units.
+///
+/// Ephemeral and `seq`-less like [CanvasCursorMoved]. [summon] asks every
+/// receiver to jump to this view once ("bring everyone to me").
+class CanvasView extends ServerEvent {
+  const CanvasView({
+    required this.channelId,
+    required this.userId,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.summon,
+  });
+
+  final String channelId;
+  final String userId;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+  final bool summon;
+}
+
 /// A placed object was repositioned.
 ///
 /// Carries the whole new box, so a receiver needs no refetch to draw it in

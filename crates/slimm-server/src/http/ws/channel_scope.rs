@@ -43,6 +43,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
         | Event::CanvasObjectEdited { .. }

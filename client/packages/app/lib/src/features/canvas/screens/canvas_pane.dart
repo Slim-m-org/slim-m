@@ -36,6 +36,8 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
 import '../../../permissions.dart';
+import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
+import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
 import '../widgets/canvas_note_editor.dart';
@@ -204,8 +206,12 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       child: CallbackShortcuts(
         bindings: {
           // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
-          if (fullscreen)
-            const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen,
+          if (editingNote)
+            const SingleActivator(LogicalKeyboardKey.escape): _onNoteEditCancel
+          else if (fullscreen)
+            const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen
+          else if (_memberPaneDocked)
+            const SingleActivator(LogicalKeyboardKey.escape): _closeMemberPane,
           // None of these while a note is being typed in: Backspace and Ctrl+Z belong to its field.
           if (!editingNote) ..._canvasEditShortcuts(),
         },
@@ -272,6 +278,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onSendToBack: (id) => unawaited(_onSendToBack(id)),
             onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
             selfId: me?.id,
+            viewRelay: _engine.viewRelay,
             cursors: _cursors,
             cursorColors: AppCanvasColors.cursors,
             onPointerMoved: _onPointerMoved,

@@ -115,6 +115,9 @@ classes! {
     /// Drag and resize preview frames over the WebSocket: one flat token each,
     /// sized like [`Class::CanvasCursor`] since the frame is four numbers.
     CanvasObjectPreview,
+    /// View-rectangle frames for follow and "bring everyone to me": four
+    /// numbers and a flag, sized like [`Class::CanvasCursor`].
+    CanvasView,
     /// Serving stored bytes back: an attachment, an avatar, a custom emoji
     /// image.
     ///
@@ -378,6 +381,7 @@ impl Class {
             // See this variant's own doc comment for how these were sized.
             Class::CanvasStrokePreview => (24_576.0, 12_288.0),
             Class::CanvasObjectPreview => (30.0, 15.0),
+            Class::CanvasView => (30.0, 15.0),
             // A full member page plus a transcript's own avatars, at once.
             Class::Asset => (150.0, 25.0),
             Class::Gif => (10.0, 1.0),

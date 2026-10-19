@@ -51,6 +51,10 @@ const double touchResizeHandleHitRadius = 22.0;
 /// [resizeHandleHitRadius] is a screen quantity.
 const double resizeHandleVisualSize = 9.0;
 
+/// The drawn handle on touch: big enough to see under a finger, still a
+/// screen quantity.
+const double touchResizeHandleVisualSize = 18.0;
+
 Offset _cornerOf(
     ({double x, double y, double w, double h}) bounds, ResizeCorner corner) {
   switch (corner) {

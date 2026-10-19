@@ -34,17 +34,29 @@ import 'canvas_painters.dart';
 
 /// The grid alone, sized to fill whatever space its parent `Stack` gives it.
 class CanvasGridLayer extends StatelessWidget {
-  const CanvasGridLayer(
-      {super.key, required this.document, required this.line});
+  const CanvasGridLayer({
+    super.key,
+    required this.document,
+    required this.line,
+    this.letterbox,
+  });
 
   final CanvasDocument document;
   final Color line;
 
+  /// The tint outside the shared board, when the document has one.
+  final Color? letterbox;
+
   @override
   Widget build(BuildContext context) => Positioned.fill(
         child: RepaintBoundary(
-          child:
-              CustomPaint(painter: GridPainter(document: document, line: line)),
+          child: CustomPaint(
+            painter: GridPainter(
+              document: document,
+              line: line,
+              letterbox: letterbox,
+            ),
+          ),
         ),
       );
 }

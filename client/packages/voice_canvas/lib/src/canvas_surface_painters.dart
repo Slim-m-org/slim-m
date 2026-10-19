@@ -34,7 +34,8 @@ extension _CanvasSurfacePainters on _CanvasSurfaceState {
     }
     if (o.selectionOutline != w.selectionOutline ||
         o.selectionHandleFill != w.selectionHandleFill ||
-        o.selectionHandleBorder != w.selectionHandleBorder) {
+        o.selectionHandleBorder != w.selectionHandleBorder ||
+        o.touchHandles != w.touchHandles) {
       _selectionPainter = _buildSelectionPainter();
     }
   }

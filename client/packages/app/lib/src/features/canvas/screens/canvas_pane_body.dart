@@ -25,7 +25,9 @@ import 'canvas_bar.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_follow_controls.dart';
 import 'canvas_hidden_tiles.dart';
+import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
@@ -101,10 +103,14 @@ class CanvasPaneBody extends StatefulWidget {
     this.noteSpans,
     this.noteSpansRevision = 0,
     this.noteEditor,
+    this.viewRelay,
   });
 
   final String channelId;
   final VoidCallback onClose;
+
+  /// Follow and bring-everyone; null hides both.
+  final CanvasViewRelay? viewRelay;
   final CanvasTool tool;
   final ValueChanged<CanvasTool> onToolChanged;
   final bool canUndo;
@@ -318,10 +324,22 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 child: Stack(
                   children: [
                     _activityLogOpen ? _panel() : _surface(tokens),
-                    if (!_activityLogOpen)
+                    if (!_activityLogOpen && widget.viewRelay == null)
                       CanvasPresenceRoster(
                         callParticipants: widget.callParticipants,
                         cursors: widget.cursors,
+                      ),
+                    if (!_activityLogOpen &&
+                        widget.viewRelay != null &&
+                        widget.cursors != null)
+                      CanvasFollowControls(
+                        relay: widget.viewRelay!,
+                        cursors: widget.cursors!,
+                        participants: widget.callParticipants,
+                        selfId: widget.selfId,
+                        onBringEveryone: () => widget.viewRelay!.summonEveryone(
+                          widget.document.visibleBoard ?? canvasBoard,
+                        ),
                       ),
                     Align(
                       alignment: Alignment.bottomCenter,
@@ -426,7 +444,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     child: Stack(
       children: [
         // Below everything, including CanvasPresenceBackdrop - a grid line must never paint over a sent-to-back tile's own video, the bug this ordering fixes.
-        CanvasGridLayer(document: widget.document, line: tokens.borderSubtle),
+        CanvasGridLayer(
+          document: widget.document,
+          line: tokens.borderSubtle,
+          letterbox: tokens.surfaceSunken,
+        ),
         // Before CanvasSurface, so a sent-to-back tile's own pixels sit under real ink - see canvas_presence_layer.dart's own doc for why its controls stay in the layer below regardless.
         CanvasPresenceBackdrop(
           document: widget.document,
@@ -451,6 +473,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           selectionOutline: tokens.accentFill,
           selectionHandleFill: tokens.surfaceRaised,
           selectionHandleBorder: tokens.accentFill,
+          touchHandles: AppTouchTargets.of(context),
           noteColor: AppCanvasColors.note,
           shapeColor: AppCanvasColors.shape,
           noteTextInk: tokens.textPrimary,

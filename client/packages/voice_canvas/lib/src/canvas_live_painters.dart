@@ -67,10 +67,8 @@ class DraftStroke extends ChangeNotifier {
 
 /// Paints [DraftStroke] straight in screen space.
 ///
-/// [width] is the pen's width in world units, the same quantity a committed
-/// `CanvasStroke.width` carries, so it must be scaled by the live camera zoom
-/// here or the preview disagrees with the committed-ink painter the moment
-/// zoom is not 1.
+/// [width] is the pen's thickness in screen pixels, so a stroke looks the same
+/// under the pen at any zoom; it is stored in world units as width / zoom.
 class DraftPainter extends CustomPainter {
   DraftPainter({
     required this.draft,
@@ -82,6 +80,8 @@ class DraftPainter extends CustomPainter {
   final DraftStroke draft;
   final CanvasDocument document;
   final Color ink;
+
+  /// In screen pixels: the draft is as thick under the pen as the stroke will look.
   final double width;
 
   @override
@@ -93,7 +93,7 @@ class DraftPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = width * document.camera.zoom
+      ..strokeWidth = width
       ..isAntiAlias = true;
     final path = Path()..moveTo(points.first.dx, points.first.dy);
     if (points.length == 1) path.lineTo(points.first.dx, points.first.dy);

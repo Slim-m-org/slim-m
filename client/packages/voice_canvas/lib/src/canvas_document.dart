@@ -16,6 +16,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'canvas_board.dart';
 import 'canvas_external_pointers.dart';
 import 'canvas_scene.dart';
 import 'canvas_snap.dart';
@@ -23,6 +24,7 @@ import 'canvas_stroke.dart';
 
 export 'canvas_stroke.dart';
 
+part 'canvas_document_board.dart';
 part 'canvas_document_queries.dart';
 part 'canvas_document_selection.dart';
 
@@ -65,6 +67,8 @@ class CanvasDocument extends ChangeNotifier {
 
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
+  ui.Rect? _board;
+  bool _atFit = true;
 
   /// True for exactly as long as [setCamera] is actively pinning the camera
   /// to `worldLimit` - the only feedback a person gets that panning or
@@ -458,7 +462,12 @@ class CanvasDocument extends ChangeNotifier {
   /// not changed.
   void setCamera(Camera next) {
     final clamped = _clamp(next);
-    worldEdgeHit.value = clamped.x != next.x || clamped.y != next.y;
+    final board = _board;
+    worldEdgeHit.value =
+        board == null && (clamped.x != next.x || clamped.y != next.y);
+    if (board != null) {
+      _atFit = clamped.zoom <= boardFitZoom(board, _viewport) + 1e-9;
+    }
     if (clamped == _camera) return;
     _camera = clamped;
     _reculled();
@@ -467,7 +476,12 @@ class CanvasDocument extends ChangeNotifier {
   void setViewport(Size size) {
     if (size == _viewport) return;
     _viewport = size;
-    _camera = _clamp(_camera);
+    final board = _board;
+    _camera =
+        board != null && _atFit ? boardFitCamera(board, size) : _clamp(_camera);
+    if (board != null) {
+      _atFit = _camera.zoom <= boardFitZoom(board, size) + 1e-9;
+    }
     _reculled();
   }
 
@@ -480,6 +494,8 @@ class CanvasDocument extends ChangeNotifier {
       );
 
   Camera _clamp(Camera next) {
+    final board = _board;
+    if (board != null) return clampCameraToBoard(next, board, _viewport);
     final zoom = next.zoom.clamp(minZoom, maxZoom);
     final w = _viewport.width / zoom;
     final h = _viewport.height / zoom;

@@ -17,6 +17,7 @@ import traceback
 import e2e_accounts
 import e2e_admin
 import e2e_canvas
+import e2e_canvas_board
 import e2e_canvas_crowd
 import e2e_canvas_live
 import e2e_canvas_shapes
@@ -251,6 +252,12 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas_crowd.crowd_draws_through_a_restart(
              a, b, server, secret, admin, sign_in,
              admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: the same content sits at the same relative place on a "
+         "smaller window",
+         lambda: e2e_canvas_board.same_relative_position_on_different_windows(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: following someone and bringing everyone to you",
+         lambda: e2e_canvas_board.follow_and_bring_everyone(a, b)),
         ("canvas: closing it", lambda: e2e_canvas.close_on_both(a, b)),
         ("voice: share resolution and frame rate change from the share menu and persist",
          lambda: e2e_video_quality.share_quality_from_the_share_menu(

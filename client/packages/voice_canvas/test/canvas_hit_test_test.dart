@@ -63,7 +63,7 @@ void main() {
       ..applyPlaced(horizontalStroke('a', width: 2))
       ..refresh();
 
-    expect(hitTestStroke(document, const Offset(50, 40), slop: 4), isNull);
+    expect(hitTestStroke(document, const Offset(50, 40), slopPx: 4), isNull);
   });
 
   test('a point just inside width/2 + slop is a hit, just outside is not', () {
@@ -73,8 +73,8 @@ void main() {
       ..refresh();
 
     // tolerance = width / 2 + slop = 1 + 4 = 5.
-    expect(hitTestStroke(document, const Offset(50, 4.9), slop: 4), 'a');
-    expect(hitTestStroke(document, const Offset(50, 5.1), slop: 4), isNull);
+    expect(hitTestStroke(document, const Offset(50, 4.9), slopPx: 4), 'a');
+    expect(hitTestStroke(document, const Offset(50, 5.1), slopPx: 4), isNull);
   });
 
   test('the topmost stroke wins when two overlap', () {
@@ -250,6 +250,37 @@ void main() {
         allowed: (stroke) => stroke.id == 'mine',
       ),
       'mine',
+    );
+  });
+
+  test('the hit reach is the same on screen at any zoom', () {
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    document
+      ..applyPlaced(horizontalStroke('a', width: 0))
+      ..refresh()
+      ..setCamera(const Camera(zoom: 0.25));
+
+    // 12 screen px at 0.25 zoom is 48 world units.
+    expect(
+      hitTestStroke(document, const Offset(50, 47), slopPx: touchHitSlopPx),
+      'a',
+    );
+    expect(
+      hitTestStroke(document, const Offset(50, 49), slopPx: touchHitSlopPx),
+      isNull,
+    );
+  });
+
+  test('a touch slop reaches a box just outside its edge', () {
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    document
+      ..applyPlaced(imageAt('img', x: 100, y: 100))
+      ..refresh();
+
+    expect(hitTestBoxAt(document, const Offset(95, 120)), isNull);
+    expect(
+      hitTestBoxAt(document, const Offset(95, 120), slopPx: touchHitSlopPx),
+      'img',
     );
   });
 }

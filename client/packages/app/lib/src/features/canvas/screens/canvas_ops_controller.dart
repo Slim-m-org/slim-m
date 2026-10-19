@@ -282,14 +282,16 @@ class CanvasOpsController {
     Offset world, {
     required bool manageCanvas,
     required String? selfId,
+    bool touch = false,
   }) {
     if (_dragBatch.length >= maxRemoveIdsPerOp) return;
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
+    final slopPx = touch ? touchHitSlopPx : defaultHitSlopPx;
     final id =
-        hitTestStroke(document, world, allowed: allowed) ??
+        hitTestStroke(document, world, allowed: allowed, slopPx: slopPx) ??
         hitTestBoxAt(document, world, allowed: allowed);
     if (id == null || !_dragBatch.add(id)) return;
     document.removeObject(id);

@@ -8,6 +8,7 @@
 /// enforces that, which is what keeps the render loop honest.
 library;
 
+export 'src/canvas_board.dart';
 export 'src/canvas_camera_wheel.dart';
 export 'src/canvas_cursors.dart';
 export 'src/canvas_document.dart';

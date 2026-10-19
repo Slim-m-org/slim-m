@@ -73,6 +73,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
 from e2e_api import wait_until
+from e2e_board_frame import BOARD_H, board_frame, clear_window, fit_to_board_zoom_one
 
 # Offsets from the canvas's own top-left; the midpoint is the eraser's target.
 STROKE_START = (60, 280)
@@ -82,8 +83,9 @@ _ONE_STROKE = "1 stroke"
 
 
 def origin(client):
-    rect = client.canvas_rect()
-    return rect["x"], rect["y"]
+    """The board's top-left on the page; the zoom is 1 once [open_on_both] ran."""
+    left, top, _zoom = board_frame(client)
+    return left, top
 
 
 def at(point, offset):
@@ -95,7 +97,9 @@ def at_frac(rect, fx, fy):
     rather than a fixed pixel offset - see this module's own doc for why a
     note or a shape needs this and a pen stroke does not.
     """
-    return rect["x"] + rect["width"] * fx, rect["y"] + rect["height"] * fy
+    height = min(rect["height"], BOARD_H)
+    top = rect["y"] + (rect["height"] - height) / 2
+    return rect["x"] + rect["width"] * fx, top + height * fy
 
 
 def wait_for_summary(client, needle, timeout=30):
@@ -153,6 +157,9 @@ def open_on_both(a, b, channel):
         c.wait_for(L.IN_CALL)
         c.click(L.OPEN_CANVAS)
         c.wait_for("no objects")
+        fit_to_board_zoom_one(c)
+        # The canvas opens on the pan tool; the drawing scenarios start on the pen.
+        c.click(L.PEN_TOOL)
     print("  both clients opened the canvas and see it empty")
 
 
@@ -307,6 +314,8 @@ def reload_persists(client, channel, admin_api, channel_id):
     client.click(L.OPEN_CANVAS)
     client.wait_for("1 stroke, 1 image", timeout=30)
     client.wait_for(f"{server_count} objects", timeout=10)
+    fit_to_board_zoom_one(client)
+    client.click(L.PEN_TOOL)
     client.shot("canvas-after-reload")
     print(f"  after a full reload, {client.name} still sees all "
           f"{server_count} objects the server does")
@@ -323,6 +332,7 @@ def close_on_both(a, b):
     text channel there was no call to leave and nothing to hand back.
     """
     for c in (a, b):
+        clear_window(c)
         c.click(L.CLOSE_CANVAS)
         # A voice channel has no composer to come back to, only the call.
         c.wait_for(L.IN_CALL)

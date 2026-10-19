@@ -210,6 +210,25 @@ class EventConnection {
         }),
       );
 
+  /// Relays the world rectangle this device is looking at; [summon] brings
+  /// everyone to it once. Ephemeral and rate-limited like [canvasCursor].
+  void canvasView(
+    String channelId,
+    ({double x, double y, double w, double h}) view, {
+    bool summon = false,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.view',
+          'channel_id': channelId,
+          'x': view.x,
+          'y': view.y,
+          'w': view.w,
+          'h': view.h,
+          'summon': summon,
+        }),
+      );
+
   Future<void> close() {
     _liveness.stop();
     return _channel.sink.close();

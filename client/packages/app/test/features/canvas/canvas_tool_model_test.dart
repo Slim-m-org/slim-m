@@ -49,9 +49,7 @@ void main() {
     );
   });
 
-  test('the default is pan on a compact window and pen on a wide one', () {
-    expect(canvasPanDefaultsEverywhere, isFalse);
-    expect(canvasDefaultTool(compact: true), CanvasTool.pan);
-    expect(canvasDefaultTool(compact: false), CanvasTool.pen);
+  test('every open starts on pan, never the pen', () {
+    expect(canvasDefaultTool(), CanvasTool.pan);
   });
 }

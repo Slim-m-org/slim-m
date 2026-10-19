@@ -34,7 +34,10 @@ final canvasPenInkByKey = {
   for (final pen in canvasPenColors) pen.key: pen.color,
 };
 
-/// One pen width, in world units, the same quantity a stroke's `width` holds.
+/// The world width a stroke is stored with, so [screenPx] looks the same on the drawer's screen at any zoom.
+double canvasPenWorldWidth(double screenPx, double zoom) => screenPx / zoom;
+
+/// One pen width, in screen pixels on the drawer's own screen.
 class CanvasPenWidth {
   const CanvasPenWidth(this.label, this.width);
 

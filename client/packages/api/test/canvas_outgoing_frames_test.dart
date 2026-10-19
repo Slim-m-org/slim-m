@@ -90,4 +90,17 @@ void main() {
     });
     expect((await next())['ended'], isTrue);
   });
+
+  test('canvasView sends the rectangle and the summon flag', () async {
+    connection.canvasView('c1', (x: 1, y: 2, w: 3, h: 4), summon: true);
+    expect(await next(), {
+      'type': 'canvas.view',
+      'channel_id': 'c1',
+      'x': 1,
+      'y': 2,
+      'w': 3,
+      'h': 4,
+      'summon': true,
+    });
+  });
 }

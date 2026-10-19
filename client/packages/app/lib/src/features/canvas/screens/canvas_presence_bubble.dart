@@ -92,67 +92,71 @@ class _AvatarMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              UserAvatar(
-                name: participant.name,
-                userId: participant.identity,
-                size: _avatarSize,
-                speaking: participant.isSpeaking,
-              ),
-              if (participant.isMuted || participant.isDeafened)
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Container(
-                    // Off-grid on purpose: rounding to 4 would grow this corner badge past the avatar it sits on.
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceRaised,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: tokens.surfaceBase, width: 2),
-                    ),
-                    child: Icon(
-                      participant.isMuted
-                          ? AppIcons.micOff
-                          : AppIcons.headphonesOff,
-                      size: 12,
-                      color: tokens.textSecondary,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s4),
-          // See the class doc above for why this is a pill, not a shadow.
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: 2,
-            ),
-            decoration: BoxDecoration(
-              color: tokens.surfaceBase.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(AppRadii.full),
-            ),
-            child: Text(
-              participant.isLocal
-                  ? '${participant.name} (you)'
-                  : participant.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: AppText.caption.copyWith(color: tokens.textPrimary),
-            ),
-          ),
-        ],
+    // Shrinks with a small tile (the whole board on a phone) rather than overflowing it.
+    return FittedBox(
+      child: SizedBox.fromSize(
+        size: canvasAvatarMarkerSize,
+        child: Center(child: _markerColumn(tokens)),
       ),
     );
   }
+
+  Widget _markerColumn(AppTokens tokens) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Stack(
+        clipBehavior: Clip.none,
+        children: [
+          UserAvatar(
+            name: participant.name,
+            userId: participant.identity,
+            size: _avatarSize,
+            speaking: participant.isSpeaking,
+          ),
+          if (participant.isMuted || participant.isDeafened)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Container(
+                // Off-grid on purpose: rounding to 4 would grow this corner badge past the avatar it sits on.
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceRaised,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tokens.surfaceBase, width: 2),
+                ),
+                child: Icon(
+                  participant.isMuted
+                      ? AppIcons.micOff
+                      : AppIcons.headphonesOff,
+                  size: 12,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: AppSpacing.s4),
+      // See the class doc above for why this is a pill, not a shadow.
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s8,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: tokens.surfaceBase.withValues(alpha: 0.72),
+          borderRadius: BorderRadius.circular(AppRadii.full),
+        ),
+        child: Text(
+          participant.isLocal ? '${participant.name} (you)' : participant.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: AppText.caption.copyWith(color: tokens.textPrimary),
+        ),
+      ),
+    ],
+  );
 }
 
 /// A screen-share tile: no speaking ring or mic glyph, since sharing a

@@ -227,6 +227,28 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 )
                                 .await;
                             }
+                            Ok(ClientFrame::CanvasView {
+                                channel_id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                summon,
+                            }) => {
+                                signals::handle_canvas_view(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals::ViewFrame {
+                                        channel_id,
+                                        rect: [x, y, w, h],
+                                        summon,
+                                    },
+                                )
+                                .await;
+                            }
                             // A second hello or anything unparseable is not
                             // worth tearing the connection down over.
                             Ok(ClientFrame::Hello { .. }) | Err(_) => {}
