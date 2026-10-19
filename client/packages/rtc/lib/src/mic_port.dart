@@ -62,11 +62,40 @@ abstract interface class MicPreopen {
   Future<void> discardPreopened();
 }
 
-class _Preopened {
-  _Preopened(this.options, this.track);
+/// The capture opened ahead of the connect, until a publish claims it.
+class PreopenSlot<T extends Object> {
+  lk.AudioCaptureOptions? _options;
+  Future<T?>? _capture;
 
-  final lk.AudioCaptureOptions options;
-  final Future<lk.LocalAudioTrack?> track;
+  /// Holds [capture] as opened with [options]; returns the one it replaces,
+  /// which the caller must close.
+  Future<T?>? hold(lk.AudioCaptureOptions options, Future<T?> capture) {
+    final replaced = clear();
+    _options = options;
+    _capture = capture;
+    return replaced;
+  }
+
+  /// Empties the slot and returns what it held, to close.
+  Future<T?>? clear() {
+    final held = _capture;
+    _capture = null;
+    _options = null;
+    return held;
+  }
+
+  /// Empties the slot. The capture comes back as [match] when it was opened
+  /// the way [wanted] asks and [usable], otherwise as [stale], to be closed.
+  ({Future<T?>? match, Future<T?>? stale}) claim(
+    lk.AudioCaptureOptions wanted, {
+    required bool usable,
+  }) {
+    final options = _options;
+    final held = clear();
+    if (held == null || options == null) return (match: null, stale: null);
+    final fits = usable && sameMicCapture(options, wanted);
+    return (match: fits ? held : null, stale: fits ? null : held);
+  }
 }
 
 /// Whether a capture opened with [opened] can stand in for one asked for with
@@ -90,40 +119,43 @@ bool sameMicCapture(
     identical(opened.processor, wanted.processor);
 
 class LiveKitMicPort implements MicPort, MicPreopen {
-  LiveKitMicPort(this._room, {this.preopens = true});
+  LiveKitMicPort(
+    this._room, {
+    bool? preopens,
+    bool? mobile,
+  }) : preopens = preopens ?? !(mobile ?? lk.lkPlatformIsMobile());
 
-  /// False where the room is a stand-in with no capture behind it.
+  /// False on phones, where opening native capture before the connect is
+  /// untried against iOS CallKit's audio-session order and Android's audio
+  /// mode; also false where the room is a stand-in with no capture behind it.
   final bool preopens;
 
   final lk.Room? Function() _room;
   final _lost = StreamController<void>.broadcast();
-  _Preopened? _preopened;
+  final _slot = PreopenSlot<lk.LocalAudioTrack>();
 
   @override
   Future<bool> preopen(lk.AudioCaptureOptions options) async {
     if (!preopens) return false;
-    unawaited(discardPreopened());
-    final opened = _Preopened(
-      options,
-      Future.sync(() => lk.LocalAudioTrack.create(options))
-          .then<lk.LocalAudioTrack?>(
-        (track) => track,
-        onError: (Object e, StackTrace stack) {
-          AppLog.swallowed(LogTag.voice,
-              'Could not open the microphone ahead of the connect', e, stack);
-          return null;
-        },
-      ),
+    unawaited(_close(_slot.clear()));
+    final capture = Future.sync(() => lk.LocalAudioTrack.create(options))
+        .then<lk.LocalAudioTrack?>(
+      (track) => track,
+      onError: (Object e, StackTrace stack) {
+        AppLog.swallowed(LogTag.voice,
+            'Could not open the microphone ahead of the connect', e, stack);
+        return null;
+      },
     );
-    _preopened = opened;
-    return await opened.track != null;
+    unawaited(_close(_slot.hold(options, capture)));
+    return await capture != null;
   }
 
   @override
-  Future<void> discardPreopened() async {
-    final opened = _preopened;
-    _preopened = null;
-    final track = await opened?.track;
+  Future<void> discardPreopened() => _close(_slot.clear());
+
+  Future<void> _close(Future<lk.LocalAudioTrack?>? capture) async {
+    final track = await capture;
     if (track == null) return;
     await track.stop();
     await _stopNativeRecording();
@@ -133,17 +165,12 @@ class LiveKitMicPort implements MicPort, MicPreopen {
   /// [options] asks; any other is closed so the caller opens its own.
   Future<lk.LocalAudioTrack?> _takePreopened(
       lk.AudioCaptureOptions options) async {
-    final opened = _preopened;
-    if (opened == null) return null;
-    final wanted = _publication == null &&
-        _room() != null &&
-        sameMicCapture(opened.options, options);
-    if (!wanted) {
-      await discardPreopened();
-      return null;
-    }
-    _preopened = null;
-    return opened.track;
+    final claimed = _slot.claim(
+      options,
+      usable: _publication == null && _room() != null,
+    );
+    unawaited(_close(claimed.stale));
+    return claimed.match;
   }
 
   @override

@@ -192,4 +192,18 @@ void main() {
       isFalse,
     );
   });
+  micPortScopeTests();
+}
+
+void micPortScopeTests() {
+  test('a phone never opens the capture ahead of the connect', () async {
+    final port = LiveKitMicPort(() => null, mobile: true);
+
+    expect(port.preopens, isFalse);
+    expect(await port.preopen(const lk.AudioCaptureOptions()), isFalse);
+  });
+
+  test('a desktop or web client does', () {
+    expect(LiveKitMicPort(() => null, mobile: false).preopens, isTrue);
+  });
 }
