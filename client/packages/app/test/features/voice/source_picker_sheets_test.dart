@@ -96,4 +96,40 @@ void main() {
     expect(picked, device);
     expect(find.text('Logitech BRIO'), findsNothing);
   });
+
+  testWidgets('a window is offered next to the screens and can be picked', (
+    tester,
+  ) async {
+    ScreenShareSource? picked;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async =>
+                  picked = await showScreenSourceSheet(context, const [
+                    ScreenShareSource(id: 'screen-0', name: 'Screen 1'),
+                    ScreenShareSource(
+                      id: 'w1',
+                      name: 'Notepad',
+                      isWindow: true,
+                    ),
+                  ]),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share a screen or window'), findsOneWidget);
+    expect(find.text('Screen 1'), findsOneWidget);
+
+    await tester.tap(find.text('Notepad'));
+    await tester.pumpAndSettle();
+    expect(picked?.id, 'w1');
+  });
 }
