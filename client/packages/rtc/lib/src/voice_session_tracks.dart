@@ -104,7 +104,9 @@ extension VoiceSessionTracks on VoiceSession {
     final intent = _micWanted;
     _micWanted = enabled;
     // A chosen microphone that came back since the last open is used again, not the default.
-    if (enabled) await _forgetUnpluggedDevices();
+    if (enabled && _audioSwitching.chosenInput != null) {
+      await _forgetUnpluggedDevices();
+    }
     try {
       final hadTrack = _mic.hasTrack;
       final options = _micCaptureOptions();

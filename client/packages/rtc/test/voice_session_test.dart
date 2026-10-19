@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'support/no_audio_devices.dart';
 
 /// A room that fails to connect, standing in for a bad token, an unreachable
 /// SFU, or a network that went away mid-handshake. All three arrive here the
@@ -91,7 +92,8 @@ class _FakeBridge implements BroadcastBridge {
 
 void main() {
   test('a fresh session is idle and holds no error', () {
-    final session = VoiceSession(roomFactory: () => lk.Room());
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(), roomFactory: () => lk.Room());
     addTearDown(session.dispose);
     expect(session.state, VoiceSessionState.idle);
     expect(session.participants, isEmpty);
@@ -101,6 +103,7 @@ void main() {
 
   test('a refused connection fails the session rather than hanging', () async {
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: () => _FailingRoom(StateError('invalid token')),
     );
     addTearDown(session.dispose);
@@ -130,7 +133,8 @@ void main() {
     // Mirrors the microphone case: _EmptyRoom's localParticipant stays null,
     // so there is nothing to publish a camera track to, and that must not
     // fail the join - a call with no camera track is still a call.
-    final session = VoiceSession(roomFactory: _EmptyRoom.new);
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(), roomFactory: _EmptyRoom.new);
     addTearDown(session.dispose);
 
     await session.join(
@@ -143,6 +147,7 @@ void main() {
 
   test('a failed join leaves nothing to clean up behind it', () async {
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: () => _FailingRoom(StateError('unreachable')),
     );
     addTearDown(session.dispose);
@@ -168,6 +173,7 @@ void main() {
     test('publishing nothing reports a pending broadcast, not success',
         () async {
       final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
         roomFactory: _EmptyRoom.new,
         broadcast: _FakeBridge(),
       );
@@ -183,6 +189,7 @@ void main() {
 
     test('a host with no broadcast extension is refused up front', () async {
       final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
         roomFactory: _EmptyRoom.new,
         broadcast: _FakeBridge(available: false),
       );
@@ -202,7 +209,8 @@ void main() {
 
   group('deafen', () {
     test('has no effect and reports failure with no room to act on', () async {
-      final session = VoiceSession(roomFactory: () => lk.Room());
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(), roomFactory: () => lk.Room());
       addTearDown(session.dispose);
 
       expect(await session.setDeafened(true), isFalse);
@@ -211,7 +219,8 @@ void main() {
 
     test('leaving resets state back to idle without deafen surviving it',
         () async {
-      final session = VoiceSession(roomFactory: () => lk.Room());
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(), roomFactory: () => lk.Room());
       addTearDown(session.dispose);
 
       await session.leave();
@@ -221,7 +230,8 @@ void main() {
   });
 
   test('leaving an idle session is safe and stays idle', () async {
-    final session = VoiceSession(roomFactory: () => lk.Room());
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(), roomFactory: () => lk.Room());
     addTearDown(session.dispose);
     await session.leave();
     expect(session.state, VoiceSessionState.idle);
@@ -229,10 +239,12 @@ void main() {
 
   test('a second failed join does not stack a second connection', () async {
     var built = 0;
-    final session = VoiceSession(roomFactory: () {
-      built++;
-      return _FailingRoom(StateError('nope'));
-    });
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
+        roomFactory: () {
+          built++;
+          return _FailingRoom(StateError('nope'));
+        });
     addTearDown(session.dispose);
 
     await session.join(url: 'wss://a.invalid', token: 't1');
@@ -245,6 +257,7 @@ void main() {
   test('overlapping joins serialize instead of racing one room slot', () async {
     var built = 0;
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: () {
         built++;
         return _EmptyRoom();
@@ -267,7 +280,9 @@ void main() {
       'leaving while a join is still connecting is not undone once that '
       'connect finally resolves', () async {
     final gate = Completer<void>();
-    final session = VoiceSession(roomFactory: () => _GatedRoom(gate.future));
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
+        roomFactory: () => _GatedRoom(gate.future));
     addTearDown(session.dispose);
 
     final joining = session.join(url: 'wss://a.invalid', token: 't');
@@ -291,7 +306,8 @@ void main() {
   });
 
   test('dispose is idempotent and survives never having joined', () async {
-    final session = VoiceSession(roomFactory: () => lk.Room());
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(), roomFactory: () => lk.Room());
     await session.dispose();
     await session.dispose();
     // Calls after disposal must be inert rather than throwing into a widget
@@ -415,6 +431,7 @@ void main() {
       'screen share sources are listed through the injected seam, never a global',
       () async {
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: _EmptyRoom.new,
       desktopSources: const _FakeSources([
         ScreenShareSource(id: '1', name: 'Screen 1'),
@@ -430,6 +447,7 @@ void main() {
       'whether several sources are worth their own picker reaches the '
       'session unchanged', () async {
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: _EmptyRoom.new,
       desktopSources: const _FakeSources([], sourcePickerUseful: false),
     );

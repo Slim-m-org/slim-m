@@ -17,6 +17,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'support/no_audio_devices.dart';
 
 /// A room that connects immediately and whose `disconnect` blocks on [gate],
 /// standing in for the SFU round trip a hang-up really waits on.
@@ -91,6 +92,7 @@ void main() {
     final log = <String>[];
     var built = 0;
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: () {
         built++;
         // Only the first call's own disconnect is the slow one being raced.
@@ -123,7 +125,9 @@ void main() {
   });
 
   test('a leave that is not superseded still reports idle', () async {
-    final session = VoiceSession(roomFactory: () => _LoggingRoom([]));
+    final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
+        roomFactory: () => _LoggingRoom([]));
     addTearDown(session.dispose);
 
     await session.join(url: 'wss://a.invalid', token: 't');
@@ -137,6 +141,7 @@ void main() {
       'disconnecting', () async {
     final log = <String>[];
     final session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: () => _LoggingRoom(log),
       broadcast: _ThrowingBridge(),
     );

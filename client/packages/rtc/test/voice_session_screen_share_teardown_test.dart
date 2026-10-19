@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'support/no_audio_devices.dart';
 
 /// A room that connects without an SFU behind it, and logs its own
 /// `disconnect()` into [log] so a test can see when it ran relative to the
@@ -100,8 +101,10 @@ void main() {
     test('stopping also ends the platform broadcast', () async {
       // Dropping the track without this leaves the phone still recording.
       final bridge = _FakeBridge();
-      final session =
-          VoiceSession(roomFactory: () => _EmptyRoom([]), broadcast: bridge);
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(),
+          roomFactory: () => _EmptyRoom([]),
+          broadcast: bridge);
       addTearDown(session.dispose);
 
       await session.join(url: 'wss://a.invalid', token: 't');
@@ -115,8 +118,10 @@ void main() {
     test('hanging up without stopping the share first still ends it', () async {
       // Leaving a call is not the same button as stopping a share.
       final bridge = _FakeBridge();
-      final session =
-          VoiceSession(roomFactory: () => _EmptyRoom([]), broadcast: bridge);
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(),
+          roomFactory: () => _EmptyRoom([]),
+          broadcast: bridge);
       addTearDown(session.dispose);
 
       await session.join(url: 'wss://a.invalid', token: 't');
@@ -135,8 +140,10 @@ void main() {
         'not after', () async {
       final log = <String>[];
       final bridge = _FakeBridge(log: log);
-      final session =
-          VoiceSession(roomFactory: () => _EmptyRoom(log), broadcast: bridge);
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(),
+          roomFactory: () => _EmptyRoom(log),
+          broadcast: bridge);
       addTearDown(session.dispose);
 
       await session.join(url: 'wss://a.invalid', token: 't');
@@ -156,6 +163,7 @@ void main() {
       final bridge = _FakeBridge();
       late _EmptyRoom room;
       final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
         roomFactory: () => room = _EmptyRoom([]),
         broadcast: bridge,
       );
@@ -184,6 +192,7 @@ void main() {
       final bridge = _GatedBridge(gate.future);
       late _EmptyRoom room;
       final session = VoiceSession(
+        audioDevices: const NoAudioDevices(),
         roomFactory: () => room = _EmptyRoom([]),
         broadcast: bridge,
       );
@@ -220,8 +229,10 @@ void main() {
         () async {
       // leave() cancels the listener first, so _onDisconnected must never also fire for this same call ending.
       final bridge = _FakeBridge();
-      final session =
-          VoiceSession(roomFactory: () => _EmptyRoom([]), broadcast: bridge);
+      final session = VoiceSession(
+          audioDevices: const NoAudioDevices(),
+          roomFactory: () => _EmptyRoom([]),
+          broadcast: bridge);
       addTearDown(session.dispose);
 
       await session.join(url: 'wss://a.invalid', token: 't');
