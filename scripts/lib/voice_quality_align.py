@@ -12,8 +12,7 @@ from operator import mul
 import voice_quality_dsp as dsp
 
 SEGMENT = 2 * dsp.ANALYSIS_RATE
-# Search this far either side of the previous delay: wide enough for a
-# concealment insertion, narrower than most pitch periods' ambiguity.
+# Wide enough for a concealment insertion, narrow enough to avoid pitch-period ambiguity.
 TRACK_RADIUS_MS = 25
 COARSE_DECIMATION = 4
 # Segments quieter than this carry the previous delay forward.
