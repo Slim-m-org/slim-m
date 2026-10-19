@@ -26,6 +26,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_camera_memory.dart';
+import '../providers/canvas_grid_snap.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
@@ -112,6 +113,11 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
     document.addListener(_onCameraMoved);
+    _ref.listen<bool>(
+      canvasGridSnapProvider,
+      (_, snap) => document.snapToGrid.value = snap,
+      fireImmediately: true,
+    );
     unawaited(_camera.restore(mounted: () => mounted));
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());

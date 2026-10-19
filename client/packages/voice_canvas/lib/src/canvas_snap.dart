@@ -7,6 +7,8 @@
 /// rects; the caller converts its screen-pixel reach to world units.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/painting.dart';
 
 /// The screen distance, in logical pixels, inside which an edge or centre
@@ -142,4 +144,20 @@ SnapGuide? _guideAt(
   }
   if (!matched) return null;
   return SnapGuide(vertical: vertical, position: line, start: start, end: end);
+}
+
+/// The world spacing between grid lines at [zoom]: a power of two near 64
+/// screen pixels, so the lattice keeps its density at any scale. Snap to grid
+/// lands on the same lines the grid draws.
+double gridSpacingFor(double zoom) {
+  final exponent = (math.log(64 / zoom) / math.ln2).round();
+  return math.pow(2, exponent).toDouble();
+}
+
+/// The shift that lands [moving]'s top-left on the nearest grid crossing at
+/// [spacing] world units. World units, so the snapped position is the same
+/// on every screen whatever its size or scale.
+Offset gridShift(Rect moving, double spacing) {
+  double toLine(double v) => (v / spacing).roundToDouble() * spacing - v;
+  return Offset(toLine(moving.left), toLine(moving.top));
 }

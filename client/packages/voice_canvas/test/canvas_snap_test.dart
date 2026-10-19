@@ -4,6 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {
+  test('the grid spacing is a power of two near 64 screen pixels', () {
+    expect(gridSpacingFor(1), 64);
+    expect(gridSpacingFor(2), 32);
+    expect(gridSpacingFor(0.5), 128);
+  });
+
+  test(
+      'a grid shift lands the top-left on the nearest crossing, in world units',
+      () {
+    final shift = gridShift(const Rect.fromLTWH(70, 100, 40, 20), 64);
+    expect(const Rect.fromLTWH(70, 100, 40, 20).shift(shift).topLeft,
+        const Offset(64, 128));
+  });
+
   const target = Rect.fromLTWH(100, 100, 50, 50);
 
   test('left edge snaps onto a target edge inside the threshold', () {

@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_document.dart';
+import 'canvas_snap.dart' show gridSpacingFor;
 import 'note_label_cache.dart';
 
 export 'canvas_live_painters.dart';
@@ -44,13 +45,10 @@ class GridPainter extends CustomPainter {
   final CanvasDocument document;
   final Color line;
 
-  static const double _targetScreenSpacing = 64;
-
   @override
   void paint(Canvas canvas, Size size) {
     final zoom = document.camera.zoom;
-    final exponent = (math.log(_targetScreenSpacing / zoom) / math.ln2).round();
-    final spacing = math.pow(2, exponent).toDouble();
+    final spacing = gridSpacingFor(zoom);
 
     final paint = Paint()
       ..color = line
