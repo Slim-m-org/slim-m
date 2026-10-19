@@ -58,7 +58,7 @@ extension CanvasDocumentSelection on CanvasDocument {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive) return false;
     stroke.zIndex = zIndex;
-    _orderDirty = true;
+    _paintOrder.markDirty();
     return true;
   }
 
