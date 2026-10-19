@@ -4,94 +4,18 @@
 /// overflow opens the row's own context menu.
 library;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/emoji/widgets/emoji_picker.dart';
-import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
-import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/features/messages/widgets/message_row_identity.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'message_row_harness.dart';
 import 'package:slimm_app/src/action_labels.dart';
-
-MessageActions _actions({
-  bool canReply = true,
-  bool canEdit = false,
-  VoidCallback? onReply,
-  VoidCallback? onEdit,
-}) => MessageActions(
-  canReply: canReply,
-  onReply: onReply ?? noop,
-  canEdit: canEdit,
-  onEdit: onEdit ?? noop,
-  canDelete: false,
-  onDelete: noop,
-  canManagePins: false,
-  pinned: false,
-  onTogglePin: noop,
-  canReport: false,
-  onReport: noop,
-  canBlockAuthor: false,
-  onBlockAuthor: noop,
-  canOpenThread: true,
-  onOpenThread: noop,
-  canCopyLink: false,
-  onCopyLink: noop,
-  canForward: false,
-  onForward: noop,
-  canSave: false,
-  onSave: noop,
-);
-
-Widget _row(Message m, {bool grouped = false, MessageActions? actions}) =>
-    MessageRow(
-      key: ValueKey(m.id),
-      message: m,
-      grouped: grouped,
-      showNewDivider: false,
-      knownUsernames: const {},
-      actions: actions ?? _actions(),
-      editing: false,
-      callbacks: MessageRowCallbacks(
-        onRetry: noop,
-        onDiscard: noop,
-        onPickReaction: (_) {},
-        onReactionTap: (_) {},
-        onVote: (_) {},
-        onSubmitEdit: (_) {},
-        onCancelEdit: noop,
-      ),
-    );
-
-Future<TestGesture> _mouse(WidgetTester tester) async {
-  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-  addTearDown(mouse.removePointer);
-  await mouse.addPointer(location: const Offset(-50, -50));
-  return mouse;
-}
-
-Future<void> _hover(WidgetTester tester, TestGesture mouse, Finder row) async {
-  await mouse.moveTo(tester.getCenter(row));
-  await tester.pumpAndSettle();
-}
-
-final _plate = find.byKey(MessageHoverToolbar.plateKey);
-
-/// The header's painted text, not its column-wide box, which says nothing about what the plate could hide.
-Iterable<Rect> _headerTextRects(WidgetTester tester) => tester
-    .widgetList(
-      find.descendant(
-        of: find.byType(MessageRowHeader),
-        matching: find.byType(RichText),
-      ),
-    )
-    .map((w) => tester.getRect(find.byWidget(w)));
+import 'message_hover_toolbar_support.dart';
 
 void main() {
   setUp(() => TestWidgetsFlutterBinding.ensureInitialized());
@@ -99,17 +23,17 @@ void main() {
   testWidgets('the toolbar shows on hover and is gone otherwise', (
     tester,
   ) async {
-    await tester.pumpWidget(harness(_row(message())));
+    await tester.pumpWidget(harness(hoverRow(message())));
     await tester.pumpAndSettle();
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
 
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
-    expect(_plate, findsOneWidget);
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
+    expect(hoverPlate, findsOneWidget);
 
     await mouse.moveTo(const Offset(-50, -50));
     await tester.pumpAndSettle();
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
   });
 
   testWidgets('keyboard focus reveals the toolbar and leaving hides it', (
@@ -117,34 +41,36 @@ void main() {
   ) async {
     await tester.pumpWidget(
       harness(
-        Column(children: [_row(message()), const TextField()]),
+        Column(children: [hoverRow(message()), const TextField()]),
         platform: TargetPlatform.linux,
       ),
     );
     await tester.pumpAndSettle();
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pumpAndSettle();
-    expect(_plate, findsOneWidget);
+    expect(hoverPlate, findsOneWidget);
 
     await tester.tap(find.byType(TextField));
     await tester.pumpAndSettle();
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
   });
 
   testWidgets('a mouse click inside the toolbar does not pin it open', (
     tester,
   ) async {
-    await tester.pumpWidget(harness(_row(message(), actions: _actions())));
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
+    await tester.pumpWidget(
+      harness(hoverRow(message(), actions: hoverActions())),
+    );
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
     await tester.tap(find.byKey(MessageHoverToolbar.replyKey));
     await tester.pumpAndSettle();
 
     await mouse.moveTo(const Offset(-50, -50));
     await tester.pumpAndSettle();
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
   });
 
   for (final own in const [true, false]) {
@@ -152,10 +78,10 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        harness(_row(message(), actions: _actions(canEdit: own))),
+        harness(hoverRow(message(), actions: hoverActions(canEdit: own))),
       );
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
+      final mouse = await hoverMouse(tester);
+      await hoverHover(tester, mouse, find.byType(MessageRow));
 
       expect(find.byType(EmojiPickerButton), findsOneWidget);
       expect(find.byKey(MessageHoverToolbar.replyKey), findsOneWidget);
@@ -166,7 +92,7 @@ void main() {
         own ? findsOneWidget : findsNothing,
       );
       expect(
-        find.descendant(of: _plate, matching: find.byType(AppIconButton)),
+        find.descendant(of: hoverPlate, matching: find.byType(AppIconButton)),
         findsNWidgets(own ? 5 : 4),
       );
     });
@@ -177,9 +103,9 @@ void main() {
     var edited = 0;
     await tester.pumpWidget(
       harness(
-        _row(
+        hoverRow(
           message(),
-          actions: _actions(
+          actions: hoverActions(
             canEdit: true,
             onReply: () => replied++,
             onEdit: () => edited++,
@@ -187,8 +113,8 @@ void main() {
         ),
       ),
     );
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
     await tester.tap(find.byKey(MessageHoverToolbar.replyKey));
     await tester.tap(find.byKey(MessageHoverToolbar.editKey));
     expect((replied, edited), (1, 1));
@@ -198,10 +124,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      harness(_row(message(), actions: _actions(canReply: false))),
+      harness(hoverRow(message(), actions: hoverActions(canReply: false))),
     );
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
 
     expect(find.byKey(MessageHoverToolbar.replyKey), findsNothing);
     expect(find.byKey(MessageHoverToolbar.threadKey), findsOneWidget);
@@ -211,10 +137,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      harness(_row(message()), platform: TargetPlatform.linux),
+      harness(hoverRow(message()), platform: TargetPlatform.linux),
     );
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
     expect(find.text('Copy text'), findsNothing);
 
     await tester.tap(find.byKey(MessageHoverToolbar.overflowKey));
@@ -231,312 +157,11 @@ void main() {
     );
   });
 
-  group('geometry', () {
-    testWidgets('the toolbar stays inside its row box', (tester) async {
-      await tester.pumpWidget(harness(_row(message(content: 'one line'))));
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
-
-      final row = tester.getRect(find.byType(MessageRow));
-      final plate = tester.getRect(_plate);
-      expect(plate.top, greaterThanOrEqualTo(row.top));
-      expect(plate.right, lessThanOrEqualTo(row.right));
-      expect(plate.height, MessageHoverToolbar.height);
-    });
-
-    testWidgets('it never covers the row\'s own header line', (tester) async {
-      await tester.pumpWidget(harness(_row(message(content: 'one line'))));
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
-
-      final plate = tester.getRect(_plate);
-      expect(_headerTextRects(tester), isNotEmpty);
-      for (final text in _headerTextRects(tester)) {
-        expect(plate.overlaps(text), isFalse, reason: '$text under $plate');
-      }
-    });
-
-    testWidgets('the header stays clear at the narrowest wide layout', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(kCompactWidth, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        harness(
-          _row(
-            message(authorDisplayName: 'Priya with a fairly long name'),
-            actions: _actions(canEdit: true),
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
-
-      expect(_headerTextRects(tester), isNotEmpty);
-      for (final text in _headerTextRects(tester)) {
-        expect(
-          tester.getRect(_plate).overlaps(text),
-          isFalse,
-          reason: '$text vs ${tester.getRect(_plate)}',
-        );
-      }
-    });
-
-    testWidgets('the first row in a scrolled transcript is not clipped', (
-      tester,
-    ) async {
-      const viewportKey = Key('viewport');
-      await tester.pumpWidget(
-        harness(
-          SizedBox(
-            key: viewportKey,
-            height: 300,
-            child: ListView(children: [_row(message(id: 'first'))]),
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
-
-      final viewport = tester.getRect(find.byKey(viewportKey));
-      final plate = tester.getRect(_plate);
-      expect(plate.top, greaterThanOrEqualTo(viewport.top));
-      expect(plate.bottom, lessThanOrEqualTo(viewport.bottom));
-    });
-
-    testWidgets('the whole plate responds in a tight grouped run', (
-      tester,
-    ) async {
-      var replied = 0;
-      final actions = _actions(onReply: () => replied++);
-      await tester.pumpWidget(
-        harness(
-          ListView(
-            children: [
-              _row(
-                message(id: 'a', content: 'one'),
-                actions: actions,
-              ),
-              for (final id in const ['b', 'c', 'd'])
-                _row(
-                  message(id: id, content: 'line $id'),
-                  grouped: true,
-                  actions: actions,
-                ),
-            ],
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      final middle = find.byKey(const ValueKey('c'));
-      await _hover(tester, mouse, middle);
-
-      final rowRect = tester.getRect(middle);
-      final plate = tester.getRect(_plate);
-      expect(
-        rowRect.height,
-        lessThan(MessageHoverToolbar.height),
-        reason: 'a one-line row keeps its density spacing',
-      );
-      expect(plate.top, rowRect.top);
-      expect(plate.bottom, greaterThan(rowRect.bottom), reason: 'overhangs');
-
-      final x = tester.getCenter(find.byKey(MessageHoverToolbar.replyKey)).dx;
-      for (final y in [plate.top + 1, plate.center.dy, plate.bottom - 1]) {
-        await tester.tapAt(Offset(x, y));
-        await tester.pumpAndSettle();
-        await _hover(tester, mouse, middle);
-      }
-      expect(replied, 3, reason: 'top edge, centre and bottom edge all hit');
-    });
-
-    testWidgets('moving from the row onto the overhanging plate keeps it', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        harness(
-          ListView(
-            children: [
-              _row(message(id: 'a', content: 'one')),
-              for (final id in const ['b', 'c'])
-                _row(message(id: id, content: 'line $id'), grouped: true),
-            ],
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      final row = find.byKey(const ValueKey('b'));
-      await _hover(tester, mouse, row);
-      final plate = tester.getRect(_plate);
-
-      await mouse.moveTo(Offset(plate.center.dx, plate.bottom - 1));
-      await tester.pumpAndSettle();
-      expect(_plate, findsOneWidget, reason: 'the next row is under the plate');
-      expect(tester.getRect(_plate), plate);
-    });
-
-    testWidgets('the plate follows its row as the list scrolls', (
-      tester,
-    ) async {
-      final controller = ScrollController();
-      addTearDown(controller.dispose);
-      await tester.pumpWidget(
-        harness(
-          SizedBox(
-            height: 300,
-            child: ListView(
-              controller: controller,
-              children: [
-                _row(message(id: 'a', content: 'head')),
-                for (final id in const ['b', 'c', 'd', 'e', 'f'])
-                  _row(message(id: id, content: 'line $id'), grouped: true),
-              ],
-            ),
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      final row = find.byKey(const ValueKey('d'));
-      await mouse.moveTo(tester.getTopLeft(row) + const Offset(100, 8));
-      await tester.pumpAndSettle();
-      expect(tester.getTopLeft(_plate).dy, tester.getTopLeft(row).dy);
-
-      controller.jumpTo(6);
-      await tester.pumpAndSettle();
-      expect(tester.getTopLeft(row).dy, lessThan(300));
-      expect(tester.getTopLeft(_plate).dy, tester.getTopLeft(row).dy);
-    });
-
-    testWidgets('a row scrolled half out of the list shows no plate', (
-      tester,
-    ) async {
-      final controller = ScrollController(initialScrollOffset: 10);
-      addTearDown(controller.dispose);
-      await tester.pumpWidget(
-        harness(
-          SizedBox(
-            height: 300,
-            child: ListView(
-              controller: controller,
-              children: [
-                _row(message(id: 'a', content: 'head')),
-                for (var i = 0; i < 30; i++)
-                  _row(message(id: 'r$i', content: 'line $i'), grouped: true),
-              ],
-            ),
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      final row = find.byKey(const ValueKey('a'));
-      await mouse.moveTo(tester.getBottomLeft(row) + const Offset(100, -4));
-      await tester.pumpAndSettle();
-      expect(tester.getTopLeft(row).dy, lessThan(0));
-      expect(_plate, findsNothing, reason: 'it would float over the header');
-    });
-
-    testWidgets('consecutive one-line follow-ups sit at the density pitch', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        harness(
-          ListView(
-            children: [
-              _row(message(id: 'a', content: 'head')),
-              for (final id in const ['b', 'c', 'd', 'e'])
-                _row(message(id: id, content: 'line $id'), grouped: true),
-            ],
-          ),
-        ),
-      );
-      final tops = [
-        for (final id in const ['b', 'c', 'd', 'e'])
-          tester.getTopLeft(find.byKey(ValueKey(id))).dy,
-      ];
-      final pitches = [
-        for (var i = 1; i < tops.length; i++) tops[i] - tops[i - 1],
-      ];
-      expect(pitches.toSet(), hasLength(1));
-      expect(pitches.first, lessThan(MessageHoverToolbar.height));
-    });
-
-    testWidgets('toolbars on adjacent rows leave each other\'s buttons clear', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        harness(
-          Column(
-            children: [
-              _row(message(id: 'a', content: 'one'), grouped: true),
-              _row(message(id: 'b', content: 'two'), grouped: true),
-              const TextField(),
-            ],
-          ),
-          platform: TargetPlatform.linux,
-        ),
-      );
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      final mouse = await _mouse(tester);
-      await mouse.moveTo(tester.getCenter(find.byKey(const ValueKey('b'))));
-      await tester.pumpAndSettle();
-
-      expect(_plate, findsNWidgets(2));
-      final upper = tester.getRect(_plate.first);
-      final lower = tester.getRect(_plate.last);
-      expect(lower.top, greaterThan(upper.top));
-      for (final key in [
-        MessageHoverToolbar.replyKey,
-        MessageHoverToolbar.overflowKey,
-      ]) {
-        final centre = tester.getCenter(find.byKey(key).first);
-        expect(lower.contains(centre), isFalse, reason: '$key is covered');
-      }
-    });
-
-    testWidgets('a long first line in a headerless row stops short of it', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(kCompactWidth, 600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      const long =
-          'a long first line that would otherwise run all the way '
-          'across the pane and under the toolbar at this narrow width';
-      await tester.pumpWidget(
-        harness(_row(message(content: long), grouped: true)),
-      );
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
-
-      final body = tester.getRect(find.textContaining('a long first line'));
-      expect(body.right, lessThanOrEqualTo(tester.getRect(_plate).left));
-    });
-
-    testWidgets('a toolbar never reaches into the row above', (tester) async {
-      await tester.pumpWidget(
-        harness(
-          ListView(
-            children: [
-              _row(message(id: 'a', content: 'one')),
-              _row(message(id: 'b', content: 'two'), grouped: true),
-            ],
-          ),
-        ),
-      );
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byKey(const ValueKey('b')));
-
-      final above = tester.getRect(find.byKey(const ValueKey('a')));
-      expect(tester.getRect(_plate).overlaps(above), isFalse);
-    });
-  });
-
   testWidgets('the compact long-press sheet is unchanged', (tester) async {
     tester.view.physicalSize = const Size(390, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(harness(_row(message())));
+    await tester.pumpWidget(harness(hoverRow(message())));
     await tester.longPressAt(
       tester.getTopLeft(find.byType(MessageRow)) + const Offset(40, 20),
     );
@@ -544,7 +169,7 @@ void main() {
 
     expect(find.byTooltip(ActionLabels.addReaction), findsOneWidget);
     expect(find.byType(AppMenu), findsNothing, reason: 'a sheet, not a popup');
-    expect(_plate, findsNothing);
+    expect(hoverPlate, findsNothing);
   });
 
   group('a compact-width window with a mouse', () {
@@ -556,17 +181,17 @@ void main() {
       tester.view.physicalSize = const Size(390, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(harness(_row(m, grouped: grouped)));
-      final mouse = await _mouse(tester);
-      await _hover(tester, mouse, find.byType(MessageRow));
+      await tester.pumpWidget(harness(hoverRow(m, grouped: grouped)));
+      final mouse = await hoverMouse(tester);
+      await hoverHover(tester, mouse, find.byType(MessageRow));
     }
 
     void expectPlateClear(WidgetTester tester) {
-      if (_plate.evaluate().isEmpty) return;
-      final plate = tester.getRect(_plate);
+      if (hoverPlate.evaluate().isEmpty) return;
+      final plate = tester.getRect(hoverPlate);
       final row = tester.getRect(find.byType(MessageRow));
       expect(plate.bottom, lessThanOrEqualTo(row.bottom), reason: 'overhang');
-      for (final r in _headerTextRects(tester)) {
+      for (final r in hoverHeaderTextRects(tester)) {
         expect(plate.overlaps(r), isFalse, reason: 'plate covers header $r');
       }
     }
@@ -575,24 +200,24 @@ void main() {
       tester,
     ) async {
       await hoverAt390(tester, message(content: 'hello'));
-      expect(_headerTextRects(tester), isNotEmpty);
-      expect(_plate, findsNothing);
+      expect(hoverHeaderTextRects(tester), isNotEmpty);
+      expect(hoverPlate, findsNothing);
       expectPlateClear(tester);
     });
 
     testWidgets('renders no toolbar on a short grouped row', (tester) async {
       await hoverAt390(tester, message(content: 'one line'), grouped: true);
-      expect(_plate, findsNothing);
+      expect(hoverPlate, findsNothing);
       expectPlateClear(tester);
     });
   });
 
   testWidgets('a failed or pending message shows no toolbar', (tester) async {
     await tester.pumpWidget(
-      harness(_row(message(pending: true, content: 'sending'))),
+      harness(hoverRow(message(pending: true, content: 'sending'))),
     );
-    final mouse = await _mouse(tester);
-    await _hover(tester, mouse, find.byType(MessageRow));
-    expect(_plate, findsNothing);
+    final mouse = await hoverMouse(tester);
+    await hoverHover(tester, mouse, find.byType(MessageRow));
+    expect(hoverPlate, findsNothing);
   });
 }
