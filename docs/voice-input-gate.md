@@ -11,7 +11,10 @@ And nothing stopped quiet sound from being sent: echo cancellation, noise suppre
 The gate lives in slim-m's flutter-webrtc fork, in `common/cpp/src/flutter_input_gate.cc`, so it covers Linux and Windows.
 libwebrtc's audio processing module accepts one capture post-processing step, which runs on every 10 ms frame after AEC, NS and AGC.
 The gate measures each frame's RMS level in dBFS and, when the frame is below the threshold and has been for longer than a 300 ms hold, replaces it with silence through a 60 ms fade.
-Opening takes a 5 ms fade, so the start of a word is not clipped by more than that.
+Opening takes a 5 ms fade.
+The audio leaves the gate two frames (20 ms) behind the decision, so the gate is already open when the frame that opened it comes out and a soft start of a word is kept: a synthetic fricative at -45 dBFS leading into a vowel keeps about 83% of its last 20 ms, against none without the delay.
+That costs 20 ms of capture latency, with the gate on or off, so the delay never changes when the gate is toggled.
+Once open, frames up to 5 dB under the threshold still keep it open, so a word fading out does not flutter the gate at the line.
 Silence is cheap on the wire: with Opus DTX a closed gate measured about 8 to 112 bytes a second against about 2 KB a second open.
 
 It also tracks voice detection (above the threshold within the hold) whether or not it is silencing, and keeps a meter.
