@@ -14,6 +14,7 @@ import time
 import e2e_audio
 import e2e_browsers
 import e2e_labels as L
+from e2e_board_frame import fit_to_board_zoom_one
 from e2e_canvas import at, origin, wait_for_kind_count, wait_for_summary
 from e2e_api import wait_until
 
@@ -28,6 +29,7 @@ def _in_canvas(c, channel):
     if not c.find("Canvas,"):
         c.click(L.OPEN_CANVAS)
     c.wait_for("Canvas,")
+    fit_to_board_zoom_one(c)
 
 
 def _stroke(c, row):
