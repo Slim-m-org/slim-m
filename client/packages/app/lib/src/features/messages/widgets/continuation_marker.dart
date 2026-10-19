@@ -18,6 +18,7 @@ class ContinuationGeometry {
     required this.railLeft,
     required this.midline,
     required this.elbowWidth,
+    required this.headTop,
   });
 
   /// The rail's centre sits on the avatar column's centre.
@@ -25,6 +26,7 @@ class ContinuationGeometry {
     BuildContext context, {
     required double gutter,
     required AppDensity density,
+    int groupSpacing = 0,
   }) {
     final avatar = density.avatarSize;
     final bodyLine =
@@ -36,6 +38,8 @@ class ContinuationGeometry {
       midline: density.groupedRowGap + bodyLine / 2,
       elbowWidth:
           textLeft - ContinuationRail.textGap - avatar / 2 + _halfThickness,
+      headTop:
+          density.rowGap + groupSpacing + avatar + ContinuationRail.headGap,
     );
   }
 
@@ -48,6 +52,45 @@ class ContinuationGeometry {
 
   /// Rail left edge to the elbow's tip.
   final double elbowWidth;
+
+  /// Where the rail leaves the group's first row, just below its avatar.
+  final double headTop;
+}
+
+/// The straight pipe from the first row's avatar down into the continuations.
+class ContinuationHeadRail extends StatelessWidget {
+  const ContinuationHeadRail({super.key, required this.geometry});
+
+  static const Key railKey = Key('continuation_head_rail');
+
+  final ContinuationGeometry geometry;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).extension<AppTokens>()!.borderSubtle;
+    return Positioned.fill(
+      // A row no taller than its avatar leaves no room, and padding clamps to nothing.
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: geometry.railLeft,
+          top: geometry.headTop,
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: IgnorePointer(
+            child: ColoredBox(
+              key: railKey,
+              color: color,
+              child: const SizedBox(
+                width: ContinuationRail.thickness,
+                height: double.infinity,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class ContinuationRail extends StatelessWidget {
@@ -60,6 +103,9 @@ class ContinuationRail extends StatelessWidget {
 
   static const double thickness = 2;
   static const double elbowRadius = 8;
+
+  /// Space left between the avatar's bottom and the head pipe.
+  static const double headGap = AppSpacing.s4;
 
   /// Space left between the elbow's tip and the text.
   static const double textGap = 9;

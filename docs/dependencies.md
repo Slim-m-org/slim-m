@@ -266,7 +266,8 @@ It also fixes the plugin's Linux and Windows task runners, which ran each task w
 Two make the video renderer cheaper: it creates its pixel buffer once, and converts a frame at the drawn size rather than the full frame.
 The latest runs `getStats` off the platform thread too, since a stats poll during a camera open waited behind it for 1.5 to 1.9 s, and records Unified Plan remote tracks from `OnTrack` so a lookup by id (per-person volume) always finds them.
 It adds a microphone noise gate and level meter on the capture path, described in `docs/voice-input-gate.md`.
-On Windows it opens the default console devices by index, because libwebrtc's default communications role makes Windows turn every other app down during a call.
+On Windows an unpicked microphone opens the communications default device, and playback stays on the console default.
+The audio session's ducking opt-out is what stops Windows turning every other app down during a call.
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
 An override also ignores the version `livekit_client` asks for: 2.13.1 names `1.6.2+hotfix.4`, the fork is 1.6.0 based, and [0075](decisions/0075-livekit-client-2-13.md) records why that is left alone.
 `scripts/check-dart-licenses.py` reads the fork's LICENSE (MIT) from the pub cache's checkout, so it is classified like a hosted package.

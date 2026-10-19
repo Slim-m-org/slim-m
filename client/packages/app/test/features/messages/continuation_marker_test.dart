@@ -157,6 +157,18 @@ Finder _rail(String id) => find.descendant(
 
 Rect _rowRect(WidgetTester t, String id) => t.getRect(_row(id));
 
+Finder _headRail(String id) => find.descendant(
+  of: find.byKey(ValueKey(id)),
+  matching: find.byKey(ContinuationHeadRail.railKey),
+);
+
+Rect _avatarRect(WidgetTester t, String id) => t.getRect(
+  find.descendant(
+    of: find.byKey(ValueKey(id)),
+    matching: find.byType(AppAvatar),
+  ),
+);
+
 Rect _railRect(WidgetTester t, String id) => t.getRect(_rail(id));
 
 double get _midline =>
@@ -183,6 +195,83 @@ double _textLeft(WidgetTester t, String id) => t
     .left;
 
 void main() {
+  for (final marker in [ContinuationMarker.clean, ContinuationMarker.tree]) {
+    testWidgets('${marker.name}: the first row pipes down from its avatar', (
+      tester,
+    ) async {
+      await _pump(tester, marker);
+      final m2 = _railRect(tester, 'm2');
+      for (final (head, next) in [('m1', 'm2'), ('n1', 'n2')]) {
+        final pipe = tester.getRect(_headRail(head));
+        final avatar = _avatarRect(tester, head);
+        expect(pipe.center.dx, closeTo(avatar.center.dx, 0.01), reason: head);
+        expect(pipe.top, avatar.bottom + ContinuationRail.headGap);
+        expect(pipe.bottom, _rowRect(tester, head).bottom, reason: head);
+        expect(pipe.left, _railRect(tester, next).left, reason: next);
+      }
+      expect(tester.getRect(_headRail('m1')).bottom, m2.top);
+      expect(_headRail('m3'), findsNothing);
+      expect(_headRail('n2'), findsNothing);
+    });
+  }
+
+  for (final marker in [ContinuationMarker.clean, ContinuationMarker.tree]) {
+    for (final width in [390.0, 1280.0]) {
+      testWidgets('${marker.name} preview pipes down from Ada at $width', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 600);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: DisplayDensityPreview(
+                  density: AppDensity.normal,
+                  groupSpacing: 8,
+                  marker: marker,
+                ),
+              ),
+            ),
+          ),
+        );
+        final first = find.byKey(DisplayDensityPreview.firstRowKey);
+        final pipe = tester.getRect(
+          find.descendant(
+            of: first,
+            matching: find.byKey(ContinuationHeadRail.railKey),
+          ),
+        );
+        final avatar = tester.getRect(
+          find.descendant(of: first, matching: find.byType(AppAvatar)),
+        );
+        final next = tester.getRect(
+          find.descendant(
+            of: find.byKey(DisplayDensityPreview.continuationRowKey),
+            matching: find.byKey(ContinuationRail.railKey),
+          ),
+        );
+        expect(pipe.center.dx, closeTo(avatar.center.dx, 0.01));
+        expect(pipe.left, next.left);
+        if (width < 600) {
+          expect(pipe.top, avatar.bottom + ContinuationRail.headGap);
+          expect(pipe.bottom, tester.getRect(first).bottom);
+          expect(pipe.bottom, next.top);
+        } else {
+          expect(pipe.height, 0, reason: 'a one-line sample has no gap');
+        }
+      });
+    }
+  }
+
+  testWidgets('none draws no pipe on the first row', (tester) async {
+    await _pump(tester, ContinuationMarker.none);
+    expect(_headRail('m1'), findsNothing);
+  });
+
   for (final marker in [ContinuationMarker.clean, ContinuationMarker.tree]) {
     for (final (name, width) in [('phone', 390.0), ('desktop', 1000.0)]) {
       testWidgets('renders a picture, ${marker.name} at $name width', (
