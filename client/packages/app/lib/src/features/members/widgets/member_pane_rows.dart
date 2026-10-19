@@ -21,6 +21,7 @@ import '../providers/presence_activity.dart';
 import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_profile.dart';
+import '../../voice/providers/member_voice_channel.dart';
 import 'member_voice_chip.dart';
 import 'user_avatar.dart';
 
@@ -34,6 +35,9 @@ final Map<String, int> debugMemberRowBuildCounts = {};
 /// See [debugMemberRowBuildCounts].
 @visibleForTesting
 void debugResetMemberRowBuildCounts() => debugMemberRowBuildCounts.clear();
+
+/// Below this row width a badge and a chip together crowd the name out.
+const double _badgeAndChipMinRow = 300;
 
 class MemberGroupLabel extends StatelessWidget {
   const MemberGroupLabel(this.text, {super.key});
@@ -111,6 +115,9 @@ class MemberRow extends ConsumerWidget {
           memberProfileOverridesProvider.select((m) => m[profile.id]),
         ) ??
         profile;
+    final inVoice = ref.watch(
+      memberVoiceChannelProvider(profile.id).select((c) => c != null),
+    );
     final activity = ref.watch(memberActivityProvider(profile.id));
     final statusText = ref.watch(
       statusTextProvider((userId: profile.id, snapshot: profile.statusText)),
@@ -156,7 +163,12 @@ class MemberRow extends ConsumerWidget {
         muted: status == AppPresence.offline,
         // On screen presence is only a dot and an opacity; this is how it is spoken.
         stateDescription: status.word,
-        trailing: _trailing(badge, displayed.isBot, box.maxWidth),
+        trailing: _trailing(
+          badge,
+          displayed.isBot,
+          box.maxWidth,
+          inVoice: inVoice,
+        ),
         leading: UserAvatar.known(
           userId: profile.id,
           avatarUpdatedAt: displayed.avatarUpdatedAt,
@@ -191,8 +203,17 @@ class MemberRow extends ConsumerWidget {
     return underOwnHeading ? null : displayed.roles.first;
   }
 
-  Widget? _trailing(String? label, bool isBot, double rowWidth) {
-    final badge = _badge(label, isBot, rowWidth);
+  /// A narrow row that is in a call drops its role badge: the chip says more,
+  /// and the role is one tap away on the card.
+  Widget? _trailing(
+    String? label,
+    bool isBot,
+    double rowWidth, {
+    required bool inVoice,
+  }) {
+    final badge = inVoice && rowWidth < _badgeAndChipMinRow
+        ? null
+        : _badge(label, isBot, rowWidth);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -200,7 +221,7 @@ class MemberRow extends ConsumerWidget {
           child: ConstrainedBox(
             // Beside a role badge the chip yields, so the member's name keeps its room.
             constraints: BoxConstraints(
-              maxWidth: rowWidth * (badge == null ? 0.4 : 0.25),
+              maxWidth: rowWidth * (badge == null ? 0.5 : 0.25),
             ),
             child: MemberVoiceChip(userId: profile.id, endGap: badge != null),
           ),

@@ -62,7 +62,48 @@ Future<GoRouter> _pump(
   return router;
 }
 
+const _mod = api.UserProfile(
+  id: 'ada',
+  username: 'ada',
+  displayName: 'Bartholomew Featherstonehaugh',
+  createdAt: 0,
+  roleIds: ['r'],
+  roles: ['Moderator'],
+);
+
+Future<void> _pumpAt(WidgetTester tester, double width) async {
+  tester.view.physicalSize = Size(width, 200);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await _pump(
+    tester,
+    inChannel: voiceChannel('v1', 'movie-room-late-night'),
+    body: const MemberRow(profile: _mod, isSelf: false),
+  );
+}
+
 void main() {
+  testWidgets('in the 236px pane the chip keeps room and the badge yields', (
+    tester,
+  ) async {
+    await _pumpAt(tester, 236);
+    expect(find.byType(AppBadge), findsNothing);
+    expect(tester.takeException(), isNull);
+    final chip = tester.getRect(find.byType(MemberVoiceChip));
+    expect(chip.width, greaterThan(AppSizes.icon12 + 40));
+    expect(
+      tester.getRect(find.byType(AppListRow)).right,
+      greaterThan(chip.right),
+    );
+  });
+
+  testWidgets('a wide row keeps both the badge and the chip', (tester) async {
+    await _pumpAt(tester, 390);
+    expect(find.byType(AppBadge), findsOneWidget);
+    expect(find.byType(MemberVoiceChip), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a member in a call shows the channel name on their row', (
     tester,
   ) async {
