@@ -449,6 +449,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'troubleshooting',
+    'Last call audio',
+    description: 'How the audio held up.',
+    keywords: ['voice', 'static', 'jitter', 'packet loss', 'quality', 'call'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
     'Run setup again',
     description: 'Profile, notifications and voice, one step at a time.',
     keywords: ['onboarding', 'welcome', 'tour', 'first run', 'setup'],
