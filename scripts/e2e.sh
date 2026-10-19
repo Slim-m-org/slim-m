@@ -39,10 +39,10 @@ cleanup() {
     return
   fi
   echo "== teardown =="
-  # 9811-9814 are the extra browsers the voice scenarios start for themselves.
-  pkill -f "remote-debugging-port=(980[12]|981[1-4])" 2>/dev/null || true
+  # 9811-9816 are the extra browsers the voice scenarios start for themselves.
+  pkill -f "remote-debugging-port=(980[12]|981[1-6])" 2>/dev/null || true
   bash "$ROOT/scripts/e2e-stack.sh" down
-  rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw
+  rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw "$WORK"/chrome-vqa "$WORK"/chrome-vqb
   exit $code
 }
 trap cleanup EXIT
