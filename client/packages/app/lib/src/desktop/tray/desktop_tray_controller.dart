@@ -117,7 +117,8 @@ class DesktopTrayController with TrayListener {
     );
   }
 
-  /// Windows draws no menu of its own: the plugin only reports the click.
+  /// Windows draws no menu of its own: the plugin only reports the click,
+  /// and without the foreground grab it never closes the menu on an outside click.
   @override
   void onTrayIconRightMouseDown() {
     if (!_windows) return;
@@ -126,6 +127,7 @@ class DesktopTrayController with TrayListener {
 
   Future<void> _popUpMenu() async {
     try {
+      // ignore: deprecated_member_use
       await TrayManager.instance.popUpContextMenu(bringAppToFront: true);
     } catch (error, stack) {
       AppLog.warning(
