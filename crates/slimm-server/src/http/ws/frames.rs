@@ -255,6 +255,10 @@ pub(super) enum ServerFrame {
         seq: i64,
         op_id: String,
         before_seq: i64,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
     },
     #[serde(rename = "canvas.objects.restored")]
     CanvasObjectsRestored {

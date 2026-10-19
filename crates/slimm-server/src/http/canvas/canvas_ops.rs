@@ -73,6 +73,10 @@ enum CanvasOpBodyDto {
     },
     Clear {
         before_seq: i64,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
     },
     Restore {
         target_op: String,
@@ -128,7 +132,11 @@ impl CanvasOpDto {
             CanvasOpBody::Remove(object_ids) => CanvasOpBodyDto::Remove {
                 object_ids: ids(object_ids),
             },
-            CanvasOpBody::Clear { before_seq } => CanvasOpBodyDto::Clear { before_seq },
+            CanvasOpBody::Clear { before_seq, scope } => CanvasOpBodyDto::Clear {
+                before_seq,
+                kinds: scope.kinds,
+                author_id: scope.author_id.map(|id| id.to_string()),
+            },
             CanvasOpBody::Restore {
                 target_op,
                 object_ids,

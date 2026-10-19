@@ -64,11 +64,14 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             seq,
             op_id,
             before_seq,
+            scope,
         } => ServerFrame::CanvasCleared {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             before_seq: before_seq.0,
+            kinds: scope.kinds.clone(),
+            author_id: scope.author_id.map(|id| id.to_string()),
         },
         Event::CanvasObjectsRestored {
             channel_id,

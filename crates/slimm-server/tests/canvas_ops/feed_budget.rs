@@ -265,7 +265,10 @@ async fn a_clear_writes_no_target_rows_and_costs_nothing_in_the_page_budget() {
             author,
             slimm_server::ids::CanvasOpId::generate(),
             true,
-            slimm_server::store::CanvasOpRequest::Clear { before_seq: latest },
+            slimm_server::store::CanvasOpRequest::Clear {
+                before_seq: latest,
+                scope: Default::default(),
+            },
         )
         .await
         .unwrap();

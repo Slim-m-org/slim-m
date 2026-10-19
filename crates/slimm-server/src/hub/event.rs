@@ -501,6 +501,7 @@ pub enum Event {
         seq: Seq,
         op_id: CanvasOpId,
         before_seq: Seq,
+        scope: crate::store::ClearScope,
     },
     /// A removal or a clear was undone.
     ///
