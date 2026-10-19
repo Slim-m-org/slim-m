@@ -126,8 +126,9 @@ Future<void> _pump(
   api.VoiceCallHistory? history,
   String? error,
   bool canRetry = true,
+  double? paneWidth,
 }) async {
-  tester.view.physicalSize = const Size(1100, 1100);
+  tester.view.physicalSize = const Size(1280, 1100);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
@@ -170,13 +171,19 @@ Future<void> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: VoiceChannelIdle(
-            channelId: 'voice-1',
-            onJoin: onJoin,
-            onOpenCanvas: () {},
-            errorMessage: error,
-            canRetry: canRetry,
-            clock: () => _now,
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: paneWidth,
+              child: VoiceChannelIdle(
+                channelId: 'voice-1',
+                onJoin: onJoin,
+                onOpenCanvas: () {},
+                errorMessage: error,
+                canRetry: canRetry,
+                clock: () => _now,
+              ),
+            ),
           ),
         ),
       ),
@@ -186,6 +193,33 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('the last call timeline labels never overlap in a narrow pane', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      onJoin: () {},
+      history: api.VoiceCallHistory(
+        retentionDays: 30,
+        canvasObjectCount: 0,
+        calls: [_history().calls.first],
+      ),
+      paneWidth: 436,
+    );
+    final labels = tester
+        .widgetList<Text>(find.byType(Text))
+        .where((t) => RegExp(r'^\d{1,2}:\d{2}\s[AP]M$').hasMatch(t.data ?? ''))
+        .map((t) => tester.getRect(find.byWidget(t)))
+        .toList();
+    expect(labels.length, greaterThan(1));
+    for (var i = 0; i < labels.length; i++) {
+      for (var j = i + 1; j < labels.length; j++) {
+        expect(labels[i].overlaps(labels[j]), isFalse);
+      }
+      expect(labels[i].right, lessThanOrEqualTo(436));
+    }
+  });
+
   testWidgets('the button joins, and says it joins muted', (tester) async {
     var joins = 0;
     await _pump(tester, onJoin: () => joins++, history: _history());
