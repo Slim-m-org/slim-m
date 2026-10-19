@@ -416,6 +416,27 @@ pub(crate) fn spawn_message_retention_sweep(
     });
 }
 
+/// Backlog the sweep lets a subscriber carry before it pauses publishing.
+const PUBLISH_BACKLOG_LIMIT: usize = hub::CHANNEL_CAPACITY / 4;
+/// How long one wait for the slowest subscriber may last before publishing resumes.
+const PUBLISH_BACKLOG_MAX_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+const PUBLISH_BACKLOG_POLL: std::time::Duration = std::time::Duration::from_millis(5);
+
+/// Pauses a bulk publisher while a subscriber is far behind, so a big prune
+/// cannot push one past [`hub::CHANNEL_CAPACITY`] and force it to resync.
+/// Returns false when the wait timed out, meaning a subscriber has stalled.
+async fn wait_for_publish_headroom(hub: &hub::Hub) -> bool {
+    if hub.durable_backlog() < PUBLISH_BACKLOG_LIMIT {
+        tokio::task::yield_now().await;
+        return true;
+    }
+    let deadline = tokio::time::Instant::now() + PUBLISH_BACKLOG_MAX_WAIT;
+    while hub.durable_backlog() >= PUBLISH_BACKLOG_LIMIT && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(PUBLISH_BACKLOG_POLL).await;
+    }
+    hub.durable_backlog() < PUBLISH_BACKLOG_LIMIT
+}
+
 /// One pass of the message retention sweep, callable without the timer.
 pub async fn run_message_retention_sweep_pass(
     store: &store::Store,
@@ -434,7 +455,10 @@ pub async fn run_message_retention_sweep_pass(
             }
             record_sweep_run(store, "message_retention", pruned_count as i64).await;
             crate::forward_events::publish_detached(store, hub, &swept.detached).await;
+            let mut paced = true;
             for message in swept.pruned {
+                // A stalled subscriber would cost the full wait per message, so stop pacing for it.
+                paced = paced && wait_for_publish_headroom(hub).await;
                 if message.was_pinned {
                     hub.publish(hub::Event::MessageUnpinned {
                         channel_id: message.channel_id,
