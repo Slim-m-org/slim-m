@@ -28,7 +28,8 @@ abstract interface class MicPort {
   /// can reopen it.
   Future<void> release();
 
-  /// Reopens a released capture and leaves it silent until the next unmute.
+  /// Opens the capture, or reopens a released one, and leaves it silent and
+  /// published as muted until the next unmute.
   Future<void> reopenMuted(lk.AudioCaptureOptions options);
 
   /// Reopens the capture with [options].
@@ -116,9 +117,24 @@ class LiveKitMicPort implements MicPort {
   @override
   Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
     final track = _publication?.track;
-    if (track == null) return;
+    if (track == null) return _publishMuted(options);
     await track.restartTrack(options);
     await track.disable();
+  }
+
+  /// Silent before it is published, so no sound leaves in the gap before the mute.
+  Future<void> _publishMuted(lk.AudioCaptureOptions options) async {
+    final participant = _room()?.localParticipant;
+    if (participant == null) return;
+    final track = await lk.LocalAudioTrack.create(options);
+    try {
+      await track.disable();
+      await participant.publishAudioTrack(track);
+    } catch (_) {
+      await track.stop();
+      rethrow;
+    }
+    await track.mute(stopOnMute: false);
   }
 
   @override

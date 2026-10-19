@@ -436,3 +436,23 @@ Push to talk keeps it open, and a phone releases it the moment the app is backgr
 
 Measured on Fedora with PipeWire, a bare livekit_client room with the gate and rnnoise on: libwebrtc's desktop engine already drops the PulseAudio source-output within 0.6 s of any mute, so on Linux the release changes nothing visible and costs the same ~25 ms to come back.
 The release matters where the track holds the device on its own: the web (the browser keeps the stream live while `enabled` is false) and the platforms where livekit_client starts the recording itself (iOS, macOS, Android), which is why `LiveKitMicPort.release` also asks the plugin to stop the recording there.
+
+## Update 2026-10-19: push to talk readies the device at join
+
+Push to talk already kept an open capture across presses, but a call that joined with push to talk on published no microphone track at all, so the first key down opened the device and published in one go.
+Now such a join (and turning push to talk on in a call with no track) opens the capture and publishes it muted, with the media track disabled before publishing so nothing is sent in the gap.
+The policy is: push to talk keeps the device open for the whole call, an ordinary mute keeps the 15 s grace and then releases it so the OS indicator goes off, and turning push to talk off starts that grace.
+A muted join without push to talk still opens nothing.
+The cost is that the OS microphone indicator stays on for the whole of a push-to-talk call; the Voice setting says so.
+No "release when muted" toggle was added: the reopen after the grace measured at no more than a first publish costs, and push to talk is already the opt-in for staying ready.
+
+Measured in headless Chrome against a local LiveKit 1.10.1 with livekit-client 2.15.0 (the web path, a proxy for Flutter web; native desktop was not measured), 15 runs each, time from the unmute call until the receiving page sees audio-sized packets:
+
+| Case | p50 | p95 |
+|---|---|---|
+| Unmute, device kept open | 52 ms | 53 ms |
+| Unmute, device released and reacquired | 52 ms | 53 ms |
+| First press, nothing published (before) | 143 ms | 144 ms |
+
+Chrome's fake capture device reopens instantly, so the reacquire row says nothing about real hardware or Bluetooth; the win measured here is the first publish, and it grows with the round trip to the SFU.
+The probe is `~/.slimm-scratch/tools/mic-open-probe/probe.mjs`.
