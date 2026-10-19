@@ -44,6 +44,7 @@ class AppSlider extends StatefulWidget {
     this.muted = false,
     this.ticks,
     this.semanticLabel,
+    this.autofocus = false,
   });
 
   final double value;
@@ -73,6 +74,9 @@ class AppSlider extends StatefulWidget {
   /// disagrees with where the thumb is.
   final List<String>? ticks;
   final String? semanticLabel;
+
+  /// Takes focus when it appears, so arrow keys move it at once.
+  final bool autofocus;
 
   @override
   State<AppSlider> createState() => _AppSliderState();
@@ -189,6 +193,7 @@ class _AppSliderState extends State<AppSlider> {
         max: widget.max,
         divisions: widget.divisions,
         focusNode: _focusNode,
+        autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         onChangeEnd: widget.onChangeEnd,
       ),
