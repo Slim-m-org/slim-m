@@ -310,7 +310,7 @@ void main() {
       await ctx.done();
     });
 
-    testWidgets('hide keeps the call, and the next navigation brings it back', (
+    testWidgets('a dismissed card stays dismissed for the whole call', (
       tester,
     ) async {
       final ctx = await pumpMini(
@@ -326,9 +326,11 @@ void main() {
         ctx.container.read(voiceControllerProvider).state,
         VoiceSessionState.connected,
       );
-      ctx.router.go('/channels/c-design');
-      await settleMini(tester);
-      expect(player, findsOneWidget);
+      for (final path in ['/channels/c-design', '/channels/c-general']) {
+        ctx.router.go(path);
+        await settleMini(tester);
+        expect(player, findsNothing, reason: path);
+      }
       await ctx.done();
     });
 

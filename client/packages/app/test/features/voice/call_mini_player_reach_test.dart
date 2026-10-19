@@ -5,7 +5,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_mini_player.dart';
@@ -13,6 +15,7 @@ import 'package:slimm_app/src/features/voice/widgets/focusable_video_press.dart'
 
 import '../../ui_snapshot_support.dart' show loadRealFonts;
 import 'call_mini_player_harness.dart';
+import 'voice_controller_harness.dart' show FixedVoiceController;
 
 void main() {
   setUpAll(loadRealFonts);
@@ -76,9 +79,32 @@ void main() {
     );
     await ctx.done();
   });
+
+  test('a dismissal is forgotten once the call ends, never before', () {
+    late _Settable call;
+    final container = ProviderContainer(
+      overrides: [
+        voiceControllerProvider.overrideWith(
+          (ref) => call = _Settable(ref, miniCall([remoteShare])),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(miniPlayerDismissedProvider.notifier).state = true;
+    call.set(miniCall([remoteShare, remoteQuiet]));
+    expect(container.read(miniPlayerDismissedProvider), isTrue);
+    call.set(const VoiceState());
+    expect(container.read(miniPlayerDismissedProvider), isFalse);
+  });
 }
 
 bool _onTheCard() =>
     FocusManager.instance.primaryFocus?.context
         ?.findAncestorWidgetOfExactType<FocusableVideoPress>() !=
     null;
+
+class _Settable extends FixedVoiceController {
+  _Settable(super.ref, super.fixed);
+
+  void set(VoiceState next) => state = next;
+}

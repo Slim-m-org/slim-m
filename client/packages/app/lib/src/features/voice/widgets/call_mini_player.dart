@@ -67,18 +67,12 @@ class CallMiniPlayerHost extends ConsumerStatefulWidget {
 }
 
 class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
-  /// The channel the user was on when they hid the player; the next channel
-  /// change clears it, so "hide" means "until I go somewhere else".
-  bool _hidden = false;
-  String? _hiddenOn;
-
   /// Set only while a finger holds the card; null means resting in a corner.
   Offset? _dragOrigin;
 
   @override
   Widget build(BuildContext context) {
     final selected = selectedChannelId(context);
-    if (_hidden && selected != _hiddenOn) _hidden = false;
 
     final (callState, callChannel) = ref.watch(
       voiceFlagsProvider.select((f) => (f.state, f.channelId)),
@@ -91,12 +85,14 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
               channelByIdProvider(selected).select((c) => c.valueOrNull?.kind),
             ) ==
             'voice';
+    final dismissed = ref.watch(miniPlayerDismissedProvider);
     final visible =
         callState == VoiceSessionState.connected &&
+        callChannel != null &&
         feed != null &&
         selected != callChannel &&
         !onVoicePage &&
-        !_hidden &&
+        !dismissed &&
         !widget.keyboardUp;
 
     return Stack(
@@ -179,10 +175,8 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
               feed: feed,
               compact: compact,
               onReturn: () => _returnToCall(callChannel),
-              onHide: () => setState(() {
-                _hidden = true;
-                _hiddenOn = selectedChannelId(context);
-              }),
+              onHide: () =>
+                  ref.read(miniPlayerDismissedProvider.notifier).state = true,
             ),
           ),
         ),
