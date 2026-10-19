@@ -40,6 +40,7 @@ import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
 import 'src/diagnostics/debug_log_persistence.dart';
+import 'src/diagnostics/voice_harness.dart';
 import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
@@ -115,6 +116,10 @@ Future<void> main([List<String> args = const []]) async {
   );
 
   runApp(AccountRoot(host: host));
+  final harnessTarget = kVoiceHarness ? harnessChannel(args) : null;
+  if (harnessTarget != null) {
+    unawaited(joinHarnessChannel(() => host.active!.container, harnessTarget));
+  }
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
   await DesktopWindowShell.lockSplashChrome();
