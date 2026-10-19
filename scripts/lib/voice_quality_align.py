@@ -15,7 +15,7 @@ SEGMENT = 2 * dsp.ANALYSIS_RATE
 # Wide enough for a concealment insertion, narrow enough to avoid pitch-period ambiguity.
 TRACK_RADIUS_MS = 25
 COARSE_DECIMATION = 4
-# Segments quieter than this carry the previous delay forward.
+# Segments quieter than this, in the recording or where the reference says they should be, carry the previous delay forward.
 MIN_ALIGN_DB = -50.0
 
 
@@ -81,7 +81,8 @@ def track(ref, rec):
         if len(part) < dsp.FRAME:
             break
         starts.append(start)
-        if dsp.rms_db(part) < MIN_ALIGN_DB:
+        reference = tiled[start + lag:start + lag + SEGMENT]
+        if dsp.rms_db(part) < MIN_ALIGN_DB or dsp.rms_db(reference) < MIN_ALIGN_DB:
             lags.append(lag)
             continue
         wide = radius * 3 if first else radius

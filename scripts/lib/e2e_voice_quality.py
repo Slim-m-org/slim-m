@@ -11,6 +11,7 @@ E2E_VQ_SECONDS. E2E_VQ_VARIANT names a row in VARIANTS, E2E_VQ_OUT the output.
 import base64
 import json
 import os
+import subprocess
 import time
 
 import e2e_audio
@@ -19,6 +20,7 @@ import e2e_labels as L
 import e2e_netem
 import e2e_voice_quality_js as js
 import make_quality_clip
+import make_speech_clip
 import voice_quality
 import voice_quality_dsp as dsp
 from e2e_voice import _tap_label
@@ -37,6 +39,27 @@ VARIANTS = {
     "bitrate96": {"_sender": {"maxBitrate": 96000}},
     "bitrate32-sender": {"_sender": {"maxBitrate": 32000}},
 }
+
+
+def write_clip(path, who):
+    """The reference clip: piper speech when available (it scores meaningfully), else the synthetic one."""
+    kind = os.environ.get("E2E_VQ_CLIPS", "speech")
+    if kind == "speech":
+        make_speech_clip.write(path, who, "speech")
+    else:
+        make_quality_clip.write(path, who)
+
+
+def score_mos(directory):
+    """DNSMOS per recording, run in the venv that has onnxruntime; skipped without it."""
+    python = os.environ.get("E2E_VQ_MOS_PYTHON") or os.path.expanduser(
+        "~/.slimm-scratch/mos-venv/bin/python")
+    if not os.path.exists(python):
+        print("  MOS skipped: no venv at", python)
+        return
+    here = os.path.dirname(os.path.abspath(__file__))
+    subprocess.run([python, os.path.join(here, "voice_quality_mos.py"), directory],
+                   check=True)
 
 
 def variant_name():
@@ -154,7 +177,7 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
     directory = out_dir()
     for who in "AB":
-        make_quality_clip.write(os.path.join(directory, f"clip-{who}.wav"), who)
+        write_clip(os.path.join(directory, f"clip-{who}.wav"), who)
     for user in ("vqa", "vqb"):
         e2e_browsers.register(server, admin_api, user, secret)
     script = _init_script(variant)
@@ -202,11 +225,14 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
                     _tap_label(client, L.LEAVE_CALL, settle=3)
     print(f"  selected ICE pair: {pair}")
     results = analyse_saved(directory)
+    score_mos(directory)
+    with open(os.path.join(directory, "results.json")) as fh:
+        results = json.load(fh)
     for profile, sides in results.items():
         for who, report in sides.items():
             print(f"  {profile:18} {who} sim {report['similarity']:.3f} "
                   f"{report['counts']} conceal "
-                  f"{report['stats'].get('concealedSamples')}")
+                  f"{report['stats'].get('concealedSamples')} mos {report.get('mos')}")
     clean = results.get("clean")
     if clean:
         for who, report in clean.items():

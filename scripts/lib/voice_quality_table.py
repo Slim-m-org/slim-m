@@ -20,7 +20,13 @@ def row(profile, sides):
     lost = sum(t.get("packetsLost", 0) for t in stats)
     delay = max(t.get("jitterBufferDelayMs", 0) for t in stats)
     kbps = sum(t.get("bitrateKbps", 0) for t in stats) / len(stats)
-    cells = [profile, f"{min(sims):.3f}"] + [str(counts[c]) for c in CLASSES]
+    mos = [s["mos"] for s in sides.values() if s.get("mos")]
+    got = [m["ovrl"] for m in mos if m.get("ovrl") is not None]
+    ref = [m["ovrl_reference"] for m in mos if m.get("ovrl_reference") is not None]
+    cells = [profile, f"{min(sims):.3f}",
+             f"{sum(got) / len(got):.2f}" if got else "-",
+             f"{sum(ref) / len(ref):.2f}" if ref else "-"]
+    cells += [str(counts[c]) for c in CLASSES]
     cells += [str(int(concealed)), str(int(events)), str(int(lost)), f"{delay:.0f}", f"{kbps:.1f}"]
     return "| " + " | ".join(cells) + " |"
 
@@ -28,7 +34,7 @@ def row(profile, sides):
 def table(directory):
     with open(os.path.join(directory, "results.json")) as fh:
         results = json.load(fh)
-    head = ["profile", "min similarity", *CLASSES, "concealed samples",
+    head = ["profile", "min similarity", "MOS", "MOS of the sent speech", *CLASSES, "concealed samples",
             "concealment events", "packets lost", "jitter buffer ms", "kbps"]
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     lines += [row(p, results[p]) for p in results]
