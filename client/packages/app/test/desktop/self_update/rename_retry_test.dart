@@ -13,7 +13,7 @@ void main() {
       'b',
       rename: (_, _) async {
         if (++attempts < 3) {
-          throw FileSystemException('busy', 'a', OSError('', 5));
+          throw const FileSystemException('busy', 'a', OSError('', 5));
         }
       },
       backoff: const [Duration(milliseconds: 40), Duration(milliseconds: 40)],

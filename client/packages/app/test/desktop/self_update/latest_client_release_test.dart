@@ -146,7 +146,7 @@ void main() {
   });
 
   test('a release found long ago is looked up again', () {
-    final found = ClientRelease(
+    const found = ClientRelease(
       tag: 'client-v1.2.3',
       version: '1.2.3',
       htmlUrl: null,
