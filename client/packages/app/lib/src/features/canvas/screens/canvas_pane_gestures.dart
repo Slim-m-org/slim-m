@@ -227,6 +227,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       selfId: me?.id,
       touch: AppTouchTargets.of(context),
     );
+    // Nothing of yours under the pointer: the pan tool pans, with one finger too.
+    if (_document.selectedObjectId.value == null) _dragPan.begin(world);
   }
 
   /// Aspect locks by default; holding Shift frees it. Read fresh on every
@@ -234,6 +236,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// mid-drag takes effect immediately rather than on the next gesture.
   /// Alt moves freely; touch has no modifier, so it always snaps.
   void _onSelectDrag(Offset world) {
+    if (_dragPan.active) return _dragPan.drag(world, _document);
     _ops.dragSelect(
       world,
       lockAspect: !HardwareKeyboard.instance.isShiftPressed,
@@ -245,6 +248,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onSelectEnd() async {
+    _dragPan.end();
     _objectPreview.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     _refresh();
