@@ -74,6 +74,14 @@ class ShareWatchController extends StateNotifier<ShareWatchState> {
     _applyBlocked(blockedShareKeys(state.stopped));
   }
 
+  /// Forgets every choice, for a call that has ended.
+  void clear() {
+    if (state.stopped.isEmpty && state.focused == null) return;
+    final blocked = state.stopped.isNotEmpty;
+    state = const ShareWatchState();
+    if (blocked) _applyBlocked(const {});
+  }
+
   /// A null [identity] returns to the grid.
   void focus(String? identity) =>
       state = ShareWatchState(stopped: state.stopped, focused: identity);
@@ -97,13 +105,22 @@ final shareWatchProvider =
         (keys) =>
             ref.read(voiceControllerProvider.notifier).setVideoBlocked(keys),
       );
-      ref.listen<List<VoiceParticipant>>(
-        voiceParticipantsProvider,
-        (_, participants) => controller.prune({
+      // A dropped call reports an empty roster; the choices wait for the one after the rejoin.
+      ref.listen<List<VoiceParticipant>>(voiceParticipantsProvider, (
+        _,
+        participants,
+      ) {
+        if (ref.read(voiceFlagsProvider).state != VoiceSessionState.connected) {
+          return;
+        }
+        controller.prune({
           for (final p in participants)
             if (p.isScreenSharing) p.identity,
-        }),
-        fireImmediately: true,
+        });
+      }, fireImmediately: true);
+      ref.listen<String?>(
+        voiceFlagsProvider.select((f) => f.channelId),
+        (_, _) => controller.clear(),
       );
       return controller;
     });

@@ -90,6 +90,9 @@ abstract final class AppIcons {
   static const IconData send = LucideIcons.send300;
   static const IconData reply = LucideIcons.reply300;
   static const IconData forward = LucideIcons.forward300;
+
+  /// Sending someone to another voice channel.
+  static const IconData moveToCall = LucideIcons.arrowRightLeft300;
   static const IconData thread = LucideIcons.messagesSquare300;
   static const IconData edit = LucideIcons.pencil300;
   static const IconData retry = LucideIcons.rotateCw300;
@@ -176,6 +179,9 @@ abstract final class AppIcons {
   static const IconData micOff = LucideIcons.micOff300;
   static const IconData headphones = LucideIcons.headphones300;
 
+  /// Someone who cannot hear the call: deafened, next to [micOff].
+  static const IconData headphonesOff = LucideIcons.headphoneOff300;
+
   /// What a member's activity line shows, by kind: listening to something, or
   /// playing a game. Presence copy, never a status dot.
   static const IconData listening = LucideIcons.headphones300;
@@ -247,6 +253,9 @@ abstract final class AppIcons {
   /// The canvas's text activity log: the accessibility fallback for a
   /// surface a screen reader otherwise cannot read at all.
   static const IconData activityLog = LucideIcons.history300;
+
+  /// Snapping moves to the canvas grid.
+  static const IconData snapToGrid = LucideIcons.grid2X2300;
 
   /// Jumps the canvas camera back to the world origin - the one route back
   /// short of closing and reopening the pane, see `worldLimit`'s own doc.

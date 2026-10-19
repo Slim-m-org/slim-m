@@ -26,10 +26,29 @@ mixin VoiceSessionAudioDevices {
   CaptureNoiseSuppression get _capture;
   MicPort get _mic;
   bool get supportsInputGate;
+  Future<void> _applyInputGate();
+  set _osMicBlocked(OsMicBlockProbe value);
 
   AudioDeviceSwitching _audioSwitching = AudioDeviceSwitching(
     HardwareAudioDevices(),
   );
+
+  /// The warm-up must know whether a call holds the devices; see [HardwareAudioDevices.inCall].
+  AudioDeviceSwitching _switchingFor(
+    AudioDevices? devices,
+    LiveOutputSwitch? liveOutput,
+    OsMicBlockProbe? osMicBlocked,
+  ) {
+    if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
+    return AudioDeviceSwitching(
+      devices ??
+          HardwareAudioDevices(
+            inCall: () => _room != null,
+            chosenInput: () => _audioSwitching.chosenInput,
+          ),
+      liveOutput: liveOutput,
+    );
+  }
 
   /// Whether picking a specific microphone actually changes the live call;
   /// see [AudioDeviceSwitching.supportsInputSelection].
@@ -41,6 +60,12 @@ mixin VoiceSessionAudioDevices {
   bool get supportsAudioOutputSelection =>
       _audioSwitching.supportsOutputSelection;
 
+  /// The id of the speaker playback is routed to, null for the system default.
+  String? get audioOutputInUse => _audioSwitching.outputInUse;
+
+  /// The id of the microphone capture is on, null for the system default.
+  String? get audioInputInUse => _audioSwitching.inputInUse;
+
   /// Fires when the platform's own device list changes, so a picker can
   /// refresh without polling.
   Stream<void> get audioDeviceChanges => _audioSwitching.onChange;
@@ -48,10 +73,18 @@ mixin VoiceSessionAudioDevices {
   /// A new stream starts on the sound server's default; this moves it onto
   /// the pick, now and again once playback has had a moment to open.
   void _followPreferredDevices() {
-    Future<void> apply() =>
-        _audioSwitching.applyServerRouting().catchError(ignoreError(
-            LogTag.voice,
-            'Could not move the call audio to the chosen device'));
+    // A reopened capture has no gate or suppressor on it until they are sent again.
+    unawaited(_applyInputGate());
+    Future<void> apply() async {
+      try {
+        await _audioSwitching.applyServerRouting();
+        await _audioSwitching.reapplyOutput(_room);
+      } catch (error, stack) {
+        AppLog.swallowed(LogTag.voice,
+            'Could not move the call audio to the chosen device', error, stack);
+      }
+    }
+
     unawaited(apply());
     unawaited(Future<void>.delayed(const Duration(seconds: 3), apply));
   }

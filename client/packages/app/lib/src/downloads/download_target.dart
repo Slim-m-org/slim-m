@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Where a download's bytes go as they arrive.
 ///
-/// On desktop that is the file the user picked in the Save dialog, written
-/// chunk by chunk so a multi-gigabyte attachment never sits in memory. Where
+/// On desktop that is a new file in the Downloads folder, written chunk by
+/// chunk so a multi-gigabyte attachment never sits in memory. Where
 /// the platform's save flow only takes bytes (phones, web) it is a buffer
 /// handed to that flow at the end.
 library;
@@ -29,7 +29,7 @@ abstract interface class DownloadTarget {
   Future<void> discard();
 }
 
-/// Asks the user where to save [filename]; null when they dismiss the dialog.
+/// Opens the place [filename] is saved to; null when the user declines a save step.
 typedef DownloadTargetOpener =
     Future<DownloadTarget?> Function(String filename);
 

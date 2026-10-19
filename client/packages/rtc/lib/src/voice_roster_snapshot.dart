@@ -17,6 +17,7 @@ List<VoiceParticipant> snapshotParticipants(
   lk.Room room, {
   double speakingSensitivity = 1.0,
   bool? localVoice,
+  bool localDeafened = false,
 }) {
   final next = <VoiceParticipant>[];
   final local = room.localParticipant;
@@ -27,6 +28,7 @@ List<VoiceParticipant> snapshotParticipants(
         isLocal: true,
         sensitivity: speakingSensitivity,
         voice: localVoice,
+        deafened: localDeafened,
       ),
     );
   }
@@ -43,6 +45,7 @@ VoiceParticipant _toParticipant(
   required bool isLocal,
   required double sensitivity,
   bool? voice,
+  bool? deafened,
 }) {
   final audio = p.audioTrackPublications;
   final muted = audio.isEmpty || audio.every((t) => t.muted);
@@ -62,8 +65,14 @@ VoiceParticipant _toParticipant(
     isScreenSharing: isSharingScreen(p),
     isCameraOn: hasCameraTrack(p),
     audioLevel: p.audioLevel,
+    // The local flag is known at once; the attribute only comes back from the server.
+    isDeafened: deafened ?? deafenedFromAttributes(p.attributes),
   );
 }
+
+/// Whether a participant's published attributes say they are deafened.
+bool deafenedFromAttributes(Map<String, String> attributes) =>
+    attributes[kDeafenedAttribute] == 'true';
 
 /// Whether a participant shows as speaking. [voice], the local input gate's
 /// own reading, wins over the SFU's lagging report whenever it is known.

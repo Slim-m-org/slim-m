@@ -23,6 +23,7 @@ import '../providers/providers.dart';
 import 'relaunch.dart';
 import 'rpm_updater.dart';
 import 'self_update/self_update_controller.dart';
+import 'self_update/self_update_failure.dart';
 import 'startup_screen.dart';
 import 'startup_state.dart';
 import 'update_check.dart';
@@ -38,6 +39,10 @@ Future<void> _realRelaunch() async {
   exit(0);
 }
 
+/// How long the splash may spend checking and installing before it gives up
+/// and starts the version already installed.
+const startupUpdateDeadline = Duration(minutes: 5);
+
 /// The splash's whole update pass. [container] carries the providers the
 /// splash renders from; every other parameter is a seam for tests.
 Future<void> runStartupUpdates(
@@ -48,6 +53,7 @@ Future<void> runStartupUpdates(
   InstallFormat? format,
   String? currentVersion,
   bool? selfApplies,
+  Duration deadline = startupUpdateDeadline,
 }) async {
   if (!isDesktopHost || updateChecksDisabled()) return;
   try {
@@ -58,7 +64,10 @@ Future<void> runStartupUpdates(
         'Checking for updates';
     final version =
         currentVersion ?? (await PackageInfo.fromPlatform()).version;
-    final update = await check(currentVersion: version, format: format);
+    final update = await check(
+      currentVersion: version,
+      format: format,
+    ).timeout(deadline);
     if (update == null) return;
 
     if (update.format == InstallFormat.rpm) {
@@ -67,7 +76,7 @@ Future<void> runStartupUpdates(
     }
     if (update.format == InstallFormat.tarball &&
         (selfApplies ?? selfApplyTarget() != null)) {
-      await _installInPlace(container, version, update, relaunch);
+      await _installInPlace(container, version, update, relaunch, deadline);
       return;
     }
     await _offerManually(container, update);
@@ -124,12 +133,26 @@ Future<void> _installInPlace(
   String currentVersion,
   ClientUpdate update,
   Relaunch relaunch,
+  Duration deadline,
 ) async {
   container.read(startupStatusProvider.notifier).state =
       'Installing ${update.version}';
-  final installed = await container
-      .read(selfUpdateProvider)
-      .install(currentVersion: currentVersion);
+  final String? installed;
+  try {
+    installed = await container
+        .read(selfUpdateProvider)
+        .install(currentVersion: currentVersion)
+        .timeout(deadline);
+  } on TimeoutException {
+    container
+        .read(selfUpdateFailureProvider.notifier)
+        .state = const SelfUpdateFailure(
+      SelfUpdateFailureKind.downloadFailed,
+      'The update was taking too long, so slim-m started without it. '
+      'It will pick up where it left off next time.',
+    );
+    return;
+  }
   if (installed == null) return;
   container.read(startupStatusProvider.notifier).state =
       'Restarting into $installed';

@@ -11,6 +11,8 @@
 /// state instead of one more field threaded through an already-large parent.
 library;
 
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -23,7 +25,9 @@ import 'canvas_bar.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_follow_controls.dart';
 import 'canvas_hidden_tiles.dart';
+import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
@@ -94,10 +98,19 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onToggleFullscreen,
     this.callDock,
     this.participantMenuItemsBuilder,
+    this.onSelectTap,
+    this.onEditNote,
+    this.noteSpans,
+    this.noteSpansRevision = 0,
+    this.noteEditor,
+    this.viewRelay,
   });
 
   final String channelId;
   final VoidCallback onClose;
+
+  /// Follow and bring-everyone; null hides both.
+  final CanvasViewRelay? viewRelay;
   final CanvasTool tool;
   final ValueChanged<CanvasTool> onToolChanged;
   final bool canUndo;
@@ -139,6 +152,18 @@ class CanvasPaneBody extends StatefulWidget {
   final ValueChanged<Offset> onSelectStart;
   final ValueChanged<Offset> onSelectDrag;
   final VoidCallback onSelectEnd;
+
+  /// A select gesture that was a tap rather than a drag; see
+  /// [CanvasSurface.onSelectTap].
+  final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
+  final ValueChanged<String>? onEditNote;
+
+  /// Styles a note's text, and the revision that says when it changed.
+  final NoteSpanBuilder? noteSpans;
+  final int noteSpansRevision;
+
+  /// The in-place note editor while one is open, drawn over the surface.
+  final Widget? noteEditor;
   final ValueChanged<Offset> onNotePlace;
   final ShapePlaced onShapePlace;
 
@@ -299,10 +324,22 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 child: Stack(
                   children: [
                     _activityLogOpen ? _panel() : _surface(tokens),
-                    if (!_activityLogOpen)
+                    if (!_activityLogOpen && widget.viewRelay == null)
                       CanvasPresenceRoster(
                         callParticipants: widget.callParticipants,
                         cursors: widget.cursors,
+                      ),
+                    if (!_activityLogOpen &&
+                        widget.viewRelay != null &&
+                        widget.cursors != null)
+                      CanvasFollowControls(
+                        relay: widget.viewRelay!,
+                        cursors: widget.cursors!,
+                        participants: widget.callParticipants,
+                        selfId: widget.selfId,
+                        onBringEveryone: () => widget.viewRelay!.summonEveryone(
+                          widget.document.visibleBoard ?? canvasBoard,
+                        ),
                       ),
                     Align(
                       alignment: Alignment.bottomCenter,
@@ -407,7 +444,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     child: Stack(
       children: [
         // Below everything, including CanvasPresenceBackdrop - a grid line must never paint over a sent-to-back tile's own video, the bug this ordering fixes.
-        CanvasGridLayer(document: widget.document, line: tokens.borderSubtle),
+        CanvasGridLayer(
+          document: widget.document,
+          line: tokens.borderSubtle,
+          letterbox: tokens.surfaceSunken,
+        ),
         // Before CanvasSurface, so a sent-to-back tile's own pixels sit under real ink - see canvas_presence_layer.dart's own doc for why its controls stay in the layer below regardless.
         CanvasPresenceBackdrop(
           document: widget.document,
@@ -432,9 +473,12 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           selectionOutline: tokens.accentFill,
           selectionHandleFill: tokens.surfaceRaised,
           selectionHandleBorder: tokens.accentFill,
+          touchHandles: AppTouchTargets.of(context),
           noteColor: AppCanvasColors.note,
           shapeColor: AppCanvasColors.shape,
           noteTextInk: tokens.textPrimary,
+          noteSpans: widget.noteSpans,
+          noteSpansRevision: widget.noteSpansRevision,
           onStroke: widget.onStroke,
           tool: widget.tool,
           onErase: widget.onErase,
@@ -442,6 +486,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           onSelectStart: widget.onSelectStart,
           onSelectDrag: widget.onSelectDrag,
           onSelectEnd: widget.onSelectEnd,
+          onSelectTap: widget.onSelectTap,
           onNotePlace: widget.onNotePlace,
           onShapePlace: widget.onShapePlace,
           shapeKind: widget.shapeKind,
@@ -468,6 +513,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           onDeleteSelected: widget.onDeleteSelected,
           onPasteImageAt: widget.onPasteImageAt,
           onAddNoteAt: widget.onNotePlace,
+          onEditNote: widget.onEditNote,
           canDraw: !canvasErrorBlocksDrawing(widget.error),
           onRecenter: widget.onRecenter,
         ),
@@ -489,6 +535,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
           resolver: _presenceFrames,
         ),
+        ?widget.noteEditor,
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.
         CanvasWorldEdgeGlow(
           document: widget.document,

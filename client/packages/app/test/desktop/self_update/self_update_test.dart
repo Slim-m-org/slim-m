@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:slimm_app/src/desktop/self_update/latest_client_release.dart';
 import 'package:slimm_app/src/desktop/self_update/self_update.dart';
 import 'package:slimm_app/src/desktop/self_update/self_update_failure.dart';
 import 'package:slimm_app/src/desktop/self_update/update_download.dart';
@@ -118,6 +119,8 @@ Future<_FakeClient> _server(
 }
 
 void main() {
+  setUp(forgetLatestClientRelease);
+
   late Directory staging;
   late SimpleKeyPair key;
   late String pub;

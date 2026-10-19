@@ -167,4 +167,36 @@ void main() {
       expect(bot('!!wa', const ['!', '!!'])!.prefix, '!!');
     });
   });
+
+  group('a bot command option', () {
+    const triggers = {'!deals'};
+    AutocompleteQuery? option(String text, [int? caret]) =>
+        autocompleteQueryAt(text, caret ?? text.length, botTriggers: triggers);
+
+    test('opens once a space follows a command with choices', () {
+      final q = option('!deals ')!;
+      expect(q.kind, AutocompleteKind.botOption);
+      expect(q.command, '!deals');
+      expect(q.argIndex, 0);
+      expect(q.term, '');
+      expect(q.start, 7);
+    });
+
+    test('filters by the word under the caret', () {
+      final q = option('!Deals ste')!;
+      expect(q.term, 'ste');
+      expect(q.start, 7);
+      expect(q.end, 10);
+    });
+
+    test('counts the words before the caret as the option index', () {
+      expect(option('!deals steam ')!.argIndex, 1);
+      expect(option('!deals steam gog')!.argIndex, 1);
+    });
+
+    test('is not a trigger for a command without a choice list', () {
+      expect(option('!ping '), isNull);
+      expect(option('!deals'), isNull);
+    });
+  });
 }

@@ -95,6 +95,11 @@ STOP_SHARING = "Stop sharing"
 MUTE = "Mute"
 UNMUTE = "Unmute"
 LEAVE_CALL = "Leave call"
+# A share hidden from its tile menu, and shown again from the person's (participant_stream_menu.dart).
+HIDE_STREAM = "Hide stream"
+SHOW_STREAM = "Show stream"
+# The mini-player's video, once you leave the call's channel (call_mini_player.dart).
+RETURN_TO_CALL = "Return to the call"
 
 # Calling in a DM
 START_DM = "Message"
@@ -125,7 +130,7 @@ MENU_SELECT = "Select messages"
 MENU_REPORT = "Report message"
 MENU_BLOCK = "Block user"
 QUICK_REACTIONS = ("Thumbs up", "Heart", "Laughing", "Celebrate", "Eyes")
-MENU_VERBS = ("Copy text", "Copy link", "Forward message", "Save message",
+MENU_VERBS = ("Copy text", "Copy message link", "Forward message", "Save message",
               "Pin")
 MENU_SECOND_PAGE = (MENU_SELECT, MENU_REPORT, MENU_BLOCK)
 
@@ -145,6 +150,10 @@ SHAPE_TOOL = "Shape"
 ERASER_TOOL = "Eraser"
 PAN_TOOL = "Pan"
 UNDO = "Undo"
+CLOSE_MEMBER_LIST = "Close member list"
+BRING_EVERYONE = "Bring everyone to me"
+FIT_VIEW = "Fit view"
+FOLLOW_PREFIX = "Follow "
 MORE_CANVAS_ACTIONS = "More canvas actions"
 SHOW_ACTIVITY_LOG = "Show activity log"
 HIDE_ACTIVITY_LOG = "Hide activity log"

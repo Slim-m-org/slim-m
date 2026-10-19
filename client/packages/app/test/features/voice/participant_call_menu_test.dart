@@ -137,21 +137,17 @@ void main() {
     },
   );
 
-  testWidgets(
-    'volume is offered on a platform that supports it - FakeSession answers '
-    'true - and opens a popover naming the participant',
-    (tester) async {
-      final wired = _wire();
-      await tester.pumpWidget(_harness(wired.container, _remote));
+  testWidgets('volume is the slider itself, first in the menu, not a row', (
+    tester,
+  ) async {
+    final wired = _wire();
+    await tester.pumpWidget(_harness(wired.container, _remote));
 
-      expect(find.text('Volume...'), findsOneWidget);
-
-      await tester.tap(find.text('Volume...'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Volume for maya'), findsOneWidget);
-    },
-  );
+    expect(find.text('Volume...'), findsNothing);
+    expect(find.byType(AppSlider), findsOneWidget);
+    final slider = tester.getTopLeft(find.byType(AppSlider)).dy;
+    expect(slider, lessThan(tester.getTopLeft(find.text('Mute for me')).dy));
+  });
 
   testWidgets('view profile is absent without a matching member', (
     tester,

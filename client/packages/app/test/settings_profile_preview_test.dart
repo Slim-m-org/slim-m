@@ -13,6 +13,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_profile_preview.dart';
+import 'package:slimm_app/src/features/members/widgets/profile_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'support/fake_api.dart';
@@ -74,10 +75,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('@nc1107'), findsOneWidget);
-    final banner = tester.widget<Container>(
+    final banner = tester.widget<ProfileBanner>(
       find.byKey(const Key('profile-preview-banner')),
     );
-    expect(banner.color, AppCanvasColors.cursors[3]);
+    expect(banner.colour, AppCanvasColors.cursors[3]);
 
     await tester.enterText(find.byType(EditableText).at(0), 'she/her');
     await tester.enterText(find.byType(EditableText).at(1), 'Hello there');

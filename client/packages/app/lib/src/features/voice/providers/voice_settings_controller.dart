@@ -8,11 +8,13 @@ library;
 
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../audio/lounge_tracks.dart';
 
 import '../../../providers/providers.dart';
+import 'shortcut_overrides.dart' show kDefaultPushToTalkKey;
 import 'voice_controller.dart';
 
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
@@ -145,7 +147,7 @@ class VoiceSettingsState {
     this.cameraQuality = CameraQuality.balanced,
     this.cameraOnJoin = false,
     this.pushToTalkEnabled = false,
-    this.pushToTalkKey = LogicalKeyboardKey.keyV,
+    this.pushToTalkKey = kDefaultPushToTalkKey,
     this.voiceActivitySensitivity = 100.0,
     this.inputThresholdDb = kDefaultInputThresholdDb,
     this.inputThresholdAuto = false,
@@ -291,6 +293,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     final prefs = await _ref.read(preferencesProvider.future);
     final storedQuality = prefs.getString(_qualityKey);
     final storedKeyId = prefs.getInt(_pushToTalkKeyIdKey);
+    if (prefs.getBool(_pushToTalkEnabledKey) ?? false) {
+      AppLog.info(
+        LogTag.voice,
+        'Push-to-talk is on: read from stored settings',
+      );
+    }
     state = state.copyWith(
       joinLeaveSoundsEnabled: prefs.getBool(_soundsKey) ?? true,
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
@@ -311,7 +319,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
       // Any key a person picked; `V` for voice until they pick one.
       pushToTalkKey: storedKeyId == null
-          ? LogicalKeyboardKey.keyV
+          ? kDefaultPushToTalkKey
           : LogicalKeyboardKey.findKeyByKeyId(storedKeyId) ??
                 LogicalKeyboardKey.keyV,
       voiceActivitySensitivity: prefs.getDouble(_sensitivityKey) ?? 100.0,
@@ -449,6 +457,10 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   /// a call may already be open, so enabling must close its mic now rather
   /// than only affecting the next launch's [VoiceController.restorePushToTalkPreference].
   Future<void> setPushToTalkEnabled(bool enabled) async {
+    AppLog.info(
+      LogTag.voice,
+      'Push-to-talk turned ${enabled ? 'on' : 'off'} by the settings toggle',
+    );
     state = state.copyWith(pushToTalkEnabled: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_pushToTalkEnabledKey, enabled);

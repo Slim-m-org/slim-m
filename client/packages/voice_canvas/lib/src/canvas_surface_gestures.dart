@@ -5,6 +5,9 @@ part of 'canvas_surface.dart';
 /// as a tap rather than a drag - see [_CanvasSurfaceGestures._resolveShapeDrag].
 const double _shapeDragThreshold = 4.0;
 
+/// How far, in screen pixels, a select gesture may travel and still be a tap.
+const double _selectTapSlop = 6.0;
+
 /// Every pointer, scroll and scale handler [_CanvasSurfaceState.build]
 /// wires up, plus the coordinate conversion and cursor choice they share.
 /// A `part of` file rather than a mixin: the eraser and placement tools
@@ -69,6 +72,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       return;
     }
     if (_totalPointers > 1) {
+      _selectDownAt = null;
       final hadDraft = !_draft.isEmpty;
       _draft.cancel();
       if (hadDraft) widget.onDraftEnded?.call();
@@ -77,10 +81,15 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       return;
     }
     if (!widget.enabled) return;
+    if (widget.tool.placesInk &&
+        !widget.document.acceptsPlacementAt(_toWorld(event.localPosition))) {
+      return;
+    }
     switch (widget.tool) {
       case CanvasTool.eraser:
         _pendingErasePoint = _toWorld(event.localPosition);
       case CanvasTool.pan:
+        _selectDownAt = event.localPosition;
         widget.onSelectStart?.call(_toWorld(event.localPosition));
       case CanvasTool.note:
         _pendingPlacementTool = CanvasTool.note;
@@ -127,6 +136,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         widget.onErase?.call(_toWorld(event.localPosition));
       case CanvasTool.pan:
+        if (_selectDownAt case final down? when _movedPastTap(down, event)) {
+          _selectDownAt = null;
+        }
         widget.onSelectDrag?.call(_toWorld(event.localPosition));
       case CanvasTool.note:
         break;
@@ -137,6 +149,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         widget.onDraftPoint?.call(_toWorld(event.localPosition));
     }
   }
+
+  bool _movedPastTap(Offset down, PointerEvent event) =>
+      (event.localPosition - down).distance > _selectTapSlop;
 
   /// A touch or pen has no hover, so lifting it is leaving the canvas.
   void _reportLeftIfTouch(PointerEvent event) {
@@ -173,7 +188,13 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         if (_totalPointers == 0) widget.onEraseEnd?.call();
       case CanvasTool.pan:
-        if (_totalPointers == 0) widget.onSelectEnd?.call();
+        if (_totalPointers != 0) return;
+        final tapAt = _selectDownAt;
+        _selectDownAt = null;
+        widget.onSelectEnd?.call();
+        if (tapAt != null && !_movedPastTap(tapAt, event)) {
+          widget.onSelectTap?.call(_toWorld(event.localPosition), event.kind);
+        }
       case CanvasTool.note:
       case CanvasTool.shape:
         break;
@@ -183,7 +204,11 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         widget.onDraftEnded?.call();
         // A single point still commits: it paints as a dot, not nothing.
         if (screen.length < 2 && !wasAlone) return;
-        widget.onStroke(screen.map(_toWorld).toList(growable: false));
+        widget.onStroke(
+          screen
+              .map((p) => widget.document.clampToBoard(_toWorld(p)))
+              .toList(growable: false),
+        );
     }
   }
 
@@ -199,6 +224,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
     _pendingPlacementTool = null;
     _pendingPlacementWorld = null;
+    _selectDownAt = null;
     _shapeDraft.cancel();
     _pendingErasePoint = null;
     switch (widget.tool) {
@@ -373,8 +399,19 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// would drift the day only one changed; this is the one place either
   /// caller reads it from.
   void _signal(PointerSignalEvent event) {
-    if (event is! PointerScrollEvent) return;
     final document = widget.document;
+    // On the web a ctrl-wheel or trackpad pinch arrives as a scale event, never as a scroll.
+    if (event is PointerScaleEvent) {
+      document.setCamera(
+        cameraAfterZoom(
+          document.camera,
+          focal: event.localPosition,
+          zoomTarget: document.camera.zoom * event.scale,
+        ),
+      );
+      return;
+    }
+    if (event is! PointerScrollEvent) return;
     final keys = HardwareKeyboard.instance;
     document.setCamera(
       cameraAfterWheelScroll(

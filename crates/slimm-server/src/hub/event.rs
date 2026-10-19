@@ -586,6 +586,21 @@ pub enum Event {
         h: f64,
         ended: bool,
     },
+    /// The part of the shared board a member is looking at, in world units.
+    ///
+    /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, a
+    /// missed one is corrected by the next. `summon` asks every receiver to
+    /// jump to this view once ("bring everyone to me"); without it the frame
+    /// only matters to members following `user_id`.
+    CanvasView {
+        channel_id: ChannelId,
+        user_id: UserId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        summon: bool,
+    },
     /// A placed object was repositioned.
     ///
     /// Carries the whole new box, the same reason [`Event::CanvasObjectPlaced`]
@@ -624,6 +639,17 @@ pub enum Event {
         op_id: CanvasOpId,
         object_id: CanvasObjectId,
         z_index: i64,
+    },
+    /// A note's props were replaced (decision 0072). Carries the whole new
+    /// props so a receiver repaints without a refetch; the actor is absent for
+    /// the reason [`Event::CanvasObjectMoved`] gives, since editing another
+    /// member's note needs `MANAGE_CANVAS`.
+    CanvasObjectEdited {
+        channel_id: ChannelId,
+        seq: Seq,
+        op_id: CanvasOpId,
+        object_id: CanvasObjectId,
+        props: String,
     },
     /// A participant's camera or screen-share tile was moved, resized,
     /// locked or sent to the back - decision 0010's reversal, which made
@@ -725,6 +751,17 @@ pub enum Event {
         device_name: String,
         client_kind: Option<String>,
         signed_in_at: i64,
+    },
+    /// A moderator moved `user_id` from one call to another. Private to the
+    /// moved account, whose clients switch rooms; everyone else learns of it
+    /// from the ordinary join and leave events.
+    VoiceMoved {
+        user_id: UserId,
+        from_channel_id: ChannelId,
+        to_channel_id: ChannelId,
+        to_channel_name: String,
+        moved_by_id: UserId,
+        moved_by_name: String,
     },
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.

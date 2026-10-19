@@ -17,16 +17,25 @@ typedef LiveInputSwitch = Future<void> Function(
   lk.MediaDevice device,
 );
 
+/// Points a live [lk.Room]'s playback at [device]; a seam like [LiveInputSwitch].
+typedef LiveOutputSwitch = Future<void> Function(
+  lk.Room room,
+  lk.MediaDevice device,
+);
+
 class AudioDeviceSwitching {
   AudioDeviceSwitching(
     this._devices, {
     LiveInputSwitch? liveInput,
+    LiveOutputSwitch? liveOutput,
     PulseAudio? pulse,
   })  : _liveInput = liveInput ?? switchLiveInput,
+        _liveOutput = liveOutput ?? _switchLiveOutput,
         _pulse = pulse ?? PulseAudio();
 
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
+  final LiveOutputSwitch _liveOutput;
 
   /// Applies a pick that came from the sound server's list rather than
   /// libwebrtc's; see `pulse_audio_io.dart`.
@@ -91,6 +100,15 @@ class AudioDeviceSwitching {
         stopAudioCaptureOnMute: false,
       );
 
+  /// The microphone the person chose, kept while it is unplugged.
+  String? get chosenInput => _chosenInputId;
+
+  /// The microphone in use now, or null for the system default.
+  String? get inputInUse => _preferredInputId;
+
+  /// The speaker in use now, or null for the system default.
+  String? get outputInUse => _preferredOutputId;
+
   /// Whether the capture rides whatever the system default microphone is.
   bool get followsSystemDefaultInput => _preferredInputId == null;
 
@@ -130,6 +148,15 @@ class AudioDeviceSwitching {
     }
   }
 
+  /// Whether the chosen microphone is absent from a list that names others.
+  /// An empty list says nothing, and one read can be partial mid-change.
+  Future<bool> chosenInputMissing() async {
+    final chosen = _chosenInputId;
+    if (chosen == null) return false;
+    final listed = await inputs();
+    return listed.isNotEmpty && resolveAudioDevice(listed, chosen) == null;
+  }
+
   /// Falls back to the system default for a chosen microphone or speaker that
   /// is not plugged in, so the next [roomOptions] does not ask the browser for
   /// a device it would refuse. True when the microphone in use was the one
@@ -146,8 +173,13 @@ class AudioDeviceSwitching {
   ) async {
     final inputs = await this.inputs();
     final outputs = await this.outputs();
-    final input = resolveAudioDevice(inputs, _chosenInputId)?.id;
-    final output = resolveAudioDevice(outputs, _chosenOutputId)?.id;
+    // An empty list is a platform that has not enumerated yet, not an unplugged headset.
+    final input = inputs.isEmpty
+        ? _preferredInputId
+        : resolveAudioDevice(inputs, _chosenInputId)?.id;
+    final output = outputs.isEmpty
+        ? _preferredOutputId
+        : resolveAudioDevice(outputs, _chosenOutputId)?.id;
     final result = (
       inputDropped: _preferredInputId != null && input == null,
       inputRestored: _preferredInputId == null && input != null,
@@ -236,8 +268,24 @@ class AudioDeviceSwitching {
       await _pulse.moveOwnStreams(capture: false, deviceId: target.id);
       return;
     }
-    await room.setAudioOutputDevice(_asMediaDevice(target, 'audiooutput'));
+    await _liveOutput(room, _asMediaDevice(target, 'audiooutput'));
   }
+
+  /// Opening the microphone makes the native plugin select the default
+  /// speaker again, so the pick is applied once more after every open.
+  /// Server nodes are moved by [applyServerRouting] instead.
+  Future<void> reapplyOutput(lk.Room? room) async {
+    final id = _preferredOutputId;
+    if (room == null || id == null || isPulseDeviceId(id)) return;
+    if (!supportsOutputSelection) return;
+    final device = resolveAudioDevice(await outputs(), id);
+    if (device != null) {
+      await _liveOutput(room, _asMediaDevice(device, 'audiooutput'));
+    }
+  }
+
+  static Future<void> _switchLiveOutput(lk.Room room, lk.MediaDevice device) =>
+      room.setAudioOutputDevice(device);
 
   lk.MediaDevice _asMediaDevice(AudioDevice device, String kind) =>
       lk.MediaDevice(device.id, device.label, kind, device.groupId);

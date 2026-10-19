@@ -13,7 +13,8 @@ _MOUSE = "Input.dispatchMouseEvent"
 _KEY = "Input.dispatchKeyEvent"
 _SHIFT = 8
 _CTRL = 2
-_CODES = {"Tab": 9, "Enter": 13, "Escape": 27, "Backspace": 8, "a": 65}
+_CODES = {"Tab": 9, "Enter": 13, "Escape": 27, "Backspace": 8, "a": 65,
+          "ArrowLeft": 37, "ArrowRight": 39}
 # Longer than Flutter's long-press threshold, shorter than a test would notice.
 HOLD_SECONDS = 1.0
 

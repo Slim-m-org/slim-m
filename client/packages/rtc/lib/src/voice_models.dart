@@ -71,6 +71,9 @@ enum VoiceDisconnect {
 /// Deliberately a plain value rather than a LiveKit participant: the UI needs
 /// an identity, a name, and three booleans, and handing it a live SDK object
 /// would let a widget subscribe to something this class is supposed to own.
+/// The participant attribute that marks a deafened listener.
+const String kDeafenedAttribute = 'deafened';
+
 class VoiceParticipant {
   const VoiceParticipant({
     required this.identity,
@@ -81,6 +84,7 @@ class VoiceParticipant {
     required this.isScreenSharing,
     this.isCameraOn = false,
     this.audioLevel = 0,
+    this.isDeafened = false,
   });
 
   /// The server's user id. The token's `sub`, so it is trustworthy.
@@ -103,6 +107,10 @@ class VoiceParticipant {
   /// refreshed with its active-speaker updates rather than per audio frame.
   final double audioLevel;
 
+  /// Whether they cannot hear the call; published by the server as a
+  /// participant attribute, see [kDeafenedAttribute].
+  final bool isDeafened;
+
   @override
   bool operator ==(Object other) =>
       other is VoiceParticipant &&
@@ -113,7 +121,8 @@ class VoiceParticipant {
       other.isLocal == isLocal &&
       other.isScreenSharing == isScreenSharing &&
       other.isCameraOn == isCameraOn &&
-      other.audioLevel == audioLevel;
+      other.audioLevel == audioLevel &&
+      other.isDeafened == isDeafened;
 
   @override
   int get hashCode => Object.hash(
@@ -125,6 +134,7 @@ class VoiceParticipant {
         isScreenSharing,
         isCameraOn,
         audioLevel,
+        isDeafened,
       );
 }
 

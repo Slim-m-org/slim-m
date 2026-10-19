@@ -101,6 +101,7 @@ class ParticipantVolumeControl extends StatefulWidget {
     required this.controller,
     this.showLabel = true,
     this.channel = LocalAudioChannel.voice,
+    this.autofocus = false,
   });
 
   final String identity;
@@ -111,6 +112,9 @@ class ParticipantVolumeControl extends StatefulWidget {
 
   /// Off where a title above already names whose volume this is.
   final bool showLabel;
+
+  /// On where the slider is the first thing a just-opened menu offers.
+  final bool autofocus;
 
   @override
   State<ParticipantVolumeControl> createState() =>
@@ -192,6 +196,7 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
             min: 0,
             max: kMaxParticipantVolume * 100,
             semanticLabel: _label,
+            autofocus: widget.autofocus,
             muted: muted,
             onChanged: (next) => _setVolume(next / 100),
             onChangeEnd: (next) => _setVolume(next / 100, commit: true),

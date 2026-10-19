@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT name, description, usage, permission, options\n             FROM bot_commands WHERE bot_user_id = ? ORDER BY position ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "description",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "usage",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "permission",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "options",
+        "ordinal": 4,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b8c3554797a53f791f748e60d28cfe59f3d4e6dd15b850d14686e64494bed7af"
+}

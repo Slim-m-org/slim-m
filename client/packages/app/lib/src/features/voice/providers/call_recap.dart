@@ -58,7 +58,7 @@ class CallRecap {
   bool get wasAlone => others.isEmpty;
 
   /// Below this, a call is too short to be worth a summary; see [isWorthShowing].
-  static const minWorthwhileDuration = Duration(minutes: 5);
+  static const minWorthwhileDuration = Duration(seconds: 30);
 
   /// A short call is noise, not a summary - asked once here rather than
   /// re-derived at every render site. A solo call past the floor still
@@ -66,6 +66,15 @@ class CallRecap {
   /// call, and its own duration and activity are worth reporting.
   bool get isWorthShowing => duration >= minWorthwhileDuration;
 }
+
+/// `Kiki`, `Kiki and Ann`, `Kiki and 2 others`; empty when nobody else was there.
+String callCompanyLabel(List<CallParticipantActivity> others) =>
+    switch (others.length) {
+      0 => '',
+      1 => others.first.name,
+      2 => '${others[0].name} and ${others[1].name}',
+      _ => '${others.first.name} and ${others.length - 1} others',
+    };
 
 class _Span {
   const _Span({

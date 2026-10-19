@@ -130,6 +130,8 @@ extension SyncControllerCatchUp on SyncController {
       return isCurrent() ? false : null;
     }
     await store.applyMessages(delta.messages);
+    if (!isCurrent()) return null;
+    _ref.read(messageExtrasProvider.notifier).applyMessages(delta.messages);
 
     // After the messages: an edit cannot precede the message it names.
     if (delta.opLatestSeq != null) {

@@ -17,13 +17,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/dock_reservation.dart';
 
 class DockHeightReporter extends ConsumerStatefulWidget {
-  const DockHeightReporter({super.key, required this.child, this.onHeight});
+  const DockHeightReporter({
+    super.key,
+    required this.child,
+    this.onHeight,
+    this.reservation,
+  });
 
   final Widget child;
 
   /// Told the measured height instead of the shared reservation, for a dock
   /// whose only reader is its own screen and not the shell's snackbars.
   final ValueChanged<double>? onHeight;
+
+  /// Where the height is published; the shared dock reservation when null.
+  final StateProvider<double>? reservation;
 
   @override
   ConsumerState<DockHeightReporter> createState() => _DockHeightReporterState();
@@ -35,7 +43,7 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   /// Captured once: a disposed [ConsumerState] cannot read `ref` again, and
   /// the reservation this dock owns must still be zeroed out on the way down.
   late final StateController<double> _reservation = ref.read(
-    bottomDockReservationProvider.notifier,
+    (widget.reservation ?? bottomDockReservationProvider).notifier,
   );
   double _lastReported = 0;
 

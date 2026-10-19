@@ -86,6 +86,7 @@ async fn world() -> World {
                 description: "show a balance".to_owned(),
                 usage: None,
                 permission: None,
+                options: Vec::new(),
             }],
         )
         .await

@@ -8,7 +8,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -24,7 +23,9 @@ import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
 import 'voice_call_lifecycle_report.dart';
+import 'mic_failure_advice.dart';
 import 'voice_camera_failure.dart';
+import 'voice_deafen_publish.dart';
 import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
 import '../widgets/video_health_overlay.dart';
@@ -38,6 +39,7 @@ export 'voice_state.dart' show VoiceState;
 
 part 'voice_controller_audio_devices.dart';
 part 'voice_controller_call_clock.dart';
+part 'voice_controller_camera_hide.dart';
 part 'voice_controller_input.dart';
 part 'voice_controller_participant_volume.dart';
 part 'voice_controller_rejoin.dart';
@@ -50,7 +52,8 @@ class VoiceController extends StateNotifier<VoiceState>
         VoiceControllerRejoinMixin,
         VoiceControllerShareMixin,
         VoiceControllerAudioDevicesMixin,
-        VoiceControllerParticipantVolumeMixin {
+        VoiceControllerParticipantVolumeMixin,
+        VoiceControllerCameraHideMixin {
   VoiceController(
     this._ref, {
     VoiceSession? session,
@@ -90,7 +93,7 @@ class VoiceController extends StateNotifier<VoiceState>
       final camera = p.any((x) => x.isLocal && x.isCameraOn);
       if (sharing) _cancelBroadcastDeadline();
       state = state.copyWith(
-        participants: p,
+        participants: _shownRoster(p),
         screenSharing: sharing,
         cameraEnabled: camera,
         awaitingBroadcast: sharing ? false : state.awaitingBroadcast,
@@ -180,7 +183,10 @@ class VoiceController extends StateNotifier<VoiceState>
       ),
       _ => state.copyWith(state: s),
     };
-    if (s == VoiceSessionState.connected) unawaited(_adoptServerCallStart());
+    if (s == VoiceSessionState.connected) {
+      _pushBlocked();
+      unawaited(_adoptServerCallStart());
+    }
   }
 
   /// A drop the SFU decided on: the reason is the only thing that can tell
@@ -375,10 +381,11 @@ class VoiceController extends StateNotifier<VoiceState>
     if (generation != _callGeneration) return;
     // Reflects what happened rather than what was asked for, so the button
     // never claims a microphone is open when the SFU refused the track.
+    final error = got ? null : micRefusalError(_micVerb(want), micFailure);
     state = state.copyWith(
       microphoneEnabled: got ? want : state.microphoneEnabled,
-      error: got ? null : 'Could not ${_micVerb(want)} the microphone.',
-      clearError: got,
+      error: error,
+      clearError: error == null,
     );
   }
 
@@ -422,7 +429,7 @@ class VoiceController extends StateNotifier<VoiceState>
   /// popover reading [isLocallyMuted] repaints with the new label.
   Future<void> setLocallyMuted(String identity, bool muted) async {
     await _session.setLocallyMuted(identity, muted);
-    state = state.copyWith(participants: _session.participants);
+    state = state.copyWith(participants: _shownRoster(_session.participants));
   }
 
   /// Whether this host can publish a screen share's own audio. True on web
@@ -440,6 +447,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final want = !state.deafened;
     final got = await _session.setDeafened(want);
     if (generation != _callGeneration) return;
+    if (got) unawaited(publishDeafenedState(want));
     state = state.copyWith(
       deafened: got ? want : state.deafened,
       error: got ? null : 'Could not ${_deafenVerb(want)}.',
@@ -451,11 +459,6 @@ class VoiceController extends StateNotifier<VoiceState>
   /// screens to choose from. Enumerating is also what makes the capture that
   /// follows able to find anything, so it happens even for a single screen.
   bool get screenShareNeedsSource => _session.screenShareNeedsSource;
-
-  /// See [ShareLimitMonitor]; set while our own share is held back.
-  ValueListenable<ShareLimit?> get shareLimit => _session.shareLimit.limit;
-
-  void dismissShareLimit() => _session.shareLimit.dismiss();
 
   /// See [VoiceSession.screenShareSourcePickerUseful].
   bool get screenShareSourcePickerUseful =>
@@ -491,10 +494,6 @@ class VoiceController extends StateNotifier<VoiceState>
   /// Null hands the decision back, and is what a surface says on unmount.
   void setVideoInterest(Set<String>? tileKeys) =>
       _session.setVideoInterest(tileKeys);
-
-  /// Keeps these tiles unsubscribed whatever the interest says; see [VoiceSession.setVideoBlocked].
-  void setVideoBlocked(Set<String> tileKeys) =>
-      _session.setVideoBlocked(tileKeys);
 
   /// Whether switching cameras is a bare flip (mobile) rather than a picker.
   bool get canFlipCamera => _session.canFlipCamera;

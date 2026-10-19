@@ -122,7 +122,7 @@ Kept here because the reason is not obvious and the trap can recur.
 The non-obvious part is that this was never a Windows-only concern: those libraries type-check on a Linux build even though none of their code ever runs there, so a `win32` major mismatch is a hard build failure on every platform.
 
 `file_picker` 12 and later need `win32` 6, so the whole tree moved rather than the hold being lifted on its own merits.
-That is also why `device_info_plus` now carries a `dependency_overrides` entry: `livekit_client` 2.8.1 pins `^12.3.0`, and forcing 13.x is what lets `win32` 6 resolve.
+That is also why `device_info_plus` carried a `dependency_overrides` entry while `livekit_client` pinned `^12.3.0`; `livekit_client` 2.11 allows 13.x, so the entry is gone.
 That override was checked rather than assumed - see the pull request that introduced it - but it is the thing to look at first if voice starts misbehaving on a client build.
 
 If a future conflict looks like this again, the wrong move is still to bump the other `win32` packages: they follow `livekit_client`, not preference.
@@ -267,7 +267,8 @@ Two make the video renderer cheaper: it creates its pixel buffer once, and conve
 The latest runs `getStats` off the platform thread too, since a stats poll during a camera open waited behind it for 1.5 to 1.9 s, and records Unified Plan remote tracks from `OnTrack` so a lookup by id (per-person volume) always finds them.
 It adds a microphone noise gate and level meter on the capture path, described in `docs/voice-input-gate.md`.
 On Windows it opens the default console devices by index, because libwebrtc's default communications role makes Windows turn every other app down during a call.
-It is an override rather than a dependency of `slimm_rtc` because `livekit_client` 2.10.0 requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
+It is an override rather than a dependency of `slimm_rtc` because `livekit_client` requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.
+An override also ignores the version `livekit_client` asks for: 2.13.1 names `1.6.2+hotfix.4`, the fork is 1.6.0 based, and [0075](decisions/0075-livekit-client-2-13.md) records why that is left alone.
 `scripts/check-dart-licenses.py` reads the fork's LICENSE (MIT) from the pub cache's checkout, so it is classified like a hosted package.
 Rebase steps are in `docs/research/linux-wayland-share-switch-2026-09-29/README.md`.
 

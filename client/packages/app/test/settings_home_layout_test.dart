@@ -100,8 +100,8 @@ void main() {
     final row = tester.getRect(find.byType(SignOutRow));
     expect(
       row.top,
-      closeTo(rail.bottom, 1),
-      reason: 'directly under the rail list',
+      closeTo(rail.bottom, 2),
+      reason: 'directly under the rail list, past its rule',
     );
     expect(
       row.bottom,

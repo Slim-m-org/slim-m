@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../../providers/toasts.dart';
+import '../providers/call_recap.dart' show callCompanyLabel;
 import '../providers/voice_flags.dart';
 import '../../../routing/breakpoints.dart';
 import '../widgets/call_recap_card.dart' show formatCallDuration;
@@ -39,10 +40,12 @@ void listenForHangUpRecap(
     if (!compact && selectedChannelId == left && _recapCardMounted(ref, left)) {
       return;
     }
+    final company = callCompanyLabel(recap.others);
     ref
         .read(toastsProvider.notifier)
         .show(
-          'Call ended - ${formatCallDuration(recap.duration)}.',
+          'Call ended - ${formatCallDuration(recap.duration)}'
+          '${company.isEmpty ? '' : ' with $company'}.',
           severity: AppToastSeverity.success,
         );
   });

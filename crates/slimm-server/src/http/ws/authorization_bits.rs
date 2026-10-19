@@ -20,8 +20,10 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. } => Some(Permissions::USE_CANVAS),
         Event::MessageCreated { .. }
@@ -71,6 +73,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => None,
     }
 }

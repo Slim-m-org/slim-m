@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: UserId\", username AS \"username!\",\n                      display_name AS \"display_name!\", created_at AS \"created_at!\",\n                      avatar_updated_at, banner_updated_at, status_text, pronouns, about,\n                      profile_color, profile_color_rgb, is_bot AS \"is_bot!\",\n                      is_webhook AS \"is_webhook!\"\n               FROM users WHERE id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "username!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "avatar_updated_at",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "banner_updated_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "status_text",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "pronouns",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "about",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "profile_color",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "profile_color_rgb",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_bot!",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_webhook!",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "e12686fe8da5ab8947a6c54600c63bb489ce9a6b8f6f7a5489cbfc8005813636"
+}

@@ -7,6 +7,7 @@
 //! route wired end to end, `feed` is everything below it.
 
 mod convergence;
+mod edit;
 mod feed;
 mod feed_budget;
 mod fixtures;

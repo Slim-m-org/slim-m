@@ -24,6 +24,8 @@ import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'package:slimm_app/src/features/messages/widgets/message_link_urls.dart';
+
 import 'message_row_harness.dart';
 
 void main() {
@@ -95,8 +97,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Copy link'), findsOneWidget);
-      await tester.tap(find.text('Copy link'));
+      expect(find.text('Copy message link'), findsOneWidget);
+      await tester.tap(find.text('Copy message link'));
       await tester.pumpAndSettle();
       expect(copied, 1, reason: 'tapping it has to reach onCopyLink');
     });
@@ -132,7 +134,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Copy text'), findsOneWidget, reason: 'menu did open');
-      expect(find.text('Copy link'), findsNothing);
+      expect(find.text('Copy message link'), findsNothing);
     });
   });
 
@@ -215,6 +217,86 @@ void main() {
 
       // Drain the toast's dismissal timer, or the binding fails on it.
       await tester.pump(const Duration(seconds: 5));
+    });
+  });
+
+  group('copy link address', () {
+    test('lists each distinct web address, trimming sentence punctuation', () {
+      expect(
+        messageLinkUrls('see https://a.example/x, and https://a.example/x.'),
+        ['https://a.example/x'],
+      );
+      expect(messageLinkUrls('**https://b.example** <https://c.example>'), [
+        'https://b.example',
+        'https://c.example',
+      ]);
+    });
+
+    test('ignores code, message links and plain text', () {
+      expect(messageLinkUrls('`https://a.example`'), isEmpty);
+      expect(messageLinkUrls('```\nhttps://a.example\n```'), isEmpty);
+      expect(messageLinkUrls('slimm://message?c=1&m=2 and words'), isEmpty);
+    });
+
+    testWidgets('the menu offers the address and copies exactly it', (
+      tester,
+    ) async {
+      final copied = <String>[];
+      await tester.pumpWidget(
+        harness(
+          MessageRow(
+            message: message(),
+            grouped: false,
+            showNewDivider: false,
+            knownUsernames: const {},
+            actions: MessageActions(
+              canReply: false,
+              onReply: noop,
+              canEdit: false,
+              onEdit: noop,
+              canDelete: false,
+              onDelete: noop,
+              canManagePins: false,
+              pinned: false,
+              onTogglePin: noop,
+              canReport: false,
+              onReport: noop,
+              canBlockAuthor: false,
+              onBlockAuthor: noop,
+              canOpenThread: false,
+              onOpenThread: noop,
+              canCopyLink: true,
+              onCopyLink: noop,
+              canForward: false,
+              onForward: noop,
+              canSave: false,
+              onSave: noop,
+              linkUrls: const ['https://a.example/page'],
+              onCopyLinkAddress: copied.add,
+            ),
+            editing: false,
+            callbacks: MessageRowCallbacks(
+              onRetry: () {},
+              onDiscard: () {},
+              onPickReaction: (_) {},
+              onReactionTap: (_) {},
+              onVote: (_) {},
+              onSubmitEdit: (_) {},
+              onCancelEdit: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.longPressAt(
+        tester.getTopLeft(find.byType(MessageContextMenuRegion)) +
+            const Offset(30, 30),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Copy message link'), findsOneWidget);
+      await tester.tap(find.text('Copy link address'));
+      await tester.pumpAndSettle();
+      expect(copied, ['https://a.example/page']);
     });
   });
 }

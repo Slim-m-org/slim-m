@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
@@ -83,6 +84,19 @@ void main() {
     expect(find.text("Ada's screen audio"), findsOneWidget);
     expect(find.text('Mute screen audio'), findsOneWidget);
     expect(find.text('Volume for Ada'), findsNothing);
+  });
+
+  testWidgets('Escape closes the stream volume popover', (tester) async {
+    await _pumpTile(tester, sound: true, sharer: _sharer());
+
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.tap(find.text('Stream volume'));
+    await tester.pumpAndSettle();
+    expect(find.text("Ada's screen audio"), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text("Ada's screen audio"), findsNothing);
   });
 
   testWidgets('a silent share offers no stream volume', (tester) async {

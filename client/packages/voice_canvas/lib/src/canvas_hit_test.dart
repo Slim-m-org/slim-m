@@ -23,6 +23,13 @@ import 'spatial_grid.dart';
 /// on pen width small enough to make a tighter pad safe.
 const double _cullPad = 64;
 
+/// How far from a mark a pointer still hits it, in screen pixels, so the reach
+/// is the same at any zoom.
+const double defaultHitSlopPx = 4;
+
+/// [defaultHitSlopPx] for a finger.
+const double touchHitSlopPx = 12;
+
 /// Finds the topmost live stroke within tolerance of [world] that [allowed]
 /// accepts, or null.
 ///
@@ -36,16 +43,17 @@ const double _cullPad = 64;
 String? hitTestStroke(
   CanvasDocument document,
   Offset world, {
-  double slop = 4,
+  double slopPx = defaultHitSlopPx,
   CullResult? scratch,
   bool Function(CanvasStroke stroke)? allowed,
 }) {
   final out = scratch ?? CullResult();
+  final pad = _cullPad + slopPx / document.camera.zoom;
   document.scene.queryRect(
-    world.dx - _cullPad,
-    world.dy - _cullPad,
-    world.dx + _cullPad,
-    world.dy + _cullPad,
+    world.dx - pad,
+    world.dy - pad,
+    world.dx + pad,
+    world.dy + pad,
     out,
   );
 
@@ -58,7 +66,7 @@ String? hitTestStroke(
   for (final slot in candidates) {
     final stroke = document.strokeAt(slot);
     if (allowed != null && !allowed(stroke)) continue;
-    final tolerance = stroke.width / 2 + slop;
+    final tolerance = stroke.width / 2 + slopPx / document.camera.zoom;
     if (_withinTolerance(stroke.points, world.dx, world.dy, tolerance)) {
       return stroke.id;
     }
@@ -75,11 +83,19 @@ String? hitTestStroke(
 String? hitTestBoxAt(
   CanvasDocument document,
   Offset world, {
+  double slopPx = 0,
   CullResult? scratch,
   bool Function(CanvasStroke stroke)? allowed,
 }) {
   final out = scratch ?? CullResult();
-  document.scene.queryRect(world.dx, world.dy, world.dx, world.dy, out);
+  final slop = slopPx / document.camera.zoom;
+  document.scene.queryRect(
+    world.dx - slop,
+    world.dy - slop,
+    world.dx + slop,
+    world.dy + slop,
+    out,
+  );
 
   final candidates = <int>[];
   for (final slot in out.slots) {
@@ -93,10 +109,10 @@ String? hitTestBoxAt(
   for (final slot in candidates) {
     final stroke = document.strokeAt(slot);
     if (allowed != null && !allowed(stroke)) continue;
-    if (world.dx >= stroke.x &&
-        world.dx <= stroke.x + stroke.w &&
-        world.dy >= stroke.y &&
-        world.dy <= stroke.y + stroke.h) {
+    if (world.dx >= stroke.x - slop &&
+        world.dx <= stroke.x + stroke.w + slop &&
+        world.dy >= stroke.y - slop &&
+        world.dy <= stroke.y + stroke.h + slop) {
       return stroke.id;
     }
   }

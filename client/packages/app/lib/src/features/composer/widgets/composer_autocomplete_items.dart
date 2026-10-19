@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../modules/module_detail.dart';
 import 'composer_autocomplete_query.dart';
+import 'mention_match.dart';
 import '../../emoji/widgets/emoji_catalog.dart';
 
 /// Most rows to offer at once.
@@ -113,7 +114,55 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
     botCommands,
     prefix: query.prefix,
   ).take(maxAutocompleteRows).toList(growable: false),
+  AutocompleteKind.botOption => _botOptionRows(query, botCommands),
 };
+
+/// The lowercased `prefix` + keyword of every bot command with a choice list.
+Set<String> botChoiceTriggers(List<api.ChannelBotCommand> botCommands) => {
+  for (final command in botCommands)
+    if (command.options.any((o) => o.choices.isNotEmpty))
+      '${command.prefix}${command.name}'.toLowerCase(),
+};
+
+/// [autocompleteQueryAt] with the bot prefixes and choice triggers of [botCommands].
+AutocompleteQuery? composerQueryAt(
+  String text,
+  int caret,
+  List<api.ChannelBotCommand> botCommands,
+) => autocompleteQueryAt(
+  text,
+  caret,
+  botPrefixes: botCommands.map((c) => c.prefix),
+  botTriggers: botChoiceTriggers(botCommands),
+);
+
+/// The choices of the option under the caret, prefix matches first. Not
+/// capped at [maxAutocompleteRows]: a pick list is the whole set, and the
+/// overlay scrolls it.
+List<AutocompleteSuggestion> _botOptionRows(
+  AutocompleteQuery query,
+  List<api.ChannelBotCommand> botCommands,
+) {
+  final options = [
+    for (final c in botCommands)
+      if ('${c.prefix}${c.name}'.toLowerCase() == query.command) ...c.options,
+  ];
+  if (query.argIndex >= options.length) return const [];
+  final option = options[query.argIndex];
+  final matching = option.choices.where(
+    (c) => query.term.isEmpty || c.toLowerCase().contains(query.term),
+  );
+  final leading = matching.where((c) => c.toLowerCase().startsWith(query.term));
+  final rest = matching.where((c) => !c.toLowerCase().startsWith(query.term));
+  return [
+    for (final choice in [...leading, ...rest])
+      AutocompleteSuggestion(
+        insert: '$choice ',
+        label: choice,
+        detail: option.name,
+      ),
+  ];
+}
 
 List<AutocompleteSuggestion> _emoji(
   String term,
@@ -187,18 +236,22 @@ List<api.UserProfile> _memberCandidates(
   List<api.UserProfile> members,
   String? selfId,
 ) {
-  final candidates = members.where((m) => m.id != selfId).where((m) {
-    if (term.isEmpty) return true;
-    return m.username.toLowerCase().contains(term) ||
-        m.displayName.toLowerCase().contains(term);
-  }).toList();
-
-  candidates.sort((a, b) {
-    final aStarts = a.username.toLowerCase().startsWith(term);
-    final bStarts = b.username.toLowerCase().startsWith(term);
-    if (aStarts != bStarts) return aStarts ? -1 : 1;
-    return a.username.toLowerCase().compareTo(b.username.toLowerCase());
-  });
+  final ranked =
+      <(int, api.UserProfile)>[
+        for (final m in members)
+          if (m.id != selfId)
+            if (mentionRank(term, m) case final rank?) (rank, m),
+      ]..sort((a, b) {
+        if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
+        final byName = foldForMatch(
+          a.$2.displayName,
+        ).compareTo(foldForMatch(b.$2.displayName));
+        if (byName != 0) return byName;
+        return a.$2.username.toLowerCase().compareTo(
+          b.$2.username.toLowerCase(),
+        );
+      });
+  final candidates = [for (final (_, m) in ranked) m];
   return candidates;
 }
 

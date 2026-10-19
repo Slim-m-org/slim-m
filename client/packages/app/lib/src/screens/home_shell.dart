@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import '../features/accounts/widgets/account_shortcuts.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
+import '../features/voice/providers/voice_move_follower.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
 import '../features/voice/providers/call_shortcut_registry.dart';
@@ -56,9 +57,10 @@ import '../widgets/new_device_banner_host.dart';
 import '../widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
-import '../downloads/transfers_banner.dart';
+import '../downloads/download_failures.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
+import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
@@ -87,6 +89,8 @@ class HomeShell extends ConsumerWidget {
     final layout = LayoutClass.of(context);
     final width = MediaQuery.sizeOf(context).width;
     final selected = selectedChannelId(context);
+    // Rebuilds the key bindings when a shortcut is remapped.
+    ref.watch(shortcutOverridesProvider);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
     _holdSessionProviders(ref);
     final facts = _shellFacts(ref, layout, width, selected);
@@ -105,7 +109,7 @@ class HomeShell extends ConsumerWidget {
               child: NewDeviceBannerHost(
                 child: RulesGateBannerHost(
                   child: UpdateBannerHost(
-                    child: TransfersBannerHost(
+                    child: DownloadFailureHost(
                       child: DatabaseResetNotice(child: scaffold),
                     ),
                   ),
@@ -131,6 +135,7 @@ class HomeShell extends ConsumerWidget {
     // Session-lifetime, so hold music reacts to the call without a screen mounting it.
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
+    ref.watch(voiceMoveFollowerProvider);
     // Same reasoning: read lazily, its first read would race a module's own sound trigger against this provider's async load from disk.
     ref.watch(moduleSoundSettingsProvider);
     // Same reasoning as the channel-mute watch above: session-lifetime, for the sound and desktop-notifier paths.
@@ -348,6 +353,7 @@ class HomeShell extends ConsumerWidget {
     final nextChannel = activatorFor(AppAction.nextChannel);
     final previousChannel = activatorFor(AppAction.previousChannel);
     final muteCall = activatorFor(AppAction.toggleMuteCall);
+    final deafenCall = activatorFor(AppAction.toggleDeafenCall);
     final cameraCall = activatorFor(AppAction.toggleCameraCall);
     final shareCall = activatorFor(AppAction.toggleShareCall);
     final leaveCall = activatorFor(AppAction.leaveCall);
@@ -369,6 +375,10 @@ class HomeShell extends ConsumerWidget {
         muteCall: () => ref
             .read(pushToTalkGateProvider)
             .toggleMute(HoldSource.inWindow, () => call()?.toggleMute()),
+      if (deafenCall != null)
+        deafenCall: () => ref
+            .read(pushToTalkGateProvider)
+            .toggleDeafen(HoldSource.inWindow, () => call()?.toggleDeafen()),
       if (cameraCall != null) cameraCall: () => call()?.toggleCamera(),
       if (shareCall != null) shareCall: () => call()?.toggleShare(),
       if (leaveCall != null) leaveCall: () => call()?.leave(),

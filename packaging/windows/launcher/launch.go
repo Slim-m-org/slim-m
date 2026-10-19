@@ -56,9 +56,28 @@ func isComplete(root, version string) bool {
 	return err == nil
 }
 
+// relaunchArgument is what the app passes when it restarts itself; the same
+// text lives in single_instance.h and relaunch.dart.
+const relaunchArgument = "--relaunch"
+
+func isRelaunch(args []string) bool {
+	for _, arg := range args {
+		if arg == relaunchArgument {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldRecordPid keeps a second launch from hiding the first instance, but a
+// relaunch replaces it: its predecessor is only still alive because it is exiting.
+func shouldRecordPid(running, relaunch bool) bool {
+	return !running || relaunch
+}
+
 // choose returns the version folder to start, after applying the start count
 // and any rollback it calls for.
-func choose(root string) (string, error) {
+func choose(root string, relaunch bool) (string, error) {
 	current := read(root, "current")
 	if current == "" {
 		return "", errors.New("slim-m has no current version")
@@ -69,8 +88,9 @@ func choose(root string) (string, error) {
 	if read(root, "pending") != current {
 		return versionDir(root, current), nil
 	}
-	// A start beside an instance that is still up proves nothing about this version.
-	if instanceRunning(root) {
+	// A start beside an instance that is still up proves nothing about this version,
+	// unless that instance is the one handing over to it.
+	if !relaunch && instanceRunning(root) {
 		return versionDir(root, current), nil
 	}
 	tries, _ := strconv.Atoi(read(root, "pending.tries"))

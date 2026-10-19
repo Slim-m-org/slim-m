@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_document.dart';
+import 'canvas_snap.dart' show gridSpacingFor;
 import 'note_label_cache.dart';
 
 export 'canvas_live_painters.dart';
@@ -38,19 +39,50 @@ part 'canvas_painters_shapes.dart';
 /// The background lattice, at a spacing quantised to the zoom so the mesh
 /// keeps roughly the same density on screen at any scale.
 class GridPainter extends CustomPainter {
-  GridPainter({required this.document, required this.line})
+  GridPainter({required this.document, required this.line, this.letterbox})
       : super(repaint: document);
 
   final CanvasDocument document;
   final Color line;
 
-  static const double _targetScreenSpacing = 64;
+  /// The tint outside the shared board; null leaves it unframed.
+  final Color? letterbox;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final board = document.board;
+    if (board == null || letterbox == null) return _paintLattice(canvas, size);
+    final camera = document.camera;
+    final frame = Rect.fromLTWH(
+      (board.left - camera.x) * camera.zoom,
+      (board.top - camera.y) * camera.zoom,
+      board.width * camera.zoom,
+      board.height * camera.zoom,
+    );
+    canvas
+      ..save()
+      ..clipRect(frame);
+    _paintLattice(canvas, size);
+    canvas.restore();
+    canvas.drawPath(
+      Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(Offset.zero & size)
+        ..addRect(frame),
+      Paint()..color = letterbox!,
+    );
+    canvas.drawRect(
+      frame,
+      Paint()
+        ..color = line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  void _paintLattice(Canvas canvas, Size size) {
     final zoom = document.camera.zoom;
-    final exponent = (math.log(_targetScreenSpacing / zoom) / math.ln2).round();
-    final spacing = math.pow(2, exponent).toDouble();
+    final spacing = gridSpacingFor(zoom);
 
     final paint = Paint()
       ..color = line
@@ -76,6 +108,9 @@ class GridPainter extends CustomPainter {
   bool shouldRepaint(GridPainter oldDelegate) => false;
 }
 
+/// Styles a note's text: markdown, mentions and emoji as spans over [base].
+typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
+
 /// The committed ink.
 class StrokePainter extends CustomPainter {
   StrokePainter({
@@ -86,6 +121,8 @@ class StrokePainter extends CustomPainter {
     this.shapeColor,
     this.textInk = const Color(0xFF1A1A1A),
     this.textFontFamily,
+    this.noteSpans,
+    this.noteSpansRevision = 0,
     this.placeholderFill = const Color(0xFFB9C0C8),
     this.placeholderIcon = const Color(0xFF6C757E),
     this.elevationShadow = const [],
@@ -110,6 +147,13 @@ class StrokePainter extends CustomPainter {
   /// riding whatever the accent happens to be.
   final Color textInk;
   final String? textFontFamily;
+
+  /// How a note's text becomes spans; null paints it as plain text.
+  final NoteSpanBuilder? noteSpans;
+
+  /// Bumped by the owner when what [noteSpans] reads changes, so cached note
+  /// layouts rebuild.
+  final int noteSpansRevision;
 
   /// The muted fill and glyph stroke for an image whose bytes could not be
   /// fetched or decoded. Default to plain neutral greys so a caller with no

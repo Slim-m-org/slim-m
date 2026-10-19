@@ -434,8 +434,10 @@ async fn channel_frame(
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::to_frame"),
         // The deployment-wide and channel-deletion cases already returned above.
@@ -459,6 +461,7 @@ async fn channel_frame(
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,
     }))
 }

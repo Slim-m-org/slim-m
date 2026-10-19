@@ -52,6 +52,8 @@ pub(in crate::http) struct SubmitOpParams {
     h: Option<f64>,
     /// The paint order a `reorder` sets.
     z_index: Option<i64>,
+    /// The whole new props an `edit` writes to a note.
+    props: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -96,7 +98,9 @@ pub(in crate::http) async fn submit_op(
     // See the module doc: only `move` and `reorder` freeze under a timeout.
     if matches!(
         request,
-        CanvasOpRequest::Move { .. } | CanvasOpRequest::Reorder { .. }
+        CanvasOpRequest::Move { .. }
+            | CanvasOpRequest::Reorder { .. }
+            | CanvasOpRequest::Edit { .. }
     ) && state.store.timed_out_until(ctx.user_id).await?.is_some()
     {
         return Err(ApiError::Forbidden);
@@ -124,6 +128,9 @@ pub(in crate::http) async fn submit_op(
         }
         Err(SubmitOpError::Locked) => {
             return Err(ApiError::Conflict("that object is locked in place"));
+        }
+        Err(SubmitOpError::NotEditable) => {
+            return Err(ApiError::BadRequest("only a note can be edited"));
         }
         Err(SubmitOpError::Internal(err)) => return Err(err.into()),
     };
@@ -163,6 +170,7 @@ fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
         "restore" => parse_restore(params),
         "move" => parse_move(params),
         "reorder" => parse_reorder(params),
+        "edit" => parse_edit(params),
         _ => Err(ApiError::BadRequest("unknown canvas op kind")),
     }
 }
@@ -270,6 +278,32 @@ fn parse_reorder(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     Ok(CanvasOpRequest::Reorder { object_id, z_index })
 }
 
+fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.object_ids.is_some()
+        || params.before_seq.is_some()
+        || params.target_op.is_some()
+        || params.z_index.is_some()
+        || params.x.is_some()
+    {
+        return Err(ApiError::BadRequest("edit takes only object_id and props"));
+    }
+    let object_id = params
+        .object_id
+        .ok_or(ApiError::BadRequest("edit needs object_id"))?;
+    let object_id = CanvasObjectId(parse_uuid(&object_id)?);
+    let props = params
+        .props
+        .ok_or(ApiError::BadRequest("edit needs props"))?;
+    if !props.is_object() {
+        return Err(ApiError::BadRequest("canvas props must be an object"));
+    }
+    let props = serde_json::to_string(&props).map_err(|_| ApiError::Internal)?;
+    if props.len() > super::canvas_write::MAX_PROPS_BYTES {
+        return Err(ApiError::BadRequest("canvas props are too large"));
+    }
+    Ok(CanvasOpRequest::Edit { object_id, props })
+}
+
 fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: &SubmittedOp) {
     match outcome.kind.as_str() {
         "remove" => state.hub.publish(Event::CanvasObjectsRemoved {
@@ -304,6 +338,20 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
                     y,
                     w,
                     h,
+                });
+            }
+        }
+        "edit" => {
+            // Both are set together on the fresh, effective path only; see `SubmittedOp::edited_props`.
+            if let (Some(props), Some(&object_id)) =
+                (outcome.edited_props.clone(), outcome.touched_ids.first())
+            {
+                state.hub.publish(Event::CanvasObjectEdited {
+                    channel_id,
+                    seq: Seq(outcome.seq),
+                    op_id,
+                    object_id,
+                    props,
                 });
             }
         }

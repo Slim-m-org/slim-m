@@ -17,6 +17,15 @@ on:
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:
+    inputs:
+      tester_build:
+        description: "Also build the release zip and setup for this ref and upload them as a run artifact"
+        type: boolean
+        default: false
+      version:
+        description: "Version the tester build reports (VERSION file and setup name)"
+        type: string
+        default: "0.0.0"
 
 permissions:
   contents: read
@@ -78,5 +87,76 @@ jobs:
           iscc /DAppVersion=0.0.0 "/DSourceDir=$source" "/O$PWD/setup-out" packaging/windows/slim-m.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path setup-out/slim-m-setup-0.0.0.exe)) { throw 'no setup exe produced' }
+
+      - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
+  # A by-hand Windows build of any branch for the win11 VM, so a release is not the first time a change runs there.
+  windows-tester-build:
+    name: windows tester build (artifact)
+    if: github.event_name == 'workflow_dispatch' && inputs.tester_build
+    runs-on: windows-latest
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: set up flutter (stable channel)
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - uses: ./.github/actions/native-hooks-cache
+
+      - name: resolve workspace dependencies
+        working-directory: client
+        run: flutter pub get --enforce-lockfile
+
+      # Mirrors desktop-clients.yml's windows job, minus the release upload.
+      - name: flutter build windows --release
+        working-directory: client/packages/app
+        shell: pwsh
+        run: flutter build windows --release
+
+      - name: build the launcher
+        shell: pwsh
+        working-directory: packaging/windows/launcher
+        run: |
+          go generate ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go build -ldflags "-H=windowsgui -s -w" -o slim-m.exe .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: archive the release bundle
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $release = "client/packages/app/build/windows/x64/runner/Release"
+          Move-Item packaging/windows/launcher/slim-m.exe $release
+          Remove-Item "$release/*.lib", "$release/*.exp"
+          Copy-Item packaging/windows/install.ps1, packaging/windows/install.cmd, packaging/windows/README.md $release
+          Set-Content -Path "$release/VERSION" -Value $env:VERSION -NoNewline
+          Compress-Archive -Path "$release/*" -DestinationPath "slim-m-client-$env:VERSION-windows-x64.zip"
+
+      - uses: ./.github/actions/install-inno-setup
+
+      - name: build the per-user setup
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          iscc "/DAppVersion=$env:VERSION" "/DSourceDir=$PWD/client/packages/app/build/windows/x64/runner/Release" "/O$PWD" packaging/windows/slim-m.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: slim-m-windows-${{ inputs.version }}
+          path: |
+            slim-m-client-*-windows-x64.zip
+            slim-m-setup-*.exe
+          retention-days: 7
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

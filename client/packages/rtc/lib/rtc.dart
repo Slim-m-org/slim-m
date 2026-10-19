@@ -13,7 +13,6 @@ export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
-export 'src/share_limit.dart';
 export 'src/capture_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
 export 'src/call_stats_sampler.dart'
@@ -33,6 +32,8 @@ export 'src/input_gate.dart'
         InputGateRate;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
+export 'src/mic_failure.dart';
+export 'src/os_mic_block.dart' show osBlocksMicrophone;
 export 'src/mic_port.dart';
 export 'src/mic_preview.dart';
 export 'src/mic_preview_loopback.dart' show LoopbackMicSource, systemMicPreview;
@@ -49,5 +50,9 @@ export 'src/video_stall_watchdog.dart' show VideoTileHealth;
 export 'src/video_subscription_culler.dart';
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
-    show anyLiveVideo, isSpeakingNow, passesActivationThreshold;
+    show
+        anyLiveVideo,
+        deafenedFromAttributes,
+        isSpeakingNow,
+        passesActivationThreshold;
 export 'src/voice_session.dart';

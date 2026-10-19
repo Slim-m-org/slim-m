@@ -8,9 +8,9 @@ use axum::extract::DefaultBodyLimit;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
@@ -25,6 +25,7 @@ use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, RoomToken, VoiceError};
 
 pub(super) mod voice_calls;
+pub(super) mod voice_move;
 pub(super) mod voice_ring;
 pub(super) mod voice_rooms;
 pub(super) mod voice_webhook;
@@ -40,9 +41,14 @@ pub fn routes() -> Router<AppState> {
             "/channels/{channel_id}/voice/heartbeat",
             post(heartbeat).delete(forget_heartbeat),
         )
+        .route("/channels/{channel_id}/voice/deafened", put(set_deafened))
         .route(
             "/channels/{channel_id}/voice/participants/{user_id}/kick",
             post(kick),
+        )
+        .route(
+            "/channels/{channel_id}/voice/participants/{user_id}/move",
+            post(voice_move::move_participant),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
@@ -310,6 +316,49 @@ async fn roster(
         participants,
         call_age_ms,
     }))
+}
+
+#[derive(Deserialize)]
+struct DeafenedRequest {
+    deafened: bool,
+}
+
+/// Tells the room whether the caller has deafened themselves. Idempotent, and
+/// a no-op when the caller is not in the room, since the SFU is the authority
+/// on who is connected.
+async fn set_deafened(
+    Authed(ctx): Authed,
+    parts: Parts,
+    Path(channel_id): Path<String>,
+    State(state): State<AppState>,
+    Json(body): Json<DeafenedRequest>,
+) -> Result<StatusCode, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    let channel_id = ChannelId(parse_uuid(&channel_id)?);
+
+    let permissions = state
+        .store
+        .permissions_in_channel(ctx.user_id, channel_id)
+        .await?;
+    let needed = Permissions::VIEW_CHANNEL.union(Permissions::CONNECT);
+    if !permissions.contains(needed) {
+        return Err(ApiError::Forbidden);
+    }
+
+    match state
+        .voice
+        .set_participant_deafened(channel_id, ctx.user_id, body.deafened)
+        .await
+    {
+        Ok(()) => Ok(StatusCode::NO_CONTENT),
+        Err(VoiceError::Unavailable) => Err(ApiError::NotConfigured(
+            "this server has no voice configured",
+        )),
+        Err(VoiceError::Internal(err)) => {
+            tracing::warn!(%err, "could not publish a participant's deafened state");
+            Err(ApiError::Unavailable)
+        }
+    }
 }
 
 /// Evicts a participant from a channel's voice room, gated on `KICK_MEMBERS`

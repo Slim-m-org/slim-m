@@ -56,14 +56,15 @@ class CanvasPresenceFrameResolver {
     final keys = presenceTileKeys(participants);
     if (keys.isEmpty) return CanvasPresenceFrame.empty;
     final byIdentity = {for (final p in participants) p.identity: p};
+    // World units when the board is fixed, so every viewer gets the same untouched layout.
+    final frame = document.board?.size ?? document.viewport;
     final onCanvas = presenceOnCanvasRects(
       keys: keys,
-      // The pane's real drawing area, in logical pixels and independent of zoom - see CanvasPresenceLayout.maxRowWidth's own doc for the trade.
-      layout: layout.withMaxRowWidth(document.viewport.width),
+      layout: layout.withMaxRowWidth(frame.width),
       overrides: overrides,
       byIdentity: byIdentity,
       hideSelfCamera: hideSelfCamera,
-      viewport: document.viewport,
+      viewport: frame,
     );
     // Ahead of the visibility update, so an empty roster never disturbs the mounted set.
     final visibleIds = onCanvas.isEmpty

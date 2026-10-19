@@ -120,6 +120,7 @@ const _deviceKeys = <String>{
   'slimm.appearance.motion',
   'slimm.appearance.ui_scale',
   'slimm.canvas.self_bubble.hidden',
+  'slimm.canvas.snap_to_grid',
   'slimm.database.key',
   'slimm.desktop.window_geometry',
   'slimm.first_run.done.',
@@ -143,6 +144,7 @@ const _deviceKeys = <String>{
   'slimm.voice.camera_on_join',
   'slimm.voice.camera_quality',
   'slimm.voice.even_out_loud',
+  'slimm.voice.hidden_cameras',
   'slimm.voice.input_threshold_auto',
   'slimm.voice.input_threshold_db',
   'slimm.voice.noise_suppression',
@@ -154,5 +156,6 @@ const _deviceKeys = <String>{
   'slimm.voice.receive_video_quality',
   'slimm.voice.screen_share_include_audio',
   'slimm.voice.screen_share_quality',
+  'slimm.voice.shortcut_overrides',
   'slimm.whats_new.last_seen_version',
 };

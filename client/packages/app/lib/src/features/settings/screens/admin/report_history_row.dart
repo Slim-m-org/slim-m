@@ -126,6 +126,7 @@ class ReportHistoryRow extends ConsumerWidget {
   ),
   api.AuditLogAction.nicknameSet => (AppBadgeVariant.tag, 'Nickname set'),
   api.AuditLogAction.nicknameClear => (AppBadgeVariant.tag, 'Nickname cleared'),
+  api.AuditLogAction.voiceMove => (AppBadgeVariant.tag, 'Moved between calls'),
   api.AuditLogAction.unknown => (AppBadgeVariant.tag, 'Other action'),
 };
 

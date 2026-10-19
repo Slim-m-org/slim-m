@@ -18,6 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../audio/sound_output_router.dart';
+import '../../settings/providers/notification_sound_controller.dart';
 import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
@@ -29,6 +31,8 @@ import '../../settings/widgets/settings_select_row.dart';
 /// stands in for the system default so a real, known choice can still be
 /// represented as a non-null [String] value.
 const _systemDefaultId = '';
+
+const speakerTestRowKey = ValueKey('speaker-test-row');
 
 class AudioDeviceSection extends ConsumerStatefulWidget {
   const AudioDeviceSection({super.key, this.embedded = false});
@@ -107,12 +111,42 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
         selectedId: settings.audioOutputDeviceId,
         onChanged: settingsNotifier.setAudioOutputDevice,
       ),
+      const SpeakerTestRow(),
     ];
     if (widget.embedded) return SettingsRowGroup(children: rows);
     return SettingsSectionCard(
       title: 'Input and output devices',
       description: 'Which microphone and speaker a call uses.',
       children: rows,
+    );
+  }
+}
+
+class SpeakerTestRow extends ConsumerWidget {
+  const SpeakerTestRow({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Rebuilt when the pick changes: whether the chime follows it depends on it.
+    ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.audioOutputDeviceId),
+    );
+    final testable = ref.read(soundOutputRouterProvider).testable;
+    return AppListRow(
+      key: speakerTestRowKey,
+      label: 'Test speaker',
+      subtitle: testable
+          ? null
+          : 'Interface sounds play on the system default output.',
+      trailing: testable
+          ? AppButton(
+              size: AppButtonSize.sm,
+              label: 'Play',
+              onPressed: () => unawaited(
+                ref.read(notificationSoundControllerProvider).playSpeakerTest(),
+              ),
+            )
+          : null,
     );
   }
 }

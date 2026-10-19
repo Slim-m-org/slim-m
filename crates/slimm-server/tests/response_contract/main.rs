@@ -78,11 +78,23 @@ const UNCOVERED: &[(&str, &str)] = &[
         "answers HTML to a browser, not JSON; tests/invite_page.rs drives both outcomes.",
     ),
     (
+        "setVoiceDeafened",
+        "its 204 needs a reachable LiveKit room service, which this harness has none \
+         of, and the 204 has no body to check. tests/voice_deafened.rs drives the \
+         success, the permission gate and the unconfigured 501.",
+    ),
+    (
         "kickVoiceParticipant",
         "the only path to its 204 goes through a reachable LiveKit room service, \
          which this harness has none of. Nothing is lost by not driving it: the \
          success response is 204 with no body, so there is no shape to check. Its \
          permission gate is covered in tests/voice.rs.",
+    ),
+    (
+        "moveVoiceParticipant",
+        "its 204 needs a reachable LiveKit room service, which this harness has none \
+         of, and has no body to check; tests/voice_move.rs drives it against a fake \
+         room service.",
     ),
     (
         "listVoiceRoster",

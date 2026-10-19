@@ -55,6 +55,7 @@ class SpeakingHold {
           isScreenSharing: p.isScreenSharing,
           isCameraOn: p.isCameraOn,
           audioLevel: p.audioLevel,
+          isDeafened: p.isDeafened,
         ),
       );
       if (recheck == null || left < recheck) recheck = left;

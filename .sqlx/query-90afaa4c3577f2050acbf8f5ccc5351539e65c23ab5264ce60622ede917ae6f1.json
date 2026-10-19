@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO bot_commands (bot_user_id, name, description, usage, permission, position, options)\n                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "90afaa4c3577f2050acbf8f5ccc5351539e65c23ab5264ce60622ede917ae6f1"
+}

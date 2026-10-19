@@ -15,9 +15,12 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/user_profiles.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../voice/widgets/call_participant_tiles.dart'
+    show kParticipantMenuWidth;
 import '../../voice/widgets/participant_call_menu.dart';
 import '../../members/widgets/member_profile.dart';
 import '../../members/widgets/user_avatar.dart';
+import 'rail_participant_drag.dart';
 
 /// Left indent that puts the list under a channel row's *label* rather than
 /// its icon: the row's own padding, its icon and the gap after it.
@@ -107,6 +110,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
       if (participant.isScreenSharing) AppIcons.screenShare,
       if (participant.isCameraOn) AppIcons.camera,
       if (participant.isMuted) AppIcons.micOff,
+      if (participant.isDeafened) AppIcons.headphonesOff,
     ];
     final face = SizedBox(
       height: _rowHeight,
@@ -138,37 +142,45 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
         .valueOrNull;
     // Until the profile resolves there is no card to open, so the row stays plain.
     if (profile == null) return face;
-    return ContextMenuRegion(
-      itemsBuilder: (menuContext, close) => participantCallMenuItems(
-        menuContext,
-        ref,
-        participant: participant,
-        close: close,
-        knownProfile: profile,
-        channelId: widget.channelId,
+    return RailParticipantDraggable(
+      data: ParticipantDragData(
+        userId: participant.identity,
+        name: participant.name,
+        fromChannelId: widget.channelId,
       ),
-      child: ConstrainedBox(
-        // A finger needs the touch row height; a pointer keeps the dense rows.
-        constraints: BoxConstraints(
-          minHeight: AppTouchTargets.of(context) ? AppSizes.rowTouch : 0,
+      child: ContextMenuRegion(
+        menuWidth: kParticipantMenuWidth,
+        itemsBuilder: (menuContext, close) => participantCallMenuItems(
+          menuContext,
+          ref,
+          participant: participant,
+          close: close,
+          knownProfile: profile,
+          channelId: widget.channelId,
         ),
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          // The avatar's own label stays: it carries "<name>, speaking", which the e2e harness reads.
-          child: Semantics(
-            button: true,
-            onTap: () => _open(profile),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          // A finger needs the touch row height; a pointer keeps the dense rows.
+          constraints: BoxConstraints(
+            minHeight: AppTouchTargets.of(context) ? AppSizes.rowTouch : 0,
+          ),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            // The avatar's own label stays: it carries "<name>, speaking", which the e2e harness reads.
+            child: Semantics(
+              button: true,
               onTap: () => _open(profile),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _hovered ? tokens.surfaceSunken : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadii.control),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _open(profile),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _hovered ? tokens.surfaceSunken : Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppRadii.control),
+                  ),
+                  child: face,
                 ),
-                child: face,
               ),
             ),
           ),

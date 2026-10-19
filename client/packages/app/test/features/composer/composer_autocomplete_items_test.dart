@@ -278,4 +278,94 @@ void main() {
       expect(rows.map((r) => r.label), ['~stop']);
     });
   });
+
+  group('mention matching by display name', () {
+    List<String> labels(String term, List<api.UserProfile> roster) =>
+        autocompleteSuggestions(
+          query: _q(AutocompleteKind.mention, term),
+          custom: const [],
+          members: roster,
+        ).map((r) => r.insert).toList();
+
+    test('a display name prefix beats usernames that merely contain it', () {
+      final roster = [
+        for (var i = 0; i < 9; i++) _member('u-$i', 'a${i}ki', 'Person $i'),
+        _member('u-kiki', 'moderningot', 'Kiki'),
+      ];
+      expect(labels('ki', roster).first, '@moderningot ');
+    });
+
+    test('exact outranks prefix', () {
+      final roster = [
+        _member('u-1', 'kikiwi', 'Kikiwi'),
+        _member('u-2', 'kiki', 'Other'),
+      ];
+      expect(labels('kiki', roster), ['@kiki ', '@kikiwi ']);
+    });
+
+    test('ignores case and accents', () {
+      final roster = [_member('u-1', 'jo', 'José')];
+      expect(labels('jose', roster), ['@jo ']);
+      expect(labels('JOSÉ', roster.map((m) => m).toList()), ['@jo ']);
+    });
+
+    test('matches the start of a later word in a multi-word name', () {
+      final roster = [
+        _member('u-1', 'zed', 'Big Kiki'),
+        _member('u-2', 'ski', 'Nobody'),
+      ];
+      expect(labels('ki', roster), ['@zed ', '@ski ']);
+    });
+  });
+
+  group('a bot command option', () {
+    api.ChannelBotCommand deals(List<String> choices) => api.ChannelBotCommand(
+      botUserId: 'b1',
+      botUsername: 'deals',
+      botDisplayName: 'Deals',
+      prefix: '!',
+      name: 'sources',
+      description: 'pick a store',
+      options: [api.BotCommandOption(name: 'source', choices: choices)],
+    );
+
+    List<AutocompleteSuggestion> rows(
+      String term,
+      List<String> choices, {
+      int argIndex = 0,
+    }) => autocompleteSuggestions(
+      query: AutocompleteQuery(
+        kind: AutocompleteKind.botOption,
+        term: term,
+        start: 9,
+        end: 9 + term.length,
+        command: '!sources',
+        argIndex: argIndex,
+      ),
+      custom: const [],
+      members: members,
+      botCommands: [deals(choices)],
+    );
+
+    test('lists every choice, uncapped, and inserts the choice', () {
+      final choices = [for (var i = 0; i < 20; i++) 'store$i'];
+      final all = rows('', choices);
+      expect(all, hasLength(20));
+      expect(all.first.insert, 'store0 ');
+      expect(all.first.detail, 'source');
+    });
+
+    test('filters as you type, prefix matches first', () {
+      final matches = rows('st', ['mist', 'gog', 'steam', 'epic']);
+      expect(matches.map((r) => r.label), ['steam', 'mist']);
+    });
+
+    test('offers nothing past the last declared option', () {
+      expect(rows('', ['steam'], argIndex: 1), isEmpty);
+    });
+
+    test('a free-form option offers nothing', () {
+      expect(rows('', const []), isEmpty);
+    });
+  });
 }

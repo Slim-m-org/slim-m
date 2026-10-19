@@ -109,7 +109,8 @@ Future<ClientUpdate?> checkForClientUpdate({
     final best = latestClientRelease(releases);
     final bestVersion = best?.version;
     final bestUrl = best?.htmlUrl;
-    if (bestVersion == null || bestUrl == null) return null;
+    if (best == null || bestVersion == null || bestUrl == null) return null;
+    rememberLatestClientRelease(best);
     if (!isNewer(bestVersion, currentVersion)) return null;
     final failed = failedVersion ?? recordedFailedVersion();
     if (failed != null && !isNewer(bestVersion, failed)) return null;

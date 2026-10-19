@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT author_id AS \"author_id: UserId\", kind AS \"kind!\",\n                  deleted_at AS \"deleted_at: i64\", props AS \"props!\"\n           FROM canvas_objects WHERE id = ? AND channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "props!",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "d4ce39097e8bb009671427624934e086076883343b8f5e477d031d9717876613"
+}

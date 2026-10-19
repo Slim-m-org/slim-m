@@ -6,10 +6,19 @@
 # and needs no elevation.
 $ErrorActionPreference = 'Stop'
 
+# A plain message and a failing exit code, not a stack trace; install.cmd pauses on it.
+function Stop-Install($message) {
+  if ($unpack -and (Test-Path $unpack)) {
+    try { Remove-Item -Recurse -Force $unpack -ErrorAction Stop } catch { }
+  }
+  Write-Host $message -ForegroundColor Red
+  exit 1
+}
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $versionFile = Join-Path $here 'VERSION'
 if (-not (Test-Path $versionFile)) {
-  throw 'run this from the extracted slim-m zip; it has no VERSION file beside it'
+  Stop-Install 'run this from the extracted slim-m zip; it has no VERSION file beside it'
 }
 $version = (Get-Content $versionFile -Raw).Trim()
 
@@ -18,9 +27,21 @@ New-Item -ItemType Directory -Force $root | Out-Null
 
 $unpack = Join-Path $root ".unpack-$version"
 $target = Join-Path $root "app-$version"
-Remove-Item -Recurse -Force $unpack -ErrorAction SilentlyContinue
+$closeFirst = "could not replace $target; close slim-m (including its tray icon) and run this again"
+
+function Remove-Folder($path) {
+  if (-not (Test-Path $path)) { return }
+  try {
+    Remove-Item -Recurse -Force $path -ErrorAction Stop
+  } catch {
+    Stop-Install $closeFirst
+  }
+  if (Test-Path $path) { Stop-Install $closeFirst }
+}
+
+Remove-Folder $unpack
 Copy-Item -Recurse $here $unpack
-Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
+Remove-Folder $target
 Move-Item $unpack $target
 
 Copy-Item (Join-Path $here 'slim-m.exe') (Join-Path $root 'slim-m.exe') -Force
@@ -43,4 +64,5 @@ $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut(
 $shortcut.TargetPath = Join-Path $root 'slim-m.exe'
 $shortcut.Save()
 
-Write-Host "installed slim-m $version in $root; start it from the Start menu"
+Write-Host "installed slim-m $version in $root"
+Start-Process (Join-Path $root 'slim-m.exe')

@@ -14,9 +14,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 /// What a note's laid-out text depends on: its text, the camera zoom (which
-/// sets the font size), and its world width and height (which set the wrap
-/// width and line count). Records give this structural equality for free.
-typedef NoteLayoutKey = (String text, double zoom, double w, double h);
+/// sets the font size), its world width and height (which set the wrap width
+/// and line count), and the revision of whatever styles its spans (a member
+/// list arriving relabels a mention). Records give this structural equality
+/// for free.
+typedef NoteLayoutKey = (
+  String text,
+  double zoom,
+  double w,
+  double h,
+  int spansRevision,
+);
 
 /// Test-only: how many times each note's text was laid out, so a test can tell
 /// a cache hit from a re-shape - the rendered frame looks identical either way.

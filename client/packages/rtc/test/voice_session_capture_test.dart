@@ -7,6 +7,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+import 'support/no_audio_devices.dart';
 
 class _EmptyRoom extends lk.Room {
   @override
@@ -91,6 +92,7 @@ const _poll = Duration(milliseconds: 2);
 class _Rig {
   _Rig({bool gateSupported = true}) {
     session = VoiceSession(
+      audioDevices: const NoAudioDevices(),
       roomFactory: _EmptyRoom.new,
       micPort: mic,
       captureRestartDebounce: _debounce,

@@ -14,6 +14,7 @@ enum ParticipantAction {
   message,
   call,
   viewProfile,
+  moveTo,
   moderate,
 }
 
@@ -33,6 +34,7 @@ List<ParticipantAction> participantActions({
   required bool hasProfile,
   required bool showModeration,
   bool canCall = false,
+  bool canMove = false,
 }) {
   if (isSelf) return const [];
   return [
@@ -42,6 +44,7 @@ List<ParticipantAction> participantActions({
     if (hasProfile && canCall && !inCallTogether) ParticipantAction.call,
     if (hasProfile && surface == ParticipantSurface.menu)
       ParticipantAction.viewProfile,
+    if (canMove && surface == ParticipantSurface.menu) ParticipantAction.moveTo,
     if (hasProfile && showModeration) ParticipantAction.moderate,
   ];
 }

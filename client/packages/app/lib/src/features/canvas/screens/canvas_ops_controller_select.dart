@@ -101,8 +101,13 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
     final id =
-        hitTestBoxAt(document, world, allowed: allowed) ??
-        _hitTestSelectableStroke(world, allowed);
+        hitTestBoxAt(
+          document,
+          world,
+          allowed: allowed,
+          slopPx: touch ? touchHitSlopPx : 0,
+        ) ??
+        _hitTestSelectableStroke(world, allowed, touch);
     document.selectedObjectId.value = id;
     if (id == null || document.kindOf(id) == CanvasObjectKind.stroke) return;
     final bounds = document.objectBounds(id);
@@ -170,8 +175,14 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   String? _hitTestSelectableStroke(
     Offset world,
     bool Function(CanvasStroke stroke) allowed,
+    bool touch,
   ) {
-    final id = hitTestStroke(document, world, allowed: allowed);
+    final id = hitTestStroke(
+      document,
+      world,
+      allowed: allowed,
+      slopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
+    );
     if (id == null || document.kindOf(id) != CanvasObjectKind.stroke) {
       return null;
     }
@@ -255,7 +266,18 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       threshold: snapScreenThreshold / document.camera.zoom,
     );
     document.snapGuides.value = result.guides;
-    return result.offset;
+    if (!document.snapToGrid.value) return result.offset;
+    // Lining up with a neighbour wins on its axis; the grid takes the rest.
+    final grid = gridShift(
+      moving.shift(result.offset),
+      gridSpacingFor(document.camera.zoom),
+    );
+    final alignedX = result.guides.any((g) => g.vertical);
+    final alignedY = result.guides.any((g) => !g.vertical);
+    return Offset(
+      result.offset.dx + (alignedX ? 0 : grid.dx),
+      result.offset.dy + (alignedY ? 0 : grid.dy),
+    );
   }
 
   /// Commits whichever gesture [beginSelect] started as one `move` op, or

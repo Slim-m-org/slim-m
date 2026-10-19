@@ -65,6 +65,8 @@ const Map<String, String> _allowlist = {
       '/attachments/uploads/{}',
   'GET /users/{}/avatar': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
+  'GET /users/{}/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
+      'same as GET /users/{}/avatar',
   'GET /users/{}/links/discord/avatar': 'reads raw bytes through '
       'SlimmApi._fetchBytes, the same as GET /users/{}/avatar',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '

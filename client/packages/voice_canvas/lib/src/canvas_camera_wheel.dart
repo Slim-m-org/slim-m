@@ -11,6 +11,7 @@
 /// only one of them was changed, so both read the same function instead.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'canvas_stroke.dart';
@@ -58,7 +59,9 @@ Camera cameraAfterZoom(
   required Offset focal,
   required double zoomTarget,
 }) {
-  final zoom = zoomTarget.clamp(minZoom, maxZoom);
+  // A board fit can sit below minZoom; never turn a zoom-out into a zoom-in.
+  final zoom =
+      zoomTarget.clamp(math.min(minZoom, camera.zoom), maxZoom).toDouble();
   if (zoom == camera.zoom) return camera;
   final worldFocal = Offset(
     camera.x + focal.dx / camera.zoom,

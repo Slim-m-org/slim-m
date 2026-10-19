@@ -17,6 +17,7 @@ import traceback
 import e2e_accounts
 import e2e_admin
 import e2e_canvas
+import e2e_canvas_board
 import e2e_canvas_crowd
 import e2e_canvas_live
 import e2e_canvas_shapes
@@ -38,8 +39,10 @@ import e2e_sweep
 import e2e_threads
 import e2e_voice
 import e2e_voice_deafen
+import e2e_voice_move
 import e2e_voice_mic_release
 import e2e_voice_devices
+import e2e_voice_hide_stream
 import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
@@ -249,6 +252,12 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas_crowd.crowd_draws_through_a_restart(
              a, b, server, secret, admin, sign_in,
              admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: the same content sits at the same relative place on a "
+         "smaller window",
+         lambda: e2e_canvas_board.same_relative_position_on_different_windows(
+             a, b, admin, admin.channel_named(L.VOICE_CHANNEL)["id"])),
+        ("canvas: following someone and bringing everyone to you",
+         lambda: e2e_canvas_board.follow_and_bring_everyone(a, b)),
         ("canvas: closing it", lambda: e2e_canvas.close_on_both(a, b)),
         ("voice: share resolution and frame rate change from the share menu and persist",
          lambda: e2e_video_quality.share_quality_from_the_share_menu(
@@ -289,12 +298,19 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: deafening silences what you hear and nothing of what you say",
          lambda: e2e_voice_deafen.deafen_silences_playback_not_the_mic(
              a, b, room_id, admin.me()["id"], member.me()["id"])),
+        ("voice: a moderator moves a member to another call and they hear her there",
+         lambda: e2e_voice_move.moving_a_member_takes_their_call_with_them(
+             a, b, admin, room_id, member.me()["id"])),
         ("voice: muting hands the capture back after the grace period",
          lambda: e2e_voice_mic_release.muting_releases_the_capture_after_the_grace(
              a, b, room_id)),
         ("voice: a share's own volume moves apart from the sharer's voice",
          lambda: e2e_voice_share.stream_volume_is_apart_from_the_voice(
              a, b, room_id, member.me()["id"])),
+        ("voice: hiding a stream, hiding the page and leaving the channel stop "
+         "the video, and showing them brings it back",
+         lambda: e2e_voice_hide_stream.hiding_and_showing_a_stream(
+             a, b, room_id)),
         ("voice: two shares at once reach a third person, focus, and stopping "
          "one leaves the other",
          lambda: e2e_voice_multishare.two_shares_reach_a_third_viewer(

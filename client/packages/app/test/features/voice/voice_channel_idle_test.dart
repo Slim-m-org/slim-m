@@ -11,7 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
+import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_call_history.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_recap_card.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_channel_idle.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -126,8 +128,11 @@ Future<void> _pump(
   api.VoiceCallHistory? history,
   String? error,
   bool canRetry = true,
+  CallRecap? recap,
+  double width = 1100,
+  double? paneWidth,
 }) async {
-  tester.view.physicalSize = const Size(1100, 1100);
+  tester.view.physicalSize = Size(width, 1100);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final container = ProviderContainer(
@@ -170,13 +175,20 @@ Future<void> _pump(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: VoiceChannelIdle(
-            channelId: 'voice-1',
-            onJoin: onJoin,
-            onOpenCanvas: () {},
-            errorMessage: error,
-            canRetry: canRetry,
-            clock: () => _now,
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: paneWidth,
+              child: VoiceChannelIdle(
+                channelId: 'voice-1',
+                onJoin: onJoin,
+                onOpenCanvas: () {},
+                errorMessage: error,
+                canRetry: canRetry,
+                recap: recap,
+                clock: () => _now,
+              ),
+            ),
           ),
         ),
       ),
@@ -186,6 +198,34 @@ Future<void> _pump(
 }
 
 void main() {
+  testWidgets('the last call timeline labels never overlap in a narrow pane', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      onJoin: () {},
+      history: api.VoiceCallHistory(
+        retentionDays: 30,
+        canvasObjectCount: 0,
+        calls: [_history().calls.first],
+      ),
+      width: 1280,
+      paneWidth: 436,
+    );
+    final labels = tester
+        .widgetList<Text>(find.byType(Text))
+        .where((t) => RegExp(r'^\d{1,2}:\d{2}\s[AP]M$').hasMatch(t.data ?? ''))
+        .map((t) => tester.getRect(find.byWidget(t)))
+        .toList();
+    expect(labels.length, greaterThan(1));
+    for (var i = 0; i < labels.length; i++) {
+      for (var j = i + 1; j < labels.length; j++) {
+        expect(labels[i].overlaps(labels[j]), isFalse);
+      }
+      expect(labels[i].right, lessThanOrEqualTo(436));
+    }
+  });
+
   testWidgets('the button joins, and says it joins muted', (tester) async {
     var joins = 0;
     await _pump(tester, onJoin: () => joins++, history: _history());
@@ -237,5 +277,82 @@ void main() {
     expect(find.text("Can't tell who else is here right now."), findsOneWidget);
     expect(find.text('Last call'), findsNothing);
     expect(find.byType(AppErrorState), findsNothing);
+  });
+
+  group('after a hang-up (decision 0077)', () {
+    CallRecap recapOf(Duration length, {bool withKiki = true}) {
+      final start = DateTime(2026, 10, 14, 9);
+      return CallRecap(
+        channelId: 'voice-1',
+        startedAt: start,
+        endedAt: start.add(length),
+        others: [
+          if (withKiki)
+            CallParticipantActivity(
+              identity: 'kiki',
+              name: 'Kiki',
+              joinedAt: start,
+            ),
+        ],
+        sharedScreen: false,
+        usedCamera: false,
+      );
+    }
+
+    testWidgets('shows how long, who was there, and a Rejoin that joins', (
+      tester,
+    ) async {
+      var joins = 0;
+      await _pump(
+        tester,
+        onJoin: () => joins++,
+        recap: recapOf(const Duration(minutes: 23)),
+      );
+      expect(find.text('Call ended'), findsOneWidget);
+      expect(find.text('23 min'), findsOneWidget);
+      expect(find.text('Kiki'), findsOneWidget);
+      expect(find.text('Join muted'), findsNothing);
+
+      await tester.tap(find.text('Rejoin muted'));
+      expect(joins, 1);
+    });
+
+    testWidgets('a three minute call is summarised too', (tester) async {
+      await _pump(
+        tester,
+        onJoin: () {},
+        recap: recapOf(const Duration(minutes: 3)),
+      );
+      expect(find.byType(CallRecapCard), findsOneWidget);
+      expect(find.text('3 min'), findsOneWidget);
+    });
+
+    testWidgets('a mis-click gets Rejoin but no summary', (tester) async {
+      await _pump(
+        tester,
+        onJoin: () {},
+        recap: recapOf(const Duration(seconds: 6), withKiki: false),
+      );
+      expect(find.byType(CallRecapCard), findsNothing);
+      expect(find.text('Rejoin muted'), findsOneWidget);
+    });
+
+    testWidgets('without a recap it is the plain join bar', (tester) async {
+      await _pump(tester, onJoin: () {});
+      expect(find.byType(CallRecapCard), findsNothing);
+      expect(find.text('Join muted'), findsOneWidget);
+      expect(find.text('Rejoin muted'), findsNothing);
+    });
+
+    testWidgets('on a phone the button is a bare Rejoin', (tester) async {
+      await _pump(
+        tester,
+        onJoin: () {},
+        recap: recapOf(const Duration(minutes: 8)),
+        width: 390,
+      );
+      expect(find.text('Rejoin'), findsOneWidget);
+      expect(find.text('Call ended'), findsOneWidget);
+    });
   });
 }

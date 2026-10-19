@@ -32,21 +32,21 @@ class _MemberPaneSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!requested) return _animated(context, false);
+    if (!requested) return _animated(context, ref, false);
     final channelId = this.channelId;
-    if (channelId == null) return _animated(context, true);
+    if (channelId == null) return _animated(context, ref, true);
     final storeAsync = ref.watch(storeProvider);
     return storeAsync.maybeWhen(
-      orElse: () => _animated(context, true),
+      orElse: () => _animated(context, ref, true),
       data: (store) => StreamBuilder<Channel?>(
         stream: store.watchChannelRow(channelId),
         builder: (context, snapshot) =>
-            _animated(context, snapshot.data?.kind != 'dm'),
+            _animated(context, ref, snapshot.data?.kind != 'dm'),
       ),
     );
   }
 
-  Widget _animated(BuildContext context, bool show) => ClipRect(
+  Widget _animated(BuildContext context, WidgetRef ref, bool show) => ClipRect(
     child: AnimatedContainer(
       duration: AppMotion.reduced(context, AppMotion.base),
       curve: AppMotion.entrance,
@@ -58,7 +58,12 @@ class _MemberPaneSlot extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: AppPanelReveal(
                 fromLeft: false,
-                child: AppMemberPane(channelId: channelId),
+                child: AppMemberPane(
+                  channelId: channelId,
+                  onClose: () =>
+                      ref.read(memberPaneVisibleProvider.notifier).state =
+                          false,
+                ),
               ),
             )
           : const SizedBox.shrink(),

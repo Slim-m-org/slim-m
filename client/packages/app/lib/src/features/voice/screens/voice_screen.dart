@@ -227,6 +227,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           channelId: channelId,
           errorMessage: errorMessage,
           canRetry: canRetry,
+          recap: recapForChannel(voice, channelId),
           onJoin: () => _joinMuted(controller),
           onOpenCanvas: () =>
               ref.read(canvasOpenProvider.notifier).state = channelId,

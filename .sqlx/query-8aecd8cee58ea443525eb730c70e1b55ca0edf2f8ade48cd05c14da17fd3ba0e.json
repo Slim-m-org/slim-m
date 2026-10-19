@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE users SET banner_updated_at = NULL WHERE id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "8aecd8cee58ea443525eb730c70e1b55ca0edf2f8ade48cd05c14da17fd3ba0e"
+}

@@ -48,6 +48,19 @@ void main() {
     expect(port.restoreCalls, 1);
   });
 
+  test('a focus notification tells listeners another launch arrived', () async {
+    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
+    DesktopWindowShell.registerSecondInstanceHandler();
+    var launches = 0;
+    final sub = DesktopWindowShell.secondLaunches.listen((_) => launches++);
+    addTearDown(sub.cancel);
+
+    await _send(const MethodCall('focus'));
+    await _send(const MethodCall('somethingElse'));
+
+    expect(launches, 1);
+  });
+
   test('an unrelated method on the same channel is ignored', () async {
     final port = FakeDesktopWindowPort();
     DesktopWindowShell.debugPort = port;

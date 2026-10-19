@@ -17,6 +17,7 @@ class UserProfile {
     this.nickname,
     this.accountDisplayName,
     this.avatarUpdatedAt,
+    this.bannerUpdatedAt,
     this.roles = const [],
     this.roleIds = const [],
     this.hoistedRoleId,
@@ -55,6 +56,10 @@ class UserProfile {
   /// [SlimmApi.fetchAvatar], since the fetch endpoint itself ignores any
   /// query string. Null means no avatar, so a caller must not request one.
   final int? avatarUpdatedAt;
+
+  /// When this user's profile banner image was set, or null for the profile
+  /// colour. A cache key beside [SlimmApi.fetchBanner]; null means do not ask.
+  final int? bannerUpdatedAt;
 
   /// Role names, for a badge beside the member. Excludes `@everyone`, which
   /// every member holds, so an empty list means "no badge" rather than "no
@@ -139,6 +144,7 @@ class UserProfile {
         accountDisplayName: json['account_display_name'] as String?,
         createdAt: json['created_at'] as int,
         avatarUpdatedAt: json['avatar_updated_at'] as int?,
+        bannerUpdatedAt: json['banner_updated_at'] as int?,
         // Absent on a server older than the roles field is not the same as a
         // member holding none, but both render no badge, so empty reads either.
         roles: (json['roles'] as List<dynamic>?)?.cast<String>() ?? const [],
@@ -171,6 +177,7 @@ class UserProfile {
           nickname == other.nickname &&
           createdAt == other.createdAt &&
           avatarUpdatedAt == other.avatarUpdatedAt &&
+          bannerUpdatedAt == other.bannerUpdatedAt &&
           hoistedRoleId == other.hoistedRoleId &&
           hoistedRolePosition == other.hoistedRolePosition &&
           timedOutUntil == other.timedOutUntil &&
@@ -191,6 +198,7 @@ class UserProfile {
         nickname,
         createdAt,
         avatarUpdatedAt,
+        bannerUpdatedAt,
         hoistedRoleId,
         hoistedRolePosition,
         timedOutUntil,
@@ -231,6 +239,7 @@ class Me {
     required this.createdAt,
     required this.permissions,
     this.avatarUpdatedAt,
+    this.bannerUpdatedAt,
     this.timedOutUntil,
     this.timeoutReason,
     this.statusText,
@@ -254,6 +263,9 @@ class Me {
 
   /// Same meaning as [UserProfile.avatarUpdatedAt].
   final int? avatarUpdatedAt;
+
+  /// Same meaning as [UserProfile.bannerUpdatedAt].
+  final int? bannerUpdatedAt;
 
   /// When the caller's own timeout lifts, or null.
   ///
@@ -293,6 +305,7 @@ class Me {
         createdAt: json['created_at'] as int,
         permissions: json['permissions'] as int,
         avatarUpdatedAt: json['avatar_updated_at'] as int?,
+        bannerUpdatedAt: json['banner_updated_at'] as int?,
         timedOutUntil: json['timed_out_until'] as int?,
         timeoutReason: json['timeout_reason'] as String?,
         statusText: json['status_text'] as String?,

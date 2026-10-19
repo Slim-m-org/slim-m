@@ -37,6 +37,7 @@
 
 use super::super::{PlaceError, Store};
 use super::canvas_audit::record_canvas_audit;
+use super::canvas_edit::apply_edit;
 use super::canvas_ops_apply::{
     affected_count_for, apply_move, apply_remove, apply_reorder, apply_restore, current_canvas_seq,
     fetch_op,
@@ -100,6 +101,12 @@ pub enum CanvasOpRequest {
         w: f64,
         h: f64,
     },
+    /// Replaces one live note's props wholesale, its text being the only
+    /// thing a note holds; decision 0072.
+    Edit {
+        object_id: CanvasObjectId,
+        props: String,
+    },
     /// Sets one live object's paint order to an explicit `z_index`, never
     /// touching its bounds. The caller computes the target value (typically
     /// one above or below every `z_index` it currently knows about, for
@@ -141,6 +148,8 @@ pub struct SubmittedOp {
     /// The `z_index` a fresh `reorder` applied, for the same reason
     /// `moved_to` exists. `None` for every other kind and for a replay.
     pub reordered_to: Option<i64>,
+    /// The props a fresh, effective `edit` wrote.
+    pub edited_props: Option<String>,
 }
 
 /// Why submitting an op failed.
@@ -162,6 +171,8 @@ pub enum SubmitOpError {
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same
     /// check a placement itself makes.
     OutOfBounds,
+    /// An `edit` named an object that is not a note.
+    NotEditable,
     /// A `move` or `reorder` naming an object locked in place.
     Locked,
     Internal(anyhow::Error),
@@ -235,6 +246,7 @@ impl Store {
                 cleared_before_seq: None,
                 moved_to: None,
                 reordered_to: None,
+                edited_props: None,
             });
         }
 
@@ -246,6 +258,8 @@ impl Store {
         let mut move_bounds: Option<(f64, f64, f64, f64)> = None;
         // Only a fresh, effective `reorder` sets this.
         let mut reorder_z: Option<i64> = None;
+        // Only a fresh, effective `edit` sets this.
+        let mut edit_props: Option<String> = None;
         let (kind, affected, touched_ids, bound_seq) = match request {
             CanvasOpRequest::Remove(object_ids) => {
                 apply_remove(
@@ -302,6 +316,21 @@ impl Store {
                 }
                 outcome
             }
+            CanvasOpRequest::Edit { object_id, props } => {
+                let outcome = apply_edit(
+                    &mut tx,
+                    channel_id,
+                    actor_id,
+                    may_moderate,
+                    object_id,
+                    &props,
+                )
+                .await?;
+                if outcome.1 > 0 {
+                    edit_props = Some(props);
+                }
+                outcome
+            }
             CanvasOpRequest::Reorder { object_id, z_index } => {
                 let outcome = apply_reorder(
                     &mut tx,
@@ -334,6 +363,7 @@ impl Store {
                 cleared_before_seq: None,
                 moved_to: None,
                 reordered_to: None,
+                edited_props: None,
             });
         }
 
@@ -346,8 +376,8 @@ impl Store {
         sqlx::query!(
             r#"INSERT INTO canvas_ops
                    (channel_id, seq, id, kind, actor_id, bound_seq, target_op,
-                    move_x, move_y, move_w, move_h, reorder_z, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+                    move_x, move_y, move_w, move_h, reorder_z, edit_props, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
             channel_id,
             seq,
             op_id,
@@ -360,6 +390,7 @@ impl Store {
             move_w,
             move_h,
             reorder_z,
+            edit_props,
             now
         )
         .execute(&mut *tx)
@@ -384,6 +415,7 @@ impl Store {
             cleared_before_seq: bound_seq,
             moved_to: move_bounds,
             reordered_to: reorder_z,
+            edited_props: edit_props,
         })
     }
 }

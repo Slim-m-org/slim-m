@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../providers/providers.dart';
+import 'desktop_window_shell.dart';
 import 'update_check.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -28,6 +29,13 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// left running for months of uninterrupted uptime stays orders of magnitude
 /// under a limit it would need to poll roughly 15x more often to ever risk.
 const updateWatchInterval = Duration(hours: 6);
+
+/// How soon after start the first in-session check runs: the splash has just
+/// checked, so waiting a minute spares the request budget for a restart loop.
+const updateWatchStartDelay = Duration(minutes: 1);
+
+/// No two checks run closer than this, whatever asks for them.
+const updateWatchMinGap = Duration(minutes: 10);
 
 /// Whether this build should ever run the periodic check at all.
 ///
@@ -48,10 +56,10 @@ bool updateWatchShouldRun() =>
 /// keeps [updateWatcherProvider] alive, writing a find that has not already
 /// been dismissed into [inSessionUpdateProvider].
 ///
-/// No immediate first check on construction, unlike [VoiceCallHeartbeat]'s
-/// proof-of-life ping: the splash this same session just passed through
-/// already made one, and firing a second immediately after would only spend
-/// part of the rate-limit budget above for no new information.
+/// A check also runs shortly after start and whenever a second launch hands
+/// over to this instance, because a copy kept in the tray never sees the
+/// splash again. All of them share [updateWatchMinGap], so the budget above
+/// holds however often someone double-clicks the shortcut.
 class UpdateWatcher {
   UpdateWatcher(
     this._ref, {
@@ -59,16 +67,27 @@ class UpdateWatcher {
     CheckForClientUpdate check = checkForClientUpdate,
     InstallFormat? format,
     bool Function() shouldRun = updateWatchShouldRun,
+    this.startDelay = updateWatchStartDelay,
+    Stream<void>? secondLaunches,
+    DateTime Function() now = DateTime.now,
   }) : _check = check,
        _format = format,
-       _shouldRun = shouldRun;
+       _shouldRun = shouldRun,
+       _secondLaunches = secondLaunches ?? DesktopWindowShell.secondLaunches,
+       _now = now;
 
   final Ref _ref;
   final Duration interval;
   final CheckForClientUpdate _check;
   final InstallFormat? _format;
   final bool Function() _shouldRun;
+  final Duration? startDelay;
+  final Stream<void> _secondLaunches;
+  final DateTime Function() _now;
   Timer? _timer;
+  Timer? _startTimer;
+  StreamSubscription<void>? _launches;
+  DateTime? _lastCheck;
 
   /// Starts the timer, unless it is running already or [shouldRun] (a
   /// desktop host with the check not switched off) says this session should
@@ -76,11 +95,23 @@ class UpdateWatcher {
   void start() {
     if (_timer != null || !_shouldRun()) return;
     _timer = Timer.periodic(interval, (_) => unawaited(_poll()));
+    final delay = startDelay;
+    if (delay != null) {
+      _startTimer = Timer(delay, () => unawaited(_poll()));
+    }
+    _launches = _secondLaunches.listen((_) => unawaited(_poll()));
   }
 
-  void dispose() => _timer?.cancel();
+  void dispose() {
+    _timer?.cancel();
+    _startTimer?.cancel();
+    unawaited(_launches?.cancel());
+  }
 
   Future<void> _poll() async {
+    final last = _lastCheck;
+    if (last != null && _now().difference(last) < updateWatchMinGap) return;
+    _lastCheck = _now();
     try {
       final info = await _ref.read(appInfoProvider.future);
       final update = await _check(

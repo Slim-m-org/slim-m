@@ -227,6 +227,14 @@ class SyncController extends StateNotifier<SyncStatus> {
   }) =>
       _connection?.canvasObjectPreview(channelId, objectId, box, ended: ended);
 
+  /// Tells the server the world rectangle this user is looking at; the same
+  /// no-op-while-down shape.
+  void notifyCanvasView(
+    String channelId,
+    ({double x, double y, double w, double h}) view, {
+    bool summon = false,
+  }) => _connection?.canvasView(channelId, view, summon: summon);
+
   /// Starts, or restarts, synchronisation. Safe to call repeatedly: a call
   /// superseded by a later [start] or a [stop] before it reaches a given
   /// checkpoint abandons itself there rather than finishing against a

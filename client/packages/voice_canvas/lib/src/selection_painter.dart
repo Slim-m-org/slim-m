@@ -33,6 +33,7 @@ class SelectionPainter extends CustomPainter {
     required this.outline,
     required this.handleFill,
     required this.handleBorder,
+    this.touchHandles = false,
   }) : super(
             repaint: Listenable.merge([
           document,
@@ -44,6 +45,9 @@ class SelectionPainter extends CustomPainter {
   final Color outline;
   final Color handleFill;
   final Color handleBorder;
+
+  /// Draws the larger handle a finger needs.
+  final bool touchHandles;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -72,6 +76,8 @@ class SelectionPainter extends CustomPainter {
       ..color = handleBorder
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
+    final handleSize =
+        touchHandles ? touchResizeHandleVisualSize : resizeHandleVisualSize;
     for (final corner in resizeHandleCorners(bounds).values) {
       final at = Offset(
         (corner.dx - camera.x) * camera.zoom,
@@ -79,8 +85,8 @@ class SelectionPainter extends CustomPainter {
       );
       final handle = Rect.fromCenter(
         center: at,
-        width: resizeHandleVisualSize,
-        height: resizeHandleVisualSize,
+        width: handleSize,
+        height: handleSize,
       );
       canvas.drawRect(handle, fill);
       canvas.drawRect(handle, border);

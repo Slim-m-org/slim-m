@@ -401,6 +401,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               onCancelReply: _cancelReply,
               autofocus: widget.autofocusComposer,
               focusRequests: _composerFocusRequests,
+              reportsExtent: !isThread,
             ),
         ],
       ),

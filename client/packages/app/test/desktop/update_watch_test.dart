@@ -10,6 +10,8 @@
 /// anything; `update_available_banner_test.dart` covers the widget half.
 library;
 
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +73,9 @@ UpdateWatcher _watcher(
   ProviderContainer container, {
   required CheckForClientUpdate check,
   required bool Function() shouldRun,
+  Duration? startDelay,
+  Stream<void>? secondLaunches,
+  DateTime Function()? now,
 }) => container.read(
   Provider(
     (ref) => UpdateWatcher(
@@ -78,6 +83,9 @@ UpdateWatcher _watcher(
       interval: _interval,
       check: check,
       shouldRun: shouldRun,
+      startDelay: startDelay,
+      secondLaunches: secondLaunches ?? const Stream.empty(),
+      now: now ?? DateTime.now,
     ),
   ),
 );
@@ -93,6 +101,7 @@ void main() {
         container,
         check: check.call,
         shouldRun: () => true,
+        now: async.getClock(DateTime(2026)).now,
       );
       addTearDown(watcher.dispose);
       addTearDown(container.dispose);
@@ -119,6 +128,7 @@ void main() {
         container,
         check: check.call,
         shouldRun: () => true,
+        now: async.getClock(DateTime(2026)).now,
       );
       addTearDown(watcher.dispose);
       addTearDown(container.dispose);
@@ -141,6 +151,7 @@ void main() {
         container,
         check: check.call,
         shouldRun: () => true,
+        now: async.getClock(DateTime(2026)).now,
       );
       addTearDown(watcher.dispose);
       addTearDown(container.dispose);
@@ -168,6 +179,7 @@ void main() {
         container,
         check: check.call,
         shouldRun: () => true,
+        now: async.getClock(DateTime(2026)).now,
       );
       addTearDown(watcher.dispose);
       addTearDown(container.dispose);
@@ -201,6 +213,63 @@ void main() {
             'web, phones, and SLIMM_NO_UPDATE_CHECK all answer through '
             'shouldRun, and none of them may ever poll',
       );
+    });
+  });
+
+  group('besides the timer', () {
+    test('checks once shortly after start', () {
+      fakeAsync((async) {
+        final check = _Check(null);
+        final container = _container();
+        final watcher = _watcher(
+          container,
+          check: check.call,
+          shouldRun: () => true,
+          startDelay: const Duration(minutes: 1),
+          now: async.getClock(DateTime(2026)).now,
+        );
+        addTearDown(watcher.dispose);
+        addTearDown(container.dispose);
+
+        watcher.start();
+        async.elapse(const Duration(seconds: 59));
+        expect(check.calls, 0);
+        async.elapse(const Duration(seconds: 2));
+        expect(check.calls, 1);
+      });
+    });
+
+    test('a second launch checks, but never twice within ten minutes', () {
+      fakeAsync((async) {
+        final check = _Check(null);
+        final launches = StreamController<void>.broadcast();
+        final container = _container();
+        final watcher = _watcher(
+          container,
+          check: check.call,
+          shouldRun: () => true,
+          secondLaunches: launches.stream,
+          now: async.getClock(DateTime(2026)).now,
+        );
+        addTearDown(watcher.dispose);
+        addTearDown(container.dispose);
+        addTearDown(launches.close);
+
+        watcher.start();
+        launches.add(null);
+        async.flushMicrotasks();
+        expect(check.calls, 1);
+
+        async.elapse(const Duration(minutes: 9));
+        launches.add(null);
+        async.flushMicrotasks();
+        expect(check.calls, 1, reason: 'debounced');
+
+        async.elapse(const Duration(minutes: 2));
+        launches.add(null);
+        async.flushMicrotasks();
+        expect(check.calls, 2);
+      });
     });
   });
 }

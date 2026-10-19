@@ -12,6 +12,7 @@
 //! `/reports/history` (`store/moderation_history.rs`) reads it over HTTP,
 //! merged with resolved reports into one feed.
 
+use super::{Store, now_ms};
 use crate::ids::UserId;
 
 /// Every act the audit log records. The table's own CHECK no longer lists
@@ -35,11 +36,12 @@ pub(crate) enum ModerationAction {
     ResetCodeIssue,
     NicknameSet,
     NicknameClear,
+    VoiceMove,
 }
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 16] = [
+    pub(crate) const ALL: [Self; 17] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -56,6 +58,7 @@ impl ModerationAction {
         Self::ResetCodeIssue,
         Self::NicknameSet,
         Self::NicknameClear,
+        Self::VoiceMove,
     ];
 
     pub(crate) fn as_str(self) -> &'static str {
@@ -76,6 +79,7 @@ impl ModerationAction {
             Self::ResetCodeIssue => "reset_code_issue",
             Self::NicknameSet => "nickname_set",
             Self::NicknameClear => "nickname_clear",
+            Self::VoiceMove => "voice_move",
         }
     }
 }
@@ -120,6 +124,32 @@ pub(super) async fn record_moderation_audit(
     Ok(())
 }
 
+impl Store {
+    /// Writes down that `actor` moved `subject` between two calls; `route` reads like "lobby to games".
+    pub async fn record_voice_move(
+        &self,
+        actor: UserId,
+        subject: UserId,
+        route: &str,
+    ) -> anyhow::Result<()> {
+        let mut tx = self.begin_write().await?;
+        record_moderation_audit(
+            &mut tx,
+            ModerationAudit {
+                actor_id: actor,
+                subject_id: subject,
+                action: ModerationAction::VoiceMove,
+                reason: Some(route),
+                until: None,
+                created_at: now_ms(),
+            },
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::ModerationAction;
@@ -149,6 +179,7 @@ mod tests {
                 ModerationAction::ResetCodeIssue => 13,
                 ModerationAction::NicknameSet => 14,
                 ModerationAction::NicknameClear => 15,
+                ModerationAction::VoiceMove => 16,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

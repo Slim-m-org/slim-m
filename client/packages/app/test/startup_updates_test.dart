@@ -8,6 +8,8 @@
 /// nothing about the waiting.
 library;
 
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,7 +83,14 @@ class _Dnf implements RpmUpdater {
 }
 
 class _FakeSelfUpdate extends SelfUpdateController {
-  _FakeSelfUpdate(super.ref, {this.onInstall, this.fail = false});
+  _FakeSelfUpdate(
+    super.ref, {
+    this.onInstall,
+    this.fail = false,
+    this.hang = false,
+  });
+
+  final bool hang;
 
   final void Function(String currentVersion)? onInstall;
   final bool fail;
@@ -94,6 +103,7 @@ class _FakeSelfUpdate extends SelfUpdateController {
     String? os,
   }) async {
     onInstall?.call(currentVersion);
+    if (hang) return Completer<String?>().future;
     if (fail) {
       ref
           .read(selfUpdateFailureProvider.notifier)
@@ -237,6 +247,35 @@ void main() {
       format: InstallFormat.tarball,
       currentVersion: '1.0.0',
       selfApplies: true,
+    );
+
+    expect(
+      scoped.read(selfUpdateFailureProvider)?.kind,
+      SelfUpdateFailureKind.downloadFailed,
+    );
+  });
+
+  test('an install that never finishes starts the current build with the '
+      'failure banner', () async {
+    final c = container();
+    final scoped = ProviderContainer(
+      parent: c,
+      overrides: [
+        selfUpdateProvider.overrideWith(
+          (ref) => _FakeSelfUpdate(ref, hang: true),
+        ),
+      ],
+    );
+    addTearDown(scoped.dispose);
+
+    await runStartupUpdates(
+      scoped,
+      check: _Check(_update(InstallFormat.tarball)).call,
+      relaunch: () async => fail('a stalled install must not restart'),
+      format: InstallFormat.tarball,
+      currentVersion: '1.0.0',
+      selfApplies: true,
+      deadline: const Duration(milliseconds: 50),
     );
 
     expect(

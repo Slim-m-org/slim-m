@@ -281,10 +281,10 @@ class _ComposerState extends ConsumerState<Composer> {
     final sendable = widget.controller.text.trim().isNotEmpty;
     final charCount = widget.controller.text.runes.length;
     final overBy = messageLengthOverage(charCount);
-    final query = autocompleteQueryAt(
+    final query = composerQueryAt(
       widget.controller.text,
       widget.controller.selection.baseOffset,
-      botPrefixes: _botCommands.map((c) => c.prefix),
+      _botCommands,
     );
     // True while the counter is or was on screen, so its own value keeps redrawing.
     final countMatters =

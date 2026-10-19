@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Which remote video the call keeps subscribed: the union of everything a
 /// surface has mounted, narrowed to one feed while floating, and nothing when
-/// nobody can see the window.
+/// nobody can see the window, except a popped-out feed, which has its own window.
 library;
 
 import 'dart:async';
@@ -22,6 +22,7 @@ class VideoInterestRelay {
   final void Function(Set<String>?) _apply;
   Set<String>? _canvas;
   Set<String>? _held;
+  Set<String> _poppedOut = const {};
   bool _seen = true;
   final Map<String, int> _mounted = {};
   Set<String>? _sent;
@@ -37,6 +38,13 @@ class VideoInterestRelay {
   void hold(Set<String>? tileKeys) {
     if (setEquals(_held, tileKeys)) return;
     _held = tileKeys;
+    _reconcile();
+  }
+
+  /// The feeds shown in their own OS window, which stay wanted whatever the main window is doing.
+  void setPoppedOut(Set<String> tileKeys) {
+    if (setEquals(_poppedOut, tileKeys)) return;
+    _poppedOut = tileKeys;
     _reconcile();
   }
 
@@ -68,7 +76,7 @@ class VideoInterestRelay {
   }
 
   Set<String> get resolved {
-    if (!_seen) return const {};
+    if (!_seen) return _poppedOut;
     return _held ?? {...?_canvas, ..._mounted.keys};
   }
 

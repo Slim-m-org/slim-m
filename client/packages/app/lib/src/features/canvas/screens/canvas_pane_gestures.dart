@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'canvas_pane.dart';
 
+/// How close a tap must land to someone's cursor to follow them, in screen pixels.
+const double _cursorTapReachPx = 20;
+
 /// The select tool, undo, clear and the camera-bubble roster: split out of
 /// `_CanvasPaneState` once this fix pushed the file past the 500-line hard
 /// limit, the same reason `canvas_ops_controller_reorder.dart` splits its
@@ -15,8 +18,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = tool);
   }
 
-  CanvasTool get _defaultTool =>
-      canvasDefaultTool(compact: AppTouchTargets.of(context));
+  CanvasTool get _defaultTool => canvasDefaultTool();
 
   /// Arms the tool whose key [event] is, unless its button is absent or disabled, or a text field is taking the key.
   KeyEventResult _onToolKey(
@@ -103,7 +105,117 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh(() => _tool = CanvasTool.pan);
   }
 
+  /// Undo, redo, paste and delete over the canvas's own selection.
+  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => {
+    const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
+        unawaited(_onUndo()),
+    const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
+        unawaited(_onUndo()),
+    const SingleActivator(
+      LogicalKeyboardKey.keyZ,
+      control: true,
+      shift: true,
+    ): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(
+      LogicalKeyboardKey.keyZ,
+      meta: true,
+      shift: true,
+    ): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
+        unawaited(_onRedo()),
+    const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
+        unawaited(_imagePaste.pasteFromKeystroke()),
+    const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
+        unawaited(_imagePaste.pasteFromKeystroke()),
+    const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
+    const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
+  };
+
+  /// How soon a second click on a note makes a double click.
+  static const _doubleClickWindow = Duration(milliseconds: 400);
+
+  /// A finished select gesture that never became a drag: a double click with
+  /// a mouse, or a single tap with a finger or a pen, on the selected note.
+  void _onSelectTap(Offset world, PointerDeviceKind kind) {
+    final id = _document.selectedObjectId.value;
+    final bounds = id == null ? null : _document.objectBounds(id);
+    final onNote =
+        id != null &&
+        bounds != null &&
+        _document.kindOf(id) == CanvasObjectKind.note &&
+        Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h).contains(world);
+    if (!onNote) {
+      _lastNoteClick = null;
+      return;
+    }
+    if (kind == PointerDeviceKind.mouse) {
+      final last = _lastNoteClick;
+      final now = clock.now();
+      _lastNoteClick = (id: id, at: now);
+      if (last == null ||
+          last.id != id ||
+          now.difference(last.at) > _doubleClickWindow) {
+        return;
+      }
+      _lastNoteClick = null;
+    }
+    _onEditNote(id);
+  }
+
+  /// Opens the in-place editor, unless the note is locked or the canvas is
+  /// refusing writes; the select tool and the menu only ever offer notes this
+  /// person may edit.
+  void _onEditNote(String id) {
+    final error = ref.read(canvasEngineProvider(widget.channelId)).error;
+    if (_ops.isLocked(id) || canvasErrorBlocksDrawing(error)) return;
+    _refresh(() => _editingNoteId = id);
+  }
+
+  Future<void> _onNoteEditSave(String id, String text) async {
+    _refresh(() => _editingNoteId = null);
+    await _ops.editNote(id, text);
+    _refresh();
+  }
+
+  void _onNoteEditCancel() => _refresh(() => _editingNoteId = null);
+
+  NoteSpanStyle _noteSpanStyle(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final members = ref.watch(membersProvider).valueOrNull ?? const [];
+    return NoteSpanStyle(
+      knownUsernames: {for (final m in members) m.username.toLowerCase()},
+      mentionInk: tokens.accent,
+      mentionFill: tokens.accentSoft,
+      linkInk: tokens.accent,
+    );
+  }
+
+  /// Whether the roster is docked beside the canvas, as the shell decides it.
+  bool get _memberPaneDocked =>
+      ref.watch(memberPaneVisibleProvider) &&
+      LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
+
+  void _closeMemberPane() =>
+      ref.read(memberPaneVisibleProvider.notifier).state = false;
+
+  /// A tap on someone's cursor follows them instead of selecting under it.
+  bool _followCursorAt(Offset world) {
+    final reach = _cursorTapReachPx / _document.camera.zoom;
+    final hit = _cursors.all
+        .where((c) => (Offset(c.x, c.y) - world).distance <= reach)
+        .firstOrNull;
+    if (hit == null) return false;
+    final relay = _engine.viewRelay;
+    relay.following.value == hit.id
+        ? relay.stopFollowing()
+        : relay.follow(hit.id);
+    return true;
+  }
+
   void _onSelectStart(Offset world) {
+    if (_followCursorAt(world)) return;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
@@ -175,15 +287,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  /// Fits the camera to whatever is actually drawn, falling back to the
-  /// world origin only when there is nothing to fit - a plain camera move,
-  /// so it needs no `setState` any more than a scroll or a pinch does. See
-  /// `worldLimit`'s own doc for the "no route back" gap this closes, and
-  /// `cameraToFit`'s own doc for why the origin fallback is still correct
-  /// for an empty canvas.
-  void _onRecenter() => _document.setCamera(
-    cameraToFit(_document.contentBounds, _document.viewport),
-  );
+  /// Brings the whole shared board back into view.
+  void _onRecenter() => _document.fitBoard();
 
   /// Delete/Backspace over the current Move-tool selection, the desktop
   /// convention every other drawing surface honours - the overflow menu's
@@ -202,6 +307,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   void _onStroke(List<Offset> worldPoints) {
     final selfId = ref.read(meProvider).valueOrNull?.id;
     final ids = <String>[];
+    final width = canvasPenWorldWidth(_pen.width, _document.camera.zoom);
     for (final segment in splitStroke(worldPoints)) {
       final id = newCanvasObjectId();
       ids.add(id);
@@ -215,7 +321,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
           w: segment.w,
           h: segment.h,
           points: segment.points,
-          width: _pen.width,
+          width: width,
           colorKey: _pen.colorKey,
           authorId: selfId,
         ),
@@ -229,7 +335,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
           h: segment.h,
           props: {
             'points': segment.points,
-            'width': _pen.width,
+            'width': width,
             'color': _pen.colorKey,
           },
         ),
@@ -247,7 +353,12 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final manageCanvas = ref
         .read(myChannelPermissionsProvider(widget.channelId))
         .hasPermission(Perm.manageCanvas);
-    _ops.onErasePoint(world, manageCanvas: manageCanvas, selfId: me?.id);
+    _ops.onErasePoint(
+      world,
+      manageCanvas: manageCanvas,
+      selfId: me?.id,
+      touch: AppTouchTargets.of(context),
+    );
   }
 
   Future<void> _onEraseEnd() async {

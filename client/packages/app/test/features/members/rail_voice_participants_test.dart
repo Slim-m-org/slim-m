@@ -167,7 +167,6 @@ void main() {
   });
 
   const quickActions = [
-    'Volume...',
     'Mute for me',
     'Message',
     'View profile',

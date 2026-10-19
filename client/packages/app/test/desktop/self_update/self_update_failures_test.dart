@@ -3,6 +3,7 @@
 /// exception type the failing step threw.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,6 +86,39 @@ void main() {
       );
     },
   );
+
+  test('a download that goes silent fails instead of hanging', () async {
+    final artifact = UpdateArtifact(
+      url: Uri.parse('https://example.invalid/slim-m.tar.gz'),
+      sha256: '00',
+      size: 10,
+    );
+    final silent = <StreamController<List<int>>>[];
+    addTearDown(() {
+      for (final open in silent) {
+        open.close();
+      }
+    });
+    await expectLater(
+      downloadArtifact(
+        artifact: artifact,
+        stagingDir: Directory('${root.path}/staging'),
+        client: MockClient.streaming((_, _) async {
+          silent.add(StreamController<List<int>>());
+          return http.StreamedResponse(silent.last.stream, 200);
+        }),
+        freeSpace: (_) async => null,
+        stall: const Duration(milliseconds: 30),
+      ).timeout(const Duration(seconds: 5)),
+      throwsA(
+        isA<SelfUpdateFailure>().having(
+          (f) => f.kind,
+          'kind',
+          SelfUpdateFailureKind.downloadFailed,
+        ),
+      ),
+    );
+  });
 
   test(
     'a missing tar ends in an installFailed failure, not a ProcessException',

@@ -38,6 +38,7 @@ import '../../members/widgets/bot_menu_sections.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../messages/widgets/forward_message.dart' show forwardMessage;
 import '../../messages/widgets/message_context_menu.dart';
+import '../../messages/widgets/message_link_urls.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../members/widgets/safety_actions.dart';
 
@@ -187,6 +188,19 @@ Future<void> copyMessageLink(
       .show('Link copied.', severity: AppToastSeverity.success);
 }
 
+/// Copies the web address [url] itself, as written in a message.
+Future<void> copyLinkAddress(
+  WidgetRef ref,
+  BuildContext context,
+  String url,
+) async {
+  await Clipboard.setData(ClipboardData(text: url));
+  if (!context.mounted) return;
+  ref
+      .read(toastsProvider.notifier)
+      .show('Link address copied.', severity: AppToastSeverity.success);
+}
+
 /// Pins or unpins, [pinned] being what it is now rather than what to make it.
 Future<void> toggleMessagePin(
   WidgetRef ref,
@@ -319,6 +333,10 @@ MessageActions messageActionsFor(
     onCopyLink: () => unawaited(
       copyMessageLink(ref, context, channelId: channelId, message: message),
     ),
+    linkUrls: message.pending || message.failed
+        ? const []
+        : messageLinkUrls(message.content),
+    onCopyLinkAddress: (url) => unawaited(copyLinkAddress(ref, context, url)),
     canForward: canForwardMessage(message),
     onForward: () => unawaited(forwardMessage(context, ref, message)),
     canSave: canSaveMessage(message),

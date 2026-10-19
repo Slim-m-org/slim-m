@@ -25,7 +25,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
-import '../providers/canvas_camera_memory.dart';
+import '../providers/canvas_grid_snap.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
@@ -38,11 +38,13 @@ import 'canvas_cursor_relay.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
+import 'canvas_load_retry.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_object_preview_relay.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_stroke_preview_relay.dart';
+import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
 
 /// [CanvasEngine.state]'s own shape: the three fields that used to be plain
@@ -109,8 +111,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       }
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
+    document.setBoard(canvasBoard);
     document.addListener(_onCameraMoved);
-    unawaited(_restoreCamera());
+    document.addListener(_onViewMoved);
+    _ref.listen<bool>(
+      canvasGridSnapProvider,
+      (_, snap) => document.snapToGrid.value = snap,
+      fireImmediately: true,
+    );
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
   }
@@ -220,6 +228,51 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     canSend: _cursorHasAudience,
   );
 
+  CanvasViewRelay? _viewRelay;
+  CanvasViewRelay get viewRelay => _viewRelay ??= CanvasViewRelay(
+    board: canvasBoard,
+    send: (view, {required summon}) =>
+        _ref.read(syncControllerProvider.notifier).notifyCanvasView(channelId, (
+          x: view.left,
+          y: view.top,
+          w: view.width,
+          h: view.height,
+        ), summon: summon),
+    showView: _showView,
+    isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+    selfId: () => _ref.read(meProvider).valueOrNull?.id,
+    canSend: _cursorHasAudience,
+  );
+
+  Camera? _viewCamera;
+  bool _showingView = false;
+
+  void _showView(Rect view) {
+    _showingView = true;
+    document.showBoardView(view);
+    _showingView = false;
+    _viewCamera = document.camera;
+    _viewport = document.viewport;
+  }
+
+  // Following ends on the follower's own pan or zoom, but a window resize only refits.
+  void _onViewMoved() {
+    final visible = document.visibleBoard;
+    if (visible == null || document.viewport.isEmpty || _showingView) return;
+    viewRelay.reportLocal(visible);
+    final followed = _viewRelay?.following.value;
+    final resized = _viewport != document.viewport;
+    _viewport = document.viewport;
+    if (followed == null) return;
+    if (resized) {
+      _showView(viewRelay.viewOf(followed));
+    } else if (document.camera != _viewCamera) {
+      viewRelay.stopFollowing();
+    }
+  }
+
+  Size _viewport = Size.zero;
+
   bool _cursorHasAudience() {
     final inCallHere = _ref.read(voiceFlagsProvider).channelId == channelId;
     return shouldRelayCursor(
@@ -288,6 +341,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     relay: () => cursorRelay,
     strokePreviewRelay: () => strokePreviewRelay,
     objectPreviewRelay: () => objectPreviewRelay,
+    viewRelay: () => viewRelay,
     strokeDrafts: remoteDrafts,
     applyPlacedObject: _apply,
     forgetFetchedRegion: () => _fetched = null,
@@ -336,37 +390,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// those content notifications re-read a null [_fetched] and rescheduled a
   /// fetch for the unmoved viewport - forever, since the answer stays
   /// truncated for the same reason each time.
-  late final CanvasCameraMemory _cameraMemory = _ref.read(
-    canvasCameraMemoryProvider,
-  );
-  Timer? _cameraSave;
-
-  /// Puts the camera back where this channel's canvas was left, unless it
-  /// has already moved since opening.
-  Future<void> _restoreCamera() async {
-    await _cameraMemory.ready;
-    final saved = _cameraMemory.cameraFor(channelId);
-    if (!mounted || saved == null || document.camera != const Camera()) return;
-    document.setCamera(saved);
-  }
-
-  void _rememberCamera() {
-    _cameraSave?.cancel();
-    _cameraSave = Timer(
-      const Duration(milliseconds: 500),
-      () => unawaited(_cameraMemory.remember(channelId, document.camera)),
-    );
-  }
 
   void _onCameraMoved() {
     final view = document.worldView;
     if (view == _lastCameraView) return;
     final isFirstView = _lastCameraView == null;
     _lastCameraView = view;
-    if (document.camera != const Camera() ||
-        _cameraMemory.cameraFor(channelId) != null) {
-      _rememberCamera();
-    }
     final fetched = _fetched;
     if (fetched != null &&
         fetched.contains(view.topLeft) &&
@@ -417,8 +446,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         limit: 2000,
       );
       if (!mounted) return;
-      _loadRetry?.cancel();
-      _loadRetries = 0;
+      _loadRetry.succeeded();
       for (final object in page.objects) {
         final input = canvasStrokeInputFrom(object);
         if (input != null) {
@@ -446,27 +474,19 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
       if (mounted) {
         state = state.copyWith(loading: false, error: genericLoadError);
-        _scheduleLoadRetry();
+        _loadRetry.schedule(() {
+          if (mounted) unawaited(fetch());
+        });
       }
     }
   }
 
-  Timer? _loadRetry;
-  int _loadRetries = 0;
-
   // A deploy or a rate limit fails the read for seconds; without this the view stays empty until the person pans or presses Retry.
-  void _scheduleLoadRetry() {
-    _loadRetry?.cancel();
-    final seconds = (2 << _loadRetries).clamp(2, 30);
-    _loadRetries++;
-    _loadRetry = Timer(Duration(seconds: seconds), () {
-      if (mounted) unawaited(fetch());
-    });
-  }
+  final _loadRetry = CanvasLoadRetry();
 
   void _refetchIfLoadFailed() {
     if (state.error != genericLoadError) return;
-    _loadRetry?.cancel();
+    _loadRetry.cancel();
     _fetched = null;
     unawaited(fetch());
   }
@@ -481,17 +501,15 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   void dispose() {
     if (!mounted) return;
     hydrator.dispose();
-    _loadRetry?.cancel();
+    _loadRetry.cancel();
     _panDebounce?.cancel();
-    if (_cameraSave?.isActive ?? false) {
-      _cameraSave!.cancel();
-      unawaited(_cameraMemory.remember(channelId, document.camera));
-    }
     _queue?.close();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();
     sync.dispose();
     document.removeListener(_onCameraMoved);
+    document.removeListener(_onViewMoved);
+    _viewRelay?.dispose();
     document.dispose();
     _cursorRelay?.dispose();
     cursors.dispose();

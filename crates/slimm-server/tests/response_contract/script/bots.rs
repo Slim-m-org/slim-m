@@ -39,7 +39,14 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         &bot_token,
         json!({
             "prefix": "!",
-            "commands": [{ "name": "ping", "description": "check if I'm alive" }]
+            "commands": [
+                { "name": "ping", "description": "check if I'm alive" },
+                {
+                    "name": "sources",
+                    "description": "pick a store",
+                    "options": [{ "name": "source", "required": true, "choices": ["steam", "gog"] }]
+                }
+            ]
         }),
     )
     .await;

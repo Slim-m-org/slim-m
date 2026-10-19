@@ -109,8 +109,7 @@ CanvasStrokeInput? _imageInputFrom(api.CanvasObject object) {
   );
 }
 
-/// A note carries only its text; there is no in-place edit on this canvas
-/// for any kind, so this is read once at placement and never again.
+/// A note carries only its text; an edit op replaces it later.
 CanvasStrokeInput? _noteInputFrom(api.CanvasObject object) {
   final text = object.props['text'];
   if (text is! String) return null;
@@ -443,11 +442,18 @@ class CanvasSync {
         document.moveObject(objectId, x, y, w, h);
       case api.CanvasReorderOp(:final objectId, :final zIndex):
         document.setZIndex(objectId, zIndex);
+      case api.CanvasEditOp(:final objectId, :final props):
+        _applyEdit(objectId, props);
       case api.CanvasUnknownOp():
         return false;
     }
     onOpApplied?.call(op);
     return true;
+  }
+
+  void _applyEdit(String objectId, Map<String, dynamic> props) {
+    final text = props['text'];
+    if (text is String) document.setNoteText(objectId, text);
   }
 
   void _applyPlaced(api.CanvasObject object) {

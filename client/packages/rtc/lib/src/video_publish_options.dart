@@ -13,9 +13,9 @@ import 'screen_share.dart';
 /// A camera on a weak uplink should lose sharpness, not smoothness.
 const cameraDegradationPreference = lk.DegradationPreference.maintainFramerate;
 
-/// Text and slides stay readable when the encoder has to give something up.
-const screenShareDegradationPreference =
-    lk.DegradationPreference.maintainResolution;
+/// Quietly lowers size or rate together when the machine or the link cannot
+/// keep up, instead of stuttering or asking the sharer to change a setting.
+const screenShareDegradationPreference = lk.DegradationPreference.balanced;
 
 /// Room-wide defaults, which a camera publish picks up.
 lk.VideoPublishOptions cameraPublishOptions() => const lk.VideoPublishOptions(

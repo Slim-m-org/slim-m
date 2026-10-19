@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart';
@@ -167,6 +168,28 @@ void main() {
     await tester.tap(find.text("Focus a's screen"));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('share-thumb-b')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
+    expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);
+    await _leave(call);
+  });
+
+  testWidgets('a thumbnail takes focus from the keyboard with Enter', (
+    tester,
+  ) async {
+    final call = await _connected(tester, [_p('a'), _p('b')], _wide);
+    await rightClickMenu(tester, find.byType(ScreenShareStage).first);
+    await tester.tap(find.text("Focus a's screen"));
+    await tester.pumpAndSettle();
+    var tabs = 0;
+    while (tabs++ < 40 &&
+        FocusManager.instance.primaryFocus?.context
+                ?.findAncestorWidgetOfExactType<ShareThumbnail>() ==
+            null) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+    }
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('share-thumb-a')), findsOneWidget);
     expect(find.byKey(const Key('fake-share-view-b')), findsOneWidget);

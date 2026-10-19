@@ -15,6 +15,7 @@ extension _CanvasSurfacePainters on _CanvasSurfaceState {
         o.noteColor != w.noteColor ||
         o.shapeColor != w.shapeColor ||
         o.noteTextInk != w.noteTextInk ||
+        o.noteSpansRevision != w.noteSpansRevision ||
         o.cursorLabelFontFamily != w.cursorLabelFontFamily ||
         o.placeholderFill != w.placeholderFill ||
         o.placeholderIcon != w.placeholderIcon ||
@@ -33,7 +34,8 @@ extension _CanvasSurfacePainters on _CanvasSurfaceState {
     }
     if (o.selectionOutline != w.selectionOutline ||
         o.selectionHandleFill != w.selectionHandleFill ||
-        o.selectionHandleBorder != w.selectionHandleBorder) {
+        o.selectionHandleBorder != w.selectionHandleBorder ||
+        o.touchHandles != w.touchHandles) {
       _selectionPainter = _buildSelectionPainter();
     }
   }

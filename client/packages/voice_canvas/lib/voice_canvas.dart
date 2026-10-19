@@ -8,6 +8,7 @@
 /// enforces that, which is what keeps the render loop honest.
 library;
 
+export 'src/canvas_board.dart';
 export 'src/canvas_camera_wheel.dart';
 export 'src/canvas_cursors.dart';
 export 'src/canvas_document.dart';
@@ -16,7 +17,7 @@ export 'src/canvas_grid_layer.dart';
 export 'src/canvas_hit_test.dart';
 export 'src/canvas_object_previews.dart';
 export 'src/canvas_painters.dart'
-    show CursorPainter, DraftStroke, RemoteDraftPainter;
+    show CursorPainter, DraftStroke, NoteSpanBuilder, RemoteDraftPainter;
 export 'src/canvas_presence_layout.dart';
 export 'src/canvas_presence_tile_overrides.dart';
 export 'src/canvas_presence_visibility.dart';

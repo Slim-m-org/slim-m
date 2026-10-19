@@ -19,6 +19,10 @@ mixin VoiceControllerAudioDevicesMixin on StateNotifier<VoiceState> {
   bool get supportsAudioOutputSelection =>
       _inputSession.supportsAudioOutputSelection;
 
+  /// The speaker in use, null for the system default; see
+  /// [VoiceSession.audioOutputInUse].
+  String? get audioOutputInUse => _inputSession.audioOutputInUse;
+
   /// Fires when the platform's own device list changes; see
   /// [VoiceSession.audioDeviceChanges].
   Stream<void> get audioDeviceChanges => _inputSession.audioDeviceChanges;
@@ -70,6 +74,23 @@ mixin VoiceControllerAudioDevicesMixin on StateNotifier<VoiceState> {
   /// [VoiceSession.micStatus].
   MicStatus get micStatus => _inputSession.micStatus;
   Stream<MicStatus> get micStatuses => _inputSession.micStatuses;
+
+  /// Why the microphone last failed to open; see [VoiceSession.micFailure].
+  MicFailureReason? get micFailure => _inputSession.micFailure;
+  Stream<MicFailureReason?> get micFailures => _inputSession.micFailures;
+
+  /// Tells the call this client deafened or undeafened itself.
+  Future<void> publishDeafenedState(bool deafened) => publishDeafened(
+    _inputRef.read(apiProvider),
+    state.channelId,
+    deafened: deafened,
+    onError: (e) => api.AppLog.swallowed(
+      api.LogTag.voice,
+      'Could not tell the call this client is deafened',
+      e,
+      null,
+    ),
+  );
 
   /// The mic button's tap-to-retry once recovery gave up: reopens the capture
   /// even when the device is unchanged; see [VoiceSession.resetMicrophone].

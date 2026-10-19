@@ -370,7 +370,7 @@ packages:
     source: hosted
     version: "0.7.1"
   device_info_plus:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: device_info_plus
       sha256: "0891702f96b2e465fe567b7ec448380e6b1c14f60af552a8536d9f583b6b8442"
@@ -708,8 +708,8 @@ packages:
     dependency: "direct overridden"
     description:
       path: "."
-      ref: bd33c8e8b59a9d5c0c76dca0fcf2f11151f60fe3
-      resolved-ref: bd33c8e8b59a9d5c0c76dca0fcf2f11151f60fe3
+      ref: c4026c631fd846effd74643274f43c92d12271a9
+      resolved-ref: c4026c631fd846effd74643274f43c92d12271a9
       url: "https://github.com/Slim-m-org/flutter-webrtc.git"
     source: git
     version: "1.6.0"
@@ -949,10 +949,10 @@ packages:
     dependency: transitive
     description:
       name: livekit_client
-      sha256: "9160950ff87d1946959e4911c16236ea7a3e74ac1987990b258132fd4ed0fca9"
+      sha256: "1d2ae53abac63fdf8ac2c3f37529094b920048e5e459f29c1140b885d0cdf325"
       url: "https://pub.dev"
     source: hosted
-    version: "2.10.0"
+    version: "2.13.1"
   local_auth:
     dependency: transitive
     description:

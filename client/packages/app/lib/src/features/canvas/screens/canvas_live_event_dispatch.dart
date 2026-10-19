@@ -7,8 +7,8 @@
 library;
 
 import 'dart:async';
+import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -17,6 +17,7 @@ import 'canvas_cursor_relay.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_object_preview_relay.dart';
+import 'canvas_view_relay.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
 
@@ -40,6 +41,7 @@ void dispatchCanvasLiveEvent(
   required CanvasCursorRelay Function() relay,
   required CanvasStrokePreviewRelay Function() strokePreviewRelay,
   required CanvasObjectPreviewRelay Function() objectPreviewRelay,
+  CanvasViewRelay Function()? viewRelay,
   required void Function(api.CanvasObject object) applyPlacedObject,
   required VoidCallback forgetFetchedRegion,
   required CanvasMediaSlotSync mediaSlotSync,
@@ -147,6 +149,22 @@ void dispatchCanvasLiveEvent(
         w: w,
         h: h,
       ), ended);
+    case api.CanvasView(
+          :final channelId,
+          :final userId,
+          :final x,
+          :final y,
+          :final w,
+          :final h,
+          :final summon,
+        )
+        when channelId == paneChannelId:
+      // Never through sync.applyLive: a view carries no seq.
+      viewRelay?.call().applyRemote(
+        userId,
+        Rect.fromLTWH(x, y, w, h),
+        summon: summon,
+      );
     case api.CanvasObjectMoved(
           :final channelId,
           :final seq,
@@ -176,6 +194,20 @@ void dispatchCanvasLiveEvent(
         document.setZIndex(objectId, zIndex);
         document.refresh();
         activityLog?.recordReorderedLive(opId);
+      });
+    case api.CanvasObjectEdited(
+          :final channelId,
+          :final seq,
+          :final opId,
+          :final objectId,
+          :final props,
+        )
+        when channelId == paneChannelId:
+      sync.applyLive(seq, () {
+        final text = props['text'];
+        if (text is String) document.setNoteText(objectId, text);
+        document.refresh();
+        activityLog?.recordEditedLive(opId);
       });
     case api.CanvasMediaSlotChanged(:final channelId)
         when channelId == paneChannelId:

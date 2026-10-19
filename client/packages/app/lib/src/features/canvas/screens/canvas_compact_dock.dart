@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/floating_dock_card.dart';
+import '../../voice/widgets/bot_call_chips.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 import 'canvas_call_dock.dart';
@@ -61,6 +62,8 @@ class CanvasCompactDock extends StatelessWidget {
                   width: MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
                   controller: call.controller,
                   voice: call.voice,
+                  toggle: botCallChipsFor(ref, call.channelId),
+                  toggleSlots: botCallChipCount(ref, call.channelId),
                 ),
               ),
             ),

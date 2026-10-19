@@ -246,6 +246,19 @@ ServerEvent? _rosterFrame(Map<String, dynamic> decoded) {
         clientKind: decoded['client_kind'] as String?,
         signedInAt: decoded['signed_in_at'] as int,
       ),
+    'voice.moved'
+        when decoded['from_channel_id'] is String &&
+            decoded['to_channel_id'] is String &&
+            decoded['to_channel_name'] is String &&
+            decoded['moved_by_id'] is String &&
+            decoded['moved_by_name'] is String =>
+      VoiceMoved(
+        fromChannelId: decoded['from_channel_id'] as String,
+        toChannelId: decoded['to_channel_id'] as String,
+        toChannelName: decoded['to_channel_name'] as String,
+        movedById: decoded['moved_by_id'] as String,
+        movedByName: decoded['moved_by_name'] as String,
+      ),
     _ => null,
   };
 }
@@ -409,6 +422,23 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
+    'canvas.view.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['x'] is num &&
+            decoded['y'] is num &&
+            decoded['w'] is num &&
+            decoded['h'] is num &&
+            decoded['summon'] is bool =>
+      CanvasView(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        x: (decoded['x'] as num).toDouble(),
+        y: (decoded['y'] as num).toDouble(),
+        w: (decoded['w'] as num).toDouble(),
+        h: (decoded['h'] as num).toDouble(),
+        summon: decoded['summon'] as bool,
+      ),
     'canvas.object.moved'
         when decoded['channel_id'] is String &&
             decoded['seq'] is int &&
@@ -427,6 +457,19 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         y: (decoded['y'] as num).toDouble(),
         w: (decoded['w'] as num).toDouble(),
         h: (decoded['h'] as num).toDouble(),
+      ),
+    'canvas.object.edited'
+        when decoded['channel_id'] is String &&
+            decoded['seq'] is int &&
+            decoded['op_id'] is String &&
+            decoded['object_id'] is String &&
+            decoded['props'] is Map<String, dynamic> =>
+      CanvasObjectEdited(
+        channelId: decoded['channel_id'] as String,
+        seq: decoded['seq'] as int,
+        opId: decoded['op_id'] as String,
+        objectId: decoded['object_id'] as String,
+        props: decoded['props'] as Map<String, dynamic>,
       ),
     'canvas.object.reordered'
         when decoded['channel_id'] is String &&

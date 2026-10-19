@@ -7,13 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'mic_preview_hold.dart';
+import 'mic_trouble_notice.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/mic_preview.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../settings/widgets/settings_info_line.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 
 class InputSensitivityMeter extends ConsumerWidget {
@@ -88,9 +88,8 @@ class InputSensitivityMeter extends ConsumerWidget {
               ],
             ),
             if (preview?.status == MicPreviewStatus.unavailable)
-              SettingsInfoLine(
-                preview!.caption,
-                padding: const EdgeInsets.only(top: AppSpacing.s8),
+              const MicTroubleNotice(
+                padding: EdgeInsets.only(top: AppSpacing.s8),
               ),
           ],
         ),

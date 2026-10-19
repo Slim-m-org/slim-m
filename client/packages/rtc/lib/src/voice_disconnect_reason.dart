@@ -16,11 +16,16 @@ VoiceDisconnect mapDisconnectReason(lk.DisconnectReason? reason) =>
         VoiceDisconnect.replacedByOtherDevice,
       lk.DisconnectReason.participantRemoved ||
       lk.DisconnectReason.roomDeleted ||
+      lk.DisconnectReason.roomClosed ||
       lk.DisconnectReason.serverShutdown =>
         VoiceDisconnect.removed,
       lk.DisconnectReason.signalingConnectionFailure ||
       lk.DisconnectReason.reconnectAttemptsExceeded ||
       lk.DisconnectReason.joinFailure ||
+      lk.DisconnectReason.signalClose ||
+      lk.DisconnectReason.connectionTimeout ||
+      lk.DisconnectReason.mediaFailure ||
+      lk.DisconnectReason.migration ||
       lk.DisconnectReason.disconnected =>
         VoiceDisconnect.connectionLost,
       _ => VoiceDisconnect.unknown,

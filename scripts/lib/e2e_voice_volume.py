@@ -55,7 +55,7 @@ def _individual_volume_scales_the_sound(a, b, room_id, bob_id):
 
         ui.open_volume_popover(a, "Bob")
         shown, gain, loudest, source = _set_and_hear(a, probe, stream, 50)
-        want = lv.volume_to_db(shown / 100)
+        want = lv.volume_to_db(lv.slider_to_gain(shown / 100))
         print(f"  bob at {shown}%: gain {gain:.1f} dB against {want:.1f} expected")
         assert abs(gain - want) <= TOLERANCE_DB, \
             f"{shown}% should be about {want:.1f} dB, measured {gain:.1f} dB"

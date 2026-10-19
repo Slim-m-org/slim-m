@@ -92,24 +92,35 @@ Future<int?> decodedSourceEdge(Uint8List bytes) async {
   }
 }
 
-/// Shows [bytes] in a square viewport the user can pan and zoom, and returns
-/// the cropped PNG, or null if they backed out.
+/// Shows [bytes] in a viewport the user can pan and zoom, and returns the
+/// cropped PNG, or null if they backed out. A wider [aspect] (width over
+/// height) crops a banner; it is encoded [_bannerOutputWidth] wide.
 Future<Uint8List?> showAvatarCropSheet(
   BuildContext context,
   Uint8List bytes, {
   bool circular = true,
+  double aspect = 1,
 }) {
   return showAppSheet<Uint8List>(
     context,
     maxWidth: 520,
-    builder: (_) => _AvatarCropSheet(bytes: bytes, circular: circular),
+    builder: (_) =>
+        _AvatarCropSheet(bytes: bytes, circular: circular, aspect: aspect),
   );
 }
 
+/// The width a banner crop is encoded at: twice a card, for dense screens.
+const int _bannerOutputWidth = 1280;
+
 class _AvatarCropSheet extends StatefulWidget {
-  const _AvatarCropSheet({required this.bytes, required this.circular});
+  const _AvatarCropSheet({
+    required this.bytes,
+    required this.circular,
+    required this.aspect,
+  });
 
   final Uint8List bytes;
+  final double aspect;
 
   /// An avatar is drawn round; a space icon is a rounded square.
   final bool circular;
@@ -169,7 +180,8 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
 
   /// Rasters [object] at [_captureEdge] and reduces it to the output size.
   Future<Uint8List?> _capture(RenderRepaintBoundary object) async {
-    final captureEdge = await _captureEdge();
+    final banner = widget.aspect != 1;
+    final captureEdge = banner ? _bannerOutputWidth * 2 : await _captureEdge();
     final image = await object.toImage(
       pixelRatio: captureEdge / object.size.width,
     );
@@ -181,9 +193,10 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     }
     final bytes = captured?.buffer.asUint8List();
     if (bytes == null || captureEdge == _outputEdge) return bytes;
+    final width = banner ? _bannerOutputWidth : _outputEdge;
+    final height = (width / widget.aspect).round();
     // A failed reduction still has a correct, merely softer picture in hand.
-    return await minifiedPng(bytes, width: _outputEdge, height: _outputEdge) ??
-        bytes;
+    return await minifiedPng(bytes, width: width, height: height) ?? bytes;
   }
 
   /// The edge to raster the viewport at: the source's own shorter side, which
@@ -209,12 +222,15 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
     // Sized on width alone it was 1248pt tall in a 900pt window, which pushed
     // Cancel and Use picture off the bottom of the screen on every desktop.
     final size = MediaQuery.sizeOf(context);
-    final edge = math.min(size.width - AppSpacing.s32, size.height * 0.5);
+    final edge = widget.aspect == 1
+        ? math.min(size.width - AppSpacing.s32, size.height * 0.5)
+        : math.min(size.width - AppSpacing.s32, 488.0);
+    final viewportHeight = edge / widget.aspect;
     final framed = RepaintBoundary(
       key: _boundary,
       child: SizedBox(
         width: edge,
-        height: edge,
+        height: viewportHeight,
         child: InteractiveViewer(
           transformationController: _controller,
           minScale: 1,
@@ -224,7 +240,7 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
             widget.bytes,
             fit: BoxFit.cover,
             width: edge,
-            height: edge,
+            height: viewportHeight,
           ),
         ),
       ),

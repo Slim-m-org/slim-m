@@ -26,6 +26,34 @@ extension SlimmApiVoice on SlimmApi {
         expectNoContent: true,
       );
 
+  /// Tells the call whether this client has deafened itself, for the icon
+  /// beside their name. The server publishes it; a client cannot set its own
+  /// participant attributes.
+  Future<void> setVoiceDeafened(String channelId, {required bool deafened}) =>
+      _send(
+        'PUT',
+        '/channels/$channelId/voice/deafened',
+        body: {'deafened': deafened},
+        expectNoContent: true,
+      );
+
+  /// Moves a participant from [channelId]'s call to [toChannelId]'s.
+  ///
+  /// Needs MOVE_MEMBERS in both channels. The server tells the moved account
+  /// over the socket and takes them out of this call; their client joins the
+  /// destination itself.
+  Future<void> moveVoiceParticipant(
+    String channelId,
+    String userId,
+    String toChannelId,
+  ) =>
+      _send(
+        'POST',
+        '/channels/$channelId/voice/participants/$userId/move',
+        body: {'to_channel_id': toChannelId},
+        expectNoContent: true,
+      );
+
   /// Refreshes proof that this client is still on a channel's call.
   ///
   /// Idempotent, and meant to be sent on a plain interval for as long as the

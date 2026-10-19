@@ -41,6 +41,9 @@ abstract final class Perm {
   /// Read moderation history without `manageMessages`'s write power.
   static const int viewModerationHistory = 1 << 18;
 
+  /// Move someone from one voice call to another.
+  static const int moveMembers = 1 << 19;
+
   /// Every bit that has a name, in the fixed order the editor lists them.
   static const List<(int bit, String label)> editable = [
     (administrator, 'Administrator'),
@@ -62,6 +65,7 @@ abstract final class Perm {
     (mentionEveryone, 'Mention @everyone and @here'),
     (runCode, 'Run code blocks'),
     (viewModerationHistory, 'View moderation history'),
+    (moveMembers, 'Move members between calls'),
   ];
 
   /// [groups] flattened, in the same order - the channel permissions grid's
@@ -132,6 +136,11 @@ abstract final class Perm {
         manageCanvas,
         'Manage the voice canvas',
         'Clear or reset the canvas for everyone in the call.',
+      ),
+      PermSpec(
+        moveMembers,
+        'Move members between calls',
+        'Send someone to another voice channel.',
       ),
     ]),
     PermGroup('Channels & invites', [

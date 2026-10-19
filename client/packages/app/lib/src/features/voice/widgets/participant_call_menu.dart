@@ -5,9 +5,8 @@
 /// (`canvas_presence_tile.dart`) - so the two never drift into offering a
 /// different set for the same person.
 ///
-/// Deliberately thin. Volume opens its own popover
-/// (`participant_volume_popover.dart`) rather than a bare slider fighting
-/// this menu's own outside-tap-to-dismiss model. Moderation is one row, not
+/// Deliberately thin. Volume is the slider itself, first in the list, so one
+/// right click is enough to change it. Moderation is one row, not
 /// a wall of rows, matching `member_profile.dart`'s own precedent: tapping
 /// it opens that same full profile popover, pre-seeded onto
 /// [MemberModerateView] via `initiallyModerating`, so the permission checks
@@ -32,8 +31,14 @@ import '../../members/widgets/member_moderation_gates.dart';
 import '../../members/widgets/member_profile.dart';
 import 'participant_actions.dart';
 import 'participant_stream_menu.dart';
-import 'participant_audio_controls.dart' show ParticipantMuteForMeMenuItem;
-import 'participant_volume_popover.dart';
+import 'participant_audio_controls.dart'
+    show ParticipantMuteForMeMenuItem, ParticipantVolumeControl;
+import '../providers/voice_flags.dart';
+import 'move_participant_popover.dart';
+import '../../channels/providers/channel_permissions.dart'
+    show myChannelPermissionsProvider;
+import '../../../permissions.dart';
+import '../../../providers/admin_providers.dart' show myPermissionsProvider;
 
 /// The rows one call participant's quick-actions menu offers. This device's
 /// own tile gets only its stream rows: no muting or viewing your own profile
@@ -68,6 +73,8 @@ List<Widget> participantCallMenuItems(
   final gates = profile == null
       ? null
       : memberModerationGates(ref, profile: profile, watch: false);
+  final sourceChannel =
+      channelId ?? ref.read(voiceFlagsProvider.select((f) => f.channelId));
   final actions = participantActions(
     surface: ParticipantSurface.menu,
     isSelf: false,
@@ -75,24 +82,35 @@ List<Widget> participantCallMenuItems(
     supportsVolume: controller.supportsParticipantVolume,
     hasProfile: profile != null,
     showModeration: gates?.showModeration ?? false,
+    canMove: sourceChannel != null && _canMove(ref, sourceChannel),
   );
 
   return [
     for (final action in actions)
       switch (action) {
-        ParticipantAction.volume => AppMenuItem(
-          label: 'Volume...',
-          leading: AppIcons.speaker,
-          submenu: true,
-          onTap: () {
-            close();
-            showParticipantVolumePopover(
-              context,
-              identity: participant.identity,
-              name: participant.name,
-              controller: controller,
-            );
-          },
+        ParticipantAction.volume => Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s8,
+            vertical: AppSpacing.s4,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                AppIcons.speaker,
+                size: AppSizes.icon16,
+                color: Theme.of(context).extension<AppTokens>()!.textSecondary,
+              ),
+              const SizedBox(width: AppSpacing.s8),
+              Expanded(
+                child: ParticipantVolumeControl(
+                  identity: participant.identity,
+                  controller: controller,
+                  showLabel: false,
+                  autofocus: true,
+                ),
+              ),
+            ],
+          ),
         ),
         ParticipantAction.muteForMe => ParticipantMuteForMeMenuItem(
           identity: participant.identity,
@@ -125,6 +143,20 @@ List<Widget> participantCallMenuItems(
             showMemberProfile(context, profile: profile!, channelId: channelId);
           },
         ),
+        ParticipantAction.moveTo => AppMenuItem(
+          label: 'Move to...',
+          leading: AppIcons.moveToCall,
+          submenu: true,
+          onTap: () {
+            close();
+            showMoveParticipantPopover(
+              context,
+              userId: participant.identity,
+              name: participant.name,
+              fromChannelId: sourceChannel!,
+            );
+          },
+        ),
         ParticipantAction.moderate => AppMenuItem(
           label: 'Moderate...',
           leading: AppIcons.shield,
@@ -143,3 +175,10 @@ List<Widget> participantCallMenuItems(
     ...streams,
   ];
 }
+
+/// The deployment-wide grant, or one an overwrite gives in this call's channel.
+bool _canMove(WidgetRef ref, String channelId) =>
+    ref.read(myPermissionsProvider).hasPermission(Perm.moveMembers) ||
+    ref
+        .read(myChannelPermissionsProvider(channelId))
+        .hasPermission(Perm.moveMembers);

@@ -43,8 +43,10 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
+        | Event::CanvasObjectEdited { .. }
         | Event::CanvasMediaSlotChanged { .. }
         | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::channel_id"),
         // Control events are handled in the loop; the rest already returned above.
@@ -68,6 +70,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return None,
     })
 }

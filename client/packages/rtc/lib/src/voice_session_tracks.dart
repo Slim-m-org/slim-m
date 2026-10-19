@@ -103,6 +103,10 @@ extension VoiceSessionTracks on VoiceSession {
     if (room == null) return false;
     final intent = _micWanted;
     _micWanted = enabled;
+    // A chosen microphone that came back since the last open is used again, not the default.
+    if (enabled && _audioSwitching.chosenInput != null) {
+      await _forgetUnpluggedDevices();
+    }
     try {
       final hadTrack = _mic.hasTrack;
       final options = _micCaptureOptions();
@@ -124,12 +128,14 @@ extension VoiceSessionTracks on VoiceSession {
       }
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
+      _setMicFailure(null);
       _micRecovery.reset();
       return true;
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'turn the microphone on or off', e, stack);
       _micWanted = intent;
       if (enabled && _mic.hasTrack) _micRelease.onMuted();
+      if (enabled) unawaited(_noteMicFailure(classifyMicFailure(e)));
       _lastError = e;
       _refreshParticipants();
       return false;
@@ -182,6 +188,7 @@ extension VoiceSessionTracks on VoiceSession {
         room,
         speakingSensitivity: _speakingSensitivity,
         localVoice: _gate.fast ? _gate.voice : null,
+        localDeafened: _audio.deafened,
       ),
       skipLocal: _gate.fast,
     );

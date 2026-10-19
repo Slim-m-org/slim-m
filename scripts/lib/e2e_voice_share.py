@@ -86,7 +86,7 @@ def _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
         a.wait_for(SCREEN_LABEL)
         shown = ui.set_slider(a, SCREEN_LABEL, 50)
         ui.dismiss_popover(a)
-        want = lv.volume_to_db(shown / 100)
+        want = lv.volume_to_db(lv.slider_to_gain(shown / 100))
         screen_gain, _ = _heard(probe, screen)
         voice_gain, voice_loudest = _heard(probe, voice)
         print(f"  stream volume {shown}%: screen {screen_gain:.1f} dB "

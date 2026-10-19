@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT u.id AS \"bot_user_id!: UserId\", u.username, u.display_name,\n                      r.prefix, c.name, c.description, c.usage, c.permission, c.options\n               FROM bot_command_registrations r\n               JOIN users u ON u.id = r.bot_user_id\n               JOIN bot_commands c ON c.bot_user_id = r.bot_user_id\n               JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL\n               WHERE u.is_bot = 1 AND u.deleted_at IS NULL\n                 AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)\n               ORDER BY r.prefix ASC, r.updated_at ASC, u.created_at ASC, c.position ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "bot_user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "prefix",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "name",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "description",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "usage",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "permission",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "options",
+        "ordinal": 8,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f7836606e6df857e61e27b59c5e8b8f8dcb7bb8ed8acd2595180e3f2d0a4351d"
+}

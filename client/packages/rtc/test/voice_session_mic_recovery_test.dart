@@ -136,13 +136,16 @@ class _Rig {
       captureRestartDebounce: const Duration(milliseconds: 10),
       inputGate: InputGateMonitor(
         interval: const Duration(milliseconds: 5),
-        invoke: (method, [args]) async => method == 'getInputGate'
-            ? {
-                'levelDb': levelDb,
-                'voice': false,
-                'strongNoiseSuppression': strongActive,
-              }
-            : null,
+        invoke: (method, [args]) async {
+          if (method == 'setInputGate') gateConfigures++;
+          return method == 'getInputGate'
+              ? {
+                  'levelDb': levelDb,
+                  'voice': false,
+                  'strongNoiseSuppression': strongActive,
+                }
+              : null;
+        },
         supported: gate,
       ),
     );
@@ -151,6 +154,7 @@ class _Rig {
   }
 
   final mic = _FakeMic();
+  int gateConfigures = 0;
   final devices = _Devices();
   final double levelDb;
   final bool strongActive;
@@ -235,7 +239,7 @@ void main() {
     await rig.join();
     expect(rig.mic.restarts, isEmpty);
 
-    rig.devices.mics = const [];
+    rig.devices.mics = const [AudioDevice(id: 'desk', label: 'Desk')];
     rig.devices.changes
       ..add(null)
       ..add(null);
@@ -287,7 +291,7 @@ void main() {
     await rig.session.selectAudioInputDevice(headset);
     await rig.join();
 
-    rig.devices.mics = const [];
+    rig.devices.mics = const [AudioDevice(id: 'desk', label: 'Desk')];
     rig.devices.changes.add(null);
     await _until(() => rig.mic.restartDevices.isNotEmpty);
     expect(rig.mic.restartDevices.last, isNull);
@@ -328,6 +332,34 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 400));
 
     expect(rig.mic.restarts, hasLength(2));
+    expect(rig.session.micStatus, MicStatus.unavailable);
+    expect(rig.session.micFailure, MicFailureReason.silent);
+  });
+
+  test('a gate reading the floor while the sender is live restarts nothing',
+      () async {
+    final rig = _Rig(levelDb: kInputFloorDb);
+    addTearDown(rig.session.dispose);
+    rig.mic.senderLevel = -30;
+    await rig.join();
+
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+
+    expect(rig.mic.restarts, isEmpty);
+    expect(rig.session.micStatus, MicStatus.ok);
+  });
+
+  test('a restart reinstalls the gate on the new capture', () async {
+    final rig = _Rig(levelDb: kInputFloorDb);
+    addTearDown(rig.session.dispose);
+    await rig.join();
+    await _until(() => rig.mic.restarts.isNotEmpty);
+    final before = rig.gateConfigures;
+
+    rig.mic.end();
+    await _until(() => rig.mic.enables == 2);
+
+    expect(rig.gateConfigures, greaterThan(before));
   });
 
   test('a quiet room under active Strong suppression is not restarted',

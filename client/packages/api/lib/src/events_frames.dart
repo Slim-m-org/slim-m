@@ -472,6 +472,24 @@ class NotificationOverrideChanged extends ServerEvent {
   final NotificationPreference? preference;
 }
 
+/// A moderator moved this account to another voice channel. Delivered only to
+/// the moved account's sockets.
+class VoiceMoved extends ServerEvent {
+  const VoiceMoved({
+    required this.fromChannelId,
+    required this.toChannelId,
+    required this.toChannelName,
+    required this.movedById,
+    required this.movedByName,
+  });
+
+  final String fromChannelId;
+  final String toChannelId;
+  final String toChannelName;
+  final String movedById;
+  final String movedByName;
+}
+
 /// A device this account has not used before just signed in. Delivered only
 /// to the account's other sockets, never to the device that signed in.
 class NewDeviceSignIn extends ServerEvent {

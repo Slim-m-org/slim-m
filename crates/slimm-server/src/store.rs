@@ -21,6 +21,7 @@ mod analytics;
 mod apps;
 mod attachments;
 mod bootstrap;
+mod bot_command_options;
 mod bot_commands;
 mod bot_prefix;
 mod bot_ui;
@@ -110,6 +111,7 @@ pub use apps::{AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
+pub use bot_command_options::BotCommandOption;
 pub use bot_commands::{
     BotCommand, BotCommandRegistration, MAX_BOT_COMMAND_DESCRIPTION_LEN, MAX_BOT_COMMAND_NAME_LEN,
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
@@ -332,6 +334,8 @@ pub struct User {
     /// 0013). A client uses the value only as a cache-busting version
     /// appended to the fetch URL.
     pub avatar_updated_at: Option<i64>,
+    /// When the caller's profile banner image was set, or `None` for the colour; migration 0137.
+    pub banner_updated_at: Option<i64>,
     /// A short free-text status line ("in a meeting", "afk"), or `None` for
     /// none set. Rides alongside `display_name` (migration 0044): set from
     /// personal settings, shown in the member pane under the name, and
@@ -507,6 +511,7 @@ impl Store {
             display_name: display_name.to_owned(),
             created_at: now,
             avatar_updated_at: None,
+            banner_updated_at: None,
             status_text: None,
             pronouns: None,
             about: None,

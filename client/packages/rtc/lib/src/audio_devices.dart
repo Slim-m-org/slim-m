@@ -28,10 +28,42 @@ abstract class AudioDevices {
   Stream<void> get onChange;
 }
 
+/// Opens audio once so a platform that lists nothing before then will list
+/// devices; [sourceId] keeps that open on the chosen microphone.
+typedef AudioWarmUp = Future<void> Function(String? sourceId);
+
 class HardwareAudioDevices implements AudioDevices {
-  HardwareAudioDevices({PulseAudio? pulse}) : _pulse = pulse ?? PulseAudio();
+  HardwareAudioDevices({
+    PulseAudio? pulse,
+    this.inCall = _never,
+    this.chosenInput = _none,
+    Future<List<lk.MediaDevice>> Function()? listInputs,
+    Future<List<lk.MediaDevice>> Function()? listOutputs,
+    AudioWarmUp? warm,
+    lk.PlatformType Function()? platform,
+  })  : _pulse = pulse ?? PulseAudio(),
+        _listInputs = listInputs ?? (() => lk.Hardware.instance.audioInputs()),
+        _listOutputs =
+            listOutputs ?? (() => lk.Hardware.instance.audioOutputs()),
+        _warm = warm ?? _warmAudio,
+        _platform = platform ?? lk.lkPlatform;
+
+  static bool _never() => false;
+  static String? _none() => null;
 
   final PulseAudio _pulse;
+  final Future<List<lk.MediaDevice>> Function() _listInputs;
+  final Future<List<lk.MediaDevice>> Function() _listOutputs;
+  final AudioWarmUp _warm;
+  final lk.PlatformType Function() _platform;
+
+  /// Whether a call is up. The warm-up must never run then: it opens a capture
+  /// that the native layer points at the default microphone and speaker, which
+  /// moved a live call off the chosen ones whenever the list read empty.
+  final bool Function() inCall;
+
+  /// The microphone the person chose, which a warm-up outside a call keeps.
+  final String? Function() chosenInput;
 
   /// The sound server's list where there is one (Linux), libwebrtc's otherwise.
   /// libwebrtc lists nothing until a capture is open and then names every
@@ -40,36 +72,46 @@ class HardwareAudioDevices implements AudioDevices {
   Future<List<AudioDevice>> inputs() async {
     final server = await _pulse.sources();
     if (server != null && server.isNotEmpty) return server;
-    return _listedOrWarmed(lk.Hardware.instance.audioInputs);
+    return _listedOrWarmed(_listInputs);
   }
 
   @override
   Future<List<AudioDevice>> outputs() async {
     final server = await _pulse.sinks();
     if (server != null && server.isNotEmpty) return server;
-    return _listedOrWarmed(lk.Hardware.instance.audioOutputs);
+    return _listedOrWarmed(_listOutputs);
   }
 
   /// On Windows libwebrtc lists no audio devices until something has opened
   /// audio, so a new member saw an empty microphone list until they joined a
   /// call. An empty first answer there opens the mic for a moment and asks again.
-  static Future<List<AudioDevice>> _listedOrWarmed(
+  Future<List<AudioDevice>> _listedOrWarmed(
     Future<List<lk.MediaDevice>> Function() list,
   ) async {
     final listed = withoutPseudoDefaults(_toAudioDevices(await list()));
-    if (listed.isNotEmpty || lk.lkPlatform() != lk.PlatformType.windows) {
+    if (listed.isNotEmpty ||
+        _platform() != lk.PlatformType.windows ||
+        inCall()) {
       return listed;
     }
-    await _warmAudio();
+    await _warm(chosenInput());
     return withoutPseudoDefaults(_toAudioDevices(await list()));
   }
 
   static Future<void>? _warming;
 
-  static Future<void> _warmAudio() => _warming ??= () async {
+  static Future<void> _warmAudio(String? sourceId) => _warming ??= () async {
         try {
-          final stream = await rtc.navigator.mediaDevices
-              .getUserMedia({'audio': true, 'video': false});
+          final stream = await rtc.navigator.mediaDevices.getUserMedia({
+            'audio': sourceId == null
+                ? true
+                : {
+                    'optional': [
+                      {'sourceId': sourceId},
+                    ],
+                  },
+            'video': false,
+          });
           for (final track in stream.getTracks()) {
             await track.stop();
           }
