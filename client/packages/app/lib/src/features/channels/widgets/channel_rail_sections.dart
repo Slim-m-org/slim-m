@@ -24,7 +24,6 @@ import '../../../routing/routes.dart';
 import 'category_header_menu.dart';
 import 'channel_grouping.dart';
 import 'channel_kind_icon.dart';
-import 'channel_move.dart';
 import 'channel_rail_channel_rows.dart';
 import 'channel_rail_reorder.dart';
 import 'channel_rail_section_label.dart';
@@ -32,6 +31,7 @@ import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
 import '../../settings/widgets/personal_space_row.dart';
+import '../providers/channel_latest_message_at.dart';
 
 /// A DM is stored locally as an ordinary [Channel] under `kind == 'dm'` (see
 /// `providers/dms.dart`), so this reads the same channel stream the
@@ -230,6 +230,13 @@ class _ChannelCategorySectionsState
           );
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
+    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
+    ref.watch(
+      channelLatestMessageAtProvider((
+        channelId: channel.id,
+        seq: channel.cursor,
+      )),
+    );
     return Padding(
       padding: const EdgeInsets.only(left: kRailRowInset),
       child: SelectionMarkerTarget(
@@ -241,7 +248,6 @@ class _ChannelCategorySectionsState
             channel.id,
             GlobalKey<ContextMenuRegionState>.new,
           ),
-          move: _moveActions(view, channel),
           channel: channel,
           row: body,
         ),
@@ -260,22 +266,6 @@ class _ChannelCategorySectionsState
       return false;
     }
     return !selected && !view.indicatorOf(channel).lit;
-  }
-
-  ChannelMoveActions _moveActions(_RailView view, Channel channel) {
-    List<ChannelOrderGroup>? after(int delta) => groupsAfterStep(
-      view.sections,
-      channel.id,
-      delta,
-      collapsed: view.collapsed,
-    );
-    return ChannelMoveActions(
-      canMove: (delta) => after(delta) != null,
-      move: (delta) {
-        final groups = after(delta);
-        if (groups != null) widget.onReorder(groups);
-      },
-    );
   }
 
   Widget _header(

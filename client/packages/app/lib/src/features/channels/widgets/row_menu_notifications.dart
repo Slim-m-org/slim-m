@@ -21,6 +21,7 @@ import '../../../widgets/app_snackbar.dart';
 import '../../messages/widgets/mark_read_action.dart';
 import '../../messages/widgets/mark_unread_action.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/channel_latest_message_at.dart';
 
 Future<void> _say(
   BuildContext context,
@@ -33,8 +34,9 @@ Future<void> _say(
 
 /// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread".
 ///
-/// One slot, never both: the entry that would change nothing is not offered.
-AppMenuItem markReadStateMenuItem(
+/// One slot, never both: the entry that would change nothing is not offered,
+/// and Mark as unread only when the newest message is under an hour old.
+AppMenuItem? markReadStateMenuItem(
   BuildContext context,
   ProviderContainer container,
   Channel channel,
@@ -46,6 +48,17 @@ AppMenuItem markReadStateMenuItem(
     container.read(channelNotificationOverridesProvider).effectiveFor(channel),
     isDm: isDm,
   );
+  final latestAt = container
+      .read(
+        channelLatestMessageAtProvider((
+          channelId: channel.id,
+          seq: channel.cursor,
+        )),
+      )
+      .valueOrNull;
+  final now = container.read(markUnreadClockProvider)();
+  // Marking a quiet channel unread brings back nothing worth returning to.
+  if (!showsUnread && !offersMarkUnread(latestAt, now)) return null;
   return AppMenuItem(
     label: showsUnread ? 'Mark as read' : 'Mark as unread',
     leading: showsUnread ? AppIcons.check : AppIcons.unread,

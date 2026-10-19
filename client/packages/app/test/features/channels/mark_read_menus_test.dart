@@ -28,6 +28,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import '../../support/fake_api.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -72,11 +73,18 @@ class _FixedOverrides extends ChannelNotificationOverridesController {
   }
 }
 
+final _now = DateTime(2026, 10, 19, 12);
+final _recent = _now
+    .subtract(const Duration(minutes: 5))
+    .millisecondsSinceEpoch;
+
 class _Harness {
   _Harness({
     int permissions = 0,
     Map<String, api.NotificationPreference> muted = const {},
+    int? latestAt = -1,
   }) {
+    final newest = latestAt == -1 ? _recent : latestAt;
     SharedPreferences.setMockInitialValues({});
     final db = SlimmDatabase(NativeDatabase.memory());
     store = MessageStore(db);
@@ -85,6 +93,8 @@ class _Harness {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
+        markUnreadClockProvider.overrideWithValue(() => _now),
+        channelLatestMessageAtProvider.overrideWith((ref, key) async => newest),
         // Without this the roster watchers pull in the real SyncController and its retry timer.
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         preferencesProvider.overrideWith(
@@ -217,6 +227,38 @@ void main() {
       expect(find.text('Mark as unread'), findsOneWidget);
       expect(find.text('Mark as read'), findsNothing);
     });
+
+    testWidgets('a read channel quiet for over an hour offers neither', (
+      tester,
+    ) async {
+      final h = _Harness(
+        latestAt: _now
+            .subtract(const Duration(hours: 2))
+            .millisecondsSinceEpoch,
+      );
+      await h.pump(
+        tester,
+        _sections([_channel('general', cursor: 4, lastReadSeq: 4)]),
+      );
+
+      await _rightClick(tester, find.text('general'));
+      expect(find.text('Mark as unread'), findsNothing);
+      expect(find.text('Mark as read'), findsNothing);
+    });
+
+    testWidgets(
+      'a read channel with no message held offers no Mark as unread',
+      (tester) async {
+        final h = _Harness(latestAt: null);
+        await h.pump(
+          tester,
+          _sections([_channel('general', cursor: 4, lastReadSeq: 4)]),
+        );
+
+        await _rightClick(tester, find.text('general'));
+        expect(find.text('Mark as unread'), findsNothing);
+      },
+    );
 
     testWidgets('a hand-marked channel offers Mark as read', (tester) async {
       final h = _Harness();
