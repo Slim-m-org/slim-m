@@ -106,6 +106,7 @@ List<Widget> participantCallMenuItems(
                   identity: participant.identity,
                   controller: controller,
                   showLabel: false,
+                  autofocus: true,
                 ),
               ),
             ],

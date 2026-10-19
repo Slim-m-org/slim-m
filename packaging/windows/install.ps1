@@ -6,10 +6,19 @@
 # and needs no elevation.
 $ErrorActionPreference = 'Stop'
 
+# A plain message and a failing exit code, not a stack trace; install.cmd pauses on it.
+function Stop-Install($message) {
+  if ($unpack -and (Test-Path $unpack)) {
+    try { Remove-Item -Recurse -Force $unpack -ErrorAction Stop } catch { }
+  }
+  Write-Host $message -ForegroundColor Red
+  exit 1
+}
+
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $versionFile = Join-Path $here 'VERSION'
 if (-not (Test-Path $versionFile)) {
-  throw 'run this from the extracted slim-m zip; it has no VERSION file beside it'
+  Stop-Install 'run this from the extracted slim-m zip; it has no VERSION file beside it'
 }
 $version = (Get-Content $versionFile -Raw).Trim()
 
@@ -25,9 +34,9 @@ function Remove-Folder($path) {
   try {
     Remove-Item -Recurse -Force $path -ErrorAction Stop
   } catch {
-    throw $closeFirst
+    Stop-Install $closeFirst
   }
-  if (Test-Path $path) { throw $closeFirst }
+  if (Test-Path $path) { Stop-Install $closeFirst }
 }
 
 Remove-Folder $unpack
@@ -55,4 +64,5 @@ $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut(
 $shortcut.TargetPath = Join-Path $root 'slim-m.exe'
 $shortcut.Save()
 
-Write-Host "installed slim-m $version in $root; start it from the Start menu"
+Write-Host "installed slim-m $version in $root"
+Start-Process (Join-Path $root 'slim-m.exe')

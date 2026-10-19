@@ -100,8 +100,6 @@ void main() {
       await rightClickMenu(tester, find.text('Bob'));
       expect(find.byType(AppSlider), findsOneWidget);
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
       await tester.pump();
       final percent = find.textContaining('%');
@@ -118,6 +116,16 @@ void main() {
       expect(find.byType(AppSlider), findsNothing);
     },
   );
+
+  testWidgets('the arrow keys move the slider as soon as the menu opens', (
+    tester,
+  ) async {
+    await _pump(tester, permissions: 0);
+    await rightClickMenu(tester, find.text('Bob'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pump();
+    expect(tester.widget<Text>(find.textContaining('%')).data, isNot('100%'));
+  });
 
   testWidgets(
     'clicking the slider track sets the volume and keeps the menu open',
