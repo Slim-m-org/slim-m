@@ -66,8 +66,7 @@ void main() {
     expect((op as CanvasClearOp).scope.isEverything, isTrue);
   });
 
-  // The 0.114 parser, copied verbatim into test/fixtures: its apply path
-  // resyncs on an unknown op and clears the board on a `clear`.
+  // The 0.114 parser is copied verbatim into test/fixtures; it clears on `clear` and resyncs on unknown.
   test('0.114 reads a scoped feed row as an unknown op, never a clear', () {
     final op = old.CanvasOp.fromJson(_scopedRow);
 
