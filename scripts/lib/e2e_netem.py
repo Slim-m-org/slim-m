@@ -6,6 +6,7 @@ namespace, so it shapes what the SFU sends to every listener (the downlink,
 which is the path a listener's jitter buffer and concealment see).
 """
 import subprocess
+import time
 
 IMAGE = "slimm-netem:local"
 DOCKERFILE = "FROM alpine:latest\nRUN apk add --no-cache iproute2\n"
@@ -64,16 +65,21 @@ def clear(container=LIVEKIT_CONTAINER):
 
 
 def _stamped(command, container):
-    """Runs `command` in the sidecar and returns the host epoch ms read right after it."""
-    out = _tc(f"{command}; date +%s%3N", container)
-    return int(out.strip().splitlines()[-1])
+    """Runs `command` in the sidecar; returns the host epoch ms at the midpoint of the call.
+
+    The sidecar's busybox date has no sub-second field, so the call's own
+    duration (a few hundred ms of container start) is the uncertainty.
+    """
+    began = time.time()
+    _tc(command, container)
+    return (began + time.time()) / 2 * 1000.0
 
 
 def cut(container=LIVEKIT_CONTAINER):
-    """Starts a full outage; returns the epoch ms it took hold."""
+    """Starts a full outage; returns the epoch ms it took hold, give or take the call time."""
     return _stamped(f"tc qdisc replace dev {DEVICE} root netem {CUT}", container)
 
 
 def restore(container=LIVEKIT_CONTAINER):
-    """Ends the outage; returns the epoch ms the link came back."""
+    """Ends the outage; returns the epoch ms the link came back, give or take the call time."""
     return _stamped(f"tc qdisc del dev {DEVICE} root", container)

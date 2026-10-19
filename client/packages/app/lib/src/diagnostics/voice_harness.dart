@@ -45,10 +45,10 @@ Future<void> joinHarnessChannel(
   final voice = container().read(voiceControllerProvider.notifier);
   await voice.join(channel);
   debugPrint('SLIMM_HARNESS joined $channel');
-  _logGate(voice);
+  _logGate(voice, container);
 }
 
-void _logGate(VoiceController voice) {
+void _logGate(VoiceController voice, ProviderContainer Function() container) {
   var readings = 0;
   var open = 0;
   var strong = 0;
@@ -60,6 +60,12 @@ void _logGate(VoiceController voice) {
     if (reading.levelDb > peak) peak = reading.levelDb;
   });
   Timer.periodic(const Duration(seconds: 1), (_) {
+    final call = container().read(voiceControllerProvider);
+    debugPrint(
+      'SLIMM_HARNESS call state=${call.state.name} mic=${call.microphoneEnabled} '
+      'canPublish=${call.canPublish} people=${call.participants.length} '
+      'error=${call.error}',
+    );
     debugPrint(
       'SLIMM_HARNESS gate readings=$readings open=$open strong=$strong '
       'peak_db=${peak.toStringAsFixed(1)}',

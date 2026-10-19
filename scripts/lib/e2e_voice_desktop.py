@@ -63,6 +63,7 @@ def _tokens(server, secret):
 
 def _listen(listener, profile):
     e2e_netem.apply(profile)
+    xp.wait_remote_audio(listener, 90)
     time.sleep(WARMUP)
     xp.start_tap(listener, "rx", remote=True)
     time.sleep(SECONDS)

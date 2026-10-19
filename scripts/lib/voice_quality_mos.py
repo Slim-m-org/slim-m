@@ -1,18 +1,24 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-"""An objective quality score (DNSMOS) per received recording.
+"""Objective quality scores per received recording: ViSQOL (full reference) and DNSMOS (none).
 
 usage: voice_quality_mos.py <variant-dir>
 
-ViSQOL needs a bazel build of google/visqol that does not fit a pip venv, so
-this uses Microsoft's no-reference DNSMOS (the `speechmos` package, models
-bundled) from the venv at ~/.slimm-scratch/mos-venv. The reference clips are
-synthetic, so DNSMOS scores them low; the number that matters is the
-received score next to the same speech cut from the aligned reference.
-Run it with that venv's python: it needs numpy, scipy, onnxruntime, librosa.
+ViSQOL (google/visqol, speech mode, 16 kHz) runs from a docker image built
+from visqol.Dockerfile next to this file:
+`docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib`.
+It compares each received speech segment with the same segment of the aligned
+reference and gives MOS-LQO, at most 4.58 for identical audio. DNSMOS
+(Microsoft, the `speechmos` package) scores the received audio on its own, so
+it is a cross-check that needs no alignment; run this file with a venv python
+that has numpy, scipy, onnxruntime, librosa and speechmos, e.g.
+~/.slimm-scratch/mos-venv. Either score is skipped when its tool is missing.
 """
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 
 import voice_quality_align as align
 import voice_quality_dsp as dsp
@@ -23,8 +29,8 @@ SENDER = {"vqa": "B", "vqb": "A"}
 
 
 def speech_mask(ref16):
-    """1.0 where the reference is talking, 0.0 elsewhere; gaps under 0.4 s count as talking."""
-    hop, floor, bridge = dsp.HOP, -42.0, int(0.4 * RATE / dsp.HOP)
+    """1.0 where the reference is talking, 0.0 elsewhere; gaps under 1 s count as talking."""
+    hop, floor, bridge = dsp.HOP, -42.0, int(1.0 * RATE / dsp.HOP)
     active = [dsp.rms_db(ref16[s:s + hop]) > floor for s in range(0, len(ref16), hop)]
     last = None
     for i, flag in enumerate(active):
@@ -76,17 +82,49 @@ def _mean(rows, key):
     return round(sum(r[key] for r in rows) / len(rows), 3) if rows else None
 
 
+VISQOL_IMAGE = os.environ.get("E2E_VISQOL_IMAGE", "slimm-visqol:local")
+
+
+def visqol_scores(pairs):
+    """MOS-LQO per `(reference, degraded)` pair of 16 kHz sample lists; None without the image."""
+    have = shutil.which("docker") and subprocess.run(
+        ["docker", "image", "inspect", VISQOL_IMAGE], capture_output=True).returncode == 0
+    if not have or not pairs:
+        return None
+    work = tempfile.mkdtemp(prefix="visqol-", dir=os.environ.get("TMPDIR"))
+    try:
+        lines = ["reference,degraded"]
+        for i, (ref, deg) in enumerate(pairs):
+            for kind, samples in (("ref", ref), ("deg", deg)):
+                dsp.write_wav(os.path.join(work, f"{kind}{i}.wav"), list(samples), RATE)
+            lines.append(f"/work/ref{i}.wav,/work/deg{i}.wav")
+        with open(os.path.join(work, "in.csv"), "w") as fh:
+            fh.write("\n".join(lines) + "\n")
+        subprocess.run(
+            ["docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "-v", f"{work}:/work", VISQOL_IMAGE,
+             "/visqol/bazel-bin/visqol", "--batch_input_csv", "/work/in.csv",
+             "--results_csv", "/work/out.csv", "--use_speech_mode"],
+            check=True, capture_output=True)
+        with open(os.path.join(work, "out.csv")) as fh:
+            rows = fh.read().splitlines()[1:]
+        return [float(row.split(",")[2]) for row in rows]
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def score(ref_samples, ref_rate, rec_samples, rec_rate):
-    """DNSMOS for the received speech and the same speech from the reference."""
+    """ViSQOL and DNSMOS for the received speech, DNSMOS also for the aligned reference."""
     ref16, rec16 = _resample(ref_samples, ref_rate), _resample(rec_samples, rec_rate)
     spans, expected = aligned_runs(ref16.tolist(), rec16.tolist())
     got = [_dnsmos(rec16[a:b]) for a, b in spans]
     want = [_dnsmos(expected[a:b]) for a, b in spans]
+    visqol = visqol_scores([(expected[a:b], rec16[a:b].tolist()) for a, b in spans])
     ovr_rec, ovr_ref = _mean(got, "ovrl_mos"), _mean(want, "ovrl_mos")
     return {"segments": len(spans), "ovrl": ovr_rec, "ovrl_reference": ovr_ref,
             "ovrl_delta": None if ovr_rec is None else round(ovr_rec - ovr_ref, 3),
             "sig": _mean(got, "sig_mos"), "bak": _mean(got, "bak_mos"),
-            "p808": _mean(got, "p808_mos")}
+            "p808": _mean(got, "p808_mos"),
+            "visqol": round(sum(visqol) / len(visqol), 3) if visqol else None}
 
 
 def score_directory(directory):
