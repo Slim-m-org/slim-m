@@ -255,7 +255,18 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       threshold: snapScreenThreshold / document.camera.zoom,
     );
     document.snapGuides.value = result.guides;
-    return result.offset;
+    if (!document.snapToGrid.value) return result.offset;
+    // Lining up with a neighbour wins on its axis; the grid takes the rest.
+    final grid = gridShift(
+      moving.shift(result.offset),
+      gridSpacingFor(document.camera.zoom),
+    );
+    final alignedX = result.guides.any((g) => g.vertical);
+    final alignedY = result.guides.any((g) => !g.vertical);
+    return Offset(
+      result.offset.dx + (alignedX ? 0 : grid.dx),
+      result.offset.dy + (alignedY ? 0 : grid.dy),
+    );
   }
 
   /// Commits whichever gesture [beginSelect] started as one `move` op, or

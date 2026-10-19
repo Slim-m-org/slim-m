@@ -17,10 +17,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/confirm_dialog.dart';
+import '../providers/canvas_grid_snap.dart';
 import '../../../widgets/context_menu_focus.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
@@ -288,6 +290,18 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             : 'Show activity log',
         leading: AppIcons.activityLog,
         onTap: _toggleActivityLog,
+      ),
+      Consumer(
+        builder: (context, ref, _) => AppMenuItem(
+          label: ref.watch(canvasGridSnapProvider)
+              ? 'Stop snapping to grid'
+              : 'Snap to grid',
+          leading: AppIcons.snapToGrid,
+          onTap: () {
+            _controller.hide();
+            unawaited(ref.read(canvasGridSnapProvider.notifier).toggle());
+          },
+        ),
       ),
       if (widget.hasSelfBubble) _selfBubbleItem(),
       ..._hiddenTileItems(),
