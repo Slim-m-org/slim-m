@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_editor.dart';
+import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
@@ -156,6 +157,34 @@ void main() {
     expect(fixture.postedOps, isEmpty);
     expect(surfaceDocument(tester).noteTextOf('note'), 'before');
   });
+
+  testWidgets(
+    'Escape cancels an edit before it closes the docked member list',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasNoteJson('note', authorId: 'me', text: 'before')];
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+      await pumpCanvasPane(tester, container);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Pan'));
+      await tester.pump();
+      expect(container.read(memberPaneVisibleProvider), isTrue);
+      await tester.tapAt(screenFor(tester, _onNote));
+      await tester.pump();
+      expect(find.byType(CanvasNoteEditor), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CanvasNoteEditor), findsNothing);
+      expect(container.read(memberPaneVisibleProvider), isTrue);
+    },
+  );
 
   testWidgets('Backspace while typing never deletes the selected note', (
     tester,
