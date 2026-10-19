@@ -16,7 +16,7 @@ import 'package:slimm_app/src/widgets/animated_menu_portal.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_space_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import 'desktop/support/fake_desktop_window_port.dart';
 

@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/auth/providers/database_key_store.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 Future<ProviderContainer> _pump(WidgetTester tester) async {
   final container = ProviderContainer();

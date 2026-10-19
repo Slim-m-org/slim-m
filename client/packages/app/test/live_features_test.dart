@@ -25,7 +25,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/channels/providers/pins_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/messages/providers/typing_controller.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 /// Waits several event-loop turns, enough for a mocked HTTP round trip

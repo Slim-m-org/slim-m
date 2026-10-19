@@ -23,7 +23,7 @@ import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart'
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 

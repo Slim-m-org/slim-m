@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/settings/providers/notification_sound_set
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_data/data.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sound_player.dart';
 import '../../support/fake_api.dart';
 

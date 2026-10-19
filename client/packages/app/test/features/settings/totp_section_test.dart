@@ -20,7 +20,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/features/settings/widgets/totp_section.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'user-1',

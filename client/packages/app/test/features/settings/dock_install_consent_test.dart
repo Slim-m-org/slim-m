@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/dock_install_conse
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_row.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/dock_module_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../dock_manifest_fixture.dart';
 import '../../ui_snapshot_support.dart';

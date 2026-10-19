@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 Channel _channel(String kind, {String? peer}) => Channel(
   id: 'c1',

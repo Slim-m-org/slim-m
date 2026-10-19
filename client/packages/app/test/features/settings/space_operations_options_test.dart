@@ -24,7 +24,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/space_voice_screen
 import 'package:slimm_app/src/features/settings/screens/admin/storage_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(

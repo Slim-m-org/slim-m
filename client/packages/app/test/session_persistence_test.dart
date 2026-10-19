@@ -22,6 +22,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 // this file builds, so only the store types come across from data.
 import 'package:slimm_data/data.dart' show MessageStore, SlimmDatabase;
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = TokenPair(

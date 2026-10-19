@@ -27,7 +27,7 @@ import 'package:slimm_app/src/features/composer/widgets/composer_attachments.dar
 import 'package:slimm_app/src/features/composer/widgets/staged_attachment_tile.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 
