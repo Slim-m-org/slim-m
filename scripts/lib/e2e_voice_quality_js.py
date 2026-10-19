@@ -6,9 +6,7 @@ the decoded remote audio into PCM (what the listener's speakers would get,
 before any app gain) and samples the receive-side concealment counters.
 """
 
-# Capture without the browser's own voice processing, so what the call did to
-# the clip is not confused with echo cancellation, AGC or suppression acting on
-# a synthetic signal. E2E_VQ_PROCESSING=1 leaves it on.
+# Capture without browser voice processing, so the call is judged alone; E2E_VQ_PROCESSING=1 keeps it.
 RAW_CAPTURE_ALL = r"""
 (function(){
   var md = navigator.mediaDevices;
@@ -24,9 +22,7 @@ RAW_CAPTURE_ALL = r"""
 })();
 """
 
-# SDP tweaks on both descriptions, so an Opus setting can be measured without
-# rebuilding the client (the answer's fmtp is what the encoder follows).
-# `window.__vqSdp` is a dict of fmtp parameters merged into the opus line.
+# Merges window.__vqSdp into the opus fmtp of both descriptions; the answer's fmtp is what the encoder follows.
 SDP_TWEAK = r"""
 (function(){
   var proto = RTCPeerConnection.prototype;
