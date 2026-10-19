@@ -171,6 +171,7 @@ Future<void> renderCanvasAssembledPane(
               onPasteImage: () {},
               onPasteImageAt: (_) {},
               onRecenter: () {},
+              onBringIntoBoard: () {},
               error: error,
               onDismissError: () {},
               truncated: truncated,

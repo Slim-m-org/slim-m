@@ -9,6 +9,7 @@
 library;
 
 export 'src/canvas_board.dart';
+export 'src/canvas_board_clip.dart';
 export 'src/canvas_camera_wheel.dart';
 export 'src/canvas_cursors.dart';
 export 'src/canvas_document.dart';

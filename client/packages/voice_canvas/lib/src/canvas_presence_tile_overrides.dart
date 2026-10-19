@@ -17,6 +17,7 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+import 'canvas_board.dart';
 import 'canvas_stroke.dart';
 
 /// One tile's departure from its default position, size and interactivity.
@@ -93,6 +94,14 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// overlay.
   final ValueNotifier<bool> worldEdgeHit = ValueNotifier<bool>(false);
 
+  /// The shared board every tile is held inside; null leaves tiles unbounded.
+  Rect? board;
+
+  Rect _onBoard(Rect rect) {
+    final frame = board;
+    return frame == null ? rect : fitBoxIntoBoard(rect, frame);
+  }
+
   CanvasPresenceTileState stateFor(String key) =>
       _states[key] ?? _defaultTileState;
 
@@ -119,7 +128,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     required bool sentToBack,
   }) {
     _states[key] = stateFor(key)
-        .copyWith(rect: rect, locked: locked, sentToBack: sentToBack);
+        .copyWith(rect: _onBoard(rect), locked: locked, sentToBack: sentToBack);
     notifyListeners();
   }
 
@@ -136,13 +145,10 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   void setRect(String key, Rect rect) {
     final clampedLeft = rect.left.clamp(-worldLimit, worldLimit);
     final clampedTop = rect.top.clamp(-worldLimit, worldLimit);
-    worldEdgeHit.value = clampedLeft != rect.left || clampedTop != rect.top;
-    final clamped = Rect.fromLTWH(
-      clampedLeft,
-      clampedTop,
-      rect.width,
-      rect.height,
+    final clamped = _onBoard(
+      Rect.fromLTWH(clampedLeft, clampedTop, rect.width, rect.height),
     );
+    worldEdgeHit.value = clamped.topLeft != rect.topLeft;
     _states[key] = stateFor(key).copyWith(rect: clamped);
     _z[key] = _nextZ++;
     notifyListeners();

@@ -184,15 +184,18 @@ class CanvasImagePaste {
     final w = decoded.width * scale;
     final h = decoded.height * scale;
     final center = at ?? document.worldView.center;
+    final box = document.placeOnBoard(
+      ui.Rect.fromCenter(center: center, width: w, height: h),
+    );
     try {
       return await client.placeCanvasObject(
         channelId,
         id: newCanvasObjectId(),
         kind: 'image',
-        x: center.dx - w / 2,
-        y: center.dy - h / 2,
-        w: w,
-        h: h,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
         props: {
           'attachment': attachment.id,
           'content_type': attachment.contentType,

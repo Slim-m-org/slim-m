@@ -122,15 +122,19 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
       widget.overrides.zFor,
       (key) => presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
     );
-    return IgnorePointer(
-      key: canvasPresenceBackdropIgnorePointerKey,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (final key in painted)
-            if (_bubble(key, onCanvas[key]!, camera, byIdentity) case final b?)
-              b,
-        ],
+    return CanvasBoardClip(
+      document: widget.document,
+      child: IgnorePointer(
+        key: canvasPresenceBackdropIgnorePointerKey,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final key in painted)
+              if (_bubble(key, onCanvas[key]!, camera, byIdentity)
+                  case final b?)
+                b,
+          ],
+        ),
       ),
     );
   }

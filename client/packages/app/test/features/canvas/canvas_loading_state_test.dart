@@ -36,6 +36,7 @@ Widget _pane(CanvasDocument document, {required bool loading}) => ProviderScope(
           onPasteImage: () {},
           onPasteImageAt: (_) {},
           onRecenter: () {},
+          onBringIntoBoard: () {},
           error: null,
           onDismissError: () {},
           truncated: false,

@@ -27,6 +27,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../modules/providers/dock_reservation.dart';
+import 'canvas_outside_board_notice.dart';
 
 /// The widest pane where the centred dock can still reach this corner.
 const _beside = 900.0;
@@ -40,7 +41,11 @@ class CanvasZoomIndicator extends ConsumerWidget {
     required this.document,
     required this.tokens,
     required this.onFit,
+    required this.onBringIn,
   });
+
+  /// Moves objects the board cannot hold back onto it.
+  final VoidCallback onBringIn;
 
   /// Fits the camera to what is drawn; a view-only change, so always enabled.
   final VoidCallback onFit;
@@ -62,64 +67,74 @@ class CanvasZoomIndicator extends ConsumerWidget {
 
   Widget _readout() => SafeArea(
     minimum: const EdgeInsets.all(AppSpacing.s12),
-    child: ListenableBuilder(
-      listenable: document,
-      builder: (context, _) {
-        // 100% is the whole board fitted, whatever the screen.
-        final board = document.board;
-        final fit = board == null
-            ? 1.0
-            : boardFitZoom(board, document.viewport);
-        final percent = (document.camera.zoom / fit * 100).round();
-        // Its own node: merged into the surface's, it made the whole canvas a button that swallowed every drag on web.
-        return Semantics(
-          container: true,
-          button: true,
-          label: 'Fit view, zoom $percent percent',
-          excludeSemantics: true,
-          onTap: onFit,
-          child: Tooltip(
-            message: 'Fit view',
-            child: Material(
-              color: tokens.surfaceRaised,
-              shape: StadiumBorder(
-                side: BorderSide(color: tokens.borderSubtle),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: onFit,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: AppSizes.icon28),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s8,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '$percent%',
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                            fontWeight: AppWeights.medium,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.s4),
-                        Icon(
-                          AppIcons.recenter,
-                          size: AppSizes.icon16,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _zoomPill(),
+        Flexible(
+          child: CanvasOutsideBoardNotice(
+            document: document,
+            tokens: tokens,
+            onBringIn: onBringIn,
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _zoomPill() => ListenableBuilder(
+    listenable: document,
+    builder: (context, _) {
+      // 100% is the whole board fitted, whatever the screen.
+      final board = document.board;
+      final fit = board == null ? 1.0 : boardFitZoom(board, document.viewport);
+      final percent = (document.camera.zoom / fit * 100).round();
+      // Its own node: merged into the surface's, it made the whole canvas a button that swallowed every drag on web.
+      return Semantics(
+        container: true,
+        button: true,
+        label: 'Fit view, zoom $percent percent',
+        excludeSemantics: true,
+        onTap: onFit,
+        child: Tooltip(
+          message: 'Fit view',
+          child: Material(
+            color: tokens.surfaceRaised,
+            shape: StadiumBorder(side: BorderSide(color: tokens.borderSubtle)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onFit,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$percent%',
+                        style: AppText.caption.copyWith(
                           color: tokens.textSecondary,
+                          fontWeight: AppWeights.medium,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: AppSpacing.s4),
+                      Icon(
+                        AppIcons.recenter,
+                        size: AppSizes.icon16,
+                        color: tokens.textSecondary,
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
-        );
-      },
-    ),
+        ),
+      );
+    },
   );
 }
 

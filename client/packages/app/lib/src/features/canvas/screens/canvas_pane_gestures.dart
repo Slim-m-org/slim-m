@@ -291,6 +291,16 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
+  Future<void> _onBringIntoBoard() {
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    return _ops.bringIntoBoard(
+      manageCanvas: manageCanvas,
+      selfId: ref.read(meProvider).valueOrNull?.id,
+    );
+  }
+
   /// Brings the whole shared board back into view.
   void _onRecenter() => _document.fitBoard();
 

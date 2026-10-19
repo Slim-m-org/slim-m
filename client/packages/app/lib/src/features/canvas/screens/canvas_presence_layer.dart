@@ -194,13 +194,16 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       widget.overrides.zFor,
       (key) => presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
     );
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        for (final key in painted)
-          if (_tile(key, onCanvas[key]!, camera, byIdentity) case final tile?)
-            tile,
-      ],
+    return CanvasBoardClip(
+      document: widget.document,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (final key in painted)
+            if (_tile(key, onCanvas[key]!, camera, byIdentity) case final tile?)
+              tile,
+        ],
+      ),
     );
   }
 

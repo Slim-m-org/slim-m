@@ -57,6 +57,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onPasteImage,
     required this.onPasteImageAt,
     required this.onRecenter,
+    required this.onBringIntoBoard,
     required this.error,
     required this.onDismissError,
     this.onRetryError,
@@ -134,6 +135,9 @@ class CanvasPaneBody extends StatefulWidget {
 
   /// Fits the view to the drawn content: the zoom chip's tap and a menu item.
   final VoidCallback onRecenter;
+
+  /// Moves objects the board cannot hold whole back onto it.
+  final VoidCallback onBringIntoBoard;
   final String? error;
   final VoidCallback onDismissError;
 
@@ -546,6 +550,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
           document: widget.document,
           tokens: tokens,
           onFit: widget.onRecenter,
+          onBringIn: widget.onBringIntoBoard,
         ),
       ],
     ),

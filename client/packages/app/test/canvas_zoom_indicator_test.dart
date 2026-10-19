@@ -31,6 +31,7 @@ void main() {
           document: document,
           tokens: AppTokens.dark,
           onFit: () {},
+          onBringIn: () {},
         ),
       ),
     );
@@ -51,6 +52,7 @@ void main() {
           document: document,
           tokens: AppTokens.dark,
           onFit: () {},
+          onBringIn: () {},
         ),
       ),
     );
@@ -74,6 +76,7 @@ void main() {
           document: document,
           tokens: AppTokens.dark,
           onFit: () => fitted++,
+          onBringIn: () {},
         ),
       ),
     );
@@ -95,6 +98,7 @@ void main() {
           document: document,
           tokens: AppTokens.dark,
           onFit: () => fitted++,
+          onBringIn: () {},
         ),
       ),
     );
@@ -131,6 +135,7 @@ void main() {
                         document: document,
                         tokens: AppTokens.dark,
                         onFit: () {},
+                        onBringIn: () {},
                       ),
                     ],
                   ),
