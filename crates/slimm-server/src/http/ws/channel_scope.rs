@@ -68,6 +68,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return None,
     })
 }

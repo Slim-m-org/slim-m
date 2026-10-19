@@ -85,6 +85,12 @@ const UNCOVERED: &[(&str, &str)] = &[
          permission gate is covered in tests/voice.rs.",
     ),
     (
+        "moveVoiceParticipant",
+        "its 204 needs a reachable LiveKit room service, which this harness has none \
+         of, and has no body to check; tests/voice_move.rs drives it against a fake \
+         room service.",
+    ),
+    (
         "listVoiceRoster",
         "its 200 also goes through a reachable LiveKit room service, which this \
          harness has none of; the fixture's SFU url is undialable by design (see \

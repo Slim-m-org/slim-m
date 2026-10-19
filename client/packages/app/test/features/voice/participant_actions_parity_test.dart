@@ -150,6 +150,7 @@ const _labels = <ParticipantAction, Map<ParticipantSurface, String>>{
     ParticipantSurface.menu: 'Call',
   },
   ParticipantAction.viewProfile: {ParticipantSurface.menu: 'View profile'},
+  ParticipantAction.moveTo: {ParticipantSurface.menu: 'Move to...'},
   ParticipantAction.moderate: {
     ParticipantSurface.card: 'Moderate...',
     ParticipantSurface.menu: 'Moderate...',

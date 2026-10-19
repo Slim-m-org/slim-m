@@ -28,6 +28,7 @@ import '../../palette/widgets/command_palette.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'create_category_sheet.dart';
 import 'create_channel_sheet.dart';
+import 'rail_participant_drag.dart';
 import '../../settings/widgets/personal_account_sections.dart';
 
 /// The channel id in [path], or null when [path] is not a channel route.
@@ -189,7 +190,19 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
                   ),
                 ),
                 // Overlaid on the list, not pushed above it: this answers the drag the reader just made, so it attaches to the list a drag happens in rather than displacing every row above to announce it.
-                if (orderState.error != null)
+                if (ref.watch(railMoveFailureProvider) case final failure?)
+                  Positioned(
+                    left: AppSpacing.s8,
+                    right: AppSpacing.s8,
+                    bottom: AppSpacing.s8,
+                    child: AppErrorState(
+                      message: failure,
+                      onDismiss: () =>
+                          ref.read(railMoveFailureProvider.notifier).state =
+                              null,
+                    ),
+                  )
+                else if (orderState.error != null)
                   Positioned(
                     left: AppSpacing.s8,
                     right: AppSpacing.s8,

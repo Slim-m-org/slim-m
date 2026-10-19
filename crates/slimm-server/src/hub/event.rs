@@ -726,6 +726,17 @@ pub enum Event {
         client_kind: Option<String>,
         signed_in_at: i64,
     },
+    /// A moderator moved `user_id` from one call to another. Private to the
+    /// moved account, whose clients switch rooms; everyone else learns of it
+    /// from the ordinary join and leave events.
+    VoiceMoved {
+        user_id: UserId,
+        from_channel_id: ChannelId,
+        to_channel_id: ChannelId,
+        to_channel_name: String,
+        moved_by_id: UserId,
+        moved_by_name: String,
+    },
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },

@@ -171,7 +171,8 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
-        | Event::NewDeviceSignIn { .. } => false,
+        | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
     }
 }
@@ -257,7 +258,8 @@ fn is_ephemeral(event: &Event) -> bool {
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
-        | Event::NewDeviceSignIn { .. } => false,
+        | Event::NewDeviceSignIn { .. }
+        | Event::VoiceMoved { .. } => false,
         Event::Stamped { event, .. } => is_ephemeral(event),
     }
 }

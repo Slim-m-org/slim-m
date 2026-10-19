@@ -83,6 +83,7 @@ const _beyondModeration = [
   'reset_code_issue',
   'nickname_set',
   'nickname_clear',
+  'voice_move',
 ];
 
 Future<ModerationHistoryState> _settle(List<Map<String, dynamic>> page) async {

@@ -246,6 +246,19 @@ ServerEvent? _rosterFrame(Map<String, dynamic> decoded) {
         clientKind: decoded['client_kind'] as String?,
         signedInAt: decoded['signed_in_at'] as int,
       ),
+    'voice.moved'
+        when decoded['from_channel_id'] is String &&
+            decoded['to_channel_id'] is String &&
+            decoded['to_channel_name'] is String &&
+            decoded['moved_by_id'] is String &&
+            decoded['moved_by_name'] is String =>
+      VoiceMoved(
+        fromChannelId: decoded['from_channel_id'] as String,
+        toChannelId: decoded['to_channel_id'] as String,
+        toChannelName: decoded['to_channel_name'] as String,
+        movedById: decoded['moved_by_id'] as String,
+        movedByName: decoded['moved_by_name'] as String,
+      ),
     _ => null,
   };
 }

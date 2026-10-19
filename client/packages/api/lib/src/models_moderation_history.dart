@@ -135,6 +135,7 @@ enum AuditLogAction {
   resetCodeIssue,
   nicknameSet,
   nicknameClear,
+  voiceMove,
   unknown;
 
   static AuditLogAction parse(String wire) => switch (wire) {
@@ -154,6 +155,7 @@ enum AuditLogAction {
         'reset_code_issue' => AuditLogAction.resetCodeIssue,
         'nickname_set' => AuditLogAction.nicknameSet,
         'nickname_clear' => AuditLogAction.nicknameClear,
+        'voice_move' => AuditLogAction.voiceMove,
         _ => AuditLogAction.unknown,
       };
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Frames private to one account: its read marker and its per-channel
-//! notification overrides, delivered only to that account's own connections.
+//! Frames private to one account: its read marker, its per-channel
+//! notification overrides and a voice move, delivered only to that account's own connections.
 
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
@@ -34,6 +34,23 @@ pub(super) fn authorize(ctx: &SessionContext, event: &Event) -> Option<Authoriza
             ServerFrame::NotificationOverrideChanged {
                 channel_id: channel_id.to_string(),
                 preference: preference.map(|p| p.as_str().to_owned()),
+            },
+        ),
+        Event::VoiceMoved {
+            user_id,
+            from_channel_id,
+            to_channel_id,
+            to_channel_name,
+            moved_by_id,
+            moved_by_name,
+        } => (
+            *user_id,
+            ServerFrame::VoiceMoved {
+                from_channel_id: from_channel_id.to_string(),
+                to_channel_id: to_channel_id.to_string(),
+                to_channel_name: to_channel_name.clone(),
+                moved_by_id: moved_by_id.to_string(),
+                moved_by_name: moved_by_name.clone(),
             },
         ),
         _ => return None,
