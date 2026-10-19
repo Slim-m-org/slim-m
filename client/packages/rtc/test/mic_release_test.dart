@@ -52,6 +52,7 @@ class _FakeMic implements MicPort {
   Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
     reopens++;
     captureOpen = true;
+    published = true;
   }
 
   @override
@@ -70,7 +71,11 @@ class _FakeMic implements MicPort {
 
 const _grace = Duration(seconds: 30);
 
-Future<(VoiceSession, _FakeMic)> _joined({bool mobile = false}) async {
+Future<(VoiceSession, _FakeMic)> _joined({
+  bool mobile = false,
+  bool microphoneEnabled = true,
+  bool pushToTalk = false,
+}) async {
   final mic = _FakeMic();
   final session = VoiceSession(
     roomFactory: _EmptyRoom.new,
@@ -79,10 +84,11 @@ Future<(VoiceSession, _FakeMic)> _joined({bool mobile = false}) async {
     micReleaseGrace: _grace,
     mobile: mobile,
   );
+  if (pushToTalk) await session.setKeepMicReady(true);
   await session.join(
     url: 'wss://a.invalid',
     token: 't',
-    microphoneEnabled: true,
+    microphoneEnabled: microphoneEnabled,
   );
   return (session, mic);
 }
@@ -234,6 +240,56 @@ void main() {
       session.setAppBackgrounded(true);
       clock.elapse(_grace * 3);
       expect(mic.releases, 0);
+    });
+  });
+
+  test('a push-to-talk call opens the device at join, so key down is plain',
+      () {
+    fakeAsync((clock) {
+      late VoiceSession session;
+      late _FakeMic mic;
+      _joined(microphoneEnabled: false, pushToTalk: true)
+          .then((r) => (session, mic) = r);
+      clock.flushMicrotasks();
+      expect(mic.reopens, 1, reason: 'opened before the first press');
+      expect(mic.captureOpen, isTrue);
+      expect(mic.open, isFalse, reason: 'still muted until the key goes down');
+
+      clock.elapse(_grace * 10);
+      expect(mic.releases, 0);
+      session.setMicrophoneEnabled(true);
+      clock.flushMicrotasks();
+      expect(mic.calls.last, (true, false));
+    });
+  });
+
+  test('turning push to talk on in a call with no track opens the device', () {
+    fakeAsync((clock) {
+      late VoiceSession session;
+      late _FakeMic mic;
+      _joined(microphoneEnabled: false).then((r) => (session, mic) = r);
+      clock.flushMicrotasks();
+      expect(mic.captureOpen, isFalse, reason: 'a muted join stays closed');
+
+      session.setKeepMicReady(true);
+      clock.flushMicrotasks();
+      expect(mic.captureOpen, isTrue);
+    });
+  });
+
+  test('turning push to talk off lets a ready device go after the grace', () {
+    fakeAsync((clock) {
+      late VoiceSession session;
+      late _FakeMic mic;
+      _joined(microphoneEnabled: false, pushToTalk: true)
+          .then((r) => (session, mic) = r);
+      clock.flushMicrotasks();
+
+      session.setKeepMicReady(false);
+      clock.elapse(_grace - const Duration(seconds: 1));
+      expect(mic.captureOpen, isTrue);
+      clock.elapse(const Duration(seconds: 2));
+      expect(mic.captureOpen, isFalse, reason: 'the OS indicator goes off');
     });
   });
 }
