@@ -37,6 +37,7 @@ import 'message_row_callbacks.dart';
 import 'message_row_column.dart';
 import 'message_row_parts.dart';
 import 'reactions_row.dart';
+import 'message_toolbar_anchor.dart';
 import 'swipe_to_reply.dart';
 import 'message_text.dart';
 
@@ -191,35 +192,34 @@ class MessageRow extends ConsumerWidget {
       // A failed row is marked by a red hairline down its left edge
       // (error grammar 01) - the row itself stays at full strength,
       // because its content is still the author's to act on.
-      child: Stack(
-        // The toolbar's shadow spills past the row; clipping it would cut the blur.
-        clipBehavior: Clip.none,
-        children: [
-          // Full-bleed, edge to edge; see this file's own doc comment.
-          Positioned.fill(
-            child: AnimatedContainer(
-              key: MessageRow.hoverFillKey,
-              duration: AppMotion.reduced(context, AppMotion.fast),
-              curve: AppMotion.entrance,
-              color: _fillColor(v),
-            ),
-          ),
-          if (v.marked)
-            ContinuationRail(
-              marker: v.marker,
-              geometry: ContinuationGeometry.of(
-                context,
-                gutter: v.gutter,
-                density: v.density,
+      child: MessageToolbarAnchor(
+        show: _showToolbar(v),
+        toolbar: MessageHoverToolbar(
+          actions: actions,
+          onPickReaction: callbacks.onPickReaction,
+        ),
+        child: Stack(
+          children: [
+            // Full-bleed, edge to edge; see this file's own doc comment.
+            Positioned.fill(
+              child: AnimatedContainer(
+                key: MessageRow.hoverFillKey,
+                duration: AppMotion.reduced(context, AppMotion.fast),
+                curve: AppMotion.entrance,
+                color: _fillColor(v),
               ),
-              lastInGroup: !groupContinues,
             ),
-          ConstrainedBox(
-            // A row shorter than the toolbar would leave part of it painted but unhittable.
-            constraints: BoxConstraints(
-              minHeight: v.compact ? 0 : MessageHoverToolbar.height,
-            ),
-            child: DecoratedBox(
+            if (v.marked)
+              ContinuationRail(
+                marker: v.marker,
+                geometry: ContinuationGeometry.of(
+                  context,
+                  gutter: v.gutter,
+                  density: v.density,
+                ),
+                lastInGroup: !groupContinues,
+              ),
+            DecoratedBox(
               decoration: BoxDecoration(border: _edgeBorder(v.tokens)),
               child: Padding(
                 // Top-only: a bottom inset here doubled the next row's top inset.
@@ -234,18 +234,8 @@ class MessageRow extends ConsumerWidget {
                 child: _rowContents(v),
               ),
             ),
-          ),
-          // Outside layout, and never on compact, which reserves no clearance for it.
-          if (_showToolbar(v))
-            Positioned(
-              top: 0,
-              right: AppSizes.paneGutter,
-              child: MessageHoverToolbar(
-                actions: actions,
-                onPickReaction: callbacks.onPickReaction,
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

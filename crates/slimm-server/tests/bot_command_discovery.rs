@@ -91,7 +91,9 @@ async fn a_registered_command_is_offered_in_a_channel_the_bot_can_see() {
     let (admin_id, admin_token) = register(&store, "root").await;
     let (bot_id, bot_token) = bot(&store, admin_id, "helper").await;
     let channel = general_channel_id(&store).await;
-    let router = app(store);
+    let state = support::app::state(store);
+    state.hub.presence().connect(bot_id);
+    let router = slimm_server::http::router(state);
 
     router
         .clone()
@@ -116,9 +118,43 @@ async fn a_registered_command_is_offered_in_a_channel_the_bot_can_see() {
             "bot_display_name": "helper",
             "prefix": "!",
             "name": "ping",
-            "description": "check if I'm alive"
+            "description": "check if I'm alive",
+            "offline": false
         }])
     );
+}
+
+#[tokio::test]
+async fn a_bot_with_no_live_socket_is_listed_as_offline_until_it_reconnects() {
+    let (store, _guard) = new_store("slimm-botcmds-offline").await;
+    let (admin_id, admin_token) = register(&store, "root").await;
+    let (bot_id, bot_token) = bot(&store, admin_id, "helper").await;
+    let channel = general_channel_id(&store).await;
+    let state = support::app::state(store);
+    let presence = state.hub.presence();
+    let router = slimm_server::http::router(state);
+    router
+        .clone()
+        .oneshot(request(
+            "PUT",
+            "/bots/commands",
+            &bot_token,
+            Some(register_body(
+                "!",
+                json!([{ "name": "ping", "description": "check if I'm alive" }]),
+            )),
+        ))
+        .await
+        .unwrap();
+
+    let offline = channel_commands(&router, channel, &admin_token).await;
+    assert_eq!(offline[0]["offline"], true, "a bot nobody is connected as");
+    presence.connect(bot_id);
+    let online = channel_commands(&router, channel, &admin_token).await;
+    assert_eq!(online[0]["offline"], false);
+    presence.disconnect(bot_id);
+    let dropped = channel_commands(&router, channel, &admin_token).await;
+    assert_eq!(dropped[0]["offline"], true, "the socket dropped");
 }
 
 /// A bot with no view of a channel must not advertise itself there, even

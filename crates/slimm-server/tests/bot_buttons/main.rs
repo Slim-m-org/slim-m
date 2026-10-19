@@ -81,6 +81,9 @@ async fn world() -> World {
         bots.push((bot.bot.user_id, bot.token));
     }
     let state = crate::support::app::state(store);
+    for (bot, _) in &bots {
+        state.hub.presence().connect(*bot);
+    }
     World {
         state,
         channel,

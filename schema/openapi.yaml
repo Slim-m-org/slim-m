@@ -8187,7 +8187,8 @@ paths:
         registered, one whose `permission` the caller lacks and a message
         that is not in the channel are the same 404. The `id` is chosen by the
         caller, so a retry is the same use. Charged to the same per-caller
-        rate limit class as a button press.
+        rate limit class as a button press. A bot with no live socket is a 409,
+        so nothing is recorded for an answer that cannot come.
       requestBody:
         required: true
         content:
@@ -8196,7 +8197,7 @@ paths:
               $ref: "#/components/schemas/UseBotUiEntryRequest"
       responses:
         "200":
-          description: Recorded and delivered to the bot, if it is connected.
+          description: Recorded and delivered to the bot.
           content:
             application/json:
               schema:
@@ -12936,6 +12937,7 @@ components:
           bot_display_name,
           message_menu,
           call_controls,
+          offline,
         ]
       properties:
         bot_user_id:
@@ -12953,6 +12955,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BotUiEntry"
+        offline:
+          type: boolean
+          description: >-
+            The bot has no live socket, so using one of its entries is refused
+            with 409. Listed anyway so the app can dim them with a reason.
     UseBotUiEntryRequest:
       type: object
       required: [id, surface, entry_id]
@@ -13072,7 +13079,15 @@ components:
     ChannelBotCommand:
       type: object
       required:
-        [bot_user_id, bot_username, bot_display_name, prefix, name, description]
+        [
+          bot_user_id,
+          bot_username,
+          bot_display_name,
+          prefix,
+          name,
+          description,
+          offline,
+        ]
       properties:
         bot_user_id:
           type: string
@@ -13093,6 +13108,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BotCommandOption"
+        offline:
+          type: boolean
+          description: >-
+            The bot has no live socket, so a command typed now gets no answer.
+            Listed anyway so the composer can dim it with a reason.
     IncomingWebhookPayload:
       type: object
       description: >-

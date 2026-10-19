@@ -334,9 +334,13 @@ void main() {
 
       final rowRect = tester.getRect(middle);
       final plate = tester.getRect(_plate);
-      expect(rowRect.height, greaterThanOrEqualTo(MessageHoverToolbar.height));
-      expect(plate.top, greaterThanOrEqualTo(rowRect.top));
-      expect(plate.bottom, lessThanOrEqualTo(rowRect.bottom));
+      expect(
+        rowRect.height,
+        lessThan(MessageHoverToolbar.height),
+        reason: 'a one-line row keeps its density spacing',
+      );
+      expect(plate.top, rowRect.top);
+      expect(plate.bottom, greaterThan(rowRect.bottom), reason: 'overhangs');
 
       final x = tester.getCenter(find.byKey(MessageHoverToolbar.replyKey)).dx;
       for (final y in [plate.top + 1, plate.center.dy, plate.bottom - 1]) {
@@ -347,7 +351,119 @@ void main() {
       expect(replied, 3, reason: 'top edge, centre and bottom edge all hit');
     });
 
-    testWidgets('toolbars on adjacent rows never overlap', (tester) async {
+    testWidgets('moving from the row onto the overhanging plate keeps it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        harness(
+          ListView(
+            children: [
+              _row(message(id: 'a', content: 'one')),
+              for (final id in const ['b', 'c'])
+                _row(message(id: id, content: 'line $id'), grouped: true),
+            ],
+          ),
+        ),
+      );
+      final mouse = await _mouse(tester);
+      final row = find.byKey(const ValueKey('b'));
+      await _hover(tester, mouse, row);
+      final plate = tester.getRect(_plate);
+
+      await mouse.moveTo(Offset(plate.center.dx, plate.bottom - 1));
+      await tester.pumpAndSettle();
+      expect(_plate, findsOneWidget, reason: 'the next row is under the plate');
+      expect(tester.getRect(_plate), plate);
+    });
+
+    testWidgets('the plate follows its row as the list scrolls', (
+      tester,
+    ) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        harness(
+          SizedBox(
+            height: 300,
+            child: ListView(
+              controller: controller,
+              children: [
+                _row(message(id: 'a', content: 'head')),
+                for (final id in const ['b', 'c', 'd', 'e', 'f'])
+                  _row(message(id: id, content: 'line $id'), grouped: true),
+              ],
+            ),
+          ),
+        ),
+      );
+      final mouse = await _mouse(tester);
+      final row = find.byKey(const ValueKey('d'));
+      await mouse.moveTo(tester.getTopLeft(row) + const Offset(100, 8));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(_plate).dy, tester.getTopLeft(row).dy);
+
+      controller.jumpTo(6);
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(row).dy, lessThan(300));
+      expect(tester.getTopLeft(_plate).dy, tester.getTopLeft(row).dy);
+    });
+
+    testWidgets('a row scrolled half out of the list shows no plate', (
+      tester,
+    ) async {
+      final controller = ScrollController(initialScrollOffset: 10);
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        harness(
+          SizedBox(
+            height: 300,
+            child: ListView(
+              controller: controller,
+              children: [
+                _row(message(id: 'a', content: 'head')),
+                for (var i = 0; i < 30; i++)
+                  _row(message(id: 'r$i', content: 'line $i'), grouped: true),
+              ],
+            ),
+          ),
+        ),
+      );
+      final mouse = await _mouse(tester);
+      final row = find.byKey(const ValueKey('a'));
+      await mouse.moveTo(tester.getBottomLeft(row) + const Offset(100, -4));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(row).dy, lessThan(0));
+      expect(_plate, findsNothing, reason: 'it would float over the header');
+    });
+
+    testWidgets('consecutive one-line follow-ups sit at the density pitch', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        harness(
+          ListView(
+            children: [
+              _row(message(id: 'a', content: 'head')),
+              for (final id in const ['b', 'c', 'd', 'e'])
+                _row(message(id: id, content: 'line $id'), grouped: true),
+            ],
+          ),
+        ),
+      );
+      final tops = [
+        for (final id in const ['b', 'c', 'd', 'e'])
+          tester.getTopLeft(find.byKey(ValueKey(id))).dy,
+      ];
+      final pitches = [
+        for (var i = 1; i < tops.length; i++) tops[i] - tops[i - 1],
+      ];
+      expect(pitches.toSet(), hasLength(1));
+      expect(pitches.first, lessThan(MessageHoverToolbar.height));
+    });
+
+    testWidgets('toolbars on adjacent rows leave each other\'s buttons clear', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         harness(
           Column(
@@ -366,10 +482,16 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_plate, findsNWidgets(2));
-      expect(
-        tester.getRect(_plate.first).overlaps(tester.getRect(_plate.last)),
-        isFalse,
-      );
+      final upper = tester.getRect(_plate.first);
+      final lower = tester.getRect(_plate.last);
+      expect(lower.top, greaterThan(upper.top));
+      for (final key in [
+        MessageHoverToolbar.replyKey,
+        MessageHoverToolbar.overflowKey,
+      ]) {
+        final centre = tester.getCenter(find.byKey(key).first);
+        expect(lower.contains(centre), isFalse, reason: '$key is covered');
+      }
     });
 
     testWidgets('a long first line in a headerless row stops short of it', (
