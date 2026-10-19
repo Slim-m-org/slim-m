@@ -168,6 +168,7 @@ extension VoiceSessionTracks on VoiceSession {
   /// private plumbing, so an extension costs it nothing an
   /// `implements VoiceSession` fake would notice.
   void _rebuildRoster() {
+    _applyGateRate();
     final room = _room;
     if (room == null || _disposed) return;
 
@@ -209,6 +210,7 @@ extension VoiceSessionTracks on VoiceSession {
     _syncMicWatch(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_applyInputGate());
+      _applyGateRate();
       _gate.start(_refreshParticipants);
     } else {
       _gate.stop();
