@@ -29,9 +29,14 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq};
+use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 use crate::permissions::Permissions;
-use crate::store::{CanvasOpRequest, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp};
+use crate::store::{
+    CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
+};
+
+/// The object kinds a scoped clear may name; the same set `place` accepts.
+const CLEAR_KINDS: [&str; 4] = ["stroke", "image", "note", "shape"];
 
 /// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
 const Z_INDEX_LIMIT: i64 = 1 << 52;
@@ -54,6 +59,10 @@ pub(in crate::http) struct SubmitOpParams {
     z_index: Option<i64>,
     /// The whole new props an `edit` writes to a note.
     props: Option<serde_json::Value>,
+    /// Narrows a `clear` to these object kinds.
+    kinds: Option<Vec<String>>,
+    /// Narrows a `clear` to one author's objects.
+    author_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -164,6 +173,11 @@ impl From<SubmittedOp> for CanvasOpResultDto {
 /// the move-specific fields, and `z_index` are each legal on only one of the
 /// five kinds this slice accepts.
 fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    if params.kind != "clear" && (params.kinds.is_some() || params.author_id.is_some()) {
+        return Err(ApiError::BadRequest(
+            "kinds and author_id are only valid for clear",
+        ));
+    }
     match params.kind.as_str() {
         "remove" => parse_remove(params),
         "clear" => parse_clear(params),
@@ -204,7 +218,22 @@ fn parse_clear(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     if before_seq < 0 {
         return Err(ApiError::BadRequest("before_seq must not be negative"));
     }
-    Ok(CanvasOpRequest::Clear { before_seq })
+    let kinds = params.kinds.unwrap_or_default();
+    if kinds.len() > CLEAR_KINDS.len()
+        || kinds
+            .iter()
+            .any(|kind| !CLEAR_KINDS.contains(&kind.as_str()))
+    {
+        return Err(ApiError::BadRequest("kinds must name canvas object kinds"));
+    }
+    let author_id = params
+        .author_id
+        .map(|raw| parse_uuid(&raw).map(UserId))
+        .transpose()?;
+    Ok(CanvasOpRequest::Clear {
+        before_seq,
+        scope: ClearScope { kinds, author_id },
+    })
 }
 
 fn parse_restore(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
@@ -317,6 +346,7 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
             seq: Seq(outcome.seq),
             op_id,
             before_seq: Seq(outcome.cleared_before_seq.unwrap_or(0)),
+            scope: outcome.cleared_scope.clone().unwrap_or_default(),
         }),
         "restore" => state.hub.publish(Event::CanvasObjectsRestored {
             channel_id,

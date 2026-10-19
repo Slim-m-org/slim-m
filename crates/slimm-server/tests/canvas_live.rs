@@ -444,6 +444,32 @@ async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_d
     assert_eq!(frame["object_id"], object_id);
     assert_eq!(frame["z_index"], 500);
 
+    // A scoped clear must not reuse `canvas.cleared`: a client that predates scopes would read it as clear-everything.
+    let scoped = http::router(state.clone())
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/channels/{channel}/canvas/ops"))
+                .header("authorization", format!("Bearer {alice_access}"))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "id": Uuid::now_v7().to_string(),
+                        "kind": "clear",
+                        "before_seq": 100,
+                        "kinds": ["stroke"],
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(scoped.status(), StatusCode::CREATED);
+    let frame = read_frame(&mut alice_ws).await;
+    assert_eq!(frame["type"], "canvas.cleared_scoped");
+    assert_eq!(frame["kinds"], json!(["stroke"]));
+
     let carol_next =
         tokio::time::timeout(Duration::from_millis(300), read_frame(&mut carol_ws)).await;
     assert!(

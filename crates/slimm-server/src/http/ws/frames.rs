@@ -256,6 +256,17 @@ pub(super) enum ServerFrame {
         op_id: String,
         before_seq: i64,
     },
+    /// A distinct type so a client that predates scoped clears ignores it rather than clearing everything.
+    #[serde(rename = "canvas.cleared_scoped")]
+    CanvasClearedScoped {
+        channel_id: String,
+        seq: i64,
+        op_id: String,
+        before_seq: i64,
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
+    },
     #[serde(rename = "canvas.objects.restored")]
     CanvasObjectsRestored {
         channel_id: String,

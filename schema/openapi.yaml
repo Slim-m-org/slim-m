@@ -6492,7 +6492,9 @@ paths:
         `clear` needs `MANAGE_CANVAS` unconditionally and takes a required
         `before_seq`: every live object placed at or below it is removed.
         The fence is required, not optional, because a lost response retried
-        without one would wipe whatever was drawn in the interval.
+        without one would wipe whatever was drawn in the interval. An optional
+        `kinds` and `author_id` narrow it to those object kinds and that
+        author's objects; restoring the clear undoes only what it removed.
 
 
         `restore` names a prior `remove` or `clear` op as `target_op` and
@@ -13877,7 +13879,7 @@ components:
             idempotency key); client-minted for every other kind.
         kind:
           type: string
-          enum: [place, remove, clear, restore, move, reorder, edit]
+          enum: [place, remove, clear, clear_scoped, restore, move, reorder, edit]
         actor_id:
           type: [string, "null"]
           format: uuid
@@ -13900,7 +13902,17 @@ components:
         before_seq:
           type: integer
           format: int64
-          description: A `clear` removed every object placed at or below this seq.
+          description: A `clear` or `clear_scoped` removed objects placed at or below this seq.
+        kinds:
+          type: array
+          items: { type: string }
+          description: >-
+            On a `clear_scoped`: only objects of these kinds were removed.
+            Empty means every kind.
+        author_id:
+          type: string
+          format: uuid
+          description: On a `clear_scoped`, only this author's objects were removed.
         target_op:
           type: string
           format: uuid
@@ -13962,9 +13974,9 @@ components:
       required: [id, kind]
       description: >-
         One mutation submitted to `submitCanvasOp`. Which of `object_ids`,
-        `before_seq`, `target_op`, the move fields, and `z_index` may be
+        `before_seq`, `kinds`, `author_id`, `target_op`, the move fields, and `z_index` may be
         present depends on `kind`: a `remove` takes `object_ids` and none of
-        the others; a `clear` takes `before_seq` and none of the others; a
+        the others; a `clear` takes `before_seq`, optionally `kinds` and `author_id`, and none of the others; a
         `restore` takes `target_op` and none of the others; a `move` takes
         `object_id`, `x`, `y`, `w` and `h`, and none of `object_ids`,
         `before_seq`, `target_op` or `z_index`; a `reorder` takes `object_id`
@@ -13991,6 +14003,17 @@ components:
           description: >-
             Required for `clear`. Every live object placed at or below this
             canvas `seq` is removed.
+        kinds:
+          type: array
+          items: { type: string, enum: [stroke, image, note, shape] }
+          description: >-
+            Optional, `clear` only. Removes only objects of these kinds; omit
+            for every kind.
+        author_id:
+          type: string
+          format: uuid
+          description: >-
+            Optional, `clear` only. Removes only this author's objects.
         target_op:
           type: string
           format: uuid
@@ -15984,6 +16007,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectPlaced"
         - $ref: "#/components/schemas/CanvasObjectsRemoved"
         - $ref: "#/components/schemas/CanvasCleared"
+        - $ref: "#/components/schemas/CanvasClearedScoped"
         - $ref: "#/components/schemas/CanvasObjectsRestored"
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
@@ -16076,6 +16100,38 @@ components:
         before_seq:
           type: integer
           format: int64
+
+    CanvasClearedScoped:
+      type: object
+      required: [type, channel_id, seq, op_id, before_seq, kinds]
+      description: >-
+        A `clear` limited to `kinds` and, when present, one author: every
+        matching object placed at or below `before_seq` was removed. A
+        separate type from `canvas.cleared` so a client that predates scoped
+        clears ignores it instead of clearing everything.
+      properties:
+        type:
+          type: string
+          enum: [canvas.cleared_scoped]
+        channel_id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        op_id:
+          type: string
+          format: uuid
+        before_seq:
+          type: integer
+          format: int64
+        kinds:
+          type: array
+          items: { type: string }
+          description: Empty means every kind.
+        author_id:
+          type: string
+          format: uuid
 
     CanvasObjectsRestored:
       type: object

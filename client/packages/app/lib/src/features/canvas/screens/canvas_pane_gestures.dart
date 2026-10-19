@@ -279,7 +279,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  Future<void> _onClear() async {
+  CanvasScopedClear get _scopedClear => CanvasScopedClear(
+    clear: (scope) => _onClear(scope: scope),
+    authorIds: _document.authorIds,
+  );
+
+  Future<void> _onClear({
+    api.CanvasClearScope scope = api.CanvasClearScope.everything,
+  }) async {
     // Fenced on the newest head this client can read; a stale one would leave later ink standing.
     await _sync.catchUp();
     final fence = _sync.asOfSeq;
@@ -287,7 +294,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _engine.reportError('The canvas could not be cleared.');
       return;
     }
-    await _ops.clear(fence);
+    await _ops.clear(fence, scope: scope);
     _refresh();
   }
 

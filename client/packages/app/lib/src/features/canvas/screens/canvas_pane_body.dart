@@ -11,6 +11,7 @@
 /// state instead of one more field threaded through an already-large parent.
 library;
 
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -54,6 +55,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.canManage,
     required this.document,
     required this.onClear,
+    this.scopedClear,
     required this.onPasteImage,
     required this.onPasteImageAt,
     required this.onRecenter,
@@ -121,6 +123,7 @@ class CanvasPaneBody extends StatefulWidget {
   final bool canManage;
   final CanvasDocument document;
   final Future<void> Function() onClear;
+  final CanvasScopedClear? scopedClear;
 
   /// The toolbar's "Paste image" action, always available - the manual
   /// fallback that works on every platform, the same shape the composer's
@@ -385,6 +388,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     onRedo: widget.onRedo,
     canManage: widget.canManage,
     onClear: widget.onClear,
+    scopedClear: widget.scopedClear,
     onPasteImage: widget.onPasteImage,
     selection: widget.document.selectedObjectId,
     onBringToFront: widget.onBringToFront,

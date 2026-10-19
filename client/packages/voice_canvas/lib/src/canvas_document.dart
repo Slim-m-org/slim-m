@@ -381,15 +381,30 @@ class CanvasDocument extends ChangeNotifier {
   /// The `0 <` guard spares a locally drawn stroke, which carries `seq: 0`
   /// until the server confirms it - without it, a clear in flight would
   /// erase ink as it is drawn, before its own placement is even known.
-  void clearBelow(int beforeSeq) {
+  ///
+  /// [kinds] and [authorId] narrow it the way a scoped clear does; empty and
+  /// null match everything.
+  void clearBelow(
+    int beforeSeq, {
+    Set<CanvasObjectKind> kinds = const {},
+    String? authorId,
+  }) {
     for (var slot = 0; slot < _strokes.length; slot++) {
       final stroke = _strokes[slot];
-      if (stroke != null && stroke.seq > 0 && stroke.seq <= beforeSeq) {
-        _remember(stroke.id);
-        _freeSlot(slot);
-      }
+      if (stroke == null || stroke.seq <= 0 || stroke.seq > beforeSeq) continue;
+      if (kinds.isNotEmpty && !kinds.contains(stroke.kind)) continue;
+      if (authorId != null && stroke.authorId != authorId) continue;
+      _remember(stroke.id);
+      _freeSlot(slot);
     }
   }
+
+  /// Everyone who authored an object still on the board.
+  Set<String> authorIds() => {
+        for (final stroke in _strokes)
+          if (stroke != null && stroke.alive && stroke.authorId != null)
+            stroke.authorId!,
+      };
 
   /// Drops ids from the removed-id tombstone set: a restore, which never
   /// re-materializes a stroke locally since its payload was freed on

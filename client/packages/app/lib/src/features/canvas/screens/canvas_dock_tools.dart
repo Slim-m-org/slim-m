@@ -43,6 +43,7 @@ class CanvasDockToolsRow extends StatelessWidget {
           onRedo: canvas.onRedo,
           canManage: canvas.canManage,
           onClear: canvas.onClear,
+          scopedClear: canvas.scopedClear,
           onPasteImage: canvas.onPasteImage,
           selection: canvas.selection,
           onBringToFront: canvas.onBringToFront,

@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_clear_scope.dart' show canvasKindsOf;
 import '../../../providers/op_adjacency.dart';
 
 /// Past this many pages, replaying the feed costs no less than a cold
@@ -425,8 +426,12 @@ class CanvasSync {
         for (final id in objectIds) {
           document.removeObject(id);
         }
-      case api.CanvasClearOp(:final beforeSeq):
-        document.clearBelow(beforeSeq);
+      case api.CanvasClearOp(:final beforeSeq, :final scope):
+        document.clearBelow(
+          beforeSeq,
+          kinds: canvasKindsOf(scope),
+          authorId: scope.authorId,
+        );
       case api.CanvasRestoreOp(:final objectIds):
         document.forgetRemoved(objectIds);
         forgetFetchedRegion();

@@ -14,6 +14,7 @@
 /// its logic, which is why this file is a relocation rather than a rewrite.
 library;
 
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -55,6 +56,7 @@ class CanvasToolsRow extends StatefulWidget {
     required this.onRedo,
     required this.canManage,
     required this.onClear,
+    this.scopedClear,
     required this.onPasteImage,
     required this.selection,
     required this.onBringToFront,
@@ -118,6 +120,7 @@ class CanvasToolsRow extends StatefulWidget {
   final bool canManage;
 
   final Future<void> Function() onClear;
+  final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
 
   /// The one object currently selected for a resize or reorder, or null.
@@ -236,6 +239,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           canDraw: widget.canDraw,
           canManage: widget.canManage,
           onClear: widget.onClear,
+          scopedClear: widget.scopedClear,
           selection: widget.selection,
           onBringToFront: widget.onBringToFront,
           onSendToBack: widget.onSendToBack,

@@ -79,6 +79,7 @@ extension SlimmApiCanvas on SlimmApi {
     required String kind,
     List<String>? objectIds,
     int? beforeSeq,
+    CanvasClearScope? clearScope,
     String? targetOp,
     String? objectId,
     double? x,
@@ -96,6 +97,9 @@ extension SlimmApiCanvas on SlimmApi {
         'kind': kind,
         if (objectIds != null) 'object_ids': objectIds,
         if (beforeSeq != null) 'before_seq': beforeSeq,
+        if (clearScope != null && clearScope.kinds.isNotEmpty)
+          'kinds': clearScope.kinds,
+        if (clearScope?.authorId != null) 'author_id': clearScope!.authorId,
         if (targetOp != null) 'target_op': targetOp,
         if (objectId != null) 'object_id': objectId,
         if (x != null) 'x': x,
