@@ -12,7 +12,6 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/screen_share_stage.dart';
-import 'package:slimm_app/src/features/voice/widgets/share_stage_controls.dart';
 import 'package:slimm_app/src/features/voice/widgets/share_stage_grid.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -197,7 +196,7 @@ void main() {
   });
 
   testWidgets(
-    'stop watching removes the share, blocks it, and Watch restores it',
+    'stop watching removes the share and blocks it, with no badge to undo it',
     (tester) async {
       final call = await _connected(tester, [_p('a'), _p('b')], _wide);
 
@@ -206,19 +205,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ScreenShareStage), findsOneWidget);
       expect(find.byKey(const Key('fake-share-view-a')), findsNothing);
-      expect(find.text('a is sharing'), findsOneWidget);
       expect(call.session.videoBlocked.last, {'screen:a'});
-
-      await tester.tap(find.text('Watch'));
-      await tester.pumpAndSettle();
-      expect(find.byType(ScreenShareStage), findsNWidgets(2));
+      // Owner: show it again from the person's menu, not a badge at the top.
       expect(find.text('a is sharing'), findsNothing);
-      expect(call.session.videoBlocked.last, isEmpty);
+      expect(find.text('Watch'), findsNothing);
       await _leave(call);
     },
   );
 
-  testWidgets('stopping the only share leaves the grid and a chip', (
+  testWidgets('stopping the only share leaves the grid and no badge', (
     tester,
   ) async {
     final call = await _connected(tester, [
@@ -229,7 +224,7 @@ void main() {
     await tester.tap(find.text('Hide stream'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsNothing);
-    expect(find.byType(ShareWatchChip), findsOneWidget);
+    expect(find.text('a is sharing'), findsNothing);
     await _leave(call);
   });
 
@@ -241,7 +236,7 @@ void main() {
     await tester.tap(find.text('Hide stream'));
     await tester.pumpAndSettle();
     expect(find.byType(ScreenShareStage), findsOneWidget);
-    expect(find.text('a is sharing'), findsOneWidget);
+    expect(find.text('a is sharing'), findsNothing);
     await _leave(call);
   });
 
