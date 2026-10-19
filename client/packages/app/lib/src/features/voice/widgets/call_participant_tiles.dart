@@ -25,6 +25,9 @@ import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/double_click_detector.dart';
 import '../../members/widgets/user_avatar.dart';
 
+/// The participant menu's width, room enough for its volume slider.
+const double kParticipantMenuWidth = 248;
+
 /// The tile's size floor: the original fixed width, still right once a call
 /// is full enough that more room per tile would not help.
 const double kCallTileMinWidth = 144;
@@ -252,7 +255,11 @@ class CallParticipantTile extends StatelessWidget {
       tile = DoubleClickDetector(onDoubleClick: onExpand, child: tile);
     }
     if (contextMenuItemsBuilder case final itemsBuilder?) {
-      tile = ContextMenuRegion(itemsBuilder: itemsBuilder, child: tile);
+      tile = ContextMenuRegion(
+        menuWidth: kParticipantMenuWidth,
+        itemsBuilder: itemsBuilder,
+        child: tile,
+      );
     }
     return tile;
   }

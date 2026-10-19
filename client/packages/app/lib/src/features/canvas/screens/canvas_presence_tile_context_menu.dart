@@ -34,6 +34,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/context_menu_focus.dart';
 import '../../messages/widgets/message_context_menu_layout.dart';
+import '../../voice/widgets/call_participant_tiles.dart'
+    show kParticipantMenuWidth;
 
 /// Opens [CanvasPresenceTileContextMenu] from wherever the right-click that
 /// should open it actually happens - `canvas_presence_tile.dart`'s own
@@ -180,7 +182,7 @@ class _CanvasPresenceTileContextMenuState
             onTapOutside: (_) => _close(),
             child: ContextMenuKeyboardScope(
               onDismiss: _close,
-              child: AppMenu(width: 220, children: _items),
+              child: AppMenu(width: kParticipantMenuWidth, children: _items),
             ),
           ),
         ),

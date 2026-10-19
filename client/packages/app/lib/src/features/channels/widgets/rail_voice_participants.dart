@@ -15,6 +15,8 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/user_profiles.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../voice/widgets/call_participant_tiles.dart'
+    show kParticipantMenuWidth;
 import '../../voice/widgets/participant_call_menu.dart';
 import '../../members/widgets/member_profile.dart';
 import '../../members/widgets/user_avatar.dart';
@@ -139,6 +141,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
     // Until the profile resolves there is no card to open, so the row stays plain.
     if (profile == null) return face;
     return ContextMenuRegion(
+      menuWidth: kParticipantMenuWidth,
       itemsBuilder: (menuContext, close) => participantCallMenuItems(
         menuContext,
         ref,

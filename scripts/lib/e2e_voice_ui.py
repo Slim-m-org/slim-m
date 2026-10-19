@@ -111,8 +111,8 @@ def dismiss_popover(client):
 
 
 def open_volume_popover(client, name):
+    """The tile menu, whose first row is the volume slider itself."""
     open_tile_menu(client, name)
-    client.click("Volume...", settle=1)
     client.wait_for("Volume for you")
 
 
