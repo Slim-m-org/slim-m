@@ -187,10 +187,11 @@ Future<void> pumpAtWidth(
   WidgetTester tester,
   ProviderContainer container,
   double width, {
+  double height = 900,
   String location = '/channels',
   bool reduceMotion = false,
 }) async {
-  tester.view.physicalSize = Size(width, 900);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 

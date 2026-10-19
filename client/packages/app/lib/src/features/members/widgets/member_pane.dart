@@ -54,6 +54,20 @@ import 'member_selection_bar.dart';
 /// summon room for it that is not there.
 final memberPaneVisibleProvider = StateProvider<bool>((ref) => true);
 
+/// A window shorter than this does not open the member pane by itself.
+const double kMemberPaneAutoOpenMinHeight = 500;
+
+/// Set while the viewer opened the pane by hand on a window too short to open
+/// it automatically; the header toggle is the only writer.
+final memberPaneOpenedByHandProvider = StateProvider<bool>((ref) => false);
+
+/// Whether the docked pane is wanted at [size]: not hidden, and either tall
+/// enough to open by default or opened by hand.
+bool memberPaneWanted(WidgetRef ref, Size size) =>
+    ref.watch(memberPaneVisibleProvider) &&
+    (size.height >= kMemberPaneAutoOpenMinHeight ||
+        ref.watch(memberPaneOpenedByHandProvider));
+
 /// 236px, `--surface-sunken`, a left hairline: the design's right member pane.
 class AppMemberPane extends ConsumerWidget {
   const AppMemberPane({super.key, required this.channelId, this.onClose});
