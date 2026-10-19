@@ -1,35 +1,43 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! `GET /attachments/{id}?w=N`: a bounded-size preview of a still image, so an
-//! inline tile does not download the original. Anything that cannot or need
-//! not shrink falls through to the stored original, which is always a correct
-//! answer to the same request.
+//! `GET /attachments/{id}?w=N`: a bounded-size preview of a still image, or the
+//! first frame of a gif, so an inline tile does not download the original.
+//! Anything that cannot or need not shrink falls through to the stored
+//! original, which is always a correct answer to the same request.
 
 use axum::http::HeaderMap;
 use axum::response::Response;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use crate::media::preview::{Preview, bucket_for};
+use crate::media::preview::{Preview, Variant, bucket_for};
 use crate::media::{Media, sniff_content_type};
 use crate::store::AttachmentSummary;
+
+/// What a preview request asks for.
+pub(super) struct Request {
+    pub width: u32,
+    /// Also answer an animated WebP or PNG with its first frame, which a gif always gets.
+    pub still: bool,
+}
 
 /// The derived response for `width`, or `None` when the original should be served.
 pub(super) async fn serve(
     media: &Media,
     attachment_id: &str,
     meta: &AttachmentSummary,
-    width: u32,
+    request: Request,
     headers: &HeaderMap,
 ) -> Option<Response> {
-    if !matches!(
-        meta.content_type.as_str(),
-        "image/jpeg" | "image/png" | "image/webp"
-    ) {
-        return None;
-    }
     let original = media.attachment_file(attachment_id);
+    let variant = match (meta.content_type.as_str(), request.still) {
+        ("image/gif", _) => Variant::Still,
+        ("image/jpeg", _) => Variant::Preview,
+        ("image/png" | "image/webp", true) => media.previews().variant_for(&original).await,
+        ("image/png" | "image/webp", false) => Variant::Preview,
+        _ => return None,
+    };
     let resolved = media
         .previews()
-        .resolve(attachment_id, &original, bucket_for(width))
+        .resolve(attachment_id, &original, bucket_for(request.width), variant)
         .await;
     let path = match resolved {
         Ok(Preview::Derived(path)) => path,

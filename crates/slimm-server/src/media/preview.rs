@@ -4,24 +4,20 @@
 //! An attachment is content addressed and immutable, so a preview never goes
 //! stale: it is written next to the blob on first request and removed with it.
 //! Decoding is the one place the server holds a whole raster in memory, so
-//! [`Previews`] admits a single generation at a time and refuses pictures past
-//! [`MAX_SOURCE_PIXELS`] or [`MAX_SOURCE_BYTES`].
+//! [`Previews`] admits a single generation at a time and refuses pictures too big to decode.
+//! A picture that animates gets a first-frame still at each bucket instead.
 
-use std::io::{self, Cursor};
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use image::codecs::jpeg::JpegEncoder;
-use image::codecs::webp::WebPEncoder;
-use image::metadata::Orientation;
-use image::{DynamicImage, ExtendedColorType, ImageDecoder, ImageReader, Limits};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use super::Media;
-use super::image_header::inspect;
 use super::memory_budget::MemoryBudget;
-use super::preview_scale::fit;
+pub use super::preview_derive::Variant;
+use super::preview_derive::{decode_estimate, derive_many, derive_one, variant_of};
 
 /// Longest-side widths a preview may be asked for. Bucketing bounds the files kept per attachment.
 pub const BUCKETS: [u32; 3] = [320, 640, 1280];
@@ -31,23 +27,6 @@ const MAX_PREWARM_QUEUE: usize = 8;
 
 /// The bucket used when a caller does not name one.
 pub const DEFAULT_BUCKET: u32 = 640;
-
-/// Pictures with more pixels are served as the original instead of decoded.
-const MAX_SOURCE_PIXELS: u64 = 40_000_000;
-
-/// Files larger than this are served as the original instead of read into memory.
-const MAX_SOURCE_BYTES: u64 = 48 * 1024 * 1024;
-
-/// The decoder's allocation ceiling: an RGB raster at [`MAX_SOURCE_PIXELS`] plus working room.
-const DECODE_ALLOC_LIMIT: u64 = 192 * 1024 * 1024;
-
-/// How much of the file is read to learn its dimensions before deciding to decode it.
-const HEADER_PROBE_BYTES: usize = 256 * 1024;
-
-/// A small file that already fits its bucket is not worth re-encoding.
-const KEEP_ORIGINAL_BELOW: u64 = 200 * 1024;
-
-const JPEG_QUALITY: u8 = 72;
 
 /// What a preview request resolves to.
 #[derive(Debug)]
@@ -71,7 +50,10 @@ pub struct Previews {
 impl Media {
     /// Starts deriving the previews of a stored upload when it is a still picture they apply to.
     pub fn prewarm_preview(&self, hex: &str, content_type: &str) {
-        if matches!(content_type, "image/jpeg" | "image/png" | "image/webp") {
+        if matches!(
+            content_type,
+            "image/jpeg" | "image/png" | "image/webp" | "image/gif"
+        ) {
             self.previews
                 .prewarm(hex.to_owned(), self.attachment_file(hex));
         }
@@ -102,23 +84,41 @@ impl Previews {
 
     /// Memory for decoding `original`, held until dropped. `Ok(None)` when the file will not be
     /// decoded at all; `Err` when the budget has no room, so the original is the answer.
-    async fn reserve(&self, original: &Path) -> Result<Option<OwnedSemaphorePermit>, ()> {
-        let Some(estimate) = decode_estimate(original).await else {
+    async fn reserve(
+        &self,
+        original: &Path,
+        variant: Variant,
+    ) -> Result<Option<OwnedSemaphorePermit>, ()> {
+        let Some(estimate) = decode_estimate(original, variant).await else {
             return Ok(None);
         };
         self.budget.admit(estimate).await.map(Some).ok_or(())
     }
 
-    fn path(&self, hex: &str, bucket: u32) -> PathBuf {
-        self.dir.join(format!("{hex}.{bucket}"))
+    fn path(&self, hex: &str, variant: Variant, bucket: u32) -> PathBuf {
+        self.dir.join(format!("{hex}.{}{bucket}", variant.tag()))
+    }
+
+    /// The variant a request for a still should be answered with: the first frame of a picture
+    /// that animates, the ordinary preview of any other.
+    pub async fn variant_for(&self, original: &Path) -> Variant {
+        variant_of(original).await
     }
 
     /// Resolves the preview of `original` at `bucket`, generating it on first use.
     ///
     /// An empty derived file records that the original is the answer, so a
     /// picture that cannot or need not shrink is judged once, not per request.
-    pub async fn resolve(&self, hex: &str, original: &Path, bucket: u32) -> io::Result<Preview> {
-        self.resolve_with(hex, original, bucket, derive_one).await
+    pub async fn resolve(
+        &self,
+        hex: &str,
+        original: &Path,
+        bucket: u32,
+        variant: Variant,
+    ) -> io::Result<Preview> {
+        let derive = move |original: &Path, bucket| derive_one(original, variant, bucket);
+        self.resolve_with(hex, original, bucket, variant, derive)
+            .await
     }
 
     /// The permit moves into the blocking task, so a cancelled request cannot free the gate
@@ -128,12 +128,13 @@ impl Previews {
         hex: &str,
         original: &Path,
         bucket: u32,
+        variant: Variant,
         derive: F,
     ) -> io::Result<Preview>
     where
         F: FnOnce(&Path, u32) -> io::Result<Option<Vec<u8>>> + Send + 'static,
     {
-        let path = self.path(hex, bucket);
+        let path = self.path(hex, variant, bucket);
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
@@ -144,7 +145,7 @@ impl Previews {
         if let Some(found) = existing(&path).await? {
             return Ok(found);
         }
-        let Ok(memory) = self.reserve(original).await else {
+        let Ok(memory) = self.reserve(original, variant).await else {
             return Ok(Preview::Original);
         };
         let original = original.to_path_buf();
@@ -183,27 +184,28 @@ impl Previews {
             .acquire_owned()
             .await
             .map_err(io::Error::other)?;
+        let variant = variant_of(original).await;
         let mut missing = Vec::new();
         for bucket in BUCKETS {
-            if existing(&self.path(hex, bucket)).await?.is_none() {
+            if existing(&self.path(hex, variant, bucket)).await?.is_none() {
                 missing.push(bucket);
             }
         }
         if missing.is_empty() {
             return Ok(());
         }
-        let Ok(memory) = self.reserve(original).await else {
+        let Ok(memory) = self.reserve(original, variant).await else {
             return Ok(());
         };
         let original = original.to_path_buf();
         let targets: Vec<(u32, PathBuf)> = missing
             .into_iter()
-            .map(|bucket| (bucket, self.path(hex, bucket)))
+            .map(|bucket| (bucket, self.path(hex, variant, bucket)))
             .collect();
         tokio::task::spawn_blocking(move || {
             let _permit = (permit, memory);
             let buckets: Vec<u32> = targets.iter().map(|(bucket, _)| *bucket).collect();
-            let derived = derive_many(&original, &buckets)?;
+            let derived = derive_many(&original, variant, &buckets)?;
             for ((_, target), bytes) in targets.iter().zip(derived) {
                 write_atomic(target, bytes.as_deref().unwrap_or_default())?;
             }
@@ -277,159 +279,12 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
     placed
 }
 
-/// The peak memory of deriving previews from `original`: the file, its raster and some working
-/// room. `None` when the file would not be decoded, so needs no reservation.
-async fn decode_estimate(original: &Path) -> Option<u64> {
-    use tokio::io::AsyncReadExt;
-    let mut file = tokio::fs::File::open(original).await.ok()?;
-    let len = file.metadata().await.ok()?.len();
-    if len > MAX_SOURCE_BYTES {
-        return None;
-    }
-    let mut probe = vec![0u8; HEADER_PROBE_BYTES.min(len as usize)];
-    file.read_exact(&mut probe).await.ok()?;
-    let header = inspect(&probe)?;
-    let pixels = u64::from(header.width) * u64::from(header.height);
-    if header.animated || pixels > MAX_SOURCE_PIXELS {
-        return None;
-    }
-    Some(len + pixels * PREVIEW_BYTES_PER_PIXEL + PREVIEW_FIXED_BYTES)
-}
-
-/// The decoded raster plus the resized copies one preview decode keeps.
-const PREVIEW_BYTES_PER_PIXEL: u64 = 4;
-const PREVIEW_FIXED_BYTES: u64 = 16 * 1024 * 1024;
-
-/// The preview bytes at one `bucket`, or `None` when the original should be served.
-fn derive_one(original: &Path, bucket: u32) -> io::Result<Option<Vec<u8>>> {
-    Ok(derive_many(original, &[bucket])?.pop().flatten())
-}
-
-/// The preview bytes at each of `buckets`, from one decode of `original`.
-///
-/// `None` entries mean the original should be served. A picture this cannot decode is `None`
-/// too rather than an error: the original is always a correct answer, and the same picture
-/// would fail again.
-fn derive_many(original: &Path, buckets: &[u32]) -> io::Result<Vec<Option<Vec<u8>>>> {
-    let none = || Ok(vec![None; buckets.len()]);
-    let len = std::fs::metadata(original)?.len();
-    if len > MAX_SOURCE_BYTES {
-        return none();
-    }
-    let bytes = std::fs::read(original)?;
-    let probe = &bytes[..bytes.len().min(HEADER_PROBE_BYTES)];
-    let Some(header) = inspect(probe) else {
-        return none();
-    };
-    let decodable = matches!(
-        header.content_type,
-        "image/jpeg" | "image/png" | "image/webp"
-    );
-    let pixels = u64::from(header.width) * u64::from(header.height);
-    if !decodable || header.animated || pixels > MAX_SOURCE_PIXELS {
-        return none();
-    }
-    let longest = header.width.max(header.height);
-    let wanted = |bucket: u32| longest > bucket || len >= KEEP_ORIGINAL_BELOW;
-    if !buckets.iter().any(|bucket| wanted(*bucket)) {
-        return none();
-    }
-    let Some((full, orientation)) = decode(&bytes) else {
-        return none();
-    };
-    drop(bytes);
-    Ok(render_buckets(
-        &full,
-        orientation,
-        header.content_type,
-        buckets,
-        len,
-        wanted,
-    ))
-}
-
-/// Encodes `full` at each bucket, largest first so every smaller one shrinks the last result, not the whole raster.
-fn render_buckets(
-    full: &DynamicImage,
-    orientation: Orientation,
-    content_type: &str,
-    buckets: &[u32],
-    original_len: u64,
-    wanted: impl Fn(u32) -> bool,
-) -> Vec<Option<Vec<u8>>> {
-    let mut derived = vec![None; buckets.len()];
-    let mut order: Vec<usize> = (0..buckets.len()).collect();
-    order.sort_by_key(|index| std::cmp::Reverse(buckets[*index]));
-    let mut previous: Option<DynamicImage> = None;
-    for index in order {
-        if !wanted(buckets[index]) {
-            continue;
-        }
-        let fitted = fit(previous.as_ref().unwrap_or(full), buckets[index]);
-        let mut upright = fitted.clone();
-        upright.apply_orientation(orientation);
-        derived[index] = encode(&upright, content_type == "image/png")
-            .filter(|encoded| encoded.len() as u64 * 10 < original_len * 9);
-        previous = Some(fitted);
-    }
-    derived
-}
-
-fn decode(bytes: &[u8]) -> Option<(DynamicImage, Orientation)> {
-    let mut reader = ImageReader::new(Cursor::new(bytes))
-        .with_guessed_format()
-        .ok()?;
-    let mut limits = Limits::default();
-    limits.max_alloc = Some(DECODE_ALLOC_LIMIT);
-    reader.limits(limits);
-    let mut decoder = reader.into_decoder().ok()?;
-    let orientation = decoder.orientation().unwrap_or(Orientation::NoTransforms);
-    let full = DynamicImage::from_decoder(decoder).ok()?;
-    Some((full, orientation))
-}
-
-/// Photographs go to JPEG; a picture with real transparency, or a PNG that
-/// might be flat graphics, is also tried as lossless WebP and the smaller wins.
-fn encode(img: &DynamicImage, try_lossless: bool) -> Option<Vec<u8>> {
-    let rgba = img.to_rgba8();
-    let transparent = rgba.pixels().any(|p| p.0[3] < 255);
-    let jpeg = (!transparent).then(|| {
-        let mut out = Vec::new();
-        let rgb = img.to_rgb8();
-        JpegEncoder::new_with_quality(&mut out, JPEG_QUALITY)
-            .encode(
-                rgb.as_raw(),
-                rgb.width(),
-                rgb.height(),
-                ExtendedColorType::Rgb8,
-            )
-            .ok()
-            .map(|()| out)
-    });
-    let jpeg = jpeg.flatten();
-    let webp = (transparent || try_lossless).then(|| {
-        let mut out = Vec::new();
-        WebPEncoder::new_lossless(&mut out)
-            .encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                ExtendedColorType::Rgba8,
-            )
-            .ok()
-            .map(|()| out)
-    });
-    let webp = webp.flatten();
-    match (jpeg, webp) {
-        (Some(j), Some(w)) => Some(if w.len() < j.len() { w } else { j }),
-        (j, w) => j.or(w),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::media::Media;
+    use image::ExtendedColorType;
+    use image::codecs::jpeg::JpegEncoder;
 
     fn big_jpeg() -> Vec<u8> {
         let img = image::RgbImage::from_fn(1600, 1200, |x, y| {
@@ -455,7 +310,7 @@ mod tests {
         let first = previews.clone();
         let request = tokio::spawn(async move {
             first
-                .resolve_with("aa", Path::new("x"), 320, move |_, _| {
+                .resolve_with("aa", Path::new("x"), 320, Variant::Preview, move |_, _| {
                     started_tx.send(()).unwrap();
                     release_rx.recv().unwrap();
                     Ok(None)
@@ -497,7 +352,7 @@ mod tests {
         media.write_attachment(&hex, big_jpeg()).await.unwrap();
         let resolved = media
             .previews()
-            .resolve(&hex, &media.attachment_file(&hex), 640)
+            .resolve(&hex, &media.attachment_file(&hex), 640, Variant::Preview)
             .await
             .unwrap();
         assert!(matches!(resolved, Preview::Derived(_)));

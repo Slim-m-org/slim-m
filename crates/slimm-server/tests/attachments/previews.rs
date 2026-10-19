@@ -15,7 +15,7 @@ use crate::fixtures::*;
 
 /// A photo-like raster: a gradient with per-pixel noise, so it neither
 /// compresses to nothing nor looks like flat graphics.
-fn photo(width: u32, height: u32) -> RgbImage {
+pub(crate) fn photo(width: u32, height: u32) -> RgbImage {
     let mut state = 0x2545_f491_u32;
     RgbImage::from_fn(width, height, |x, y| {
         state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
@@ -28,7 +28,7 @@ fn photo(width: u32, height: u32) -> RgbImage {
     })
 }
 
-fn jpeg(img: &RgbImage, quality: u8) -> Vec<u8> {
+pub(crate) fn jpeg(img: &RgbImage, quality: u8) -> Vec<u8> {
     let mut out = Vec::new();
     JpegEncoder::new_with_quality(&mut out, quality)
         .encode(
@@ -60,15 +60,15 @@ fn with_orientation(jpeg: &[u8], orientation: u16) -> Vec<u8> {
     out
 }
 
-struct Ready {
-    media: Media,
-    app: axum::Router,
-    token: String,
-    id: String,
+pub(crate) struct Ready {
+    pub(crate) media: Media,
+    pub(crate) app: axum::Router,
+    pub(crate) token: String,
+    pub(crate) id: String,
     _guard: crate::support::TestDbGuard,
 }
 
-async fn ready(filename: &str, content: Vec<u8>) -> Ready {
+pub(crate) async fn ready(filename: &str, content: Vec<u8>) -> Ready {
     let (store, guard) = new_store().await;
     store
         .create_role(
@@ -110,7 +110,10 @@ async fn ready(filename: &str, content: Vec<u8>) -> Ready {
     }
 }
 
-async fn fetch(ready: &Ready, query: &str) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+pub(crate) async fn fetch(
+    ready: &Ready,
+    query: &str,
+) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
     let response = ready
         .app
         .clone()

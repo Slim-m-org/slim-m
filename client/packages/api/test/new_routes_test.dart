@@ -524,6 +524,26 @@ void main() {
       expect(fetched.contentType, 'image/png');
     });
 
+    test('fetchAttachment names the preview width, and the first frame on ask',
+        () async {
+      final queries = <Map<String, String>>[];
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((request) async {
+          queries.add(request.url.queryParameters);
+          return http.Response.bytes([1], 200,
+              headers: {'content-type': 'image/png'});
+        }),
+      );
+      await api.fetchAttachment('a', previewWidth: 320);
+      await api.fetchAttachment('a', previewWidth: 320, firstFrame: true);
+      expect(queries, [
+        {'w': '320'},
+        {'w': '320', 'still': 'true'},
+      ]);
+    });
+
     test('fetchAttachment refreshes once on an expired token and replays',
         () async {
       final calls = <String>[];

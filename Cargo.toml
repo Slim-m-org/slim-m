@@ -64,7 +64,7 @@ wasmi = "0.51"
 jiff = { version = "0.2", default-features = false, features = ["std", "tzdb-bundle-always", "serde"] }
 
 # Decodes JPEG/PNG/GIF/WebP to cut the inline attachment preview; every other codec is off (binary size budget, decode attack surface). See docs/dependencies.md.
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp", "tiff"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff"] }
 # The upload photo compressor: pure-Rust JPEG encode, resize and HEIC decode, plus oxipng's lossless PNG pass. See docs/dependencies.md.
 jpeg-encoder = "0.7"
 # Scaled DCT decode, so a huge JPEG headed for a small cap never holds its full-size pixels.

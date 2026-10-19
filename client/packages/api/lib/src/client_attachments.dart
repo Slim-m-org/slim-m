@@ -123,15 +123,19 @@ extension SlimmApiAttachments on SlimmApi {
   /// same bytes.
   ///
   /// With [previewWidth] the server answers a smaller preview of a still image
-  /// where it can, and the original otherwise; read [FetchedBytes.contentType]
-  /// rather than assuming which one came back.
+  /// or the first frame of a gif where it can, and the original otherwise;
+  /// read [FetchedBytes.contentType] rather than assuming which one came back.
+  /// [firstFrame] also asks for the first frame of an animated webp or png.
   Future<FetchedBytes> fetchAttachment(
     String attachmentId, {
     int? previewWidth,
+    bool firstFrame = false,
   }) =>
       _fetchBytes(
         '/attachments/$attachmentId',
-        query: previewWidth == null ? null : {'w': '$previewWidth'},
+        query: previewWidth == null
+            ? null
+            : {'w': '$previewWidth', if (firstFrame) 'still': 'true'},
       );
 
   /// Opens an attachment as a stream, with no deadline on the body itself: a

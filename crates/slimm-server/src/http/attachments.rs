@@ -221,6 +221,8 @@ fn upload_stream_error(err: StreamError) -> ApiError {
 struct FetchParams {
     /// Asks for a bounded-size preview of a still image; see [`super::attachment_preview`].
     w: Option<u32>,
+    /// With `w`, also answers an animated WebP or PNG with its first frame.
+    still: Option<bool>,
     /// Asks for the uploaded original kept beside a compressed copy.
     original: Option<bool>,
 }
@@ -272,9 +274,17 @@ async fn fetch(
         return super::attachment_original::serve(&state, &attachment_id, &sha256, &headers).await;
     }
     if let Some(width) = params.w
-        && let Some(response) =
-            super::attachment_preview::serve(&state.media, &attachment_id, &meta, width, &headers)
-                .await
+        && let Some(response) = super::attachment_preview::serve(
+            &state.media,
+            &attachment_id,
+            &meta,
+            super::attachment_preview::Request {
+                width,
+                still: params.still == Some(true),
+            },
+            &headers,
+        )
+        .await
     {
         return Ok(response);
     }

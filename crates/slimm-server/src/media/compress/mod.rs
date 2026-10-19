@@ -131,6 +131,25 @@ pub struct Compressed {
     pub extension: &'static str,
 }
 
+pub use decode::jpeg_scale_divisor;
+
+/// A JPEG of `width` by `height` decoded at a reduced DCT scale that keeps its long side at least
+/// `long_edge`, with the EXIF orientation still to apply.
+pub fn decode_reduced_jpeg(
+    bytes: &[u8],
+    width: u32,
+    height: u32,
+    long_edge: u32,
+) -> Option<(image::DynamicImage, u16)> {
+    let candidate = Candidate {
+        kind: Kind::Jpeg,
+        width,
+        height,
+    };
+    let decoded = decode::decode(candidate, bytes, long_edge)?;
+    Some((decoded.image, decoded.orientation))
+}
+
 /// A file worth decoding: the format, and how many pixels that costs.
 #[derive(Debug, Clone, Copy)]
 pub struct Candidate {

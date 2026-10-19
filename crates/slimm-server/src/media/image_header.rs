@@ -128,6 +128,11 @@ fn png(b: &[u8]) -> Option<(u32, u32, bool)> {
 /// The frame size is in the first start-of-frame segment; scanning stops at
 /// start-of-scan, which no well-formed JPEG reaches before one.
 fn jpeg(b: &[u8]) -> Option<(u32, u32, bool)> {
+    jpeg_frame(b).map(|(_, width, height)| (width, height, false))
+}
+
+/// The marker, width and height of a JPEG's first start-of-frame segment.
+fn jpeg_frame(b: &[u8]) -> Option<(u8, u32, u32)> {
     let mut at = 2;
     loop {
         while *b.get(at)? == 0xFF && *b.get(at + 1)? == 0xFF {
@@ -147,10 +152,27 @@ fn jpeg(b: &[u8]) -> Option<(u32, u32, bool)> {
         let len = usize::try_from(be16(b, at + 2)?).ok()?;
         let is_frame = (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC);
         if is_frame {
-            return Some((be16(b, at + 7)?, be16(b, at + 5)?, false));
+            return Some((marker, be16(b, at + 7)?, be16(b, at + 5)?));
         }
         at = at.checked_add(2)?.checked_add(len)?;
     }
+}
+
+/// Whether a JPEG codes its coefficients in several scans, which a decoder must hold whole.
+pub fn jpeg_is_progressive(bytes: &[u8]) -> bool {
+    matches!(jpeg_frame(bytes), Some((0xC2 | 0xC6 | 0xCA | 0xCE, _, _)))
+}
+
+/// The canvas of a GIF whose later blocks lie past what was read. It is reported as animated,
+/// since only a still of its first frame is wanted from it.
+pub fn gif_canvas(bytes: &[u8]) -> Option<ImageHeader> {
+    (sniff_content_type(bytes) == Some("image/gif")).then_some(())?;
+    Some(ImageHeader {
+        content_type: "image/gif",
+        width: le16(bytes, 6)?,
+        height: le16(bytes, 8)?,
+        animated: true,
+    })
 }
 
 /// A GIF animates when it holds more than one image; counting them means

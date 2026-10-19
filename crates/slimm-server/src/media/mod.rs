@@ -38,6 +38,7 @@ mod image_header;
 mod linked_avatar;
 pub mod originals;
 pub mod preview;
+mod preview_derive;
 mod preview_scale;
 mod stream;
 mod upload_session;
