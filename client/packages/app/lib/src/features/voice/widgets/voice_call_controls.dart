@@ -48,7 +48,6 @@ import 'package:slimm_rtc/rtc.dart' show MicStatus, VoiceSessionState;
 import 'level_display_hold.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
-import '../../../providers/providers.dart' show apiProvider;
 import '../providers/mic_status.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
@@ -59,12 +58,11 @@ import 'audio_output_sheet.dart';
 import 'camera_source_sheet.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
-import 'screen_source_sheet.dart';
+import 'screen_share_start.dart';
 import 'call_availability.dart';
 import 'call_dock_button.dart';
 import 'call_quality_options.dart';
 import 'call_leave_button.dart' show labelWithShortcut, shortcutSuffix;
-import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 export 'call_dock_button.dart';
 
@@ -415,7 +413,11 @@ class _CallControlsState extends ConsumerState<CallControls> {
       final settings = ref.read(voiceSettingsControllerProvider);
       final quality = settings.screenShareQuality;
 
-      final pick = await _pickSource(context, controller);
+      final pick = await pickShareSource(
+        context,
+        controller,
+        lastSourceId: _lastSourceId,
+      );
       if (!pick.proceed) return;
       final sourceId = pick.id;
       // The call can end while a picker or the source list is open.
@@ -430,55 +432,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
         quality: quality,
         sourceId: sourceId,
         includeAudio: settings.screenShareIncludeAudio,
-        maxHeight: await _screenShareCeiling(),
+        maxHeight: await screenShareCeiling(ref),
       );
     } finally {
       if (mounted) setState(() => _shareRequestInFlight = false);
-    }
-  }
-
-  Future<({bool proceed, String? id})> _pickSource(
-    BuildContext context,
-    VoiceController controller,
-  ) async {
-    if (!controller.screenShareNeedsSource) return (proceed: true, id: null);
-    // Mandatory: capture cannot find a source nothing asked to list.
-    final sources = await controller.screenShareSources();
-    if (sources.isEmpty) return (proceed: false, id: null);
-    // On Linux the portal's own picker is the real choice; see DesktopSources.
-    if (sources.length == 1 || !controller.screenShareSourcePickerUseful) {
-      return (proceed: true, id: sources.first.id);
-    }
-    if (!context.mounted) return (proceed: false, id: null);
-    final chosen = await showScreenSourceSheet(
-      context,
-      sources,
-      selectedId: _lastSourceId,
-    );
-    return (proceed: chosen != null, id: chosen?.id);
-  }
-
-  /// The space-wide screen-share ceiling, or `null` on any failure to fetch
-  /// it, or on a server too old to report one. Read from `GET /version`,
-  /// unauthenticated, rather than the MANAGE_SERVER-gated
-  /// `GET /space/screen-share` the admin screen uses: every device sharing a
-  /// screen has to know this, not only one with an admin bit. This is a
-  /// client-advertised courtesy cap, not a security boundary, so a Space
-  /// this device cannot reach right now must not be the reason a share never
-  /// starts: failing open publishes at the quality already chosen, exactly
-  /// what happened before this setting existed.
-  Future<int?> _screenShareCeiling() async {
-    try {
-      final version = await ref.read(apiProvider).version();
-      return version.screenShareMaxHeight;
-    } catch (error, stack) {
-      reportFailure(
-        LogTag.voice,
-        "read the server's screen share quality limit",
-        error,
-        stack,
-      );
-      return null;
     }
   }
 
