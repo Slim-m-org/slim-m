@@ -51,11 +51,101 @@ abstract interface class MicPort {
   Future<void> discard();
 }
 
-class LiveKitMicPort implements MicPort {
-  LiveKitMicPort(this._room);
+/// A port that can open the capture before the room is up, so a join does not
+/// wait for the connect to start the microphone.
+abstract interface class MicPreopen {
+  /// Opens the capture with [options] now; the next [MicPort.setEnabled] that
+  /// asks for the same options publishes it instead of opening another.
+  /// Answers whether the capture opened.
+  Future<bool> preopen(lk.AudioCaptureOptions options);
+
+  /// Closes a preopened capture nobody published.
+  Future<void> discardPreopened();
+}
+
+class _Preopened {
+  _Preopened(this.options, this.track);
+
+  final lk.AudioCaptureOptions options;
+  final Future<lk.LocalAudioTrack?> track;
+}
+
+/// Whether a capture opened with [opened] can stand in for one asked for with
+/// [wanted]: same device, same processing, same mute policy.
+bool sameMicCapture(
+  lk.AudioCaptureOptions opened,
+  lk.AudioCaptureOptions wanted,
+) =>
+    opened.deviceId == wanted.deviceId &&
+    opened.noiseSuppression == wanted.noiseSuppression &&
+    opened.echoCancellation == wanted.echoCancellation &&
+    opened.autoGainControl == wanted.autoGainControl &&
+    opened.highPassFilter == wanted.highPassFilter &&
+    opened.noiseSuppressionMode == wanted.noiseSuppressionMode &&
+    opened.echoCancellationMode == wanted.echoCancellationMode &&
+    opened.autoGainControlMode == wanted.autoGainControlMode &&
+    opened.highPassFilterMode == wanted.highPassFilterMode &&
+    opened.voiceIsolation == wanted.voiceIsolation &&
+    opened.typingNoiseDetection == wanted.typingNoiseDetection &&
+    opened.stopAudioCaptureOnMute == wanted.stopAudioCaptureOnMute &&
+    identical(opened.processor, wanted.processor);
+
+class LiveKitMicPort implements MicPort, MicPreopen {
+  LiveKitMicPort(this._room, {this.preopens = true});
+
+  /// False where the room is a stand-in with no capture behind it.
+  final bool preopens;
 
   final lk.Room? Function() _room;
   final _lost = StreamController<void>.broadcast();
+  _Preopened? _preopened;
+
+  @override
+  Future<bool> preopen(lk.AudioCaptureOptions options) async {
+    if (!preopens) return false;
+    unawaited(discardPreopened());
+    final opened = _Preopened(
+      options,
+      Future.sync(() => lk.LocalAudioTrack.create(options))
+          .then<lk.LocalAudioTrack?>(
+        (track) => track,
+        onError: (Object e, StackTrace stack) {
+          AppLog.swallowed(LogTag.voice,
+              'Could not open the microphone ahead of the connect', e, stack);
+          return null;
+        },
+      ),
+    );
+    _preopened = opened;
+    return await opened.track != null;
+  }
+
+  @override
+  Future<void> discardPreopened() async {
+    final opened = _preopened;
+    _preopened = null;
+    final track = await opened?.track;
+    if (track == null) return;
+    await track.stop();
+    await _stopNativeRecording();
+  }
+
+  /// The preopened capture, when it is still wanted and was opened the way
+  /// [options] asks; any other is closed so the caller opens its own.
+  Future<lk.LocalAudioTrack?> _takePreopened(
+      lk.AudioCaptureOptions options) async {
+    final opened = _preopened;
+    if (opened == null) return null;
+    final wanted = _publication == null &&
+        _room() != null &&
+        sameMicCapture(opened.options, options);
+    if (!wanted) {
+      await discardPreopened();
+      return null;
+    }
+    _preopened = null;
+    return opened.track;
+  }
 
   @override
   Stream<void> get lost => _lost.stream;
@@ -97,6 +187,10 @@ class LiveKitMicPort implements MicPort {
   @override
   Future<void> release() async {
     await _publication?.track?.stop();
+    await _stopNativeRecording();
+  }
+
+  Future<void> _stopNativeRecording() async {
     if (!_recordsUntilToldToStop) return;
     try {
       await _nativeChannel
@@ -143,10 +237,23 @@ class LiveKitMicPort implements MicPort {
       // The reopen uses the track's own options, so they must be current.
       adoptOptions(options);
     }
+    if (enabled && options != null && await _publishPreopened(options)) return;
     await _room()?.localParticipant?.setMicrophoneEnabled(
           enabled,
           audioCaptureOptions: options,
         );
+  }
+
+  Future<bool> _publishPreopened(lk.AudioCaptureOptions options) async {
+    final track = await _takePreopened(options);
+    if (track == null) return false;
+    try {
+      await _room()?.localParticipant?.publishAudioTrack(track);
+    } on Object {
+      await track.stop();
+      rethrow;
+    }
+    return true;
   }
 
   @override

@@ -21,6 +21,7 @@ export 'src/camera_devices.dart';
 export 'src/camera_failure.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';
+export 'src/join_timings.dart';
 export 'src/input_gate.dart'
     show
         InputGateMonitor,
