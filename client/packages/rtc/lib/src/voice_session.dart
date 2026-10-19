@@ -108,9 +108,13 @@ class VoiceSession
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
     _initCapture(micPort, captureRestartDebounce, _restartCapture);
-    if (audioDevices != null) {
-      _audioSwitching = AudioDeviceSwitching(audioDevices);
-    }
+    _audioSwitching = AudioDeviceSwitching(
+      audioDevices ??
+          HardwareAudioDevices(
+            inCall: () => _room != null,
+            chosenInput: () => _audioSwitching.chosenInput,
+          ),
+    );
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),

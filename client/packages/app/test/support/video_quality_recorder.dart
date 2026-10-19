@@ -50,6 +50,8 @@ mixin VideoQualityRecorder {
 
   Stream<MicStatus> get micStatuses => micStatusChanges.stream;
 
+  String? audioInputInUse;
+
   Future<bool> resetMicrophone() async {
     microphoneResets++;
     return microphoneResetWorks;

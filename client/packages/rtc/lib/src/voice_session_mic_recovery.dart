@@ -182,6 +182,11 @@ mixin VoiceSessionMicRecovery {
     var inputChanged = false;
     var inputDropped = false;
     try {
+      // A join or leave makes the platform re-list, and one read can miss the chosen microphone.
+      if (await _audioSwitching.chosenInputMissing()) {
+        await Future<void>.delayed(_micTiming.deviceDebounce);
+        if (_state != VoiceSessionState.connected) return;
+      }
       final reconciled = await _audioSwitching.reconcilePreferences(_room);
       inputDropped = reconciled.inputDropped;
       inputChanged = inputDropped || reconciled.inputRestored;

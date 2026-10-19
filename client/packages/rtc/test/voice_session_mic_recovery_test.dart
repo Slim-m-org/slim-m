@@ -235,7 +235,7 @@ void main() {
     await rig.join();
     expect(rig.mic.restarts, isEmpty);
 
-    rig.devices.mics = const [];
+    rig.devices.mics = const [AudioDevice(id: 'desk', label: 'Desk')];
     rig.devices.changes
       ..add(null)
       ..add(null);
@@ -287,7 +287,7 @@ void main() {
     await rig.session.selectAudioInputDevice(headset);
     await rig.join();
 
-    rig.devices.mics = const [];
+    rig.devices.mics = const [AudioDevice(id: 'desk', label: 'Desk')];
     rig.devices.changes.add(null);
     await _until(() => rig.mic.restartDevices.isNotEmpty);
     expect(rig.mic.restartDevices.last, isNull);

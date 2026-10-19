@@ -116,7 +116,7 @@ void main() {
   group('AudioDeviceSwitching chosen devices that come and go', () {
     test('a chosen microphone that is plugged in again is used again',
         () async {
-      var plugged = <AudioDevice>[];
+      var plugged = [_mic('desk')];
       final switching = AudioDeviceSwitching(_MutableDevices(() => plugged));
       await switching.selectInput(null, _mic('bt'));
 
@@ -124,9 +124,19 @@ void main() {
       expect(result.inputDropped, isTrue);
       expect(switching.captureOptions().deviceId, isNull);
 
-      plugged = [_mic('bt')];
+      plugged = [_mic('bt'), _mic('desk')];
       result = await switching.reconcilePreferences(null);
       expect(result.inputRestored, isTrue);
+      expect(switching.captureOptions().deviceId, 'bt');
+    });
+
+    test('an empty list is not an unplugged microphone', () async {
+      final switching = AudioDeviceSwitching(_MutableDevices(() => const []));
+      await switching.selectInput(null, _mic('bt'));
+
+      final result = await switching.reconcilePreferences(null);
+
+      expect(result.inputDropped, isFalse);
       expect(switching.captureOptions().deviceId, 'bt');
     });
 

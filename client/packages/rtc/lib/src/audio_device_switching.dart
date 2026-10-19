@@ -91,6 +91,12 @@ class AudioDeviceSwitching {
         stopAudioCaptureOnMute: false,
       );
 
+  /// The microphone the person chose, kept while it is unplugged.
+  String? get chosenInput => _chosenInputId;
+
+  /// The microphone in use now, or null for the system default.
+  String? get inputInUse => _preferredInputId;
+
   /// Whether the capture rides whatever the system default microphone is.
   bool get followsSystemDefaultInput => _preferredInputId == null;
 
@@ -130,6 +136,15 @@ class AudioDeviceSwitching {
     }
   }
 
+  /// Whether the chosen microphone is absent from a list that names others.
+  /// An empty list says nothing, and one read can be partial mid-change.
+  Future<bool> chosenInputMissing() async {
+    final chosen = _chosenInputId;
+    if (chosen == null) return false;
+    final listed = await inputs();
+    return listed.isNotEmpty && resolveAudioDevice(listed, chosen) == null;
+  }
+
   /// Falls back to the system default for a chosen microphone or speaker that
   /// is not plugged in, so the next [roomOptions] does not ask the browser for
   /// a device it would refuse. True when the microphone in use was the one
@@ -146,8 +161,13 @@ class AudioDeviceSwitching {
   ) async {
     final inputs = await this.inputs();
     final outputs = await this.outputs();
-    final input = resolveAudioDevice(inputs, _chosenInputId)?.id;
-    final output = resolveAudioDevice(outputs, _chosenOutputId)?.id;
+    // An empty list is a platform that has not enumerated yet, not an unplugged headset.
+    final input = inputs.isEmpty
+        ? _preferredInputId
+        : resolveAudioDevice(inputs, _chosenInputId)?.id;
+    final output = outputs.isEmpty
+        ? _preferredOutputId
+        : resolveAudioDevice(outputs, _chosenOutputId)?.id;
     final result = (
       inputDropped: _preferredInputId != null && input == null,
       inputRestored: _preferredInputId == null && input != null,

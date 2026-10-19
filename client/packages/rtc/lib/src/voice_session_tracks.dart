@@ -103,6 +103,8 @@ extension VoiceSessionTracks on VoiceSession {
     if (room == null) return false;
     final intent = _micWanted;
     _micWanted = enabled;
+    // A chosen microphone that came back since the last open is used again, not the default.
+    if (enabled) await _forgetUnpluggedDevices();
     try {
       final hadTrack = _mic.hasTrack;
       final options = _micCaptureOptions();

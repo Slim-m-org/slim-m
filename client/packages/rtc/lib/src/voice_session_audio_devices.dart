@@ -41,6 +41,9 @@ mixin VoiceSessionAudioDevices {
   bool get supportsAudioOutputSelection =>
       _audioSwitching.supportsOutputSelection;
 
+  /// The id of the microphone capture is on, null for the system default.
+  String? get audioInputInUse => _audioSwitching.inputInUse;
+
   /// Fires when the platform's own device list changes, so a picker can
   /// refresh without polling.
   Stream<void> get audioDeviceChanges => _audioSwitching.onChange;
