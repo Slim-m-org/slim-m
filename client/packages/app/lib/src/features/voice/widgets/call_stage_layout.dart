@@ -30,6 +30,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
+import '../providers/voice_health.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
@@ -430,25 +431,30 @@ Widget participantTile(
   menuItemsBuilder,
 }) {
   final showsCamera = participant.isCameraOn;
-  return CallParticipantTile(
-    participant: participant,
-    width: width,
-    // CallParticipantTile hands back its own context here - see its own doc.
-    onTap: (anchor) => onOpenProfile(anchor, participant),
-    cameraView: showsCamera
-        ? controller.cameraViewFor(participant.identity)
-        : null,
-    onExpand: showsCamera
-        ? () => showFullscreenVideo(
-            context,
-            identity: participant.identity,
-            label: participant.isLocal ? 'Your camera' : participant.name,
-            kind: FullscreenVideoKind.camera,
-          )
-        : null,
-    contextMenuItemsBuilder: menuItemsBuilder == null
-        ? null
-        : (menuContext, close) =>
-              menuItemsBuilder(menuContext, participant, close),
+  return Consumer(
+    builder: (_, ref, _) => CallParticipantTile(
+      participant: participant,
+      width: width,
+      poorConnection: ref.watch(
+        poorConnectionsProvider.select((s) => s.contains(participant.identity)),
+      ),
+      // CallParticipantTile hands back its own context here - see its own doc.
+      onTap: (anchor) => onOpenProfile(anchor, participant),
+      cameraView: showsCamera
+          ? controller.cameraViewFor(participant.identity)
+          : null,
+      onExpand: showsCamera
+          ? () => showFullscreenVideo(
+              context,
+              identity: participant.identity,
+              label: participant.isLocal ? 'Your camera' : participant.name,
+              kind: FullscreenVideoKind.camera,
+            )
+          : null,
+      contextMenuItemsBuilder: menuItemsBuilder == null
+          ? null
+          : (menuContext, close) =>
+                menuItemsBuilder(menuContext, participant, close),
+    ),
   );
 }

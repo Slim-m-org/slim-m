@@ -21,6 +21,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
+import 'audio_stats.dart';
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'mic_release.dart';
@@ -50,6 +51,7 @@ import 'voice_disconnect_reason.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
+import 'voice_health.dart';
 import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
@@ -57,6 +59,7 @@ import 'package:slimm_api/api.dart'
     show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
 
 part 'voice_session_audio_devices.dart';
+part 'voice_session_health.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
@@ -78,6 +81,7 @@ typedef RoomFactory = lk.Room Function();
 class VoiceSession
     with
         VoiceSessionAudioDevices,
+        VoiceSessionHealth,
         VoiceSessionInputGate,
         VoiceSessionMicRecovery,
         VoiceSessionMicRelease,
@@ -546,6 +550,7 @@ class VoiceSession
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();
+    health.dispose();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();

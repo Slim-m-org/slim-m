@@ -48,6 +48,16 @@ export 'src/video_quality.dart';
 export 'src/screen_share_status.dart';
 export 'src/video_stall_watchdog.dart' show VideoTileHealth;
 export 'src/video_subscription_culler.dart';
+export 'src/voice_health.dart'
+    show
+        VoiceHealth,
+        kPoorConcealmentShare,
+        kPoorJitterBufferMs,
+        kPoorRttMs,
+        kPoorSustain,
+        kRecoverSustain;
+export 'src/voice_health_summary.dart' show CallHealthSummary, HealthStats;
+export 'src/voice_health_window.dart' show HealthInterval;
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
     show

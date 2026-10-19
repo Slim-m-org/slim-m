@@ -11,6 +11,8 @@ import 'package:slimm_rtc/rtc.dart';
 mixin VideoQualityRecorder {
   CallStatsSampler callStats = CallStatsSampler(targets: () => const []);
 
+  VoiceHealth health = VoiceHealth();
+
   ValueNotifier<Map<String, VideoTileHealth>> videoHealth = ValueNotifier(
     const {},
   );
