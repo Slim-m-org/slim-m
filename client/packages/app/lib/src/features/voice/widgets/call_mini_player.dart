@@ -12,12 +12,15 @@
 /// page, whose centred "Switch to this call" it would cover. See docs/decisions/0040.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../composer/providers/composer_extent.dart';
 import '../providers/call_mini_player.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/popout_window.dart';
@@ -27,10 +30,11 @@ import '../providers/voice_flags.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../screens/dm_call_pane.dart';
+import 'focusable_video_press.dart';
 import '../../channels/widgets/channel_rail.dart';
 
-/// Room kept clear at the bottom of the pane for the composer and its typing
-/// line; the player's bottom corners rest above it.
+/// Room kept clear at the bottom of the pane for a one-line composer and its
+/// typing line; a draft that grows it is measured, see [composerExtentProvider].
 const miniPlayerComposerReserve = 104.0;
 
 /// Room kept clear under the channel header on widths where the header lives
@@ -63,18 +67,12 @@ class CallMiniPlayerHost extends ConsumerStatefulWidget {
 }
 
 class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
-  /// The channel the user was on when they hid the player; the next channel
-  /// change clears it, so "hide" means "until I go somewhere else".
-  bool _hidden = false;
-  String? _hiddenOn;
-
   /// Set only while a finger holds the card; null means resting in a corner.
   Offset? _dragOrigin;
 
   @override
   Widget build(BuildContext context) {
     final selected = selectedChannelId(context);
-    if (_hidden && selected != _hiddenOn) _hidden = false;
 
     final (callState, callChannel) = ref.watch(
       voiceFlagsProvider.select((f) => (f.state, f.channelId)),
@@ -87,12 +85,14 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
               channelByIdProvider(selected).select((c) => c.valueOrNull?.kind),
             ) ==
             'voice';
+    final dismissed = ref.watch(miniPlayerDismissedProvider);
     final visible =
         callState == VoiceSessionState.connected &&
+        callChannel != null &&
         feed != null &&
         selected != callChannel &&
         !onVoicePage &&
-        !_hidden &&
+        !dismissed &&
         !widget.keyboardUp;
 
     return Stack(
@@ -123,9 +123,13 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
         : AppSizes.rowPointer;
     final width = compact ? _compactPlayerWidth : _widePlayerWidth;
     final player = Size(width, width * 9 / 16 + controlsHeight);
+    final composerExtent = ref.watch(composerExtentProvider);
     final insets = MiniPlayerInsets(
       top: compact ? 12 : miniPlayerHeaderReserve,
-      bottom: miniPlayerComposerReserve,
+      bottom: math.max(
+        miniPlayerComposerReserve,
+        composerExtent + AppSpacing.s12,
+      ),
     );
     if (region.width < player.width + 2 * insets.side ||
         region.height < player.height + insets.top + insets.bottom) {
@@ -171,10 +175,8 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
               feed: feed,
               compact: compact,
               onReturn: () => _returnToCall(callChannel),
-              onHide: () => setState(() {
-                _hidden = true;
-                _hiddenOn = selectedChannelId(context);
-              }),
+              onHide: () =>
+                  ref.read(miniPlayerDismissedProvider.notifier).state = true,
             ),
           ),
         ),
@@ -249,41 +251,37 @@ class _MiniPlayerCard extends ConsumerWidget {
         child: Column(
           children: [
             Expanded(
-              child: Semantics(
-                button: true,
-                label: 'Return to the call',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onReturn,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ColoredBox(
-                        color: Colors.black,
-                        child: IgnorePointer(child: view),
-                      ),
-                      if (compact)
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [?stop, hide],
-                          ),
-                        ),
+              child: FocusableVideoPress(
+                semanticLabel: 'Return to the call',
+                onPressed: onReturn,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(
+                      color: Colors.black,
+                      child: IgnorePointer(child: view),
+                    ),
+                    if (compact)
                       Positioned(
-                        left: AppSpacing.s8,
-                        right: AppSpacing.s8,
-                        bottom: AppSpacing.s4,
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.micro.copyWith(color: Colors.white),
+                        top: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [?stop, hide],
                         ),
                       ),
-                    ],
-                  ),
+                    Positioned(
+                      left: AppSpacing.s8,
+                      right: AppSpacing.s8,
+                      bottom: AppSpacing.s4,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.micro.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

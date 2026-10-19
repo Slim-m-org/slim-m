@@ -143,6 +143,7 @@ const _deviceKeys = <String>{
   'slimm.voice.camera_on_join',
   'slimm.voice.camera_quality',
   'slimm.voice.even_out_loud',
+  'slimm.voice.hidden_cameras',
   'slimm.voice.input_threshold_auto',
   'slimm.voice.input_threshold_db',
   'slimm.voice.noise_suppression',

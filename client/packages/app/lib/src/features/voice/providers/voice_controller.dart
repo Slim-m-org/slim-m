@@ -39,6 +39,7 @@ export 'voice_state.dart' show VoiceState;
 
 part 'voice_controller_audio_devices.dart';
 part 'voice_controller_call_clock.dart';
+part 'voice_controller_camera_hide.dart';
 part 'voice_controller_input.dart';
 part 'voice_controller_participant_volume.dart';
 part 'voice_controller_rejoin.dart';
@@ -51,7 +52,8 @@ class VoiceController extends StateNotifier<VoiceState>
         VoiceControllerRejoinMixin,
         VoiceControllerShareMixin,
         VoiceControllerAudioDevicesMixin,
-        VoiceControllerParticipantVolumeMixin {
+        VoiceControllerParticipantVolumeMixin,
+        VoiceControllerCameraHideMixin {
   VoiceController(
     this._ref, {
     VoiceSession? session,
@@ -91,7 +93,7 @@ class VoiceController extends StateNotifier<VoiceState>
       final camera = p.any((x) => x.isLocal && x.isCameraOn);
       if (sharing) _cancelBroadcastDeadline();
       state = state.copyWith(
-        participants: p,
+        participants: _shownRoster(p),
         screenSharing: sharing,
         cameraEnabled: camera,
         awaitingBroadcast: sharing ? false : state.awaitingBroadcast,
@@ -181,7 +183,10 @@ class VoiceController extends StateNotifier<VoiceState>
       ),
       _ => state.copyWith(state: s),
     };
-    if (s == VoiceSessionState.connected) unawaited(_adoptServerCallStart());
+    if (s == VoiceSessionState.connected) {
+      _pushBlocked();
+      unawaited(_adoptServerCallStart());
+    }
   }
 
   /// A drop the SFU decided on: the reason is the only thing that can tell
@@ -424,7 +429,7 @@ class VoiceController extends StateNotifier<VoiceState>
   /// popover reading [isLocallyMuted] repaints with the new label.
   Future<void> setLocallyMuted(String identity, bool muted) async {
     await _session.setLocallyMuted(identity, muted);
-    state = state.copyWith(participants: _session.participants);
+    state = state.copyWith(participants: _shownRoster(_session.participants));
   }
 
   /// Whether this host can publish a screen share's own audio. True on web
@@ -489,10 +494,6 @@ class VoiceController extends StateNotifier<VoiceState>
   /// Null hands the decision back, and is what a surface says on unmount.
   void setVideoInterest(Set<String>? tileKeys) =>
       _session.setVideoInterest(tileKeys);
-
-  /// Keeps these tiles unsubscribed whatever the interest says; see [VoiceSession.setVideoBlocked].
-  void setVideoBlocked(Set<String> tileKeys) =>
-      _session.setVideoBlocked(tileKeys);
 
   /// Whether switching cameras is a bare flip (mobile) rather than a picker.
   bool get canFlipCamera => _session.canFlipCamera;

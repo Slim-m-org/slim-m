@@ -20,6 +20,15 @@ final miniPlayerCornerProvider = StateProvider<MiniPlayerCorner>(
   (ref) => MiniPlayerCorner.bottomRight,
 );
 
+/// Set when the viewer dismisses the card; it stays dismissed until the call ends.
+final miniPlayerDismissedProvider = StateProvider<bool>((ref) {
+  ref.listen<String?>(
+    voiceFlagsProvider.select((f) => f.channelId),
+    (_, _) => ref.controller.state = false,
+  );
+  return false;
+});
+
 enum FeedKind { screenShare, camera }
 
 /// The feed the mini-player shows: what [identity] is publishing.

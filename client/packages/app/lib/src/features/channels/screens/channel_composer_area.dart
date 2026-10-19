@@ -22,7 +22,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../composer/providers/composer_extent.dart';
 import '../../messages/providers/message_selection.dart';
+import '../../modules/widgets/dock_height_reporter.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
 import '../../composer/widgets/composer_attachments.dart' show StagedSend;
@@ -42,6 +44,7 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
     required this.onCancelReply,
     this.autofocus = false,
     this.focusRequests,
+    this.reportsExtent = true,
     super.key,
   });
 
@@ -57,6 +60,9 @@ class ChannelComposerArea extends ConsumerStatefulWidget {
 
   /// Fires when something outside asks to type here, such as Reply.
   final Listenable? focusRequests;
+
+  /// Whether this is the main pane's stack, which floating cards rest above; a docked thread's is not.
+  final bool reportsExtent;
 
   @override
   ConsumerState<ChannelComposerArea> createState() =>
@@ -88,6 +94,15 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
 
   @override
   Widget build(BuildContext context) {
+    final content = _content(context);
+    if (!widget.reportsExtent) return content;
+    return DockHeightReporter(
+      reservation: composerExtentProvider,
+      child: content,
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final channelId = widget.channelId;
     if (ref.watch(messageSelectionProvider(channelId)).active) {
       final error = messageBulkDeleteErrorProvider(channelId);

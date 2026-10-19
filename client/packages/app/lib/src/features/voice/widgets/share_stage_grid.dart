@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/voice_controller.dart';
+import 'focusable_video_press.dart';
 import 'fullscreen_video_overlay.dart';
 import 'participant_volume_popover.dart';
 import 'screen_share_stage.dart';
@@ -150,40 +151,35 @@ class ShareThumbnail extends StatelessWidget {
   final VoidCallback onFocus;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    label: 'Focus ${_shareCaption(sharer)}',
-    onTap: onFocus,
-    child: GestureDetector(
-      excludeFromSemantics: true,
-      onTap: onFocus,
-      child: SizedBox(
-        width: height * _shareAspect,
-        height: height,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(
-                color: Colors.black,
-                child: IgnorePointer(
-                  child: controller.screenShareViewFor(sharer.identity),
-                ),
+  Widget build(BuildContext context) => FocusableVideoPress(
+    semanticLabel: 'Focus ${_shareCaption(sharer)}',
+    onPressed: onFocus,
+    child: SizedBox(
+      width: height * _shareAspect,
+      height: height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(
+              color: Colors.black,
+              child: IgnorePointer(
+                child: controller.screenShareViewFor(sharer.identity),
               ),
-              Positioned(
-                left: AppSpacing.s8,
-                right: AppSpacing.s8,
-                bottom: AppSpacing.s4,
-                child: Text(
-                  _shareCaption(sharer),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.micro.copyWith(color: Colors.white),
-                ),
+            ),
+            Positioned(
+              left: AppSpacing.s8,
+              right: AppSpacing.s8,
+              bottom: AppSpacing.s4,
+              child: Text(
+                _shareCaption(sharer),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.micro.copyWith(color: Colors.white),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     ),

@@ -13,7 +13,8 @@ SLIDER_INSET = 12
 _RECT_OF_LABEL = """
 JSON.stringify((function(){
   var e=Array.from(document.querySelectorAll('flt-semantics')).find(function(e){
-    return e.getAttribute('aria-label')===%s;});
+    var t=e.getAttribute('aria-label')||'';
+    return t===%s || t.indexOf(%s+'\\n')===0;});
   if(!e) return null;
   var r=e.getBoundingClientRect();
   return [r.x, r.y, r.width, r.height];})())"""
@@ -43,7 +44,7 @@ def leave_if_in_call(*clients):
 
 
 def slider_rect(client, label):
-    raw = client.ev(_RECT_OF_LABEL % json.dumps(label))
+    raw = client.ev(_RECT_OF_LABEL % (json.dumps(label), json.dumps(label)))
     if not raw or raw == "null":
         client.shot("no-slider")
         raise AssertionError(f"{client.name}: no slider named {label!r}")
@@ -53,6 +54,10 @@ def slider_rect(client, label):
 def slider_percent(client, label):
     """The number the slider's own readout shows, from the row it sits on."""
     x, y, w, h = slider_rect(client, label)
+    # In a context menu the readout is merged into the slider's own name.
+    for n in client.nodes():
+        if n["t"].startswith(label + "\n") and n["t"].endswith("%"):
+            return int(n["t"].rsplit("\n", 1)[1].rstrip("%"))
     for n in client.nodes():
         if n["t"].endswith("%") and abs(n["y"] - (y + h / 2)) < 20 \
                 and n["x"] > x + w - 10:
@@ -60,17 +65,25 @@ def slider_percent(client, label):
     raise AssertionError(f"{client.name}: no readout beside {label!r}")
 
 
-def set_slider(client, label, percent, maximum=200, tolerance=4, tries=5):
-    """Click the track until the readout reaches `percent`; returns what it shows.
+def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
+    """Move the slider until the readout reaches `percent`; returns what it shows.
 
     A tap lands within a few percent of where it was aimed, and within four of
     100% it snaps there, so the loop reads the readout back rather than
     trusting the aim.
     """
+    first = True
     for _ in range(tries):
         shown = slider_percent(client, label)
         if abs(shown - percent) <= tolerance:
             return shown
+        if any(n["t"].startswith(label + "\n") for n in client.nodes()):
+            # A menu's slider takes one Tab to focus in the browser, then the arrow keys move it.
+            if first:
+                e2e_input.press(client, "Tab")
+                first = False
+            e2e_input.press(client, "ArrowRight" if shown < percent else "ArrowLeft")
+            continue
         x, y, w, h = slider_rect(client, label)
         aim = x + SLIDER_INSET + (w - 2 * SLIDER_INSET) * percent / maximum
         client.gestures(True)
@@ -111,8 +124,8 @@ def dismiss_popover(client):
 
 
 def open_volume_popover(client, name):
+    """The tile menu, whose first row is the volume slider itself."""
     open_tile_menu(client, name)
-    client.click("Volume...", settle=1)
     client.wait_for("Volume for you")
 
 

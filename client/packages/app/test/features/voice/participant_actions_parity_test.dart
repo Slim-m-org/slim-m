@@ -133,10 +133,7 @@ Widget _menu(ProviderContainer container) => reducedMotionApp(
 );
 
 const _labels = <ParticipantAction, Map<ParticipantSurface, String>>{
-  ParticipantAction.volume: {
-    ParticipantSurface.card: 'Volume for you',
-    ParticipantSurface.menu: 'Volume...',
-  },
+  ParticipantAction.volume: {ParticipantSurface.card: 'Volume for you'},
   ParticipantAction.muteForMe: {
     ParticipantSurface.card: 'Mute for me',
     ParticipantSurface.menu: 'Mute for me',
@@ -161,6 +158,15 @@ void _expectSurfaceMatchesList(
   ParticipantSurface surface,
   List<ParticipantAction> expected,
 ) {
+  if (surface == ParticipantSurface.menu) {
+    expect(
+      find.byType(AppSlider),
+      expected.contains(ParticipantAction.volume)
+          ? findsOneWidget
+          : findsNothing,
+      reason: 'the inline volume slider on the menu',
+    );
+  }
   for (final action in ParticipantAction.values) {
     final label = _labels[action]![surface];
     if (label == null) continue;

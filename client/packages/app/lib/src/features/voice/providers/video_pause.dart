@@ -13,6 +13,7 @@ import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../../../providers/app_lifecycle.dart';
 import 'picture_in_picture.dart';
+import 'popout_window.dart';
 import 'video_interest_relay.dart';
 import 'voice_flags.dart';
 import 'voice_settings_controller.dart';
@@ -75,6 +76,9 @@ final videoInterestHostProvider = Provider<void>((ref) {
   final relay = ref.watch(videoInterestRelayProvider);
   ref.listen<bool>(remoteVideoSeenProvider, (_, seen) {
     relay.setSeen(seen);
+  }, fireImmediately: true);
+  ref.listen(popOutLiveFeedProvider, (_, feed) {
+    relay.setPoppedOut({if (feed != null) pictureInPictureTileKey(feed)});
   }, fireImmediately: true);
   ref.listen<bool>(
     voiceFlagsProvider.select((f) => f.state == VoiceSessionState.connected),

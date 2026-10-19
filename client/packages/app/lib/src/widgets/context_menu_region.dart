@@ -61,6 +61,7 @@ class ContextMenuRegion extends StatefulWidget {
     this.enableLongPress = true,
     this.opensAbove = false,
     this.focusNode,
+    this.menuWidth = 200,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -118,6 +119,9 @@ class ContextMenuRegion extends StatefulWidget {
   /// The row's own tab stop, for a caller that drives focus itself; see
   /// [ContextMenuFocus.focusNode].
   final FocusNode? focusNode;
+
+  /// Wider for a menu that carries a slider.
+  final double menuWidth;
 
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
@@ -272,7 +276,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
                 onDismiss: () => _setOpen(false),
                 child: SingleChildScrollView(
                   child: AppMenu(
-                    width: 200,
+                    width: widget.menuWidth,
                     children: widget.itemsBuilder(
                       context,
                       () => _setOpen(false),

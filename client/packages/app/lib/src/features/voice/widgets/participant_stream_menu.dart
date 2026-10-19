@@ -3,6 +3,8 @@
 /// tile's own menu offers, for whoever is sharing or has a camera on.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -32,7 +34,7 @@ List<Widget> participantStreamMenuItems(
   if (live == null) return const [];
   return [
     if (live.isScreenSharing) ..._screenRows(context, ref, live, close),
-    if (live.isCameraOn) ..._cameraRows(context, ref, live, close),
+    ..._cameraRows(context, ref, live, close),
   ];
 }
 
@@ -94,6 +96,20 @@ List<Widget> _cameraRows(
   VoiceParticipant p,
   VoidCallback close,
 ) {
+  final controller = ref.read(voiceControllerProvider.notifier);
+  if (!p.isLocal && controller.isCameraHidden(p.identity)) {
+    return [
+      AppMenuItem(
+        label: 'Show camera',
+        leading: AppIcons.camera,
+        onTap: () {
+          close();
+          unawaited(controller.setCameraHidden(p.identity, false));
+        },
+      ),
+    ];
+  }
+  if (!p.isCameraOn) return const [];
   final popOut = _popOut(ref, p, FeedKind.camera);
   return [
     if (popOut != null)
@@ -103,6 +119,15 @@ List<Widget> _cameraRows(
         onTap: () {
           close();
           popOut();
+        },
+      ),
+    if (!p.isLocal)
+      AppMenuItem(
+        label: 'Hide camera',
+        leading: AppIcons.tileHide,
+        onTap: () {
+          close();
+          unawaited(controller.setCameraHidden(p.identity, true));
         },
       ),
     AppMenuItem(
