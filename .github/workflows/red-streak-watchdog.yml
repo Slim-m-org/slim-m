@@ -48,5 +48,5 @@ jobs:
             main-builds.yml is what produces a build between releases, so while
             it is red no artifact is reaching a phone or the container registry
             and nothing downstream reports it: it gates no PR and no release.
-            See docs/ci.md's continuous-build section.
+            See docs/ci-details.md's main-builds section.
         run: bash scripts/check-workflow-red-streak.sh

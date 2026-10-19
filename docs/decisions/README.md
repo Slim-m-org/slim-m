@@ -16,7 +16,7 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0004](0004-visual-identity-review.md) | Visual identity review | accepted |
 | [0005](0005-threads.md) | Threads | built |
 | [0006](0006-channel-categories.md) | Channel categories are containers, not the channel's type | accepted |
-| [0007](0007-extensions-and-untrusted-execution.md) | Extensions, and why untrusted execution can only ever live behind one | proposed |
+| [0007](0007-extensions-and-untrusted-execution.md) | Extensions, and why untrusted execution can only ever live behind one | superseded by 0021 |
 | [0008](0008-space-analytics.md) | Space usage analytics | built |
 | [0009](0009-reactions-pins-polls-reconciliation.md) | The reconciliation debt reactions, pins and polls do not have, and would not need if they ever gained one | designed, not built |
 | [0010](0010-canvas-media-tiles.md) | Canvas media tiles: camera and screen share as movable AR objects | accepted |
