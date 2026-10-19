@@ -114,8 +114,7 @@ class VoiceSession
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort ?? _standInMic(roomFactory), captureRestartDebounce,
-        _restartCapture);
+    _initCapture(micPort, captureRestartDebounce, _restartCapture);
     _audioSwitching = _switchingFor(audioDevices, liveOutput, osMicBlocked);
     _initMicRelease(
       grace: micReleaseGrace,
@@ -299,7 +298,7 @@ class VoiceSession
     _room = room;
     _listen(room);
     try {
-      _beginJoinWork(microphone: microphoneEnabled);
+      _joinTimings.mark(JoinStage.connectStarted);
       await room.connect(url, token);
       _joinTimings.mark(JoinStage.connected);
       // A leave or newer join took this room mid-connect and tore it down.
