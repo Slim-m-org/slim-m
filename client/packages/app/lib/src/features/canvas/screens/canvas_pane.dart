@@ -68,6 +68,7 @@ import 'canvas_quick_placement.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_sync.dart';
+import 'canvas_drag_pan.dart';
 
 part 'canvas_pane_fullscreen.dart';
 part 'canvas_pane_gestures.dart';
@@ -108,6 +109,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
   CanvasPenStyle _pen = const CanvasPenStyle();
+  final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
 
