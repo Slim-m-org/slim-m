@@ -40,6 +40,7 @@ import e2e_voice
 import e2e_voice_deafen
 import e2e_voice_mic_release
 import e2e_voice_devices
+import e2e_voice_hide_stream
 import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
@@ -295,6 +296,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a share's own volume moves apart from the sharer's voice",
          lambda: e2e_voice_share.stream_volume_is_apart_from_the_voice(
              a, b, room_id, member.me()["id"])),
+        ("voice: hiding a stream, hiding the page and leaving the channel stop "
+         "the video, and showing them brings it back",
+         lambda: e2e_voice_hide_stream.hiding_and_showing_a_stream(
+             a, b, room_id)),
         ("voice: two shares at once reach a third person, focus, and stopping "
          "one leaves the other",
          lambda: e2e_voice_multishare.two_shares_reach_a_third_viewer(
