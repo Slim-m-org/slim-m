@@ -132,7 +132,7 @@ void main() {
     ) async {
       final recap = _recap(
         channelId: 'channel-1',
-        duration: const Duration(minutes: 4, seconds: 59),
+        duration: const Duration(seconds: 29),
       );
 
       await tester.pumpWidget(
