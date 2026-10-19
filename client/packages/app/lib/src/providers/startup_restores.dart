@@ -127,6 +127,7 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
     'push to talk': voice.restorePushToTalkPreference(),
     'audio devices': voice.restoreAudioDevicePreferences(),
     'participant volumes': voice.restoreParticipantVolumes(),
+    'hidden cameras': voice.restoreHiddenCameras(),
   };
   return Future.wait([
     for (final entry in restores.entries)
