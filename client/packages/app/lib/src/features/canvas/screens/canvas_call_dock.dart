@@ -40,6 +40,7 @@
 /// nothing stopping the gap from tightening alongside everything else.
 library;
 
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,6 +90,7 @@ class CanvasDockData {
     required this.onRedo,
     required this.canManage,
     required this.onClear,
+    this.scopedClear,
     required this.onPasteImage,
     required this.selection,
     required this.onBringToFront,
@@ -123,6 +125,7 @@ class CanvasDockData {
   final VoidCallback onRedo;
   final bool canManage;
   final Future<void> Function() onClear;
+  final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
   final ValueListenable<String?> selection;
   final ValueChanged<String> onBringToFront;

@@ -26,6 +26,7 @@ library;
 import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:slimm_api/api.dart' as api;
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,6 +41,7 @@ import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
@@ -238,6 +240,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             canManage: manageCanvas,
             document: _document,
             onClear: _onClear,
+            scopedClear: _scopedClear,
             onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
             onPasteImageAt: (world) => unawaited(_imagePaste.pasteAt(world)),
             onRecenter: _onRecenter,
