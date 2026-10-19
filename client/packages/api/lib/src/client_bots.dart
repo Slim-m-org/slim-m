@@ -13,6 +13,7 @@ class Bot {
     this.tokenLastUsedAt,
     this.roleId,
     this.prefix,
+    this.online = false,
   });
 
   factory Bot.fromJson(Map<String, dynamic> json) => Bot(
@@ -25,6 +26,7 @@ class Bot {
         roleId: json['role_id'] as String?,
         permissions: json['permissions'] as int,
         prefix: json['prefix'] as String?,
+        online: json['online'] as bool? ?? false,
       );
 
   final String userId;
@@ -48,6 +50,9 @@ class Bot {
 
   /// The command prefix assigned to this bot; null until one is assigned.
   final String? prefix;
+
+  /// The bot holds a live socket right now, hidden or not.
+  final bool online;
 
   bool get isRevoked => tokenName == null;
 }

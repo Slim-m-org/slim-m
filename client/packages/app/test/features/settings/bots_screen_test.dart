@@ -8,15 +8,18 @@
 /// screen after a rebuild" a correctness property rather than a nicety.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
+import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/bots_screen.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
@@ -38,6 +41,7 @@ String _botJson(
   String? tokenName = 'Helper',
   int? lastUsed,
   int permissions = 0,
+  bool online = false,
 }) => jsonEncode({
   'user_id': 'bot-$username',
   'username': username,
@@ -47,6 +51,7 @@ String _botJson(
   'token_last_used_at': lastUsed,
   'role_id': tokenName == null ? null : 'role-$username',
   'permissions': permissions,
+  'online': online,
 });
 
 Future<void> _pump(
@@ -54,6 +59,7 @@ Future<void> _pump(
   http.Response Function(http.Request) handler, {
   int mine = 0,
   double width = 800,
+  Stream<ServerEvent>? events,
 }) async {
   // Taller than 600px default: the permission list pushes buttons off-screen.
   tester.view.physicalSize = Size(width, 2400);
@@ -63,6 +69,7 @@ Future<void> _pump(
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      liveEventsProvider.overrideWithValue(events ?? const Stream.empty()),
       myPermissionsProvider.overrideWithValue(mine),
       sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
       mockApiOverride((request) async => handler(request)),
@@ -174,13 +181,135 @@ void main() {
     });
 
     expect(find.text('@helper'), findsOneWidget);
-    expect(find.textContaining('Token active.'), findsOneWidget);
+    expect(find.textContaining('Last seen'), findsOneWidget);
     expect(
       find.textContaining('slimbot_'),
       findsNothing,
       reason:
           'the listing response carries no token, so nothing can render one',
     );
+  });
+
+  testWidgets('a connected bot reads Online and an idle one Offline', (
+    tester,
+  ) async {
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/bots') {
+        return http.Response(
+          '[${_botJson('live', online: true)},'
+          '${_botJson('idle', lastUsed: DateTime.now().millisecondsSinceEpoch)}]',
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 200);
+    });
+
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.text('Offline'), findsOneWidget);
+    expect(find.textContaining('Last seen just now.'), findsOneWidget);
+    expect(find.text('Never connected.'), findsNothing);
+  });
+
+  testWidgets(
+    'a bot that never connected says so, and a revoked one is quiet',
+    (tester) async {
+      await _pump(tester, (request) {
+        if (request.method == 'GET' && request.url.path == '/bots') {
+          return http.Response(
+            '[${_botJson('fresh')},${_botJson('gone', tokenName: null)}]',
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 200);
+      });
+
+      expect(find.textContaining('Never connected.'), findsOneWidget);
+      expect(
+        find.text('Offline'),
+        findsOneWidget,
+        reason: 'revoked has no badge',
+      );
+    },
+  );
+
+  testWidgets('a presence change for a listed bot refetches the list', (
+    tester,
+  ) async {
+    final events = StreamController<ServerEvent>.broadcast();
+    addTearDown(events.close);
+    var online = false;
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/bots') {
+        return http.Response(
+          '[${_botJson('helper', online: online)}]',
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 200);
+    }, events: events.stream);
+    expect(find.text('Offline'), findsOneWidget);
+
+    online = true;
+    events.add(
+      const PresenceChanged(userId: 'bot-helper', status: PresenceState.online),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Online'), findsOneWidget);
+    expect(find.text('Offline'), findsNothing);
+  });
+
+  testWidgets('a new bot offers the env block, and it is never drawn', (
+    tester,
+  ) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _pump(tester, (request) {
+      if (request.method == 'POST' && request.url.path == '/bots') {
+        return http.Response(
+          jsonEncode({
+            'bot': jsonDecode(_botJson('helper')),
+            'token': _botToken,
+          }),
+          201,
+          headers: const {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('[]', 200);
+    });
+
+    await tester.enterText(find.byType(TextField).first, 'helper');
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Copy env block'));
+    await tester.pump();
+
+    expect(
+      copied,
+      'SLIMM_URL=http://localhost:8080\nSLIMM_BOT_TOKEN=$_botToken\n',
+    );
+    expect(find.textContaining('SLIMM_BOT_TOKEN'), findsNothing);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Done'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppButton, 'Copy env block'), findsNothing);
   });
 
   testWidgets('a revoked bot stays listed, with no Revoke button left', (

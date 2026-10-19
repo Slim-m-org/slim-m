@@ -80,11 +80,14 @@ struct BotDto {
     /// The prefix assigned to this bot; absent until one is assigned or adopted.
     #[serde(skip_serializing_if = "Option::is_none")]
     prefix: Option<String>,
+    /// The bot has a live WebSocket right now; a hidden bot still counts.
+    online: bool,
 }
 
-impl From<Bot> for BotDto {
-    fn from(bot: Bot) -> Self {
+impl BotDto {
+    fn new(bot: Bot, online: bool) -> Self {
         Self {
+            online,
             user_id: bot.user_id.to_string(),
             username: bot.username,
             display_name: bot.display_name,
@@ -96,6 +99,11 @@ impl From<Bot> for BotDto {
             prefix: bot.prefix,
         }
     }
+}
+
+fn bot_dto(state: &AppState, bot: Bot) -> BotDto {
+    let online = state.hub.presence().is_connected(bot.user_id);
+    BotDto::new(bot, online)
 }
 
 /// A created bot, with its token. The only response that ever carries one.
@@ -118,7 +126,9 @@ async fn list(
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
     let bots = state.store.list_bots(params.include_removed).await?;
-    Ok(Json(bots.into_iter().map(BotDto::from).collect()))
+    Ok(Json(
+        bots.into_iter().map(|bot| bot_dto(&state, bot)).collect(),
+    ))
 }
 
 /// What a bot created without a prefix gets: the released bot library hardcodes it.
@@ -189,7 +199,7 @@ async fn create(
         Ok(new_bot) => Ok((
             StatusCode::CREATED,
             Json(NewBotDto {
-                bot: new_bot.bot.into(),
+                bot: bot_dto(&state, new_bot.bot),
                 token: new_bot.token,
             }),
         )),
@@ -253,7 +263,7 @@ async fn set_permissions(
             state.hub.publish(Event::RoleChanged {
                 role_id: current.id,
             });
-            Ok(Json(bot.into()))
+            Ok(Json(bot_dto(&state, bot)))
         }
         Err(UpdateBotPermissionsError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),
         Err(UpdateBotPermissionsError::Internal(err)) => Err(err.into()),

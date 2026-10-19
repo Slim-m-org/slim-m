@@ -12424,6 +12424,12 @@ components:
           description: >-
             The prefix assigned to the bot. Absent for a bot that never
             registered one.
+        online:
+          type: boolean
+          description: >-
+            The bot has a live WebSocket right now. Follows the connection,
+            not the bot's visibility choice, and flips with the same
+            `presence.changed` event a member's status does.
     SuggestedBotPrefix:
       type: object
       required: [prefix]

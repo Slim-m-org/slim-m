@@ -13,10 +13,17 @@ import 'package:slimm_design_system/design_system.dart';
 const int kMaxBotMenuEntries = 10;
 
 class BotMenuEntry {
-  const BotMenuEntry({required this.label, required this.onTap});
+  const BotMenuEntry({
+    required this.label,
+    required this.onTap,
+    this.offline = false,
+  });
 
   final String label;
   final VoidCallback onTap;
+
+  /// The bot has no live socket, so the row is shown but cannot be used.
+  final bool offline;
 }
 
 /// One bot's rows under its own name.
@@ -39,7 +46,11 @@ List<BotMenuSection> botMenuSections(
     if (room <= 0) break;
     final entries = [
       for (final entry in bot.messageMenu.take(room))
-        BotMenuEntry(label: entry.label, onTap: () => onUse(bot, entry)),
+        BotMenuEntry(
+          label: entry.label,
+          offline: bot.offline,
+          onTap: () => onUse(bot, entry),
+        ),
     ];
     if (entries.isEmpty) continue;
     room -= entries.length;
@@ -59,10 +70,16 @@ List<Widget> botMenuItems(List<BotMenuSection> sections, VoidCallback close) =>
           AppMenuItem(
             label: entry.label,
             leading: AppIcons.botAction,
-            onTap: () {
-              close();
-              entry.onTap();
-            },
+            semanticLabel: entry.offline
+                ? '${entry.label}, bot offline'
+                : entry.label,
+            trailing: entry.offline ? const _OfflineHint() : null,
+            onTap: entry.offline
+                ? null
+                : () {
+                    close();
+                    entry.onTap();
+                  },
           ),
       ],
     ];
@@ -95,6 +112,21 @@ class _BotSectionHeader extends StatelessWidget {
             const AppBadge(variant: AppBadgeVariant.tag, label: 'Bot'),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OfflineHint extends StatelessWidget {
+  const _OfflineHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return ExcludeSemantics(
+      child: Text(
+        'Offline',
+        style: AppText.caption.copyWith(color: tokens.textDisabled),
       ),
     );
   }
