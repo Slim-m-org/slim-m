@@ -317,4 +317,55 @@ void main() {
       expect(labels('ki', roster), ['@zed ', '@ski ']);
     });
   });
+
+  group('a bot command option', () {
+    api.ChannelBotCommand deals(List<String> choices) => api.ChannelBotCommand(
+      botUserId: 'b1',
+      botUsername: 'deals',
+      botDisplayName: 'Deals',
+      prefix: '!',
+      name: 'sources',
+      description: 'pick a store',
+      options: [api.BotCommandOption(name: 'source', choices: choices)],
+    );
+
+    List<AutocompleteSuggestion> rows(
+      String term,
+      List<String> choices, {
+      int argIndex = 0,
+    }) => autocompleteSuggestions(
+      query: AutocompleteQuery(
+        kind: AutocompleteKind.botOption,
+        term: term,
+        start: 9,
+        end: 9 + term.length,
+        command: '!sources',
+        argIndex: argIndex,
+      ),
+      custom: const [],
+      members: members,
+      botCommands: [deals(choices)],
+    );
+
+    test('lists every choice, uncapped, and inserts the choice', () {
+      final choices = [for (var i = 0; i < 20; i++) 'store$i'];
+      final all = rows('', choices);
+      expect(all, hasLength(20));
+      expect(all.first.insert, 'store0 ');
+      expect(all.first.detail, 'source');
+    });
+
+    test('filters as you type, prefix matches first', () {
+      final matches = rows('st', ['mist', 'gog', 'steam', 'epic']);
+      expect(matches.map((r) => r.label), ['steam', 'mist']);
+    });
+
+    test('offers nothing past the last declared option', () {
+      expect(rows('', ['steam'], argIndex: 1), isEmpty);
+    });
+
+    test('a free-form option offers nothing', () {
+      expect(rows('', const []), isEmpty);
+    });
+  });
 }

@@ -23,6 +23,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../routing/breakpoints.dart';
 import '../../../routing/close_screen.dart';
+import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_search.dart';
 import '../providers/settings_index.dart';
@@ -449,7 +450,8 @@ class _Nav extends StatelessWidget {
                   child: list,
                 ),
         ),
-        if (footer != null && rail) footer!,
+        // A rule, so a row the list cuts off reads as scrolled under it rather than overlapped.
+        if (footer != null && rail) ...[const SettingsHairline(), footer!],
       ],
     );
   }

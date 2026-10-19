@@ -114,7 +114,43 @@ List<AutocompleteSuggestion> autocompleteSuggestions({
     botCommands,
     prefix: query.prefix,
   ).take(maxAutocompleteRows).toList(growable: false),
+  AutocompleteKind.botOption => _botOptionRows(query, botCommands),
 };
+
+/// The lowercased `prefix` + keyword of every bot command with a choice list.
+Set<String> botChoiceTriggers(List<api.ChannelBotCommand> botCommands) => {
+  for (final command in botCommands)
+    if (command.options.any((o) => o.choices.isNotEmpty))
+      '${command.prefix}${command.name}'.toLowerCase(),
+};
+
+/// The choices of the option under the caret, prefix matches first. Not
+/// capped at [maxAutocompleteRows]: a pick list is the whole set, and the
+/// overlay scrolls it.
+List<AutocompleteSuggestion> _botOptionRows(
+  AutocompleteQuery query,
+  List<api.ChannelBotCommand> botCommands,
+) {
+  final options = [
+    for (final c in botCommands)
+      if ('${c.prefix}${c.name}'.toLowerCase() == query.command) ...c.options,
+  ];
+  if (query.argIndex >= options.length) return const [];
+  final option = options[query.argIndex];
+  final matching = option.choices.where(
+    (c) => query.term.isEmpty || c.toLowerCase().contains(query.term),
+  );
+  final leading = matching.where((c) => c.toLowerCase().startsWith(query.term));
+  final rest = matching.where((c) => !c.toLowerCase().startsWith(query.term));
+  return [
+    for (final choice in [...leading, ...rest])
+      AutocompleteSuggestion(
+        insert: '$choice ',
+        label: choice,
+        detail: option.name,
+      ),
+  ];
+}
 
 List<AutocompleteSuggestion> _emoji(
   String term,
