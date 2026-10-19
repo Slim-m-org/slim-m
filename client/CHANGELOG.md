@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.113.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.113.0...client-v0.113.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* canvas sync and tools, audio devices, the false video stopped badge, windows cache recovery and the license gate ([#2265](https://github.com/Slim-m-org/slim-m/issues/2265)) ([916dcc0](https://github.com/Slim-m-org/slim-m/commit/916dcc0ae56b85b2adac5291dea4c8298ff039cb))
+
 ## [0.113.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.112.1...client-v0.113.0) (2026-10-18)
 
 
