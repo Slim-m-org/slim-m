@@ -83,5 +83,6 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0071](0071-move-members.md) | Moving members between voice channels | accepted |
 | [0072](0072-editable-canvas-notes.md) | Canvas notes can be edited in place | accepted |
 | [0074](0074-profile-banner-image.md) | Profile banner image | accepted |
+| [0075](0075-livekit-client-2-13.md) | livekit_client 2.13.1, with the flutter_webrtc fork left where it is | accepted |
 | [0076](0076-remappable-call-shortcuts.md) | Mute, deafen and push-to-talk can be remapped | accepted |
 | [0077](0077-hang-up-summary.md) | A summary and Rejoin after hanging up a voice channel | accepted |

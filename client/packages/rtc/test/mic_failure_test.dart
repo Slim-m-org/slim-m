@@ -5,6 +5,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart' hide osBlocksMicrophone;
 import 'package:slimm_rtc/src/os_mic_block_io.dart';
 import 'package:slimm_rtc/src/os_mic_block_parse.dart';
@@ -26,6 +27,16 @@ void main() {
           MicFailureReason.busy);
       expect(classifyMicFailure('NotFoundError'), MicFailureReason.notFound);
       expect(classifyMicFailure('boom'), MicFailureReason.unknown);
+      expect(
+        classifyMicFailure(
+          lk.TrackCreateException('Microphone permission is not granted.'),
+        ),
+        MicFailureReason.permissionDenied,
+      );
+      expect(
+        classifyMicFailure(lk.TrackCreateException('could not restart track')),
+        MicFailureReason.unknown,
+      );
     });
   });
 

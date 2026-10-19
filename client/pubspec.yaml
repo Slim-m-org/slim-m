@@ -7,9 +7,7 @@ version: 0.113.1
 publish_to: none
 environment:
   sdk: ^3.10.0
-# Workspace root only: livekit_client pins device_info_plus, capping win32 below file_picker's need; drop on livekit 13.x.
 dependency_overrides:
-  device_info_plus: ^13.2.0
   # Fork adds resetDesktopSources; see docs/dependencies.md. livekit_client needs it hosted, so it is an override.
   flutter_webrtc:
     git:
