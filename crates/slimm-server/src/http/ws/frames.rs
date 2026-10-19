@@ -439,9 +439,20 @@ impl ServerFrame {
 #[serde(tag = "type")]
 pub(super) enum ClientFrame {
     #[serde(rename = "hello")]
-    Hello { ticket: String, protocol: u32 },
+    Hello {
+        ticket: String,
+        protocol: u32,
+        /// Present when the client reports activity with `active` frames, and
+        /// then says whether the person is at the device right now.
+        #[serde(default)]
+        active: Option<bool>,
+    },
     #[serde(rename = "ping")]
     Ping,
+    /// The person used this device recently. Once a connection sends one, its
+    /// pings stop counting as activity, so an unattended client goes away.
+    #[serde(rename = "active")]
+    Active,
     /// A typing refresh. Rate-limited and authorized like any other channel
     /// event (view plus send); see [`super::signals::handle_typing`]. There is
     /// no explicit "stop" frame: the state lapses on its own without a refresh.

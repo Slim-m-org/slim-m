@@ -32,3 +32,4 @@ export 'src/polled_stream.dart';
 export 'src/shared_stream.dart';
 export 'src/picture_in_picture_channel.dart';
 export 'src/shortcuts.dart';
+export 'src/system_idle.dart';

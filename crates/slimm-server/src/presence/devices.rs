@@ -128,9 +128,9 @@ mod tests {
     fn a_kind_is_reported_until_its_last_socket_closes() {
         let user = UserId::generate();
         let tracker = PresenceTracker::new();
-        assert!(tracker.connect_as(user, DeviceKind::Mobile));
-        assert!(!tracker.connect_as(user, DeviceKind::Mobile));
-        assert!(tracker.connect_as(user, DeviceKind::Desktop));
+        assert!(tracker.connect_as(user, DeviceKind::Mobile, true));
+        assert!(!tracker.connect_as(user, DeviceKind::Mobile, true));
+        assert!(tracker.connect_as(user, DeviceKind::Desktop, true));
         assert_eq!(
             tracker.devices_visible_at(user, Status::Online),
             vec![DeviceKind::Mobile, DeviceKind::Desktop]
@@ -149,7 +149,7 @@ mod tests {
     fn an_offline_reading_hides_every_kind() {
         let user = UserId::generate();
         let tracker = PresenceTracker::new();
-        tracker.connect_as(user, DeviceKind::Mobile);
+        tracker.connect_as(user, DeviceKind::Mobile, true);
         assert!(tracker.devices_visible_at(user, Status::Offline).is_empty());
     }
 }

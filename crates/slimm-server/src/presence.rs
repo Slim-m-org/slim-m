@@ -41,8 +41,9 @@ pub mod presence_activity;
 pub mod typing;
 pub mod viewing;
 
-/// How long a connected user with no observed activity (a ping, a typing
-/// refresh, anything inbound) is shown as away rather than online, absent an
+/// How long a connected user with no observed activity (an `active` frame, a
+/// typing refresh, or a ping from a client that sends no `active`) is shown as
+/// away rather than online, absent an
 /// explicit away/dnd/hidden preference. Only affects the `Online` preference;
 /// a user who chose Away, Dnd, or Hidden already said what they want shown.
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
@@ -188,21 +189,31 @@ impl PresenceTracker {
     /// [`Self::connect`] with an explicit clock, so a test can drive idle
     /// timing deterministically instead of sleeping.
     pub fn connect_at(&self, user_id: UserId, now: Instant) -> bool {
-        self.connect_kind_at(user_id, DeviceKind::Unknown, now)
+        self.connect_kind_at(user_id, DeviceKind::Unknown, true, now)
     }
 
     /// [`Self::connect`] naming the client's kind. Returns `true` when the
     /// user's presence visibly changed: their first socket, or a kind they
     /// were not yet connected from.
-    pub fn connect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
-        self.connect_kind_at(user_id, kind, Instant::now())
+    ///
+    /// `active` is false only for a client that reports activity itself and
+    /// says nobody is at the device, so a reconnect after sleep is not use.
+    pub fn connect_as(&self, user_id: UserId, kind: DeviceKind, active: bool) -> bool {
+        self.connect_kind_at(user_id, kind, active, Instant::now())
     }
 
-    fn connect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
+    fn connect_kind_at(
+        &self,
+        user_id: UserId,
+        kind: DeviceKind,
+        active: bool,
+        now: Instant,
+    ) -> bool {
         let mut state = lock(&self.state);
+        let arrived_idle = now.checked_sub(IDLE_TIMEOUT).unwrap_or(now);
         let entry = state.entry(user_id).or_insert(Entry {
             connections: 0,
-            last_active: now,
+            last_active: if active { now } else { arrived_idle },
             visibility: None,
             activity: None,
             devices: DeviceCounts::default(),
@@ -210,7 +221,9 @@ impl PresenceTracker {
         let before = entry.devices.signature();
         entry.connections += 1;
         entry.devices.add(kind);
-        entry.last_active = now;
+        if active {
+            entry.last_active = now;
+        }
         entry.connections == 1 || before != entry.devices.signature()
     }
 
