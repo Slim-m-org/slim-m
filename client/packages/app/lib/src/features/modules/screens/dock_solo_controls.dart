@@ -49,6 +49,7 @@ List<Widget> callRowsWithExtras(
   required VoiceController controller,
   required VoiceFlags voice,
   Widget? toggle,
+  int toggleSlots = 1,
 }) {
   final alone = ref.watch(callAloneProvider);
   final extras = dockExtras(alone: alone, toggle: toggle);
@@ -71,7 +72,7 @@ List<Widget> callRowsWithExtras(
   // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
   if (!fitsWith(0)) return [callRow(extras, tight: true)];
   if (extras == null) return [callRow(null)];
-  final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? 1 : 0));
+  final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
   return fits ? [callRow(extras)] : [Center(child: extras), callRow(null)];
 }
 

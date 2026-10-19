@@ -123,6 +123,18 @@ void main() {
       });
     }
 
+    testWidgets('the canvas keeps a bot one tap away at ${entry.key}', (
+      tester,
+    ) async {
+      final s = await pumpCallScreen(tester, entry.value, canvas: true);
+
+      await tester.tap(find.byTooltip('Jellyfin controls'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Play or pause'), findsOneWidget);
+
+      await teardown(tester, s.container, s.db);
+    });
+
     testWidgets(
       'a bot is one row of icon chips with its name at ${entry.key}',
       (tester) async {
