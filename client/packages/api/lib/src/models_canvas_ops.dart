@@ -54,6 +54,13 @@ sealed class CanvasOp {
           actorId: actorId,
           createdAt: createdAt,
           beforeSeq: json['before_seq'] as int,
+        ),
+      'clear_scoped' => CanvasClearOp(
+          seq: seq,
+          id: id,
+          actorId: actorId,
+          createdAt: createdAt,
+          beforeSeq: json['before_seq'] as int,
           scope: CanvasClearScope.fromJson(json),
         ),
       'restore' => CanvasRestoreOp(

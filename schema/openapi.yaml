@@ -13879,7 +13879,7 @@ components:
             idempotency key); client-minted for every other kind.
         kind:
           type: string
-          enum: [place, remove, clear, restore, move, reorder, edit]
+          enum: [place, remove, clear, clear_scoped, restore, move, reorder, edit]
         actor_id:
           type: [string, "null"]
           format: uuid
@@ -13902,19 +13902,17 @@ components:
         before_seq:
           type: integer
           format: int64
-          description: A `clear` removed every object placed at or below this seq.
+          description: A `clear` or `clear_scoped` removed objects placed at or below this seq.
         kinds:
           type: array
           items: { type: string }
           description: >-
-            Present on a scoped `clear`: only objects of these kinds were
-            removed.
+            On a `clear_scoped`: only objects of these kinds were removed.
+            Empty means every kind.
         author_id:
           type: string
           format: uuid
-          description: >-
-            Present on a scoped `clear`. Only this author's objects were
-            removed.
+          description: On a `clear_scoped`, only this author's objects were removed.
         target_op:
           type: string
           format: uuid
@@ -15987,6 +15985,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectPlaced"
         - $ref: "#/components/schemas/CanvasObjectsRemoved"
         - $ref: "#/components/schemas/CanvasCleared"
+        - $ref: "#/components/schemas/CanvasClearedScoped"
         - $ref: "#/components/schemas/CanvasObjectsRestored"
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
@@ -16060,8 +16059,7 @@ components:
       type: object
       required: [type, channel_id, seq, op_id, before_seq]
       description: >-
-        Every object placed at or below `before_seq` was removed at once,
-        limited to `kinds` and `author_id` when present.
+        Every object placed at or below `before_seq` was removed at once.
         Carries no ids: a clear can cover a channel's whole live ceiling, and
         the hub's broadcast ring buffers only 1024 cloned events.
       properties:
@@ -16080,9 +16078,35 @@ components:
         before_seq:
           type: integer
           format: int64
+
+    CanvasClearedScoped:
+      type: object
+      required: [type, channel_id, seq, op_id, before_seq, kinds]
+      description: >-
+        A `clear` limited to `kinds` and, when present, one author: every
+        matching object placed at or below `before_seq` was removed. A
+        separate type from `canvas.cleared` so a client that predates scoped
+        clears ignores it instead of clearing everything.
+      properties:
+        type:
+          type: string
+          enum: [canvas.cleared_scoped]
+        channel_id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        op_id:
+          type: string
+          format: uuid
+        before_seq:
+          type: integer
+          format: int64
         kinds:
           type: array
           items: { type: string }
+          description: Empty means every kind.
         author_id:
           type: string
           format: uuid

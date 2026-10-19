@@ -7,8 +7,8 @@ use serde_json::{Value, json};
 use slimm_server::store::CanvasOpBody;
 
 use crate::fixtures::{
-    app, general, id, member, new_store_and_pool, note, post_object, register, restore, stroke,
-    submit_op,
+    app, general, get_ops, id, member, new_store_and_pool, note, post_object, register, restore,
+    stroke, submit_op,
 };
 
 async fn live_ids(pool: &sqlx::SqlitePool, kind: &str) -> i64 {
@@ -151,4 +151,33 @@ async fn scope_fields_are_validated() {
     });
     let (status, _) = submit_op(&app, channel, &token, remove_with_scope).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+/// An older client reads `kind: clear` as clear-everything and an unknown kind as "resync"; only the latter is safe.
+#[tokio::test]
+async fn a_scoped_clear_is_never_served_as_kind_clear_over_http() {
+    let (store, _pool, _guard) = new_store_and_pool().await;
+    let (token, _) = register(&store, "root").await;
+    let channel = general(&store).await;
+    let app = app(store.clone());
+    post_object(&app, channel, &token, stroke(&id())).await;
+    post_object(&app, channel, &token, note(&id(), "hi")).await;
+    submit_op(
+        &app,
+        channel,
+        &token,
+        scoped(&id(), 2, json!({ "kinds": ["note"] })),
+    )
+    .await;
+    submit_op(&app, channel, &token, scoped(&id(), 2, json!({}))).await;
+
+    let (_, page) = get_ops(&app, channel, &token, "after_seq=0").await;
+    let kinds: Vec<&str> = page["ops"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|op| op["kind"].as_str().unwrap())
+        .collect();
+    assert_eq!(kinds, ["place", "place", "clear_scoped", "clear"]);
+    assert_eq!(page["ops"][2]["kinds"], json!(["note"]));
 }

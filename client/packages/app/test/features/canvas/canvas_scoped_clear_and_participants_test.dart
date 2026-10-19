@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_clear_scope.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -35,10 +36,20 @@ const _bob = VoiceParticipant(
   isScreenSharing: false,
 );
 
+const _bobTalking = VoiceParticipant(
+  identity: 'bob',
+  name: 'Bob',
+  isSpeaking: true,
+  isMuted: false,
+  isLocal: false,
+  isScreenSharing: false,
+);
+
 Future<void> _pump(
   WidgetTester tester, {
   CanvasScopedClear? scopedClear,
   bool inCall = false,
+  bool speaking = false,
   Size size = const Size(1280, 800),
 }) async {
   tester.view.physicalSize = size;
@@ -52,7 +63,7 @@ Future<void> _pump(
           (ref) => VoiceController(ref, session: InertSession()),
         ),
         voiceParticipantsProvider.overrideWithValue(
-          inCall ? [_bob] : const <VoiceParticipant>[],
+          inCall ? [speaking ? _bobTalking : _bob] : const <VoiceParticipant>[],
         ),
       ],
       child: MaterialApp(
@@ -183,6 +194,27 @@ void main() {
       expect(find.text('Mute for me'), findsOneWidget);
     });
   }
+
+  testWidgets('the wide Participants dialog lays its rows out inside itself', (
+    tester,
+  ) async {
+    await _pump(tester, inCall: true, speaking: true);
+
+    await tester.tap(find.text('Participants'));
+    // A speaking ring never settles, so step frames the way a running app gets them.
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    final dialog = tester.getRect(find.byType(CanvasParticipantsSheet));
+    final row = tester.getRect(find.text('Bob'));
+    expect(dialog.width, greaterThan(200));
+    expect(dialog.height, greaterThan(60));
+    expect(dialog.height, lessThan(300));
+    expect(row.isEmpty, isFalse);
+    expect(dialog.contains(row.center), isTrue);
+    expect(find.byType(Dialog), findsOneWidget);
+  });
 
   testWidgets('Participants is absent outside this channel\'s call', (
     tester,

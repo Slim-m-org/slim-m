@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A scoped clear on the wire: the live `canvas.cleared` frame and the
-/// catch-up feed row both carry the kinds and author the clear was limited to.
+/// A scoped clear on the wire. It travels under its own frame type and feed
+/// kind so a client that predates scopes never reads it as clear-everything.
 library;
 
 import 'dart:convert';
@@ -8,8 +8,20 @@ import 'dart:convert';
 import 'package:slimm_api/api.dart';
 import 'package:test/test.dart';
 
+import 'fixtures/old_canvas_ops_0_114.dart' as old;
+
+const _scopedRow = {
+  'seq': 7,
+  'id': 'op-2',
+  'actor_id': 'user-1',
+  'created_at': 1000,
+  'kind': 'clear_scoped',
+  'before_seq': 6,
+  'kinds': ['image'],
+};
+
 void main() {
-  test('canvas.cleared without a scope clears everything', () {
+  test('canvas.cleared stays a whole-canvas clear', () {
     final event = ServerEvent.parse(
       jsonEncode({
         'type': 'canvas.cleared',
@@ -23,10 +35,10 @@ void main() {
     expect((event as CanvasCleared).scope.isEverything, isTrue);
   });
 
-  test('canvas.cleared carries its kinds and author', () {
+  test('canvas.cleared_scoped carries its kinds and author', () {
     final event = ServerEvent.parse(
       jsonEncode({
-        'type': 'canvas.cleared',
+        'type': 'canvas.cleared_scoped',
         'channel_id': 'c',
         'seq': 3,
         'op_id': 'op',
@@ -39,22 +51,27 @@ void main() {
     final scope = (event as CanvasCleared).scope;
     expect(scope.kinds, ['stroke', 'note']);
     expect(scope.authorId, 'ann');
-    expect(scope.isEverything, isFalse);
   });
 
-  test('a clear row of the catch-up feed parses its scope', () {
-    final op = CanvasOp.fromJson({
-      'seq': 7,
-      'id': 'op-2',
-      'actor_id': 'user-1',
-      'created_at': 1000,
-      'kind': 'clear',
-      'before_seq': 6,
-      'kinds': ['image'],
-    });
+  test('a clear_scoped feed row parses its scope', () {
+    final scope = (CanvasOp.fromJson(_scopedRow) as CanvasClearOp).scope;
 
-    final scope = (op as CanvasClearOp).scope;
     expect(scope.kinds, ['image']);
     expect(scope.authorId, isNull);
+  });
+
+  test('a plain clear feed row is a whole-canvas clear', () {
+    final op = CanvasOp.fromJson({..._scopedRow, 'kind': 'clear'});
+
+    expect((op as CanvasClearOp).scope.isEverything, isTrue);
+  });
+
+  // The 0.114 parser, copied verbatim into test/fixtures: its apply path
+  // resyncs on an unknown op and clears the board on a `clear`.
+  test('0.114 reads a scoped feed row as an unknown op, never a clear', () {
+    final op = old.CanvasOp.fromJson(_scopedRow);
+
+    expect(op, isA<old.CanvasUnknownOp>());
+    expect(op, isNot(isA<old.CanvasClearOp>()));
   });
 }
