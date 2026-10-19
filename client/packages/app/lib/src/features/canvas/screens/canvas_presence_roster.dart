@@ -110,8 +110,15 @@ class _CanvasPresenceRosterState extends State<CanvasPresenceRoster> {
     super.dispose();
   }
 
+  // Everyone's cursor frames land here at pointer rate; only who is present matters to this pile.
+  String _shown = '';
+
   void _onCursorsChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final now = _present().map((p) => '${p.id}:${p.name}').join('|');
+    if (now == _shown) return;
+    _shown = now;
+    setState(() {});
   }
 
   /// Cursor-only presence: somebody moving a pointer on this canvas who is

@@ -203,6 +203,8 @@ class CallParticipantTile extends StatelessWidget {
         ),
       ],
     );
+    // A camera hides the avatar that carries the speaking ring, so the tile takes it.
+    final ringsTile = _showsCamera && participant.isSpeaking;
     Widget tile = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -223,7 +225,9 @@ class CallParticipantTile extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: _showsCamera ? const Color(0xFF000000) : null,
-                      border: Border.all(color: tokens.borderSubtle),
+                      border: ringsTile
+                          ? Border.all(color: tokens.accent, width: 2)
+                          : Border.all(color: tokens.borderSubtle),
                       borderRadius: BorderRadius.circular(AppRadii.card),
                     ),
                     child: SizedBox(

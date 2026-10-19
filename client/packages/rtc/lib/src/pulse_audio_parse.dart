@@ -60,3 +60,9 @@ List<int> ownStreamIds(String json, int processId) => [
                 '$processId')
           stream['index'] as int,
     ];
+
+/// Whether a `pactl subscribe` line is a device appearing or going, or the
+/// default moving; volume and state changes on a device are noise here.
+bool isDeviceEvent(String line) => RegExp(
+      r"^Event '(new|remove)' on (source|sink) #\d+$|^Event 'change' on server$",
+    ).hasMatch(line.trim());

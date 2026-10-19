@@ -32,6 +32,11 @@ class AudioDeviceSwitching {
   /// libwebrtc's; see `pulse_audio_io.dart`.
   final PulseAudio _pulse;
 
+  // What the person chose, kept even while that device is unplugged.
+  String? _chosenInputId;
+  String? _chosenOutputId;
+
+  // What is in use now: the choice while it is plugged in, otherwise the system default (null).
   String? _preferredInputId;
   String? _preferredOutputId;
 
@@ -93,8 +98,22 @@ class AudioDeviceSwitching {
   /// default, so a capture on the old default can be told to move.
   Future<String> inputSignature() async {
     final ids = [for (final d in await inputs()) d.id]..sort();
-    final fallback = (await _devices.systemDefaultInput())?.id ?? '';
+    final fallback = (await _devices.systemDefaultInput())?.id ??
+        await _pulse.defaultNode(capture: true) ??
+        '';
     return '$fallback|${ids.join(',')}';
+  }
+
+  /// [inputId] while that microphone is plugged in, otherwise null (the system
+  /// default): a browser refuses an unknown id outright and a desktop engine
+  /// keeps whatever it last used, so the preview must not ask for it.
+  Future<String?> pluggedInputId(String? inputId) async {
+    if (inputId == null) return null;
+    try {
+      return resolveAudioDevice(await inputs(), inputId)?.id;
+    } on Object {
+      return inputId;
+    }
   }
 
   /// A capture that opens [inputId] without a call, for the level preview.
@@ -111,22 +130,35 @@ class AudioDeviceSwitching {
     }
   }
 
-  /// Forgets a remembered microphone or speaker that is no longer plugged in,
-  /// so the next [roomOptions] asks for the system default instead of a device
-  /// the browser would refuse outright. True when the remembered microphone
-  /// was the one dropped, so a live capture on it needs reopening.
-  Future<bool> forgetUnpluggedPreferences() async {
-    var inputDropped = false;
-    final input = _preferredInputId;
-    if (input != null && resolveAudioDevice(await inputs(), input) == null) {
-      _preferredInputId = null;
-      inputDropped = true;
+  /// Falls back to the system default for a chosen microphone or speaker that
+  /// is not plugged in, so the next [roomOptions] does not ask the browser for
+  /// a device it would refuse. True when the microphone in use was the one
+  /// dropped, so a live capture on it needs reopening.
+  Future<bool> forgetUnpluggedPreferences() async =>
+      (await reconcilePreferences(null)).inputDropped;
+
+  /// [forgetUnpluggedPreferences], and the other way too: a chosen device that
+  /// is plugged in again is used again, so a headset that blinks off Bluetooth
+  /// does not leave the call on the default while Settings still shows it.
+  /// A returned speaker is applied to [room] when one is given.
+  Future<({bool inputDropped, bool inputRestored})> reconcilePreferences(
+    lk.Room? room,
+  ) async {
+    final inputs = await this.inputs();
+    final outputs = await this.outputs();
+    final input = resolveAudioDevice(inputs, _chosenInputId)?.id;
+    final output = resolveAudioDevice(outputs, _chosenOutputId)?.id;
+    final result = (
+      inputDropped: _preferredInputId != null && input == null,
+      inputRestored: _preferredInputId == null && input != null,
+    );
+    final outputRestored = _preferredOutputId == null && output != null;
+    _preferredInputId = input;
+    _preferredOutputId = output;
+    if (outputRestored && room != null) {
+      await selectOutput(room, resolveAudioDevice(outputs, output));
     }
-    final output = _preferredOutputId;
-    if (output != null && resolveAudioDevice(await outputs(), output) == null) {
-      _preferredOutputId = null;
-    }
-    return inputDropped;
+    return result;
   }
 
   /// Applies [device] to [room]'s live input when one exists and this
@@ -139,7 +171,7 @@ class AudioDeviceSwitching {
   ///
   /// True when the live capture was reopened on the new device.
   Future<bool> selectInput(lk.Room? room, AudioDevice? device) async {
-    _preferredInputId = device?.id;
+    _preferredInputId = _chosenInputId = device?.id;
     if (room == null || !supportsInputSelection) return false;
     final target = device ?? await _devices.systemDefaultInput();
     if (target == null) {
@@ -189,7 +221,7 @@ class AudioDeviceSwitching {
 
   /// [selectInput]'s counterpart for output.
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {
-    _preferredOutputId = device?.id;
+    _preferredOutputId = _chosenOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
     final target = device ?? await _devices.systemDefaultOutput();
     if (target == null) {

@@ -49,6 +49,7 @@ extension VoiceSessionStall on VoiceSession {
               bytesReceived:
                   _bytesReceived(snapshot, peer.identity, pub.source),
               screenShare: pub.source == lk.TrackSource.screenShareVideo,
+              sampledAtMs: _sampledAt(snapshot, peer.identity, pub.source),
             ),
     ];
     _activeVideoKeys.addAll([
@@ -78,6 +79,24 @@ extension VoiceSessionStall on VoiceSession {
     lk.TrackSource source,
   ) =>
       _sumOf(snapshot, identity, source, (s) => s.framesDecoded)?.toInt();
+
+  num? _sampledAt(
+    CallStatsSnapshot snapshot,
+    String identity,
+    lk.TrackSource source,
+  ) {
+    final wanted = _statsSource(source);
+    for (final sample in snapshot) {
+      if (sample.local || sample.identity != identity) continue;
+      if (sample.source != wanted) continue;
+      final stamps = [
+        for (final s in sample.streams)
+          if (s.timestampMs case final t?) t,
+      ];
+      return stamps.isEmpty ? null : stamps.reduce((a, b) => a > b ? a : b);
+    }
+    return null;
+  }
 
   num? _bytesReceived(
     CallStatsSnapshot snapshot,

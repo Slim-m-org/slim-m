@@ -205,6 +205,68 @@ void main() {
     expect(watchdog.health.value, isEmpty);
   });
 
+  group('stale and unreadable stats', () {
+    VideoStallReading read(
+      int? frames, {
+      num? at,
+      num? bytes,
+    }) =>
+        VideoStallReading(
+          key: 'camera:bob',
+          framesDecoded: frames,
+          expectPlaying: true,
+          sampledAtMs: at,
+          bytesReceived: bytes,
+        );
+
+    void at(int seconds, VideoStallReading r) {
+      clock.now = DateTime(2026, 10, 16, 12).add(Duration(seconds: seconds));
+      watchdog.observe([r]);
+    }
+
+    test('a sample re-emitted by the slow tick is not a frozen stream', () {
+      at(0, read(100, at: 1000));
+      at(4, read(220, at: 5000));
+      for (final second in [5, 8, 9]) {
+        at(second, read(220, at: 5000));
+      }
+      expect(steps, isEmpty);
+      expect(watchdog.health.value, isEmpty);
+    });
+
+    test('a real freeze with fresh samples still recovers', () {
+      at(0, read(100, at: 1000));
+      for (var i = 1; i <= 3; i++) {
+        at(i * 2, read(100, at: 1000.0 + i * 2000));
+      }
+      expect(steps.map((s) => s.$2), [VideoStallStep.switchLayer]);
+      expect(watchdog.health.value, {'camera:bob': VideoTileHealth.stalled});
+    });
+
+    test('a sample repeated past staleAfter counts as no stats', () {
+      at(0, read(100, at: 1000));
+      for (var second = 2; second <= 14; second += 2) {
+        at(second, read(100, at: 1000));
+      }
+      expect(steps, isNotEmpty);
+    });
+
+    test('bytes arriving without a frame counter are not a stall', () {
+      for (var i = 0; i < 6; i++) {
+        at(i * 2, read(null, at: 1000.0 + i * 2000, bytes: 5000.0 * (i + 1)));
+      }
+      expect(steps, isEmpty);
+      expect(watchdog.health.value, isEmpty);
+    });
+
+    test('no frame counter and no bytes still counts as standing still', () {
+      for (var i = 0; i < 6; i++) {
+        at(i * 2, read(null, at: 1000.0 + i * 2000));
+      }
+      expect(steps, isNotEmpty);
+    });
+  });
+
   group('stallReadings', () {
     StallPublication pub({
       bool subscribed = true,
@@ -219,6 +281,7 @@ void main() {
           framesDecoded: 1,
           bytesReceived: 10,
           screenShare: false,
+          sampledAtMs: 1,
         );
 
     test('owes frames only when subscribed, unmuted, active and wanted', () {

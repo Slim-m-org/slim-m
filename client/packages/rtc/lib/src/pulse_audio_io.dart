@@ -9,6 +9,8 @@
 /// process's own streams, which is what a desktop volume mixer does.
 library;
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'pulse_audio_parse.dart';
@@ -17,6 +19,32 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 typedef PactlRunner = Future<ProcessResult> Function(List<String> args);
 
+/// The lines `pactl subscribe` prints for as long as it is listened to.
+typedef PactlSubscriber = Stream<String> Function();
+
+Stream<String> _subscribePactl() {
+  Process? process;
+  late final StreamController<String> lines;
+  lines = StreamController<String>(
+    onListen: () async {
+      try {
+        final started = process = await Process.start('pactl', ['subscribe']);
+        unawaited(started.stderr.drain<void>());
+        started.stdout
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(lines.add, onDone: lines.close);
+      } on Object catch (error, stack) {
+        AppLog.swallowed(LogTag.voice,
+            'Could not watch the sound server with pactl', error, stack);
+        await lines.close();
+      }
+    },
+    onCancel: () => process?.kill(),
+  );
+  return lines.stream;
+}
+
 Future<ProcessResult> _runPactl(List<String> args) =>
     Process.run('pactl', args);
 
@@ -24,16 +52,24 @@ class PulseAudio {
   /// Whether this platform has a sound server to ask.
   static bool get supported => Platform.isLinux;
 
-  PulseAudio({PactlRunner? run, int? processId})
+  PulseAudio({PactlRunner? run, PactlSubscriber? subscribe, int? processId})
       : _run = run ?? _runPactl,
+        _subscribe = subscribe ?? _subscribePactl,
         _pid = processId ?? pid,
         _enabled = run != null || supported;
 
   final PactlRunner _run;
+  final PactlSubscriber _subscribe;
   final int _pid;
 
   /// Off Linux nothing is ever spawned, so a phone never tries to start a process.
   final bool _enabled;
+
+  /// Fires when a source or sink appears or goes, or the default moves.
+  /// libwebrtc reports none of these on Linux, so a hot-plug was never seen.
+  Stream<void> get deviceChanges => _enabled
+      ? _subscribe().where(isDeviceEvent).map((_) {})
+      : const Stream.empty();
 
   /// Recording sources, or null when `pactl` is missing or fails.
   Future<List<AudioDevice>?> sources() async => _list('sources', parseSources);

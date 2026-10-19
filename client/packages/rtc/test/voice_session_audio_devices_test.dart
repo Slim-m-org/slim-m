@@ -3,6 +3,8 @@
 /// the app tests replace with fakes, so a swapped input and output cannot pass.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -28,6 +30,13 @@ void _mockSources(Object Function() respond) {
   );
 }
 
+/// No sound server, so the list comes from the plugin channel on every host.
+VoiceSession _session() => VoiceSession(
+      audioDevices: HardwareAudioDevices(
+        pulse: PulseAudio(run: (_) async => ProcessResult(0, 1, '', '')),
+      ),
+    );
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -42,7 +51,7 @@ void main() {
         ],
       },
     );
-    final session = VoiceSession();
+    final session = _session();
 
     expect([
       for (final d in await session.audioInputDevices()) d.id
@@ -59,7 +68,7 @@ void main() {
 
   test('a platform failure lists nothing instead of throwing', () async {
     _mockSources(() => throw PlatformException(code: 'boom'));
-    final session = VoiceSession();
+    final session = _session();
 
     expect(await session.audioInputDevices(), isEmpty);
     expect(await session.audioOutputDevices(), isEmpty);

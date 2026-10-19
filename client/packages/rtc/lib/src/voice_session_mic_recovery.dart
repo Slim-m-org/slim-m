@@ -162,6 +162,13 @@ mixin VoiceSessionMicRecovery {
     _micWatchdog.reset();
   }
 
+  /// A mic that would not open at join (permission, a device that was not ready)
+  /// is retried like a lost one, so the person sees it and is not left unheard.
+  void _retryMicAfterJoin() {
+    _micWanted = true;
+    _micRecovery.onLost('could not open at join');
+  }
+
   void _onDeviceChange(void _) {
     _deviceDebounce?.cancel();
     _deviceDebounce = Timer(_micTiming.deviceDebounce, () {
@@ -172,9 +179,12 @@ mixin VoiceSessionMicRecovery {
 
   Future<void> _followDeviceChange() async {
     if (_state != VoiceSessionState.connected) return;
+    var inputChanged = false;
     var inputDropped = false;
     try {
-      inputDropped = await _audioSwitching.forgetUnpluggedPreferences();
+      final reconciled = await _audioSwitching.reconcilePreferences(_room);
+      inputDropped = reconciled.inputDropped;
+      inputChanged = inputDropped || reconciled.inputRestored;
       await _audioSwitching.applyServerRouting();
     } on Object catch (e) {
       _logMic(
@@ -185,11 +195,11 @@ mixin VoiceSessionMicRecovery {
     final defaultMoved = await _defaultInputMoved();
     _logMic(
       'Audio devices changed; the chosen microphone is '
-      '${inputDropped ? 'gone' : 'still there'}'
+      '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
       '${defaultMoved ? ', and the system default moved' : ''}',
     );
     if (!_micWanted) return;
-    if (inputDropped ||
+    if (inputChanged ||
         defaultMoved ||
         !_mic.hasTrack ||
         _micStatus != MicStatus.ok) {

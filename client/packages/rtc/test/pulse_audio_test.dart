@@ -97,6 +97,43 @@ class _NoDevices implements AudioDevices {
 }
 
 void main() {
+  test('only a device appearing, going or the default moving is a change', () {
+    expect(isDeviceEvent("Event 'new' on source #70"), isTrue);
+    expect(isDeviceEvent("Event 'remove' on sink #12"), isTrue);
+    expect(isDeviceEvent("Event 'change' on server"), isTrue);
+    expect(isDeviceEvent("Event 'change' on source #70"), isFalse);
+    expect(isDeviceEvent("Event 'new' on source-output #5"), isFalse);
+    expect(isDeviceEvent("Event 'new' on sink-input #5"), isFalse);
+  });
+
+  test('a hot-plug reaches the app as a change, volume noise does not',
+      () async {
+    final pulse = PulseAudio(
+      run: _FakePactl().call,
+      subscribe: () => Stream.fromIterable([
+        "Event 'change' on source #70",
+        "Event 'new' on source #71",
+        "Event 'remove' on source #71",
+      ]),
+    );
+
+    expect(await pulse.deviceChanges.length, 2);
+  });
+
+  test('on Linux the picker lists the sound server, not libwebrtc', () async {
+    final devices = HardwareAudioDevices(
+      pulse: PulseAudio(run: _FakePactl().call),
+    );
+
+    expect((await devices.inputs()).map((d) => d.id), [
+      'pulse:alsa_input.usb-EMEET_C960.analog-stereo',
+      'pulse:sink_mic',
+      'pulse:nameless',
+    ]);
+    expect((await devices.outputs()).single.id.startsWith('pulse:'), isTrue);
+    expect(await devices.systemDefaultInput(), isNull);
+  });
+
   test('sources leave out sink monitors and fall back to the node name', () {
     final devices = parseSources(_sources);
     expect(devices.map((d) => d.label), [

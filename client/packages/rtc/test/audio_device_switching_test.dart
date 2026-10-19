@@ -36,6 +36,15 @@ class _FixedAudioDevices implements AudioDevices {
   Stream<void> get onChange => const Stream.empty();
 }
 
+class _MutableDevices extends _FixedAudioDevices {
+  const _MutableDevices(this._now);
+
+  final List<AudioDevice> Function() _now;
+
+  @override
+  Future<List<AudioDevice>> inputs() async => _now();
+}
+
 AudioDevice _mic(String id) => AudioDevice(id: id, label: id);
 
 void main() {
@@ -101,6 +110,48 @@ void main() {
             .deviceId,
         'micB',
       );
+    });
+  });
+
+  group('AudioDeviceSwitching chosen devices that come and go', () {
+    test('a chosen microphone that is plugged in again is used again',
+        () async {
+      var plugged = <AudioDevice>[];
+      final switching = AudioDeviceSwitching(_MutableDevices(() => plugged));
+      await switching.selectInput(null, _mic('bt'));
+
+      var result = await switching.reconcilePreferences(null);
+      expect(result.inputDropped, isTrue);
+      expect(switching.captureOptions().deviceId, isNull);
+
+      plugged = [_mic('bt')];
+      result = await switching.reconcilePreferences(null);
+      expect(result.inputRestored, isTrue);
+      expect(switching.captureOptions().deviceId, 'bt');
+    });
+
+    test('choosing the system default clears the memory of the old choice',
+        () async {
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(inputDevices: [_mic('bt')]),
+      );
+      await switching.selectInput(null, _mic('bt'));
+      await switching.selectInput(null, null);
+
+      final result = await switching.reconcilePreferences(null);
+
+      expect(result.inputRestored, isFalse);
+      expect(switching.captureOptions().deviceId, isNull);
+    });
+
+    test('the preview asks for the default when its microphone is gone',
+        () async {
+      final switching = AudioDeviceSwitching(
+        _FixedAudioDevices(inputDevices: [_mic('here')]),
+      );
+      expect(await switching.pluggedInputId('gone'), isNull);
+      expect(await switching.pluggedInputId('here'), 'here');
+      expect(await switching.pluggedInputId(null), isNull);
     });
   });
 

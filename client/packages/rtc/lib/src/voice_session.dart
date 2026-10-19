@@ -303,15 +303,14 @@ class VoiceSession
       if (!identical(_room, room)) return;
       // Publishing is separate from connecting on purpose: a join preview
       // can arrive muted, and a token without SPEAK must not fail the join.
-      if (microphoneEnabled) {
-        await _trySetMicrophone(true);
-      }
+      final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
       if (cameraEnabled) {
         await _trySetCamera(true);
       }
       if (!identical(_room, room)) return;
       _refreshParticipants();
       _setState(VoiceSessionState.connected);
+      if (micFailed) _retryMicAfterJoin();
     } catch (e, stack) {
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;

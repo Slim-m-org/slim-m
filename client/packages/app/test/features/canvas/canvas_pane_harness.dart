@@ -128,7 +128,7 @@ class CanvasPaneFixture {
   final StreamController<api.ServerEvent> events =
       StreamController<api.ServerEvent>.broadcast();
 
-  final int viewportStatus;
+  int viewportStatus;
   final bool hasMore;
 
   /// The status `POST .../canvas/ops` answers with, so a test can drive the
@@ -170,6 +170,9 @@ class CanvasPaneFixture {
   /// than a bare int so a test can tell "one, twice as many as needed" from
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
+
+  /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
+  int? opsHead;
 
   /// Every `GET .../canvas/ops` the pane sent: every viewport fetch runs a
   /// catch-up afterward, so this file's own tests only need the default
@@ -237,7 +240,7 @@ class CanvasPaneFixture {
           final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
           return jsonResponse({
             'ops': <Object>[],
-            'latest_seq': afterSeq,
+            'latest_seq': opsHead ?? afterSeq,
             'has_more': false,
             'reset': false,
           });

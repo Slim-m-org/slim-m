@@ -444,8 +444,19 @@ final databaseProvider = FutureProvider<SlimmDatabase>((ref) async {
 final storeProvider = FutureProvider<MessageStore>((ref) async {
   final db = await ref.watch(databaseProvider.future);
   final store = MessageStore(db);
-  // Any row still pending belongs to a run that ended; see failInterruptedSends.
-  await failInterruptedSends(store);
+  try {
+    // Any row still pending belongs to a run that ended; see failInterruptedSends.
+    await failInterruptedSends(store);
+  } catch (error, stack) {
+    // The isolate wraps the real cause in a DriftRemoteException that names nothing.
+    AppLog.error(
+      LogTag.data,
+      'The local store failed its first query',
+      error: error,
+      stack: stack,
+    );
+    rethrow;
+  }
   return store;
 });
 

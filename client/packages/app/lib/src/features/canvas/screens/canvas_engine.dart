@@ -103,6 +103,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     ) {
       if (next == SyncStatus.live) {
         unawaited(sync.catchUp());
+        _refetchIfLoadFailed();
         unawaited(slotSync.fetch());
         unawaited(objectLocks.fetch());
       }
@@ -416,6 +417,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         limit: 2000,
       );
       if (!mounted) return;
+      _loadRetry?.cancel();
+      _loadRetries = 0;
       for (final object in page.objects) {
         final input = canvasStrokeInputFrom(object);
         if (input != null) {
@@ -443,8 +446,29 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
       if (mounted) {
         state = state.copyWith(loading: false, error: genericLoadError);
+        _scheduleLoadRetry();
       }
     }
+  }
+
+  Timer? _loadRetry;
+  int _loadRetries = 0;
+
+  // A deploy or a rate limit fails the read for seconds; without this the view stays empty until the person pans or presses Retry.
+  void _scheduleLoadRetry() {
+    _loadRetry?.cancel();
+    final seconds = (2 << _loadRetries).clamp(2, 30);
+    _loadRetries++;
+    _loadRetry = Timer(Duration(seconds: seconds), () {
+      if (mounted) unawaited(fetch());
+    });
+  }
+
+  void _refetchIfLoadFailed() {
+    if (state.error != genericLoadError) return;
+    _loadRetry?.cancel();
+    _fetched = null;
+    unawaited(fetch());
   }
 
   /// Idempotent: `CanvasPane` calls this directly, synchronously, from its
@@ -457,6 +481,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   void dispose() {
     if (!mounted) return;
     hydrator.dispose();
+    _loadRetry?.cancel();
     _panDebounce?.cancel();
     if (_cameraSave?.isActive ?? false) {
       _cameraSave!.cancel();

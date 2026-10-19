@@ -42,12 +42,13 @@ class LoopbackMicSource implements MicPreviewSource {
   Future<void> _open(String? deviceId) async {
     if (_opened) await _close();
     _opened = true;
-    final constraints = _switching.previewCaptureOptions(deviceId);
+    final constraints = _switching.previewCaptureOptions(
+      await _switching.pluggedInputId(deviceId),
+    );
     final stream = _stream = await rtc.navigator.mediaDevices.getUserMedia({
       'audio': constraints.toMediaConstraintsMap(),
       'video': false,
     });
-    await _switching.routePreviewInput(deviceId);
     final sender = _sender = await rtc.createPeerConnection({});
     final receiver = _receiver = await rtc.createPeerConnection({});
     sender.onIceCandidate = (c) => unawaited(receiver.addCandidate(c));
@@ -62,6 +63,18 @@ class LoopbackMicSource implements MicPreviewSource {
     final answer = await receiver.createAnswer();
     await receiver.setLocalDescription(answer);
     await sender.setRemoteDescription(answer);
+    await _routeWhenStreaming(deviceId);
+  }
+
+  /// The sound server stream only exists once the track is sending, so the
+  /// move is tried again after it has had a moment to open.
+  Future<void> _routeWhenStreaming(String? deviceId) async {
+    final id = await _switching.pluggedInputId(deviceId);
+    for (final wait in const [Duration.zero, Duration(milliseconds: 700)]) {
+      await Future<void>.delayed(wait);
+      if (!_opened) return;
+      await _switching.routePreviewInput(id);
+    }
   }
 
   /// The far end must never reach the speakers.
@@ -118,6 +131,6 @@ class LoopbackMicSource implements MicPreviewSource {
 /// A preview over the real microphone, on this host's own device list.
 MicPreview systemMicPreview() => MicPreview(
       source: LoopbackMicSource(
-        AudioDeviceSwitching(const HardwareAudioDevices()),
+        AudioDeviceSwitching(HardwareAudioDevices()),
       ),
     );

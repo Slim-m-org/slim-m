@@ -56,6 +56,27 @@ class DatabaseEncryptionUnavailable implements Exception {
   String toString() => 'DatabaseEncryptionUnavailable: $detail';
 }
 
+/// A live process, most likely another copy of the app, holds the database
+/// file, so it was left alone.
+class DatabaseInUseElsewhere implements Exception {
+  const DatabaseInUseElsewhere(this.detail);
+
+  final String detail;
+
+  @override
+  String toString() => 'DatabaseInUseElsewhere: $detail';
+}
+
+/// The database neither opened nor could be replaced; [detail] is the cause.
+class DatabaseUnopenable implements Exception {
+  const DatabaseUnopenable(this.detail);
+
+  final String detail;
+
+  @override
+  String toString() => 'DatabaseUnopenable: $detail';
+}
+
 /// A SQLite failure from a statement that carried the key, stripped of the
 /// statement text `SqliteException.toString` would otherwise print into logs.
 class DatabaseCipherException implements Exception {

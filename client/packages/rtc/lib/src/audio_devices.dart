@@ -3,6 +3,8 @@
 /// own shape for audio.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -27,22 +29,25 @@ abstract class AudioDevices {
 }
 
 class HardwareAudioDevices implements AudioDevices {
-  const HardwareAudioDevices();
+  HardwareAudioDevices({PulseAudio? pulse}) : _pulse = pulse ?? PulseAudio();
 
-  /// libwebrtc's list, unless it is empty on Linux, where the sound server's
-  /// own list stands in; see `pulse_audio_io.dart`.
+  final PulseAudio _pulse;
+
+  /// The sound server's list where there is one (Linux), libwebrtc's otherwise.
+  /// libwebrtc lists nothing until a capture is open and then names every
+  /// device differently, so a saved pick would stop matching mid-session.
   @override
   Future<List<AudioDevice>> inputs() async {
-    final listed = await _listedOrWarmed(lk.Hardware.instance.audioInputs);
-    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
-    return await PulseAudio().sources() ?? listed;
+    final server = await _pulse.sources();
+    if (server != null && server.isNotEmpty) return server;
+    return _listedOrWarmed(lk.Hardware.instance.audioInputs);
   }
 
   @override
   Future<List<AudioDevice>> outputs() async {
-    final listed = await _listedOrWarmed(lk.Hardware.instance.audioOutputs);
-    if (listed.isNotEmpty || !PulseAudio.supported) return listed;
-    return await PulseAudio().sinks() ?? listed;
+    final server = await _pulse.sinks();
+    if (server != null && server.isNotEmpty) return server;
+    return _listedOrWarmed(lk.Hardware.instance.audioOutputs);
   }
 
   /// On Windows libwebrtc lists no audio devices until something has opened
@@ -81,18 +86,46 @@ class HardwareAudioDevices implements AudioDevices {
         }
       }();
 
+  /// On Linux the sound server's own default stands in; see `AudioDeviceSwitching`.
   @override
-  Future<AudioDevice?> systemDefaultInput() async => _systemDefaultOf(
-      _toAudioDevices(await lk.Hardware.instance.audioInputs()));
+  Future<AudioDevice?> systemDefaultInput() async =>
+      await _pulse.defaultNode(capture: true) != null
+          ? null
+          : _systemDefaultOf(
+              _toAudioDevices(await lk.Hardware.instance.audioInputs()));
 
   @override
-  Future<AudioDevice?> systemDefaultOutput() async => _systemDefaultOf(
-        _toAudioDevices(await lk.Hardware.instance.audioOutputs()),
-      );
+  Future<AudioDevice?> systemDefaultOutput() async =>
+      await _pulse.defaultNode(capture: false) != null
+          ? null
+          : _systemDefaultOf(
+              _toAudioDevices(await lk.Hardware.instance.audioOutputs()));
 
   @override
-  Stream<void> get onChange =>
-      lk.Hardware.instance.onDeviceChange.stream.map((_) {});
+  Stream<void> get onChange => _merged([
+        () => lk.Hardware.instance.onDeviceChange.stream.map((_) {}),
+        () => _pulse.deviceChanges,
+      ]);
+}
+
+/// Listens to each of [sources] only while the result is listened to.
+Stream<void> _merged(List<Stream<void> Function()> sources) {
+  final subscriptions = <StreamSubscription<void>>[];
+  late final StreamController<void> out;
+  out = StreamController<void>.broadcast(
+    onListen: () {
+      for (final source in sources) {
+        subscriptions.add(source().listen(out.add));
+      }
+    },
+    onCancel: () async {
+      for (final subscription in subscriptions) {
+        await subscription.cancel();
+      }
+      subscriptions.clear();
+    },
+  );
+  return out.stream;
 }
 
 AudioDevice? _systemDefaultOf(List<AudioDevice> devices) =>
@@ -132,7 +165,14 @@ AudioDevice? resolveAudioDevice(
 /// "System default" in the same picker meaning the same thing. Null already
 /// means the system default here, so the pseudo entries add a duplicate and
 /// nothing else.
+///
+/// A browser that has not been granted the microphone yet lists devices with
+/// an empty id and label; none of them can be chosen, and an empty id is what
+/// the picker uses for the system default, so they are dropped too.
 List<AudioDevice> withoutPseudoDefaults(List<AudioDevice> devices) => [
       for (final device in devices)
-        if (device.id != 'default' && device.id != 'communications') device,
+        if (device.id.isNotEmpty &&
+            device.id != 'default' &&
+            device.id != 'communications')
+          device,
     ];
