@@ -38,6 +38,7 @@ import e2e_coverage
 import e2e_sweep
 import e2e_threads
 import e2e_voice
+import e2e_voice_health
 import e2e_voice_deafen
 import e2e_voice_move
 import e2e_voice_mic_release
@@ -266,6 +267,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             a, b, room_id)),
         ("voice: audio actually arrives",
          lambda: e2e_voice.audio_actually_arrives(a, b)),
+        ("voice: health probe reads real numbers after a minute",
+         lambda: e2e_voice_health.minute_line_has_real_numbers(a, b)),
+        ("voice: health hint turns on under loss and off after",
+         lambda: e2e_voice_health.hint_turns_on_under_loss_and_off_after(a, b)),
         ("voice: sharing a screen", lambda: e2e_voice.share_screen(
             a, b, room_id)),
         ("voice: mute reaches the server", lambda: e2e_voice.mute_propagates(
