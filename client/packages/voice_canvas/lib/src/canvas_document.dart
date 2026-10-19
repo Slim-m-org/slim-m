@@ -85,6 +85,10 @@ class CanvasDocument extends ChangeNotifier {
   /// so an announcement can be rebuilt on content without firing at pan rate.
   final ValueNotifier<int> objectCount = ValueNotifier<int>(0);
 
+  /// How many live objects the board cannot hold whole; see [idsOutsideBoard].
+  final ValueNotifier<int> outsideBoardCount = ValueNotifier<int>(0);
+  final Set<String> _outsideIds = {};
+
   /// The one object currently selected for a resize or reorder, or null.
   /// A document-level notifier rather than caller-held state, the same
   /// reason [objectCount] is: the selection painter needs to repaint on a
@@ -233,6 +237,7 @@ class CanvasDocument extends ChangeNotifier {
       ),
     );
     _slotById[input.id] = slot;
+    _trackOutside(_strokes[slot]);
     objectCount.value = objectCount.value + 1;
     _orderDirty = true;
     return slot;
@@ -270,6 +275,11 @@ class CanvasDocument extends ChangeNotifier {
     if (slot == null) return false;
     final stroke = _strokes[slot];
     if (stroke == null || !stroke.alive) return false;
+    final fitted = boxOnBoard(id, x, y, w, h);
+    x = fitted.x;
+    y = fitted.y;
+    w = fitted.w;
+    h = fitted.h;
     final dx = x - stroke.x;
     final dy = y - stroke.y;
     if (dx == 0 && dy == 0 && w == stroke.w && h == stroke.h) return true;
@@ -284,6 +294,7 @@ class CanvasDocument extends ChangeNotifier {
       ..w = w
       ..h = h
       ..path = stroke.path.shift(Offset(dx, dy));
+    if (_outsideIds.isNotEmpty) _trackOutside(stroke);
     return true;
   }
 
@@ -347,6 +358,7 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive) return;
     stroke.alive = false;
+    _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
     _orderDirty = true;
   }
@@ -413,6 +425,8 @@ class CanvasDocument extends ChangeNotifier {
     _removedIds.clear();
     _removedOrder.clear();
     scene.reset();
+    _outsideIds.clear();
+    outsideBoardCount.value = 0;
     objectCount.value = 0;
   }
 
@@ -431,6 +445,9 @@ class CanvasDocument extends ChangeNotifier {
     if (selectedObjectId.value == stroke.id) selectedObjectId.value = null;
     if (elevatedObjectId.value == stroke.id) elevatedObjectId.value = null;
     scene.remove(slot);
+    if (_outsideIds.remove(stroke.id)) {
+      outsideBoardCount.value = _outsideIds.length;
+    }
     stroke.image?.dispose();
     _strokes[slot] = null;
     objectCount.value = objectCount.value - 1;
@@ -509,7 +526,8 @@ class CanvasDocument extends ChangeNotifier {
   }
 
   void _reculled() {
-    final view = worldView;
+    final board = _board;
+    final view = board == null ? worldView : worldView.intersect(board);
     scene.setViewport(view.left, view.top, view.right, view.bottom);
     notifyListeners();
   }
@@ -518,6 +536,7 @@ class CanvasDocument extends ChangeNotifier {
   void dispose() {
     _disposeImages();
     objectCount.dispose();
+    outsideBoardCount.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
     snapGuides.dispose();

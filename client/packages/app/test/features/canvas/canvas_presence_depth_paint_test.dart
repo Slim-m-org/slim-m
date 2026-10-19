@@ -140,6 +140,7 @@ void main() {
                   onPasteImage: () {},
                   onPasteImageAt: (_) {},
                   onRecenter: () {},
+                  onBringIntoBoard: () {},
                   error: null,
                   onDismissError: () {},
                   truncated: false,

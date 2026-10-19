@@ -40,6 +40,7 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
               onPasteImage: () {},
               onPasteImageAt: (_) {},
               onRecenter: () {},
+              onBringIntoBoard: () {},
               error: error,
               onDismissError: () {},
               truncated: false,

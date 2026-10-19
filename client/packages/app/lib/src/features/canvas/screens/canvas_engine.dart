@@ -139,7 +139,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// closing and reopening the canvas re-fetches rather than remembering -
   /// harmless, since the server is the real source of truth either way.
   final CanvasPresenceTileOverrides tileOverrides =
-      CanvasPresenceTileOverrides();
+      CanvasPresenceTileOverrides()..board = canvasBoard;
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),

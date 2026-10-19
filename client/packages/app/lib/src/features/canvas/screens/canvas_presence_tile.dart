@@ -146,7 +146,9 @@ class _CanvasPresenceManipulableTileState
   }
 
   void _drag(DragUpdateDetails details) {
-    final next = _rect.shift(details.delta / widget.camera.zoom);
+    final next = widget.document.placeOnBoard(
+      _rect.shift(details.delta / widget.camera.zoom),
+    );
     setState(() => _liveRect = next);
     widget.onRectChanged(next);
   }
@@ -162,7 +164,9 @@ class _CanvasPresenceManipulableTileState
       canvasPresenceTileMinSize.height,
       canvasPresenceTileMaxSize.height,
     );
-    final next = Rect.fromLTWH(current.left, current.top, width, height);
+    final next = widget.document.placeOnBoard(
+      Rect.fromLTWH(current.left, current.top, width, height),
+    );
     setState(() => _liveRect = next);
     widget.onRectChanged(next);
   }
