@@ -143,6 +143,9 @@ class MessageRow extends ConsumerWidget {
     final marker = grouped
         ? ref.watch(continuationMarkerControllerProvider)
         : ContinuationMarker.none;
+    final headMarker = !grouped && groupContinues
+        ? ref.watch(continuationMarkerControllerProvider)
+        : ContinuationMarker.none;
     final marked = marker != ContinuationMarker.none;
     // Without a body there is no line to end on, so the gutter keeps the time.
     final inlineTime =
@@ -156,6 +159,7 @@ class MessageRow extends ConsumerWidget {
           compact: compact,
           gutter: gutter,
           marker: marker,
+          headMarker: headMarker,
           inlineTime: inlineTime,
           hovered: hovered,
           menuOpen: menuOpen,
@@ -204,6 +208,15 @@ class MessageRow extends ConsumerWidget {
               color: _fillColor(v),
             ),
           ),
+          if (v.headMarker != ContinuationMarker.none)
+            ContinuationHeadRail(
+              geometry: ContinuationGeometry.of(
+                context,
+                gutter: v.gutter,
+                density: v.density,
+                groupSpacing: v.groupSpacing,
+              ),
+            ),
           if (v.marked)
             ContinuationRail(
               marker: v.marker,
@@ -334,6 +347,7 @@ class _RowView {
     required this.compact,
     required this.gutter,
     required this.marker,
+    required this.headMarker,
     required this.inlineTime,
     required this.hovered,
     required this.menuOpen,
@@ -346,6 +360,7 @@ class _RowView {
   final bool compact;
   final double gutter;
   final ContinuationMarker marker;
+  final ContinuationMarker headMarker;
   final bool inlineTime;
   final bool hovered;
   final bool menuOpen;
