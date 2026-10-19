@@ -290,7 +290,9 @@ class _ComposerPhotoStripState extends ConsumerState<ComposerPhotoStrip>
                 ),
               Expanded(
                 child: switch (access) {
-                  null => const Center(child: CircularProgressIndicator()),
+                  null => const Center(
+                    child: AppSpinner(size: AppSpinnerSize.lg),
+                  ),
                   PhotoAccess.denied => SingleChildScrollView(
                     child: _denied(tokens),
                   ),

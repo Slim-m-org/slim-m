@@ -314,7 +314,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
 
     return storeAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (e, _) =>
           const Center(child: Text('Could not open the local store.')),
       data: (store) => StreamBuilder<Channel?>(

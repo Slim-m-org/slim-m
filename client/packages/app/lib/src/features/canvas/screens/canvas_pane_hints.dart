@@ -40,14 +40,9 @@ class CanvasLoadingHint extends StatelessWidget {
     child: IgnorePointer(
       child: ExcludeSemantics(
         child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: tokens.textSecondary,
-              value: AppMotion.isReduced(context) ? 0.75 : null,
-            ),
+          child: AppSpinner(
+            size: AppSpinnerSize.lg,
+            color: tokens.textSecondary,
           ),
         ),
       ),

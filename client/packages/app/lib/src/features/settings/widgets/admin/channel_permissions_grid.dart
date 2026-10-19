@@ -342,7 +342,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         !rolesAsync.hasValue ||
         !membersAsync.hasValue) {
       return _loadFailure(overwritesAsync, rolesAsync, membersAsync) ??
-          const Center(child: CircularProgressIndicator());
+          const Center(child: AppSpinner(size: AppSpinnerSize.lg));
     }
 
     _seedFrom(overwritesAsync.requireValue);

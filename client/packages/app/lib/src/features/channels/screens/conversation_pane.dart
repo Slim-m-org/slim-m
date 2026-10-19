@@ -60,7 +60,7 @@ class ConversationPane extends ConsumerWidget {
     final storeAsync = ref.watch(storeProvider);
 
     return storeAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),

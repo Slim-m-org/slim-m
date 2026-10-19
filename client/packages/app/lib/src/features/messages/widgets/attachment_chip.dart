@@ -90,11 +90,7 @@ class _AttachmentChipState extends ConsumerState<AttachmentChip>
                       ),
                       const SizedBox(width: AppSpacing.s8),
                       saving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const AppSpinner(size: AppSpinnerSize.sm)
                           : Icon(
                               AppIcons.download,
                               size: AppSizes.icon16,
