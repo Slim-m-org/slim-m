@@ -38,9 +38,10 @@ impl PresenceGuard {
         store: Store,
         user_id: UserId,
         device_id: DeviceId,
+        active: bool,
     ) -> Self {
         let kind = store.device_kind(device_id).await;
-        let first = hub.presence().connect_as(user_id, kind);
+        let first = hub.presence().connect_as(user_id, kind, active);
         // Fill the cache without clobbering a concurrent visibility change (see load_visibility).
         if let Ok(Some(visibility)) = store.presence_visibility(user_id).await {
             hub.presence().load_visibility(user_id, visibility);

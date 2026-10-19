@@ -15712,6 +15712,7 @@ components:
       oneOf:
         - $ref: "#/components/schemas/ClientHello"
         - $ref: "#/components/schemas/ClientPing"
+        - $ref: "#/components/schemas/ClientActive"
         - $ref: "#/components/schemas/ClientTyping"
         - $ref: "#/components/schemas/ClientViewing"
         - $ref: "#/components/schemas/ClientCanvasCursor"
@@ -15732,6 +15733,13 @@ components:
           type: integer
           format: int32
           description: Must match the server's protocol version.
+        active:
+          type: boolean
+          description: >
+            Present when this client reports activity with `active` frames, and
+            then says whether the person is at the device right now. With it,
+            pings never reset the idle clock, and false keeps a reconnect
+            after sleep from counting as use. Absent keeps ping-based presence.
 
     ClientPing:
       type: object
@@ -15740,6 +15748,20 @@ components:
         type:
           type: string
           enum: [ping]
+
+    ClientActive:
+      type: object
+      required: [type]
+      description: >
+        The person used this device recently. A client sends it at most about
+        once a minute while they do. Once a connection has sent one, or said
+        `active` in its hello, its pings no longer reset the idle clock, so an
+        unattended client shows away after ten minutes; a client that does
+        neither keeps ping-based presence.
+      properties:
+        type:
+          type: string
+          enum: [active]
 
     ClientTyping:
       type: object
