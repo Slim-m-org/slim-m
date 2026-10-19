@@ -93,7 +93,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.textContaining('not coming through'), findsOneWidget);
+    expect(find.textContaining('sending no sound'), findsOneWidget);
     await _leave(tester);
   });
 

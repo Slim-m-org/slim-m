@@ -4,11 +4,14 @@
 /// published to the room.
 library;
 
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lounge_tracks.dart';
 import 'releasable_player.dart';
+import 'sound_output_router.dart';
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 
 abstract class HoldMusicPlayer {
@@ -31,6 +34,10 @@ abstract class HoldLoopOutput {
 }
 
 class _AudioPlayersOutput implements HoldLoopOutput {
+  _AudioPlayersOutput(this._afterPlay);
+
+  final Future<void> Function()? _afterPlay;
+
   /// Built on first use and disposed on every stop, so an idle app holds no native player.
   final _player = ReleasablePlayer<AudioPlayer>(
     AudioPlayer.new,
@@ -47,6 +54,7 @@ class _AudioPlayersOutput implements HoldLoopOutput {
       volume: holdMusicVolume,
       ctx: AudioPlayersSoundPlayer.sharedAmbientContext,
     );
+    unawaited(_afterPlay?.call());
   }
 
   @override
@@ -57,8 +65,10 @@ class _AudioPlayersOutput implements HoldLoopOutput {
 }
 
 class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
-  AudioPlayersHoldMusicPlayer({HoldLoopOutput? output})
-    : _output = output ?? _AudioPlayersOutput();
+  AudioPlayersHoldMusicPlayer({
+    HoldLoopOutput? output,
+    Future<void> Function()? afterPlay,
+  }) : _output = output ?? _AudioPlayersOutput(afterPlay);
 
   final HoldLoopOutput _output;
   LoungeTrack _track = LoungeTrack.lofi;
@@ -103,7 +113,10 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
 }
 
 final holdMusicPlayerProvider = Provider<HoldMusicPlayer>((ref) {
-  final player = AudioPlayersHoldMusicPlayer();
+  final router = ref.read(soundOutputRouterProvider);
+  final player = AudioPlayersHoldMusicPlayer(
+    afterPlay: router.followChosenOutput,
+  );
   ref.onDispose(player.dispose);
   return player;
 });

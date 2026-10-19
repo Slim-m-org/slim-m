@@ -188,7 +188,7 @@ void main() {
       );
       expect(callStatsStreamLines(layer, local: true), [
         'layer f  1280x720 at 15 fps  0.90 Mbps of 1.70 Mbps',
-        'limited by bandwidth  3 size changes',
+        'lowered automatically, the connection cannot carry more  3 size changes',
       ]);
     });
 

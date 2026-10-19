@@ -8,7 +8,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -24,7 +23,9 @@ import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
 import 'voice_call_lifecycle_report.dart';
+import 'mic_failure_advice.dart';
 import 'voice_camera_failure.dart';
+import 'voice_deafen_publish.dart';
 import 'voice_camera_preference.dart';
 import 'voice_join_muted.dart';
 import '../widgets/video_health_overlay.dart';
@@ -375,10 +376,11 @@ class VoiceController extends StateNotifier<VoiceState>
     if (generation != _callGeneration) return;
     // Reflects what happened rather than what was asked for, so the button
     // never claims a microphone is open when the SFU refused the track.
+    final error = got ? null : micRefusalError(_micVerb(want), micFailure);
     state = state.copyWith(
       microphoneEnabled: got ? want : state.microphoneEnabled,
-      error: got ? null : 'Could not ${_micVerb(want)} the microphone.',
-      clearError: got,
+      error: error,
+      clearError: error == null,
     );
   }
 
@@ -440,6 +442,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final want = !state.deafened;
     final got = await _session.setDeafened(want);
     if (generation != _callGeneration) return;
+    if (got) unawaited(publishDeafenedState(want));
     state = state.copyWith(
       deafened: got ? want : state.deafened,
       error: got ? null : 'Could not ${_deafenVerb(want)}.',
@@ -451,11 +454,6 @@ class VoiceController extends StateNotifier<VoiceState>
   /// screens to choose from. Enumerating is also what makes the capture that
   /// follows able to find anything, so it happens even for a single screen.
   bool get screenShareNeedsSource => _session.screenShareNeedsSource;
-
-  /// See [ShareLimitMonitor]; set while our own share is held back.
-  ValueListenable<ShareLimit?> get shareLimit => _session.shareLimit.limit;
-
-  void dismissShareLimit() => _session.shareLimit.dismiss();
 
   /// See [VoiceSession.screenShareSourcePickerUseful].
   bool get screenShareSourcePickerUseful =>
