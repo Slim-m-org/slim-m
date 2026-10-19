@@ -360,6 +360,11 @@ impl Hub {
         }
     }
 
+    /// Events the slowest durable subscriber has not yet taken off the channel.
+    pub fn durable_backlog(&self) -> usize {
+        self.sender.len()
+    }
+
     /// The number of the latest moderation event, for the connect `hello`; see
     /// `hub::moderation_seq`.
     pub fn moderation_head(&self) -> u64 {
