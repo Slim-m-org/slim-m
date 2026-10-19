@@ -21,9 +21,11 @@ Ask them for both before you start.
 
 ## The browser, which needs no install
 
-If the space runs the web client, open its address in any browser and sign in.
+If the space runs the web client, it is served at the `/app` path of the space's address, for example `https://your-server-host/app`.
+Open that in any browser and sign in.
 Nothing to download, nothing to update, and it works on a phone.
 
+An invite link opened in a browser also offers "Open in browser" when the space serves the web client.
 Whether a space offers this is up to whoever runs it, so ask.
 If they say yes, this is the easiest way in by a wide margin and you can stop reading here.
 
