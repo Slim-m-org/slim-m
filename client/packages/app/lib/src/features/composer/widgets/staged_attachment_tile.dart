@@ -207,14 +207,7 @@ class _AttachmentThumbnail extends StatelessWidget {
             ),
           ),
           if (attachment is UploadingAttachment)
-            _scrim(
-              tokens,
-              child: const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
+            _scrim(tokens, child: const AppSpinner(size: AppSpinnerSize.sm)),
           if (spoiler && attachment is UploadedAttachment)
             _scrim(
               tokens,

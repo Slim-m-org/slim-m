@@ -118,11 +118,7 @@ class _AppSurfaceViewState extends ConsumerState<AppSurfaceView> {
             else
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
-                child: SizedBox(
-                  width: AppSizes.icon20,
-                  height: AppSizes.icon20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                child: AppSpinner(size: AppSpinnerSize.md),
               ),
           ],
         ),

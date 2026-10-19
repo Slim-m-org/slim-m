@@ -149,12 +149,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
                     name: me?.displayName ?? '',
                     size: _avatarSize,
                   ),
-                  if (_busy)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                  if (_busy) const AppSpinner(size: AppSpinnerSize.md),
                 ],
               ),
             ),

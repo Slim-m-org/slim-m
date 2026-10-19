@@ -314,7 +314,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.s24),
-          child: CircularProgressIndicator(strokeWidth: 2),
+          child: AppSpinner(size: AppSpinnerSize.lg),
         ),
       );
     }
@@ -405,13 +405,7 @@ class _GifTile extends ConsumerWidget {
                     ),
                   ),
                   AsyncError() => const SizedBox.shrink(),
-                  _ => const Center(
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
+                  _ => const Center(child: AppSpinner(size: AppSpinnerSize.sm)),
                 },
                 if (selecting)
                   DecoratedBox(
@@ -419,11 +413,7 @@ class _GifTile extends ConsumerWidget {
                       color: tokens.surfaceBase.withValues(alpha: 0.65),
                     ),
                     child: const Center(
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
+                      child: AppSpinner(size: AppSpinnerSize.md),
                     ),
                   ),
               ],

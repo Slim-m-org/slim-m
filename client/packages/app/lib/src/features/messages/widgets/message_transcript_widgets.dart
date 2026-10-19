@@ -176,11 +176,7 @@ class HistoryTopAffordance extends StatelessWidget {
           ? Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+                const AppSpinner(size: AppSpinnerSize.sm),
                 const SizedBox(width: AppSpacing.s8),
                 Text(
                   'Loading earlier messages...',
@@ -274,11 +270,7 @@ class EmptyMessages extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            const AppSpinner(size: AppSpinnerSize.md),
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Catching up on messages...',

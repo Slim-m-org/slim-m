@@ -9,8 +9,8 @@
 /// one.
 ///
 /// A member's first role becomes a badge. `@everyone` is excluded server-side,
-/// so an empty list means no badge rather than no data. There is still no
-/// in-voice flag on a profile, so the design's speaker glyph is left off.
+/// so an empty list means no badge rather than no data. The in-call chip is
+/// derived from the voice rosters by `MemberVoiceChip`, not read off a profile.
 ///
 /// The roster is `channelMembersProvider`, narrowed server-side to who holds
 /// VIEW_CHANNEL in [AppMemberPane.channelId]. It used to be the whole
@@ -115,9 +115,8 @@ class AppMemberPane extends ConsumerWidget {
           ),
           Expanded(
             child: membersAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              loading: () =>
+                  const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
               error: (error, _) => _MembersError(
                 error: error,
                 onRetry: () => channelId == null
