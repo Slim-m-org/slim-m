@@ -180,7 +180,7 @@ class OtherMemberCard extends ConsumerStatefulWidget {
   final Widget? localAudio;
   final String? callChannelName;
 
-  /// The channel whose roster this card opened from, for the "In #channel" rows.
+  /// The channel whose roster this card opened from, for "Remove from #channel".
   final String? channelId;
   final ScaffoldState? memberPaneScaffold;
 
@@ -307,7 +307,6 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
   }
 
   Widget _channelSection(String channelName) => _Section([
-    AppMenuLabel('In #$channelName'),
     MemberRemoveFromChannelItem(
       channelId: widget.channelId!,
       profile: widget.profile,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The two member card layouts: someone else's (Message and Add note up top,
-/// "In #channel" removal when opened from a channel you manage) and your own
+/// "Remove from #channel" when opened from a channel you manage) and your own
 /// (activity, then Set status, Copy username, Profile settings), at popover
 /// and phone width, in both themes.
 library;
@@ -201,21 +201,22 @@ void main() {
       expect(find.text('Message'), findsOneWidget);
     });
 
-    testWidgets('opened from a channel, the In #channel section appears', (
-      tester,
-    ) async {
-      await _pump(
-        tester,
-        _harness(
-          (_) => _card(channelId: _channelId),
-          channelPermissions: Perm.manageRoles,
-        ),
-      );
+    testWidgets(
+      'opened from a channel, Remove from #channel appears unlabelled',
+      (tester) async {
+        await _pump(
+          tester,
+          _harness(
+            (_) => _card(channelId: _channelId),
+            channelPermissions: Perm.manageRoles,
+          ),
+        );
 
-      expect(find.text('IN #VOICE'), findsOneWidget);
-      expect(find.text('Notify me off hours'), findsOneWidget);
-      expect(find.text('Remove from #voice'), findsOneWidget);
-    });
+        expect(find.textContaining('IN #'), findsNothing);
+        expect(find.text('Notify me off hours'), findsOneWidget);
+        expect(find.text('Remove from #voice'), findsOneWidget);
+      },
+    );
 
     testWidgets('without a channel context there is no channel section', (
       tester,

@@ -23,6 +23,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -53,6 +54,13 @@ ProviderContainer _container() {
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
+      markUnreadClockProvider.overrideWithValue(
+        () => DateTime(2026, 10, 19, 12),
+      ),
+      channelLatestMessageAtProvider.overrideWith(
+        (ref, key) async =>
+            DateTime(2026, 10, 19, 11, 55).millisecondsSinceEpoch,
+      ),
       databaseProvider.overrideWith((ref) async {
         ref.onDispose(db.close);
         return db;

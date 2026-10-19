@@ -82,7 +82,7 @@ void main() {
 
     expect(find.text('Create channel'), findsOneWidget);
     expect(find.text('Create category'), findsOneWidget);
-    expect(find.text('Move up'), findsNothing);
+    expect(find.text('Mute channel'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
 
@@ -91,7 +91,7 @@ void main() {
 
     await _hold(tester, tester.getCenter(find.text('general')));
 
-    expect(find.text('Move up'), findsOneWidget);
+    expect(find.text('Mute channel'), findsOneWidget);
     expect(find.text('Create channel'), findsNothing);
     expect(find.text('Create category'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
@@ -114,7 +114,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Create channel'), findsNothing);
-    expect(find.text('Move up'), findsNothing);
+    expect(find.text('Mute channel'), findsNothing);
     await teardownFixture(tester, fixture.container, fixture.db);
   });
 

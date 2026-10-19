@@ -147,7 +147,7 @@ void main() {
     await _liftAndRelease(tester, find.text('a-1'));
     expect(reports, isEmpty, reason: 'released in place moves nothing');
     expect(find.text('Channel settings...'), findsOneWidget);
-    expect(find.text('Move up'), findsOneWidget);
+    expect(find.text('Mute channel'), findsOneWidget);
   });
 
   testWidgets('a held press on a header opens the category sheet', (

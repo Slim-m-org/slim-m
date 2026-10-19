@@ -30,7 +30,6 @@ import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../screens/channel_settings_screen.dart';
 import '../providers/channel_notification_overrides_controller.dart';
-import 'channel_move.dart';
 import 'channel_rail.dart' show selectedChannelId;
 import 'row_menu_notifications.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
@@ -51,9 +50,8 @@ List<Widget> channelRowMenuItems(
   BuildContext context,
   VoidCallback close,
   Channel channel,
-  bool canManage, {
-  ChannelMoveActions? move,
-}) {
+  bool canManage,
+) {
   final container = ProviderScope.containerOf(context, listen: false);
   // Coarse deployment-wide gate like the channel-manage one; the overwrite screen re-checks this channel's own MANAGE_ROLES on open.
   final canManageRoles =
@@ -82,7 +80,7 @@ List<Widget> channelRowMenuItems(
         }
       },
     ),
-    markReadStateMenuItem(context, container, channel, close, isDm: false),
+    ?markReadStateMenuItem(context, container, channel, close, isDm: false),
     const AppMenuDivider(),
     ...notificationMenuItems(
       context,
@@ -92,22 +90,6 @@ List<Widget> channelRowMenuItems(
       muteLabel: 'Mute channel',
       channelDefault: channelDefaultOf(channel),
     ),
-    if (canManage && move != null) ...[
-      const AppMenuDivider(),
-      for (final (label, icon, delta) in [
-        ('Move up', AppIcons.moveUp, -1),
-        ('Move down', AppIcons.moveDown, 1),
-      ])
-        if (move.canMove(delta))
-          AppMenuItem(
-            label: label,
-            leading: icon,
-            onTap: () {
-              close();
-              move.move(delta);
-            },
-          ),
-    ],
     if (canEditRoom(
       channel,
       container.read(sessionProvider).tokens?.userId,
