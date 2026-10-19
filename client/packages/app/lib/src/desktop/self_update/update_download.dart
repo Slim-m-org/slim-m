@@ -20,6 +20,9 @@ typedef FreeSpace = Future<int?> Function(Directory directory);
 
 const _maxAttempts = 3;
 
+/// How long a connection may stay silent before the attempt counts as failed.
+const downloadStallTimeout = Duration(seconds: 30);
+
 /// Free bytes via `df` or PowerShell; null when the tool is missing or odd.
 Future<int?> freeSpaceOf(Directory directory) async {
   try {
@@ -55,6 +58,7 @@ Future<File> downloadArtifact({
   required Directory stagingDir,
   required http.Client client,
   FreeSpace freeSpace = freeSpaceOf,
+  Duration stall = downloadStallTimeout,
 }) async {
   try {
     await stagingDir.create(recursive: true);
@@ -75,7 +79,7 @@ Future<File> downloadArtifact({
   }
   final name = p.basename(artifact.url.path);
   final part = File(p.join(stagingDir.path, '$name.part'));
-  await _fillPart(artifact, part, client);
+  await _fillPart(artifact, part, client, stall);
   await _verifyOrDiscard(artifact, part);
   try {
     return await part.rename(p.join(stagingDir.path, name));
@@ -92,11 +96,12 @@ Future<void> _fillPart(
   UpdateArtifact artifact,
   File part,
   http.Client client,
+  Duration stall,
 ) async {
   Object? last;
   for (var attempt = 0; attempt < _maxAttempts; attempt++) {
     try {
-      await _fetchFrom(artifact, part, client);
+      await _fetchFrom(artifact, part, client, stall);
       return;
     } on SelfUpdateFailure {
       rethrow;
@@ -116,6 +121,7 @@ Future<void> _fetchFrom(
   UpdateArtifact artifact,
   File part,
   http.Client client,
+  Duration stall,
 ) async {
   var have = await part.exists() ? await part.length() : 0;
   if (have > artifact.size) {
@@ -125,7 +131,7 @@ Future<void> _fetchFrom(
   if (have == artifact.size) return;
   final request = http.Request('GET', artifact.url);
   if (have > 0) request.headers['Range'] = 'bytes=$have-';
-  final response = await client.send(request);
+  final response = await client.send(request).timeout(stall);
   if (response.statusCode != 200 && response.statusCode != 206) {
     throw HttpException('status ${response.statusCode}', uri: artifact.url);
   }
@@ -133,7 +139,7 @@ Future<void> _fetchFrom(
   final sink = part.openWrite(mode: resumed ? FileMode.append : FileMode.write);
   var written = resumed ? have : 0;
   try {
-    await for (final chunk in response.stream) {
+    await for (final chunk in response.stream.timeout(stall)) {
       written += chunk.length;
       if (written > artifact.size) break;
       sink.add(chunk);

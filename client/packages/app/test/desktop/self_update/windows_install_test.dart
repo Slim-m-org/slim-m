@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/self_update/install_fs.dart';
 import 'package:slimm_app/src/desktop/self_update/linux_install.dart'
     show Unpack;
 import 'package:slimm_app/src/desktop/self_update/self_update.dart';
@@ -54,6 +55,18 @@ Future<void> _install(
   layout: WindowsInstallLayout(root),
   unpack: unpack,
 );
+
+RenameDirectory _lockedFor(int times, List<int> calls, {int code = 32}) {
+  return (from, to) async {
+    calls.add(calls.length);
+    if (calls.length <= times) {
+      throw FileSystemException('locked', from.path, OSError('', code));
+    }
+    await from.rename(to);
+  };
+}
+
+const _noWait = [Duration.zero, Duration.zero, Duration.zero];
 
 void main() {
   late Directory root;
@@ -229,6 +242,64 @@ void main() {
         detectWindowsLayout('${local.path}/app-0.88.0/slimm_app.exe'),
         isNull,
       );
+    });
+  });
+
+  group('a directory rename held by a scanner', () {
+    test('is retried until the lock lets go', () async {
+      final calls = <int>[];
+      await installWindowsUpdate(
+        update: _update(root, '0.89.0'),
+        format: InstallFormat.tarball,
+        layout: layout,
+        unpack: _fakeUnpack,
+        rename: _lockedFor(2, calls),
+        backoff: _noWait,
+      );
+      expect(calls, hasLength(3));
+      expect(_read(root, 'current'), '0.89.0');
+    });
+
+    test(
+      'that never lets go fails the install and keeps the old version',
+      () async {
+        final calls = <int>[];
+        await expectLater(
+          installWindowsUpdate(
+            update: _update(root, '0.89.0'),
+            format: InstallFormat.tarball,
+            layout: layout,
+            unpack: _fakeUnpack,
+            rename: _lockedFor(99, calls),
+            backoff: _noWait,
+          ),
+          throwsA(
+            isA<SelfUpdateFailure>().having(
+              (e) => e.kind,
+              'kind',
+              SelfUpdateFailureKind.installFailed,
+            ),
+          ),
+        );
+        expect(calls, hasLength(_noWait.length + 1));
+        expect(_read(root, 'current'), '0.88.0');
+      },
+    );
+
+    test('with another error is not retried', () async {
+      final calls = <int>[];
+      await expectLater(
+        installWindowsUpdate(
+          update: _update(root, '0.89.0'),
+          format: InstallFormat.tarball,
+          layout: layout,
+          unpack: _fakeUnpack,
+          rename: _lockedFor(99, calls, code: 2),
+          backoff: _noWait,
+        ),
+        throwsA(isA<SelfUpdateFailure>()),
+      );
+      expect(calls, hasLength(1));
     });
   });
 

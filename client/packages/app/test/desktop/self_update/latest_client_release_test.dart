@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:slimm_app/src/desktop/self_update/latest_client_release.dart';
 import 'package:slimm_app/src/desktop/self_update/self_update.dart';
 import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_platform/platform.dart';
@@ -41,6 +42,8 @@ final _unfinished = [
 ];
 
 void main() {
+  setUp(forgetLatestClientRelease);
+
   test(
     'the check skips a release whose manifest is not attached yet',
     () async {
@@ -114,5 +117,49 @@ void main() {
       isTrue,
     );
     expect(thrown, isNotNull);
+  });
+
+  test('the install reuses the release the check just found', () async {
+    final staging = Directory.systemTemp.createTempSync('slimm-latest-');
+    addTearDown(() => staging.deleteSync(recursive: true));
+    var listings = 0;
+    final client = MockClient((request) async {
+      if (request.url.host == 'api.github.com') {
+        listings++;
+        return http.Response(jsonEncode(_unfinished), 200);
+      }
+      return http.Response('Not Found', 404);
+    });
+    await checkForClientUpdate(
+      currentVersion: '9.9.0',
+      client: client,
+      format: InstallFormat.tarball,
+      failedVersion: '0.0.0',
+    );
+    await fetchVerifiedUpdate(
+      currentVersion: '9.9.0',
+      platformKey: 'linux-x64',
+      stagingDir: staging,
+      client: client,
+    ).then<void>((_) {}, onError: (_) {});
+    expect(listings, 1);
+  });
+
+  test('a release found long ago is looked up again', () {
+    const found = ClientRelease(
+      tag: 'client-v1.2.3',
+      version: '1.2.3',
+      htmlUrl: null,
+    );
+    final then = DateTime(2026, 1, 1, 12);
+    rememberLatestClientRelease(found, now: then);
+    expect(
+      recentLatestClientRelease(now: then.add(const Duration(minutes: 9)))?.tag,
+      'client-v1.2.3',
+    );
+    expect(
+      recentLatestClientRelease(now: then.add(const Duration(minutes: 11))),
+      isNull,
+    );
   });
 }

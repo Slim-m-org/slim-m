@@ -18,9 +18,21 @@ New-Item -ItemType Directory -Force $root | Out-Null
 
 $unpack = Join-Path $root ".unpack-$version"
 $target = Join-Path $root "app-$version"
-Remove-Item -Recurse -Force $unpack -ErrorAction SilentlyContinue
+$closeFirst = "could not replace $target; close slim-m (including its tray icon) and run this again"
+
+function Remove-Folder($path) {
+  if (-not (Test-Path $path)) { return }
+  try {
+    Remove-Item -Recurse -Force $path -ErrorAction Stop
+  } catch {
+    throw $closeFirst
+  }
+  if (Test-Path $path) { throw $closeFirst }
+}
+
+Remove-Folder $unpack
 Copy-Item -Recurse $here $unpack
-Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
+Remove-Folder $target
 Move-Item $unpack $target
 
 Copy-Item (Join-Path $here 'slim-m.exe') (Join-Path $root 'slim-m.exe') -Force

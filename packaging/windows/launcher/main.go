@@ -21,7 +21,8 @@ func main() {
 	root := locate(self)
 	restoreLauncher(root, self)
 	running := instanceRunning(root)
-	dir, err := choose(root)
+	relaunch := isRelaunch(os.Args[1:])
+	dir, err := choose(root, relaunch)
 	if err != nil {
 		fail(err.Error())
 	}
@@ -33,7 +34,7 @@ func main() {
 		fail(err.Error())
 	}
 	// Only the first instance is recorded: a second one exits at once and must not hide it.
-	if !running {
+	if shouldRecordPid(running, relaunch) {
 		_ = write(root, "running.pid", strconv.Itoa(pid))
 	}
 }

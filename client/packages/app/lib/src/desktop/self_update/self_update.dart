@@ -129,6 +129,8 @@ Future<VerifiedUpdate?> fetchVerifiedUpdateWith({
 }
 
 Future<String?> _latestClientTag(http.Client client) async {
+  final recent = recentLatestClientRelease();
+  if (recent != null) return recent.tag;
   final bytes = await _getBytes(
     client,
     Uri.parse(

@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/self_update/install_fs.dart';
 import 'package:slimm_app/src/desktop/self_update/self_update_failure.dart';
 import 'package:slimm_app/src/desktop/self_update/windows_adopt.dart';
 import 'package:slimm_app/src/desktop/self_update/windows_layout.dart';
@@ -10,6 +11,18 @@ String? _read(Directory root, String name) {
   final file = File('${root.path}/$name');
   return file.existsSync() ? file.readAsStringSync() : null;
 }
+
+RenameDirectory _lockedFor(int times, List<int> calls, {int code = 32}) {
+  return (from, to) async {
+    calls.add(calls.length);
+    if (calls.length <= times) {
+      throw FileSystemException('locked', from.path, OSError('', code));
+    }
+    await from.rename(to);
+  };
+}
+
+const _noWait = [Duration.zero, Duration.zero, Duration.zero];
 
 void main() {
   late Directory temp;
@@ -133,5 +146,19 @@ void main() {
       ),
     );
     expect(_read(root, 'current'), isNull);
+  });
+
+  test('retries a directory rename a scanner is holding', () async {
+    final calls = <int>[];
+    await adoptWindowsInstall(
+      executable: executable,
+      version: '0.90.0',
+      root: root,
+      createShortcut: fakeShortcut,
+      rename: _lockedFor(2, calls),
+      backoff: _noWait,
+    );
+    expect(calls, hasLength(3));
+    expect(_read(root, 'current'), '0.90.0');
   });
 }
