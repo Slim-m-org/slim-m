@@ -48,6 +48,7 @@ import 'row_menu_notifications.dart';
 import '../../members/widgets/safety_actions.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../providers/channel_latest_message_at.dart';
+import 'channel_notifications_menu.dart';
 
 /// [channel] is never the caller's own personal space: that DM-shaped row is
 /// [PersonalSpaceRow], reached separately, since a self-conversation has no
@@ -92,7 +93,7 @@ class DmRow extends ConsumerWidget {
         ),
       ?markReadStateMenuItem(context, container, channel, close, isDm: true),
       const AppMenuDivider(),
-      ...notificationMenuItems(
+      notificationsMenuItem(
         context,
         container,
         channel.id,
@@ -165,6 +166,7 @@ class DmRow extends ConsumerWidget {
       itemsBuilder: (menuContext, close) => _menuItems(menuContext, ref, close),
       // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
       ownsFocusNode: false,
+      menuWidth: 240,
       child: AppListRow(
         label: channel.name,
         selected: selected,

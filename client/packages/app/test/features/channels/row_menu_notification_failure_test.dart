@@ -123,6 +123,10 @@ Future<void> _failEntry(
     kind: PointerDeviceKind.mouse,
   );
   await tester.pumpAndSettle();
+  if (label != 'Mark as unread') {
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
+  }
   await tester.tap(find.text(label));
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 200)),

@@ -34,6 +34,7 @@ import 'channel_rail.dart' show selectedChannelId;
 import 'row_menu_notifications.dart';
 import '../../voice/widgets/voice_channel_tap.dart';
 import '../../voice/widgets/voice_room_settings_sheet.dart';
+import 'channel_notifications_menu.dart';
 
 /// Opening it always, muting it or narrowing it to mentions only (the same
 /// two toggles the header used to duplicate until 2026-08-13, tapping the
@@ -82,7 +83,7 @@ List<Widget> channelRowMenuItems(
     ),
     ?markReadStateMenuItem(context, container, channel, close, isDm: false),
     const AppMenuDivider(),
-    ...notificationMenuItems(
+    notificationsMenuItem(
       context,
       container,
       channel.id,

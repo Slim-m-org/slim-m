@@ -125,7 +125,7 @@ Future<void> _openMenu(WidgetTester tester) => tester.tapAt(
 
 void main() {
   testWidgets(
-    'a right-click offers Open, Close DM, Mute, Mentions only, Report user and Block',
+    'a right-click offers Open, Close DM, Notifications, Report user and Block',
     (tester) async {
       final channel = _dm('dm-1', 'Priya', 'user-priya');
       final container = _container();
@@ -138,8 +138,8 @@ void main() {
 
       expect(find.text('Open'), findsOneWidget);
       expect(find.text('Close DM'), findsOneWidget);
-      expect(find.text('Mute'), findsOneWidget);
-      expect(find.text('Mentions only'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Mute'), findsNothing);
       expect(find.text('Report user'), findsOneWidget);
       expect(find.text('Block'), findsOneWidget);
       expect(find.text('Unblock'), findsNothing);
@@ -196,6 +196,8 @@ void main() {
 
     await _openMenu(tester);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mute'));
     await tester.pumpAndSettle();
 
@@ -219,6 +221,8 @@ void main() {
     await tester.pump();
 
     await _openMenu(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Notifications'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Mute'));
     await tester.pumpAndSettle();

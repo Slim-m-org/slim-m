@@ -98,6 +98,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
       return ContextMenuRegion(
         itemsBuilder: _menuItems,
         ownsFocusNode: false,
+        menuWidth: 240,
         child: widget.row(null),
       );
     }
@@ -109,6 +110,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
         key: _menuKey,
         itemsBuilder: _menuItems,
         ownsFocusNode: false,
+        menuWidth: 240,
         enableLongPress: enableLongPress,
         child: Semantics(
           onLongPress: () => _menuKey.currentState?.open(),
@@ -158,6 +160,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
       key: _menuKey,
       itemsBuilder: _menuItems,
       ownsFocusNode: false,
+      menuWidth: 240,
       enableLongPress: enableLongPress,
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
