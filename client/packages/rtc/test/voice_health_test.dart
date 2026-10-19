@@ -117,6 +117,20 @@ void main() {
       expect(sample.rttMs, closeTo(42, 1e-9));
     });
 
+    test('reads a native report whose numbers arrive as strings', () {
+      final sample = parseAudioReceive(const [
+        StatsEntry(type: 'inbound-rtp', id: 'i', values: {
+          'mediaType': 'audio',
+          'concealedSamples': '480',
+          'totalSamplesReceived': '96000',
+          'jitterBufferDelay': '3.84',
+          'jitterBufferEmittedCount': '96000',
+        }),
+      ]);
+      expect(sample!.concealedSamples, 480);
+      expect(sample.samples, 96000);
+    });
+
     test('reads the publisher counters and the far end view of them', () {
       final sample = parseAudioSend(const [
         StatsEntry(type: 'outbound-rtp', id: 'o', timestampMs: 5000, values: {

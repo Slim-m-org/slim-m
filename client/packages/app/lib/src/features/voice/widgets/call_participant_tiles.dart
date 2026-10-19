@@ -214,7 +214,12 @@ class CallParticipantTile extends StatelessWidget {
         Positioned(
           right: AppSpacing.s8,
           top: AppSpacing.s8,
-          child: _StateBadge(participant: participant),
+          child: _StateBadge(
+            participant: participant,
+            stacked:
+                !_showsCamera &&
+                _badgesReachAvatar(width, avatarSize, participant),
+          ),
         ),
       ],
     );
@@ -281,6 +286,14 @@ String _poorLabel(VoiceParticipant p) =>
     p.isLocal ? 'your connection is unstable' : 'connection is unstable';
 
 /// Top-left, away from the state badges, so a tile that has several never covers its avatar.
+const double _kBadgeSize = 22;
+
+bool _badgesReachAvatar(double width, double avatarSize, VoiceParticipant p) {
+  final count = p.isDeafened ? 2 : 1;
+  final row = count * _kBadgeSize + (count - 1) * AppSpacing.s4;
+  return width - AppSpacing.s8 - row < (width + avatarSize) / 2;
+}
+
 class _PoorConnectionBadge extends StatelessWidget {
   const _PoorConnectionBadge({required this.participant});
 
@@ -312,9 +325,12 @@ class _PoorConnectionBadge extends StatelessWidget {
 }
 
 class _StateBadge extends StatelessWidget {
-  const _StateBadge({required this.participant});
+  const _StateBadge({required this.participant, required this.stacked});
 
   final VoiceParticipant participant;
+
+  /// Badges stack in a column when a row of them would run under the avatar.
+  final bool stacked;
 
   @override
   Widget build(BuildContext context) {
@@ -328,7 +344,8 @@ class _StateBadge extends StatelessWidget {
       size: 12,
       color: participant.isMuted ? tokens.textSecondary : tokens.accent,
     );
-    return Row(
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
       mainAxisSize: MainAxisSize.min,
       spacing: AppSpacing.s4,
       children: [
