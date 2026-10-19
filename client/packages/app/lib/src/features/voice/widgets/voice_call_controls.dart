@@ -73,9 +73,13 @@ class CallControls extends ConsumerStatefulWidget {
     required this.controller,
     required this.voice,
     this.extraControl,
+    this.tight = false,
   });
 
   final VoiceController controller;
+
+  /// Speaker, camera switch and the extra control wrap to a second row, for a card too narrow to hold them all at touch size.
+  final bool tight;
 
   /// One more control, drawn straight after share - the canvas toggle.
   final Widget? extraControl;
@@ -162,19 +166,27 @@ class _CallControlsState extends ConsumerState<CallControls> {
     // mainAxisSize.min: this row sizes to its own content now that it has no
     // full-width bar to fill, so whatever floating card embeds it - alone or
     // beside a canvas's own controls - can size itself to match.
-    return Row(
+    final speaker = widget.controller.supportsAudioOutputSelection
+        ? _speakerButton(context)
+        : null;
+    final switchCamera =
+        voice.cameraEnabled && canSwitchCamera(ref, widget.controller)
+        ? _switchCameraButton(context)
+        : null;
+    final extra = widget.extraControl;
+    final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _micButton(voice, listenOnly),
-        if (widget.controller.supportsAudioOutputSelection) ...[
+        if (speaker != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
-          _speakerButton(context),
+          speaker,
         ],
         const SizedBox(width: AppSpacing.s8),
         _cameraButton(voice, listenOnly),
-        if (voice.cameraEnabled && canSwitchCamera(ref, widget.controller)) ...[
+        if (switchCamera != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
-          _switchCameraButton(context),
+          switchCamera,
         ],
         // At touch density the pair's leading half sits flush right in its hit box, so the gap before it is widened to keep the row's rhythm.
         SizedBox(width: pairedAtTouch ? AppSpacing.s16 : AppSpacing.s8),
@@ -185,9 +197,29 @@ class _CallControlsState extends ConsumerState<CallControls> {
           showCaret: showCaret,
           child: _shareButton(context, voice, showCaret: showCaret),
         ),
-        if (widget.extraControl case final extra?) ...[
+        if (extra != null && !widget.tight) ...[
           const SizedBox(width: AppSpacing.s8),
           extra,
+        ],
+      ],
+    );
+    if (!widget.tight) return primary;
+    final spilled = [?speaker, ?switchCamera, ?extra];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        primary,
+        if (spilled.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.s4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < spilled.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.s8),
+                spilled[i],
+              ],
+            ],
+          ),
         ],
       ],
     );

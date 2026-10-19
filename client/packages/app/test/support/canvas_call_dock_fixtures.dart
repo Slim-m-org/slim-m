@@ -53,8 +53,9 @@ pumpCanvasCallDock(
   Brightness brightness = Brightness.dark,
   Key? boundaryKey,
   List<api.ChannelBotUi> bots = const [],
+  bool canFlipCamera = false,
 }) async {
-  final session = withCall ? FakeSession() : null;
+  final session = withCall ? FakeSession(canFlipCamera: canFlipCamera) : null;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),

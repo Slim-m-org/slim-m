@@ -52,16 +52,26 @@ List<Widget> callRowsWithExtras(
 }) {
   final alone = ref.watch(callAloneProvider);
   final extras = dockExtras(alone: alone, toggle: toggle);
-  Widget callRow(Widget? extra) =>
-      CallControls(controller: controller, voice: voice, extraControl: extra);
-  if (extras == null) return [callRow(null)];
-  final fits = callRowFits(
+  Widget callRow(Widget? extra, {bool tight = false}) => CallControls(
+    controller: controller,
+    voice: voice,
+    extraControl: extra,
+    tight: tight,
+  );
+  final switchCameraShown =
+      voice.cameraEnabled && canSwitchCamera(ref, controller);
+  final speakerShown = controller.supportsAudioOutputSelection;
+  bool fitsWith(int extraCount) => callRowFits(
     context,
     width,
-    switchCameraShown: voice.cameraEnabled && canSwitchCamera(ref, controller),
-    speakerShown: controller.supportsAudioOutputSelection,
-    extraCount: (alone ? 1 : 0) + (toggle != null ? 1 : 0),
+    switchCameraShown: switchCameraShown,
+    speakerShown: speakerShown,
+    extraCount: extraCount,
   );
+  // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
+  if (!fitsWith(0)) return [callRow(extras, tight: true)];
+  if (extras == null) return [callRow(null)];
+  final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? 1 : 0));
   return fits ? [callRow(extras)] : [Center(child: extras), callRow(null)];
 }
 
