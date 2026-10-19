@@ -207,6 +207,11 @@ class _CanvasPresenceManipulableTileState
 
   bool get _controlsVisible => _hovering || _revealedForTouch || _focusedWithin;
 
+  /// A tile this small is all button once they appear, so its hover row stays away and the context menu hides it instead.
+  bool get _roomForControls =>
+      presenceScreenRect(_paintRect, widget.camera).shortestSide >=
+      canvasPresenceTileControlsMinSide;
+
   void _onHoverEnter(PointerEnterEvent _) => setState(() => _hovering = true);
   void _onHoverExit(PointerExitEvent _) => setState(() => _hovering = false);
 
@@ -301,20 +306,24 @@ class _CanvasPresenceManipulableTileState
   /// Hides [child] from pointers and sight until the tile is revealed. It stays
   /// in the semantics tree so a screen reader keeps the controls, and focus
   /// within it reveals them so a keyboard user never operates an unseen one.
-  Widget _revealable(BuildContext context, Widget child) => IgnorePointer(
-    ignoring: !_controlsVisible,
-    child: AnimatedOpacity(
-      opacity: _controlsVisible ? 1 : 0,
-      duration: AppMotion.reduced(context, AppMotion.fast),
-      alwaysIncludeSemantics: true,
-      child: Focus(
-        canRequestFocus: false,
-        skipTraversal: true,
-        onFocusChange: (hasFocus) => setState(() => _focusedWithin = hasFocus),
-        child: child,
+  Widget _revealable(BuildContext context, Widget child) {
+    final shown = _controlsVisible && _roomForControls;
+    return IgnorePointer(
+      ignoring: !shown,
+      child: AnimatedOpacity(
+        opacity: shown ? 1 : 0,
+        duration: AppMotion.reduced(context, AppMotion.fast),
+        alwaysIncludeSemantics: true,
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: (hasFocus) =>
+              setState(() => _focusedWithin = hasFocus),
+          child: child,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
