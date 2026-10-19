@@ -58,6 +58,8 @@ class AppMenu extends StatelessWidget {
       container: true,
       child: Container(
         width: width,
+        // Content laid flush at an edge (a profile banner) must not paint past the rounded corners.
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: tokens.surfaceRaised,
           border: Border.all(color: tokens.borderStrong),
