@@ -43,6 +43,7 @@ Owner-only was rejected: a deployment has no owner column, and the first adminis
 
 The space archive holds the space's name and settings, roles, categories, channels and threads with their overwrites, members, messages with their attachments and reaction counts, pins and custom emoji.
 It never holds direct messages, deleted messages or channels, temporary voice rooms, passwords, sessions, tokens, two-factor secrets, push endpoints, invites, reports, moderation history, the audit log, canvas, polls or module data.
+A thread is judged by the channel and message it hangs from: one under a direct message, a temporary room, a deleted channel or a deleted message is left out of both exports.
 A deleted account is already anonymized, so its messages have no author and it is not listed as a member.
 
 Starting a space export is written to the admin audit log as `space.export`, and each download as `space.export_download`.
@@ -58,11 +59,16 @@ A wrong password is a 403, never a 401.
 
 A job is a row in `data_exports` (queued, running, ready, failed, expired) and a file named after its id.
 One archive is built at a time across the server, and one export of each kind per account at a time.
-A new export may start ten minutes after the last one was started; a refusal for that is a 429 with `Retry-After`.
+A new export may start ten minutes after the last one of that kind was started, whether it finished, failed or was deleted; a refusal for that is a 429 with `Retry-After`.
+Deleting an export hides it but keeps the row, so deleting cannot restart the clock.
+A queued or running row older than six hours is treated as dead and no longer blocks the account.
 Rows stream from SQLite one at a time into a scratch file, then the archive is written from those files and from the attachment store.
 Memory use does not grow with the data, and the only extra disk is the small JSON-lines sections.
 Progress counts messages and files and is written about once a second.
 
+An account keeps one ready archive per kind: finishing a new one expires the older.
+The archives are uncompressed copies of the uploads and share a volume with the database, so a build is refused when what ready archives hold plus the size of the files it would copy exceeds a ceiling, twice `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` when that is set and 50 GiB otherwise.
+The job then fails with a message saying there is not enough room.
 A finished archive can be downloaded for 24 hours, with range support so a large one resumes, and is then deleted by a sweep that also removes any file no job wants.
 A server restart fails what was queued or running, since the job cannot resume.
 Deleting an account removes its export rows and the sweep removes the files.

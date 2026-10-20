@@ -14,6 +14,15 @@ const PART_SUFFIX: &str = ".tar.part";
 const WORK_SUFFIX: &str = ".work";
 
 impl Media {
+    /// The most disk finished and running archives may take together: twice the
+    /// operator's attachment ceiling (an archive copies the files), else a default.
+    pub fn export_ceiling_bytes(&self) -> u64 {
+        self.max_total_attachment_bytes()
+            .map_or(crate::store::DEFAULT_EXPORT_CEILING_BYTES, |c| {
+                c.saturating_mul(2)
+            })
+    }
+
     pub fn export_archive_path(&self, id: &str) -> PathBuf {
         self.exports_dir.join(format!("{id}{ARCHIVE_SUFFIX}"))
     }

@@ -16,9 +16,8 @@ use crate::media::Media;
 use crate::store::RowStream;
 use crate::store::{ExportKind, Store};
 
-/// Progress is written at most this often, or every this many items.
+/// Progress is written at most this often.
 const PROGRESS_EVERY: Duration = Duration::from_secs(1);
-const PROGRESS_STEP: u64 = 500;
 /// The most missing attachment ids the report lists.
 const MAX_REPORTED_MISSING: usize = 1000;
 const ATTACHMENT_INDEX: &str = "attachments.jsonl";
@@ -40,7 +39,6 @@ pub(super) struct Builder<'a> {
     not_included: Vec<&'static str>,
     total: u64,
     processed: u64,
-    reported: u64,
     last_report: Instant,
 }
 
@@ -61,7 +59,6 @@ impl<'a> Builder<'a> {
             not_included: Vec::new(),
             total: 0,
             processed: 0,
-            reported: 0,
             last_report: Instant::now(),
         })
     }
@@ -86,16 +83,13 @@ impl<'a> Builder<'a> {
     /// Counts `n` finished items and writes progress when enough has passed.
     pub(super) async fn advance(&mut self, n: u64) -> anyhow::Result<()> {
         self.processed += n;
-        if self.processed - self.reported >= PROGRESS_STEP
-            || self.last_report.elapsed() >= PROGRESS_EVERY
-        {
+        if self.last_report.elapsed() >= PROGRESS_EVERY {
             self.report().await?;
         }
         Ok(())
     }
 
     async fn report(&mut self) -> anyhow::Result<()> {
-        self.reported = self.processed;
         self.last_report = Instant::now();
         let processed = i64::try_from(self.processed)?;
         let total = i64::try_from(self.total.max(self.processed))?;

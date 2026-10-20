@@ -13,7 +13,9 @@ CREATE TABLE data_exports (
     error       TEXT,
     created_at  INTEGER NOT NULL,
     finished_at INTEGER,
-    expires_at  INTEGER
+    expires_at  INTEGER,
+    -- A deleted export stays as a tombstone so the cooldown cannot be dodged by deleting.
+    dismissed   INTEGER NOT NULL DEFAULT 0 CHECK (dismissed IN (0, 1))
 ) STRICT, WITHOUT ROWID;
 
 CREATE INDEX data_exports_by_user ON data_exports (user_id, created_at DESC);
