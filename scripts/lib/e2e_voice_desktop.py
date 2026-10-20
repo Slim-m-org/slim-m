@@ -50,7 +50,7 @@ def _voice_samples(voice):
         return speech.build_gapped("A")
     assert folder, f"E2E_DESKTOP_VOICES names {voice} but E2E_VQ_CORPUS has no corpus"
     clip, _ = dsp.read_wav(os.path.join(folder, voice + ".wav"))
-    return voice_corpus.gapped(clip)
+    return voice_corpus.gapped(clip, chunk_s=min(3.5, max(1.2, len(clip) / voice_corpus.RATE / 8)))
 
 
 def _write_inputs(directory, voice=None):
