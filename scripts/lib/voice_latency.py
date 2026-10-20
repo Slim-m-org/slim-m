@@ -80,9 +80,9 @@ def summary(values):
 
 
 def heard_fraction(sent, heard, window_ms):
-    """Share of the sends inside the listening window that a chirp answered."""
+    """Share of the sends inside the listening window that a chirp answered; None with no sends."""
     inside = [t for t in sent if t + MAX_DELAY_MS <= window_ms[1] and t >= window_ms[0]]
     if not inside:
-        return 0.0
+        return None
     got = sum(1 for t in inside if any(0 <= h - t <= MAX_DELAY_MS for h in heard))
     return round(got / len(inside), 3)

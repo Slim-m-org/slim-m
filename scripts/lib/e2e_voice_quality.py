@@ -12,7 +12,9 @@ import base64
 import json
 import os
 import shutil
+import re
 import subprocess
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -48,14 +50,37 @@ VARIANTS = {
 }
 
 
+STALE_RESULTS = ("results.json", "corpus.json")
+
+
 def clear_previous_run(directory):
-    """A run scores only what it records: an earlier run's profiles and reel spans go first."""
+    """A run scores only what it records: an earlier run's profiles, spans and scores go first."""
     for name in os.listdir(directory):
         path = os.path.join(directory, name)
         if os.path.isdir(path):
             shutil.rmtree(path)
-        elif name.endswith(".spans.json"):
+        elif name.endswith(".spans.json") or name in STALE_RESULTS:
             os.remove(path)
+
+
+def stage_clips(directory):
+    """Builds both reference clips beside `directory` first, so a bad setup fails before anything is cleared."""
+    stage = tempfile.mkdtemp(prefix=".stage-", dir=os.path.dirname(directory))
+    try:
+        for who in "AB":
+            write_clip(os.path.join(stage, f"clip-{who}.wav"), who)
+    except BaseException:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise
+    return stage
+
+
+def install_staged(stage, directory):
+    """Replaces the previous run's files in `directory` with the staged clips."""
+    clear_previous_run(directory)
+    for name in os.listdir(stage):
+        shutil.move(os.path.join(stage, name), os.path.join(directory, name))
+    os.rmdir(stage)
 
 
 def write_clip(path, who):
@@ -94,20 +119,31 @@ def capture_seconds(directory):
     return int(max(ends)) + REEL_MARGIN
 
 
+def requested_variant():
+    """The E2E_VQ_VARIANT value (empty means baseline), refused unless it is a known variant or its repeat."""
+    name = os.environ.get("E2E_VQ_VARIANT") or "baseline"
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*", name):
+        raise ValueError(f"E2E_VQ_VARIANT {name!r} is not a plain variant name")
+    if not _variant_keys(name):
+        raise ValueError(f"E2E_VQ_VARIANT {name!r} is not one of {sorted(VARIANTS)}")
+    return name
+
+
+def _variant_keys(name):
+    return [k for k in VARIANTS if name == k or (name.startswith(k) and name[len(k):].isdigit())]
+
+
 def variant_name():
     """The variant's settings key; a numeric suffix names a repeat run of it."""
-    name = os.environ.get("E2E_VQ_VARIANT", "baseline")
-    if name in VARIANTS:
-        return name
+    name = requested_variant()
     # The longest key the name starts with, so bitrate642 is a repeat of bitrate64.
-    keys = [k for k in VARIANTS if name.startswith(k) and name[len(k):].isdigit()]
-    return max(keys, key=len) if keys else name
+    return max(_variant_keys(name), key=len)
 
 
 def out_dir():
     root = os.environ.get("E2E_VQ_OUT") or os.path.join(
         e2e_browsers.work_dir(), "voice-quality")
-    path = os.path.join(root, os.environ.get("E2E_VQ_VARIANT", "baseline"))
+    path = os.path.join(root, requested_variant())
     os.makedirs(path, exist_ok=True)
     return path
 
@@ -211,10 +247,10 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
     variant = variant_name()
     wanted = [p for p in os.environ.get(
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
+    unknown = [p for p in wanted if p not in e2e_netem.PROFILES]
+    assert not unknown, f"unknown E2E_VQ_PROFILES {unknown}; known: {list(e2e_netem.PROFILES)}"
     directory = out_dir()
-    clear_previous_run(directory)
-    for who in "AB":
-        write_clip(os.path.join(directory, f"clip-{who}.wav"), who)
+    install_staged(stage_clips(directory), directory)
     for user in ("vqa", "vqb"):
         e2e_browsers.register(server, admin_api, user, secret)
     script = _init_script(variant)

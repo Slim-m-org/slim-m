@@ -38,7 +38,7 @@ def _leave(client):
     from e2e_voice import _tap_label
     _tap_label(client, L.LEAVE_CALL, settle=2)
     deadline = time.time() + 15
-    while client.find(L.IN_CALL) and time.time() < deadline:
+    while client.find(L.LEAVE_CALL) and time.time() < deadline:
         time.sleep(0.3)
 
 
@@ -63,32 +63,47 @@ def the_cut(a, b):
     xp.start_tap(b, "remote", remote=True)
     b.ev("window.__xp.seen = {};")
     mark = b.ev("window.__xp.events.length")
+    pcs_before = b.ev("window.__e2eAudio.pcs.length")
     time.sleep(8)
     t_cut = e2e_netem.cut()
     time.sleep(CUT_SECONDS)
     t_back = e2e_netem.restore()
     time.sleep(WATCH_AFTER)
     pcs_after = b.ev("window.__e2eAudio.pcs.length")
-    still_in_call = bool(b.find(L.IN_CALL))
+    still_in_call = bool(b.find(L.LEAVE_CALL))
     events = xp.ev_json(b, f"window.__xp.events.slice({mark})")
     series = xp.ev_json(b, "window.__xp.series")
     samples, start, dropped = xp.finish_tap(b, "remote")
     xp.save_wav(os.path.join(xp.out_dir("experience"), "cut-rx.wav"), samples)
     row = ex.cut_row(samples, start, events, series, t_cut, t_back)
-    row.update(call_still_open=still_in_call, peer_connections=pcs_after,
-               dropped_frames=dropped)
+    row.update(call_still_open=still_in_call,
+               new_peer_connections=pcs_after - pcs_before, dropped_frames=dropped)
     return row
 
 
 def speaking(a, b, profile):
     """Delay from `a` starting a phrase to `b`'s ring for her lighting up."""
-    b.ev("window.__xp.watchLabels(['Vqa, speaking']);")
+    b.ev(f"window.__xp.watchLabels([{json.dumps('Vqa' + L.SPEAKING)}]);")
     mark = b.ev("window.__xp.events.length")
     xp.start_tap(a, "local", remote=False)
     time.sleep(int(os.environ.get("E2E_XP_SPEAK_SECONDS", "45")))
     samples, start, _ = xp.finish_tap(a, "local")
     events = xp.ev_json(b, f"window.__xp.events.slice({mark})")
     return ex.speaking_row(samples, start, events)
+
+
+def problems(results):
+    """Why a finished run measured nothing: no audio on join, no resumed packets, or an unlit ring."""
+    found = []
+    cold = results["joins"][0]
+    if cold.get("first_packet_ms") is None:
+        found.append(f"no audio arrived after joining: {cold}")
+    if results["cut"].get("time_to_packets_ms") is None:
+        found.append(f"no packets came back after the cut: {results['cut']}")
+    clean = results["speaking"].get("clean")
+    if clean is not None and not (clean["onsets"] and clean["lit"]):
+        found.append(f"the speaking ring never lit for a clean call: {clean}")
+    return found
 
 
 def a_timed_experience(server, secret, admin_api, sign_in, room_id):
@@ -121,8 +136,8 @@ def a_timed_experience(server, secret, admin_api, sign_in, room_id):
             e2e_netem.clear()
     with open(os.path.join(directory, "experience.json"), "w") as fh:
         json.dump(results, fh, indent=1)
-    cold = results["joins"][0]
-    assert cold.get("first_packet_ms") is not None, f"no audio arrived after joining: {cold}"
+    found = problems(results)
+    assert not found, "; ".join(found)
 
 
 def run_if_selected(server, secret, admin_api, sign_in, room_id):

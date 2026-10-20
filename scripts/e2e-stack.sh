@@ -125,6 +125,10 @@ serve_web() {
     rm -rf "$web_dir"
     ( cd "$ROOT/client/packages/app" && flutter build web --release )
   fi
+  if [[ "$web_dir" != "$tree_web" && -n "${E2E_REBUILD:-}" ]]; then
+    echo "E2E_REBUILD is ignored: E2E_WEB_DIR is a prebuilt bundle and is never rebuilt"
+  fi
+  echo "web bundle: $web_dir ($(tr -d '\n ' < "$web_dir/version.json" 2>/dev/null || echo 'no version.json'))"
   if curl -sf -o /dev/null "http://localhost:$WEB_PORT/" 2>/dev/null; then
     echo "port $WEB_PORT is already serving something; stop that first"; exit 1
   fi

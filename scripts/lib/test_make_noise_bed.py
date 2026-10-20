@@ -41,11 +41,6 @@ class NoiseBed(unittest.TestCase):
     def test_it_never_clips(self):
         self.assertLessEqual(max(abs(v) for v in self.noisy), 1.0)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PlanForShortClips(unittest.TestCase):
     SIX = [(0.0, 1.0), (2.0, 3.0), (4.0, 5.0), (6.0, 7.0), (8.0, 9.0), (10.0, 11.0)]
 
@@ -62,3 +57,7 @@ class PlanForShortClips(unittest.TestCase):
 
     def test_a_single_span_does_not_crash(self):
         self.assertEqual(len(nb.plan(self.SIX[:1])), 4)
+
+
+if __name__ == "__main__":
+    unittest.main()

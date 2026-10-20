@@ -20,7 +20,7 @@ The two client builds differ, the server does not.
   `E2E_VQ_CLIPS=synthetic` brings back the old synthetic clips.
 - ViSQOL (google/visqol at commit 38d0b01, speech mode, 16 kHz) runs from a docker image built with `docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib` (about four minutes).
   It compares each received speech run with the same run of the aligned reference.
-  Identical audio scores 4.58, which is the ceiling of speech mode.
+  Identical audio scored 4.58 in one test, but the corpus runs score as high as 4.77 on other clips, so 4.58 is not a ceiling and scores are only comparable on the same clip.
 - DNSMOS (`speechmos` in a venv, no reference needed) is a cross-check.
   It does not move much with network loss, so ViSQOL is the number to watch.
 - The first attempt, on the synthetic clips, showed why real speech matters: DNSMOS scored the received audio above the sent audio and did not separate the profiles.
@@ -62,18 +62,20 @@ The two client builds differ, the server does not.
 ## Method for the before and after comparison
 
 - BEFORE is `origin/main` at 274ba3b8e (client 0.114.0 plus the pipe fix, flutter-webrtc c4026c6).
-- AFTER is `feat/batch15` at 92c291667 (flutter-webrtc a5d9427, the mic fixes and the rest of the batch).
+- AFTER is the unmerged `feat/batch15` branch at 92c291667 (flutter-webrtc a5d9427, the mic fixes and the rest of the batch); that commit will not exist after a squash, so it only identifies the build these numbers came from.
 - Each tree's own web bundle and Linux release bundle were built, with the harness entry point patched into both.
 - One server and one copy of the harness served both, and the runs alternated: before, after, then the quality scenario again for before and after.
-- Raw results are under `~/.slimm-scratch/tmp/report-ab/before` and `.../after` (`baseline`, `baseline2`, `latency`, `experience`, `desktop`).
+- Raw results were under `~/.slimm-scratch/tmp/report-ab/before` and `.../after` on the author's machine only (`baseline`, `baseline2`, `latency`, `experience`, `desktop`); the tables in this note are the durable record.
 - `scripts/lib/voice_ab_report.py <dir> quality|latency|joins|speaking|cut|desktop` prints the tables below.
 - Spread is shown as median with p95 and n.
+  With n under 20 a p95 is just the maximum (and for ViSQOL and DNSMOS it is the best case, not the worst), so read the tables below as median and range.
+  `voice_ab_report.py` now prints min and max below n of 20 and the low tail for scores.
   Where n is 1 the table says so in the text and the number is an observation, not a measurement.
 
 ## Results: quality per network profile
 
 Two runs per side, 45 s of two-way speech per profile each, so n is 4 recordings.
-ViSQOL is MOS-LQO (ceiling 4.58).
+ViSQOL is MOS-LQO.
 The anomaly counts are summed over the two runs and both directions.
 
 | profile | before ViSQOL | before DNSMOS | before anomalies (sum over runs and both directions) | after ViSQOL | after DNSMOS | after anomalies (sum over runs and both directions) |
@@ -97,8 +99,8 @@ Both directions, about 21 chirps each per run, n is the pooled count.
 | clean | 54 (p95 58, n 42) | 33 | 58 (p95 60, n 41) | 33 |
 | loss5-jitter30 | 162 (p95 188, n 41) | 120 | 151 (p95 183, n 42) | 107 |
 
-- A clean call takes 54 to 58 ms mouth to ear, of which 33 ms is the receiver's jitter buffer.
-  The remaining 20 to 25 ms is capture, encode, network, SFU and decode.
+- A clean call takes 54 to 58 ms mouth to ear, and `getStats` reports a 33 ms jitter buffer.
+  Subtracting gives roughly 20 to 25 ms for everything else, but the two figures come from different populations (a window average against chirps at talkspurt starts), so that remainder is an approximation and not a measured codec path.
 - Loss and jitter raise it to about 150 to 160 ms, almost all of it the jitter buffer growing to 107 to 120 ms.
 - The two builds agree within about 10 ms on clean and loss5-jitter30.
 - Burst loss is 112 ms after and 133 ms before, with the p95 about the same (139 against 140), so the median difference is not clear.
@@ -180,31 +182,34 @@ Noise events in the gaps, from the same runs, `typing` and `bark` in dB change (
 | strong-gate-on | before | -72.2 / -21.4 / -20.1 | 0.3 / 0.6 / 0.4 |
 | strong-gate-on | after | -72.0 / -71.3 / -67.8 | 0.4 / 0.5 / 0.4 |
 
-- Strong takes the steady fan from -18 dB to about -68 dB, against -18 dB for Standard.
-  The speech level moves by about +1 dB in every arm, so speech is kept.
-- A dog bark in a gap comes through at its full level in every arm of both builds (within 1.5 dB).
+- With the piper TTS voices, Strong takes the steady fan from -18 dB to about -68 dB, against -18 dB for Standard.
+  Two strong-gate-on cells on the clean network do not (-20.8 dB before, -11.1 dB after), and `voice-corpus-results.md` finds only -2 to -13 dB for most real voices, so do not read -68 dB as general.
+  The speech level moves by about +1 dB in every arm with piper, so speech is kept there.
+- The synthetic dog bark in a gap comes through at its full level in every arm of both builds (within 1.5 dB).
   Neither Strong nor the -50 dB gate removes it.
 - Typing is where the builds differ.
-  Standard takes it down by about 7 dB, Strong by 20 to 50 dB, and Strong with the gate on by about 70 dB, but only reliably on AFTER: BEFORE reached -72 dB on the clean network and only -20 dB on the two lossy ones, AFTER held -68 to -72 dB on all three.
+  Standard takes it down by about 7 dB, Strong by 20 to 50 dB, and Strong with the gate on by about 70 dB in most cells.
+  The Strong gate-on cells differ between builds: BEFORE reached -72 dB on the clean network and only -20 dB on the two lossy ones, AFTER held -68 to -72 dB on all three.
+  Those are single recordings, and `voice-bursts.md` saw the same leak in the first seconds on both builds in 200 s runs, so I read it as bimodal on both builds and not as an improvement.
 - Over speech, nothing separates the noise from the voice.
   On BEFORE the bark sits 1.8 to 2.7 dB above the speech alone, as sent (2.5 dB), and typing sits level with it.
   On AFTER the bark sits 0.4 to 1.5 dB above speech, so it is trimmed by about 1 to 2 dB, and typing stays within 1.3 dB of speech.
 - Word onsets lose about 10 to 20 ms on average, and 0 to 5 of 10 are clipped by 30 ms or more.
-  Under loss the Standard arms clip as many onsets as the Strong ones, so a good part of it is concealment and not the suppressor.
+  Under loss the Standard arms clip as many onsets as the Strong ones, so a good part of it may be concealment or delay changes inside the 2 s alignment segments and not the suppressor; no arm separates those.
   The Strong arms on AFTER clip more under loss than BEFORE (strong-gate-on loss5: 5 of 10 against 1 of 10, mean 17 against 8 ms; strong-gate-off burst: 4 of 11 against 3 of 10).
   With n of about 10 per cell I would read that as a possible regression to re-measure, not a finding.
 
 ## What to fix first
 
-1. Non-stationary noise.
-   A dog bark passes through at full level with Strong on and the gate on, and typing is only removed in the gaps.
-   If this matters, it is the largest remaining gap between what the setting promises and what a listener hears.
-2. Strong with the gate on on BEFORE did not hold typing suppression on lossy networks (-20 dB against -72 dB clean) while AFTER does.
-   That is an improvement to keep, and a reason to keep the gate hold logic covered by the desktop scenario.
+1. Non-stationary noise, if it matters to listeners.
+   A synthetic, formant-shaped bark (one per recording) passes through at full level with Strong on and the gate on, and typing is only removed in the gaps.
+   A speech-trained suppressor may treat a generated bark as voice, so a real dog bark has to be tried before this ranks first.
+2. Strong with the gate on swung between about -20 and -72 dB of typing suppression across single recordings on both builds.
+   Nothing here supports calling AFTER the fix; it needs repeats with a stated n before it ranks anywhere.
 3. Word onsets under Strong on AFTER under loss.
    Re-measure with more samples (the harness takes `E2E_DESKTOP_SECONDS`), then look at the gate lookahead.
 4. Loss costs 0.2 to 0.25 ViSQOL points and 100 ms of mouth-to-ear delay at 5% loss with jitter.
-   The delay is the jitter buffer, so any gain has to come from the buffer's target, not from the codec path (20 to 25 ms).
+   The delay is mostly the jitter buffer, so a gain would have to come from the buffer's target.
 5. Level bursts and dropouts under burst loss, as found in the first harness document, are still there on both builds.
 
 ## Not verified
@@ -213,6 +218,9 @@ Noise events in the gaps, from the same runs, `typing` and `bark` in dB change (
 - Uplink loss: netem shapes only what the SFU sends, so the cut and the profiles are downlink conditions.
 - Playout: latency stops at the decoded track, not the loudspeaker.
 - The recovery after a cut is one observation per build.
+- The dog bark is generated, one per recording, so "passes through" is a finding about that signal and not about real barks.
+- Static in silence gaps: the detector behind the static counts above could not fire there until it was fixed, and the runs have not been repeated.
+- Delay steps above about 25 ms: the tracker was clamped to that range for these runs, and steps of 5 to 25 ms in the lossy profiles are partly that clamp.
 - The server was the same for both sides, so nothing here says anything about server changes in `feat/batch15`.
 - DNSMOS and ViSQOL were run on TTS speech, not on people.
 

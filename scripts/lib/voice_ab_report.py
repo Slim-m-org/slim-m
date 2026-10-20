@@ -10,6 +10,8 @@ import os
 import statistics
 import sys
 
+from voice_harness_tables import _md
+
 SIDES = ("before", "after")
 CLASSES = ("dropout", "click", "static", "tone", "clipping", "level_burst")
 
@@ -22,25 +24,32 @@ def _json(root, side, *parts):
         return json.load(fh)
 
 
-def _md(head, rows):
-    return "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-                     + ["| " + " | ".join(str(c) for c in r) + " |" for r in rows])
-
-
 def _f(value, digits=0):
     return "n/a" if value is None else f"{value:.{digits}f}"
 
 
-def _p95(values):
+TAIL_MIN_N = 20
+
+
+def _tail(values, high):
     ordered = sorted(values)
-    return ordered[min(len(ordered) - 1, int(0.95 * len(ordered)))]
+    at = int((0.95 if high else 0.05) * len(ordered))
+    return ordered[min(len(ordered) - 1, at)]
 
 
-def _spread(values, digits=0):
+def _spread(values, digits=0, scores=False):
+    """Median with its tail; below 20 values a percentile is only the extreme, so min and max are shown.
+
+    `scores` marks a higher-is-better measure, whose bad tail is the low one.
+    """
     if not values:
         return "n/a"
-    return (f"{statistics.median(values):.{digits}f} "
-            f"(p95 {_p95(values):.{digits}f}, n {len(values)})")
+    middle = f"{statistics.median(values):.{digits}f}"
+    if len(values) < TAIL_MIN_N:
+        return (f"{middle} (min {min(values):.{digits}f}, max {max(values):.{digits}f}, "
+                f"n {len(values)})")
+    name = "p5" if scores else "p95"
+    return f"{middle} ({name} {_tail(values, not scores):.{digits}f}, n {len(values)})"
 
 
 def quality(root):
@@ -54,9 +63,10 @@ def quality(root):
             sides = [x for r in runs[side] for x in r.get(profile, {}).values()]
             vis = [x["mos"]["visqol"] for x in sides if x.get("mos", {}).get("visqol") is not None]
             dn = [x["mos"]["ovrl"] for x in sides if x.get("mos", {}).get("ovrl") is not None]
-            counts = ", ".join(f"{c} {sum(x['counts'].get(c, 0) for x in sides)}"
-                               for c in CLASSES)
-            row += [_spread(vis, 2), _spread(dn, 2), counts]
+            counts = ("n/a" if not sides else
+                      f"n {len(sides)}: " + ", ".join(
+                          f"{c} {sum(x['counts'].get(c, 0) for x in sides)}" for c in CLASSES))
+            row += [_spread(vis, 2, scores=True), _spread(dn, 2, scores=True), counts]
         rows.append(row)
     head = ["profile"]
     for side in SIDES:
@@ -76,9 +86,10 @@ def latency(root):
                 continue
             both = [r["vqa_to_vqb"], r["vqb_to_vqa"]]
             med = [d["mouth_to_ear_ms"] for d in both if d["mouth_to_ear_ms"].get("n")]
-            jb = statistics.mean(v.get("jitterBufferDelayMs", 0) for v in r["stats"].values())
+            known = [v for v in (s.get("jitterBufferDelayMs") for s in r["stats"].values()) if v]
+            jb = statistics.mean(known) if known else None
             row += [f"{statistics.mean(m['median'] for m in med):.0f} (p95 {max(m['p95'] for m in med):.0f}, "
-                    f"n {sum(m['n'] for m in med)})" if med else "n/a", f"{jb:.0f}"]
+                    f"n {sum(m['n'] for m in med)})" if med else "n/a", _f(jb)]
         rows.append(row)
     return _md(["profile", "before mouth-to-ear ms", "before jitter buffer ms",
                 "after mouth-to-ear ms", "after jitter buffer ms"], rows)
@@ -93,7 +104,10 @@ def joins(root):
         for side in SIDES:
             warm = [j[key] for j in data[side] if not j["cold"] and j[key] is not None]
             cold = [j[key] for j in data[side] if j["cold"] and j[key] is not None]
-            row += [_f(cold[0]) if cold else "n/a", _spread(warm)]
+            failed = sum(1 for j in data[side] if j[key] is None)
+            note = f", failed {failed}" if failed else ""
+            row += [_f(cold[0]) if cold else ("failed" if failed and not warm else "n/a"),
+                    _spread(warm) + note if warm else ("failed " + str(failed) if failed else "n/a")]
         rows.append(row)
     return _md(["click to", "before cold ms", "before warm ms", "after cold ms", "after warm ms"], rows)
 
@@ -106,8 +120,12 @@ def speaking(root):
         for side in SIDES:
             r = data[side].get(profile)
             d = r["delay_ms"] if r else {}
-            row += [f"{d['median']:.0f} (p95 {d['p95']:.0f}, n {d['n']}, missed {r['missed']})"
-                    if d.get("n") else "n/a"]
+            if not r:
+                row += ["n/a"]
+            elif not d.get("n"):
+                row += [f"ring never lit (onsets {r['onsets']}, missed {r['missed']})"]
+            else:
+                row += [f"{d['median']:.0f} (max {d['max']:.0f}, n {d['n']}, missed {r['missed']})"]
         rows.append(row)
     return _md(["profile", "before ms", "after ms"], rows)
 

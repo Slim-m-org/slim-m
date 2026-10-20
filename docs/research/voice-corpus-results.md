@@ -6,15 +6,20 @@ Everything below is one or two runs per cell, so differences of a few counts are
 
 ## Result
 
-- RED plus DTX off cuts loud bursts for every voice type under loss, not only for the two piper voices.
+- RED plus DTX off cut `level_burst` counts under loss on the categories that had any, not only on the two piper voices.
+  A `level_burst` is a stretch of 30 ms or more that is 4 dB or more above the reference at the same time, so a word shifted by a few tens of ms counts; it is a relative count and not a loudness measure.
+  On loss5-jitter30, 7 of the 15 categories had bursts today and the other 8 had none to remove.
 - All 31 clips, burst profile, two runs each: 342 bursts today, 57 shipped; loss5-jitter30, one run: 54 today, 4 shipped.
-- Dropouts on a clean network fall from 38 to 6 (DTX was cutting quiet speech, mostly the high female and the slow reader).
-- ViSQOL moves by 0.1 or less on most categories; clean is unchanged to within 0.1.
+  The worst peak over the reference did not improve: +6.0 dB appears once on the shipped build (accent, burst profile) and not on today's.
+- Dropouts on a clean network fall from 38 to 6 in one run per build; most of the 38 are the high female (17) and the slow reader (10), which fits DTX cutting quiet speech but was not isolated from the other batch 15 changes.
+- ViSQOL moves by 0.1 or less on 6 of 15 categories under the burst profile and 4 of 15 under loss5-jitter30; on a clean link 14 of 15 are within 0.1 (crosstalk is +0.19).
+  Under the burst profile it falls by 0.2 or more for loud oratory, laughter (-0.72), speech over music and breaths.
 - Worse under the burst profile (long loss runs), in both runs: laughter, loud oratory, speech over music, and dropouts on the 90 s monologue.
 - The +6 dB peak over the reference reappeared once (a non-native English speaker, burst profile, shipped, run 1) and not in run 2.
 - The DTX tone burst does not occur on real singing or humming, with or without DTX; it is not confirmed or refuted on real voices.
 - Suppression keeps speech level (0 to +4 dB), but word onsets are clipped far more often for the corpus voices than for piper, in every arm including Standard.
-- Strong removes the hum floor for piper (-60 to -75 dB) but only -2 to -13 dB for most corpus voices.
+- Strong removes the hum floor for piper (-60 to -75 dB) but only -2 to -13 dB for most corpus voices; the sung melody with the gate off (-76 dB) is the exception.
+  These are single 60 s recordings, so read them as a pattern to re-measure.
 
 ## Corpus
 
@@ -176,11 +181,12 @@ Cell: speech level change dB / hum floor change dB / onsets clipped of total (me
 
 ## Do the batch 15 conclusions hold
 
-- RED plus DTX off reduces loud bursts under loss: yes, for all 15 categories, 342 to 57 on the burst profile.
-- DTX off fixes quiet-speech dropouts on a clean link: yes (38 to 6).
+- RED plus DTX off reduces `level_burst` counts under loss: yes where there were any (342 to 57 on the burst profile, 54 to 4 on loss5-jitter30); 8 of 15 categories had none on loss5-jitter30 and the soft voice had none on the burst profile.
+- DTX off fixes quiet-speech dropouts on a clean link: consistent with 38 to 6 in one run per build, but the shipped build also differs in other ways, so this is a hypothesis.
 - Not worse for soft voices or singing: held, with the whisper under loss at -0.16 ViSQOL, one run.
 - Worse: laughter, loud oratory, speech over music and the long monologue under long loss runs.
 - The DTX tone fix: unverified on real voice, since no real singing or humming clip produced a burst even with DTX on.
+- Which of RED and DTX off causes a given change in dropouts or tones is a hypothesis: the comparison is whole builds, with browser capture processing off, and the 32 kbps check below changes the bitrate with DTX still off.
 - Suppression keeps speech level: yes.
 - Onset clipping: not fine for real voices; the piper figure understates it by a factor of two to five.
 
@@ -201,7 +207,8 @@ Desktop client built from origin/main, same voices, same harness, clean network,
 - Main is as bad or worse for three voices; only the whisper under Strong is worse on batch 15 (4 of 6 against 0 of 6), and that is one recording per cell.
 - Not the onset detector: run on the sent mix against itself it finds 0 clipped onsets for piper, high female, Scottish female and whisper.
 - The measure compares the received level with the clip's own level frame by frame, and the gaps in the sent audio are digital silence, so room tone and breaths in the sources do not enter it.
-- The clipping appears with Standard and the gate off, so it comes from the capture and compressor chain, not from Strong or the gate.
+- The clipping appears with Standard and the gate off, so my reading is that it comes from the capture and compressor chain and not from Strong or the gate.
+  The lag is tracked per 2 s segment and onsets are scored at 10 ms, so some of what reads as clipping may be jitter buffer delay changes inside a segment; a no-processing arm would separate them.
 - I did not run a no-processing loopback of the desktop client; the harness has no such arm.
 
 ### Is the hum floor measurement landing on the clips' own room tone?
@@ -235,5 +242,6 @@ Shipped build, burst profile, Opus capped at 32 kbps (received 44 kbps with RED)
 - Whisper is a repeated 2.6 s sample; the soft category has one clip.
 - ViSQOL speech mode on singing, laughter and music is only a relative number.
 - Desktop cells are single recordings; the high female's 5 to 8 clipped onsets and the Strong hum figures need a repeat.
+- Today against shipped compares whole builds (RED, DTX, flutter-webrtc and the rest of batch 15), so no change is attributed to RED or DTX alone here.
 - Common Voice was not used (it is now behind a login), so no clip comes from it.
 - Windows and macOS clients were not run.

@@ -62,10 +62,10 @@ def count_events(events, idx, count):
 def score_side(ref, ref_rate, spans, rec, rec_rate, with_visqol=True):
     """Per-clip results for one received recording of a reel."""
     ref16, rec16 = dsp.decimate(ref, ref_rate), dsp.decimate(rec, rec_rate)
-    aligned = align.track(ref16, rec16)
+    aligned = align.track_locked(ref16, rec16)
     report = quality.analyze(ref, ref_rate, rec, rec_rate, aligned=aligned)
-    expected = align.expected_signal(ref16, len(rec16), *aligned)
-    idx = align.expected_signal(index_signal(len(ref16), spans), len(rec16), *aligned)
+    expected = align.expected_signal(ref16, len(rec16), *aligned[:2])
+    idx = align.expected_signal(index_signal(len(ref16), spans), len(rec16), *aligned[:2])
     chunks = split_by_clip(expected, rec16, idx, len(spans))
     counts = count_events(report["events"], idx, len(spans))
     pairs = [(e, r) for e, r in chunks if len(r) >= MIN_CHUNK_S * RATE]

@@ -12,6 +12,7 @@ The default DIR is ~/.slimm-scratch/tmp/voice-corpus/clips; point E2E_VQ_CORPUS 
 """
 import array
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -48,7 +49,10 @@ class RangeFile(io.RawIOBase):
     def _probe(url):
         probe = urllib.request.Request(url, headers={"Range": "bytes=0-0", "User-Agent": AGENT})
         with urllib.request.urlopen(probe, timeout=60) as resp:
-            return int(resp.headers["Content-Range"].split("/")[1]), resp.geturl()
+            total = resp.headers.get("Content-Range", "").partition("/")[2]
+            if not total.isdigit():
+                raise OSError(f"{url}: the server ignored the Range request")
+            return int(total), resp.geturl()
 
     def seekable(self):
         return True
@@ -85,7 +89,7 @@ def _retry(action):
     for attempt in range(TRIES):
         try:
             return action()
-        except (OSError, AttributeError):
+        except (OSError, AttributeError, http.client.HTTPException, zipfile.BadZipFile):
             if attempt == TRIES - 1:
                 raise
             time.sleep(3 * (attempt + 1))
@@ -115,7 +119,7 @@ class Fetcher:
     def _download(self, part, path):
         for attempt in range(TRIES):
             if part.get("member"):
-                data = self._zip(part["url"]).read(part["member"])
+                data = _retry(lambda: self._zip(part["url"]).read(part["member"]))
             else:
                 req = urllib.request.Request(part["url"], headers={"User-Agent": AGENT})
                 data = _retry(lambda: urllib.request.urlopen(req, timeout=180).read())

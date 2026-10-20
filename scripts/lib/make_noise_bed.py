@@ -42,7 +42,7 @@ def _keystroke(rng):
 
 
 def _typing(start_s, strokes, rng, total):
-    """`(samples offset list)` as `[(index, sample)]`-free: returns a sparse bed and its end time."""
+    """A bed of `strokes` keystrokes from `start_s`, and the time the last one ends."""
     bed = [0.0] * total
     at = start_s
     for _ in range(strokes):
@@ -54,7 +54,7 @@ def _typing(start_s, strokes, rng, total):
     return bed, at
 
 
-def _bark(count, rng):
+def _bark(rng):
     pitch, length = rng.uniform(380, 480), int(0.24 * RATE)
     phase, out = 0.0, []
     for i in range(length):
@@ -75,7 +75,7 @@ def _bark(count, rng):
 def _barks(start_s, number, rng, total):
     bed, at = [0.0] * total, start_s
     for _ in range(number):
-        for i, v in enumerate(_bark(1, rng)):
+        for i, v in enumerate(_bark(rng)):
             idx = int(at * RATE) + i
             if idx < total:
                 bed[idx] += v

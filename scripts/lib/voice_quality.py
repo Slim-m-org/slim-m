@@ -22,6 +22,7 @@ MIN_RUN_FRAMES = 3
 STATIC_FLATNESS = 0.25
 STATIC_OVER_REF = 0.15
 STATIC_MIN_DB = -55.0
+SILENT_REF_DB = -90.0
 CLICK_RATIO = 8.0
 CLICK_MIN = 0.03
 CLICK_OVER_REF = 4.0
@@ -108,15 +109,20 @@ def find_level_bursts(rec_db, exp_db, gain):
             for a, b in _runs(flags, MIN_RUN_FRAMES)]
 
 
-def find_static(rec_db, rec_spec, exp_spec, gain):
+def _reference_flatness(spec, level_db):
+    """Digital silence has a flat spectrum by construction, so it counts as not noise-like."""
+    return 0.0 if level_db < SILENT_REF_DB else _flatness(spec)
+
+
+def find_static(rec_db, rec_spec, exp_spec, exp_db, gain):
     flags = []
-    for r, rs, es in zip(rec_db, rec_spec, exp_spec):
+    for r, rs, es, e in zip(rec_db, rec_spec, exp_spec, exp_db):
         if r - gain < STATIC_MIN_DB:
             flags.append(False)
             continue
         flat = _flatness(rs)
         flags.append(flat > STATIC_FLATNESS
-                     and flat - _flatness(es) > STATIC_OVER_REF)
+                     and flat - _reference_flatness(es, e) > STATIC_OVER_REF)
     return [_event("static", a, b, "noise-like energy the reference lacks")
             for a, b in _runs(flags, MIN_RUN_FRAMES)]
 
@@ -195,10 +201,16 @@ def similarity(rec_spec, exp_spec, exp_db):
     return round(sum(scores) / len(scores), 4) if scores else 0.0
 
 
+def _inside(t, spans):
+    """Whether second `t` falls inside any `(first, last)` sample span."""
+    return any(a <= t * dsp.ANALYSIS_RATE < b for a, b in spans)
+
+
 def analyze(ref_samples, ref_rate, rec_samples, rec_rate, aligned=None):
     """The full report for one received recording against its reference clip."""
     ref, rec = dsp.decimate(ref_samples, ref_rate), dsp.decimate(rec_samples, rec_rate)
-    starts, lags = aligned or align.track(ref, rec)
+    starts, lags, *rest = aligned or align.track_locked(ref, rec)
+    locked = rest[0] if rest else [True] * len(starts)
     expected = align.expected_signal(ref, len(rec), starts, lags)
     rec_db, exp_db = _frame_db(rec), _frame_db(expected)
     rec_spec, exp_spec = dsp.power_spectrogram(rec), dsp.power_spectrogram(expected)
@@ -208,9 +220,11 @@ def analyze(ref_samples, ref_rate, rec_samples, rec_rate, aligned=None):
     events = (find_clipping(rec_samples, rec_rate)
               + find_dropouts(rec_db, exp_db, gain_db)
               + find_level_bursts(rec_db, exp_db, gain_db)
-              + find_static(rec_db, rec_spec, exp_spec, gain_db)
+              + find_static(rec_db, rec_spec, exp_spec, exp_db, gain_db)
               + find_clicks(rec, expected, gain)
               + find_tones(rec_spec, exp_spec, gain))
+    lost = align.lost_spans(starts, locked, len(rec))
+    events = [e for e in events if e["class"] == "clipping" or not _inside(e["t"], lost)]
     events.sort(key=lambda e: e["t"])
     counts = {}
     for e in events:
@@ -218,7 +232,8 @@ def analyze(ref_samples, ref_rate, rec_samples, rec_rate, aligned=None):
     return {"seconds": round(len(rec) / dsp.ANALYSIS_RATE, 2),
             "similarity": similarity(rec_spec, exp_spec, exp_db),
             "gain_db": round(gain_db, 2), "counts": counts, "events": events,
-            "timing": align.timing(starts, lags)}
+            "timing": {**align.timing(starts, lags),
+                       "lost_s": round(sum(b - a for a, b in lost) / dsp.ANALYSIS_RATE, 2)}}
 
 
 def main(argv):
