@@ -87,6 +87,7 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     route(Method::DELETE, "/space/icon", "space.icon_clear", None),
     route(Method::POST, "/space/banner", "space.banner_set", None),
     route(Method::DELETE, "/space/banner", "space.banner_clear", None),
+    route(Method::POST, "/exports/space", "space.export", None),
     route(Method::POST, "/roles", "role.create", None),
     route(Method::PATCH, "/roles/reorder", "role.reorder", None),
     route(Method::PATCH, "/roles/{role_id}", "role.update", ROLE),

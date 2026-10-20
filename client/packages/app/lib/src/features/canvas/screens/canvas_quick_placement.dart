@@ -102,17 +102,18 @@ class CanvasQuickPlacement {
     required Map<String, dynamic> props,
     required void Function(String message) onError,
   }) async {
-    final x = world.dx - w / 2;
-    final y = world.dy - h / 2;
+    final box = document.placeOnBoard(
+      Rect.fromCenter(center: world, width: w, height: h),
+    );
     try {
       final placed = await client.placeCanvasObject(
         channelId,
         id: newCanvasObjectId(),
         kind: kind,
-        x: x,
-        y: y,
-        w: w,
-        h: h,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
         props: props,
       );
       final input = canvasStrokeInputFrom(placed);

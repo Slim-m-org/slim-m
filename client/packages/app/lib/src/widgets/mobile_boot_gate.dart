@@ -99,14 +99,7 @@ class BootSplashScreen extends StatelessWidget {
               child: AppBrandMark(size: 56, color: tokens.accent),
             ),
             const SizedBox(height: AppSpacing.s32),
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: tokens.textSecondary,
-              ),
-            ),
+            AppSpinner(color: tokens.textSecondary),
           ],
         ),
       ),

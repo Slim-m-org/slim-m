@@ -153,7 +153,10 @@ async fn a_restore_protects_its_clear_target_until_the_restore_itself_ages_out()
         &store,
         channel,
         actor,
-        CanvasOpRequest::Clear { before_seq: head },
+        CanvasOpRequest::Clear {
+            before_seq: head,
+            scope: Default::default(),
+        },
     )
     .await;
     age_op(&pool, clear_op, AGE_DAYS).await;
@@ -204,7 +207,10 @@ async fn a_clear_with_a_still_dead_target_is_never_swept() {
         &store,
         channel,
         actor,
-        CanvasOpRequest::Clear { before_seq: head },
+        CanvasOpRequest::Clear {
+            before_seq: head,
+            scope: Default::default(),
+        },
     )
     .await;
 
@@ -233,7 +239,10 @@ async fn a_fully_undone_clear_and_its_restore_are_swept_once_old_enough() {
         &store,
         channel,
         actor,
-        CanvasOpRequest::Clear { before_seq: head },
+        CanvasOpRequest::Clear {
+            before_seq: head,
+            scope: Default::default(),
+        },
     )
     .await;
     let restore_op = submit(

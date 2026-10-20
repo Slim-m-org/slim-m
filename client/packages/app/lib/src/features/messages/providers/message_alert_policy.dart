@@ -9,8 +9,9 @@
 /// else the parent channel's for a thread, else the account's
 /// (`COALESCE(c.preference, p.preference, u.notification_preference)` in
 /// `channel_notification_prefs.rs`), with an "everything" account default
-/// read as "mentions" in a channel this account cannot post in; and the
-/// notification schedule has the last word.
+/// read as "mentions" in a channel this account cannot post in or for a post
+/// by a bot or webhook; and the notification
+/// schedule has the last word.
 library;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -21,6 +22,7 @@ import 'package:slimm_data/data.dart' show Channel;
 import '../../../permissions.dart';
 import '../widgets/message_mentions.dart' show messageMentionsMe;
 import '../../members/providers/blocks_controller.dart';
+import '../../members/providers/user_profiles.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
@@ -107,7 +109,7 @@ class MessageAlertPolicy {
         (parentId == null ? null : overrides.overrideFor(parentId)) ??
         stricterPreference(
           await _channelDefault(channel, parentId),
-          await _accountDefaultIn(message.channelId, isDm: isDm),
+          await _accountDefaultIn(message, isDm: isDm),
         );
     if (!channelEarnsASound(
       channelOverride: preference,
@@ -255,15 +257,43 @@ class MessageAlertPolicy {
     return _parentChannels[channelId];
   }
 
-  /// The account default as it applies in [channelId]: "everything" reads as
-  /// "mentions" where this account cannot post (see [readOnlyDefault]).
+  /// The account default as it applies to [message]: "everything" reads as
+  /// "mentions" where this account cannot post or when a bot or webhook wrote
+  /// it (see [readOnlyDefault]).
   Future<api.NotificationPreference?> _accountDefaultIn(
-    String channelId, {
+    api.Message message, {
     required bool isDm,
   }) async {
     final account = await _accountPreference();
     if (isDm || !readOnlyDefaultApplies(account)) return account;
-    return readOnlyDefault(account, canSend: await _canSendIn(channelId));
+    return readOnlyDefault(
+      account,
+      canSend: await _canSendIn(message.channelId),
+      automated: await _isAutomated(message),
+    );
+  }
+
+  /// Whether a bot or webhook wrote [message]. A profile that cannot be
+  /// resolved reads as a person, so a failed lookup never silences anything.
+  Future<bool> _isAutomated(api.Message message) async {
+    if (message.webhookUsername != null) return true;
+    final authorId = message.authorId;
+    if (authorId == null) return false;
+    try {
+      final profile = await _ref
+          .read(batchProfilesControllerProvider.notifier)
+          .profile(authorId)
+          .timeout(_refreshWait);
+      return profile != null && (profile.isBot || profile.isWebhook);
+    } on Object catch (error, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.ui,
+        'Could not tell whether a bot wrote a message; treating it as a person',
+        error,
+        stack,
+      );
+      return false;
+    }
   }
 
   /// Whether this account can post in [channelId], cached for

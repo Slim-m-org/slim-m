@@ -55,6 +55,14 @@ sealed class CanvasOp {
           createdAt: createdAt,
           beforeSeq: json['before_seq'] as int,
         ),
+      'clear_scoped' => CanvasClearOp(
+          seq: seq,
+          id: id,
+          actorId: actorId,
+          createdAt: createdAt,
+          beforeSeq: json['before_seq'] as int,
+          scope: CanvasClearScope.fromJson(json),
+        ),
       'restore' => CanvasRestoreOp(
           seq: seq,
           id: id,
@@ -131,7 +139,26 @@ class CanvasRemoveOp extends CanvasOp {
   final List<String> objectIds;
 }
 
-/// Every object placed at or below [beforeSeq] was removed at once.
+/// Narrows a clear to some object kinds and/or one author; empty clears everything.
+class CanvasClearScope {
+  const CanvasClearScope({this.kinds = const [], this.authorId});
+
+  factory CanvasClearScope.fromJson(Map<String, dynamic> json) =>
+      CanvasClearScope(
+        kinds: _stringList(json['kinds']),
+        authorId: json['author_id'] as String?,
+      );
+
+  static const everything = CanvasClearScope();
+
+  /// Wire names of the object kinds; empty means every kind.
+  final List<String> kinds;
+  final String? authorId;
+
+  bool get isEverything => kinds.isEmpty && authorId == null;
+}
+
+/// Every object placed at or below [beforeSeq] was removed at once, limited to [scope].
 class CanvasClearOp extends CanvasOp {
   const CanvasClearOp({
     required super.seq,
@@ -139,9 +166,11 @@ class CanvasClearOp extends CanvasOp {
     required super.actorId,
     required super.createdAt,
     required this.beforeSeq,
+    this.scope = CanvasClearScope.everything,
   });
 
   final int beforeSeq;
+  final CanvasClearScope scope;
 }
 
 /// A removal or a clear named by [targetOp] was undone.

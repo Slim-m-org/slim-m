@@ -3,8 +3,6 @@
 //! can unseal what reaches it: shared by the push envelope test binaries.
 #![allow(dead_code)]
 
-use std::time::Duration;
-
 use axum::extract::State;
 use axum::routing::post;
 use axum::{Json, Router};
@@ -193,17 +191,10 @@ pub fn epoch_ms() -> i64 {
 }
 
 pub async fn wait_for_capture(captured: &Mutex<Option<Value>>) -> Value {
-    let start = std::time::Instant::now();
-    loop {
-        if let Some(body) = captured.lock().await.clone() {
-            return body;
-        }
-        assert!(
-            start.elapsed() < Duration::from_secs(5),
-            "the relay was never called"
-        );
-        tokio::time::sleep(Duration::from_millis(15)).await;
-    }
+    crate::support::wait::wait_for("the relay to be called", || async {
+        captured.lock().await.clone()
+    })
+    .await
 }
 
 pub async fn send(world: &World, content: &str) {

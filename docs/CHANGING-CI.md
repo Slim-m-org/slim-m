@@ -116,7 +116,7 @@ Merging a stack one by one therefore costs one full run and one `main-builds` pe
 Instead, branch from `origin/main`, merge each pull request's branch into it in order, and fix any conflict once.
 Run the gates on that integration branch, then open it as one pull request and let CI run once.
 Merge that, close the originals, and read `git diff --stat origin/main` first, since a stale base would revert work.
-The cost of a run is in [ci.md](ci.md#where-a-pull-requests-time-goes-measured-2026-10-02): a client pull request is about 150 runner-minutes, most of it the eight app shards and the dart2js job.
+The cost of a run is in [ci.md](ci-details.md#where-a-pull-requests-time-goes-measured-2026-10-02): a client pull request is about 150 runner-minutes, most of it the eight app shards and the dart2js job.
 The `libmpv` apt step was the tail there, and the shards now install `libmpv2` with retries and a step timeout.
 
 ## After any workflow change

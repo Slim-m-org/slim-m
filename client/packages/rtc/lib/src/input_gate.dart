@@ -60,9 +60,15 @@ enum InputGateRate {
   /// Nothing is displayed but automatic sensitivity is adapting: 200 ms.
   adapt(4),
 
-  /// Nothing is displayed: 1 s, enough for the dead-mic watchdog (10 s) and
-  /// the Strong fallback (2 s).
-  watch(20);
+  /// Nothing is displayed but Strong runs: 1 s, enough for the Strong
+  /// fallback (2 s of polls).
+  watch(20),
+
+  /// Only the dead-mic watchdog reads, and it needs 10 s of silence: 2 s.
+  slow(40),
+
+  /// Nothing consumes a reading (the microphone is closed): no polling.
+  off(0);
 
   const InputGateRate(this.multiple);
 
@@ -95,6 +101,7 @@ class InputGateMonitor {
 
   final _levels = StreamController<InputGateReading>.broadcast();
   Timer? _timer;
+  bool _started = false;
   bool _polling = false;
   bool _voice = false;
   InputGateRate _rate = InputGateRate.display;
@@ -108,10 +115,11 @@ class InputGateMonitor {
   /// The last voice state read; false while stopped.
   bool get voice => _voice;
 
-  bool get running => _timer != null;
+  bool get running => _started;
 
   InputGateRate get rate => _rate;
 
+  /// Zero while the rate is [InputGateRate.off].
   Duration get interval => displayInterval * _rate.multiple;
 
   /// Whether readings come fast enough to draw a meter or a speaking ring.
@@ -121,9 +129,18 @@ class InputGateMonitor {
   void setRate(InputGateRate next) {
     if (next == _rate) return;
     _rate = next;
+    if (_started) _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    _timer = null;
     final onVoiceChanged = _onVoiceChanged;
-    if (_timer == null || onVoiceChanged == null) return;
-    _timer!.cancel();
+    if (onVoiceChanged == null) return;
+    if (_rate == InputGateRate.off) {
+      _voice = false;
+      return;
+    }
     _timer = Timer.periodic(interval, (_) => _poll(onVoiceChanged));
   }
 
@@ -157,14 +174,16 @@ class InputGateMonitor {
 
   /// [onVoiceChanged] runs whenever the voice state flips.
   void start(void Function() onVoiceChanged) {
-    if (!_supported || _timer != null) return;
+    if (!_supported || _started) return;
+    _started = true;
     _onVoiceChanged = onVoiceChanged;
-    _timer = Timer.periodic(interval, (_) => _poll(onVoiceChanged));
+    _schedule();
   }
 
   void stop() {
     _timer?.cancel();
     _timer = null;
+    _started = false;
     _onVoiceChanged = null;
     _voice = false;
   }

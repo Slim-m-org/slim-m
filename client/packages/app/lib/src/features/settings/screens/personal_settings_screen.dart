@@ -17,7 +17,9 @@ import '../../../widgets/app_info_section.dart';
 import '../../../widgets/app_lock_section.dart';
 import '../widgets/appearance_settings_section.dart';
 import '../widgets/connections_section.dart';
-import '../widgets/general_settings_section.dart';
+import '../widgets/data_export_card.dart';
+import '../widgets/data_export_copy.dart';
+import '../widgets/desktop_settings_section.dart';
 import '../widgets/performance_settings_section.dart';
 import '../../members/widgets/avatar_settings_section.dart';
 import '../widgets/personal_account_sections.dart';
@@ -38,6 +40,7 @@ class PersonalSettingsScreen extends ConsumerWidget {
     super.key,
     this.initialPaneId,
     this.onPaneChanged,
+    this.hasDesktopPane,
   });
 
   /// The pane to open on, when something deep-links to one.
@@ -45,6 +48,9 @@ class PersonalSettingsScreen extends ConsumerWidget {
 
   /// See [SettingsPanesScaffold.onPaneChanged].
   final ValueChanged<String?>? onPaneChanged;
+
+  /// Null asks the host: the Desktop pane exists where the app runs as a desktop app.
+  final bool? hasDesktopPane;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -85,6 +91,7 @@ class PersonalSettingsScreen extends ConsumerWidget {
                   ConnectionsSection(),
                   _SignInSection(),
                   AppLockSection(),
+                  DataExportCard(copy: DataExportCopy.member),
                   AccountSection(),
                 ],
               ),
@@ -100,6 +107,13 @@ class PersonalSettingsScreen extends ConsumerWidget {
               icon: AppIcons.appearance,
               builder: (context) => const AppearanceSettingsSection(),
             ),
+            if (hasDesktopPane ?? isDesktopHost)
+              SettingsPane(
+                id: desktopPane,
+                label: 'Desktop',
+                icon: AppIcons.deviceDesktop,
+                builder: (context) => const DesktopSettingsSection(),
+              ),
             SettingsPane(
               id: 'notifications',
               label: 'Notifications',
@@ -118,14 +132,6 @@ class PersonalSettingsScreen extends ConsumerWidget {
               icon: AppIcons.performance,
               builder: (context) => const PerformanceSettingsSection(),
             ),
-            // Its rows all describe the desktop shell, so nowhere else has a General pane.
-            if (isDesktopHost)
-              SettingsPane(
-                id: 'general',
-                label: ActionLabels.general,
-                icon: AppIcons.settings,
-                builder: (context) => const GeneralSettingsSection(),
-              ),
           ],
         ),
         SettingsPaneGroup(

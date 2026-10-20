@@ -37,15 +37,6 @@ List<VoiceParticipant> activeShares(
   return all;
 }
 
-/// Live sharers the viewer opted out of, in roster order.
-List<VoiceParticipant> stoppedShares(
-  List<VoiceParticipant> participants,
-  Set<String> stopped,
-) => [
-  for (final p in participants)
-    if (p.isScreenSharing && stopped.contains(p.identity)) p,
-];
-
 /// The video-subscription keys for [stopped] shares.
 Set<String> blockedShareKeys(Set<String> stopped) => {
   for (final id in stopped)

@@ -22,12 +22,11 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../desktop/desktop_window_shell.dart';
+import '../../../desktop/window_fullscreen_hold.dart';
 import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
-import 'package:slimm_api/api.dart' show AppLog, LogTag, ignoreError;
 
 /// Which live view a tile was showing when it was expanded.
 enum FullscreenVideoKind { camera, screenShare }
@@ -92,8 +91,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   /// A pointer over the video reveals them, and leaving hides them again.
   bool _hovered = false;
 
-  late final StateController<bool> _chromeHidden;
-  bool _windowFullscreen = false;
+  late final WindowFullscreenHold _windowHold;
 
   late final OrientationChannel _orientation;
 
@@ -101,51 +99,13 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   void initState() {
     super.initState();
     _orientation = ref.read(orientationChannelProvider);
-    _chromeHidden = ref.read(fullscreenVideoActiveProvider.notifier);
+    _windowHold = WindowFullscreenHold(
+      ref.read(fullscreenVideoActiveProvider.notifier),
+    );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_allowLandscape());
-    scheduleMicrotask(_enterWindowFullscreen);
-  }
-
-  /// Covers the display on desktop: the OS window goes fullscreen and the
-  /// title bar steps aside. A no-op where there is no desktop shell.
-  Future<void> _enterWindowFullscreen() async {
-    if (!mounted || !DesktopWindowShell.active) return;
-    _chromeHidden.state = true;
-    _windowFullscreen = true;
-    try {
-      await DesktopWindowShell.port.setFullScreen(true);
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.voice,
-        'Could not make the window fullscreen; showing the video anyway',
-        error,
-        stack,
-      );
-    }
-  }
-
-  void _leaveWindowFullscreen() {
-    if (!_windowFullscreen) return;
-    final port = DesktopWindowShell.port;
     scheduleMicrotask(() {
-      try {
-        _chromeHidden.state = false;
-      } on StateError catch (error, stack) {
-        AppLog.swallowed(
-          LogTag.voice,
-          'The app is closing, so there is nothing to restore',
-          error,
-          stack,
-        );
-      }
-      unawaited(
-        port
-            .setFullScreen(false)
-            .catchError(
-              ignoreError(LogTag.platform, 'Could not leave window fullscreen'),
-            ),
-      );
+      if (mounted) unawaited(_windowHold.enter());
     });
   }
 
@@ -167,7 +127,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _leaveWindowFullscreen();
+    _windowHold.release();
     unawaited(_orientation.allowLandscape(false));
     super.dispose();
   }

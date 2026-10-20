@@ -62,6 +62,7 @@ mod extract;
 pub mod gifs;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod interaction_forms;
 mod interactions;
 mod invite_page;
 mod invites;
@@ -96,7 +97,6 @@ mod polls;
 mod post_commit;
 mod presence;
 mod push;
-mod quiet_hours;
 mod reaction_emoji;
 mod reactions;
 mod read_states;
@@ -106,6 +106,7 @@ mod recovery;
 mod reports;
 mod roles;
 use roles::role_reorder;
+mod data_exports;
 mod media_compression;
 mod route_timing;
 mod safety;
@@ -264,7 +265,6 @@ pub fn router(state: AppState) -> Router {
         .merge(presence::routes())
         .merge(reactions::routes())
         .merge(push::routes())
-        .merge(quiet_hours::routes())
         .merge(notification_schedule::routes())
         .merge(pins::routes())
         .merge(saved_messages::routes())
@@ -273,6 +273,7 @@ pub fn router(state: AppState) -> Router {
         .merge(roles::routes())
         .merge(role_reorder::routes())
         .merge(safety::routes())
+        .merge(data_exports::routes())
         .merge(dms::routes())
         .merge(search::routes())
         .merge(space::routes())
@@ -289,6 +290,7 @@ pub fn router(state: AppState) -> Router {
         .merge(bot_ui::routes())
         .merge(ephemeral_messages::routes())
         .merge(interactions::routes())
+        .merge(interaction_forms::routes())
         .merge(message_components::routes())
         .merge(voice::routes())
         .merge(voice_calls::routes())

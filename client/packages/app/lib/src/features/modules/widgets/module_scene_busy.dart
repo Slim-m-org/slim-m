@@ -43,11 +43,7 @@ class SceneBusyIndicator extends StatelessWidget {
                 ),
                 child: const Padding(
                   padding: EdgeInsets.all(AppSpacing.s4),
-                  child: SizedBox(
-                    width: AppSizes.icon16,
-                    height: AppSizes.icon16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  child: AppSpinner(size: AppSpinnerSize.sm),
                 ),
               ),
             )

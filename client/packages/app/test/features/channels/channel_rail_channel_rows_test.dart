@@ -316,7 +316,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Mute channel'),
+      find.text('Notifications'),
       findsOneWidget,
       reason:
           'a phone reaches this menu by held press and by nothing else, so '

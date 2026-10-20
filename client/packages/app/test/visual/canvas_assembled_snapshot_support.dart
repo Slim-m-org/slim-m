@@ -38,7 +38,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane_body.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -100,6 +100,7 @@ Future<void> renderCanvasAssembledPane(
   String? selectedObjectId,
   double height = 844,
   CanvasPresenceTileOverrides? tileOverrides,
+  CanvasViewMode? viewMode,
   CanvasTool tool = CanvasTool.pen,
   bool canManage = false,
   String? error,
@@ -171,6 +172,7 @@ Future<void> renderCanvasAssembledPane(
               onPasteImage: () {},
               onPasteImageAt: (_) {},
               onRecenter: () {},
+              onBringIntoBoard: () {},
               error: error,
               onDismissError: () {},
               truncated: truncated,
@@ -214,6 +216,7 @@ Future<void> renderCanvasAssembledPane(
                 ),
               ),
               tileOverrides: overrides,
+              viewMode: viewMode,
               onCommitTile: (_, __) {},
               onVideoInterest: (_) {},
               selfBubbleHidden: false,

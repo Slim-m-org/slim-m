@@ -30,6 +30,7 @@ mod call_control_options;
 mod embed_edits;
 mod presses;
 mod security;
+mod selects_and_forms;
 mod sending;
 
 type Client =
@@ -81,6 +82,9 @@ async fn world() -> World {
         bots.push((bot.bot.user_id, bot.token));
     }
     let state = crate::support::app::state(store);
+    for (bot, _) in &bots {
+        state.hub.presence().connect(*bot);
+    }
     World {
         state,
         channel,

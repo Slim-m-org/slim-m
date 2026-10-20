@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/messages/providers/message_selection.dart
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/screens/channel_composer_area.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _channel = 'c1';

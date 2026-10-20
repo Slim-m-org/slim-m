@@ -432,7 +432,10 @@ async fn a_restore_spanning_several_batches_touches_every_object() {
             author,
             CanvasOpId::generate(),
             true,
-            CanvasOpRequest::Clear { before_seq: latest },
+            CanvasOpRequest::Clear {
+                before_seq: latest,
+                scope: Default::default(),
+            },
         )
         .await
         .unwrap();

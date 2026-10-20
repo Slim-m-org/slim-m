@@ -35,6 +35,7 @@ import 'profile_banner.dart';
 import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
 import '../../../widgets/run_guarded.dart';
+import 'member_voice_chip.dart';
 import 'status_editor_sheet.dart';
 
 /// Runs [action] after closing the card, with a container that outlives it.
@@ -179,7 +180,7 @@ class OtherMemberCard extends ConsumerStatefulWidget {
   final Widget? localAudio;
   final String? callChannelName;
 
-  /// The channel whose roster this card opened from, for the "In #channel" rows.
+  /// The channel whose roster this card opened from, for "Remove from #channel".
   final String? channelId;
   final ScaffoldState? memberPaneScaffold;
 
@@ -221,6 +222,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         if (profile.about case final about? when about.isNotEmpty)
           MemberProfileAbout(about: about),
         MemberProfileActivity(userId: profile.id),
+        MemberProfileVoice(userId: profile.id, onOpened: widget.onDone),
         MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
           roles: profile.roles,
@@ -305,7 +307,6 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
   }
 
   Widget _channelSection(String channelName) => _Section([
-    AppMenuLabel('In #$channelName'),
     MemberRemoveFromChannelItem(
       channelId: widget.channelId!,
       profile: widget.profile,

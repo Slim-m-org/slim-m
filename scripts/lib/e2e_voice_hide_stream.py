@@ -72,7 +72,6 @@ def _hide_show_and_unseen(a, b, pb, room_id):
 
     ui.open_tile_menu(b, "Alice")
     b.click(L.HIDE_STREAM, settle=3)
-    b.wait_for("Alice is sharing")
     _assert_nothing_decodes(pb, "hidden stream")
 
     ui.open_tile_menu(b, "Alice")

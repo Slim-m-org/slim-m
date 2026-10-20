@@ -44,7 +44,11 @@ class CanvasPresenceBackdrop extends StatefulWidget {
     this.hideSelfCamera = false,
     this.layout = const CanvasPresenceLayout(),
     this.resolver,
+    this.focusedKey,
   });
+
+  /// The tile `CanvasFocusedFeed` is showing, which must not be drawn here as well.
+  final String? focusedKey;
 
   /// Shared with `CanvasPresenceLayer` so both resolve the tiles through one
   /// visibility history; a standalone backdrop makes its own.
@@ -112,6 +116,7 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
     final backKeys = frame.visibleIds
         .where(
           (key) =>
+              key != widget.focusedKey &&
               presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
         )
         .toSet();
@@ -122,15 +127,19 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
       widget.overrides.zFor,
       (key) => presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
     );
-    return IgnorePointer(
-      key: canvasPresenceBackdropIgnorePointerKey,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (final key in painted)
-            if (_bubble(key, onCanvas[key]!, camera, byIdentity) case final b?)
-              b,
-        ],
+    return CanvasBoardClip(
+      document: widget.document,
+      child: IgnorePointer(
+        key: canvasPresenceBackdropIgnorePointerKey,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final key in painted)
+              if (_bubble(key, onCanvas[key]!, camera, byIdentity)
+                  case final b?)
+                b,
+          ],
+        ),
       ),
     );
   }

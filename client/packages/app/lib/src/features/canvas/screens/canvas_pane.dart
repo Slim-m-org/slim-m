@@ -26,6 +26,7 @@ library;
 import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:slimm_api/api.dart' as api;
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,17 +35,20 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
+import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/video_interest_relay.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -68,6 +72,7 @@ import 'canvas_quick_placement.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_sync.dart';
+import 'canvas_drag_pan.dart';
 
 part 'canvas_pane_fullscreen.dart';
 part 'canvas_pane_gestures.dart';
@@ -100,6 +105,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// hands back the tool the person was actually using rather than the
   /// [CanvasTool.pan] the mode itself forced.
   CanvasTool? _toolBeforeFullscreen;
+
+  /// Whether focusing a tile is what dropped the chrome, so ending the focus restores it.
+  bool _fullscreenFromFocus = false;
+  late final WindowFullscreenHold _windowHold;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
   /// The note whose in-place editor is open, if any.
@@ -108,6 +117,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
   CanvasPenStyle _pen = const CanvasPenStyle();
+  final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
 
@@ -133,6 +143,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void initState() {
     super.initState();
+    // Built here: dispose cannot read ref, and releasing the window must still work then.
+    _windowHold = WindowFullscreenHold(
+      ref.read(fullscreenVideoActiveProvider.notifier),
+    );
     _engine; // touching the late field is what forces its ref.read now
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
@@ -165,6 +179,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _windowHold.release();
     _engine.dispose();
     super.dispose();
   }
@@ -227,6 +242,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onClose: _closeCanvas,
             fullscreen: fullscreen,
             onToggleFullscreen: _toggleFullscreen,
+            focusedTileKey: _focusedTileKey,
+            onFocusTile: _focusTile,
             tool: _tool,
             onToolChanged: _onToolChanged,
             canUndo: _ops.canUndo,
@@ -236,9 +253,11 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             canManage: manageCanvas,
             document: _document,
             onClear: _onClear,
+            scopedClear: _scopedClear,
             onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
             onPasteImageAt: (world) => unawaited(_imagePaste.pasteAt(world)),
             onRecenter: _onRecenter,
+            onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
             error: engineState.error,
             onDismissError: () => _engine.reportError(null),
             onRetryError: engineState.error == CanvasEngine.genericLoadError
@@ -294,6 +313,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 .read(voiceControllerProvider.notifier)
                 .screenShareViewFor(identity, declaresInterest: false),
             tileOverrides: _tileOverrides,
+            viewMode: _engine.viewMode,
             onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
             onVideoInterest: ref.read(videoInterestRelayProvider).declare,
             activityLog: _activityLog,

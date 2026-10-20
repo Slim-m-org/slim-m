@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/settings/widgets/connections_section.dart
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode;
 import '../../support/fake_api.dart';
 

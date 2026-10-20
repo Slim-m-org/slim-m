@@ -2,7 +2,7 @@
 //! The per-weekday notification schedule (decision
 //! `docs/decisions/0033-notification-schedule.md`): when an account wants to
 //! be notified at all, evaluated in that account's own IANA time zone rather
-//! than the fixed UTC-minutes window `notifications::QuietHours` used, so a
+//! than the fixed UTC-minutes window the old quiet hours used, so a
 //! window drawn as "22:00-08:00" reads the same local hours on both sides of
 //! a daylight-saving transition instead of drifting by an hour.
 //!
@@ -30,8 +30,7 @@ pub struct DayWindow {
 }
 
 impl DayWindow {
-    /// Builds a window from wire values, the same bounds
-    /// [`crate::notifications::QuietHours::parse`] enforces: either minute
+    /// Builds a window from wire values: either minute
     /// outside `0..MINUTES_PER_DAY`, or the two equal, is refused.
     pub const fn parse(start_minute: i64, end_minute: i64) -> Option<Self> {
         let in_range = start_minute >= 0

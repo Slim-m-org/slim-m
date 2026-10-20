@@ -4,8 +4,6 @@
 //! Before this, `dispatch` dropped the status, so a server the shared relay would not deliver
 //! for lost its pushes with no trace anywhere.
 
-use std::time::Duration;
-
 use axum::routing::post;
 use axum::{Json, Router};
 use base64::Engine as _;
@@ -207,14 +205,10 @@ async fn a_forbidden_relay_result_is_counted_and_shown_to_the_admin() {
         .unwrap();
     assert_eq!(sent.status(), axum::http::StatusCode::OK);
 
-    let start = std::time::Instant::now();
-    while push.relay_forbidden_total() == 0 {
-        assert!(
-            start.elapsed() < Duration::from_secs(5),
-            "the forbidden result was never counted"
-        );
-        tokio::time::sleep(Duration::from_millis(15)).await;
-    }
+    support::wait::wait_until("the forbidden result to be counted", || {
+        push.relay_forbidden_total() > 0
+    })
+    .await;
     assert_eq!(push.relay_forbidden_total(), 1);
     let text = scrape(&app, &alice).await;
     assert!(

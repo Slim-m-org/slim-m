@@ -24,6 +24,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 class _FakeNotifications implements LocalNotifications {

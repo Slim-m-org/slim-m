@@ -16,6 +16,7 @@ pub mod data_key;
 pub mod db;
 pub mod emoji;
 pub mod ephemeral;
+pub mod export;
 mod forward_backfill;
 mod forward_events;
 pub(crate) mod hidden_chars;
@@ -128,6 +129,7 @@ pub async fn run() -> anyhow::Result<()> {
     let media = media::Media::new(config.attachments_dir.clone(), config.attachment_max_bytes)?
         .with_total_ceiling(config.max_total_attachment_bytes);
     sweeps::spawn_attachment_sweep(store.clone(), media.clone());
+    export::spawn_export_sweep(store.clone(), media.clone());
     sweeps::spawn_canvas_op_sweep(store.clone());
     forward_backfill::spawn_forward_backfill(store.clone(), media.clone());
     let auth = auth::Auth::new(config.hash_concurrency)?;

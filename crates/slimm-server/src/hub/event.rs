@@ -501,6 +501,7 @@ pub enum Event {
         seq: Seq,
         op_id: CanvasOpId,
         before_seq: Seq,
+        scope: crate::store::ClearScope,
     },
     /// A removal or a clear was undone.
     ///
@@ -733,6 +734,14 @@ pub enum Event {
     InteractionCreated {
         interaction: Arc<crate::store::Interaction>,
         clicker_display_name: String,
+        /// What was chosen or typed; carried by the event and never stored.
+        input: Arc<crate::store::InteractionInput>,
+    },
+    /// The bot opened a form for a click. Private to the clicker, whose client
+    /// shows it.
+    InteractionForm {
+        interaction: Arc<crate::store::Interaction>,
+        form: Arc<crate::components::form::Form>,
     },
     /// The bot answered a click. Private to the clicker, so the pressed
     /// button can leave its pending state.

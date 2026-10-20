@@ -178,6 +178,25 @@ class ChannelDrafts extends Table {
   Set<Column> get primaryKey => {channelId};
 }
 
+/// One viewer's own layout of one channel's canvas: camera and tile places.
+///
+/// Like [ChannelDrafts], not a cache of server state: it is never sent anywhere
+/// (decision 0082). The database file is already one per account (decision
+/// 0068), so the channel id alone keys it without two accounts meeting.
+@DataClassName('CanvasPersonalLayoutRow')
+class CanvasPersonalLayouts extends Table {
+  TextColumn get channelId => text()();
+
+  /// The layout as the voice canvas encodes it; this package never reads it.
+  TextColumn get layout => text()();
+
+  /// Orders rows so the oldest go first when the table is capped.
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {channelId};
+}
+
 /// Locally cached messages.
 ///
 /// `@DataClassName('MessageRow')`: the same collision `ChannelCategories`
@@ -280,14 +299,15 @@ extension MessageRowMapping on MessageRow {
     Messages,
     ChannelCategories,
     ChannelDrafts,
-    PendingAttachments
+    PendingAttachments,
+    CanvasPersonalLayouts
   ],
 )
 class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -366,6 +386,7 @@ class SlimmDatabase extends _$SlimmDatabase {
         ),
         _UpgradeStep(24,
             () => _addColumnOnce(m, channels, channels.defaultNotification)),
+        _UpgradeStep(25, () => m.createTable(canvasPersonalLayouts)),
         // v2's null display names and the pre-op-stream epoch are both
         // unreachable by a keyset sync. See the doc comment above.
         _UpgradeStep(7, () async {

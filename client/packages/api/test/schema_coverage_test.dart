@@ -69,6 +69,9 @@ const Map<String, String> _allowlist = {
       'same as GET /users/{}/avatar',
   'GET /users/{}/links/discord/avatar': 'reads raw bytes through '
       'SlimmApi._fetchBytes, the same as GET /users/{}/avatar',
+  'GET /exports/{}/download': 'streams the archive through '
+      'SlimmApi._openDownload with no body deadline, the same as '
+      'openAttachmentDownload, so there is no _send call to match',
   'GET /space/banner': 'reads raw bytes through SlimmApi._fetchBytes, the '
       'same as GET /attachments/{}',
   'GET /invites/{}/banner': 'an unauthenticated picture an Image.network '
@@ -120,21 +123,18 @@ const Map<String, String> _allowlist = {
   'POST /channels/{}/interactions/{}/ack': 'a bot acknowledges a press from '
       'its own process; this client only receives interaction.answered. See '
       'docs/decisions/0039-bot-message-buttons.md',
+  'POST /channels/{}/interactions/{}/form': 'a bot opens a form for a press '
+      'from its own process; this client only receives interaction.form. See '
+      'docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md',
   'POST /voice/webhook': 'called only by the configured LiveKit deployment '
       'itself, verified by its own JWT signature rather than a session - '
       'the same "no client binding by design" shape as POST /webhooks/{}/{} '
       'above. See docs/decisions/0032-voice-participant-webhooks.md',
-  'GET /push/quiet-hours': 'superseded by GET /notifications/schedule; kept '
-      'server-side for back-compat but no longer called by this client - see '
-      'docs/decisions/0033-notification-schedule.md (2026-09-25)',
   'GET /channels/{}/pins/count': 'the pins sheet shows no count, so the '
       'client binding was removed as dead; the server route stays',
   'PUT /channels/{}/overwrites/{}/{}': 'the permissions grid always saves '
       'through the batch route, so the single-target binding was removed as '
       'dead; the server route stays',
-  'PUT /push/quiet-hours': 'same as GET /push/quiet-hours above (2026-09-25)',
-  'DELETE /push/quiet-hours':
-      'same as GET /push/quiet-hours above (2026-09-25)',
 };
 
 const _httpMethods = {

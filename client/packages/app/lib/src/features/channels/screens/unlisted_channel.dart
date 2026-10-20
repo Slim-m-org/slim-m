@@ -25,7 +25,7 @@ class UnlistedChannel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final parent = ref.watch(threadParentProvider(channelId));
     return parent.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (_, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s16),
@@ -73,5 +73,5 @@ class _OpenThreadState extends State<_OpenThread> {
 
   @override
   Widget build(BuildContext context) =>
-      const Center(child: CircularProgressIndicator());
+      const Center(child: AppSpinner(size: AppSpinnerSize.lg));
 }

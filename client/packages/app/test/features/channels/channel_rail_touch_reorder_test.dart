@@ -97,13 +97,6 @@ Future<_Rail> _pumpRail(WidgetTester tester) async {
 
 Finder _row(String id) => find.text(id);
 
-Future<void> _openMenu(WidgetTester tester, String id) async {
-  final gesture = await tester.startGesture(tester.getCenter(_row(id)));
-  await tester.pump(kLongPressTimeout + kPressTimeout);
-  await gesture.up();
-  await tester.pumpAndSettle();
-}
-
 void main() {
   testWidgets('a finger scrolling from a row never lifts it', (tester) async {
     final rail = await _pumpRail(tester);
@@ -170,7 +163,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RailDragLift), findsNothing);
     expect(
-      find.text('Move up'),
+      find.text('Notifications'),
       findsOneWidget,
       reason: 'the hold opened the menu',
     );
@@ -202,7 +195,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(
-      find.text('Move up'),
+      find.text('Notifications'),
       findsNothing,
       reason: 'a drag does not open the menu',
     );
@@ -214,36 +207,6 @@ void main() {
       greaterThan(alpha.channelIds.indexOf('a-02')),
     );
   });
-
-  testWidgets('Move down in a row menu reports the same payload as a drag', (
-    tester,
-  ) async {
-    final rail = await _pumpRail(tester);
-
-    await _openMenu(tester, 'a-01');
-    expect(find.text('Move up'), findsOneWidget);
-    await tester.tap(find.text('Move down'));
-    await tester.pumpAndSettle();
-
-    final alpha = rail.reports.single.firstWhere(
-      (g) => g.categoryId == 'cat-a',
-    );
-    expect(alpha.channelIds.take(3), ['a-00', 'a-02', 'a-01']);
-  });
-
-  testWidgets(
-    'Move up on the first channel of a category leaves the category',
-    (tester) async {
-      final rail = await _pumpRail(tester);
-
-      await _openMenu(tester, 'a-00');
-      await tester.tap(find.text('Move up'));
-      await tester.pumpAndSettle();
-
-      final loose = rail.reports.single.firstWhere((g) => g.categoryId == null);
-      expect(loose.channelIds, ['a-00']);
-    },
-  );
 
   group('groupsAfterStep', () {
     List<ChannelSection> sections() => [

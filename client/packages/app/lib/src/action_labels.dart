@@ -21,7 +21,6 @@ abstract final class ActionLabels {
 
   /// This device's media and cache options, not the Space's limits.
   static const mediaAndCache = 'Media and cache';
-  static const general = 'General';
 
   /// The Space's message retention and canvas cap, not this device's options.
   static const retentionAndLimits = 'Retention and limits';

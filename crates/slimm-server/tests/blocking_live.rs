@@ -375,12 +375,14 @@ async fn a_blocked_reactors_early_timestamp_cannot_reorder_an_emoji_for_the_bloc
     react(apple_uri.clone(), pest_access).await;
     next_frame_of(&mut alice_ws, "reactions.changed").await;
     next_frame_of(&mut dana_ws, "reactions.changed").await;
+    // Distinct created_at milliseconds are what order the reactors.
     tokio::time::sleep(Duration::from_millis(15)).await;
 
     // yara reacts banana second.
     react(banana_uri, yara_access).await;
     next_frame_of(&mut alice_ws, "reactions.changed").await;
     next_frame_of(&mut dana_ws, "reactions.changed").await;
+    // Distinct created_at milliseconds are what order the reactors.
     tokio::time::sleep(Duration::from_millis(15)).await;
 
     // zane reacts apple third, the only visible reactor on it for alice.

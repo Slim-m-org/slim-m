@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT display_name,\n                      EXISTS (SELECT 1 FROM space_removals WHERE user_id = users.id)\n                          AS \"removed!: bool\"\n               FROM users WHERE id = ? AND is_bot = 1 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "display_name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "removed!: bool",
+        "ordinal": 1,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "b30a770c79136946fc8c7c5325273ba34f980e65658c71aa5fdcc5614677630a"
+}

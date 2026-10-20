@@ -23,7 +23,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_section_lab
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

@@ -9,7 +9,6 @@
 /// `repaint` listenable and no widget rebuilds when the camera moves.
 library;
 
-import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -18,6 +17,8 @@ import 'package:flutter/painting.dart';
 
 import 'canvas_board.dart';
 import 'canvas_external_pointers.dart';
+import 'canvas_paint_order.dart';
+import 'canvas_removed_ids.dart';
 import 'canvas_scene.dart';
 import 'canvas_snap.dart';
 import 'canvas_stroke.dart';
@@ -40,30 +41,8 @@ class CanvasDocument extends ChangeNotifier {
   /// this package's footprint.
   final List<CanvasStroke?> _strokes = <CanvasStroke?>[];
   final Map<String, int> _slotById = <String, int>{};
-  final List<int> _order = <int>[];
-
-  /// [paintOrder]'s cache: every alive slot, sorted by `zIndex`, valid across
-  /// a camera-only repaint and rebuilt only when [_orderDirty]. A pan or zoom
-  /// changes which of these are on screen but never their relative order, so
-  /// [paintOrder] only needs to filter this down to [scene.visible] each
-  /// call, not re-sort - see [_resortAlive] and [paintOrder] themselves.
-  final List<int> _sortedAlive = <int>[];
-  bool _orderDirty = true;
-
-  /// Whether slot `i` was in the cull [paintOrder] last filtered against, so
-  /// that filter is one array lookup per candidate rather than a scan of
-  /// [scene.visible] per candidate. [_markedSlots] is what lets the next call
-  /// clear only the slots this one actually set, instead of the whole array.
-  final List<bool> _visibleMark = <bool>[];
-  final List<int> _markedSlots = <int>[];
-
-  /// Ids the server has told this document to drop, so a viewport read still
-  /// in flight when the removal landed cannot resurrect them. The order
-  /// queue is what makes eviction FIFO once [maxRemovedIdsTracked] is
-  /// reached, since no read in flight can name more live ids than the
-  /// channel's own ceiling.
-  final Set<String> _removedIds = <String>{};
-  final Queue<String> _removedOrder = Queue<String>();
+  final PaintOrderCache _paintOrder = PaintOrderCache();
+  final RemovedIds _removed = RemovedIds();
 
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
@@ -84,6 +63,10 @@ class CanvasDocument extends ChangeNotifier {
   /// Bumped whenever the set of objects changes, never when the camera moves,
   /// so an announcement can be rebuilt on content without firing at pan rate.
   final ValueNotifier<int> objectCount = ValueNotifier<int>(0);
+
+  /// How many live objects the board cannot hold whole; see [idsOutsideBoard].
+  final ValueNotifier<int> outsideBoardCount = ValueNotifier<int>(0);
+  final Set<String> _outsideIds = {};
 
   /// The one object currently selected for a resize or reorder, or null.
   /// A document-level notifier rather than caller-held state, the same
@@ -112,55 +95,12 @@ class CanvasDocument extends ChangeNotifier {
   Size get viewport => _viewport;
 
   /// Slots the last cull kept, in paint order.
-  ///
-  /// Sorted here rather than taken as the cull emits them: [UniformGrid]
-  /// answers in cell order on one branch and slot order on the other, and it
-  /// switches between them on zoom, so painting the raw cull would re-layer
-  /// overlapping ink as somebody zoomed across the adaptive threshold. The
-  /// server pays a sort for `(z_index, seq)` and this is where that answer is
-  /// honoured rather than thrown away.
-  List<int> get paintOrder {
-    if (_orderDirty) _resortAlive();
-    _markVisible();
-    _order
-      ..clear()
-      ..addAll(
-        _sortedAlive.where(
-          (slot) => slot < _visibleMark.length && _visibleMark[slot],
-        ),
+  List<int> get paintOrder => _paintOrder.order(
+        slotCount: _strokes.length,
+        isAlive: (slot) => _strokes[slot]?.alive ?? false,
+        compare: comparePaintOrder,
+        visible: scene.visible,
       );
-    return _order;
-  }
-
-  /// Rebuilds [_sortedAlive] from every currently alive slot. Only [_strokes]
-  /// membership and `zIndex` can move a slot within this order, which is
-  /// exactly what [applyPlaced], [kill], [_freeSlot], [reset] and
-  /// `CanvasDocumentSelection.setZIndex` mark [_orderDirty] for.
-  void _resortAlive() {
-    _sortedAlive
-      ..clear()
-      ..addAll([
-        for (var slot = 0; slot < _strokes.length; slot++)
-          if (_strokes[slot]?.alive ?? false) slot,
-      ]);
-    _sortedAlive.sort(comparePaintOrder);
-    _orderDirty = false;
-  }
-
-  /// Refreshes [_visibleMark] from [scene.visible] for [paintOrder]'s filter.
-  void _markVisible() {
-    for (final slot in _markedSlots) {
-      _visibleMark[slot] = false;
-    }
-    _markedSlots.clear();
-    for (final slot in scene.visible) {
-      while (_visibleMark.length <= slot) {
-        _visibleMark.add(false);
-      }
-      _visibleMark[slot] = true;
-      _markedSlots.add(slot);
-    }
-  }
 
   /// Adds a stroke, or returns the slot it already occupies, or refuses one
   /// this document has already been told to drop.
@@ -172,7 +112,7 @@ class CanvasDocument extends ChangeNotifier {
   /// flight when a removal landed from resurrecting it, permanently, with
   /// nothing later re-delivering the erase.
   int? applyPlaced(CanvasStrokeInput input) {
-    if (_removedIds.contains(input.id)) return null;
+    if (_removed.contains(input.id)) return null;
     final known = _slotById[input.id];
     if (known != null) {
       final existing = _strokes[known];
@@ -186,7 +126,7 @@ class CanvasDocument extends ChangeNotifier {
       existing
         ..zIndex = input.zIndex
         ..seq = input.seq;
-      _orderDirty = true;
+      _paintOrder.markDirty();
       return known;
     }
     final path = Path();
@@ -233,8 +173,9 @@ class CanvasDocument extends ChangeNotifier {
       ),
     );
     _slotById[input.id] = slot;
+    _trackOutside(_strokes[slot]);
     objectCount.value = objectCount.value + 1;
-    _orderDirty = true;
+    _paintOrder.markDirty();
     return slot;
   }
 
@@ -270,6 +211,11 @@ class CanvasDocument extends ChangeNotifier {
     if (slot == null) return false;
     final stroke = _strokes[slot];
     if (stroke == null || !stroke.alive) return false;
+    final fitted = boxOnBoard(id, x, y, w, h);
+    x = fitted.x;
+    y = fitted.y;
+    w = fitted.w;
+    h = fitted.h;
     final dx = x - stroke.x;
     final dy = y - stroke.y;
     if (dx == 0 && dy == 0 && w == stroke.w && h == stroke.h) return true;
@@ -284,6 +230,7 @@ class CanvasDocument extends ChangeNotifier {
       ..w = w
       ..h = h
       ..path = stroke.path.shift(Offset(dx, dy));
+    if (_outsideIds.isNotEmpty) _trackOutside(stroke);
     return true;
   }
 
@@ -347,8 +294,9 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive) return;
     stroke.alive = false;
+    _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
-    _orderDirty = true;
+    _paintOrder.markDirty();
   }
 
   /// Removes a placed object by id, or records the id as removed even if
@@ -359,7 +307,7 @@ class CanvasDocument extends ChangeNotifier {
   /// remove op replaying an id twice, or naming one this pane never
   /// fetched, costs nothing.
   void removeObject(String id) {
-    _remember(id);
+    _removed.add(id);
     final slot = _slotById[id];
     if (slot != null) _freeSlot(slot);
   }
@@ -369,15 +317,30 @@ class CanvasDocument extends ChangeNotifier {
   /// The `0 <` guard spares a locally drawn stroke, which carries `seq: 0`
   /// until the server confirms it - without it, a clear in flight would
   /// erase ink as it is drawn, before its own placement is even known.
-  void clearBelow(int beforeSeq) {
+  ///
+  /// [kinds] and [authorId] narrow it the way a scoped clear does; empty and
+  /// null match everything.
+  void clearBelow(
+    int beforeSeq, {
+    Set<CanvasObjectKind> kinds = const {},
+    String? authorId,
+  }) {
     for (var slot = 0; slot < _strokes.length; slot++) {
       final stroke = _strokes[slot];
-      if (stroke != null && stroke.seq > 0 && stroke.seq <= beforeSeq) {
-        _remember(stroke.id);
-        _freeSlot(slot);
-      }
+      if (stroke == null || stroke.seq <= 0 || stroke.seq > beforeSeq) continue;
+      if (kinds.isNotEmpty && !kinds.contains(stroke.kind)) continue;
+      if (authorId != null && stroke.authorId != authorId) continue;
+      _removed.add(stroke.id);
+      _freeSlot(slot);
     }
   }
+
+  /// Everyone who authored an object still on the board.
+  Set<String> authorIds() => {
+        for (final stroke in _strokes)
+          if (stroke != null && stroke.alive && stroke.authorId != null)
+            stroke.authorId!,
+      };
 
   /// Drops ids from the removed-id tombstone set: a restore, which never
   /// re-materializes a stroke locally since its payload was freed on
@@ -391,8 +354,7 @@ class CanvasDocument extends ChangeNotifier {
   void forgetRemoved(Iterable<String> ids) {
     final restored = ids.toSet();
     if (restored.isEmpty) return;
-    _removedIds.removeAll(restored);
-    _removedOrder.removeWhere(restored.contains);
+    _removed.removeAll(restored);
     _slotById.removeWhere((id, _) => restored.contains(id));
   }
 
@@ -405,23 +367,12 @@ class CanvasDocument extends ChangeNotifier {
     _disposeImages();
     _strokes.clear();
     _slotById.clear();
-    _order.clear();
-    _sortedAlive.clear();
-    _orderDirty = false;
-    _visibleMark.clear();
-    _markedSlots.clear();
-    _removedIds.clear();
-    _removedOrder.clear();
+    _paintOrder.clear();
+    _removed.clear();
     scene.reset();
+    _outsideIds.clear();
+    outsideBoardCount.value = 0;
     objectCount.value = 0;
-  }
-
-  void _remember(String id) {
-    if (!_removedIds.add(id)) return;
-    _removedOrder.add(id);
-    if (_removedOrder.length > maxRemovedIdsTracked) {
-      _removedIds.remove(_removedOrder.removeFirst());
-    }
   }
 
   void _freeSlot(int slot) {
@@ -431,10 +382,13 @@ class CanvasDocument extends ChangeNotifier {
     if (selectedObjectId.value == stroke.id) selectedObjectId.value = null;
     if (elevatedObjectId.value == stroke.id) elevatedObjectId.value = null;
     scene.remove(slot);
+    if (_outsideIds.remove(stroke.id)) {
+      outsideBoardCount.value = _outsideIds.length;
+    }
     stroke.image?.dispose();
     _strokes[slot] = null;
     objectCount.value = objectCount.value - 1;
-    _orderDirty = true;
+    _paintOrder.markDirty();
   }
 
   void _disposeImages() {
@@ -509,7 +463,8 @@ class CanvasDocument extends ChangeNotifier {
   }
 
   void _reculled() {
-    final view = worldView;
+    final board = _board;
+    final view = board == null ? worldView : worldView.intersect(board);
     scene.setViewport(view.left, view.top, view.right, view.bottom);
     notifyListeners();
   }
@@ -518,6 +473,7 @@ class CanvasDocument extends ChangeNotifier {
   void dispose() {
     _disposeImages();
     objectCount.dispose();
+    outsideBoardCount.dispose();
     selectedObjectId.dispose();
     elevatedObjectId.dispose();
     snapGuides.dispose();

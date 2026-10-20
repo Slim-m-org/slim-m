@@ -119,7 +119,7 @@ class _MoveDestinationsState extends ConsumerState<MoveDestinations> {
       if (channels.isLoading)
         const Padding(
           padding: EdgeInsets.all(AppSpacing.s12),
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: AppSpinner(size: AppSpinnerSize.lg)),
         )
       else if (channels.hasError)
         const AppErrorState(message: 'Could not load the voice channels.')

@@ -13,6 +13,7 @@ import 'package:slimm_app/src/spotify/spotify_client.dart';
 import 'package:slimm_app/src/spotify/spotify_source.dart';
 import 'package:slimm_app/src/spotify/spotify_token_store.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 final _now = DateTime.utc(2026, 9, 30, 12);
 

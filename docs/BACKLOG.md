@@ -110,7 +110,7 @@ Each can be revisited if the product's direction changes, but the default answer
   Not declined as an idea - [0007](decisions/0007-extensions-and-untrusted-execution.md) records the extension-broker shape it would have to take, where the server brokers and never executes, an extension is always a separate process, and a marketplace is a directory an operator chooses from rather than anything that pushes code at a running deployment.
 - ~~Slash-command registration framework:~~ Shipped for bots, see decision [0031](decisions/0031-bot-command-registration.md). Original reasoning kept: Slack-app-platform scope creep; the command palette and webhooks cover the real need.
 - ~~Server-side link previews and URL unfurling:~~ Shipped as the opt-in, see decision [0019](decisions/0019-link-unfurling-and-ssrf-defense.md). Original reasoning kept: a lightweight self-host fetching arbitrary URLs can leak access to its internal network; only ever add as an opt-in, egress-sandboxed fetcher.
-- Events with RSVP and a calendar subsystem: a real subsystem beyond chat; polls, pins, scheduled messages, and a webhook calendar integration cover the coordination need.
+- Events with RSVP and a calendar subsystem: a real subsystem beyond chat; polls, pins, and a webhook calendar integration cover the coordination need until a module (see the "Module: events with RSVP" card) takes it on. There is no scheduled-message feature.
 - Scheduled or recurring pings that store PII such as birthdays: recurring scheduler plus PII storage is bot-like scope creep that belongs in the automation API.
 - Shared media gallery view: a non-essential convenience; because it is only a filtered query over the existing attachment store it can be added later at essentially zero design cost.
 

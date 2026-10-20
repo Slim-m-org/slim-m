@@ -46,9 +46,19 @@ final removedMembersProvider =
     );
 
 /// Every bot in the deployment, including revoked ones.
-final botsProvider = FutureProvider.autoDispose<List<api.Bot>>(
-  (ref) => ref.watch(apiProvider).listBots(),
-);
+final botsProvider = FutureProvider.autoDispose<List<api.Bot>>((ref) async {
+  final botIds = <String>{};
+  // A bot connecting or dropping flips its Online state, so the list refetches.
+  final changes = ref.read(liveEventsProvider).listen((event) {
+    if (event is api.PresenceChanged && botIds.contains(event.userId)) {
+      ref.invalidateSelf();
+    }
+  });
+  ref.onDispose(changes.cancel);
+  final bots = await ref.watch(apiProvider).listBots();
+  botIds.addAll(bots.map((b) => b.userId));
+  return bots;
+});
 
 /// A command prefix no live bot holds, offered when creating a bot.
 final suggestedBotPrefixProvider = FutureProvider.autoDispose<String>(

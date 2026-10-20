@@ -23,6 +23,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/push_content_preview_settings.dart';
 import 'package:slimm_app/src/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _channelName = 'top.npcserver.slimm/push';
 

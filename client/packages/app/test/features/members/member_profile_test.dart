@@ -110,7 +110,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('House DJ'), findsOneWidget);
-    expect(find.text('@maya · account name Maya'), findsOneWidget);
+    expect(find.text('@maya · Maya'), findsOneWidget);
+    expect(find.textContaining('account name'), findsNothing);
   });
 
   testWidgets('the profile composes before any action row', (tester) async {

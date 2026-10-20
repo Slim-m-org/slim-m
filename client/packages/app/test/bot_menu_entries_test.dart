@@ -26,7 +26,12 @@ import 'package:slimm_design_system/design_system.dart';
 import 'features/messages/message_row_harness.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
-api.ChannelBotUi _bot(String name, List<String> labels) => api.ChannelBotUi(
+api.ChannelBotUi _bot(
+  String name,
+  List<String> labels, {
+  bool offline = false,
+}) => api.ChannelBotUi(
+  offline: offline,
   botUserId: 'bot-$name',
   botUsername: name.toLowerCase(),
   botDisplayName: name,
@@ -131,6 +136,35 @@ void main() {
     expect(used?.id, 'Translate');
     expect(find.text('Translate'), findsNothing, reason: 'the menu closes');
   });
+
+  testWidgets(
+    'an offline bot keeps its row, dimmed, and tapping it does nothing',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      var used = false;
+      final sections = botMenuSections([
+        _bot('Helper', ['Translate'], offline: true),
+      ], onUse: (_, _) => used = true);
+      await tester.pumpWidget(_row(_actionsWith(sections)));
+      await tester.tapAt(
+        _pressPoint(tester),
+        buttons: kSecondaryButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Offline'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Translate, bot offline')),
+        isSemantics(isEnabled: false, isButton: true),
+      );
+      await tester.tap(find.text('Translate'));
+      await tester.pumpAndSettle();
+      expect(used, isFalse);
+      expect(find.text('Translate'), findsOneWidget, reason: 'menu stays open');
+      semantics.dispose();
+    },
+  );
 
   testWidgets('a long-press reaches the same rows on a phone', (tester) async {
     final sections = botMenuSections([

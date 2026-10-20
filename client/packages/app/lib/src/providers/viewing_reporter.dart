@@ -32,7 +32,12 @@ const viewingRefreshInterval = Duration(seconds: 30);
 /// user active; the server's own window is the same two minutes.
 const activeInputWindow = Duration(minutes: 2);
 
-class ViewingReporter {
+/// Told about every keyboard or pointer input anywhere in the app.
+abstract interface class InputListener {
+  void noteInput();
+}
+
+class ViewingReporter implements InputListener {
   ViewingReporter(
     this._ref, {
     required void Function(Set<String> channels, bool active) send,
@@ -63,6 +68,7 @@ class ViewingReporter {
   bool _active() => _focused && _recentInput();
 
   /// Keyboard or pointer input on this device; marks it active for [activeInputWindow].
+  @override
   void noteInput() {
     final wasRecent = _recentInput();
     _lastInput = clock.now();
@@ -90,17 +96,17 @@ class ViewingReporter {
   }
 }
 
-/// The one pair of global input hooks, shared by every container's reporter.
+/// The one pair of global input hooks, shared by every container's reporters.
 class ViewingInput {
   ViewingInput._();
 
   static final instance = ViewingInput._();
 
-  final _reporters = <ViewingReporter>{};
+  final _reporters = <InputListener>{};
 
   int get reporterCount => _reporters.length;
 
-  void add(ViewingReporter reporter) {
+  void add(InputListener reporter) {
     if (_reporters.isEmpty) {
       GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointer);
       HardwareKeyboard.instance.addHandler(_onKey);
@@ -108,7 +114,7 @@ class ViewingInput {
     _reporters.add(reporter);
   }
 
-  void remove(ViewingReporter reporter) {
+  void remove(InputListener reporter) {
     if (!_reporters.remove(reporter) || _reporters.isNotEmpty) return;
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
     HardwareKeyboard.instance.removeHandler(_onKey);

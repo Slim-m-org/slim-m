@@ -46,6 +46,7 @@ class ChannelBotCommand {
     required this.description,
     this.usage,
     this.options = const [],
+    this.offline = false,
   });
 
   final String botUserId;
@@ -63,6 +64,9 @@ class ChannelBotCommand {
   /// Positional arguments; the composer picks from [BotCommandOption.choices].
   final List<BotCommandOption> options;
 
+  /// The bot has no live socket, so the command would get no answer.
+  final bool offline;
+
   factory ChannelBotCommand.fromJson(Map<String, dynamic> json) =>
       ChannelBotCommand(
         botUserId: json['bot_user_id'] as String,
@@ -73,6 +77,7 @@ class ChannelBotCommand {
         description: json['description'] as String,
         usage: json['usage'] as String?,
         options: _optionsFromJson(json['options']),
+        offline: json['offline'] as bool? ?? false,
       );
 }
 

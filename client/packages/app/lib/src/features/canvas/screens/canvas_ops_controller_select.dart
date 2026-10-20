@@ -203,11 +203,18 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       final point = snap
           ? _snapped(resize.objectId, Rect.fromLTWH(world.dx, world.dy, 0, 0))
           : _unsnapped();
-      resize.current = resizeBounds(
+      final raw = resizeBounds(
         corner: resize.corner,
         original: resize.fromBounds,
-        pointerWorld: world + point,
+        pointerWorld: document.clampToBoard(world + point),
         lockAspect: lockAspect,
+      );
+      resize.current = document.boxOnBoard(
+        resize.objectId,
+        raw.x,
+        raw.y,
+        raw.w,
+        raw.h,
       );
       document.moveObject(
         resize.objectId,
@@ -226,8 +233,15 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final shift = snap
         ? _snapped(drag.objectId, Rect.fromLTWH(x, y, drag.fromW, drag.fromH))
         : _unsnapped();
-    drag.x = x + shift.dx;
-    drag.y = y + shift.dy;
+    final box = document.boxOnBoard(
+      drag.objectId,
+      x + shift.dx,
+      y + shift.dy,
+      drag.fromW,
+      drag.fromH,
+    );
+    drag.x = box.x;
+    drag.y = box.y;
     document.moveObject(drag.objectId, drag.x, drag.y, drag.fromW, drag.fromH);
     document.refresh();
   }
@@ -408,5 +422,26 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       onError('That could not be $verb.');
       return null;
     }
+  }
+
+  /// Moves every object the caller may move, and the board cannot hold whole,
+  /// back onto the board. Returns how many it moved.
+  Future<int> bringIntoBoard({
+    required bool manageCanvas,
+    required String? selfId,
+  }) async {
+    var moved = 0;
+    for (final id in document.idsOutsideBoard) {
+      final from = document.objectBounds(id);
+      final mine = manageCanvas || document.authorIdOf(id) == selfId;
+      if (from == null || isLocked(id) || !mine) continue;
+      final to = document.boxOnBoard(id, from.x, from.y, from.w, from.h);
+      if (to == from) continue;
+      document.moveObject(id, to.x, to.y, to.w, to.h);
+      await _commitBounds(id, from, to, 'That could not be moved.');
+      moved++;
+    }
+    document.refresh();
+    return moved;
   }
 }

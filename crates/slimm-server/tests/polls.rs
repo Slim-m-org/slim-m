@@ -177,6 +177,7 @@ async fn vote_after_close_is_refused() {
     )
     .await;
     let message_id = poll["id"].as_str().unwrap().to_owned();
+    // close_at is wall-clock, so the poll must really pass it.
     tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 
     let status = vote(&app, &message_id, &token, 0).await;

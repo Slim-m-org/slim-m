@@ -200,12 +200,13 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
   }
 
   Future<void> _hydrateExtras() async {
+    // Read before the first await: a channel closed mid-load has disposed its ref by the time the fetch returns.
+    final client = ref.read(apiProvider);
+    final storeFuture = ref.read(storeProvider.future);
     try {
-      final recent = await ref
-          .read(apiProvider)
-          .listMessages(widget.channelId, limit: 50);
+      final recent = await client.listMessages(widget.channelId, limit: 50);
       // Stored too: a thread older than /sync's window has no local rows, and showed blank until a new message arrived.
-      final store = await ref.read(storeProvider.future);
+      final store = await storeFuture;
       await store.applyMessages(recent);
       if (!mounted) return;
       ref.read(messageExtrasProvider.notifier).applyMessages(recent);
@@ -314,7 +315,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
 
     return storeAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (e, _) =>
           const Center(child: Text('Could not open the local store.')),
       data: (store) => StreamBuilder<Channel?>(

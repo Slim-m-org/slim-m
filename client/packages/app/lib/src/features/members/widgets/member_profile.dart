@@ -10,7 +10,7 @@
 /// The profile (header, about, activity, roles, join date) composes in a
 /// fixed order and a section you have no content for is *absent*, never
 /// present-and-empty. Someone else's card follows with Message and Add note,
-/// the "In #channel" rows when opened from a channel, then Moderate, Report
+/// "Remove from #channel" when opened from a channel, then Moderate, Report
 /// and Block; your own ends in Set status, Copy username and Profile settings
 /// (see `member_profile_cards.dart`).
 ///

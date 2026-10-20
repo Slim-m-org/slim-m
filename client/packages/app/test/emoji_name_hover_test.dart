@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/emoji/widgets/emoji_names.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_text.dart';
 import 'package:slimm_app/src/features/messages/widgets/reactions_row.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 const _grinning = '\u{1F600}';

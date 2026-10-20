@@ -20,7 +20,6 @@ import '../../messages/providers/unread_indicator_rules.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/providers/voice_roster.dart';
 import 'channel_kind_icon.dart';
-import 'channel_move.dart';
 import 'channel_row_menu.dart';
 import '../../../widgets/context_menu_region.dart';
 import 'rail_join_muted_glyph.dart';
@@ -42,7 +41,6 @@ class ManagedChannelRow extends StatefulWidget {
     required this.canManage,
     required this.reorderable,
     this.menuKey,
-    this.move,
     required this.channel,
     required this.row,
   });
@@ -61,9 +59,6 @@ class ManagedChannelRow extends StatefulWidget {
   /// Lets the rail open this row's menu when a held press is released without
   /// moving the row (`channel_rail_reorder.dart`).
   final GlobalKey<ContextMenuRegionState>? menuKey;
-
-  /// The non-gesture way to reorder, offered in the menu to a manager.
-  final ChannelMoveActions? move;
 
   /// Builds the row given the kebab to place in its trailing slot, or null
   /// when [canManage] is false. Passed through unconditionally so the row
@@ -96,7 +91,6 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
         close,
         widget.channel,
         widget.canManage,
-        move: widget.move,
       );
 
   @override
@@ -105,6 +99,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
       return ContextMenuRegion(
         itemsBuilder: _menuItems,
         ownsFocusNode: false,
+        menuWidth: 240,
         child: widget.row(null),
       );
     }
@@ -116,6 +111,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
         key: _menuKey,
         itemsBuilder: _menuItems,
         ownsFocusNode: false,
+        menuWidth: 240,
         enableLongPress: enableLongPress,
         child: Semantics(
           onLongPress: () => _menuKey.currentState?.open(),
@@ -165,6 +161,7 @@ class _ManagedChannelRowState extends State<ManagedChannelRow> {
       key: _menuKey,
       itemsBuilder: _menuItems,
       ownsFocusNode: false,
+      menuWidth: 240,
       enableLongPress: enableLongPress,
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),

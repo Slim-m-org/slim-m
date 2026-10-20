@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/voice/providers/dm_call_ring_controller.d
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
 const _tokens = api.TokenPair(

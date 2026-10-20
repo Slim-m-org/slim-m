@@ -106,8 +106,13 @@ pub(crate) async fn message_audience(
         channel_id,
         parent_channel_id: parent.map(|parent| parent.parent_channel_id),
     };
+    let automated = store.is_automated_author(author_id).await?;
+    let audience = Audience {
+        mentioned: &mentioned,
+        automated,
+    };
     let recipients =
-        narrow_for_notification_preference(store, scope, author_id, &mentioned, viewers).await?;
+        narrow_for_notification_preference(store, scope, author_id, audience, viewers).await?;
     Ok((recipients, mentioned))
 }
 
@@ -299,9 +304,13 @@ async fn narrow_for_notification_preference(
     store: &Store,
     scope: Scope,
     author_id: UserId,
-    mentioned: &HashSet<UserId>,
+    audience: Audience<'_>,
     viewers: Vec<UserId>,
 ) -> anyhow::Result<Vec<UserId>> {
+    let Audience {
+        mentioned,
+        automated,
+    } = audience;
     if viewers.is_empty() {
         return Ok(viewers);
     }
@@ -333,7 +342,7 @@ async fn narrow_for_notification_preference(
                 preference: NotificationPreference::default(),
                 overridden: false,
             });
-            let mut preference = read_only_default(choice, senders.contains(user_id));
+            let mut preference = read_only_default(choice, senders.contains(user_id), automated);
             if let Some(schedule) = schedules.get(user_id) {
                 preference = degrade_for_off_hours(
                     preference,
@@ -351,13 +360,28 @@ async fn narrow_for_notification_preference(
         .collect())
 }
 
-/// The preference that applies once posting rights are known: without an
-/// override for this channel, "everything" becomes "mentions" for a reader
-/// who cannot post in it, so a busy feed does not wake everyone it reaches.
+/// What the message itself says about who it is for.
+#[derive(Clone, Copy)]
+struct Audience<'a> {
+    mentioned: &'a HashSet<UserId>,
+    /// Written by a bot or a webhook rather than a person.
+    automated: bool,
+}
+
+/// The preference that applies once posting rights and authorship are known:
+/// without an override for this channel, "everything" becomes "mentions" for a
+/// reader who cannot post in it, and for any reader when a bot or webhook
+/// wrote the message, so a busy feed does not wake everyone it reaches.
 /// An explicit choice for the channel always stands.
-fn read_only_default(choice: NotificationChoice, can_send: bool) -> NotificationPreference {
-    match (choice.preference, choice.overridden, can_send) {
-        (NotificationPreference::Everything, false, false) => NotificationPreference::Mentions,
-        (preference, _, _) => preference,
+fn read_only_default(
+    choice: NotificationChoice,
+    can_send: bool,
+    automated: bool,
+) -> NotificationPreference {
+    match (choice.preference, choice.overridden) {
+        (NotificationPreference::Everything, false) if !can_send || automated => {
+            NotificationPreference::Mentions
+        }
+        (preference, _) => preference,
     }
 }

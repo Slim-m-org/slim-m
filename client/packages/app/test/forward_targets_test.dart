@@ -14,7 +14,7 @@ import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/forward_targets.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',

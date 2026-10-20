@@ -188,6 +188,14 @@ class SyncController extends StateNotifier<SyncStatus> {
   void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
       _connection?.viewing(channelIds, active: active);
 
+  /// Whether the person is at this device, asked at each connect; set by the
+  /// presence activity reporter. Unset sends no claim, keeping ping-based presence.
+  bool Function()? activeAtHello;
+
+  /// Tells the server the person used this device recently; a no-op while the
+  /// socket is down, like [notifyTyping].
+  void notifyActive() => _connection?.active();
+
   /// Tells the server this user's pointer moved on a channel's canvas.
   ///
   /// The same no-op-while-down shape as [notifyTyping]: a cursor position
@@ -332,6 +340,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       url: api.webSocketUrl,
       ticket: ticket.ticket,
       open: api.openWebSocket,
+      active: activeAtHello?.call(),
     );
     if (generation != _generation) {
       await connection.close();

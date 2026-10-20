@@ -41,7 +41,7 @@ async fn replay_log(store: &Store, channel: ChannelId) -> HashMap<CanvasObjectId
                 CanvasOpBody::Remove(ids) => {
                     dead.extend(ids.iter().copied());
                 }
-                CanvasOpBody::Clear { before_seq } => {
+                CanvasOpBody::Clear { before_seq, .. } => {
                     for (id, (seq, _)) in &placed {
                         if *seq <= *before_seq {
                             dead.insert(*id);
@@ -157,7 +157,10 @@ async fn concurrent_moves_removes_and_restores_never_desync_the_log_from_the_tab
             h: 5.0,
         };
         // A clear over the first few placements, raced against a move on one of the objects it kills.
-        let clear = CanvasOpRequest::Clear { before_seq: 5 };
+        let clear = CanvasOpRequest::Clear {
+            before_seq: 5,
+            scope: Default::default(),
+        };
         let move_c = CanvasOpRequest::Move {
             object_id: ids[4],
             x: 1.0,

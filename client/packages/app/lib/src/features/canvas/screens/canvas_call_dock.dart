@@ -40,6 +40,7 @@
 /// nothing stopping the gap from tightening alongside everything else.
 library;
 
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,6 +90,7 @@ class CanvasDockData {
     required this.onRedo,
     required this.canManage,
     required this.onClear,
+    this.scopedClear,
     required this.onPasteImage,
     required this.selection,
     required this.onBringToFront,
@@ -123,6 +125,7 @@ class CanvasDockData {
   final VoidCallback onRedo;
   final bool canManage;
   final Future<void> Function() onClear;
+  final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
   final ValueListenable<String?> selection;
   final ValueChanged<String> onBringToFront;
@@ -151,9 +154,7 @@ class CanvasDockData {
   final ValueChanged<String> onShowTile;
 
   /// Whether the pane has dropped its chrome, and the control that flips it.
-  /// While true this dock draws its canvas half as one button - the way back
-  /// - instead of the tool strip; the call half is untouched, for the reason
-  /// this file's own doc gives about a call nobody can leave.
+  /// While true the dock's close button becomes the way back out.
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
 }
@@ -288,7 +289,6 @@ class CanvasCallDock extends ConsumerWidget {
   /// Tools on their own row so the eraser never scrolls out of reach; undo,
   /// the overflow and the canvas toggle share the row beneath.
   static List<Widget> _stackedCanvasRows(CanvasDockData canvas) {
-    if (canvas.fullscreen) return [CanvasDockToolsRow(canvas: canvas)];
     return [
       if (!canvas.activityLogOpen)
         CanvasDockToolsRow(canvas: canvas, part: CanvasToolsRowPart.toolsOnly),
@@ -312,14 +312,12 @@ class CanvasCallDock extends ConsumerWidget {
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );
 
-  static Widget? _toggle(CanvasDockData canvas) => canvas.fullscreen
-      ? null
+  static Widget _toggle(CanvasDockData canvas) => canvas.fullscreen
+      ? CanvasDockExitFullscreen(onPressed: canvas.onToggleFullscreen)
       : CanvasDockToggle(open: true, onPressed: canvas.onClose);
 
-  static List<Widget> _toggleAfterGap(CanvasDockData canvas) {
-    final toggle = _toggle(canvas);
-    return [
-      if (toggle != null) ...[const SizedBox(width: AppSpacing.s8), toggle],
-    ];
-  }
+  static List<Widget> _toggleAfterGap(CanvasDockData canvas) => [
+    const SizedBox(width: AppSpacing.s8),
+    _toggle(canvas),
+  ];
 }

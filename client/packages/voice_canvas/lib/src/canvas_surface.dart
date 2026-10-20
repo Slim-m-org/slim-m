@@ -20,6 +20,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'canvas_board_clip.dart';
 import 'canvas_camera_wheel.dart';
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
@@ -488,14 +489,23 @@ class _CanvasSurfaceState extends State<CanvasSurface>
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  RepaintBoundary(child: CustomPaint(painter: _strokes)),
-                  if (_remoteDraftPainter case final remoteDraftPainter?)
-                    RepaintBoundary(
-                      child: CustomPaint(painter: remoteDraftPainter),
+                  CanvasBoardClip(
+                    document: widget.document,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        RepaintBoundary(child: CustomPaint(painter: _strokes)),
+                        if (_remoteDraftPainter case final remoteDraftPainter?)
+                          RepaintBoundary(
+                            child: CustomPaint(painter: remoteDraftPainter),
+                          ),
+                        RepaintBoundary(
+                            child: CustomPaint(painter: _draftPainter)),
+                        RepaintBoundary(
+                          child: CustomPaint(painter: _shapeDraftPainter),
+                        ),
+                      ],
                     ),
-                  RepaintBoundary(child: CustomPaint(painter: _draftPainter)),
-                  RepaintBoundary(
-                    child: CustomPaint(painter: _shapeDraftPainter),
                   ),
                   if (_selectionPainter case final selectionPainter?)
                     RepaintBoundary(

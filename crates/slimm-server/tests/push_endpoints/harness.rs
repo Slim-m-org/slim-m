@@ -138,38 +138,20 @@ pub(crate) async fn register_push(app: &Router, token: &str, push_token: &str) -
 }
 
 /// Polls a synchronous condition until it is true or `timeout` elapses.
-pub(crate) async fn wait_until<F>(mut check: F, timeout: Duration) -> bool
+pub(crate) async fn wait_until<F>(check: F, timeout: Duration) -> bool
 where
     F: FnMut() -> bool,
 {
-    let start = std::time::Instant::now();
-    loop {
-        if check() {
-            return true;
-        }
-        if start.elapsed() > timeout {
-            return false;
-        }
-        tokio::time::sleep(Duration::from_millis(15)).await;
-    }
+    crate::support::wait::holds_within(timeout, check).await
 }
 
 /// [`wait_until`] for an async condition (a store query, for example).
-pub(crate) async fn wait_until_async<F, Fut>(mut check: F, timeout: Duration) -> bool
+pub(crate) async fn wait_until_async<F, Fut>(check: F, timeout: Duration) -> bool
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = bool>,
 {
-    let start = std::time::Instant::now();
-    loop {
-        if check().await {
-            return true;
-        }
-        if start.elapsed() > timeout {
-            return false;
-        }
-        tokio::time::sleep(Duration::from_millis(15)).await;
-    }
+    crate::support::wait::holds_within_async(timeout, check).await
 }
 
 // --- Mock relay: a real HTTP server implementing just `POST /v1/send` ---

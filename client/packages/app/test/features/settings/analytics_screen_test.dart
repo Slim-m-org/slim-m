@@ -27,7 +27,7 @@ import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.d
 import 'package:slimm_app/src/features/settings/screens/admin/analytics_toggle.dart';
 import 'package:slimm_app/src/widgets/analytics_bar_chart.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin',

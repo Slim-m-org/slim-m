@@ -152,14 +152,7 @@ class CallDockButton extends StatelessWidget {
   }
 
   Widget _spinner(AppTokens tokens) => Center(
-    child: SizedBox(
-      width: AppSizes.icon16,
-      height: AppSizes.icon16,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: tokens.textSecondary,
-      ),
-    ),
+    child: AppSpinner(size: AppSpinnerSize.sm, color: tokens.textSecondary),
   );
 
   Widget _withLevel(Widget icon, AppTokens tokens) {

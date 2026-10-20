@@ -56,3 +56,20 @@ class InteractionAnswered extends ServerEvent {
   /// Absent when the answered use was a call control, which names no message.
   final String? messageId;
 }
+
+/// A bot opened a form for this account's press. The press counts as answered
+/// and the client shows [form]; submitting it names [interactionId]. See
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
+class InteractionForm extends ServerEvent {
+  const InteractionForm({
+    required this.interactionId,
+    required this.channelId,
+    required this.form,
+    this.messageId,
+  });
+
+  final String interactionId;
+  final String channelId;
+  final String? messageId;
+  final BotForm form;
+}

@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dar
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import 'features/messages/message_row_harness.dart';

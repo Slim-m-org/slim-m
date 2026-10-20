@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The rows of buttons a bot attaches to its message. See
+/// The rows of buttons and select menus a bot attaches to its message. See
 /// docs/decisions/0039-bot-message-buttons.md.
 ///
 /// Layout follows the width it is given, never the platform: a row wraps
@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../../providers/button_presses.dart';
+import 'message_select.dart';
 
 /// A failure stays a readable line under the row, not a full-width banner.
 const double _errorMaxWidth = 480;
@@ -44,16 +45,47 @@ class MessageButtons extends ConsumerWidget {
   final List<api.ComponentRow> rows;
   final bool unavailable;
 
+  Widget _rowView(
+    api.ComponentRow row,
+    Map<String, ButtonPress> presses,
+    void Function(String customId, [List<String>? values]) press,
+  ) {
+    if (row.select case final select?) {
+      return MessageSelectView(
+        select: select,
+        pending: presses[select.customId]?.pending ?? false,
+        disabled: unavailable || select.disabled,
+        onChosen: (values) => press(select.customId, values),
+      );
+    }
+    return Wrap(
+      spacing: AppSpacing.s4,
+      runSpacing: AppSpacing.s4,
+      children: [
+        for (final button in row.buttons)
+          _ButtonView(
+            button: button,
+            pending: presses[button.customId]?.pending ?? false,
+            disabled: unavailable || button.disabled,
+            onPressed: button.customId == null
+                ? null
+                : () => press(button.customId!),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (rows.isEmpty) return const SizedBox.shrink();
     final presses = ref.watch(messageButtonPressesProvider(messageId));
     final controller = ref.read(buttonPressesProvider.notifier);
-    void press(String customId) => unawaited(
+    void press(String customId, [List<String>? values]) => unawaited(
       controller.press(
         channelId: channelId,
         messageId: messageId,
         customId: customId,
+        values: values,
       ),
     );
     final failed = presses.values
@@ -67,21 +99,7 @@ class MessageButtons extends ConsumerWidget {
           for (final row in rows)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s4),
-              child: Wrap(
-                spacing: AppSpacing.s4,
-                runSpacing: AppSpacing.s4,
-                children: [
-                  for (final button in row.buttons)
-                    _ButtonView(
-                      button: button,
-                      pending: presses[button.customId]?.pending ?? false,
-                      disabled: unavailable || button.disabled,
-                      onPressed: button.customId == null
-                          ? null
-                          : () => press(button.customId!),
-                    ),
-                ],
-              ),
+              child: _rowView(row, presses, press),
             ),
           if (failed != null)
             Padding(
@@ -89,10 +107,10 @@ class MessageButtons extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: _errorMaxWidth),
                 child: AppErrorState(
-                  message: failed.failure ?? 'That button did not work.',
+                  message: failed.failure ?? 'That did not work.',
                   onRetry: () {
                     controller.dismiss(messageId, failed.customId);
-                    press(failed.customId);
+                    press(failed.customId, failed.values);
                   },
                   onDismiss: () =>
                       controller.dismiss(messageId, failed.customId),

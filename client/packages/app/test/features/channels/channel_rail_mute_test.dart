@@ -121,6 +121,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      find.descendant(
+        of: find.widgetWithText(AppMenuItem, 'Notifications'),
+        matching: find.text('Mentions'),
+      ),
+      findsOneWidget,
+      reason: 'the entry shows the current choice',
+    );
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
+
     Finder checkIn(String label) => find.descendant(
       of: find.widgetWithText(AppMenuItem, label),
       matching: find.byIcon(AppIcons.check),
