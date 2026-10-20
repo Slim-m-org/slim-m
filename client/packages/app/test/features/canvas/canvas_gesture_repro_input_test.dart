@@ -190,6 +190,35 @@ void main() {
     });
   });
 
+  group('the object menu', () {
+    testWidgets('does not open for a note the board clip hides', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        final rig = await FuzzRig.start(tester, phone: true);
+        // x1 sits wholly above the board, so only the letterbox shows where it would be.
+        final inLetterbox = rig.toScreen(const Offset(950, -425));
+        final pointer = await down(
+          tester,
+          inLetterbox,
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryButton,
+        );
+        await lift(tester, pointer);
+
+        expect(
+          rig.document.selectedObjectId.value,
+          isNull,
+          reason: 'the hidden note got selected',
+        );
+        expect(find.text('Delete'), findsNothing, reason: 'its menu opened');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+  });
+
   group('a stylus', () {
     testWidgets('draws while a palm rests on the screen', (tester) async {
       final rig = await FuzzRig.start(tester, phone: true);
