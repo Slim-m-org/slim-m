@@ -28,6 +28,7 @@
 /// intended if something else in the workspace pins lower.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -74,6 +75,28 @@ void main() {
           'libwebrtc\'s own screen list and a second for the capture, so the '
           'first Linux share asks twice. Run scripts/linux-portal-probe/run.sh '
           'before moving the pin.',
+    );
+  });
+
+  test('the locked flutter_webrtc carries the portal session guard', () {
+    final config = File(
+      '${_workspaceRoot().path}/.dart_tool/package_config.json',
+    );
+    final packages =
+        (jsonDecode(config.readAsStringSync())['packages'] as List<dynamic>);
+    final root = packages.cast<Map<String, dynamic>>().firstWhere(
+          (p) => p['name'] == 'flutter_webrtc',
+        )['rootUri'] as String;
+    final guard = File.fromUri(
+      Uri.parse(root.endsWith('/') ? root : '$root/').resolve(
+        'linux/portal_session_guard.cc',
+      ),
+    );
+    expect(
+      guard.existsSync(),
+      isTrue,
+      reason: 'without portal_session_guard.cc the first Linux share asks the '
+          'portal twice, whatever ref the lockfile names',
     );
   });
 }

@@ -156,10 +156,12 @@ void main() {
     );
     expect(find.text('Show stream'), findsOneWidget);
     expect(find.text('Hide stream'), findsNothing);
+    expect(session.videoBlocked.last, isNotEmpty, reason: 'hidden is blocked');
 
     await tester.tap(find.text('Show stream'));
     await tester.pump();
     expect(harness.container.read(shareWatchProvider).stopped, isEmpty);
+    expect(session.videoBlocked.last, isEmpty, reason: 'shown is unblocked');
     await controller.leave();
   });
 }
