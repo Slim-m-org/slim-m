@@ -168,6 +168,7 @@ class MemberRow extends ConsumerWidget {
           displayed.isBot,
           box.maxWidth,
           inVoice: inVoice,
+          chipTappable: !selecting,
         ),
         leading: UserAvatar.known(
           userId: profile.id,
@@ -203,27 +204,33 @@ class MemberRow extends ConsumerWidget {
     return underOwnHeading ? null : displayed.roles.first;
   }
 
-  /// A narrow row that is in a call drops its role badge: the chip says more,
-  /// and the role is one tap away on the card.
+  /// A narrow row that is in a call drops its role badge, which is one tap
+  /// away on the card; a Bot tag stays, since it is what marks a bot.
   Widget? _trailing(
     String? label,
     bool isBot,
     double rowWidth, {
     required bool inVoice,
+    required bool chipTappable,
   }) {
-    final badge = inVoice && rowWidth < _badgeAndChipMinRow
+    final badge = inVoice && !isBot && rowWidth < _badgeAndChipMinRow
         ? null
         : _badge(label, isBot, rowWidth);
+    if (!inVoice) return badge;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Flexible(
           child: ConstrainedBox(
-            // Beside a role badge the chip yields, so the member's name keeps its room.
+            // Beside a badge the chip yields, so the member's name keeps its room.
             constraints: BoxConstraints(
-              maxWidth: rowWidth * (badge == null ? 0.5 : 0.25),
+              maxWidth: rowWidth * (badge == null ? 0.35 : 0.25),
             ),
-            child: MemberVoiceChip(userId: profile.id, endGap: badge != null),
+            child: MemberVoiceChip(
+              userId: profile.id,
+              endGap: badge != null,
+              enabled: chipTappable,
+            ),
           ),
         ),
         ?badge,

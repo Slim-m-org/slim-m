@@ -17,6 +17,7 @@ class MemberVoiceChip extends ConsumerWidget {
     required this.userId,
     this.onOpened,
     this.endGap = false,
+    this.enabled = true,
   });
 
   final String userId;
@@ -27,41 +28,50 @@ class MemberVoiceChip extends ConsumerWidget {
   /// Space after the chip, only while it shows, for a sibling beside it.
   final bool endGap;
 
+  /// Off while the row is picking members, when a tap toggles the row instead.
+  final bool enabled;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channel = ref.watch(memberVoiceChannelProvider(userId));
     if (channel == null) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final router = GoRouter.of(context);
-    final chip = FocusableTapTarget(
-      ringRadius: AppRadii.full,
-      semanticLabel: 'In ${channel.name}, voice channel',
-      onTap: () {
-        router.go(Routes.channel(channel.id));
-        onOpened?.call();
-      },
-      builder: (context, focused, hovered) => Container(
-        height: AppSizes.icon20,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-        decoration: BoxDecoration(
-          color: hovered ? tokens.accentSoft : tokens.surfaceRaised,
-          border: Border.all(color: tokens.borderSubtle),
-          borderRadius: BorderRadius.circular(AppRadii.full),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: AppSpacing.s4,
-          children: [
-            Icon(AppIcons.voice, size: AppSizes.icon12, color: tokens.accent),
-            Flexible(
-              child: Text(
-                channel.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
+    final scaffold = Scaffold.maybeOf(context);
+    final chip = AppTouchHitArea(
+      child: FocusableTapTarget(
+        ringRadius: AppRadii.full,
+        enabled: enabled,
+        semanticLabel: 'In ${channel.name}, voice channel',
+        onTap: () {
+          // On a phone the roster is a drawer; leaving it open hides the jump.
+          scaffold?.closeEndDrawer();
+          router.go(Routes.channel(channel.id));
+          onOpened?.call();
+        },
+        builder: (context, focused, hovered) => Container(
+          constraints: const BoxConstraints(minHeight: AppSizes.icon20),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+          decoration: BoxDecoration(
+            color: hovered ? tokens.accentSoft : tokens.surfaceRaised,
+            border: Border.all(color: tokens.borderSubtle),
+            borderRadius: BorderRadius.circular(AppRadii.full),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: AppSpacing.s4,
+            children: [
+              Icon(AppIcons.voice, size: AppSizes.icon12, color: tokens.accent),
+              Flexible(
+                child: Text(
+                  channel.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.caption.copyWith(color: tokens.textSecondary),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

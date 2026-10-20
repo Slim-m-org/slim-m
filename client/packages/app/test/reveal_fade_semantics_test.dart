@@ -18,9 +18,8 @@ void main() {
       ),
     );
 
-    final render = tester.renderObject<RenderAnimatedOpacity>(
-      find.byType(AnimatedOpacity),
-    );
-    expect(render.alwaysIncludeSemantics, isTrue);
+    final handle = tester.ensureSemantics();
+    expect(find.bySemanticsLabel('Alice'), findsOneWidget);
+    handle.dispose();
   });
 }

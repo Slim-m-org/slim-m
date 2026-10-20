@@ -97,13 +97,16 @@ class ButtonPressesController extends PendingInteractions<ButtonPress> {
           customId: customId,
           values: values,
         ),
-    describe: _describe,
+    describe: (e) => _describe(e, select: values != null),
   );
 
-  String _describe(api.ApiException e) => switch (e) {
+  String _describe(api.ApiException e, {required bool select}) => switch (e) {
     api.NotFoundException() =>
       'That is no longer available. The bot or its message may be gone.',
-    _ => describeApiFailure('press that button', e),
+    _ => describeApiFailure(
+      select ? 'send that choice' : 'press that button',
+      e,
+    ),
   };
 
   /// Clears a failure the person has read or wants to retry past.
