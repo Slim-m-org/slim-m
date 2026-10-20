@@ -11,7 +11,7 @@ browser, `vqb`, is the listener and records what arrives. Four settings arms
 profile, and voice_noise.py scores floor, noise events, speech level and onsets.
 Opt in with E2E_ONLY="voice desktop". E2E_DESKTOP_BUNDLE points at the build,
 E2E_DESKTOP_ARMS and E2E_DESKTOP_PROFILES narrow the run, E2E_DESKTOP_SECONDS
-sets each recording (default 60).
+sets each recording (default 60). E2E_DESKTOP_VOICES lists corpus clip ids (or piper) to run in turn.
 """
 import json
 import os
@@ -24,6 +24,7 @@ import e2e_netem
 import e2e_xp as xp
 import make_noise_bed
 import make_speech_clip as speech
+import voice_corpus
 import voice_noise
 import voice_quality_dsp as dsp
 
@@ -42,9 +43,19 @@ BUNDLE = os.path.join(
     "build", "linux", "x64", "release", "bundle")
 
 
-def _write_inputs(directory):
+def _voice_samples(voice):
+    """The speech to send: a corpus clip cut into gapped phrases, else piper's sentences."""
+    folder = voice_corpus.corpus_dir()
+    if not voice or voice == "piper":
+        return speech.build_gapped("A")
+    assert folder, f"E2E_DESKTOP_VOICES names {voice} but E2E_VQ_CORPUS has no corpus"
+    clip, _ = dsp.read_wav(os.path.join(folder, voice + ".wav"))
+    return voice_corpus.gapped(clip)
+
+
+def _write_inputs(directory, voice=None):
     """Clean speech, the noisy mix and the event list; returns their paths."""
-    samples, spans = speech.build_gapped("A")
+    samples, spans = _voice_samples(voice)
     noisy, events = make_noise_bed.mix(samples, spans)
     paths = {"clean": os.path.join(directory, "clean.wav"),
              "mix": os.path.join(directory, "mix.wav")}
@@ -107,14 +118,21 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
     e2e_netem.ensure_image()
     bundle = os.path.abspath(os.environ.get("E2E_DESKTOP_BUNDLE") or BUNDLE)
     assert os.path.exists(os.path.join(bundle, "slimm_app")), f"no desktop build at {bundle}"
-    directory = xp.out_dir("desktop")
-    paths, spans, events = _write_inputs(directory)
-    inputs = {**paths, "spans": spans, "events": events}
     xp.e2e_browsers.register(server, admin_api, USER, secret)
     tokens = _tokens(server, secret)
     channel = admin_api.channel_named(L.VOICE_CHANNEL)["id"]
-    wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", ",".join(ARMS)).split(",") if a]
     owner_before = da.default_devices()
+    for voice in [v for v in os.environ.get("E2E_DESKTOP_VOICES", "").split(",") if v] or [None]:
+        _one_voice(voice, (server, secret, admin_api, sign_in), tokens, channel, bundle)
+    assert da.default_devices() == owner_before, "the owner's default audio devices changed"
+
+
+def _one_voice(voice, stack, tokens, channel, bundle):
+    server, secret, admin_api, sign_in = stack
+    directory = xp.out_dir("desktop" + (f"-{voice}" if voice else ""))
+    paths, spans, events = _write_inputs(directory, voice)
+    inputs = {**paths, "spans": spans, "events": events}
+    wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", ",".join(ARMS)).split(",") if a]
     results = {}
     with da.nested_compositor(os.path.join(directory, "kwin.log")) as compositor, \
             da.virtual_mic(paths["mix"]):
@@ -122,7 +140,6 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
             for name in wanted:
                 results[name] = _arm(name, listener, inputs, server, tokens, channel,
                                      compositor, directory, bundle)
-    assert da.default_devices() == owner_before, "the owner's default audio devices changed"
     with open(os.path.join(directory, "desktop.json"), "w") as fh:
         json.dump(results, fh, indent=1)
 
