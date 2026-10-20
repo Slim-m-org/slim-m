@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT i.code AS \"code!\", i.max_uses, i.uses AS \"uses!\", i.expires_at,\n                      i.created_at AS \"created_at!\", i.revoked_at,\n                      i.role_grant AS \"role_grant: RoleId\",\n                      u.display_name AS \"created_by_name?: String\"\n               FROM invites i\n               LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL\n               WHERE ?1 IS NULL OR i.created_by = ?1\n               ORDER BY i.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "max_uses",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "uses!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "expires_at",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "revoked_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "role_grant: RoleId",
+        "ordinal": 6,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_by_name?: String",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "c144c6479d2c6487ab53e1825ba0941cc94034c6341255466c52814787d6f1b7"
+}

@@ -15,6 +15,7 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_clear_scope.dart' show canvasKindsOf;
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
@@ -321,16 +322,24 @@ class CanvasOpsController {
   /// records the resulting op so [undo] can restore it. Returns whether the
   /// request itself succeeded, so the caller can decide what to show; a
   /// clear that touched nothing still succeeds and pushes no undo entry.
-  Future<bool> clear(int beforeSeq) async {
+  Future<bool> clear(
+    int beforeSeq, {
+    api.CanvasClearScope scope = api.CanvasClearScope.everything,
+  }) async {
     try {
       final result = await client.submitCanvasOp(
         channelId,
         id: newCanvasOpId(),
         kind: 'clear',
         beforeSeq: beforeSeq,
+        clearScope: scope,
       );
       if (result.op.affected > 0) {
-        document.clearBelow(beforeSeq);
+        document.clearBelow(
+          beforeSeq,
+          kinds: canvasKindsOf(scope),
+          authorId: scope.authorId,
+        );
         document.refresh();
         _pushUndo(_EraseEntry(result.op.id));
       }

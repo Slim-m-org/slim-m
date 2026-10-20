@@ -15,7 +15,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/moderation_history_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(
@@ -75,6 +75,7 @@ const _beyondModeration = [
   'bot_create',
   'bot_revoke',
   'bot_permission_grant',
+  'bot_token_reissue',
   'webhook_create',
   'webhook_revoke',
   'webhook_rotate',

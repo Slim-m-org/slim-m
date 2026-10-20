@@ -243,4 +243,54 @@ void main() {
     final result = document.applyPlaced(stroke('r0'));
     expect(result, isNotNull);
   });
+
+  group('scoped clearBelow', () {
+    CanvasStrokeInput input(String id, CanvasObjectKind kind, String author) =>
+        CanvasStrokeInput(
+          id: id,
+          seq: 1,
+          zIndex: 1,
+          x: id.codeUnitAt(0).toDouble(),
+          y: 0,
+          w: 10,
+          h: 10,
+          points: const [0, 0, 10, 10],
+          width: 3,
+          colorKey: 'annotation',
+          kind: kind,
+          authorId: author,
+        );
+
+    CanvasDocument seeded() => CanvasDocument()
+      ..setViewport(const Size(800, 600))
+      ..applyPlaced(input('a', CanvasObjectKind.stroke, 'ann'))
+      ..applyPlaced(input('b', CanvasObjectKind.stroke, 'bob'))
+      ..applyPlaced(input('c', CanvasObjectKind.note, 'ann'))
+      ..refresh();
+
+    test('by kind leaves the other kinds', () {
+      final document = seeded()
+        ..clearBelow(5, kinds: {CanvasObjectKind.stroke});
+
+      expect(document.isAlive('a'), isFalse);
+      expect(document.isAlive('b'), isFalse);
+      expect(document.isAlive('c'), isTrue);
+    });
+
+    test('by author leaves everyone else', () {
+      final document = seeded()..clearBelow(5, authorId: 'ann');
+
+      expect(document.isAlive('a'), isFalse);
+      expect(document.isAlive('b'), isTrue);
+      expect(document.isAlive('c'), isFalse);
+    });
+
+    test('authorIds lists only who still has something on the board', () {
+      final document = seeded();
+      expect(document.authorIds(), {'ann', 'bob'});
+
+      document.clearBelow(5, authorId: 'bob');
+      expect(document.authorIds(), {'ann'});
+    });
+  });
 }

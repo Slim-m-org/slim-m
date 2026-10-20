@@ -23,7 +23,9 @@ use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Bot, CreateBotError, UpdateBotPermissionsError, validate_bot_prefix};
+use crate::store::{
+    Bot, CreateBotError, ReissueError, UpdateBotPermissionsError, validate_bot_prefix,
+};
 
 const BODY_LIMIT: usize = 1024;
 
@@ -32,6 +34,7 @@ pub fn routes() -> Router<AppState> {
         .route("/bots", get(list).post(create))
         .route("/bots/suggested-prefix", get(suggested_prefix))
         .route("/bots/{bot_id}/revoke", post(revoke))
+        .route("/bots/{bot_id}/token", post(reissue_token))
         .route("/bots/{bot_id}/permissions", patch(set_permissions))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
@@ -80,11 +83,14 @@ struct BotDto {
     /// The prefix assigned to this bot; absent until one is assigned or adopted.
     #[serde(skip_serializing_if = "Option::is_none")]
     prefix: Option<String>,
+    /// The bot has a live WebSocket right now; a hidden bot still counts.
+    online: bool,
 }
 
-impl From<Bot> for BotDto {
-    fn from(bot: Bot) -> Self {
+impl BotDto {
+    fn new(bot: Bot, online: bool) -> Self {
         Self {
+            online,
             user_id: bot.user_id.to_string(),
             username: bot.username,
             display_name: bot.display_name,
@@ -96,6 +102,11 @@ impl From<Bot> for BotDto {
             prefix: bot.prefix,
         }
     }
+}
+
+fn bot_dto(state: &AppState, bot: Bot) -> BotDto {
+    let online = state.hub.presence().is_connected(bot.user_id);
+    BotDto::new(bot, online)
 }
 
 /// A created bot, with its token. The only response that ever carries one.
@@ -118,7 +129,9 @@ async fn list(
     enforce(&state, &parts, Some(&ctx), Class::AuthedRead)?;
     require_manage_server(&state, ctx.user_id).await?;
     let bots = state.store.list_bots(params.include_removed).await?;
-    Ok(Json(bots.into_iter().map(BotDto::from).collect()))
+    Ok(Json(
+        bots.into_iter().map(|bot| bot_dto(&state, bot)).collect(),
+    ))
 }
 
 /// What a bot created without a prefix gets: the released bot library hardcodes it.
@@ -189,7 +202,7 @@ async fn create(
         Ok(new_bot) => Ok((
             StatusCode::CREATED,
             Json(NewBotDto {
-                bot: new_bot.bot.into(),
+                bot: bot_dto(&state, new_bot.bot),
                 token: new_bot.token,
             }),
         )),
@@ -215,6 +228,36 @@ async fn revoke(
         state.hub.publish(Event::SessionRevoked(session_id));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Replaces a bot's token for an administrator who lost it. The old token and
+/// its session stop working in the same transaction; the new one is shown once.
+async fn reissue_token(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Path(bot_id): Path<String>,
+) -> Result<Json<NewBotDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    require_human(&state, ctx.user_id).await?;
+    let bot_id = UserId(parse_uuid(&bot_id)?);
+    match state.store.reissue_bot_token(bot_id, ctx.user_id).await {
+        Ok(reissued) => {
+            for session_id in reissued.revoked {
+                state.hub.publish(Event::SessionRevoked(session_id));
+            }
+            Ok(Json(NewBotDto {
+                bot: bot_dto(&state, reissued.bot),
+                token: reissued.token,
+            }))
+        }
+        Err(ReissueError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),
+        Err(ReissueError::Removed) => Err(ApiError::Conflict(
+            "restore the bot before issuing it a token",
+        )),
+        Err(ReissueError::Internal(err)) => Err(err.into()),
+    }
 }
 
 /// Changes what a bot's managed role grants; see
@@ -253,7 +296,7 @@ async fn set_permissions(
             state.hub.publish(Event::RoleChanged {
                 role_id: current.id,
             });
-            Ok(Json(bot.into()))
+            Ok(Json(bot_dto(&state, bot)))
         }
         Err(UpdateBotPermissionsError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),
         Err(UpdateBotPermissionsError::Internal(err)) => Err(err.into()),

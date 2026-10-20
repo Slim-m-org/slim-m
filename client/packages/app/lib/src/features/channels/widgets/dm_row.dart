@@ -47,6 +47,8 @@ import '../../../widgets/context_menu_region.dart';
 import 'row_menu_notifications.dart';
 import '../../members/widgets/safety_actions.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../providers/channel_latest_message_at.dart';
+import 'channel_notifications_menu.dart';
 
 /// [channel] is never the caller's own personal space: that DM-shaped row is
 /// [PersonalSpaceRow], reached separately, since a self-conversation has no
@@ -89,9 +91,9 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      markReadStateMenuItem(context, container, channel, close, isDm: true),
+      ?markReadStateMenuItem(context, container, channel, close, isDm: true),
       const AppMenuDivider(),
-      ...notificationMenuItems(
+      notificationsMenuItem(
         context,
         container,
         channel.id,
@@ -133,6 +135,13 @@ class DmRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
+    ref.watch(
+      channelLatestMessageAtProvider((
+        channelId: channel.id,
+        seq: channel.cursor,
+      )),
+    );
     // Queued, not fetched directly: the controller bounds how many rows become simultaneous requests.
     ref.read(dmCallActivityProvider.notifier).ensureTracked(channel.id);
     final inCall = ref.watch(
@@ -157,6 +166,7 @@ class DmRow extends ConsumerWidget {
       itemsBuilder: (menuContext, close) => _menuItems(menuContext, ref, close),
       // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
       ownsFocusNode: false,
+      menuWidth: 240,
       child: AppListRow(
         label: channel.name,
         selected: selected,

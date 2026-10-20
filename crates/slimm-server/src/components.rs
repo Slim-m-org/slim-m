@@ -7,6 +7,11 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod form;
+pub mod select;
+
+pub use select::{Select, SelectOption};
+
 /// Rows a message may carry. Discord's own ceiling, so its bots port cleanly.
 pub const MAX_ROWS: usize = 5;
 pub const MAX_BUTTONS_PER_ROW: usize = 5;
@@ -41,9 +46,13 @@ pub struct Button {
     pub disabled: bool,
 }
 
+/// One row holds up to five buttons, or a single select menu.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ComponentRow {
+    #[serde(default)]
     pub buttons: Vec<Button>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub select: Option<Select>,
 }
 
 /// Checks a bot's rows against the caps and returns them trimmed. The error is
@@ -60,6 +69,16 @@ pub fn validate(
     }
     let mut seen = std::collections::HashSet::new();
     for row in &mut rows {
+        if let Some(select) = &mut row.select {
+            if !row.buttons.is_empty() {
+                return Err("a select takes a row to itself");
+            }
+            select::validate(select, hidden)?;
+            if !seen.insert(select.custom_id.clone()) {
+                return Err("custom_id must be unique within a message");
+            }
+            continue;
+        }
         if row.buttons.is_empty() {
             return Err("a component row must hold at least one button");
         }
@@ -76,6 +95,17 @@ pub fn validate(
         }
     }
     Ok(rows)
+}
+
+/// A `custom_id` or option value: 1 to 100 characters, none invisible.
+pub(crate) fn check_custom_id(id: &str, hidden: fn(char) -> bool) -> Result<(), &'static str> {
+    if id.is_empty() || id.chars().count() > MAX_CUSTOM_ID_CHARS {
+        return Err("custom_id must be 1 to 100 characters");
+    }
+    if id.chars().any(hidden) {
+        return Err("custom_id cannot hold control or invisible characters");
+    }
+    Ok(())
 }
 
 fn validate_button(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), &'static str> {
@@ -99,13 +129,7 @@ fn validate_button(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), 
         .custom_id
         .as_deref()
         .ok_or("a button needs a custom_id")?;
-    if id.is_empty() || id.chars().count() > MAX_CUSTOM_ID_CHARS {
-        return Err("custom_id must be 1 to 100 characters");
-    }
-    if id.chars().any(hidden) {
-        return Err("custom_id cannot hold control or invisible characters");
-    }
-    Ok(())
+    check_custom_id(id, hidden)
 }
 
 fn validate_link(button: &mut Button, hidden: fn(char) -> bool) -> Result<(), &'static str> {
@@ -168,6 +192,13 @@ pub fn checked_link(raw: &str, hidden: fn(char) -> bool) -> Result<String, LinkP
     Ok(url.into())
 }
 
+/// The enabled select menu carrying `custom_id`, if any.
+pub fn selectable<'a>(rows: &'a [ComponentRow], custom_id: &str) -> Option<&'a Select> {
+    rows.iter()
+        .filter_map(|row| row.select.as_ref())
+        .find(|s| s.custom_id == custom_id && !s.disabled)
+}
+
 /// The enabled, non-link button carrying `custom_id`, if any.
 pub fn clickable<'a>(rows: &'a [ComponentRow], custom_id: &str) -> Option<&'a Button> {
     rows.iter()
@@ -190,7 +221,10 @@ mod tests {
     }
 
     fn row(buttons: Vec<Button>) -> ComponentRow {
-        ComponentRow { buttons }
+        ComponentRow {
+            buttons,
+            select: None,
+        }
     }
 
     fn no_hidden(_: char) -> bool {

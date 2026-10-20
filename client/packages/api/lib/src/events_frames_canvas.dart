@@ -50,12 +50,14 @@ class CanvasCleared extends ServerEvent {
     required this.seq,
     required this.opId,
     required this.beforeSeq,
+    this.scope = CanvasClearScope.everything,
   });
 
   final String channelId;
   final int seq;
   final String opId;
   final int beforeSeq;
+  final CanvasClearScope scope;
 }
 
 /// A removal or a clear was undone.

@@ -46,9 +46,11 @@ def change_theme(client):
     client.wait_for(L.THEME_DARK)
     client.click(L.THEME_DARK, settle=2)
 
+    # Theme is per Space: the key is flutter.slimm.space.<origin>.slimm.appearance.theme.
     stored = client.ev(
-        "JSON.parse(localStorage.getItem('flutter.slimm.appearance.theme') "
-        "|| 'null')")
+        "(function(){var k=Object.keys(localStorage).find(function(k){"
+        "return k.indexOf('flutter.')===0&&k.endsWith('slimm.appearance.theme');});"
+        "return k?JSON.parse(localStorage.getItem(k)):null;})()")
     assert stored == 'dark', f'nothing durable recorded the choice: {stored!r}'
     print('  theme changed to Dark, and it was actually written to storage')
 

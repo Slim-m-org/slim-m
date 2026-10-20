@@ -20,12 +20,16 @@ class EventConnection {
   /// Connects, mints nothing itself: pass a ticket from
   /// [SlimmApi.webSocketTicket]. Completes once the server's hello arrives, so
   /// a returned connection is authenticated and ready.
+  ///
+  /// A non-null [active] promises [active] frames from here on and says
+  /// whether the person is at the device now; see the server's `ClientHello`.
   static Future<EventConnection> connect({
     required Uri url,
     required String ticket,
     Duration timeout = const Duration(seconds: 15),
     Duration keepaliveInterval = const Duration(seconds: 20),
     WebSocketChannel Function(Uri url)? open,
+    bool? active,
   }) async {
     final channel = (open ?? WebSocketChannel.connect)(url);
     // A connect that lands after the timeout would otherwise leave a socket nobody listens to.
@@ -69,6 +73,7 @@ class EventConnection {
         'type': 'hello',
         'ticket': ticket,
         'protocol': protocolVersion,
+        if (active != null) 'active': active,
       }),
     );
 
@@ -143,6 +148,11 @@ class EventConnection {
           if (active) 'active': true,
         }),
       );
+
+  /// Tells the server the person used this device recently. After the first
+  /// one, this connection's pings stop counting as activity, so a client that
+  /// sends it must keep sending it, about once a minute, while they are here.
+  void active() => _channel.sink.add(jsonEncode({'type': 'active'}));
 
   /// Reports this user's pointer position on a channel's canvas.
   ///

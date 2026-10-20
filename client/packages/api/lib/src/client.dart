@@ -33,6 +33,7 @@ part 'client_direct_route.dart';
 part 'client_dms.dart';
 part 'client_dock.dart';
 part 'client_emoji.dart';
+part 'client_exports.dart';
 part 'client_gifs.dart';
 part 'client_interactions.dart';
 part 'client_join_gate.dart';

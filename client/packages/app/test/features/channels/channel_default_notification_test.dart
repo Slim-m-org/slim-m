@@ -143,6 +143,9 @@ void main() {
       tester,
     ) async {
       await openMenu(tester, container(), 'mentions');
+      expect(find.text('Default'), findsOneWidget);
+      await tester.tap(find.text('Notifications'));
+      await tester.pumpAndSettle();
       expect(find.text('Default (Mentions)'), findsOneWidget);
       expect(checkIn('Default (Mentions)'), findsOneWidget);
       expect(checkIn('Mentions only'), findsNothing);

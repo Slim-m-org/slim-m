@@ -22,7 +22,12 @@ class DockHeightReporter extends ConsumerStatefulWidget {
     required this.child,
     this.onHeight,
     this.reservation,
+    this.foldedHeight,
   });
+
+  /// Published instead of the measured height while the dock is folded away,
+  /// so what it reserves is what is still on screen. Null while it is showing.
+  final double? foldedHeight;
 
   final Widget child;
 
@@ -48,7 +53,8 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   double _lastReported = 0;
 
   void _report() {
-    final height = _key.currentContext?.size?.height ?? 0;
+    final height =
+        widget.foldedHeight ?? _key.currentContext?.size?.height ?? 0;
     if (height == _lastReported) return;
     _lastReported = height;
     final local = widget.onHeight;

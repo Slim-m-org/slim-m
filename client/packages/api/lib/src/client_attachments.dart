@@ -147,15 +147,22 @@ extension SlimmApiAttachments on SlimmApi {
   Future<AttachmentDownload> openAttachmentDownload(
     String attachmentId, {
     bool original = false,
+  }) =>
+      _openDownload(
+        '/attachments/$attachmentId',
+        original ? {'original': 'true'} : null,
+      );
+
+  /// Streams a GET with no body deadline and one token refresh on a 401.
+  Future<AttachmentDownload> _openDownload(
+    String path,
+    Map<String, String>? query, {
     bool isRetry = false,
   }) async {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final path = '/attachments/$attachmentId';
-    final request = http.Request(
-      'GET',
-      _requestUri(path, original ? {'original': 'true'} : null),
-    )..headers['authorization'] = 'Bearer $token';
+    final request = http.Request('GET', _requestUri(path, query))
+      ..headers['authorization'] = 'Bearer $token';
     final http.StreamedResponse response;
     try {
       response = await _http.send(request).timeout(_requestDeadline);
@@ -167,11 +174,7 @@ extension SlimmApiAttachments on SlimmApi {
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await response.stream.drain<void>();
       await refresh();
-      return openAttachmentDownload(
-        attachmentId,
-        original: original,
-        isRetry: true,
-      );
+      return _openDownload(path, query, isRetry: true);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw _errorFor(await http.Response.fromStream(response));

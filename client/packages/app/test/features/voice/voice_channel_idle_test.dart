@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_call_history.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_recap_card.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_idle/voice_channel_idle.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../support/call_header_fixture.dart';
 

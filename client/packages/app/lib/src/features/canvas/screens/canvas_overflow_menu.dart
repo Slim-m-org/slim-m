@@ -23,6 +23,9 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
+import '../widgets/canvas_clear_scope.dart';
+import '../widgets/canvas_clear_sheet.dart';
+import '../widgets/canvas_participants_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
@@ -50,6 +53,7 @@ class CanvasOverflowMenu extends StatefulWidget {
     required this.activityLogOpen,
     required this.onToggleActivityLog,
     required this.onToggleFullscreen,
+    this.fullscreen = false,
     required this.tool,
     required this.shapeKind,
     required this.onShapeKindChanged,
@@ -59,7 +63,11 @@ class CanvasOverflowMenu extends StatefulWidget {
     required this.hiddenTiles,
     required this.onShowTile,
     this.opensBelow = false,
+    this.scopedClear,
   });
+
+  /// Null hides "Clear part of the canvas".
+  final CanvasScopedClear? scopedClear;
 
   /// Opens under the button rather than over it, for a trigger in the header.
   final bool opensBelow;
@@ -101,10 +109,9 @@ class CanvasOverflowMenu extends StatefulWidget {
   final bool activityLogOpen;
   final VoidCallback onToggleActivityLog;
 
-  /// Drops the pane's chrome. Only ever reached from here to *enter*: this
-  /// menu's own button is inside the strip fullscreen folds away, so the way
-  /// back is the dock's own always-visible button, plus Escape.
+  /// Drops the pane's chrome, or restores it while [fullscreen] is on.
   final VoidCallback onToggleFullscreen;
+  final bool fullscreen;
 
   /// Whether the caller has a camera bubble on this canvas at all right now
   /// - see `canvas_bar.dart`'s own doc on why the toggle below is absent
@@ -145,6 +152,16 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   void _toggleSelfBubble() {
     _controller.hide();
     widget.onToggleSelfBubbleHidden();
+  }
+
+  void _openParticipants() {
+    _controller.hide();
+    unawaited(showCanvasParticipantsSheet(context));
+  }
+
+  void _requestScopedClear(CanvasScopedClear control) {
+    _controller.hide();
+    unawaited(requestScopedCanvasClear(context, control));
   }
 
   void _showTile(String key) {
@@ -277,9 +294,8 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             : _shortcutHint(context),
         onTap: widget.canDraw ? _paste : null,
       ),
-      // The way in only: the way out is the dock's own button, since this menu is part of the tool strip fullscreen folds away.
       AppMenuItem(
-        label: 'Enter fullscreen',
+        label: widget.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen',
         leading: AppIcons.expand,
         onTap: _enterFullscreen,
       ),
@@ -303,7 +319,14 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
           },
         ),
       ),
-      if (widget.hasSelfBubble) _selfBubbleItem(),
+      if (widget.hasSelfBubble) ...[
+        AppMenuItem(
+          label: 'Participants',
+          leading: AppIcons.members,
+          onTap: _openParticipants,
+        ),
+        _selfBubbleItem(),
+      ],
       ..._hiddenTileItems(),
       ..._shapeKindItems(),
       if (selected != null) ..._selectionItems(selected),
@@ -376,6 +399,13 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         tone: AppMenuItemTone.danger,
         onTap: () => unawaited(_requestClear()),
       ),
+      if (widget.scopedClear case final control?)
+        AppMenuItem(
+          label: 'Clear part of the canvas',
+          leading: AppIcons.delete,
+          tone: AppMenuItemTone.danger,
+          onTap: () => _requestScopedClear(control),
+        ),
     ];
   }
 }

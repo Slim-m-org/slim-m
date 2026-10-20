@@ -64,6 +64,9 @@ pub(super) struct Version {
     /// Whether members' microphones default to the stronger noise
     /// suppression, on `/version` for the reason `screen_share_max_height` is.
     strong_noise_suppression: bool,
+    /// Whether any member may create invites, on `/version` so a member's
+    /// client can offer the action without reading admin settings.
+    members_can_invite: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -170,6 +173,7 @@ pub(super) async fn version(
         discord_link_enabled: discord.is_some(),
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
+        members_can_invite: state.store.members_can_invite().await?,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,

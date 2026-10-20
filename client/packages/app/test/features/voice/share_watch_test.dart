@@ -45,9 +45,8 @@ void main() {
     ]);
   });
 
-  test('stopped sharers drop out and are listed for the watch chip', () {
+  test('stopped sharers drop out of the stage', () {
     expect(_ids(activeShares(roster, stopped: {'a'})), ['b', 'me']);
-    expect(_ids(stoppedShares(roster, {'a', 'idle'})), ['a']);
   });
 
   test('stop and watch report the blocked share keys', () {

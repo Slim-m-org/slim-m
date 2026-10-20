@@ -104,8 +104,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
     let mut events = state.hub.subscribe();
     let mut ephemeral_events = state.hub.subscribe_ephemeral();
 
-    let ctx = match authenticate(&mut sink, &mut stream, &state).await {
-        Some(ctx) => ctx,
+    let (ctx, reported_active) = match authenticate(&mut sink, &mut stream, &state).await {
+        Some(opened) => opened,
         None => return,
     };
 
@@ -119,6 +119,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
         state.store.clone(),
         ctx.user_id,
         ctx.device_id,
+        reported_active.unwrap_or(true),
     )
     .await;
 
@@ -135,6 +136,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
         return;
     }
 
+    // A client that sends `active` frames reports real use; its keepalives then prove nothing.
+    let mut reports_activity = reported_active.is_some();
     loop {
         tokio::select! {
             incoming = stream.next() => {
@@ -142,8 +145,14 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                     Some(Ok(Message::Text(text))) => {
                         // Touch after the parse, never before: it takes the shared presence lock and nothing rate-limits inbound frames.
                         match serde_json::from_str::<ClientFrame>(text.as_str()) {
-                            Ok(ClientFrame::Ping) => {
+                            Ok(ClientFrame::Active) => {
+                                reports_activity = true;
                                 state.hub.presence().touch(ctx.user_id);
+                            }
+                            Ok(ClientFrame::Ping) => {
+                                if !reports_activity {
+                                    state.hub.presence().touch(ctx.user_id);
+                                }
                                 if send_frame(&mut sink, &ServerFrame::Pong).await.is_err() {
                                     break;
                                 }
@@ -257,9 +266,11 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                     Some(Ok(Message::Close(_))) | None => break,
                     Some(Err(_)) => break,
                     // Other frames (binary, ping, pong): axum answers a
-                    // protocol-level ping itself, but it is still activity.
+                    // protocol-level ping itself; activity only without `active`.
                     Some(Ok(_)) => {
-                        state.hub.presence().touch(ctx.user_id);
+                        if !reports_activity {
+                            state.hub.presence().touch(ctx.user_id);
+                        }
                     }
                 }
             }
@@ -329,15 +340,19 @@ async fn authenticate(
     sink: &mut Sink,
     stream: &mut Stream,
     state: &AppState,
-) -> Option<SessionContext> {
+) -> Option<(SessionContext, Option<bool>)> {
     let opening = tokio::time::timeout(AUTH_DEADLINE, stream.next()).await;
     let text = match opening {
         Ok(Some(Ok(Message::Text(text)))) => text,
         _ => return reject(sink, "expected a hello frame").await,
     };
 
-    let (ticket, protocol) = match serde_json::from_str::<ClientFrame>(text.as_str()) {
-        Ok(ClientFrame::Hello { ticket, protocol }) => (ticket, protocol),
+    let (ticket, protocol, active) = match serde_json::from_str::<ClientFrame>(text.as_str()) {
+        Ok(ClientFrame::Hello {
+            ticket,
+            protocol,
+            active,
+        }) => (ticket, protocol, active),
         _ => return reject(sink, "expected a hello frame").await,
     };
     if protocol != PROTOCOL_VERSION {
@@ -345,7 +360,7 @@ async fn authenticate(
     }
 
     match state.store.redeem_ws_ticket(&ticket).await {
-        Ok(Some(ctx)) => Some(ctx),
+        Ok(Some(ctx)) => Some((ctx, active)),
         _ => reject(sink, "invalid ticket").await,
     }
 }
@@ -361,7 +376,7 @@ async fn send_frame(sink: &mut Sink, frame: &ServerFrame) -> Result<(), ()> {
 }
 
 /// Sends a final error frame and resolves to `None`.
-async fn reject(sink: &mut Sink, message: &str) -> Option<SessionContext> {
+async fn reject<T>(sink: &mut Sink, message: &str) -> Option<T> {
     let _ = send_frame(
         sink,
         &ServerFrame::Error {

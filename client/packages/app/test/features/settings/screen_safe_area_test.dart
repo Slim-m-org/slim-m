@@ -34,7 +34,7 @@ import 'package:slimm_app/src/features/settings/screens/personal_settings_screen
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_data/data.dart' as data show Channel, MessageStore;
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/video_quality_recorder.dart';

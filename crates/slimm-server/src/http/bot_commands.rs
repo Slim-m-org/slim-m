@@ -164,11 +164,14 @@ struct ChannelBotCommandDto {
     usage: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     options: Vec<BotCommandOption>,
+    /// The bot has no live socket, so using the command gets no answer.
+    offline: bool,
 }
 
-impl From<VisibleBotCommand> for ChannelBotCommandDto {
-    fn from(v: VisibleBotCommand) -> Self {
+impl ChannelBotCommandDto {
+    fn new(v: VisibleBotCommand, offline: bool) -> Self {
         Self {
+            offline,
             bot_user_id: v.bot_user_id.to_string(),
             bot_username: v.bot_username,
             bot_display_name: v.bot_display_name,
@@ -203,7 +206,10 @@ async fn list_channel_commands(
     Ok(Json(
         commands
             .into_iter()
-            .map(ChannelBotCommandDto::from)
+            .map(|c| {
+                let offline = !state.hub.presence().is_connected(c.bot_user_id);
+                ChannelBotCommandDto::new(c, offline)
+            })
             .collect(),
     ))
 }

@@ -13,7 +13,7 @@ import 'package:slimm_app/src/features/settings/widgets/personal_account_section
 import 'package:slimm_app/src/features/settings/widgets/settings_section_header.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 Future<void> _pump(WidgetTester tester, Size size) async {
@@ -58,6 +58,8 @@ void main() {
       find.byType(ListView).first,
       const Offset(0, -200),
     );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
     final list = tester.getRect(find.byType(ListView).first);
     expect(
       tester.getRect(find.text('Sign out')).bottom,

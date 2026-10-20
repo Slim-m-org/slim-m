@@ -4,6 +4,7 @@ library;
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
 class _FakeGate {
@@ -19,12 +20,30 @@ class _FakeGate {
   }
 }
 
+/// An unmuted microphone, which is what gives the gate's readings a consumer.
+class _OpenMic implements MicPort {
+  @override
+  bool get open => true;
+
+  @override
+  Stream<void> get lost => const Stream.empty();
+
+  @override
+  Future<double?> senderLevelDb() async => null;
+
+  @override
+  void onRoomEvent(lk.RoomEvent event) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   test('automatic mode moves the native threshold and reports it', () {
     fakeAsync((async) {
       final fake = _FakeGate();
       final monitor = InputGateMonitor(invoke: fake.invoke, supported: true);
-      final session = VoiceSession(inputGate: monitor);
+      final session = VoiceSession(inputGate: monitor, micPort: _OpenMic());
       final reported = <double>[];
       session.autoInputThresholds.listen(reported.add);
 
@@ -43,7 +62,7 @@ void main() {
     fakeAsync((async) {
       final fake = _FakeGate();
       final monitor = InputGateMonitor(invoke: fake.invoke, supported: true);
-      final session = VoiceSession(inputGate: monitor);
+      final session = VoiceSession(inputGate: monitor, micPort: _OpenMic());
 
       session.setInputGate(enabled: true, thresholdDb: -50);
       session.setAutoInputThreshold(true);

@@ -37,7 +37,6 @@ import 'call_roster_motion.dart';
 import 'fullscreen_video_overlay.dart';
 import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
-import 'share_stage_controls.dart';
 import 'share_stage_grid.dart';
 import 'voice_reconnect_banner.dart';
 import 'watch_session_bar.dart';
@@ -107,7 +106,6 @@ class CallStageLayout extends ConsumerWidget {
       stopped: watch.stopped,
       focusedIdentity: watch.focused,
     );
-    final opted = stoppedShares(voice.participants, watch.stopped);
     final focusedIdentity =
         shares.length > 1 && shares.first.identity == watch.focused
         ? watch.focused
@@ -142,22 +140,6 @@ class CallStageLayout extends ConsumerWidget {
               child: AppErrorState(message: voice.error!),
             ),
           const MicFailureBanner(),
-          if (opted.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.s12),
-              child: Wrap(
-                spacing: AppSpacing.s8,
-                runSpacing: AppSpacing.s8,
-                children: [
-                  for (final p in opted)
-                    ShareWatchChip(
-                      key: ValueKey('watch-chip-${p.identity}'),
-                      sharerName: p.name,
-                      onWatch: () => watching.watch(p.identity),
-                    ),
-                ],
-              ),
-            ),
           const SizedBox(height: AppSpacing.s12),
           Expanded(
             child: AppFadeIn(

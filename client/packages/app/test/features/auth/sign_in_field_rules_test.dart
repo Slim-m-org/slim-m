@@ -27,7 +27,7 @@ import 'package:slimm_app/src/features/auth/widgets/sign_in_credential_fields.da
 import 'package:slimm_app/src/features/auth/widgets/sign_in_error.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../support/onboarding_error_strings.dart';
 

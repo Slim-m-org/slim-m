@@ -31,7 +31,7 @@ import 'package:slimm_app/src/features/settings/screens/personal_settings_screen
 import 'package:slimm_app/src/features/settings/screens/space_settings_screen.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 export '../../support/mock_app_version.dart';
@@ -114,6 +114,7 @@ Future<ProviderContainer> pumpPersonalSettings(
   WidgetTester tester,
   int permissions, {
   bool scrollToBottom = true,
+  bool? hasDesktopPane,
 }) async {
   final container = _container(permissions);
   addTearDown(container.dispose);
@@ -123,7 +124,7 @@ Future<ProviderContainer> pumpPersonalSettings(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const PersonalSettingsScreen(),
+        home: PersonalSettingsScreen(hasDesktopPane: hasDesktopPane),
       ),
     ),
   );

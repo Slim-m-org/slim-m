@@ -227,6 +227,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       selfId: me?.id,
       touch: AppTouchTargets.of(context),
     );
+    // Nothing of yours under the pointer: the pan tool pans, with one finger too.
+    if (_document.selectedObjectId.value == null) _dragPan.begin(world);
   }
 
   /// Aspect locks by default; holding Shift frees it. Read fresh on every
@@ -234,6 +236,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// mid-drag takes effect immediately rather than on the next gesture.
   /// Alt moves freely; touch has no modifier, so it always snaps.
   void _onSelectDrag(Offset world) {
+    if (_dragPan.active) return _dragPan.drag(world, _document);
     _ops.dragSelect(
       world,
       lockAspect: !HardwareKeyboard.instance.isShiftPressed,
@@ -245,6 +248,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onSelectEnd() async {
+    _dragPan.end();
     _objectPreview.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     _refresh();
@@ -275,7 +279,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  Future<void> _onClear() async {
+  CanvasScopedClear get _scopedClear => CanvasScopedClear(
+    clear: (scope) => _onClear(scope: scope),
+    authorIds: _document.authorIds,
+  );
+
+  Future<void> _onClear({
+    api.CanvasClearScope scope = api.CanvasClearScope.everything,
+  }) async {
     // Fenced on the newest head this client can read; a stale one would leave later ink standing.
     await _sync.catchUp();
     final fence = _sync.asOfSeq;
@@ -283,8 +294,18 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _engine.reportError('The canvas could not be cleared.');
       return;
     }
-    await _ops.clear(fence);
+    await _ops.clear(fence, scope: scope);
     _refresh();
+  }
+
+  Future<void> _onBringIntoBoard() {
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    return _ops.bringIntoBoard(
+      manageCanvas: manageCanvas,
+      selfId: ref.read(meProvider).valueOrNull?.id,
+    );
   }
 
   /// Brings the whole shared board back into view.

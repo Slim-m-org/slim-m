@@ -173,6 +173,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
@@ -212,7 +213,8 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
-        | Event::InteractionAnswered { .. } => true,
+        | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. } => true,
         Event::MessageCreated { .. }
         | Event::MessageEdited { .. }
         | Event::MessageDeleted { .. }
@@ -358,6 +360,11 @@ impl Hub {
         } else {
             let _ = self.sender.send(event);
         }
+    }
+
+    /// Events the slowest durable subscriber has not yet taken off the channel.
+    pub fn durable_backlog(&self) -> usize {
+        self.sender.len()
     }
 
     /// The number of the latest moderation event, for the connect `hello`; see

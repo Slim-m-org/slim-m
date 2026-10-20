@@ -25,7 +25,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import 'ui_snapshot_support.dart';
 import 'support/fake_sync.dart';

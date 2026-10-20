@@ -53,6 +53,8 @@ struct SpaceSettingsDto {
     icon_updated_at: Option<i64>,
     /// What "Space default" means for members' noise suppression.
     strong_noise_suppression: bool,
+    /// Whether every member may create invites, not only holders of CREATE_INVITE.
+    members_can_invite: bool,
     /// Whether a welcome message is posted when someone joins.
     welcome_enabled: bool,
     /// Where the welcome is posted, or null for none.
@@ -69,6 +71,7 @@ struct UpdateSpaceSettingsDto {
     totp_policy: Option<String>,
     description: Option<String>,
     strong_noise_suppression: Option<bool>,
+    members_can_invite: Option<bool>,
     welcome_enabled: Option<bool>,
     /// An empty string clears the channel.
     welcome_channel_id: Option<String>,
@@ -86,6 +89,7 @@ async fn dto(state: &AppState) -> Result<SpaceSettingsDto, ApiError> {
         banner_updated_at: landing.banner_updated_at,
         icon_updated_at: landing.icon_updated_at,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
+        members_can_invite: state.store.members_can_invite().await?,
         welcome_enabled: welcome.enabled,
         welcome_channel_id: welcome.channel_id.map(|id| id.to_string()),
         welcome_message: welcome.message,
@@ -207,12 +211,13 @@ async fn update(
         && body.totp_policy.is_none()
         && body.description.is_none()
         && body.strong_noise_suppression.is_none()
+        && body.members_can_invite.is_none()
         && body.welcome_enabled.is_none()
         && body.welcome_channel_id.is_none()
         && body.welcome_message.is_none()
     {
         return Err(ApiError::BadRequest(
-            "send name, join_policy, totp_policy, description, strong_noise_suppression or a welcome field",
+            "send name, join_policy, totp_policy, description, strong_noise_suppression, members_can_invite or a welcome field",
         ));
     }
     let welcome = merged_welcome(&state, &body).await?;
@@ -249,6 +254,9 @@ async fn update(
     }
     if let Some(enabled) = body.strong_noise_suppression {
         state.store.set_strong_noise_suppression(enabled).await?;
+    }
+    if let Some(enabled) = body.members_can_invite {
+        state.store.set_members_can_invite(enabled).await?;
     }
     if let Some(welcome) = welcome {
         state.store.set_space_welcome(&welcome).await?;

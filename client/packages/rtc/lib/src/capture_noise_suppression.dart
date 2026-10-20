@@ -61,6 +61,9 @@ class CaptureNoiseSuppression {
 
   /// Strong stays on natively until the open track has libwebrtc's back, so
   /// a switch to Standard never leaves the mic with nothing.
+  /// Whether rnnoise is the suppressor in use, so its liveness is being watched.
+  bool get watchingStrong => !webrtcNoiseSuppression;
+
   bool get nativeStrong => _strong || _captureOff;
 
   bool get _mismatch => webrtcNoiseSuppression == _captureOff;

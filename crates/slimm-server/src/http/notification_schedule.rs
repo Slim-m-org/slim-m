@@ -2,14 +2,12 @@
 //! The notification schedule (`docs/decisions/0033-notification-schedule.md`):
 //! a per-weekday on-hours window, an off-hours policy, two allow-lists, and
 //! an optional snooze. Enforced exactly once, in
-//! `push::recipients::narrow_for_notification_preference`, the same choke
-//! point the old `/push/quiet-hours` window used - never a filter a client
-//! applies after a device has already buzzed.
+//! `push::recipients::narrow_for_notification_preference`, the only choke
+//! point - never a filter a client applies after a device has already buzzed.
 //!
-//! `/push/quiet-hours` (`http/quiet_hours.rs`) is untouched and still reads
-//! and writes its own columns; only push enforcement moved to this model,
-//! and migration 0081 seeded every existing quiet-hours user into it so
-//! nobody's push changed on upgrade.
+//! It replaced the old `/push/quiet-hours` window: migration 0081 seeded every
+//! quiet-hours user into it so nobody's push changed on upgrade, and migration
+//! 0138 dropped the old columns.
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;

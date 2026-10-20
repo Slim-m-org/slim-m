@@ -22,7 +22,7 @@ The meter is the loudest 10 ms frame since the app last asked, so it is the same
 An earlier meter fell 1.5 dB a frame from its last peak, which kept the bar over the line for up to 160 ms after a single keyboard click that the gate had already ignored.
 The settings bar fills in the accent colour while the gate is open and in a neutral one while it is closed, because the hold keeps the gate open for 300 ms after the bar drops below the line.
 With Strong on, the gate also reads rnnoise's speech probability: it opens at once when speech is likely (above 0.6) and the level is over the threshold, otherwise only after the level stays 15 dB over the threshold for two frames, so a single keyboard click does not open it; the hold drops to 100 ms when speech is unlikely.
-The app reads both through `getInputGate` (`InputGateMonitor` in `slimm_rtc`), every 50 ms while a meter is on screen and every second otherwise (see Resource use).
+The app reads both through `getInputGate` (`InputGateMonitor` in `slimm_rtc`), at 50 ms while a meter is on screen and slower, or not at all, otherwise (see Resource use).
 While it reads at the display rate the local speaking ring follows that voice state directly; otherwise it follows the SFU like the remote rings.
 
 ## Settings
@@ -136,11 +136,26 @@ It must not go through a derived `Provider`: those refresh on a frame, and frame
 | --- | --- | --- | --- |
 | Out-of-call preview capture, loopback peers and `getInputGate` poll (`MicPreview`) | a screen holds it, its route is shown, no call is connecting or connected, app resumed | 50 ms; also kept running under a covered route and, minimised, until the next frame | 50 ms; closed (OS mic indicator off) on blur, minimise, background, a covered route, a call, or leaving the screen |
 | In-call gate poll, a meter mounted and shown | dock level bar (mic on), Voice settings meter, setup meter, app resumed | 50 ms always | 50 ms |
-| In-call gate poll, nothing displayed | a call is connected | 50 ms always | 1 s (dead-mic watchdog needs 10 s of silence, the Strong fallback 2 s) |
+| In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 2 s (dead-mic watchdog needs 10 s of silence) |
+| In-call gate poll, nothing displayed, Strong on | same | 50 ms | 1 s (the Strong fallback needs 2 s of polls) |
 | In-call gate poll, nothing displayed, automatic sensitivity on | same | 50 ms | 200 ms (the estimator weights each reading by the time it covers) |
+| In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the watchdog and Strong fallback only watch an open mic) |
 | Sender level poll for the watchdog (hosts without the gate) | a call is connected | 1 s | 2 s |
 | Local speaking ring from the gate | the gate is read at the display rate | always during a call | only then; otherwise the SFU's flag, which lags about half a second |
 | Speaking ring pulse (`UserAvatar`) | the avatar is speaking and the app is resumed | ran while the window was unfocused | frozen on blur |
+
+Platform channel calls to `getInputGate` per second, counted in a session test at the real 50 ms display interval (the Dart side only; a native CPU figure was not taken, see below):
+
+| State | Before | After |
+| --- | --- | --- |
+| Muted, nothing shown | 1 | 0 |
+| Unmuted, nothing shown | 1 | 0.5 |
+| Unmuted, Strong on, nothing shown | 1 | 1 |
+| Meter shown (muted or not) | 20 | 20 |
+
+Not measured: process CPU of a real call.
+The desktop build needs a LiveKit stack and a virtual PipeWire source, and the cost is dominated by the native frame path (rnnoise about 0.7% of a core, dynamics about 0.05%, above), not the poll.
+Pushing readings from native instead of polling is not worth a fork change while the poll is at most 20 calls a second only with a meter on screen.
 
 Not changed: the call clocks tick once a second and the video stats sampler already runs only while its panel listens.
 Tested on fakes and fake clocks only (`rtc/test/voice_session_level_rate_test.dart`, `app/test/features/voice/mic_resources_test.dart`); a real-hardware check of the OS microphone indicator is still owed.

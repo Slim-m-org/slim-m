@@ -401,6 +401,15 @@ impl Store {
         Ok(row.map(|r| r.is_bot != 0).unwrap_or(false))
     }
 
+    /// Whether this user is a bot or a webhook, i.e. posts on its own rather
+    /// than being a person.
+    pub async fn is_automated_author(&self, user_id: UserId) -> anyhow::Result<bool> {
+        let row = sqlx::query!("SELECT is_bot, is_webhook FROM users WHERE id = ?", user_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.is_some_and(|r| r.is_bot != 0 || r.is_webhook != 0))
+    }
+
     /// Whether this bot holds a token that has not been revoked.
     pub async fn bot_has_live_token(&self, bot_user_id: UserId) -> anyhow::Result<bool> {
         let row = sqlx::query_scalar!(

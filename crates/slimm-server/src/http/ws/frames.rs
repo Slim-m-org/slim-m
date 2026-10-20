@@ -123,6 +123,21 @@ pub(super) enum ServerFrame {
         user_id: String,
         user_display_name: String,
         created_at: i64,
+        /// The values chosen from a select menu.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        values: Vec<String>,
+        /// A submitted form's answers by field `custom_id`.
+        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        fields: std::collections::BTreeMap<String, String>,
+    },
+    /// A bot opened a form for this account's click.
+    #[serde(rename = "interaction.form")]
+    InteractionForm {
+        interaction_id: String,
+        channel_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message_id: Option<String>,
+        form: crate::components::form::Form,
     },
     /// The bot answered this account's click.
     #[serde(rename = "interaction.answered")]
@@ -255,6 +270,17 @@ pub(super) enum ServerFrame {
         seq: i64,
         op_id: String,
         before_seq: i64,
+    },
+    /// A distinct type so a client that predates scoped clears ignores it rather than clearing everything.
+    #[serde(rename = "canvas.cleared_scoped")]
+    CanvasClearedScoped {
+        channel_id: String,
+        seq: i64,
+        op_id: String,
+        before_seq: i64,
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
     },
     #[serde(rename = "canvas.objects.restored")]
     CanvasObjectsRestored {
@@ -439,9 +465,20 @@ impl ServerFrame {
 #[serde(tag = "type")]
 pub(super) enum ClientFrame {
     #[serde(rename = "hello")]
-    Hello { ticket: String, protocol: u32 },
+    Hello {
+        ticket: String,
+        protocol: u32,
+        /// Present when the client reports activity with `active` frames, and
+        /// then says whether the person is at the device right now.
+        #[serde(default)]
+        active: Option<bool>,
+    },
     #[serde(rename = "ping")]
     Ping,
+    /// The person used this device recently. Once a connection sends one, its
+    /// pings stop counting as activity, so an unattended client goes away.
+    #[serde(rename = "active")]
+    Active,
     /// A typing refresh. Rate-limited and authorized like any other channel
     /// event (view plus send); see [`super::signals::handle_typing`]. There is
     /// no explicit "stop" frame: the state lapses on its own without a refresh.

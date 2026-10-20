@@ -19,6 +19,7 @@
 #   E2E_API_PORT [8095]   the server
 #   E2E_WEB_PORT [8356]   the static web build
 #   E2E_LK_PORT [7880]    LiveKit's HTTP/WebSocket port on the host
+#   E2E_RTC_TCP_PORT [7881]  LiveKit's ICE TCP port, so a second stack can run beside the first
 #   E2E_WEB_DIR           serve this prebuilt web bundle instead of the tree's own
 #   E2E_REBUILD           set to rebuild the web client even if one exists
 #   E2E_PASSWORD          pin the seeded accounts' password (default: random)
@@ -32,6 +33,10 @@ LK_PORT="${E2E_LK_PORT:-7880}"
 LK_CONTAINER="${E2E_LK_CONTAINER:-slimm-e2e-lk}"
 # The version prod runs, so the run tests what ships rather than whatever is latest.
 LIVEKIT_VERSION="${LIVEKIT_VERSION:-v1.10.1}"
+# Below the kernel's ephemeral range (32768-60999), where an outgoing socket can already hold a port.
+RTC_UDP_START="${E2E_RTC_UDP_START:-21000}"
+RTC_UDP_END="${E2E_RTC_UDP_END:-21050}"
+RTC_TCP_PORT="${E2E_RTC_TCP_PORT:-7881}"
 TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 PIDS="$WORK/pids"
 # LiveKit's dev-mode key pair for a throwaway container; overridable.
@@ -82,7 +87,8 @@ start_sfu() {
   echo "== SFU =="
   docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
   docker run -d --name "$LK_CONTAINER" --rm \
-    -p "$LK_PORT:7880" -p 7881:7881 -p 50000-50050:50000-50050/udp \
+    -p "$LK_PORT:7880" -p "$RTC_TCP_PORT:$RTC_TCP_PORT" -p "$RTC_UDP_START-$RTC_UDP_END:$RTC_UDP_START-$RTC_UDP_END/udp" \
+    -e LIVEKIT_CONFIG="rtc: {port_range_start: $RTC_UDP_START, port_range_end: $RTC_UDP_END, tcp_port: $RTC_TCP_PORT}" \
     "livekit/livekit-server:$LIVEKIT_VERSION" --dev --bind 0.0.0.0 >/dev/null
   wait_for_url "http://localhost:$LK_PORT" 30 || true
 }
@@ -117,7 +123,8 @@ serve_web() {
   if [[ ! -f "$web_dir/main.dart.js" || -n "${E2E_REBUILD:-}" ]]; then
     # Flutter copies web/ into build/web once and never re-syncs a new file into it.
     rm -rf "$web_dir"
-    ( cd "$ROOT/client/packages/app" && flutter build web --release )
+    # Bundled canvaskit: the default fetches it from gstatic, which failed once on a runner and left a blank page.
+    ( cd "$ROOT/client/packages/app" && flutter build web --release --no-web-resources-cdn )
   fi
   if curl -sf -o /dev/null "http://localhost:$WEB_PORT/" 2>/dev/null; then
     echo "port $WEB_PORT is already serving something; stop that first"; exit 1

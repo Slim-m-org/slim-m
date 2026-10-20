@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! The notification schedule (migration 0081), through the real
 //! `message_recipients` pipeline - every mode and allow-list combination the
-//! owner's own request named, exercised the same way `quiet_hours.rs` drives
-//! the window it replaces.
+//! owner's own request named.
 //!
 //! Every window here is drawn around the real current UTC minute rather than
-//! a fixed clock (the store has no injectable one), the same technique
-//! `quiet_hours.rs`'s own `around_now`/`away_from_now` use - applied to every
-//! weekday at once, since which weekday "now" happens to be must not change
+//! a fixed clock (the store has no injectable one), the same technique,
+//! applied to every weekday at once, since which weekday "now" happens to be must not change
 //! whether these tests pass.
 
 use slimm_server::config::Config;
@@ -57,9 +55,7 @@ fn off_hours_every_day() -> Vec<DaySetting> {
         .collect()
 }
 
-/// A thin alias so the two helpers above read like `QuietHours::parse` did,
-/// without importing the type under a name that collides with `DaySetting`'s
-/// own field.
+/// An alias that avoids a name collision with `DaySetting`'s own field.
 type DayWindowFor = slimm_server::notification_schedule::DayWindow;
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {

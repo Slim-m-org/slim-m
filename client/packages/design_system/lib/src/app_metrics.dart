@@ -104,6 +104,7 @@ abstract final class AppSizes {
   static const double controlMd = 34;
   static const double controlLg = 38;
 
+  static const double icon12 = 12;
   static const double icon16 = 16;
   static const double icon20 = 20;
   static const double icon24 = 24;

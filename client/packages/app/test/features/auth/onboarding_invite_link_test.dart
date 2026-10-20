@@ -22,7 +22,7 @@ import 'package:slimm_app/src/invite_link.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 MockClient _server() => MockClient((request) async {
   if (request.method == 'GET' && request.url.path == '/version') {

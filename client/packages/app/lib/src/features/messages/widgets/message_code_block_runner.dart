@@ -259,11 +259,7 @@ class _RunAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => running
-      ? const SizedBox(
-          width: AppSizes.icon20,
-          height: AppSizes.icon20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        )
+      ? const AppSpinner(size: AppSpinnerSize.md)
       : AppIconButton(
           icon: AppIcons.runCode,
           semanticLabel: _label,

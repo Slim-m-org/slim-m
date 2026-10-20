@@ -6,7 +6,11 @@ import 'package:slimm_rtc/rtc.dart';
 const _channel = MethodChannel('FlutterWebRTC.Method');
 
 /// Records plugin calls; [resetSupported] false mimics an unpatched plugin.
-List<String> _mockPlugin({required bool resetSupported}) {
+List<String> _mockPlugin({
+  required bool resetSupported,
+  List<Map<String, Object>> extra = const [],
+  List<Object?>? requestedTypes,
+}) {
   final calls = <String>[];
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -17,8 +21,11 @@ List<String> _mockPlugin({required bool resetSupported}) {
         if (!resetSupported) throw MissingPluginException();
         return null;
       case 'getDesktopSources':
+        final args = call.arguments as Map<Object?, Object?>;
+        requestedTypes?.addAll(args['types'] as List<Object?>);
         return {
           'sources': [
+            ...extra,
             {
               'id': '0',
               'name': 'Screen 1',
@@ -67,5 +74,37 @@ void main() {
     await const WebrtcDesktopSources(isLinux: false).list();
 
     expect(calls, ['getDesktopSources']);
+  });
+
+  Map<String, Object> window(String id, String name) => {
+        'id': id,
+        'name': name,
+        'type': 'window',
+        'thumbnailSize': {'width': 0, 'height': 0},
+      };
+
+  test('windows and macos list windows after the screens', () async {
+    final types = <Object?>[];
+    _mockPlugin(
+      resetSupported: true,
+      requestedTypes: types,
+      extra: [window('w1', 'Notepad'), window('w2', '  ')],
+    );
+
+    final listed = await const WebrtcDesktopSources(isLinux: false).list();
+
+    expect(types, ['screen', 'window']);
+    expect([for (final s in listed) s.id], ['0', 'w1']);
+    expect(listed.last.isWindow, isTrue);
+    expect(listed.first.isWindow, isFalse);
+  });
+
+  test('linux never asks for windows, which crashes there', () async {
+    final types = <Object?>[];
+    _mockPlugin(resetSupported: true, requestedTypes: types);
+
+    await const WebrtcDesktopSources(isLinux: true).list();
+
+    expect(types, ['screen']);
   });
 }

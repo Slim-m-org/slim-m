@@ -19,6 +19,7 @@ import '../../app_fade_in.dart';
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import '../core/spinner.dart';
 import 'error_state.dart';
 
 /// Renders [loading], [error] or [data] for an async value, with one look.
@@ -131,11 +132,7 @@ class AppAsyncView<T> extends StatelessWidget {
       Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          const AppSpinner(size: AppSpinnerSize.md),
           if (loadingMessage != null) ...[
             const SizedBox(height: AppSpacing.s12),
             Text(

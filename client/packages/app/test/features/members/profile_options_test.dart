@@ -22,6 +22,7 @@ import 'package:slimm_app/src/features/members/widgets/avatar_settings_section.d
 import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = TokenPair(

@@ -17,6 +17,8 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('invites', 'New invite', keywords: ['invite link']),
   SettingsEntry('invites', 'Expires'),
   SettingsEntry('invites', 'Joining', keywords: ['join policy']),
+  SettingsEntry('invites', 'Who can invite', keywords: ['friend']),
+  SettingsEntry('invites', 'Members can invite', keywords: ['friend']),
   SettingsEntry(
     'customize',
     'Join gate',
@@ -48,6 +50,12 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('customize', 'Banner', keywords: ['space banner']),
   SettingsEntry('customize', 'Icon', keywords: ['space icon']),
   SettingsEntry('customize', 'Preview'),
+  SettingsEntry(
+    'export',
+    'Export this Space',
+    description: 'A full copy of channels, messages and files.',
+    keywords: ['backup', 'archive', 'download', 'portability', 'move'],
+  ),
   SettingsEntry(
     'account-recovery',
     'Reset codes',

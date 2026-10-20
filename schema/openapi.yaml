@@ -100,6 +100,8 @@ tags:
       searched, and synced through the ordinary channel and message routes.
   - name: messages
     description: Sending, reading, editing, and reacting to messages.
+  - name: exports
+    description: Downloading your own data, and an administrator exporting the space.
   - name: attachments
     description: >
       Uploading and fetching file attachments. Upload first, then reference
@@ -1777,7 +1779,7 @@ paths:
     get:
       operationId: listInvites
       tags: [invites]
-      summary: List every invite. Requires CREATE_INVITE.
+      summary: List invites. Requires CREATE_INVITE, or members_can_invite.
       responses:
         "200":
           description: All invites.
@@ -1796,7 +1798,11 @@ paths:
     post:
       operationId: createInvite
       tags: [invites]
-      summary: Create an invite. Requires CREATE_INVITE.
+      summary: Create an invite. Requires CREATE_INVITE, or members_can_invite.
+      description: >
+        Without CREATE_INVITE, while the space lets members invite, the
+        invite defaults to one use and 24 hours, may not exceed 10 uses or
+        7 days, and may not grant a role.
       requestBody:
         required: true
         content:
@@ -5783,8 +5789,7 @@ paths:
       summary: List the caller's own per-channel notification overrides.
       description: >
         Only channels the caller has actually overridden appear here - one
-        following the account default (`getNotificationPreference`) carries
-        no entry, never one listed at `everything`.
+        following the default (`getNotificationPreference`) carries no entry.
       responses:
         "200":
           description: The caller's channel-scoped overrides.
@@ -5805,7 +5810,7 @@ paths:
     put:
       operationId: setChannelNotificationOverride
       tags: [push]
-      summary: Mute this channel, or narrow it to mentions only.
+      summary: Mute this channel, narrow it to mentions only, or ask for every message.
       description: >
         Enforced where push recipients are computed
         (`push::recipients::narrow_for_notification_preference`), the same
@@ -5813,8 +5818,9 @@ paths:
         filtered client-side after a push has already landed. Requires
         VIEW_CHANNEL, the same bar reading the channel already sets; a
         channel the caller cannot view answers 403, identically whether or
-        not it exists. `everything` is refused: having no override already
-        means that, so `DELETE` is the way back to it.
+        not it exists. `everything` is a stored override that beats the
+        read-only and bot or webhook downgrades to mentions, and a channel's
+        own default; `DELETE` is the way back to following the default.
       requestBody:
         required: true
         content:
@@ -5964,72 +5970,6 @@ paths:
           $ref: "#/components/responses/PayloadTooLarge"
         "429":
           $ref: "#/components/responses/TooManyRequests"
-  /push/quiet-hours:
-    get:
-      operationId: getQuietHours
-      tags: [push]
-      summary: Read the caller's own quiet-hours window.
-      description: >
-        Account-wide, the same scope as `GET /push/preference`. A genuine
-        round trip, not a local echo. `null` means disabled, the default,
-        and what every account that predates this feature keeps on upgrade.
-      responses:
-        "200":
-          description: The window now in effect, or `null` if disabled.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QuietHoursResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-    put:
-      operationId: setQuietHours
-      tags: [push]
-      summary: Set the caller's own quiet-hours window.
-      description: >
-        Minutes since midnight UTC: entered in local time by the client and
-        converted to UTC before this call, so the server never needs to
-        know the account's time zone. `start_minute` may be greater than
-        `end_minute` for a window that crosses midnight - 23:00-08:00 is the
-        ordinary shape, not an edge case. Legacy: the window is stored and read
-        back, but nothing uses it to decide push since the notification
-        schedule replaced it, so use `setNotificationSchedule` to silence an
-        account.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/QuietHours"
-      responses:
-        "200":
-          description: The window now in effect.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QuietHours"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
-    delete:
-      operationId: clearQuietHours
-      tags: [push]
-      summary: Disable the caller's own quiet-hours window.
-      description: >
-        Idempotent: clearing a window that was never set, or was already
-        cleared, is not an error.
-      responses:
-        "204":
-          description: Quiet hours are now disabled.
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "429":
-          $ref: "#/components/responses/TooManyRequests"
 
   /notifications/schedule:
     get:
@@ -6039,8 +5979,7 @@ paths:
       description: >
         `null` means never configured, distinct from a schedule with every
         weekday empty - see docs/decisions/0033-notification-schedule.md.
-        `/push/quiet-hours` is untouched and still readable; this is the
-        schedule that actually gates push (`push::recipients`).
+        This is the schedule that gates push (`push::recipients`).
       responses:
         "200":
           description: The schedule now in effect, or `null` if never configured.
@@ -6559,7 +6498,9 @@ paths:
         `clear` needs `MANAGE_CANVAS` unconditionally and takes a required
         `before_seq`: every live object placed at or below it is removed.
         The fence is required, not optional, because a lost response retried
-        without one would wipe whatever was drawn in the interval.
+        without one would wipe whatever was drawn in the interval. An optional
+        `kinds` and `author_id` narrow it to those object kinds and that
+        author's objects; restoring the clear undoes only what it removed.
 
 
         `restore` names a prior `remove` or `clear` op as `target_op` and
@@ -7690,6 +7631,46 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /bots/{botId}/token:
+    parameters:
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The bot's user id.
+    post:
+      operationId: reissueBotToken
+      tags: [bots]
+      summary: Re-issue a bot's token.
+      description: >-
+        For an administrator who lost the token. The old token and its
+        session stop working at once and the new token is returned once, like
+        `createBot`. Works on a bot whose token was revoked. The account, its
+        role and what it wrote are kept. Refused for a caller that is itself a
+        bot, and for a bot that has been removed from the Space (restore it
+        first). Recorded in the moderation history as `bot_token_reissue`.
+      responses:
+        "200":
+          description: The bot, and its new token once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewBot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /bots/commands:
     put:
       operationId: setBotCommands
@@ -7934,6 +7915,92 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/interactions/{interactionId}/form:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: interactionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: openInteractionForm
+      tags: [bots]
+      summary: Open a form for the member who pressed.
+      description: >-
+        Decision 0083. Only the bot the press was sent to, within 15 minutes of
+        it, and once per press (a second is a 409). The presser's client shows
+        the form from an `interaction.form` frame and the press counts as
+        answered. The submission arrives as an `interaction.created` of kind
+        `form_submit`. Nothing about the form is delivered to anyone else.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BotForm"
+      responses:
+        "204":
+          description: Opened.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/interactions/{interactionId}/submit:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: interactionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The press the bot opened the form for.
+    post:
+      operationId: submitInteractionForm
+      tags: [bots]
+      summary: Send a form's answers to the bot.
+      description: >-
+        Decision 0083. Only the member the form was opened for, while the press
+        is still inside its 15 minutes. The answers are checked against the
+        form the bot opened and delivered to that bot as an
+        `interaction.created` of kind `form_submit`; nothing but the short-lived
+        interaction row is stored. The `id` is chosen by the caller, so a retry
+        is the same submission. Charged to the same rate limit class as a press.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitBotFormRequest"
+      responses:
+        "200":
+          description: Recorded and delivered to the bot, if it is connected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Interaction"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -8187,7 +8254,8 @@ paths:
         registered, one whose `permission` the caller lacks and a message
         that is not in the channel are the same 404. The `id` is chosen by the
         caller, so a retry is the same use. Charged to the same per-caller
-        rate limit class as a button press.
+        rate limit class as a button press. A bot with no live socket is a 409,
+        so nothing is recorded for an answer that cannot come.
       requestBody:
         required: true
         content:
@@ -8196,7 +8264,7 @@ paths:
               $ref: "#/components/schemas/UseBotUiEntryRequest"
       responses:
         "200":
-          description: Recorded and delivered to the bot, if it is connected.
+          description: Recorded and delivered to the bot.
           content:
             application/json:
               schema:
@@ -9940,6 +10008,207 @@ paths:
         "507":
           $ref: "#/components/responses/InsufficientStorage"
 
+  /exports:
+    get:
+      operationId: listExports
+      tags: [exports]
+      summary: Your own data exports, newest first.
+      description: >
+        The last ten exports the caller started, of either kind. Someone
+        else's exports are never listed, including a space export started by
+        another administrator.
+      responses:
+        "200":
+          description: The caller's exports.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DataExport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /exports/member:
+    post:
+      operationId: startMemberExport
+      tags: [exports]
+      summary: Start an export of your own data.
+      description: >
+        Builds one tar archive in the background (format in
+        `docs/data-export-format.md`). It holds the caller's profile and
+        settings, the messages they wrote, their reactions, saved message ids,
+        notes, blocks, poll votes, call join and leave times, and the files
+        they uploaded. It never holds another member's messages, including the
+        other side of a direct message, and nothing deleted. The password is
+        required because an archive is a copy of the account's data. One export
+        runs at a time per account and a new one may start ten minutes after
+        the last; a refusal for that carries `Retry-After`. A finished archive
+        is kept for 24 hours.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
+      responses:
+        "202":
+          description: The queued export. Poll `getExport` for progress.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /exports/space:
+    post:
+      operationId: startSpaceExport
+      tags: [exports]
+      summary: Start an export of the whole space. Requires ADMINISTRATOR.
+      description: >
+        Builds one tar archive of the community's channels, threads, roles,
+        members, messages, pins, custom emoji and attachment files (format in
+        `docs/data-export-format.md`). ADMINISTRATOR rather than MANAGE_SERVER
+        because the archive reads every channel, which MANAGE_SERVER does not
+        allow. It never holds direct messages, deleted content or any
+        credential. Starting it and each download are written to the admin
+        audit log. Same password, pacing and 24 hour lifetime as
+        `startMemberExport`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordProofRequest"
+      responses:
+        "202":
+          description: The queued export.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /exports/{exportId}:
+    parameters:
+      - name: exportId
+        in: path
+        required: true
+        description: An export the caller started.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getExport
+      tags: [exports]
+      summary: One export's status and progress.
+      responses:
+        "200":
+          description: The export.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataExport"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    delete:
+      operationId: deleteExport
+      tags: [exports]
+      summary: Delete an export and its archive now.
+      description: >
+        A running export is cancelled. Safe to call on one that already
+        expired.
+      responses:
+        "204":
+          description: Deleted.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /exports/{exportId}/download:
+    parameters:
+      - name: exportId
+        in: path
+        required: true
+        description: A finished export the caller started.
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: downloadExport
+      tags: [exports]
+      summary: Download a finished archive.
+      description: >
+        Streams the tar archive from disk and honours a single `Range`, so a
+        large download can resume. A space archive is checked against
+        ADMINISTRATOR again here. Answers 404 for an export that is not
+        ready, has expired, or belongs to someone else.
+      parameters:
+        - name: Range
+          in: header
+          required: false
+          description: An optional single `bytes=` byte range (RFC 9110).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The archive bytes.
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: The requested byte range.
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "416":
+          description: The range is outside the archive.
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -10210,6 +10479,11 @@ components:
             when they leave Voice settings on "Space default". Applied on each
             member's own device. Absent on servers older than this field,
             which a client must treat as false.
+        members_can_invite:
+          type: boolean
+          description: >
+            Whether any member, not only holders of CREATE_INVITE, may create
+            invites. Absent on older servers, which a client reads as false.
         max_attachment_bytes:
           type: integer
           format: int64
@@ -10931,6 +11205,9 @@ components:
           description: >
             What "Space default" means for members' noise suppression; see
             the same field on `/version`.
+        members_can_invite:
+          type: boolean
+          description: Whether every member may create invites; see `/version`.
         welcome_enabled:
           type: boolean
           description: Whether a welcome message is posted when someone joins. Off by default.
@@ -11001,6 +11278,8 @@ components:
           type: string
           description: At most 280 characters, no control or invisible characters.
         strong_noise_suppression:
+          type: boolean
+        members_can_invite:
           type: boolean
         welcome_enabled:
           type: boolean
@@ -12320,6 +12599,7 @@ components:
             - bot_create
             - bot_revoke
             - bot_permission_grant
+            - bot_token_reissue
             - webhook_create
             - webhook_revoke
             - webhook_rotate
@@ -12371,6 +12651,9 @@ components:
         usable:
           type: boolean
           description: Whether the invite can be redeemed right now.
+        created_by_name:
+          type: [string, "null"]
+          description: Who issued it; null when they are gone, and on a just-created invite.
 
     CreateInviteRequest:
       type: object
@@ -12488,6 +12771,12 @@ components:
           description: >-
             The prefix assigned to the bot. Absent for a bot that never
             registered one.
+        online:
+          type: boolean
+          description: >-
+            The bot has a live WebSocket right now. Follows the connection,
+            not the bot's visibility choice, and flips with the same
+            `presence.changed` event a member's status does.
     SuggestedBotPrefix:
       type: object
       required: [prefix]
@@ -12721,12 +13010,59 @@ components:
     ComponentRow:
       type: object
       required: [buttons]
-      description: One row of buttons on a bot's message.
+      description: >-
+        One row on a bot's message: up to five buttons, or a single select
+        menu in `select` with `buttons` empty. A send may leave `buttons` out
+        on a select row.
       properties:
         buttons:
           type: array
           items:
             $ref: "#/components/schemas/Button"
+        select:
+          $ref: "#/components/schemas/SelectMenu"
+    SelectMenu:
+      type: object
+      required: [custom_id, options]
+      description: >-
+        A menu of 1 to 25 options. Choosing delivers an `interaction.created`
+        of kind `select` carrying the chosen `values`. Its `custom_id` is
+        unique among the message's buttons and menus.
+      properties:
+        custom_id:
+          type: string
+        placeholder:
+          type: string
+          description: Shown while nothing is chosen. At most 100 characters.
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/SelectOption"
+        min_values:
+          type: integer
+          description: >-
+            How few options a choice may hold, 0 up to `max_values`. Absent
+            means 1.
+        max_values:
+          type: integer
+          description: >-
+            How many options a choice may hold, 1 up to the number of options.
+            Absent means 1.
+        disabled:
+          type: boolean
+          description: A disabled menu cannot be used. Absent means false.
+    SelectOption:
+      type: object
+      required: [label, value]
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+          description: What the bot receives. Unique within the menu.
+        description:
+          type: string
+          description: At most 100 characters.
     Button:
       type: object
       required: [label, style]
@@ -12759,6 +13095,73 @@ components:
           description: Chosen by the caller, so a retried press is the same press.
         custom_id:
           type: string
+        values:
+          type: array
+          items:
+            type: string
+          description: >-
+            Required when `custom_id` names a select menu, and refused for a
+            button. Each value must be one the menu offers, none twice, within
+            its `min_values` and `max_values`.
+    BotForm:
+      type: object
+      required: [custom_id, title, fields]
+      description: >-
+        A small form a bot opens for a member. Submitting it delivers an
+        `interaction.created` of kind `form_submit` whose `custom_id` is this
+        one and whose `fields` hold the answers.
+      properties:
+        custom_id:
+          type: string
+        title:
+          type: string
+          description: At most 80 characters.
+        submit_label:
+          type: string
+          description: The submit button's text. Absent means the client's own.
+        fields:
+          type: array
+          description: One to five fields, each `custom_id` unique within the form.
+          items:
+            $ref: "#/components/schemas/BotFormField"
+    BotFormField:
+      type: object
+      required: [custom_id, label]
+      properties:
+        custom_id:
+          type: string
+        label:
+          type: string
+        placeholder:
+          type: string
+        value:
+          type: string
+          description: Prefilled text the member may change.
+        required:
+          type: boolean
+          description: Absent means true.
+        multiline:
+          type: boolean
+          description: Absent means false.
+        max_length:
+          type: integer
+          description: 1 to 1000. Absent means 200.
+    SubmitBotFormRequest:
+      type: object
+      required: [id, fields]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: >-
+            Chosen by the caller, so a retried submission is the same one.
+        fields:
+          type: object
+          description: >-
+            Answers by field `custom_id`. A required field must be non-empty
+            and no key may be a field the form lacks.
+          additionalProperties:
+            type: string
     Interaction:
       type: object
       required: [id, created_at]
@@ -12936,6 +13339,7 @@ components:
           bot_display_name,
           message_menu,
           call_controls,
+          offline,
         ]
       properties:
         bot_user_id:
@@ -12953,6 +13357,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BotUiEntry"
+        offline:
+          type: boolean
+          description: >-
+            The bot has no live socket, so using one of its entries is refused
+            with 409. Listed anyway so the app can dim them with a reason.
     UseBotUiEntryRequest:
       type: object
       required: [id, surface, entry_id]
@@ -13010,12 +13419,25 @@ components:
           format: uuid
         kind:
           type: string
-          enum: [button, message_menu, call_control]
+          enum: [button, message_menu, call_control, select, form_submit]
         custom_id:
           type: string
+          description: >-
+            The button's, menu's or form's `custom_id`; the entry id for a
+            message menu entry or call control.
         option_id:
           type: string
           description: The choice made on a call control that offers options.
+        values:
+          type: array
+          items:
+            type: string
+          description: The options chosen, on kind `select`.
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+          description: The form's answers by field `custom_id`, on kind `form_submit`.
         user_id:
           type: string
           format: uuid
@@ -13024,6 +13446,28 @@ components:
         created_at:
           type: integer
           format: int64
+    InteractionForm:
+      type: object
+      required: [type, interaction_id, channel_id, form]
+      description: >
+        A bot opened a form for this account's press. Delivered to the
+        presser's own connections only, whose client shows it. The press
+        counts as answered.
+      properties:
+        type:
+          type: string
+          enum: [interaction.form]
+        interaction_id:
+          type: string
+          format: uuid
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        form:
+          $ref: "#/components/schemas/BotForm"
     InteractionAnswered:
       type: object
       required: [type, interaction_id, channel_id]
@@ -13072,7 +13516,15 @@ components:
     ChannelBotCommand:
       type: object
       required:
-        [bot_user_id, bot_username, bot_display_name, prefix, name, description]
+        [
+          bot_user_id,
+          bot_username,
+          bot_display_name,
+          prefix,
+          name,
+          description,
+          offline,
+        ]
       properties:
         bot_user_id:
           type: string
@@ -13093,6 +13545,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/BotCommandOption"
+        offline:
+          type: boolean
+          description: >-
+            The bot has no live socket, so a command typed now gets no answer.
+            Listed anyway so the composer can dim it with a reason.
     IncomingWebhookPayload:
       type: object
       description: >-
@@ -13924,7 +14381,7 @@ components:
             idempotency key); client-minted for every other kind.
         kind:
           type: string
-          enum: [place, remove, clear, restore, move, reorder, edit]
+          enum: [place, remove, clear, clear_scoped, restore, move, reorder, edit]
         actor_id:
           type: [string, "null"]
           format: uuid
@@ -13947,7 +14404,17 @@ components:
         before_seq:
           type: integer
           format: int64
-          description: A `clear` removed every object placed at or below this seq.
+          description: A `clear` or `clear_scoped` removed objects placed at or below this seq.
+        kinds:
+          type: array
+          items: { type: string }
+          description: >-
+            On a `clear_scoped`: only objects of these kinds were removed.
+            Empty means every kind.
+        author_id:
+          type: string
+          format: uuid
+          description: On a `clear_scoped`, only this author's objects were removed.
         target_op:
           type: string
           format: uuid
@@ -14009,9 +14476,9 @@ components:
       required: [id, kind]
       description: >-
         One mutation submitted to `submitCanvasOp`. Which of `object_ids`,
-        `before_seq`, `target_op`, the move fields, and `z_index` may be
+        `before_seq`, `kinds`, `author_id`, `target_op`, the move fields, and `z_index` may be
         present depends on `kind`: a `remove` takes `object_ids` and none of
-        the others; a `clear` takes `before_seq` and none of the others; a
+        the others; a `clear` takes `before_seq`, optionally `kinds` and `author_id`, and none of the others; a
         `restore` takes `target_op` and none of the others; a `move` takes
         `object_id`, `x`, `y`, `w` and `h`, and none of `object_ids`,
         `before_seq`, `target_op` or `z_index`; a `reorder` takes `object_id`
@@ -14038,6 +14505,17 @@ components:
           description: >-
             Required for `clear`. Every live object placed at or below this
             canvas `seq` is removed.
+        kinds:
+          type: array
+          items: { type: string, enum: [stroke, image, note, shape] }
+          description: >-
+            Optional, `clear` only. Removes only objects of these kinds; omit
+            for every kind.
+        author_id:
+          type: string
+          format: uuid
+          description: >-
+            Optional, `clear` only. Removes only this author's objects.
         target_op:
           type: string
           format: uuid
@@ -14440,6 +14918,48 @@ components:
           description: >-
             Whether this field may sit beside its neighbors rather than
             taking the embed's full width - Discord's own field shape.
+
+    DataExport:
+      type: object
+      required: [id, kind, status, processed, total, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [member, space]
+        status:
+          type: string
+          enum: [queued, running, ready, failed, expired]
+          description: >
+            `expired` once the archive was deleted, or is past its lifetime
+            and about to be.
+        processed:
+          type: integer
+          format: int64
+          description: Messages and files written so far.
+        total:
+          type: integer
+          format: int64
+          description: Messages and files expected; zero until counted.
+        size_bytes:
+          type: [integer, "null"]
+          format: int64
+          description: The archive's size once ready.
+        error:
+          type: [string, "null"]
+          description: A short reason when `status` is `failed`.
+        created_at:
+          type: integer
+          format: int64
+        finished_at:
+          type: [integer, "null"]
+          format: int64
+        expires_at:
+          type: [integer, "null"]
+          format: int64
+          description: When the archive is deleted, unix milliseconds.
 
     SavedMessage:
       allOf:
@@ -15270,25 +15790,6 @@ components:
             message in a DM. `nothing` is no push at all, ever, including a
             DM.
 
-    QuietHours:
-      type: object
-      required: [start_minute, end_minute]
-      properties:
-        start_minute:
-          type: integer
-          minimum: 0
-          maximum: 1439
-          description: Minutes since midnight UTC that the window opens.
-        end_minute:
-          type: integer
-          minimum: 0
-          maximum: 1439
-          description: >
-            Minutes since midnight UTC that the window closes, exclusive.
-            May be less than `start_minute` for a window that crosses
-            midnight (23:00-08:00 is the ordinary shape); must not equal
-            `start_minute`.
-
     DirectRoute:
       type: object
       required: [addresses]
@@ -15321,19 +15822,6 @@ components:
           type: integer
           format: int64
           description: Milliseconds the server spent reading the body.
-
-    QuietHoursResponse:
-      type: object
-      required: [quiet_hours]
-      properties:
-        quiet_hours:
-          oneOf:
-            - $ref: "#/components/schemas/QuietHours"
-            - type: "null"
-          description: >-
-            Always present as a key: null means quiet hours are disabled,
-            the same convention `Message.poll` follows for "genuinely none"
-            versus omitted.
 
     NotificationScheduleDay:
       type: object
@@ -15447,11 +15935,12 @@ components:
       properties:
         preference:
           type: string
-          enum: [mentions, nothing]
+          enum: [everything, mentions, nothing]
           description: >
-            Never `everything`: having no override already means that, so
-            `DELETE /notification-preferences/channels/{channelId}` is the
-            way back to it rather than a third spelling of the same answer.
+            `everything` is stored like the others, since the default for a
+            read-only channel or a bot's post is mentions. `DELETE
+            /notification-preferences/channels/{channelId}` is the way back to
+            following the default.
 
     ChannelNotificationOverrideEntry:
       type: object
@@ -15791,6 +16280,7 @@ components:
       oneOf:
         - $ref: "#/components/schemas/ClientHello"
         - $ref: "#/components/schemas/ClientPing"
+        - $ref: "#/components/schemas/ClientActive"
         - $ref: "#/components/schemas/ClientTyping"
         - $ref: "#/components/schemas/ClientViewing"
         - $ref: "#/components/schemas/ClientCanvasCursor"
@@ -15811,6 +16301,13 @@ components:
           type: integer
           format: int32
           description: Must match the server's protocol version.
+        active:
+          type: boolean
+          description: >
+            Present when this client reports activity with `active` frames, and
+            then says whether the person is at the device right now. With it,
+            pings never reset the idle clock, and false keeps a reconnect
+            after sleep from counting as use. Absent keeps ping-based presence.
 
     ClientPing:
       type: object
@@ -15819,6 +16316,20 @@ components:
         type:
           type: string
           enum: [ping]
+
+    ClientActive:
+      type: object
+      required: [type]
+      description: >
+        The person used this device recently. A client sends it at most about
+        once a minute while they do. Once a connection has sent one, or said
+        `active` in its hello, its pings no longer reset the idle clock, so an
+        unattended client shows away after ten minutes; a client that does
+        neither keeps ping-based presence.
+      properties:
+        type:
+          type: string
+          enum: [active]
 
     ClientTyping:
       type: object
@@ -16041,6 +16552,7 @@ components:
         - $ref: "#/components/schemas/CanvasObjectPlaced"
         - $ref: "#/components/schemas/CanvasObjectsRemoved"
         - $ref: "#/components/schemas/CanvasCleared"
+        - $ref: "#/components/schemas/CanvasClearedScoped"
         - $ref: "#/components/schemas/CanvasObjectsRestored"
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
@@ -16059,6 +16571,7 @@ components:
         - $ref: "#/components/schemas/MessageEmbeds"
         - $ref: "#/components/schemas/InteractionCreated"
         - $ref: "#/components/schemas/InteractionAnswered"
+        - $ref: "#/components/schemas/InteractionForm"
         - $ref: "#/components/schemas/NewDeviceSignIn"
         - $ref: "#/components/schemas/VoiceMoved"
         - $ref: "#/components/schemas/ServerPong"
@@ -16133,6 +16646,38 @@ components:
         before_seq:
           type: integer
           format: int64
+
+    CanvasClearedScoped:
+      type: object
+      required: [type, channel_id, seq, op_id, before_seq, kinds]
+      description: >-
+        A `clear` limited to `kinds` and, when present, one author: every
+        matching object placed at or below `before_seq` was removed. A
+        separate type from `canvas.cleared` so a client that predates scoped
+        clears ignores it instead of clearing everything.
+      properties:
+        type:
+          type: string
+          enum: [canvas.cleared_scoped]
+        channel_id:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          format: int64
+        op_id:
+          type: string
+          format: uuid
+        before_seq:
+          type: integer
+          format: int64
+        kinds:
+          type: array
+          items: { type: string }
+          description: Empty means every kind.
+        author_id:
+          type: string
+          format: uuid
 
     CanvasObjectsRestored:
       type: object

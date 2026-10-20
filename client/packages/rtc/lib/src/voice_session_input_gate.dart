@@ -116,22 +116,29 @@ mixin VoiceSessionInputGate {
 
   /// Whether a meter is on screen in a focused app. Only then are the gate's
   /// readings taken at the display rate; otherwise just fast enough for the
-  /// dead-mic watchdog, the Strong fallback and automatic sensitivity.
+  /// dead-mic watchdog, the Strong fallback and automatic sensitivity, and
+  /// not at all while the microphone is closed.
   void setLevelDisplayed(bool displayed) {
     if (displayed == _levelDisplayed) return;
     _levelDisplayed = displayed;
     _syncGateRate();
   }
 
-  void _syncGateRate() {
+  void _syncGateRate() => _refreshParticipants();
+
+  /// The slowest rate every consumer of a reading is happy with.
+  void _applyGateRate() {
     _gate.setRate(
       _levelDisplayed
           ? InputGateRate.display
-          : _autoThreshold != null
-              ? InputGateRate.adapt
-              : InputGateRate.watch,
+          : !_mic.open
+              ? InputGateRate.off
+              : _autoThreshold != null
+                  ? InputGateRate.adapt
+                  : _capture.watchingStrong
+                      ? InputGateRate.watch
+                      : InputGateRate.slow,
     );
-    _refreshParticipants();
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the
@@ -145,6 +152,7 @@ mixin VoiceSessionInputGate {
   /// and room noise libwebrtc's own suppressor lets through.
   void setStrongNoiseSuppression(bool enabled) {
     _capture.setStrong(enabled);
+    _syncGateRate();
     unawaited(_applyInputGate());
   }
 

@@ -23,7 +23,7 @@ import 'package:slimm_app/src/message_link.dart';
 import 'package:slimm_app/src/features/messages/providers/message_jump.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/router.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 /// Records the jump instead of running it. The real controller pages history
 /// out of the local store, which would drag a database (and `path_provider`)

@@ -111,6 +111,11 @@ void main() {
         overrides: _overrides(),
         settleNestedResolve: true,
         afterSettle: (t) async {
+          // The nav list outgrew the desktop frame, so a lower row is built lazily.
+          if (find.text(pane.label).evaluate().isEmpty) {
+            await t.drag(find.text('Reports').first, const Offset(0, -600));
+            await t.pump();
+          }
           await t.tap(find.text(pane.label).first);
           await t.pump();
           await t.pump(const Duration(milliseconds: 350));

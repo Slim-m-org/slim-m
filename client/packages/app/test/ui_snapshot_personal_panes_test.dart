@@ -27,7 +27,6 @@ const _panes = <String, String>{
   'voice': 'Voice & screen share',
   'blocked': 'Blocked',
   'report-status': 'Report status',
-  'general': ActionLabels.general,
   'about': 'About slim-m',
 };
 

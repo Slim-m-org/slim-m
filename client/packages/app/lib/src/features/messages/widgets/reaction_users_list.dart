@@ -199,13 +199,7 @@ class _LoadingMore extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Padding(
     padding: EdgeInsets.all(AppSpacing.s12),
-    child: Center(
-      child: SizedBox(
-        width: 18,
-        height: 18,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      ),
-    ),
+    child: Center(child: AppSpinner(size: AppSpinnerSize.md)),
   );
 }
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO canvas_ops\n                   (channel_id, seq, id, kind, actor_id, bound_seq, target_op,\n                    move_x, move_y, move_w, move_h, reorder_z, edit_props,\n                    clear_kinds, clear_author_id, created_at)\n               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 16
+    },
+    "nullable": []
+  },
+  "hash": "c229a9de2f6fb97180583fe6935be120aa16fa0e061d674b0a8bec89048b4d3f"
+}

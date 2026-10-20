@@ -155,6 +155,30 @@ impl Store {
         Ok(())
     }
 
+    /// Whether every member, not only holders of CREATE_INVITE, may invite.
+    pub async fn members_can_invite(&self) -> anyhow::Result<bool> {
+        let enabled = sqlx::query_scalar!(
+            r#"SELECT members_can_invite AS "v!: bool" FROM space_settings WHERE id = 1"#
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("read members can invite")?;
+        Ok(enabled.unwrap_or(false))
+    }
+
+    pub async fn set_members_can_invite(&self, enabled: bool) -> anyhow::Result<()> {
+        let now = now_ms();
+        sqlx::query!(
+            "UPDATE space_settings SET members_can_invite = ?, updated_at = ? WHERE id = 1",
+            enabled,
+            now
+        )
+        .execute(&self.pool)
+        .await
+        .context("set members can invite")?;
+        Ok(())
+    }
+
     /// Sets the screen-share height ceiling. The caller is responsible for
     /// range-checking against `MIN_SCREEN_SHARE_MAX_HEIGHT` and
     /// `MAX_SCREEN_SHARE_MAX_HEIGHT`; the DB CHECK only guards the `>= 1`

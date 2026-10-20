@@ -45,6 +45,8 @@ const EXEMPT_PREFIXES: &[&str] = &[
     "/devices",
     "/diagnostics/",
     "/dms",
+    "/exports/member",
+    "/exports/{export_id}",
     "/gifs",
     "/interactions",
     "/invites/{code}/redeem",

@@ -255,11 +255,7 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
               saving
                   ? const Padding(
                       padding: EdgeInsets.all(AppSpacing.s4),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
+                      child: AppSpinner(size: AppSpinnerSize.sm),
                     )
                   : AppIconButton(
                       icon: AppIcons.download,

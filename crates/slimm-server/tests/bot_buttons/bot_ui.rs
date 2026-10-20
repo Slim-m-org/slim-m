@@ -409,3 +409,20 @@ async fn reusing_a_use_id_for_anything_different_is_a_conflict() {
         "another message under the same id"
     );
 }
+
+#[tokio::test]
+async fn an_offline_bot_is_listed_as_offline_and_refuses_a_use_at_once() {
+    let w = world().await;
+    register(&w, &w.bot.1, registration()).await;
+    let sent = plain_message(&w).await;
+    assert_eq!(listed(&w, w.channel, &w.bob.1).await[0]["offline"], false);
+
+    w.state.hub.presence().disconnect(w.bot.0);
+    assert_eq!(listed(&w, w.channel, &w.bob.1).await[0]["offline"], true);
+    let (status, _) = use_entry(&w, w.channel, &w.bob.1, menu_use("translate", &sent)).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+
+    w.state.hub.presence().connect(w.bot.0);
+    let (status, _) = use_entry(&w, w.channel, &w.bob.1, menu_use("translate", &sent)).await;
+    assert_eq!(status, StatusCode::OK);
+}

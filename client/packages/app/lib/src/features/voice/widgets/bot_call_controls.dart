@@ -179,6 +179,7 @@ class _Group extends StatelessWidget {
             name: name,
             controls: group.controls,
             uses: uses,
+            offline: group.bot.offline,
             onUse: onUse,
           ),
           if (failed != null)
@@ -204,12 +205,14 @@ class _CompactRow extends StatelessWidget {
     required this.name,
     required this.controls,
     required this.uses,
+    required this.offline,
     required this.onUse,
   });
 
   final Widget name;
   final List<api.BotUiEntry> controls;
   final Map<String, BotUiUse?> uses;
+  final bool offline;
   final _OnUse onUse;
 
   @override
@@ -229,6 +232,7 @@ class _CompactRow extends StatelessWidget {
               _ControlChip(
                 control: control,
                 pending: uses[control.id]?.pending ?? false,
+                offline: offline,
                 onUse: onUse,
               ),
           ],
@@ -244,11 +248,13 @@ class _ControlChip extends StatefulWidget {
   const _ControlChip({
     required this.control,
     required this.pending,
+    required this.offline,
     required this.onUse,
   });
 
   final api.BotUiEntry control;
   final bool pending;
+  final bool offline;
   final _OnUse onUse;
 
   @override
@@ -263,9 +269,12 @@ class _ControlChipState extends State<_ControlChip> {
     final control = widget.control;
     final chip = CallDockButton(
       icon: _iconFor(control.icon),
-      tooltip: control.label,
+      tooltip: widget.offline
+          ? '${control.label} - bot offline'
+          : control.label,
       active: false,
       pending: widget.pending,
+      unavailable: widget.offline,
       onPressed: control.options.isEmpty
           ? () => widget.onUse(control, null)
           : () => _menu.currentState?.open(),

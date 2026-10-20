@@ -13,6 +13,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/app_lock_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 /// A real `AppLockWindowChannel` calls an unmocked platform channel, which
 /// never resolves inside a `testWidgets` fake-async zone rather than failing

@@ -15,7 +15,7 @@ import 'package:slimm_app/src/features/members/widgets/profile_fields_section.da
 import 'package:slimm_app/src/features/settings/widgets/settings_profile_preview.dart';
 import 'package:slimm_app/src/features/members/widgets/profile_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
 
 const _tokens = TokenPair(

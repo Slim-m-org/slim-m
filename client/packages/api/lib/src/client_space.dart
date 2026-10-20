@@ -32,6 +32,7 @@ class SpaceSettings {
     this.bannerUpdatedAt,
     this.iconUpdatedAt,
     this.strongNoiseSuppression = false,
+    this.membersCanInvite = false,
     this.welcomeEnabled = false,
     this.welcomeChannelId,
     this.welcomeMessage = '',
@@ -54,6 +55,9 @@ class SpaceSettings {
 
   /// What "Space default" means for members' noise suppression.
   final bool strongNoiseSuppression;
+
+  /// Whether every member may create invites, not only holders of CREATE_INVITE.
+  final bool membersCanInvite;
 
   /// Whether a welcome message is posted when someone joins.
   final bool welcomeEnabled;
@@ -78,6 +82,7 @@ class SpaceSettings {
         iconUpdatedAt: json['icon_updated_at'] as int?,
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
+        membersCanInvite: json['members_can_invite'] as bool? ?? false,
         welcomeEnabled: json['welcome_enabled'] as bool? ?? false,
         welcomeChannelId: json['welcome_channel_id'] as String?,
         welcomeMessage: json['welcome_message'] as String? ?? '',
@@ -103,6 +108,7 @@ extension SlimmApiSpace on SlimmApi {
     TotpPolicy? totpPolicy,
     String? description,
     bool? strongNoiseSuppression,
+    bool? membersCanInvite,
     bool? welcomeEnabled,
     String? welcomeChannelId,
     String? welcomeMessage,
@@ -113,6 +119,7 @@ extension SlimmApiSpace on SlimmApi {
           totpPolicy != null ||
           description != null ||
           strongNoiseSuppression != null ||
+          membersCanInvite != null ||
           welcomeEnabled != null ||
           welcomeChannelId != null ||
           welcomeMessage != null,
@@ -128,6 +135,7 @@ extension SlimmApiSpace on SlimmApi {
         if (description != null) 'description': description,
         if (strongNoiseSuppression != null)
           'strong_noise_suppression': strongNoiseSuppression,
+        if (membersCanInvite != null) 'members_can_invite': membersCanInvite,
         if (welcomeEnabled != null) 'welcome_enabled': welcomeEnabled,
         if (welcomeChannelId != null) 'welcome_channel_id': welcomeChannelId,
         if (welcomeMessage != null) 'welcome_message': welcomeMessage,

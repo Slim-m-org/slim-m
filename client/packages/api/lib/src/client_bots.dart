@@ -13,6 +13,7 @@ class Bot {
     this.tokenLastUsedAt,
     this.roleId,
     this.prefix,
+    this.online = false,
   });
 
   factory Bot.fromJson(Map<String, dynamic> json) => Bot(
@@ -25,6 +26,7 @@ class Bot {
         roleId: json['role_id'] as String?,
         permissions: json['permissions'] as int,
         prefix: json['prefix'] as String?,
+        online: json['online'] as bool? ?? false,
       );
 
   final String userId;
@@ -48,6 +50,9 @@ class Bot {
 
   /// The command prefix assigned to this bot; null until one is assigned.
   final String? prefix;
+
+  /// The bot holds a live socket right now, hidden or not.
+  final bool online;
 
   bool get isRevoked => tokenName == null;
 }
@@ -123,6 +128,12 @@ extension SlimmApiBots on SlimmApi {
   /// Revokes a bot's token and session, stopping it on its next request.
   Future<void> revokeBot(String botUserId) =>
       _send('POST', '/bots/$botUserId/revoke', expectNoContent: true);
+
+  /// Replaces a bot's token and returns the new one, shown only this once.
+  Future<NewBot> reissueBotToken(String botUserId) async {
+    final json = await _send('POST', '/bots/$botUserId/token');
+    return NewBot.fromJson(json as Map<String, dynamic>);
+  }
 
   /// Replaces what a bot's managed role grants.
   Future<Bot> setBotPermissions(String botUserId, int permissions) async {

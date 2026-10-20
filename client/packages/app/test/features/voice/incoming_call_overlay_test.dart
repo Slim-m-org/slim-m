@@ -23,7 +23,7 @@ import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart';
 import 'package:slimm_app/src/features/voice/widgets/incoming_call_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../desktop/support/fake_desktop_window_port.dart';
 

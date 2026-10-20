@@ -28,6 +28,7 @@ pub(crate) enum ModerationAction {
     BotCreate,
     BotRevoke,
     BotPermissionGrant,
+    BotTokenReissue,
     WebhookCreate,
     WebhookRevoke,
     WebhookRotate,
@@ -41,7 +42,7 @@ pub(crate) enum ModerationAction {
 
 impl ModerationAction {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 18] = [
         Self::Remove,
         Self::Restore,
         Self::Timeout,
@@ -50,6 +51,7 @@ impl ModerationAction {
         Self::BotCreate,
         Self::BotRevoke,
         Self::BotPermissionGrant,
+        Self::BotTokenReissue,
         Self::WebhookCreate,
         Self::WebhookRevoke,
         Self::WebhookRotate,
@@ -71,6 +73,7 @@ impl ModerationAction {
             Self::BotCreate => "bot_create",
             Self::BotRevoke => "bot_revoke",
             Self::BotPermissionGrant => "bot_permission_grant",
+            Self::BotTokenReissue => "bot_token_reissue",
             Self::WebhookCreate => "webhook_create",
             Self::WebhookRevoke => "webhook_revoke",
             Self::WebhookRotate => "webhook_rotate",
@@ -180,6 +183,7 @@ mod tests {
                 ModerationAction::NicknameSet => 14,
                 ModerationAction::NicknameClear => 15,
                 ModerationAction::VoiceMove => 16,
+                ModerationAction::BotTokenReissue => 17,
             }
         }
         let mut seen = vec![false; ModerationAction::ALL.len()];

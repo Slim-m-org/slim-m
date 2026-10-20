@@ -116,7 +116,10 @@ async fn a_seeded_channel_replays_correctly_after_a_sweep() {
         &store,
         channel,
         actor,
-        CanvasOpRequest::Clear { before_seq: head },
+        CanvasOpRequest::Clear {
+            before_seq: head,
+            scope: Default::default(),
+        },
     )
     .await;
 
@@ -207,7 +210,7 @@ async fn replay_surviving_log(store: &Store, channel: ChannelId) -> HashSet<Canv
                 }
                 CanvasOpBody::Place(None) => {}
                 CanvasOpBody::Remove(ids) => dead.extend(ids.iter().copied()),
-                CanvasOpBody::Clear { before_seq } => {
+                CanvasOpBody::Clear { before_seq, .. } => {
                     for (id, seq) in &placed {
                         if *seq <= *before_seq {
                             dead.insert(*id);

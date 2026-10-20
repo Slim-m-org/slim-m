@@ -166,6 +166,16 @@ ServerEvent? _overlayFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         messageId: decoded['message_id'] as String?,
       ),
+    'interaction.form'
+        when decoded['interaction_id'] is String &&
+            decoded['channel_id'] is String &&
+            decoded['form'] is Map<String, dynamic> =>
+      InteractionForm(
+        interactionId: decoded['interaction_id'] as String,
+        channelId: decoded['channel_id'] as String,
+        messageId: decoded['message_id'] as String?,
+        form: BotForm.fromJson(decoded['form'] as Map<String, dynamic>),
+      ),
     'message.ephemeral'
         when decoded['channel_id'] is String &&
             decoded['message'] is Map<String, dynamic> =>
@@ -364,6 +374,18 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         seq: decoded['seq'] as int,
         opId: decoded['op_id'] as String,
         beforeSeq: decoded['before_seq'] as int,
+      ),
+    'canvas.cleared_scoped'
+        when decoded['channel_id'] is String &&
+            decoded['seq'] is int &&
+            decoded['op_id'] is String &&
+            decoded['before_seq'] is int =>
+      CanvasCleared(
+        channelId: decoded['channel_id'] as String,
+        seq: decoded['seq'] as int,
+        opId: decoded['op_id'] as String,
+        beforeSeq: decoded['before_seq'] as int,
+        scope: CanvasClearScope.fromJson(decoded),
       ),
     'canvas.objects.restored'
         when decoded['channel_id'] is String &&

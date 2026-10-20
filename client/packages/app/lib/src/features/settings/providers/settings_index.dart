@@ -7,6 +7,7 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
+import '../../../routing/routes.dart' show desktopPane;
 import 'settings_index_gates.dart';
 
 export 'settings_index_gates.dart' show SettingsGate;
@@ -131,6 +132,24 @@ const personalSettingsIndex = <SettingsEntry>[
     'Devices',
     description: 'Everywhere this account is signed in.',
     keywords: ['sessions', 'sign out', 'logout', 'version'],
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Your data',
+    description: 'A copy of what you wrote and uploaded.',
+    keywords: [
+      'export',
+      'download my data',
+      'archive',
+      'backup',
+      'portability',
+    ],
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Download my data',
+    description: 'Messages, reactions, saved items, notes and uploads.',
+    keywords: ['export', 'archive', 'backup', 'portability'],
   ),
   SettingsEntry(
     'account-devices',
@@ -384,7 +403,14 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['cache', 'disk', 'clear'],
   ),
   SettingsEntry(
-    'general',
+    desktopPane,
+    'Startup',
+    description: 'What happens when the app opens.',
+    keywords: ['boot', 'launch', 'login'],
+    available: _desktop,
+  ),
+  SettingsEntry(
+    desktopPane,
     'Start on login',
     description: 'Opens slim-m in the tray when you sign in.',
     keywords: ['autostart', 'startup', 'boot', 'tray'],
@@ -392,15 +418,10 @@ const personalSettingsIndex = <SettingsEntry>[
     available: _desktop,
   ),
   SettingsEntry(
-    'general',
+    desktopPane,
     'Startup splash',
-    description: 'The shortest time the splash stays up at startup.',
-    available: _desktop,
-  ),
-  SettingsEntry(
-    'general',
-    'Startup',
-    keywords: ['autostart'],
+    description: 'How long the splash shows when the app opens.',
+    keywords: ['startup', 'launch', 'loading'],
     available: _desktop,
   ),
   SettingsEntry(

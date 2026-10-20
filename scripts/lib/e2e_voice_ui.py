@@ -72,16 +72,12 @@ def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
     100% it snaps there, so the loop reads the readout back rather than
     trusting the aim.
     """
-    first = True
     for _ in range(tries):
         shown = slider_percent(client, label)
         if abs(shown - percent) <= tolerance:
             return shown
         if any(n["t"].startswith(label + "\n") for n in client.nodes()):
-            # A menu's slider takes one Tab to focus in the browser, then the arrow keys move it.
-            if first:
-                e2e_input.press(client, "Tab")
-                first = False
+            # A menu's slider has focus when the menu opens, so the arrow keys move it straight away.
             e2e_input.press(client, "ArrowRight" if shown < percent else "ArrowLeft")
             continue
         x, y, w, h = slider_rect(client, label)

@@ -13,7 +13,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/theme_choice_cards.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 /// A container built the way `main()` builds one, so a second call to this
 /// after a `select` is the same thing as relaunching the app.

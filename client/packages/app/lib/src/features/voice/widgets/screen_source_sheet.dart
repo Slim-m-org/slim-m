@@ -24,7 +24,9 @@ Future<ScreenShareSource?> showScreenSourceSheet(
   return showAppSheet<ScreenShareSource>(
     context,
     builder: (context) => DeviceChoiceSheet<ScreenShareSource>(
-      title: 'Share a screen',
+      title: sources.any((s) => s.isWindow)
+          ? 'Share a screen or window'
+          : 'Share a screen',
       caption: 'Everyone in the call will see it until you stop sharing.',
       icon: AppIcons.screenShare,
       items: sources,

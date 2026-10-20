@@ -15,6 +15,7 @@ use anyhow::Context;
 
 use super::super::Store;
 use super::CanvasObject;
+use super::canvas_ops_write::ClearScope;
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 
 /// Past this many ops behind, replaying the feed is no cheaper than a cold
@@ -83,6 +84,7 @@ pub enum CanvasOpBody {
     Remove(Vec<CanvasObjectId>),
     Clear {
         before_seq: i64,
+        scope: ClearScope,
     },
     Restore {
         target_op: CanvasOpId,
@@ -193,6 +195,7 @@ impl Store {
         let fetched = sqlx::query!(
             r#"SELECT o.seq AS "seq!: i64", o.id AS "id!: CanvasOpId", o.kind AS "kind!",
                       o.actor_id AS "actor_id: UserId", o.bound_seq AS "bound_seq: i64",
+                      o.clear_kinds AS "clear_kinds: String", o.clear_author_id AS "clear_author_id: UserId",
                       o.target_op AS "target_op: CanvasOpId", o.created_at AS "created_at!: i64",
                       o.move_x AS "move_x: f64", o.move_y AS "move_y: f64",
                       o.move_w AS "move_w: f64", o.move_h AS "move_h: f64",
@@ -313,6 +316,16 @@ impl Store {
                     ),
                     "clear" => CanvasOpBody::Clear {
                         before_seq: row.bound_seq.context("canvas_op_bound guarantees this")?,
+                        scope: ClearScope {
+                            kinds: row
+                                .clear_kinds
+                                .as_deref()
+                                .map(serde_json::from_str)
+                                .transpose()
+                                .context("clear_kinds is written as a JSON array")?
+                                .unwrap_or_default(),
+                            author_id: row.clear_author_id,
+                        },
                     },
                     "restore" => CanvasOpBody::Restore {
                         target_op: row.target_op.context("canvas_op_target guarantees this")?,

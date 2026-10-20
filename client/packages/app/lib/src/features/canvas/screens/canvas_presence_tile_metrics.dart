@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:slimm_design_system/design_system.dart';
 
 /// The world-space box a resize may not shrink below or grow past - small
 /// enough that the name badge and controls still fit, large enough that a
@@ -17,3 +18,6 @@ const canvasPresenceTileMaxSize = Size(720, 540);
 /// mouse instead relies on [MouseRegion.onExit] firing the moment the
 /// pointer actually leaves, so this only ever governs touch.
 const canvasPresenceTileTouchRevealDuration = Duration(seconds: 3);
+
+/// The shortest on-screen side a tile needs before its hover buttons appear.
+const canvasPresenceTileControlsMinSide = AppSizes.controlSm * 2;

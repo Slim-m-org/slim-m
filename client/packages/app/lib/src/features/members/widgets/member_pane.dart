@@ -9,8 +9,8 @@
 /// one.
 ///
 /// A member's first role becomes a badge. `@everyone` is excluded server-side,
-/// so an empty list means no badge rather than no data. There is still no
-/// in-voice flag on a profile, so the design's speaker glyph is left off.
+/// so an empty list means no badge rather than no data. The in-call chip is
+/// derived from the voice rosters by `MemberVoiceChip`, not read off a profile.
 ///
 /// The roster is `channelMembersProvider`, narrowed server-side to who holds
 /// VIEW_CHANNEL in [AppMemberPane.channelId]. It used to be the whole
@@ -44,6 +44,7 @@ import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
 import '../../../providers/providers.dart';
 import '../providers/roster_grouping.dart';
+import 'invite_friend.dart';
 import 'member_bulk_actions.dart';
 import 'member_pane_rows.dart';
 import 'member_selection_bar.dart';
@@ -53,6 +54,20 @@ import 'member_selection_bar.dart';
 /// `LayoutClass.fitsMemberPane`, since the toggle can only hide the pane, not
 /// summon room for it that is not there.
 final memberPaneVisibleProvider = StateProvider<bool>((ref) => true);
+
+/// A window shorter than this does not open the member pane by itself.
+const double kMemberPaneAutoOpenMinHeight = 500;
+
+/// Set while the viewer opened the pane by hand on a window too short to open
+/// it automatically; the header toggle is the only writer.
+final memberPaneOpenedByHandProvider = StateProvider<bool>((ref) => false);
+
+/// Whether the docked pane is wanted at [size]: not hidden, and either tall
+/// enough to open by default or opened by hand.
+bool memberPaneWanted(WidgetRef ref, Size size) =>
+    ref.watch(memberPaneVisibleProvider) &&
+    (size.height >= kMemberPaneAutoOpenMinHeight ||
+        ref.watch(memberPaneOpenedByHandProvider));
 
 /// 236px, `--surface-sunken`, a left hairline: the design's right member pane.
 class AppMemberPane extends ConsumerWidget {
@@ -108,6 +123,9 @@ class AppMemberPane extends ConsumerWidget {
           _Header(
             count: membersAsync.valueOrNull?.length,
             onClose: onClose,
+            onInvite: watchCanInviteFriend(ref)
+                ? () => inviteAFriend(context)
+                : null,
             // Only a moderator is offered the mode; the server refuses the rest anyway.
             onStartSelecting: (canTimeOut || canRemove) && !selecting
                 ? ref.read(memberSelectionProvider.notifier).enter
@@ -115,9 +133,8 @@ class AppMemberPane extends ConsumerWidget {
           ),
           Expanded(
             child: membersAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              loading: () =>
+                  const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
               error: (error, _) => _MembersError(
                 error: error,
                 onRetry: () => channelId == null
@@ -210,9 +227,17 @@ class _RosterList extends ConsumerWidget {
 /// Space is, and a search box quietly changing that number would answer a
 /// question nobody asked.
 class _Header extends StatelessWidget {
-  const _Header({required this.count, this.onStartSelecting, this.onClose});
+  const _Header({
+    required this.count,
+    this.onInvite,
+    this.onStartSelecting,
+    this.onClose,
+  });
 
   final int? count;
+
+  /// Null when the viewer may not invite.
+  final VoidCallback? onInvite;
   final VoidCallback? onClose;
 
   /// Enters selection mode. Null when the viewer holds neither moderation
@@ -237,6 +262,13 @@ class _Header extends StatelessWidget {
               style: AppText.label.copyWith(color: tokens.textSecondary),
             ),
           ),
+          if (onInvite != null)
+            AppIconButton(
+              icon: AppIcons.invite,
+              semanticLabel: 'Invite a friend',
+              tooltip: 'Invite a friend',
+              onPressed: onInvite,
+            ),
           if (onStartSelecting != null)
             AppIconButton(
               icon: AppIcons.shield,

@@ -2947,6 +2947,246 @@ class PendingAttachmentsCompanion
   }
 }
 
+class $CanvasPersonalLayoutsTable extends CanvasPersonalLayouts
+    with TableInfo<$CanvasPersonalLayoutsTable, CanvasPersonalLayoutRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CanvasPersonalLayoutsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _channelIdMeta =
+      const VerificationMeta('channelId');
+  @override
+  late final GeneratedColumn<String> channelId = GeneratedColumn<String>(
+      'channel_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _layoutMeta = const VerificationMeta('layout');
+  @override
+  late final GeneratedColumn<String> layout = GeneratedColumn<String>(
+      'layout', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [channelId, layout, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'canvas_personal_layouts';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<CanvasPersonalLayoutRow> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('channel_id')) {
+      context.handle(_channelIdMeta,
+          channelId.isAcceptableOrUnknown(data['channel_id']!, _channelIdMeta));
+    } else if (isInserting) {
+      context.missing(_channelIdMeta);
+    }
+    if (data.containsKey('layout')) {
+      context.handle(_layoutMeta,
+          layout.isAcceptableOrUnknown(data['layout']!, _layoutMeta));
+    } else if (isInserting) {
+      context.missing(_layoutMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {channelId};
+  @override
+  CanvasPersonalLayoutRow map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return CanvasPersonalLayoutRow(
+      channelId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}channel_id'])!,
+      layout: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}layout'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $CanvasPersonalLayoutsTable createAlias(String alias) {
+    return $CanvasPersonalLayoutsTable(attachedDatabase, alias);
+  }
+}
+
+class CanvasPersonalLayoutRow extends DataClass
+    implements Insertable<CanvasPersonalLayoutRow> {
+  final String channelId;
+
+  /// The layout as the voice canvas encodes it; this package never reads it.
+  final String layout;
+
+  /// Orders rows so the oldest go first when the table is capped.
+  final int updatedAt;
+  const CanvasPersonalLayoutRow(
+      {required this.channelId, required this.layout, required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['channel_id'] = Variable<String>(channelId);
+    map['layout'] = Variable<String>(layout);
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  CanvasPersonalLayoutsCompanion toCompanion(bool nullToAbsent) {
+    return CanvasPersonalLayoutsCompanion(
+      channelId: Value(channelId),
+      layout: Value(layout),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory CanvasPersonalLayoutRow.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return CanvasPersonalLayoutRow(
+      channelId: serializer.fromJson<String>(json['channelId']),
+      layout: serializer.fromJson<String>(json['layout']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'channelId': serializer.toJson<String>(channelId),
+      'layout': serializer.toJson<String>(layout),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  CanvasPersonalLayoutRow copyWith(
+          {String? channelId, String? layout, int? updatedAt}) =>
+      CanvasPersonalLayoutRow(
+        channelId: channelId ?? this.channelId,
+        layout: layout ?? this.layout,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  CanvasPersonalLayoutRow copyWithCompanion(
+      CanvasPersonalLayoutsCompanion data) {
+    return CanvasPersonalLayoutRow(
+      channelId: data.channelId.present ? data.channelId.value : this.channelId,
+      layout: data.layout.present ? data.layout.value : this.layout,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CanvasPersonalLayoutRow(')
+          ..write('channelId: $channelId, ')
+          ..write('layout: $layout, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(channelId, layout, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CanvasPersonalLayoutRow &&
+          other.channelId == this.channelId &&
+          other.layout == this.layout &&
+          other.updatedAt == this.updatedAt);
+}
+
+class CanvasPersonalLayoutsCompanion
+    extends UpdateCompanion<CanvasPersonalLayoutRow> {
+  final Value<String> channelId;
+  final Value<String> layout;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const CanvasPersonalLayoutsCompanion({
+    this.channelId = const Value.absent(),
+    this.layout = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  CanvasPersonalLayoutsCompanion.insert({
+    required String channelId,
+    required String layout,
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  })  : channelId = Value(channelId),
+        layout = Value(layout),
+        updatedAt = Value(updatedAt);
+  static Insertable<CanvasPersonalLayoutRow> custom({
+    Expression<String>? channelId,
+    Expression<String>? layout,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (channelId != null) 'channel_id': channelId,
+      if (layout != null) 'layout': layout,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  CanvasPersonalLayoutsCompanion copyWith(
+      {Value<String>? channelId,
+      Value<String>? layout,
+      Value<int>? updatedAt,
+      Value<int>? rowid}) {
+    return CanvasPersonalLayoutsCompanion(
+      channelId: channelId ?? this.channelId,
+      layout: layout ?? this.layout,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (channelId.present) {
+      map['channel_id'] = Variable<String>(channelId.value);
+    }
+    if (layout.present) {
+      map['layout'] = Variable<String>(layout.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CanvasPersonalLayoutsCompanion(')
+          ..write('channelId: $channelId, ')
+          ..write('layout: $layout, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$SlimmDatabase extends GeneratedDatabase {
   _$SlimmDatabase(QueryExecutor e) : super(e);
   $SlimmDatabaseManager get managers => $SlimmDatabaseManager(this);
@@ -2957,6 +3197,8 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
   late final $ChannelDraftsTable channelDrafts = $ChannelDraftsTable(this);
   late final $PendingAttachmentsTable pendingAttachments =
       $PendingAttachmentsTable(this);
+  late final $CanvasPersonalLayoutsTable canvasPersonalLayouts =
+      $CanvasPersonalLayoutsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2966,7 +3208,8 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
         messages,
         channelCategories,
         channelDrafts,
-        pendingAttachments
+        pendingAttachments,
+        canvasPersonalLayouts
       ];
 }
 
@@ -4294,6 +4537,161 @@ typedef $$PendingAttachmentsTableProcessedTableManager = ProcessedTableManager<
     ),
     PendingAttachmentRow,
     PrefetchHooks Function()>;
+typedef $$CanvasPersonalLayoutsTableCreateCompanionBuilder
+    = CanvasPersonalLayoutsCompanion Function({
+  required String channelId,
+  required String layout,
+  required int updatedAt,
+  Value<int> rowid,
+});
+typedef $$CanvasPersonalLayoutsTableUpdateCompanionBuilder
+    = CanvasPersonalLayoutsCompanion Function({
+  Value<String> channelId,
+  Value<String> layout,
+  Value<int> updatedAt,
+  Value<int> rowid,
+});
+
+class $$CanvasPersonalLayoutsTableFilterComposer
+    extends Composer<_$SlimmDatabase, $CanvasPersonalLayoutsTable> {
+  $$CanvasPersonalLayoutsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get channelId => $composableBuilder(
+      column: $table.channelId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get layout => $composableBuilder(
+      column: $table.layout, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$CanvasPersonalLayoutsTableOrderingComposer
+    extends Composer<_$SlimmDatabase, $CanvasPersonalLayoutsTable> {
+  $$CanvasPersonalLayoutsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get channelId => $composableBuilder(
+      column: $table.channelId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get layout => $composableBuilder(
+      column: $table.layout, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$CanvasPersonalLayoutsTableAnnotationComposer
+    extends Composer<_$SlimmDatabase, $CanvasPersonalLayoutsTable> {
+  $$CanvasPersonalLayoutsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get channelId =>
+      $composableBuilder(column: $table.channelId, builder: (column) => column);
+
+  GeneratedColumn<String> get layout =>
+      $composableBuilder(column: $table.layout, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$CanvasPersonalLayoutsTableTableManager extends RootTableManager<
+    _$SlimmDatabase,
+    $CanvasPersonalLayoutsTable,
+    CanvasPersonalLayoutRow,
+    $$CanvasPersonalLayoutsTableFilterComposer,
+    $$CanvasPersonalLayoutsTableOrderingComposer,
+    $$CanvasPersonalLayoutsTableAnnotationComposer,
+    $$CanvasPersonalLayoutsTableCreateCompanionBuilder,
+    $$CanvasPersonalLayoutsTableUpdateCompanionBuilder,
+    (
+      CanvasPersonalLayoutRow,
+      BaseReferences<_$SlimmDatabase, $CanvasPersonalLayoutsTable,
+          CanvasPersonalLayoutRow>
+    ),
+    CanvasPersonalLayoutRow,
+    PrefetchHooks Function()> {
+  $$CanvasPersonalLayoutsTableTableManager(
+      _$SlimmDatabase db, $CanvasPersonalLayoutsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$CanvasPersonalLayoutsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$CanvasPersonalLayoutsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$CanvasPersonalLayoutsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> channelId = const Value.absent(),
+            Value<String> layout = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CanvasPersonalLayoutsCompanion(
+            channelId: channelId,
+            layout: layout,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String channelId,
+            required String layout,
+            required int updatedAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              CanvasPersonalLayoutsCompanion.insert(
+            channelId: channelId,
+            layout: layout,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable<$CanvasPersonalLayoutsTable,
+                        CanvasPersonalLayoutRow>(table),
+                    BaseReferences<_$SlimmDatabase, $CanvasPersonalLayoutsTable,
+                        CanvasPersonalLayoutRow>(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$CanvasPersonalLayoutsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$SlimmDatabase,
+        $CanvasPersonalLayoutsTable,
+        CanvasPersonalLayoutRow,
+        $$CanvasPersonalLayoutsTableFilterComposer,
+        $$CanvasPersonalLayoutsTableOrderingComposer,
+        $$CanvasPersonalLayoutsTableAnnotationComposer,
+        $$CanvasPersonalLayoutsTableCreateCompanionBuilder,
+        $$CanvasPersonalLayoutsTableUpdateCompanionBuilder,
+        (
+          CanvasPersonalLayoutRow,
+          BaseReferences<_$SlimmDatabase, $CanvasPersonalLayoutsTable,
+              CanvasPersonalLayoutRow>
+        ),
+        CanvasPersonalLayoutRow,
+        PrefetchHooks Function()>;
 
 class $SlimmDatabaseManager {
   final _$SlimmDatabase _db;
@@ -4308,4 +4706,6 @@ class $SlimmDatabaseManager {
       $$ChannelDraftsTableTableManager(_db, _db.channelDrafts);
   $$PendingAttachmentsTableTableManager get pendingAttachments =>
       $$PendingAttachmentsTableTableManager(_db, _db.pendingAttachments);
+  $$CanvasPersonalLayoutsTableTableManager get canvasPersonalLayouts =>
+      $$CanvasPersonalLayoutsTableTableManager(_db, _db.canvasPersonalLayouts);
 }

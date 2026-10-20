@@ -43,6 +43,7 @@ uuid_id!(
     "A canvas op identity: client-minted for a mutation, server-minted for a place."
 );
 uuid_id!(EmojiId, "A custom emoji identity.");
+uuid_id!(ExportId, "A data export job identity.");
 uuid_id!(
     FamilyId,
     "A refresh-token family identity: rotation keeps the id, reuse revokes it."
