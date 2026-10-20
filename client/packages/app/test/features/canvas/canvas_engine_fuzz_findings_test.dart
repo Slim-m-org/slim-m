@@ -517,4 +517,40 @@ void main() {
       );
     });
   });
+
+  test('re-reading the board repairs a viewer whose picture has drifted', () {
+    _scenario((world, me, peer) {
+      _place(world, 'real');
+      world.quiesce();
+      // A picture that has drifted for any reason: one stale box, one object the server no longer has.
+      me.engine.document.moveObject('real', 700, 700, 40, 30);
+      me.engine.document.applyPlaced(
+        const CanvasStrokeInput(
+          id: 'ghost',
+          seq: 9,
+          zIndex: 9,
+          x: 300,
+          y: 300,
+          w: 20,
+          h: 20,
+          points: [0, 0, 20, 20],
+          width: 3,
+          colorKey: 'annotation',
+        ),
+      );
+
+      world.readBoard(me);
+      world.quiesce();
+
+      expect(me.engine.document.objectBounds('real')!.x, 100);
+      expect(
+        me.engine.document.isAlive('ghost'),
+        isFalse,
+        reason:
+            'a read answers for the whole region it covers, yet it only adds: '
+            'it leaves a known object at its old box and keeps an object the '
+            'read no longer lists, so only reopening the canvas repairs a drift',
+      );
+    });
+  });
 }
