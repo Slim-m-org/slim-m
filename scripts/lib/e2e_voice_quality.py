@@ -37,6 +37,9 @@ VARIANTS = {
     "fec-dtx": {"useinbandfec": "1", "usedtx": "1"},
     "ptime40": {"_sender": {"ptime": 40}},
     "bitrate96": {"_sender": {"maxBitrate": 96000}},
+    "bitrate64": {"_sender": {"maxBitrate": 64000}},
+    "bitrate80": {"_sender": {"maxBitrate": 80000}},
+    "dtx-off-br64": {"usedtx": "0", "_sender": {"maxBitrate": 64000}},
     "bitrate32-sender": {"_sender": {"maxBitrate": 32000}},
 }
 
