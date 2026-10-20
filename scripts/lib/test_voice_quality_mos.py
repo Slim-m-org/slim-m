@@ -47,5 +47,23 @@ class Scores(unittest.TestCase):
         self.assertGreater(clean, dirty)
 
 
+class VisqolCsv(unittest.TestCase):
+    def test_rows_are_matched_by_file_name_not_position(self):
+        text = ("reference,degraded,moslqo,vnsim\n"
+                "/work/ref1.wav,/work/deg1.wav,3.9,0.8\n"
+                "/work/ref0.wav,/work/deg0.wav,4.5,0.9\n")
+        self.assertEqual(mos.parse_visqol_csv(text, 3), [4.5, 3.9, None])
+
+
+class Failures(unittest.TestCase):
+    def test_an_empty_recording_is_an_error_not_a_crash_of_the_batch(self):
+        with self.assertRaises(ValueError):
+            mos.score([0.1] * RATE, RATE, [], RATE)
+
+    def test_the_aligner_returns_nothing_for_an_empty_recording(self):
+        import voice_quality_align as align
+        self.assertEqual(align.track_locked([0.1] * RATE, []), ([], [], []))
+
+
 if __name__ == "__main__":
     unittest.main()

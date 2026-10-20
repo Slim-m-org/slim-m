@@ -7,12 +7,15 @@ ViSQOL (google/visqol, speech mode, 16 kHz) runs from a docker image built
 from visqol.Dockerfile next to this file:
 `docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib`.
 It compares each received speech segment with the same segment of the aligned
-reference and gives MOS-LQO, at most 4.58 for identical audio. DNSMOS
+reference and gives MOS-LQO; identical audio scored 4.58 in one test, but real
+recordings of other clips score above that, so it is not a ceiling. DNSMOS
 (Microsoft, the `speechmos` package) scores the received audio on its own, so
 it is a cross-check that needs no alignment; run this file with a venv python
 that has numpy, scipy, onnxruntime, librosa and speechmos, e.g.
 ~/.slimm-scratch/mos-venv. Either score is skipped when its tool is missing.
 """
+import csv
+import io
 import json
 import os
 import shutil
@@ -78,11 +81,31 @@ def _dnsmos(audio):
     return {k: float(out[k]) for k in ("ovrl_mos", "sig_mos", "bak_mos", "p808_mos")}
 
 
+def _dnsmos_pairs(rec16, expected, spans):
+    """DNSMOS of the recording and of the reference per span; empty when speechmos is missing."""
+    try:
+        return ([_dnsmos(rec16[a:b]) for a, b in spans],
+                [_dnsmos(expected[a:b]) for a, b in spans])
+    except ImportError:
+        print("  DNSMOS skipped: speechmos is not installed", flush=True)
+        return [], []
+
+
 def _mean(rows, key):
     return round(sum(r[key] for r in rows) / len(rows), 3) if rows else None
 
 
 VISQOL_IMAGE = os.environ.get("E2E_VISQOL_IMAGE", "slimm-visqol:local")
+
+
+def parse_visqol_csv(text, count):
+    """MOS-LQO per pair index, matched on the degraded file name; None where ViSQOL gave no row."""
+    found = {}
+    for row in csv.DictReader(io.StringIO(text)):
+        name = os.path.basename(row["degraded"])
+        if name.startswith("deg") and name.endswith(".wav") and name[3:-4].isdigit():
+            found[int(name[3:-4])] = float(row["moslqo"])
+    return [found.get(i) for i in range(count)]
 
 
 def visqol_scores(pairs):
@@ -106,8 +129,7 @@ def visqol_scores(pairs):
              "--results_csv", "/work/out.csv", "--use_speech_mode"],
             check=True, capture_output=True)
         with open(os.path.join(work, "out.csv")) as fh:
-            rows = fh.read().splitlines()[1:]
-        return [float(row.split(",")[2]) for row in rows]
+            return parse_visqol_csv(fh.read(), len(pairs))
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -115,13 +137,19 @@ def visqol_scores(pairs):
 def score(ref_samples, ref_rate, rec_samples, rec_rate):
     """ViSQOL and DNSMOS for the received speech, DNSMOS also for the aligned reference."""
     ref16, rec16 = _resample(ref_samples, ref_rate), _resample(rec_samples, rec_rate)
+    if not len(rec16):
+        raise ValueError("the recording is empty")
     spans, expected = aligned_runs(ref16.tolist(), rec16.tolist())
-    got = [_dnsmos(rec16[a:b]) for a, b in spans]
-    want = [_dnsmos(expected[a:b]) for a, b in spans]
-    visqol = visqol_scores([(expected[a:b], rec16[a:b].tolist()) for a, b in spans])
+    got, want = _dnsmos_pairs(rec16, expected, spans)
+    try:
+        visqol = visqol_scores([(expected[a:b], rec16[a:b].tolist()) for a, b in spans])
+    except subprocess.CalledProcessError as err:
+        print(f"  ViSQOL failed: {(err.stderr or b'').decode(errors='replace')[-300:]}", flush=True)
+        visqol = None
+    visqol = [v for v in visqol or [] if v is not None]
     ovr_rec, ovr_ref = _mean(got, "ovrl_mos"), _mean(want, "ovrl_mos")
     return {"segments": len(spans), "ovrl": ovr_rec, "ovrl_reference": ovr_ref,
-            "ovrl_delta": None if ovr_rec is None else round(ovr_rec - ovr_ref, 3),
+            "ovrl_delta": None if ovr_rec is None or ovr_ref is None else round(ovr_rec - ovr_ref, 3),
             "sig": _mean(got, "sig_mos"), "bak": _mean(got, "bak_mos"),
             "p808": _mean(got, "p808_mos"),
             "visqol": round(sum(visqol) / len(visqol), 3) if visqol else None}
@@ -141,10 +169,13 @@ def score_directory(directory):
             rec, rate = dsp.read_wav(wav)
             sender = SENDER[who]
             ref, ref_rate = refs[sender]
-            report["mos"] = score(ref, ref_rate, rec, rate)
+            try:
+                report["mos"] = score(ref, ref_rate, rec, rate)
+            except (ValueError, ZeroDivisionError, OSError) as err:
+                report["mos"] = {"error": str(err) or type(err).__name__}
             print(f"  {profile:18} {who} {report['mos']}", flush=True)
-    with open(path, "w") as fh:
-        json.dump(results, fh, indent=2)
+        with open(path, "w") as fh:
+            json.dump(results, fh, indent=2)
 
 
 if __name__ == "__main__":

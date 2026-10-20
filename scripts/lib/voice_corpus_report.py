@@ -2,6 +2,7 @@
 """Per-category tables from corpus.json files written by voice_corpus_score.py.
 
 usage: voice_corpus_report.py <label>=<corpus.json> [<label>=<corpus.json> ...]
+A repeated label pools its files into one column.
 Each cell is bursts / loud windows / dropouts / ViSQOL / worst peak over the reference (dB),
 each clip is played in one direction.
 """
@@ -13,11 +14,11 @@ import voice_corpus as corpus
 HEAD = "bursts / loud / dropouts / ViSQOL / peak dB"
 
 
-def rollup(results, categories):
-    """`{profile: {category: stats}}` over every clip of both directions."""
-    out = {}
+def rollup(results, categories, into=None):
+    """`{profile: {category: stats}}` over every clip of both directions; `into` pools more runs."""
+    out = into if into is not None else {}
     for profile, sides in results.items():
-        cells = {}
+        cells = out.setdefault(profile, {})
         for side in sides.values():
             for name, row in side["clips"].items():
                 cell = cells.setdefault(categories[name], {
@@ -29,15 +30,27 @@ def rollup(results, categories):
                 cell["peak"] = max(cell["peak"], row["peak_over_ref_db"])
                 if row["visqol"] is not None:
                     cell["visqol"].append(row["visqol"])
-        out[profile] = cells
     return out
 
 
-def cell_text(cell):
+def cell_text(cell, expected=None):
+    """One cell; a clip count that differs from the row's is shown, because the sums are then not comparable."""
     if cell is None:
         return "-"
     vis = f"{sum(cell['visqol']) / len(cell['visqol']):.2f}" if cell["visqol"] else "-"
-    return f"{cell['bursts']} / {cell['loud']} / {cell['dropouts']} / {vis} / {cell['peak']:+.1f}"
+    text = f"{cell['bursts']} / {cell['loud']} / {cell['dropouts']} / {vis} / {cell['peak']:+.1f}"
+    if expected is not None and cell["clips"] != expected:
+        text += f" [{cell['clips']} of {expected} clips]"
+    return text
+
+
+def _total(cells):
+    done = [c for c in cells if c]
+    return None if not done else {
+        "clips": sum(c["clips"] for c in done), "bursts": sum(c["bursts"] for c in done),
+        "loud": sum(c["loud"] for c in done), "dropouts": sum(c["dropouts"] for c in done),
+        "visqol": [v for c in done for v in c["visqol"]],
+        "peak": max(c["peak"] for c in done)}
 
 
 def table(profile, rolled, order=corpus.CATEGORIES):
@@ -48,9 +61,12 @@ def table(profile, rolled, order=corpus.CATEGORIES):
     for category in order:
         cells = [rolled[label].get(profile, {}).get(category) for label in labels]
         if any(cells):
-            count = next(c["clips"] for c in cells if c)
+            count = max(c["clips"] for c in cells if c)
             lines.append(f"| {category} ({count} clips) | "
-                         + " | ".join(cell_text(c) for c in cells) + " |")
+                         + " | ".join(cell_text(c, count) for c in cells) + " |")
+    totals = [_total([rolled[label].get(profile, {}).get(cat) for cat in order])
+              for label in labels]
+    lines.append("| all clips | " + " | ".join(cell_text(t) for t in totals) + " |")
     return "\n".join(lines)
 
 
@@ -60,7 +76,7 @@ def main(argv):
     for arg in argv[1:]:
         label, path = arg.split("=", 1)
         with open(path, encoding="utf-8") as fh:
-            rolled[label] = rollup(json.load(fh), categories)
+            rolled[label] = rollup(json.load(fh), categories, rolled.get(label))
     profiles = sorted({p for r in rolled.values() for p in r})
     for profile in profiles:
         print(f"\n### {profile}\n")

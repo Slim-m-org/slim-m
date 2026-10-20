@@ -20,7 +20,7 @@ The two client builds differ, the server does not.
   `E2E_VQ_CLIPS=synthetic` brings back the old synthetic clips.
 - ViSQOL (google/visqol at commit 38d0b01, speech mode, 16 kHz) runs from a docker image built with `docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib` (about four minutes).
   It compares each received speech run with the same run of the aligned reference.
-  Identical audio scores 4.58, which is the ceiling of speech mode.
+  Identical audio scored 4.58 in one test, but the corpus runs score as high as 4.77 on other clips, so 4.58 is not a ceiling and scores are only comparable on the same clip.
 - DNSMOS (`speechmos` in a venv, no reference needed) is a cross-check.
   It does not move much with network loss, so ViSQOL is the number to watch.
 - The first attempt, on the synthetic clips, showed why real speech matters: DNSMOS scored the received audio above the sent audio and did not separate the profiles.
@@ -68,12 +68,14 @@ The two client builds differ, the server does not.
 - Raw results were under `~/.slimm-scratch/tmp/report-ab/before` and `.../after` on the author's machine only (`baseline`, `baseline2`, `latency`, `experience`, `desktop`); the tables in this note are the durable record.
 - `scripts/lib/voice_ab_report.py <dir> quality|latency|joins|speaking|cut|desktop` prints the tables below.
 - Spread is shown as median with p95 and n.
+  With n under 20 a p95 is just the maximum (and for ViSQOL and DNSMOS it is the best case, not the worst), so read the tables below as median and range.
+  `voice_ab_report.py` now prints min and max below n of 20 and the low tail for scores.
   Where n is 1 the table says so in the text and the number is an observation, not a measurement.
 
 ## Results: quality per network profile
 
 Two runs per side, 45 s of two-way speech per profile each, so n is 4 recordings.
-ViSQOL is MOS-LQO (ceiling 4.58).
+ViSQOL is MOS-LQO.
 The anomaly counts are summed over the two runs and both directions.
 
 | profile | before ViSQOL | before DNSMOS | before anomalies (sum over runs and both directions) | after ViSQOL | after DNSMOS | after anomalies (sum over runs and both directions) |

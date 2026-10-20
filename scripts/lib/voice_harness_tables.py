@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Markdown tables from the latency, experience and desktop result files.
 
-usage: voice_harness_tables.py latency|experience|desktop <voice-quality dir>
+usage: voice_harness_tables.py <voice-quality dir> latency|joins|speaking|cut|desktop
 Reads `<dir>/latency/latency.json`, `<dir>/experience/experience.json` or
 `<dir>/desktop/desktop.json`.
 """
@@ -35,7 +35,7 @@ def latency(root):
     for profile, row in _load(root, "latency").items():
         both = [row["vqa_to_vqb"], row["vqb_to_vqa"]]
         m2e = [d["mouth_to_ear_ms"] for d in both if d["mouth_to_ear_ms"].get("n")]
-        jitter = [row["stats"][n].get("jitterBufferDelayMs", 0) for n in row["stats"]]
+        jitter = [v for v in (row["stats"][n].get("jitterBufferDelayMs") for n in row["stats"]) if v]
         median = statistics.mean(m["median"] for m in m2e) if m2e else None
         rows.append([profile, _num(median), _num(max((m["p95"] for m in m2e), default=None)),
                      _num(max((m["max"] for m in m2e), default=None)),
@@ -98,4 +98,4 @@ def desktop(root):
 KINDS = {"latency": latency, "joins": joins, "speaking": speaking, "cut": cut, "desktop": desktop}
 
 if __name__ == "__main__":
-    print(KINDS[sys.argv[1]](sys.argv[2]))
+    print(KINDS[sys.argv[2]](sys.argv[1]))

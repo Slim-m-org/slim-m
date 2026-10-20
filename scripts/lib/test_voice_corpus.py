@@ -205,13 +205,13 @@ class DesktopVoices(unittest.TestCase):
             return {"ok": True}
 
         with mock.patch.object(e2e_voice_desktop, "_arm", flaky):
-            self.assertEqual(e2e_voice_desktop._arm_with_retry("strong-gate-on"), {"ok": True})
+            self.assertEqual(e2e_voice_desktop._arm_with_retry("strong-gate-on", None), {"ok": True})
         self.assertEqual(calls, ["strong-gate-on", "strong-gate-on"])
 
     def test_any_other_failure_is_not_retried(self):
         with mock.patch.object(e2e_voice_desktop, "_arm", side_effect=AssertionError("owner data")):
             with self.assertRaises(AssertionError):
-                e2e_voice_desktop._arm_with_retry("strong-gate-on")
+                e2e_voice_desktop._arm_with_retry("strong-gate-on", None)
 
 
 class PerClip(unittest.TestCase):
@@ -271,6 +271,52 @@ class Report(unittest.TestCase):
         text = report.table("clean", rolled)
         self.assertIn("| accent (2 clips) | 5 / 0 / 1 / 4.00 / +1.0 | - |", text)
         self.assertNotIn("singing", text)
+
+
+class PooledReport(unittest.TestCase):
+    row = Report._row
+
+    def _results(self, bursts):
+        return {"clean": {"vqa": {"clips": {"a": self.row(bursts, 0, 4.0, 1.0)}}}}
+
+    def test_a_repeated_label_pools_both_runs(self):
+        cats = {"a": "accent"}
+        pooled = report.rollup(self._results(2), cats)
+        report.rollup(self._results(3), cats, pooled)
+        self.assertEqual(pooled["clean"]["accent"]["bursts"], 5)
+        self.assertEqual(pooled["clean"]["accent"]["clips"], 2)
+
+    def test_an_all_clips_row_sums_the_categories(self):
+        cell = {"clips": 2, "bursts": 5, "loud": 0, "dropouts": 1, "visqol": [4.0], "peak": 1.0}
+        text = report.table("clean", {"x": {"clean": {"accent": cell, "singing": dict(cell)}}})
+        self.assertIn("| all clips | 10 / 0 / 2 / 4.00 / +1.0 |", text)
+
+    def test_a_column_with_fewer_clips_is_flagged(self):
+        full = {"clips": 4, "bursts": 5, "loud": 0, "dropouts": 1, "visqol": [], "peak": 1.0}
+        part = dict(full, clips=2, bursts=1)
+        text = report.table("clean", {"today": {"clean": {"accent": full}},
+                                      "shipped": {"clean": {"accent": part}}})
+        self.assertIn("[2 of 4 clips]", text)
+        self.assertNotIn("[4 of 4 clips]", text)
+
+
+class ReelScoringPairing(unittest.TestCase):
+    def test_visqol_scores_go_to_the_clips_that_were_long_enough_to_send(self):
+        rate = dsp.ANALYSIS_RATE
+        short, long_ = _words(1, 1.0), _words(2, 4.0)
+        gap = [0.0] * rate
+        ref = gap + short + gap + long_ + gap
+        spans = [{"id": "short", "start": 1.0, "end": 2.0}, {"id": "long", "start": 3.0, "end": 7.0}]
+        original = score.mos.visqol_scores
+        seen = []
+        score.mos.visqol_scores = lambda pairs: seen.append(len(pairs)) or [4.2]
+        try:
+            result = score.score_side(ref, rate, spans, list(ref), rate)
+        finally:
+            score.mos.visqol_scores = original
+        self.assertEqual(seen, [1])
+        self.assertNotIn("short", result["clips"])
+        self.assertEqual(result["clips"]["long"]["visqol"], 4.2)
 
 
 if __name__ == "__main__":

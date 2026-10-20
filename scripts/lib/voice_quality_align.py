@@ -93,6 +93,8 @@ def track_locked(ref, rec):
     the edge of the search window, is searched again over a much wider range; if that
     still fails the previous delay is carried forward and the segment is marked lost.
     """
+    if not rec or not ref:
+        return [], [], []
     tiled = _tile(ref, len(rec) + abs(len(ref)))
     lag = coarse_lag(ref, rec)
     radius = TRACK_RADIUS_MS * dsp.ANALYSIS_RATE // 1000
