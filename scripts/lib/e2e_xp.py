@@ -18,9 +18,12 @@ CHUNK = 1_500_000
 
 
 def init_script():
-    """Raw capture, the stats collector and the timing hooks, in one document script."""
-    return "window.__vqSdp = {};" + vqjs.SDP_TWEAK + vqjs.RAW_CAPTURE_ALL \
-        + vqjs.COLLECT + e2e_xp_js.ALL
+    """Raw capture, the stats collector and the timing hooks, in one document script.
+
+    Browser voice processing is off unless E2E_VQ_PROCESSING is set, as in the quality scenario.
+    """
+    raw = "" if os.environ.get("E2E_VQ_PROCESSING") else vqjs.RAW_CAPTURE_ALL
+    return "window.__vqSdp = {};" + vqjs.SDP_TWEAK + raw + vqjs.COLLECT + e2e_xp_js.ALL
 
 
 def now_ms():
