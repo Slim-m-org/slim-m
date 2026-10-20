@@ -18,7 +18,7 @@ The owner, 2026-10-14: "when i fullscreen on someones screenshare id still like 
   The dock tucks behind a half-sphere handle with a chevron.
   A pointer near the bottom edge reveals it, and a tap on the handle pins it open or folds it; the tap is the touch equivalent of the hover.
 - Every tile stays subscribed while one is focused, because the others are still on screen.
-
-## Not done
-
-The OS window does not go fullscreen with it, as the old route did on desktop.
+- The OS window goes fullscreen while a tile is focused, as the old route did, through the shared `WindowFullscreenHold` that the fullscreen video route also uses.
+  It is released on exit, Escape, the share ending, closing the canvas and dispose.
+- At phone width the header that held undo, the overflow menu and the way out is gone in fullscreen, so they sit in the dock's tools card beside the tools.
+- The dock reserves only the handle's height while folded, so snackbars sit where the screen is actually free.

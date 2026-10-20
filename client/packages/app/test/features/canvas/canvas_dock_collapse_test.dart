@@ -15,7 +15,7 @@ Widget _host({required bool collapsible}) => MaterialApp(
       alignment: Alignment.bottomCenter,
       child: CanvasDockCollapse(
         collapsible: collapsible,
-        child: const SizedBox(
+        builder: (_, __) => const SizedBox(
           height: 48,
           width: 200,
           child: TextField(key: Key('dock-field')),

@@ -35,6 +35,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../permissions.dart';
 import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
@@ -47,6 +48,7 @@ import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
+import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/video_interest_relay.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -106,6 +108,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// Whether focusing a tile is what dropped the chrome, so ending the focus restores it.
   bool _fullscreenFromFocus = false;
+  late final WindowFullscreenHold _windowHold;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
   /// The note whose in-place editor is open, if any.
@@ -140,6 +143,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void initState() {
     super.initState();
+    // Built here: dispose cannot read ref, and releasing the window must still work then.
+    _windowHold = WindowFullscreenHold(
+      ref.read(fullscreenVideoActiveProvider.notifier),
+    );
     _engine; // touching the late field is what forces its ref.read now
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
@@ -172,6 +179,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _windowHold.release();
     _engine.dispose();
     super.dispose();
   }

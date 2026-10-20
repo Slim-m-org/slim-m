@@ -76,7 +76,7 @@ class CanvasDockOverlay extends StatelessWidget {
     // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
     child: CanvasDockCollapse(
       collapsible: canvas.fullscreen,
-      child: Padding(
+      builder: (context, revealed) => Padding(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.s12,
           canvas.fullscreen ? AppSpacing.s8 : AppSpacing.s12,
@@ -84,6 +84,7 @@ class CanvasDockOverlay extends StatelessWidget {
           AppSpacing.s12,
         ),
         child: DockHeightReporter(
+          foldedHeight: revealed ? null : canvasDockHandleHeight,
           // The dock's hidden-tiles list must notice a hide or show landing in tileOverrides, which nothing else here rebuilds for.
           child: ListenableBuilder(
             listenable: tileOverrides,

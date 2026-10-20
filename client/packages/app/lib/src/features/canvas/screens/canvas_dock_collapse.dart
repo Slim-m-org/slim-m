@@ -20,15 +20,20 @@ const canvasDockHideDelay = Duration(milliseconds: 500);
 
 const _handleSize = Size(64, 22);
 
+/// What a folded dock still occupies at the bottom edge.
+const canvasDockHandleHeight = 22.0;
+
 class CanvasDockCollapse extends StatefulWidget {
   const CanvasDockCollapse({
     super.key,
     required this.collapsible,
-    required this.child,
+    required this.builder,
   });
 
   final bool collapsible;
-  final Widget child;
+
+  /// Builds the dock, told whether it is showing so it can report its extent.
+  final Widget Function(BuildContext context, bool revealed) builder;
 
   @override
   State<CanvasDockCollapse> createState() => _CanvasDockCollapseState();
@@ -85,7 +90,10 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
       excluding: !revealed,
       child: ExcludeSemantics(
         excluding: !revealed,
-        child: IgnorePointer(ignoring: !revealed, child: widget.child),
+        child: IgnorePointer(
+          ignoring: !revealed,
+          child: widget.builder(context, revealed),
+        ),
       ),
     );
     return MouseRegion(

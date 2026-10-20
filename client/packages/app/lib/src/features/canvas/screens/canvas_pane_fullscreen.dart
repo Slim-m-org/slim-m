@@ -27,6 +27,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     if (_fullscreen) {
       notifier.state = null;
       ref.read(canvasFocusedTileProvider.notifier).state = null;
+      _windowHold.release();
       _fullscreenFromFocus = false;
       // Whatever was armed on the way in, or the default tool if this pane opened straight into fullscreen and has nothing of its own to restore.
       _refresh(() => _tool = _toolBeforeFullscreen ?? _defaultTool);
@@ -52,6 +53,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     final focus = ref.read(canvasFocusedTileProvider.notifier);
     if (tileKey != null) {
       focus.state = (channelId: widget.channelId, tileKey: tileKey);
+      unawaited(_windowHold.enter());
       if (ref.read(canvasFullscreenProvider) != widget.channelId) {
         _fullscreenFromFocus = true;
         _toggleFullscreen();
@@ -59,6 +61,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       return;
     }
     if (focus.state?.channelId != widget.channelId) return;
+    _windowHold.release();
     if (_fullscreenFromFocus) {
       _toggleFullscreen();
       return;
@@ -70,6 +73,9 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// outlives it) gets the same disarmed pen [_toggleFullscreen] gives one
   /// that entered it, and the same tool to restore on the way out.
   void _disarmIfAlreadyFullscreen() {
+    if (ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId) {
+      unawaited(_windowHold.enter());
+    }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
     _toolBeforeFullscreen = _tool;
     _tool = CanvasTool.pan;
@@ -79,6 +85,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// channel reopened later would come back with its chrome already dropped
   /// and no memory of why.
   void _closeCanvas() {
+    _windowHold.release();
     ref.read(canvasFocusedTileProvider.notifier).state = null;
     ref.read(canvasFullscreenProvider.notifier).state = null;
     ref.read(canvasOpenProvider.notifier).state = null;

@@ -16,8 +16,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
+import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
+import '../../desktop/support/fake_desktop_window_port.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
+import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_focused_feed.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
@@ -84,10 +89,19 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   return (voice: voice, container: container);
 }
 
-Future<TestGesture> _focusTheShare(WidgetTester tester) async {
-  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-  addTearDown(mouse.removePointer);
-  await mouse.addPointer(location: tester.getCenter(find.byKey(_tileKeyValue)));
+Future<TestGesture> _focusTheShare(
+  WidgetTester tester, [
+  TestGesture? existing,
+]) async {
+  final center = tester.getCenter(find.byKey(_tileKeyValue));
+  final mouse =
+      existing ?? await tester.createGesture(kind: PointerDeviceKind.mouse);
+  if (existing == null) {
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: center);
+  } else {
+    await mouse.moveTo(center);
+  }
   await tester.pump(const Duration(milliseconds: 200));
   await tester.tap(
     find.descendant(
@@ -247,5 +261,118 @@ void main() {
       expect(screen.contains(rect.topLeft), isTrue, reason: label);
       expect(screen.contains(rect.bottomRight), isTrue, reason: label);
     }
+  });
+
+  testWidgets('at phone width undo and the overflow stay reachable in '
+      'fullscreen', (tester) async {
+    await _pump(tester, size: const Size(390, 844));
+    await _focusTheShare(tester);
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+
+    final screen = Offset.zero & const Size(390, 844);
+    for (final finder in [
+      find.bySemanticsLabel('Undo'),
+      find.byTooltip('More canvas actions'),
+    ]) {
+      expect(finder.hitTestable(), findsOneWidget);
+      final rect = tester.getRect(finder);
+      expect(screen.contains(rect.topLeft), isTrue);
+      expect(screen.contains(rect.bottomRight), isTrue);
+    }
+    await tester.tap(find.byTooltip('More canvas actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Exit fullscreen'), findsWidgets);
+  });
+
+  testWidgets('the snackbar reservation follows the folded dock: the handle '
+      'alone, then the whole dock once it is shown', (tester) async {
+    final (:voice, :container) = await _pump(tester);
+    await _focusTheShare(tester);
+    expect(
+      container.read(bottomDockReservationProvider),
+      canvasDockHandleHeight,
+    );
+
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+    final reserved = container.read(bottomDockReservationProvider);
+    expect(
+      reserved,
+      tester.getSize(find.byType(CanvasCallDock)).height,
+      reason: 'shown, the whole dock is what the snackbars clear',
+    );
+    expect(reserved, greaterThan(canvasDockHandleHeight));
+
+    await tester.tap(find.byTooltip('Hide controls'));
+    await tester.pumpAndSettle();
+    expect(_pen, findsNothing);
+  });
+
+  testWidgets('the snackbar reservation follows the folded dock: the handle '
+      'alone, then the whole dock once it is shown', (tester) async {
+    final (:voice, :container) = await _pump(tester);
+    await _focusTheShare(tester);
+    expect(
+      container.read(bottomDockReservationProvider),
+      canvasDockHandleHeight,
+    );
+
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+    final reserved = container.read(bottomDockReservationProvider);
+    expect(
+      reserved,
+      tester.getSize(find.byType(CanvasCallDock)).height,
+      reason: 'shown, the whole dock is what the snackbars clear',
+    );
+    expect(reserved, greaterThan(canvasDockHandleHeight));
+
+    await tester.tap(find.byTooltip('Hide controls'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(bottomDockReservationProvider),
+      canvasDockHandleHeight,
+    );
+  });
+
+  testWidgets('focusing a tile holds the OS window fullscreen until the '
+      'share ends', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+    final (:voice, :container) = await _pump(tester);
+    expect(port.fullScreen, isFalse);
+
+    await _focusTheShare(tester);
+    expect(port.fullScreen, isTrue);
+    expect(container.read(fullscreenVideoActiveProvider), isTrue);
+
+    voice.become(_call(sharing: false));
+    await tester.pumpAndSettle();
+    expect(port.fullScreen, isFalse);
+    expect(container.read(fullscreenVideoActiveProvider), isFalse);
+  });
+
+  testWidgets('exiting fullscreen and closing the canvas both release the '
+      'OS window', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+    await _pump(tester);
+    final mouse = await _focusTheShare(tester);
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Exit fullscreen'));
+    await tester.pumpAndSettle();
+    expect(port.fullScreen, isFalse);
+
+    await _focusTheShare(tester, mouse);
+    expect(port.fullScreen, isTrue);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    expect(port.fullScreen, isFalse, reason: 'dispose releases it');
   });
 }

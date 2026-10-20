@@ -44,24 +44,25 @@ class CanvasCompactDock extends StatelessWidget {
           if (showTools)
             FloatingDockCard(
               rows: [
-                // The header that holds the way out is gone in fullscreen, so the exit sits beside the tools.
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: CanvasDockToolsRow(
+                CanvasDockToolsRow(
+                  canvas: canvas,
+                  part: CanvasToolsRowPart.toolsOnly,
+                ),
+                // The header that holds undo, the overflow and the way out is gone in fullscreen, so they move here.
+                if (canvas.fullscreen)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CanvasDockToolsRow(
                         canvas: canvas,
-                        part: CanvasToolsRowPart.toolsOnly,
+                        part: CanvasToolsRowPart.editOnly,
                       ),
-                    ),
-                    if (canvas.fullscreen) ...[
                       const SizedBox(width: AppSpacing.s8),
                       CanvasDockExitFullscreen(
                         onPressed: canvas.onToggleFullscreen,
                       ),
                     ],
-                  ],
-                ),
+                  ),
               ],
             ),
           if (showTools && call != null) const SizedBox(height: AppSpacing.s8),
