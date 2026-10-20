@@ -92,6 +92,7 @@ List<Widget> _controls(
       identity: identity,
       controller: controller,
       showLabel: false,
+      autofocus: true,
     ),
   if (controller.hasScreenAudio(identity)) ...[
     if (!screenOnly) const SizedBox(height: AppSpacing.s8),
@@ -99,6 +100,7 @@ List<Widget> _controls(
       identity: identity,
       controller: controller,
       showLabel: !screenOnly,
+      autofocus: screenOnly,
     ),
   ],
 ];

@@ -86,6 +86,28 @@ void main() {
     expect(find.text('Volume for Ada'), findsNothing);
   });
 
+  testWidgets('the stream volume slider has focus when the popover opens', (
+    tester,
+  ) async {
+    await _pumpTile(tester, sound: true, sharer: _sharer());
+
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.tap(find.text('Stream volume'));
+    await tester.pumpAndSettle();
+
+    final focus = FocusManager.instance.primaryFocus;
+    expect(focus, isNotNull);
+    expect(
+      find.descendant(
+        of: find.byType(AppSlider),
+        matching: find.byWidgetPredicate(
+          (w) => w is Focus && w.focusNode == focus,
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Escape closes the stream volume popover', (tester) async {
     await _pumpTile(tester, sound: true, sharer: _sharer());
 
