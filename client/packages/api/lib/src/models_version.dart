@@ -34,6 +34,7 @@ class Version {
     this.discordLinkEnabled,
     this.screenShareMaxHeight,
     this.strongNoiseSuppression = false,
+    this.membersCanInvite = false,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -103,6 +104,9 @@ class Version {
   /// than this field.
   final bool strongNoiseSuppression;
 
+  /// Whether any member may create invites; absent on older servers.
+  final bool membersCanInvite;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -162,6 +166,7 @@ class Version {
         screenShareMaxHeight: json['screen_share_max_height'] as int?,
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
+        membersCanInvite: json['members_can_invite'] as bool? ?? false,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

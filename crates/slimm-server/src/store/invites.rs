@@ -33,6 +33,8 @@ pub struct Invite {
     pub revoked: bool,
     /// A role every account redeeming this code receives.
     pub role_grant: Option<RoleId>,
+    /// Who issued it; only listings fill this in.
+    pub created_by_name: Option<String>,
 }
 
 impl Invite {
@@ -146,6 +148,7 @@ impl Store {
             created_at: now,
             revoked: false,
             role_grant,
+            created_by_name: None,
         })
     }
 
@@ -162,12 +165,14 @@ impl Store {
     /// requires, passes `None`.
     pub async fn list_invites(&self, created_by: Option<UserId>) -> anyhow::Result<Vec<Invite>> {
         let rows = sqlx::query!(
-            r#"SELECT code AS "code!", max_uses, uses AS "uses!", expires_at,
-                      created_at AS "created_at!", revoked_at,
-                      role_grant AS "role_grant: RoleId"
-               FROM invites
-               WHERE ?1 IS NULL OR created_by = ?1
-               ORDER BY created_at DESC"#,
+            r#"SELECT i.code AS "code!", i.max_uses, i.uses AS "uses!", i.expires_at,
+                      i.created_at AS "created_at!", i.revoked_at,
+                      i.role_grant AS "role_grant: RoleId",
+                      u.display_name AS "created_by_name?: String"
+               FROM invites i
+               LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
+               WHERE ?1 IS NULL OR i.created_by = ?1
+               ORDER BY i.created_at DESC"#,
             created_by
         )
         .fetch_all(&self.pool)
@@ -182,6 +187,7 @@ impl Store {
                 created_at: r.created_at,
                 revoked: r.revoked_at.is_some(),
                 role_grant: r.role_grant,
+                created_by_name: r.created_by_name,
             })
             .collect())
     }

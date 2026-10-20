@@ -1777,7 +1777,7 @@ paths:
     get:
       operationId: listInvites
       tags: [invites]
-      summary: List every invite. Requires CREATE_INVITE.
+      summary: List invites. Requires CREATE_INVITE, or members_can_invite.
       responses:
         "200":
           description: All invites.
@@ -1796,7 +1796,11 @@ paths:
     post:
       operationId: createInvite
       tags: [invites]
-      summary: Create an invite. Requires CREATE_INVITE.
+      summary: Create an invite. Requires CREATE_INVITE, or members_can_invite.
+      description: >
+        Without CREATE_INVITE, while the space lets members invite, the
+        invite defaults to one use and 24 hours, may not exceed 10 uses or
+        7 days, and may not grant a role.
       requestBody:
         required: true
         content:
@@ -10146,6 +10150,11 @@ components:
             when they leave Voice settings on "Space default". Applied on each
             member's own device. Absent on servers older than this field,
             which a client must treat as false.
+        members_can_invite:
+          type: boolean
+          description: >
+            Whether any member, not only holders of CREATE_INVITE, may create
+            invites. Absent on older servers, which a client reads as false.
         max_attachment_bytes:
           type: integer
           format: int64
@@ -10867,6 +10876,9 @@ components:
           description: >
             What "Space default" means for members' noise suppression; see
             the same field on `/version`.
+        members_can_invite:
+          type: boolean
+          description: Whether every member may create invites; see `/version`.
         welcome_enabled:
           type: boolean
           description: Whether a welcome message is posted when someone joins. Off by default.
@@ -10937,6 +10949,8 @@ components:
           type: string
           description: At most 280 characters, no control or invisible characters.
         strong_noise_suppression:
+          type: boolean
+        members_can_invite:
           type: boolean
         welcome_enabled:
           type: boolean
@@ -12307,6 +12321,9 @@ components:
         usable:
           type: boolean
           description: Whether the invite can be redeemed right now.
+        created_by_name:
+          type: [string, "null"]
+          description: Who issued it; null when they are gone, and on a just-created invite.
 
     CreateInviteRequest:
       type: object

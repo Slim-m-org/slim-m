@@ -44,6 +44,7 @@ import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
 import '../../../providers/providers.dart';
 import '../providers/roster_grouping.dart';
+import 'invite_friend.dart';
 import 'member_bulk_actions.dart';
 import 'member_pane_rows.dart';
 import 'member_selection_bar.dart';
@@ -122,6 +123,9 @@ class AppMemberPane extends ConsumerWidget {
           _Header(
             count: membersAsync.valueOrNull?.length,
             onClose: onClose,
+            onInvite: watchCanInviteFriend(ref)
+                ? () => inviteAFriend(context)
+                : null,
             // Only a moderator is offered the mode; the server refuses the rest anyway.
             onStartSelecting: (canTimeOut || canRemove) && !selecting
                 ? ref.read(memberSelectionProvider.notifier).enter
@@ -223,9 +227,17 @@ class _RosterList extends ConsumerWidget {
 /// Space is, and a search box quietly changing that number would answer a
 /// question nobody asked.
 class _Header extends StatelessWidget {
-  const _Header({required this.count, this.onStartSelecting, this.onClose});
+  const _Header({
+    required this.count,
+    this.onInvite,
+    this.onStartSelecting,
+    this.onClose,
+  });
 
   final int? count;
+
+  /// Null when the viewer may not invite.
+  final VoidCallback? onInvite;
   final VoidCallback? onClose;
 
   /// Enters selection mode. Null when the viewer holds neither moderation
@@ -250,6 +262,13 @@ class _Header extends StatelessWidget {
               style: AppText.label.copyWith(color: tokens.textSecondary),
             ),
           ),
+          if (onInvite != null)
+            AppIconButton(
+              icon: AppIcons.invite,
+              semanticLabel: 'Invite a friend',
+              tooltip: 'Invite a friend',
+              onPressed: onInvite,
+            ),
           if (onStartSelecting != null)
             AppIconButton(
               icon: AppIcons.shield,
