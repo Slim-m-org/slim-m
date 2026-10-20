@@ -21,6 +21,7 @@ import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../../../providers/push_controller.dart';
 import '../../../providers/toasts.dart';
+import '../../../widgets/start_on_login_row.dart';
 import 'notification_schedule_allow_lists.dart';
 import '../providers/ui_sound_settings.dart';
 import 'notification_schedule_section.dart';
@@ -70,6 +71,7 @@ class NotificationsSection extends ConsumerWidget {
           children: [
             const NotificationPreferenceRow(),
             if (isLinuxHost) const _DesktopMessageTextRow(),
+            if (isDesktopHost) const StartOnLoginRow(),
             if (defaultTargetPlatform == TargetPlatform.iOS)
               const PushContentPreviewRow(),
             const NotificationScheduleSection(),

@@ -141,6 +141,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   final CanvasPresenceTileOverrides tileOverrides =
       CanvasPresenceTileOverrides()..board = canvasBoard;
 
+  /// Whether this viewer is on the shared board or their own arrangement of it.
+  late final CanvasViewMode viewMode = CanvasViewMode(
+    document: document,
+    tiles: tileOverrides,
+  );
+
   late final CanvasActivityLog activityLog = CanvasActivityLog(
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
   );
@@ -517,6 +523,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _objectPreviewRelay?.dispose();
     remoteDrafts.dispose();
     activityLog.dispose();
+    viewMode.dispose();
     tileOverrides.dispose();
     objectLocks.dispose();
     super.dispose();

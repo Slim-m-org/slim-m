@@ -39,6 +39,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.selfId,
     required this.shapeKind,
     required this.tileOverrides,
+    this.viewMode,
     required this.tool,
     required this.tokens,
     required this.menuRequests,
@@ -62,6 +63,7 @@ class CanvasPaneSurface extends StatelessWidget {
   final String? selfId;
   final CanvasShapeKind shapeKind;
   final CanvasPresenceTileOverrides tileOverrides;
+  final CanvasViewMode? viewMode;
   final CanvasTool tool;
   final AppTokens tokens;
   final CanvasObjectMenuRequests menuRequests;
@@ -186,6 +188,7 @@ class CanvasPaneSurface extends StatelessWidget {
       CanvasZoomIndicator(
         document: document,
         tokens: tokens,
+        viewMode: viewMode,
         onFit: actions.onRecenter,
         onBringIn: actions.onBringIntoBoard,
       ),

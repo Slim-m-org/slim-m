@@ -60,5 +60,5 @@ Selection handles are drawn larger on touch (18 px, still screen-constant), the 
 
 ## What is left
 
-- A personal view toggle (free pan and zoom) and the restored camera that goes with it.
+- A personal view toggle: see [0082](0082-personal-canvas-view.md).
 - Tiles and content past the board edge: see [0080](0080-board-containment.md).

@@ -62,6 +62,8 @@ class CanvasMediaSlotSync {
   /// optimistic local update standing, with nowhere better to report a
   /// canvas drag's own failure than a `SnackBar` nobody asked for.
   Future<void> commit(String key, Rect rect) async {
+    // A personal-view move is this viewer's alone, so nothing is sent.
+    if (overrides.personal) return;
     final state = overrides.stateFor(key);
     try {
       await client.putCanvasMediaSlot(

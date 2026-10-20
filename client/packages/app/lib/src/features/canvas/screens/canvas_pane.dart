@@ -313,6 +313,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 .read(voiceControllerProvider.notifier)
                 .screenShareViewFor(identity, declaresInterest: false),
             tileOverrides: _tileOverrides,
+            viewMode: _engine.viewMode,
             onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
             onVideoInterest: ref.read(videoInterestRelayProvider).declare,
             activityLog: _activityLog,

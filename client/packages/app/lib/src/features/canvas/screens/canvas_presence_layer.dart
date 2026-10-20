@@ -296,13 +296,13 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       document: widget.document,
       onRectChanged: (next) => widget.overrides.setRect(key, next),
       onRectCommitted: commit,
-      onToggleLocked: avatarOnly
+      onToggleLocked: avatarOnly || widget.overrides.personal
           ? null
           : () {
               widget.overrides.setLocked(key, !locked);
               commit();
             },
-      onToggleSentToBack: avatarOnly
+      onToggleSentToBack: avatarOnly || widget.overrides.personal
           ? null
           : () {
               widget.overrides.setSentToBack(key, !sentToBack);

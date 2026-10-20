@@ -58,6 +58,8 @@ void main() {
       find.byType(ListView).first,
       const Offset(0, -200),
     );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
     final list = tester.getRect(find.byType(ListView).first);
     expect(
       tester.getRect(find.text('Sign out')).bottom,
