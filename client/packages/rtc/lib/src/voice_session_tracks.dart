@@ -87,6 +87,7 @@ extension VoiceSessionTracks on VoiceSession {
     _room = null;
     _stopStallWatch();
     _stopMicWatch();
+    _stopHealthWatch();
     _capture.reset();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = null;

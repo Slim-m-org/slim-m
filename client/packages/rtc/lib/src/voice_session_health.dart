@@ -14,7 +14,7 @@ mixin VoiceSessionHealth {
     sources: _remoteVoiceStats,
     nameOf: _nameOf,
     local: _localVoiceStats,
-    localId: _room?.localParticipant?.identity ?? 'local',
+    localIdOf: () => _room?.localParticipant?.identity ?? 'local',
     health: health,
     log: _diag,
   );
@@ -58,6 +58,9 @@ mixin VoiceSessionHealth {
   List<StatsEntry> _entries(List<rtc.StatsReport> reports) =>
       [for (final r in reports) StatsEntry.fromReport(r)];
 
+  /// Cancels the sampling timer without ending the call's history.
+  void _stopHealthWatch() => _glitchWatch.stop();
+
   /// Samples while the call is up; the call's summary is logged when it ends,
   /// not when it is only reconnecting.
   void _syncHealthWatch(VoiceSessionState state) {
@@ -70,4 +73,11 @@ mixin VoiceSessionHealth {
         _glitchWatch.finish();
     }
   }
+}
+
+/// Lets tests see the watch behind [VoiceSession.health]; an extension rather
+/// than a member so fakes implementing [VoiceSession] need not provide it.
+@visibleForTesting
+extension VoiceSessionHealthWatchAccess on VoiceSession {
+  AudioGlitchWatch get glitchWatch => _glitchWatch;
 }

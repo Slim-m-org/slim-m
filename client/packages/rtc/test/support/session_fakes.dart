@@ -2,6 +2,8 @@
 /// Doubles for driving a [VoiceSession] through a join without a server.
 library;
 
+import 'dart:collection';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
@@ -11,6 +13,22 @@ class _Me extends Fake implements lk.LocalParticipant {
 
   @override
   final String identity;
+
+  @override
+  String get name => '';
+
+  @override
+  bool get isSpeaking => false;
+
+  @override
+  double get audioLevel => 0;
+
+  @override
+  UnmodifiableMapView<String, String> get attributes => UnmodifiableMapView({});
+
+  @override
+  List<lk.LocalTrackPublication<lk.LocalVideoTrack>>
+      get videoTrackPublications => const [];
 
   @override
   List<lk.LocalTrackPublication<lk.LocalAudioTrack>>
