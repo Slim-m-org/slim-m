@@ -153,16 +153,32 @@ class _CanvasPresenceManipulableTileState
     widget.onRectChanged(next);
   }
 
+  /// The largest side from [start] that stays within [edge], never under [min] or over [limit].
+  double _roomTo(double? edge, double start, double min, double limit) =>
+      edge == null ? limit : (edge - start).clamp(min, limit);
+
   void _resize(DragUpdateDetails details) {
     final delta = details.delta / widget.camera.zoom;
     final current = _rect;
+    // Held to the board's far edge, so the grip stops there instead of the tile sliding back.
+    final board = widget.document.board;
     final width = (current.width + delta.dx).clamp(
       canvasPresenceTileMinSize.width,
-      canvasPresenceTileMaxSize.width,
+      _roomTo(
+        board?.right,
+        current.left,
+        canvasPresenceTileMinSize.width,
+        canvasPresenceTileMaxSize.width,
+      ),
     );
     final height = (current.height + delta.dy).clamp(
       canvasPresenceTileMinSize.height,
-      canvasPresenceTileMaxSize.height,
+      _roomTo(
+        board?.bottom,
+        current.top,
+        canvasPresenceTileMinSize.height,
+        canvasPresenceTileMaxSize.height,
+      ),
     );
     final next = widget.document.placeOnBoard(
       Rect.fromLTWH(current.left, current.top, width, height),
@@ -310,20 +326,29 @@ class _CanvasPresenceManipulableTileState
   /// Hides [child] from pointers and sight until the tile is revealed. It stays
   /// in the semantics tree so a screen reader keeps the controls, and focus
   /// within it reveals them so a keyboard user never operates an unseen one.
-  Widget _revealable(BuildContext context, Widget child) {
-    final shown = _controlsVisible && _roomForControls;
+  Widget _revealable(
+    BuildContext context,
+    Widget child, {
+    bool needsRoom = true,
+  }) {
+    final room = !needsRoom || _roomForControls;
+    final shown = _controlsVisible && room;
     return IgnorePointer(
       ignoring: !shown,
       child: AnimatedOpacity(
         opacity: shown ? 1 : 0,
         duration: AppMotion.reduced(context, AppMotion.fast),
         alwaysIncludeSemantics: true,
-        child: Focus(
-          canRequestFocus: false,
-          skipTraversal: true,
-          onFocusChange: (hasFocus) =>
-              setState(() => _focusedWithin = hasFocus),
-          child: child,
+        // A control with no room never shows, so keyboard focus must not land on it unseen.
+        child: ExcludeFocus(
+          excluding: !room,
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (hasFocus) =>
+                setState(() => _focusedWithin = hasFocus),
+            child: child,
+          ),
         ),
       ),
     );
@@ -391,6 +416,7 @@ class _CanvasPresenceManipulableTileState
                     child: _revealable(
                       context,
                       TileResizeGrip(onUpdate: _resize, onEnd: _settle),
+                      needsRoom: false,
                     ),
                   ),
                 Positioned(
