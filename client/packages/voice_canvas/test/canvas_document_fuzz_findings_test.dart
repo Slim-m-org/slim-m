@@ -15,20 +15,22 @@ CanvasStrokeInput _stroke(
   double y = 10,
   int seq = 5,
   int? z,
-}) => CanvasStrokeInput(
-  id: id,
-  seq: seq,
-  zIndex: z ?? seq,
-  x: x,
-  y: y,
-  w: 40,
-  h: 40,
-  points: const [0, 0, 40, 40],
-  width: 4,
-  colorKey: 'annotation',
-);
+}) =>
+    CanvasStrokeInput(
+      id: id,
+      seq: seq,
+      zIndex: z ?? seq,
+      x: x,
+      y: y,
+      w: 40,
+      h: 40,
+      points: const [0, 0, 40, 40],
+      width: 4,
+      colorKey: 'annotation',
+    );
 
-CanvasDocument _document() => CanvasDocument()..setViewport(const Size(900, 600));
+CanvasDocument _document() =>
+    CanvasDocument()..setViewport(const Size(900, 600));
 
 void main() {
   test(
@@ -44,8 +46,7 @@ void main() {
       expect(
         document.selectedObjectId.value,
         isNull,
-        reason:
-            'a dead stroke stays selected, so Delete or a resize handle '
+        reason: 'a dead stroke stays selected, so Delete or a resize handle '
             'still targets an object nobody can see',
       );
       expect(document.elevatedObjectId.value, isNull);
@@ -82,7 +83,8 @@ void main() {
     expect(
       document.objectCount.value,
       1,
-      reason: 'kill already counted a down; removing it must not count it twice',
+      reason:
+          'kill already counted a down; removing it must not count it twice',
     );
   });
 
@@ -110,8 +112,7 @@ void main() {
     expect(
       document.isAlive('a'),
       isTrue,
-      reason:
-          'a restore frame for an id that is already on the board (a '
+      reason: 'a restore frame for an id that is already on the board (a '
           'replayed or duplicate restore) must be harmless, like every other '
           'replayed op',
     );
@@ -148,5 +149,33 @@ void main() {
       reason: 'a revived stroke off the board must be offered "bring in"',
     );
     expect(document.outsideBoardCount.value, 1);
+  });
+
+  test('a wide stroke can be hit anywhere on its ink', () {
+    // Other clients choose the stored width; only this client's own pen is capped.
+    final document = _document();
+    document.applyPlaced(
+      const CanvasStrokeInput(
+        id: 'wide',
+        seq: 5,
+        zIndex: 5,
+        x: 500,
+        y: 500,
+        w: 10,
+        h: 0,
+        points: [0, 0, 10, 0],
+        width: 300,
+        colorKey: 'annotation',
+      ),
+    );
+
+    final edge = hitTestStroke(document, const Offset(500 + 5, 500 + 140));
+
+    expect(
+      edge,
+      'wide',
+      reason: 'the point is 140 from the line and the ink reaches 150, but the '
+          'hit test only looks 64 world units past the stroke\'s own box',
+    );
   });
 }

@@ -42,18 +42,37 @@ final int _ticks = _env('CANVAS_FUZZ_TICKS', 520);
 
 /// Re-checks after another catch-up and another cold read, so a mismatch says
 /// what it takes to heal it.
-void _classify(FuzzWorld world, FuzzClient client, FuzzReport report, Set<String> found) {
+void _classify(
+  FuzzWorld world,
+  FuzzClient client,
+  FuzzReport report,
+  Set<String> found,
+) {
   if (found.isEmpty) return;
   unawaited(client.engine.sync.catchUp());
   world.settle();
-  final afterCatchUp = checkAgainstServer(world, client, FuzzReport(), prefix: '');
+  final afterCatchUp = checkAgainstServer(
+    world,
+    client,
+    FuzzReport(),
+    prefix: '',
+  );
   if (afterCatchUp.isEmpty) {
-    report.add(world, 'heal: one more catch-up fixes the mismatch', '${client.userId} ${found.length} kinds of mismatch');
+    report.add(
+      world,
+      'heal: one more catch-up fixes the mismatch',
+      '${client.userId} ${found.length} kinds of mismatch',
+    );
     return;
   }
   unawaited(client.engine.fetch());
   world.settle();
-  final afterFetch = checkAgainstServer(world, client, FuzzReport(), prefix: '');
+  final afterFetch = checkAgainstServer(
+    world,
+    client,
+    FuzzReport(),
+    prefix: '',
+  );
   report.add(
     world,
     afterFetch.isEmpty
@@ -106,7 +125,13 @@ void _replayFresh(FuzzWorld world, FuzzReport report) {
   unawaited(sync.catchUp());
   world.flush();
   world.elapse(1000);
-  checkDocumentAgainstServer(world, document, 'fresh replay', report, prefix: 'replay: ');
+  checkDocumentAgainstServer(
+    world,
+    document,
+    'fresh replay',
+    report,
+    prefix: 'replay: ',
+  );
   sync.dispose();
   document.dispose();
   client.close();
@@ -125,9 +150,22 @@ void _runSeed(int seed, FuzzConfig config, FuzzReport report) {
         }
       }
       world.settle();
+      if (config.camera) {
+        // Back to the whole board, so the comparison is against everything.
+        for (final client in world.clients) {
+          client.engine.document.fitBoard();
+          unawaited(client.engine.fetch());
+        }
+        world.settle();
+      }
       for (final client in world.clients) {
         checkInternal(world, client, report);
-        final found = checkAgainstServer(world, client, report, prefix: 'settled: ');
+        final found = checkAgainstServer(
+          world,
+          client,
+          report,
+          prefix: 'settled: ',
+        );
         _classify(world, client, report, found);
       }
       _replayFresh(world, report);
@@ -141,21 +179,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   void fuzz(String name, FuzzConfig config) {
-    test(
-      name,
-      timeout: const Timeout(Duration(minutes: 20)),
-      () {
-        final report = FuzzReport(config.dropBefore == 0 ? 'calm' : 'hostile');
-        for (var seed = _first; seed < _first + _seeds; seed++) {
-          _runSeed(seed, config, report);
-        }
-        if (report.byCategory.isNotEmpty) fail(report.render());
-      },
-    );
+    test(name, timeout: const Timeout(Duration(minutes: 20)), () {
+      final report = FuzzReport(
+        name.split(':').first.replaceAll(RegExp(r'[^a-z]+'), '-'),
+      );
+      for (var seed = _first; seed < _first + _seeds; seed++) {
+        _runSeed(seed, config, report);
+      }
+      if (report.byCategory.isNotEmpty) fail(report.render());
+    });
   }
 
   final avoid = {
-    for (final name in (Platform.environment['CANVAS_FUZZ_AVOID'] ?? '').split(','))
+    for (final name in (Platform.environment['CANVAS_FUZZ_AVOID'] ?? '').split(
+      ',',
+    ))
       if (name.isNotEmpty) name,
   };
   fuzz(
@@ -165,5 +203,13 @@ void main() {
   fuzz(
     'a calm network: every client converges on the server ($_seeds seeds)',
     FuzzConfig.calm.avoiding(avoid),
+  );
+  fuzz(
+    'a server that makes slow clients start over: every client converges ($_seeds seeds)',
+    const FuzzConfig(resetGap: 12).avoiding(avoid),
+  );
+  fuzz(
+    'people panning and zooming: every client converges once it views the whole board ($_seeds seeds)',
+    const FuzzConfig(camera: true).avoiding(avoid),
   );
 }

@@ -9,6 +9,7 @@
 mod clear_scope;
 mod convergence;
 mod edit;
+mod export_feed;
 mod feed;
 mod feed_budget;
 mod fixtures;

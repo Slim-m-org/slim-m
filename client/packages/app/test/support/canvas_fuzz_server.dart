@@ -12,96 +12,9 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
-class FuzzObject {
-  FuzzObject({
-    required this.id,
-    required this.kind,
-    required this.x,
-    required this.y,
-    required this.w,
-    required this.h,
-    required this.z,
-    required this.seq,
-    required this.author,
-    required this.props,
-  });
+import 'canvas_fuzz_model.dart';
 
-  final String id;
-  final String kind;
-  double x;
-  double y;
-  double w;
-  double h;
-  int z;
-  final int seq;
-  final String? author;
-  Map<String, dynamic> props;
-  int? deletedAt;
-
-  bool get live => deletedAt == null;
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'kind': kind,
-    'z_index': z,
-    'x': x,
-    'y': y,
-    'w': w,
-    'h': h,
-    'props': props,
-    'author_id': author,
-    'seq': seq,
-    'created_at': 0,
-  };
-}
-
-class FuzzOp {
-  FuzzOp({
-    required this.seq,
-    required this.id,
-    required this.kind,
-    required this.actor,
-    required this.createdAt,
-  });
-
-  final int seq;
-  final String id;
-  final String kind;
-  final String actor;
-  final int createdAt;
-  String? objectId;
-  List<String> targets = const [];
-  double? x;
-  double? y;
-  double? w;
-  double? h;
-  int? beforeSeq;
-  List<String> kinds = const [];
-  String? scopeAuthor;
-  String? targetOp;
-  int? z;
-  Map<String, dynamic>? props;
-}
-
-/// A refusal the HTTP layer would turn into a status code.
-class FuzzRefusal implements Exception {
-  const FuzzRefusal(this.status, this.message);
-
-  final int status;
-  final String message;
-}
-
-class FuzzSubmit {
-  FuzzSubmit(this.op, this.affected, this.fresh);
-
-  final FuzzOp? op;
-  final int affected;
-  final bool fresh;
-  int seq = 0;
-  String kind = '';
-  String id = '';
-  int createdAt = 0;
-}
+export 'canvas_fuzz_model.dart';
 
 class FuzzServer {
   FuzzServer({required this.channelId, required this.publish});
@@ -147,7 +60,9 @@ class FuzzServer {
   ) {
     final existing = objects[id];
     if (existing != null) {
-      if (!existing.live) throw const FuzzRefusal(409, 'that object was removed');
+      if (!existing.live) {
+        throw const FuzzRefusal(409, 'that object was removed');
+      }
       return (object: existing, fresh: false);
     }
     final op = _record('place-${ops.length + 1}', 'place', actor);
@@ -217,11 +132,18 @@ class FuzzServer {
 
   FuzzSubmit _done(FuzzOp op, int affected) => FuzzSubmit(op, affected, true)
     ..seq = op.seq
-    ..kind = op.kind == 'clear' && op.kinds.isNotEmpty ? 'clear_scoped' : op.kind
+    ..kind = op.kind == 'clear' && op.kinds.isNotEmpty
+        ? 'clear_scoped'
+        : op.kind
     ..id = op.id
     ..createdAt = op.createdAt;
 
-  FuzzSubmit _remove(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _remove(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     final ids = (body['object_ids'] as List).cast<String>();
     if (ids.isEmpty || ids.length > 64) {
       throw const FuzzRefusal(400, 'object_ids must hold between 1 and 64 ids');
@@ -229,8 +151,12 @@ class FuzzServer {
     final toRemove = <String>[];
     for (final id in ids) {
       final found = objects[id];
-      if (found == null) throw const FuzzRefusal(404, 'that id is not in this channel');
-      if (!may && found.author != actor) throw const FuzzRefusal(403, 'forbidden');
+      if (found == null) {
+        throw const FuzzRefusal(404, 'that id is not in this channel');
+      }
+      if (!may && found.author != actor) {
+        throw const FuzzRefusal(403, 'forbidden');
+      }
       if (found.live) toRemove.add(id);
     }
     toRemove.removeWhere(locked.contains);
@@ -251,7 +177,12 @@ class FuzzServer {
     return _done(op, toRemove.length);
   }
 
-  FuzzSubmit _clear(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _clear(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     if (!may) throw const FuzzRefusal(403, 'forbidden');
     final before = body['before_seq'] as int;
     final kinds = ((body['kinds'] as List?) ?? const []).cast<String>();
@@ -266,16 +197,17 @@ class FuzzServer {
           o,
     ];
     if (touched.isEmpty) return _zero(opId, 'clear');
-    final op = FuzzOp(
-      seq: ops.length + 1,
-      id: opId,
-      kind: 'clear',
-      actor: actor,
-      createdAt: now,
-    )
-      ..beforeSeq = before
-      ..kinds = kinds
-      ..scopeAuthor = scopeAuthor;
+    final op =
+        FuzzOp(
+            seq: ops.length + 1,
+            id: opId,
+            kind: 'clear',
+            actor: actor,
+            createdAt: now,
+          )
+          ..beforeSeq = before
+          ..kinds = kinds
+          ..scopeAuthor = scopeAuthor;
     ops.add(op);
     opById[opId] = op;
     for (final o in touched) {
@@ -293,7 +225,12 @@ class FuzzServer {
     return _done(op, touched.length);
   }
 
-  FuzzSubmit _restore(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _restore(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     final target = opById[body['target_op'] as String];
     if (target == null || (target.kind != 'remove' && target.kind != 'clear')) {
       throw const FuzzRefusal(404, 'that id is not in this channel');
@@ -311,7 +248,9 @@ class FuzzServer {
     } else {
       for (final id in target.targets) {
         final o = objects[id];
-        if (!may && o?.author != actor) throw const FuzzRefusal(403, 'forbidden');
+        if (!may && o?.author != actor) {
+          throw const FuzzRefusal(403, 'forbidden');
+        }
         if (o != null && o.deletedAt == target.createdAt) dead.add(id);
       }
     }
@@ -336,15 +275,24 @@ class FuzzServer {
   FuzzObject _target(String actor, bool may, Map<String, dynamic> body) {
     final id = body['object_id'] as String;
     final found = objects[id];
-    if (found == null) throw const FuzzRefusal(404, 'that id is not in this channel');
-    if (!may && found.author != actor) throw const FuzzRefusal(403, 'forbidden');
+    if (found == null) {
+      throw const FuzzRefusal(404, 'that id is not in this channel');
+    }
+    if (!may && found.author != actor) {
+      throw const FuzzRefusal(403, 'forbidden');
+    }
     if (locked.contains(id)) {
       throw const FuzzRefusal(409, 'that object is locked in place');
     }
     return found;
   }
 
-  FuzzSubmit _move(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _move(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     final found = _target(actor, may, body);
     final x = (body['x'] as num).toDouble();
     final y = (body['y'] as num).toDouble();
@@ -352,7 +300,10 @@ class FuzzServer {
     final h = (body['h'] as num).toDouble();
     if (!found.live) return _zero(opId, 'move');
     if (w < 0 || h < 0 || w > 8192 || h > 8192) {
-      throw const FuzzRefusal(400, 'the object is outside the world or too large');
+      throw const FuzzRefusal(
+        400,
+        'the object is outside the world or too large',
+      );
     }
     found
       ..x = x
@@ -381,7 +332,12 @@ class FuzzServer {
     return _done(op, 1);
   }
 
-  FuzzSubmit _reorder(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _reorder(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     final found = _target(actor, may, body);
     final z = body['z_index'] as int;
     if (!found.live) return _zero(opId, 'reorder');
@@ -402,9 +358,16 @@ class FuzzServer {
     return _done(op, 1);
   }
 
-  FuzzSubmit _edit(String actor, bool may, String opId, Map<String, dynamic> body) {
+  FuzzSubmit _edit(
+    String actor,
+    bool may,
+    String opId,
+    Map<String, dynamic> body,
+  ) {
     final found = _target(actor, may, body);
-    if (found.kind != 'note') throw const FuzzRefusal(400, 'only a note can be edited');
+    if (found.kind != 'note') {
+      throw const FuzzRefusal(400, 'only a note can be edited');
+    }
     final props = Map<String, dynamic>.from(body['props'] as Map);
     if (!found.live) return _zero(opId, 'edit');
     found.props = props;
@@ -446,14 +409,18 @@ class FuzzServer {
     final maxX = double.parse(q['max_x']!);
     final maxY = double.parse(q['max_y']!);
     final limit = (int.tryParse(q['limit'] ?? '') ?? 500).clamp(1, 2000);
-    final inside = [
-      for (final o in liveObjects)
-        if (o.x <= maxX && o.x + o.w >= minX && o.y <= maxY && o.y + o.h >= minY)
-          o,
-    ]..sort((a, b) {
-        final z = b.z.compareTo(a.z);
-        return z != 0 ? z : b.seq.compareTo(a.seq);
-      });
+    final inside =
+        [
+          for (final o in liveObjects)
+            if (o.x <= maxX &&
+                o.x + o.w >= minX &&
+                o.y <= maxY &&
+                o.y + o.h >= minY)
+              o,
+        ]..sort((a, b) {
+          final z = b.z.compareTo(a.z);
+          return z != 0 ? z : b.seq.compareTo(a.seq);
+        });
     final hasMore = inside.length > limit;
     final page = inside.take(limit).toList().reversed.toList();
     return {
@@ -463,12 +430,18 @@ class FuzzServer {
     };
   }
 
-  static const int gap = 2000;
+  /// How far behind a cursor may be before the feed answers `reset`.
+  int resetGap = 2000;
 
   Map<String, dynamic> feed(int afterSeq, int limit) {
-    final reset = afterSeq > head || head - afterSeq > gap;
+    final reset = afterSeq > head || head - afterSeq > resetGap;
     if (reset) {
-      return {'ops': <Object>[], 'latest_seq': head, 'has_more': false, 'reset': true};
+      return {
+        'ops': <Object>[],
+        'latest_seq': head,
+        'has_more': false,
+        'reset': true,
+      };
     }
     final page = ops.where((o) => o.seq > afterSeq).take(limit + 1).toList();
     final hasMore = page.length > limit;
@@ -491,25 +464,54 @@ class FuzzServer {
     switch (op.kind) {
       case 'place':
         final object = objects[op.objectId];
-        return {...base, 'kind': 'place', 'object': object != null && object.live ? object.toJson() : null};
+        return {
+          ...base,
+          'kind': 'place',
+          'object': object != null && object.live ? object.toJson() : null,
+        };
       case 'remove':
         return {...base, 'kind': 'remove', 'object_ids': op.targets};
       case 'clear':
         return {
           ...base,
-          'kind': op.kinds.isEmpty && op.scopeAuthor == null ? 'clear' : 'clear_scoped',
+          'kind': op.kinds.isEmpty && op.scopeAuthor == null
+              ? 'clear'
+              : 'clear_scoped',
           'before_seq': op.beforeSeq,
           if (op.kinds.isNotEmpty) 'kinds': op.kinds,
           if (op.scopeAuthor != null) 'author_id': op.scopeAuthor,
         };
       case 'restore':
-        return {...base, 'kind': 'restore', 'target_op': op.targetOp, 'object_ids': op.targets};
+        return {
+          ...base,
+          'kind': 'restore',
+          'target_op': op.targetOp,
+          'object_ids': op.targets,
+        };
       case 'move':
-        return {...base, 'kind': 'move', 'object_id': op.objectId, 'x': op.x, 'y': op.y, 'w': op.w, 'h': op.h};
+        return {
+          ...base,
+          'kind': 'move',
+          'object_id': op.objectId,
+          'x': op.x,
+          'y': op.y,
+          'w': op.w,
+          'h': op.h,
+        };
       case 'reorder':
-        return {...base, 'kind': 'reorder', 'object_id': op.objectId, 'z_index': op.z};
+        return {
+          ...base,
+          'kind': 'reorder',
+          'object_id': op.objectId,
+          'z_index': op.z,
+        };
       default:
-        return {...base, 'kind': 'edit', 'object_id': op.objectId, 'props': op.props};
+        return {
+          ...base,
+          'kind': 'edit',
+          'object_id': op.objectId,
+          'props': op.props,
+        };
     }
   }
 

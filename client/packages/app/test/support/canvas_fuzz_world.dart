@@ -66,6 +66,7 @@ class FuzzConfig {
     this.reorderWindow = 4,
     this.flap = true,
     this.camera = false,
+    this.resetGap = 2000,
     this.avoid = const {},
   });
 
@@ -84,9 +85,12 @@ class FuzzConfig {
   /// People pan and zoom, so a client holds only part of the board.
   final bool camera;
 
+  /// How far behind a client may fall before the server tells it to start over.
+  final int resetGap;
+
   /// Behaviours the generator leaves out, so a known failure does not hide
   /// the next one: `previews` (remote drags), `deleteLocked` (Delete on a
-  /// locked selection), `foreignEdit` (a note edit the UI would not offer).
+  /// locked selection), `foreignEdit` (a note edit the UI would not offer), `locks`.
   final Set<String> avoid;
 
   bool allows(String behaviour) => !avoid.contains(behaviour);
@@ -99,6 +103,7 @@ class FuzzConfig {
     reorderWindow: reorderWindow,
     flap: flap,
     camera: camera,
+    resetGap: resetGap,
     avoid: {...avoid, ...more},
   );
 
@@ -224,10 +229,16 @@ class FuzzWorld {
   FuzzWorld(this.seed, this.async, this.config, {int clientCount = 2})
     : rng = math.Random(seed) {
     server = FuzzServer(channelId: fuzzChannel, publish: _publish)
+      ..resetGap = config.resetGap
       ..moderators.add('mod');
     for (var i = 0; i < clientCount; i++) {
       final moderator = i == 1;
-      final client = FuzzClient(this, i, i == 0 ? 'me' : 'peer$i', moderator: moderator);
+      final client = FuzzClient(
+        this,
+        i,
+        i == 0 ? 'me' : 'peer$i',
+        moderator: moderator,
+      );
       if (moderator) server.moderators.add(client.userId);
       clients.add(client);
     }
@@ -270,9 +281,11 @@ class FuzzWorld {
     final candidates = clients.where((c) => c.inbox.isNotEmpty).toList();
     if (candidates.isEmpty) return;
     final client = candidates[rng.nextInt(candidates.length)];
-    final window = chaos ? math.min(config.reorderWindow, client.inbox.length) : 1;
+    final window = chaos
+        ? math.min(config.reorderWindow, client.inbox.length)
+        : 1;
     final frame = client.inbox.removeAt(rng.nextInt(window));
-    note('frame -> ${client.userId}: ${_name(frame.event)}');
+    note('frame -> ${client.userId}: ${frameName(frame.event)}');
     client.events.add(frame.event);
     if (chaos && rng.nextDouble() < config.duplicateFrame) {
       client.inbox.add(frame);
@@ -297,12 +310,17 @@ class FuzzWorld {
       return;
     }
     if (roll < config.dropBefore + config.rateLimit) {
-      p.response = jsonOf({'error': 'slow down', 'retry_after_seconds': 1}, 429);
+      p.response = jsonOf({
+        'error': 'slow down',
+        'retry_after_seconds': 1,
+      }, 429);
       note('${client.userId} $label rate limited');
       return;
     }
     p.response = _execute(client, p.request);
-    note('${client.userId} $label -> ${p.response!.statusCode} ${_summary(p.request)}');
+    note(
+      '${client.userId} $label -> ${p.response!.statusCode} ${_summary(p.request)}',
+    );
     if (chaos && rng.nextDouble() < config.dropAfter) {
       p.response = null;
       p.failure = const SocketLikeFailure();
@@ -328,6 +346,9 @@ class FuzzWorld {
     flush();
   }
 
+  http.Response executeFor(FuzzClient client, http.Request request) =>
+      _execute(client, request);
+
   http.Response _execute(FuzzClient client, http.Request request) {
     final path = request.url.path;
     try {
@@ -336,7 +357,9 @@ class FuzzWorld {
       }
       if (request.method == 'GET') {
         final after = int.parse(request.url.queryParameters['after_seq']!);
-        final limit = (int.tryParse(request.url.queryParameters['limit'] ?? '') ?? 100).clamp(1, 200);
+        final limit =
+            (int.tryParse(request.url.queryParameters['limit'] ?? '') ?? 100)
+                .clamp(1, 200);
         return jsonOf(server.feed(after, limit));
       }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -353,7 +376,10 @@ class FuzzWorld {
         );
         return jsonOf(placed.object.toJson(), 201);
       }
-      return jsonOf(server.opResultJson(server.submit(client.userId, body)), 201);
+      return jsonOf(
+        server.opResultJson(server.submit(client.userId, body)),
+        201,
+      );
     } on FuzzRefusal catch (refusal) {
       return jsonOf({'error': refusal.message}, refusal.status);
     }
@@ -416,9 +442,11 @@ class FuzzWorld {
   void settle() {
     for (final client in clients) {
       client.restoreSocket();
-      client.script.clear();
+      while (client.script.isNotEmpty) {
+        client.script.removeAt(0)();
+        flush();
+      }
     }
-    flush();
     var quiet = 0;
     for (var round = 0; round < 400 && quiet < 6; round++) {
       quiet = _drainOnce() ? 0 : quiet + 1;
@@ -436,18 +464,25 @@ class FuzzWorld {
     }
   }
 
-  static String _name(api.ServerEvent e) => switch (e) {
-    api.CanvasObjectPlaced(:final object) => 'placed ${object.id} seq=${object.seq}',
-    api.CanvasObjectsRemoved(:final seq, :final objectIds) => 'removed seq=$seq $objectIds',
+  static String frameName(api.ServerEvent e) => switch (e) {
+    api.CanvasObjectPlaced(:final object) =>
+      'placed ${object.id} seq=${object.seq}',
+    api.CanvasObjectsRemoved(:final seq, :final objectIds) =>
+      'removed seq=$seq $objectIds',
     api.CanvasCleared(:final seq, :final beforeSeq, :final scope) =>
       'cleared seq=$seq <=$beforeSeq kinds=${scope.kinds} author=${scope.authorId}',
-    api.CanvasObjectsRestored(:final seq, :final objectIds) => 'restored seq=$seq $objectIds',
-    api.CanvasObjectMoved(:final seq, :final objectId) => 'moved seq=$seq $objectId',
+    api.CanvasObjectsRestored(:final seq, :final objectIds) =>
+      'restored seq=$seq $objectIds',
+    api.CanvasObjectMoved(:final seq, :final objectId) =>
+      'moved seq=$seq $objectId',
     api.CanvasObjectReordered(:final seq, :final objectId, :final zIndex) =>
       'reordered seq=$seq $objectId z=$zIndex',
-    api.CanvasObjectEdited(:final seq, :final objectId) => 'edited seq=$seq $objectId',
-    api.CanvasObjectPreview(:final objectId, :final ended) => 'preview $objectId ended=$ended',
-    api.CanvasObjectLockChanged(:final objectId, :final locked) => 'lock $objectId=$locked',
+    api.CanvasObjectEdited(:final seq, :final objectId) =>
+      'edited seq=$seq $objectId',
+    api.CanvasObjectPreview(:final objectId, :final ended) =>
+      'preview $objectId ended=$ended',
+    api.CanvasObjectLockChanged(:final objectId, :final locked) =>
+      'lock $objectId=$locked',
     _ => e.runtimeType.toString(),
   };
 
@@ -455,7 +490,15 @@ class FuzzWorld {
     if (r.method == 'GET') return r.url.queryParameters.toString();
     final body = jsonDecode(r.body) as Map<String, dynamic>;
     final keys = {
-      for (final k in ['kind', 'id', 'object_id', 'object_ids', 'before_seq', 'target_op', 'z_index'])
+      for (final k in [
+        'kind',
+        'id',
+        'object_id',
+        'object_ids',
+        'before_seq',
+        'target_op',
+        'z_index',
+      ])
         if (body.containsKey(k)) k: body[k],
     };
     return keys.toString();

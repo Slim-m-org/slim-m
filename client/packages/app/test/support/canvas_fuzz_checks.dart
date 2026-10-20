@@ -51,9 +51,9 @@ class FuzzReport {
     final dir = Platform.environment['CANVAS_FUZZ_TRACE_DIR'];
     if (dir == null) return;
     Directory(dir).createSync(recursive: true);
-    File('$dir/$label-seed-${world.seed}.trace').writeAsStringSync(
-      '${world.trace.join('\n')}\n',
-    );
+    File(
+      '$dir/$label-seed-${world.seed}.trace',
+    ).writeAsStringSync('${world.trace.join('\n')}\n');
   }
 
   String render() {
@@ -61,7 +61,9 @@ class FuzzReport {
     for (final entry in byCategory.entries) {
       final v = entry.value;
       out
-        ..writeln('\n[${entry.key}] seeds=${v.seeds} first seed=${v.seed} tick=${v.tick}')
+        ..writeln(
+          '\n[${entry.key}] seeds=${v.seeds} first seed=${v.seed} tick=${v.tick}',
+        )
         ..writeln('  ${v.detail}')
         ..writeln('  trace tail:');
       for (final line in v.trace) {
@@ -106,7 +108,11 @@ void checkInternal(FuzzWorld world, FuzzClient client, FuzzReport report) {
   for (final slot in slots) {
     final stroke = document.strokeIfAlive(slot);
     if (stroke == null) {
-      report.add(world, 'internal: paint order holds a dead slot', '$who slot $slot');
+      report.add(
+        world,
+        'internal: paint order holds a dead slot',
+        '$who slot $slot',
+      );
     } else {
       painted.add(stroke.id);
     }
@@ -115,13 +121,21 @@ void checkInternal(FuzzWorld world, FuzzClient client, FuzzReport report) {
     if (document.strokeIfAlive(slots[i]) != null &&
         document.strokeIfAlive(slots[i - 1]) != null &&
         document.comparePaintOrder(slots[i - 1], slots[i]) > 0) {
-      report.add(world, 'internal: paint order is not sorted', '$who ${painted.take(6)}');
+      report.add(
+        world,
+        'internal: paint order is not sorted',
+        '$who ${painted.take(6)}',
+      );
       break;
     }
   }
   if (painted.length != painted.toSet().length ||
       !unique.containsAll(painted)) {
-    report.add(world, 'internal: painted something that is not live', '$who painted=$painted live=$unique');
+    report.add(
+      world,
+      'internal: painted something that is not live',
+      '$who painted=$painted live=$unique',
+    );
   }
   for (final entry in {
     'selected': document.selectedObjectId.value,
@@ -178,7 +192,10 @@ Set<String> checkDocumentAgainstServer(
   final held = gridLiveIds(document).toSet();
   for (final id in live.keys.where((id) => !held.contains(id))) {
     final o = server.objects[id]!;
-    flag('missing: the server has it, the client does not show it', '$id ${_serverView(o)} tombstoned/known=${document.knows(id)}');
+    flag(
+      'missing: the server has it, the client does not show it',
+      '$id ${_serverView(o)} tombstoned/known=${document.knows(id)}',
+    );
   }
   for (final id in held.where((id) => !live.containsKey(id))) {
     final o = server.objects[id];
@@ -200,10 +217,16 @@ Set<String> checkDocumentAgainstServer(
     }
     final z = document.zIndexOf(o.id);
     if (z != o.z) {
-      flag('z-index: client paint order differs from the server', '${o.id} client z=$z server=${_serverView(o)}');
+      flag(
+        'z-index: client paint order differs from the server',
+        '${o.id} client z=$z server=${_serverView(o)}',
+      );
     }
     if (o.kind == 'note' && document.noteTextOf(o.id) != o.props['text']) {
-      flag('note text: client differs from the server', '${o.id} client="${document.noteTextOf(o.id)}" server="${o.props['text']}"');
+      flag(
+        'note text: client differs from the server',
+        '${o.id} client="${document.noteTextOf(o.id)}" server="${o.props['text']}"',
+      );
     }
   }
   return reported;

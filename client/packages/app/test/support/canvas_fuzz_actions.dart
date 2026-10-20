@@ -108,7 +108,11 @@ extension FuzzActions on FuzzWorld {
           y: segment.y,
           w: segment.w,
           h: segment.h,
-          props: {'points': segment.points, 'width': width, 'color': 'annotation'},
+          props: {
+            'points': segment.points,
+            'width': width,
+            'color': 'annotation',
+          },
         ),
       );
     }
@@ -124,11 +128,13 @@ extension FuzzActions on FuzzWorld {
     final steps = 1 + rng.nextInt(3);
     note('${client.userId} starts erasing near ${target?.id}');
     for (var i = 0; i < steps; i++) {
-      client.script.add(() => client.engine.ops.onErasePoint(
-        centre + Offset(_pick(-6, 6), _pick(-6, 6)),
-        manageCanvas: client.moderator,
-        selfId: client.userId,
-      ));
+      client.script.add(
+        () => client.engine.ops.onErasePoint(
+          centre + Offset(_pick(-6, 6), _pick(-6, 6)),
+          manageCanvas: client.moderator,
+          selfId: client.userId,
+        ),
+      );
     }
     client.script.add(() {
       note('${client.userId} lifts the eraser');
@@ -168,9 +174,16 @@ extension FuzzActions on FuzzWorld {
     final corner = Offset(bounds.x + bounds.w, bounds.y + bounds.h);
     final ops = client.engine.ops;
     note('${client.userId} resizes $id');
-    ops.beginSelect(corner, manageCanvas: client.moderator, selfId: client.userId);
+    ops.beginSelect(
+      corner,
+      manageCanvas: client.moderator,
+      selfId: client.userId,
+    );
     client.script.add(
-      () => ops.dragSelect(corner + Offset(_pick(-40, 80), _pick(-30, 60)), lockAspect: false),
+      () => ops.dragSelect(
+        corner + Offset(_pick(-40, 80), _pick(-30, 60)),
+        lockAspect: false,
+      ),
     );
     client.script.add(() => unawaited(ops.endSelect()));
   }
@@ -190,7 +203,9 @@ extension FuzzActions on FuzzWorld {
     final front = rng.nextBool();
     note('${client.userId} sends $id to ${front ? 'front' : 'back'}');
     unawaited(
-      front ? client.engine.ops.bringToFront(id) : client.engine.ops.sendToBack(id),
+      front
+          ? client.engine.ops.bringToFront(id)
+          : client.engine.ops.sendToBack(id),
     );
     flush();
   }
@@ -221,8 +236,12 @@ extension FuzzActions on FuzzWorld {
     if (!client.moderator) return;
     final scope = switch (rng.nextInt(3)) {
       0 => api.CanvasClearScope.everything,
-      1 => api.CanvasClearScope(kinds: [CanvasClearTarget.values[rng.nextInt(3)].kinds.first]),
-      _ => api.CanvasClearScope(authorId: ['me', 'ann', 'peer1'][rng.nextInt(3)]),
+      1 => api.CanvasClearScope(
+        kinds: [CanvasClearTarget.values[rng.nextInt(3)].kinds.first],
+      ),
+      _ => api.CanvasClearScope(
+        authorId: ['me', 'ann', 'peer1'][rng.nextInt(3)],
+      ),
     };
     note('${client.userId} clears ${scope.kinds} ${scope.authorId}');
     final engine = client.engine;
@@ -245,7 +264,9 @@ extension FuzzActions on FuzzWorld {
     final at = _point();
     if (rng.nextBool()) {
       note('${client.userId} places a note');
-      unawaited(placement.placeNote(at, 'note ${rng.nextInt(99)}', onError: (_) {}));
+      unawaited(
+        placement.placeNote(at, 'note ${rng.nextInt(99)}', onError: (_) {}),
+      );
     } else {
       note('${client.userId} places a shape');
       unawaited(
@@ -261,6 +282,7 @@ extension FuzzActions on FuzzWorld {
   }
 
   void _lock(FuzzClient client) {
+    if (!config.allows('locks')) return;
     final target = _liveObject();
     if (target == null) return;
     final value = !server.locked.contains(target.id);
@@ -274,7 +296,9 @@ extension FuzzActions on FuzzWorld {
     final document = client.engine.document;
     final zoom = [0.5, 0.5, 1.0, 2.0, 4.0][rng.nextInt(5)];
     note('${client.userId} camera zoom=$zoom');
-    document.setCamera(Camera(x: _pick(0, boardW), y: _pick(0, boardH), zoom: zoom));
+    document.setCamera(
+      Camera(x: _pick(0, boardW), y: _pick(0, boardH), zoom: zoom),
+    );
     flush();
   }
 
@@ -318,9 +342,15 @@ extension FuzzActions on FuzzWorld {
     final x = _pick(0, boardW - w);
     final y = _pick(0, boardH - h);
     final props = switch (kind) {
-      'stroke' => {'points': [0.0, 0.0, w / 2, h, w, 0.0], 'width': 3.0, 'color': 'annotation'},
+      'stroke' => {
+        'points': [0.0, 0.0, w / 2, h, w, 0.0],
+        'width': 3.0,
+        'color': 'annotation',
+      },
       'note' => {'text': 'hello ${rng.nextInt(99)}'},
-      _ => {'shape': ['rectangle', 'ellipse', 'line', 'arrow'][rng.nextInt(4)]},
+      _ => {
+        'shape': ['rectangle', 'ellipse', 'line', 'arrow'][rng.nextInt(4)],
+      },
     };
     final id = '$actor-o${server.ops.length}-${rng.nextInt(9999)}';
     server.place(actor, id, kind, x, y, w, h, props);
@@ -371,7 +401,11 @@ extension FuzzActions on FuzzWorld {
     final live = server.liveObjects.toList()..shuffle(rng);
     final ids = [for (final o in live.take(1 + rng.nextInt(3))) o.id];
     if (ids.isEmpty) return;
-    _submitAs(actor, {'id': newOpId(actor), 'kind': 'remove', 'object_ids': ids}, 'removes $ids');
+    _submitAs(actor, {
+      'id': newOpId(actor),
+      'kind': 'remove',
+      'object_ids': ids,
+    }, 'removes $ids');
   }
 
   void _remoteClear() {
@@ -380,13 +414,18 @@ extension FuzzActions on FuzzWorld {
       'id': newOpId('mod'),
       'kind': scoped ? 'clear_scoped' : 'clear',
       'before_seq': rng.nextInt(server.head + 1),
-      if (scoped && rng.nextBool()) 'kinds': [['stroke', 'note', 'shape'][rng.nextInt(3)]],
+      if (scoped && rng.nextBool())
+        'kinds': [
+          ['stroke', 'note', 'shape'][rng.nextInt(3)],
+        ],
       if (scoped) 'author_id': ['ann', 'bob', 'me'][rng.nextInt(3)],
     }, 'clears');
   }
 
   void _remoteRestore() {
-    final targets = server.ops.where((o) => o.kind == 'remove' || o.kind == 'clear').toList();
+    final targets = server.ops
+        .where((o) => o.kind == 'remove' || o.kind == 'clear')
+        .toList();
     if (targets.isEmpty) return;
     final target = targets[rng.nextInt(targets.length)];
     _submitAs(rng.nextBool() ? target.actor : 'mod', {
@@ -397,10 +436,13 @@ extension FuzzActions on FuzzWorld {
   }
 
   void _remoteLock() {
+    if (!config.allows('locks')) return;
     final target = _liveObject();
     if (target == null) return;
     server.setLocked(target.id, !server.locked.contains(target.id));
-    note('remote ${server.locked.contains(target.id) ? 'locks' : 'unlocks'} ${target.id}');
+    note(
+      'remote ${server.locked.contains(target.id) ? 'locks' : 'unlocks'} ${target.id}',
+    );
   }
 
   /// A drag seen only through its previews, which may or may not commit, and
@@ -426,15 +468,18 @@ extension FuzzActions on FuzzWorld {
       );
     }
     if (rng.nextInt(3) == 0) return;
-    deferred.add((tickNo + rng.nextInt(6), () => _submitAs(actor, {
-      'id': newOpId(actor),
-      'kind': 'move',
-      'object_id': target.id,
-      'x': to.x,
-      'y': to.y,
-      'w': target.w,
-      'h': target.h,
-    }, 'commits the drag of ${target.id}')));
+    deferred.add((
+      tickNo + rng.nextInt(6),
+      () => _submitAs(actor, {
+        'id': newOpId(actor),
+        'kind': 'move',
+        'object_id': target.id,
+        'x': to.x,
+        'y': to.y,
+        'w': target.w,
+        'h': target.h,
+      }, 'commits the drag of ${target.id}'),
+    ));
   }
 }
 
@@ -465,4 +510,5 @@ extension FuzzTick on FuzzWorld {
   }
 }
 
-double distanceBetween(Offset a, Offset b) => math.sqrt(math.pow(a.dx - b.dx, 2) + math.pow(a.dy - b.dy, 2));
+double distanceBetween(Offset a, Offset b) =>
+    math.sqrt(math.pow(a.dx - b.dx, 2) + math.pow(a.dy - b.dy, 2));

@@ -45,9 +45,9 @@ class ModelObject {
 
   /// Absolute points, the way a hit test sees them.
   List<Offset> get absolutePoints => [
-    for (var i = 0; i + 1 < rel.length; i += 2)
-      Offset(x + rel[i], y + rel[i + 1]),
-  ];
+        for (var i = 0; i + 1 < rel.length; i += 2)
+          Offset(x + rel[i], y + rel[i + 1]),
+      ];
 }
 
 /// What the document should answer after every step.
