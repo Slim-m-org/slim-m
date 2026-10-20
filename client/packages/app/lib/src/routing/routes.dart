@@ -17,6 +17,9 @@ const settingsPaneQuery = 'pane';
 /// The id of the personal settings pane that lists signed-in devices.
 const accountDevicesPane = 'account-devices';
 
+/// The id of the personal settings pane for desktop-app behaviour.
+const desktopPane = 'desktop';
+
 abstract final class Routes {
   static const onboarding = '/join';
   static const signIn = '/sign-in';

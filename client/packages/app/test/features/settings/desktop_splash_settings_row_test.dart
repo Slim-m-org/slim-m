@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop startup-splash row inside the appearance pane: one select
+/// The desktop startup-splash row inside the Desktop pane: one select
 /// row, with Disabled where the old on/off toggle used to be. Picking a
 /// duration persists it; picking Disabled persists it too. There is no
 /// longer a separate toggle to hide or show anything.
@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/desktop_splash_preference.dart';
-import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
+import 'package:slimm_app/src/features/settings/widgets/desktop_settings_section.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -21,7 +21,7 @@ Widget _wrap() => ProviderScope(
   child: MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
     home: const Scaffold(
-      body: SingleChildScrollView(child: AppearanceSettingsSection()),
+      body: SingleChildScrollView(child: DesktopSettingsSection()),
     ),
   ),
 );

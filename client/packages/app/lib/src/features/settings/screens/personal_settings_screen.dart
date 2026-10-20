@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
 import '../../../routing/routes.dart';
 import '../widgets/settings_section_header.dart';
@@ -16,6 +17,7 @@ import '../../../widgets/app_info_section.dart';
 import '../../../widgets/app_lock_section.dart';
 import '../widgets/appearance_settings_section.dart';
 import '../widgets/connections_section.dart';
+import '../widgets/desktop_settings_section.dart';
 import '../widgets/performance_settings_section.dart';
 import '../../members/widgets/avatar_settings_section.dart';
 import '../widgets/personal_account_sections.dart';
@@ -36,6 +38,7 @@ class PersonalSettingsScreen extends ConsumerWidget {
     super.key,
     this.initialPaneId,
     this.onPaneChanged,
+    this.hasDesktopPane,
   });
 
   /// The pane to open on, when something deep-links to one.
@@ -43,6 +46,9 @@ class PersonalSettingsScreen extends ConsumerWidget {
 
   /// See [SettingsPanesScaffold.onPaneChanged].
   final ValueChanged<String?>? onPaneChanged;
+
+  /// Null asks the host: the Desktop pane exists where the app runs as a desktop app.
+  final bool? hasDesktopPane;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,6 +104,13 @@ class PersonalSettingsScreen extends ConsumerWidget {
               icon: AppIcons.appearance,
               builder: (context) => const AppearanceSettingsSection(),
             ),
+            if (hasDesktopPane ?? isDesktopHost)
+              SettingsPane(
+                id: desktopPane,
+                label: 'Desktop',
+                icon: AppIcons.deviceDesktop,
+                builder: (context) => const DesktopSettingsSection(),
+              ),
             SettingsPane(
               id: 'notifications',
               label: 'Notifications',
