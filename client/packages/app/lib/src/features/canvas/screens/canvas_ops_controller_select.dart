@@ -38,7 +38,9 @@ class _DragState {
     this.fromH,
     this.anchor,
   ) : x = fromX,
-      y = fromY;
+      y = fromY,
+      w = fromW,
+      h = fromH;
 
   final String objectId;
   final double fromX;
@@ -52,6 +54,10 @@ class _DragState {
 
   double x;
   double y;
+
+  /// The size the board allows, which differs from the original for an object larger than it.
+  double w;
+  double h;
 }
 
 /// One resize-handle drag in progress: which object and corner, its bounds
@@ -247,7 +253,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     );
     drag.x = box.x;
     drag.y = box.y;
-    document.moveObject(drag.objectId, drag.x, drag.y, drag.fromW, drag.fromH);
+    drag.w = box.w;
+    drag.h = box.h;
+    document.moveObject(drag.objectId, drag.x, drag.y, drag.w, drag.h);
     document.refresh();
   }
 
@@ -260,7 +268,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     if (drag == null) return null;
     return (
       id: drag.objectId,
-      box: (x: drag.x, y: drag.y, w: drag.fromW, h: drag.fromH),
+      box: (x: drag.x, y: drag.y, w: drag.w, h: drag.h),
     );
   }
 
@@ -332,22 +340,27 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final drag = _drag;
     _drag = null;
     if (drag == null) return;
-    if (drag.x == drag.fromX && drag.y == drag.fromY) return;
+    if (drag.x == drag.fromX &&
+        drag.y == drag.fromY &&
+        drag.w == drag.fromW &&
+        drag.h == drag.fromH) {
+      return;
+    }
     await _commitBounds(
       drag.objectId,
       (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
-      (x: drag.x, y: drag.y, w: drag.fromW, h: drag.fromH),
+      (x: drag.x, y: drag.y, w: drag.w, h: drag.h),
       'That could not be moved.',
     );
   }
 
-  Future<void> _commitBounds(
+  Future<bool> _commitBounds(
     String objectId,
     ({double x, double y, double w, double h}) from,
     ({double x, double y, double w, double h}) to,
     String errorMessage,
   ) async {
-    if (to == from) return;
+    if (to == from) return true;
     try {
       await client.submitCanvasOp(
         channelId,
@@ -360,10 +373,12 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         h: to.h,
       );
       _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
+      return true;
     } on api.ApiException {
       document.moveObject(objectId, from.x, from.y, from.w, from.h);
       document.refresh();
       onError(errorMessage);
+      return false;
     }
   }
 
@@ -430,23 +445,30 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   }
 
   /// Moves every object the caller may move, and the board cannot hold whole,
-  /// back onto the board. Returns how many it moved.
-  Future<int> bringIntoBoard({
+  /// back onto the board, stopping at the first refusal. Returns how many it moved,
+  /// and whether a request failed, which [onError] has already told the viewer.
+  Future<({int moved, bool failed})> bringIntoBoard({
     required bool manageCanvas,
     required String? selfId,
   }) async {
     var moved = 0;
+    var failed = false;
     for (final id in document.idsOutsideBoard) {
       final from = document.objectBounds(id);
-      final mine = manageCanvas || document.authorIdOf(id) == selfId;
+      final mine =
+          manageCanvas || (selfId != null && document.authorIdOf(id) == selfId);
       if (from == null || isLocked(id) || !mine) continue;
       final to = document.boxOnBoard(id, from.x, from.y, from.w, from.h);
       if (to == from) continue;
       document.moveObject(id, to.x, to.y, to.w, to.h);
-      await _commitBounds(id, from, to, 'That could not be moved.');
+      final ok = await _commitBounds(id, from, to, 'That could not be moved.');
+      if (!ok) {
+        failed = true;
+        break;
+      }
       moved++;
     }
     document.refresh();
-    return moved;
+    return (moved: moved, failed: failed);
   }
 }

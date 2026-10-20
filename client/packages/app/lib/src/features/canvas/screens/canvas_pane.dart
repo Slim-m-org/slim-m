@@ -38,7 +38,8 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../permissions.dart';
-import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
+import '../../members/widgets/member_pane.dart'
+    show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
@@ -235,7 +236,6 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
           onKeyEvent: (_, event) => _onToolKey(
             event,
             canDraw: !canvasErrorBlocksDrawing(engineState.error),
-            fullscreen: fullscreen,
           ),
           child: CanvasPaneBody(
             channelId: widget.channelId,

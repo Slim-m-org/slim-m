@@ -87,6 +87,9 @@ class CanvasDockOverlay extends StatelessWidget {
         ),
         child: DockHeightReporter(
           foldedHeight: revealed ? null : canvasDockHandleHeight,
+          extraHeight: canvas().fullscreen
+              ? canvasDockHandleHeight + AppSpacing.s8
+              : 0,
           // Nothing else here rebuilds for a tile hide or show.
           child: ListenableBuilder(
             listenable: tileOverrides,

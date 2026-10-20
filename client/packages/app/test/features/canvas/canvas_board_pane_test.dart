@@ -217,9 +217,10 @@ void main() {
   for (final (size, docked) in [
     (const Size(1280, 800), true),
     (const Size(390, 844), false),
+    (const Size(1280, 400), false),
   ]) {
     testWidgets('Escape ${docked ? 'closes' : 'leaves alone'} the member list '
-        'at ${size.width.toInt()} wide', (tester) async {
+        'at ${size.width.toInt()} by ${size.height.toInt()}', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
