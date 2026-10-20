@@ -23,8 +23,9 @@
 /// that starts at once is a scroll; a held press opens the row's options
 /// ([onHeldInPlace]) and the row only lifts if the held finger then moves
 /// (`hold_then_move_drag.dart`; `docs/design/desktop-vs-mobile.md`, "drag to
-/// reorder"). Move up and Move down in the options are the path without a
-/// gesture, and a screen reader gets move actions on every row at either width.
+/// reorder"). Without a gesture, Alt+Up and Alt+Down on a focused row move it at
+/// pointer widths, and a screen reader gets move actions on every row at
+/// either width.
 ///
 /// The settle animation of a held drag does not honour `AppMotion` or the OS
 /// reduce-motion toggle: [SliverReorderableList] takes no animation style and
@@ -40,6 +41,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/desktop_rail_reorder.dart';
 import 'rail_drag_lift.dart';
+import 'rail_move_actions.dart';
 import '../../../widgets/hold_then_move_drag.dart';
 
 /// The gap a channel row keeps from the rail's left edge.
@@ -232,7 +234,15 @@ class _ReorderableChannelRowsState extends State<ReorderableChannelRows> {
       index: i,
       onHeld: AppHaptics.selection,
       onHeldInPlace: () => widget.onHeldInPlace?.call(channel),
-      child: RailGrabFeedback(child: widget.rowBuilder(channel, true)),
+      child: CallbackShortcuts(
+        bindings: channelMoveShortcuts(
+          widget.sections,
+          widget.collapsed,
+          channel.id,
+          widget.onReorder,
+        ),
+        child: RailGrabFeedback(child: widget.rowBuilder(channel, true)),
+      ),
     ),
   };
 }
