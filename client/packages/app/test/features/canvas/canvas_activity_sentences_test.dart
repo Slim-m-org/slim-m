@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show CanvasClearScope;
 import 'package:slimm_app/src/features/canvas/screens/canvas_activity_log.dart';
 
 CanvasActivityEntry _entry({
@@ -14,6 +15,7 @@ CanvasActivityEntry _entry({
   String? objectKind,
   String? detail,
   int count = 1,
+  CanvasClearScope? clearScope,
 }) => CanvasActivityEntry(
   id: id,
   kind: kind,
@@ -21,11 +23,42 @@ CanvasActivityEntry _entry({
   objectKind: objectKind,
   detail: detail,
   count: count,
+  clearScope: clearScope,
   at: DateTime(2026),
 );
 
 void main() {
   group('describeCanvasActivityEntry', () {
+    test('a scoped clear is not called a full clear', () {
+      String say(CanvasClearScope scope, {String? actor = 'alice'}) =>
+          describeCanvasActivityEntry(
+            _entry(
+              kind: CanvasActivityKind.cleared,
+              actorId: actor,
+              clearScope: scope,
+            ),
+            nameFor: (_) => 'Alice',
+          );
+
+      expect(
+        say(const CanvasClearScope(kinds: ['image'])),
+        'Alice cleared the images.',
+      );
+      expect(
+        say(const CanvasClearScope(kinds: ['note', 'shape'])),
+        'Alice cleared the notes, shapes.',
+      );
+      expect(
+        say(const CanvasClearScope(authorId: 'bob')),
+        "Alice cleared one person's content.",
+      );
+      expect(
+        say(const CanvasClearScope(kinds: ['stroke']), actor: null),
+        'Part of the canvas was cleared.',
+      );
+      expect(say(CanvasClearScope.everything), 'Alice cleared the canvas.');
+    });
+
     test('a named placement names the drawer and the kind', () {
       expect(
         describeCanvasActivityEntry(

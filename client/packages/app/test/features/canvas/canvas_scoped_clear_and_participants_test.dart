@@ -36,6 +36,15 @@ const _bob = VoiceParticipant(
   isScreenSharing: false,
 );
 
+const _you = VoiceParticipant(
+  identity: 'me',
+  name: 'Me',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: true,
+  isScreenSharing: false,
+);
+
 const _bobTalking = VoiceParticipant(
   identity: 'bob',
   name: 'Bob',
@@ -50,6 +59,7 @@ Future<void> _pump(
   CanvasScopedClear? scopedClear,
   bool inCall = false,
   bool speaking = false,
+  bool onlyYou = false,
   Size size = const Size(1280, 800),
 }) async {
   tester.view.physicalSize = size;
@@ -63,7 +73,9 @@ Future<void> _pump(
           (ref) => VoiceController(ref, session: InertSession()),
         ),
         voiceParticipantsProvider.overrideWithValue(
-          inCall ? [speaking ? _bobTalking : _bob] : const <VoiceParticipant>[],
+          inCall
+              ? (onlyYou ? [_you] : [speaking ? _bobTalking : _bob])
+              : const <VoiceParticipant>[],
         ),
       ],
       child: MaterialApp(
@@ -214,6 +226,24 @@ void main() {
     expect(row.isEmpty, isFalse);
     expect(dialog.contains(row.center), isTrue);
     expect(find.byType(Dialog), findsOneWidget);
+  });
+
+  testWidgets('this device\'s own row offers no menu it cannot open', (
+    tester,
+  ) async {
+    await _pump(tester, inCall: true, onlyYou: true);
+
+    await tester.tap(find.text('Participants'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('You'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(CanvasParticipantsSheet),
+        matching: find.byIcon(AppIcons.moreVertical),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('Participants is absent outside this channel\'s call', (

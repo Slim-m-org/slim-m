@@ -15,7 +15,7 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../widgets/canvas_clear_scope.dart' show canvasKindsOf;
+import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
@@ -337,15 +337,7 @@ class CanvasOpsController {
         clearScope: scope,
       );
       if (result.op.affected > 0) {
-        final kinds = canvasKindsOf(scope);
-        final namesOnlyUnknownKinds = scope.kinds.isNotEmpty && kinds.isEmpty;
-        if (!namesOnlyUnknownKinds) {
-          document.clearBelow(
-            beforeSeq,
-            kinds: kinds,
-            authorId: scope.authorId,
-          );
-        }
+        clearDocumentScope(document, beforeSeq, scope);
         document.refresh();
         _pushUndo(_EraseEntry(result.op.id));
       }

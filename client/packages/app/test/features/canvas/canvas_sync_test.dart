@@ -291,6 +291,55 @@ void main() {
     });
   });
 
+  test('catch-up replays a scoped clear as its scope, not as everything', () {
+    fakeAsync((async) {
+      final document = CanvasDocument();
+      final ops = [
+        _rawOp(1, 'place', extra: {'object': _object('ink', seq: 1)}),
+        _rawOp(
+          2,
+          'place',
+          extra: {
+            'object': {
+              ..._object('memo', seq: 2),
+              'kind': 'note',
+              'props': {'text': 'hi'},
+            },
+          },
+        ),
+        _rawOp(
+          3,
+          'clear_scoped',
+          extra: {
+            'before_seq': 2,
+            'kinds': ['note'],
+          },
+        ),
+      ];
+      final sync = CanvasSync(
+        channelId: 'c1',
+        client: fakeCanvasOpsApi(
+          (afterSeq) => _json({
+            'ops': ops.where((o) => o['seq'] as int > afterSeq).toList(),
+            'latest_seq': 3,
+            'has_more': false,
+            'reset': false,
+          }),
+        ),
+        document: document,
+        coldFetch: () async {},
+        forgetFetchedRegion: () {},
+      );
+
+      sync.seedFromViewport(0);
+      sync.catchUp();
+      async.flushMicrotasks();
+
+      expect(document.isAlive('ink'), isTrue);
+      expect(document.isAlive('memo'), isFalse);
+    });
+  });
+
   test('catch-up applies place, remove, clear and restore in order and is '
       'idempotent when replayed from a stale cursor', () {
     fakeAsync((async) {
