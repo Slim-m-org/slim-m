@@ -26,7 +26,10 @@ extension _FuzzChecks on CanvasGestureFuzz {
       _fail('selection-live', 'selected $selected is not a live object');
     }
     if (selected != null && _server.hiddenIds.contains(selected)) {
-      _fail('hidden-object-selected', '$selected lies outside the board, hidden by its clip, yet is selected');
+      _fail(
+        'hidden-object-selected',
+        '$selected lies outside the board, hidden by its clip, yet is selected',
+      );
     }
   }
 
@@ -58,23 +61,39 @@ extension _FuzzChecks on CanvasGestureFuzz {
     for (final line in _server.divergences()) {
       _fail('pane-server-diverged', line);
       // ignore: avoid_print
-      print('DEBUG ops: ${rig.fixture.postedOps.map((o) => '${o['kind']}:${o['object_id'] ?? o['object_ids']}@${o['x']},${o['y']}').toList()}');
+      print(
+        'DEBUG ops: ${rig.fixture.postedOps.map((o) => '${o['kind']}:${o['object_id'] ?? o['object_ids']}@${o['x']},${o['y']}').toList()}',
+      );
     }
     for (final painter in rig.surfacePainters()) {
       final name = painter.runtimeType.toString();
-      if (name == 'DraftPainter' && !((painter as dynamic).draft.isEmpty as bool)) {
-        _fail('stuck-draft-stroke', 'a pen draft is still painted with no pointer down');
+      if (name == 'DraftPainter' &&
+          !((painter as dynamic).draft.isEmpty as bool)) {
+        _fail(
+          'stuck-draft-stroke',
+          'a pen draft is still painted with no pointer down',
+        );
       }
-      if (name == 'DraftShapePainter' && (painter as dynamic).draft.rect != null) {
-        _fail('stuck-draft-shape', 'a shape preview is still painted with no pointer down');
+      if (name == 'DraftShapePainter' &&
+          (painter as dynamic).draft.rect != null) {
+        _fail(
+          'stuck-draft-shape',
+          'a shape preview is still painted with no pointer down',
+        );
       }
     }
     if (_server.touchedHidden.isNotEmpty) {
-      _fail('hidden-object-edited', 'a gesture on the board sent an op for ${_server.touchedHidden}, which lie outside it');
+      _fail(
+        'hidden-object-edited',
+        'a gesture on the board sent an op for ${_server.touchedHidden}, which lie outside it',
+      );
     }
     _tilesStayOnBoard();
     if (find.byType(AppErrorState).evaluate().isNotEmpty) {
-      _fail('error-banner', 'the pane shows an error banner though the server accepted every request: ${_bannerText()}');
+      _fail(
+        'error-banner',
+        'the pane shows an error banner though the server accepted every request: ${_bannerText()}',
+      );
     }
     _unbalanced('stroke-preview', rig.frames.strokePreviews);
     _unbalanced('object-preview', rig.frames.objectPreviews);
@@ -82,7 +101,10 @@ extension _FuzzChecks on CanvasGestureFuzz {
       _fail('external-pointers', 'count is ${_doc.externalPointers.count}');
     }
     if (_doc.elevatedObjectId.value != null) {
-      _fail('stuck-elevation', 'object ${_doc.elevatedObjectId.value} is still lifted');
+      _fail(
+        'stuck-elevation',
+        'object ${_doc.elevatedObjectId.value} is still lifted',
+      );
     }
     if (_doc.snapGuides.value.isNotEmpty) {
       _fail('stuck-snap-guides', 'snap guides are still drawn');
@@ -95,7 +117,9 @@ extension _FuzzChecks on CanvasGestureFuzz {
           ),
         )
         .any((r) => r.cursor == SystemMouseCursors.grabbing);
-    if (grabbing) _fail('stuck-pan', 'the surface still shows the grabbing cursor');
+    if (grabbing) {
+      _fail('stuck-pan', 'the surface still shows the grabbing cursor');
+    }
     if (!_segPrimary && !_segImpure) {
       final placed = rig.fixture.posted.length - _segPosted;
       final ops = rig.fixture.postedOps.length - _segOps;
@@ -120,7 +144,10 @@ extension _FuzzChecks on CanvasGestureFuzz {
 
   String _bannerText() {
     final texts = _tester.widgetList<Text>(
-      find.descendant(of: find.byType(AppErrorState), matching: find.byType(Text)),
+      find.descendant(
+        of: find.byType(AppErrorState),
+        matching: find.byType(Text),
+      ),
     );
     return texts.map((t) => t.data).whereType<String>().join(' / ');
   }
@@ -129,7 +156,10 @@ extension _FuzzChecks on CanvasGestureFuzz {
     final board = rig.boardOnScreen.inflate(2);
     for (final rect in _tileRects()) {
       if (!board.contains(rect.topLeft) || !board.contains(rect.bottomRight)) {
-        _fail('tile-off-board', 'a call tile sits at $rect, outside the board on screen $board');
+        _fail(
+          'tile-off-board',
+          'a call tile sits at $rect, outside the board on screen $board',
+        );
       }
     }
   }
@@ -139,7 +169,10 @@ extension _FuzzChecks on CanvasGestureFuzz {
     final ended = frames.where((f) => f.ended).map((f) => f.id).toSet();
     final open = ids.difference(ended);
     if (open.isNotEmpty) {
-      _fail('$name-never-ended', '${open.length} preview session(s) sent frames and never an ended frame: ${open.take(3)}');
+      _fail(
+        '$name-never-ended',
+        '${open.length} preview session(s) sent frames and never an ended frame: ${open.take(3)}',
+      );
     }
   }
 
@@ -182,13 +215,18 @@ extension _FuzzChecks on CanvasGestureFuzz {
     _log('probe stroke ${kind.name} from ${_fmt(start)}');
     await _send(pointer.down(start, timeStamp: _clock));
     for (var i = 1; i <= 3; i++) {
-      await _send(pointer.move(start + Offset(12.0 * i, 3.0 * i), timeStamp: _clock));
+      await _send(
+        pointer.move(start + Offset(12.0 * i, 3.0 * i), timeStamp: _clock),
+      );
     }
     await _send(pointer.up(timeStamp: _clock));
     await _tester.pump(const Duration(milliseconds: 400));
     await _tester.pump(const Duration(milliseconds: 400));
     if (rig.fixture.posted.length == before) {
-      _fail('probe-no-commit', 'a plain pen stroke after the run committed nothing, so a pointer or gesture state leaked');
+      _fail(
+        'probe-no-commit',
+        'a plain pen stroke after the run committed nothing, so a pointer or gesture state leaked',
+      );
     }
     final ex = _tester.takeException();
     if (ex != null) _fail('exception', '$ex');
@@ -210,4 +248,3 @@ void reportFuzz(CanvasGestureFuzz fuzz, {required String mode}) {
     );
   }
 }
-

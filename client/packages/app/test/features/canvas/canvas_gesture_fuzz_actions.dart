@@ -200,9 +200,16 @@ extension _FuzzActions on CanvasGestureFuzz {
   Future<void> _resizeWindow() async {
     final sizes = rig.phone
         ? const [Size(390, 844), Size(844, 390), Size(360, 640)]
-        : const [Size(1280, 800), Size(1024, 700), Size(1920, 1080), Size(700, 900)];
+        : const [
+            Size(1280, 800),
+            Size(1024, 700),
+            Size(1920, 1080),
+            Size(700, 900),
+          ];
     final next = sizes[_rng.nextInt(sizes.length)];
-    _log('resize window -> ${next.width.round()}x${next.height.round()} (held=${_held.length})');
+    _log(
+      'resize window -> ${next.width.round()}x${next.height.round()} (held=${_held.length})',
+    );
     _tester.view.physicalSize = next;
     await _tester.pump(const Duration(milliseconds: 50));
   }
@@ -213,7 +220,10 @@ extension _FuzzActions on CanvasGestureFuzz {
     _segImpure = true;
     if (find.byType(CanvasNoteEditor).evaluate().isEmpty) {
       final notes = rig.knownIds
-          .where((id) => _doc.isAlive(id) && _doc.kindOf(id) == CanvasObjectKind.note)
+          .where(
+            (id) =>
+                _doc.isAlive(id) && _doc.kindOf(id) == CanvasObjectKind.note,
+          )
           .toList();
       if (notes.isEmpty) return;
       final id = notes[_rng.nextInt(notes.length)];
@@ -230,12 +240,19 @@ extension _FuzzActions on CanvasGestureFuzz {
       return;
     }
     final tool = rig.tool;
-    final key = [LogicalKeyboardKey.keyP, LogicalKeyboardKey.keyE, LogicalKeyboardKey.keyN][_rng.nextInt(3)];
+    final key = [
+      LogicalKeyboardKey.keyP,
+      LogicalKeyboardKey.keyE,
+      LogicalKeyboardKey.keyN,
+    ][_rng.nextInt(3)];
     _log('type ${key.keyLabel} into the open note editor');
     await _tester.sendKeyEvent(key);
     await _tester.pump();
     if (rig.tool != tool) {
-      _fail('typing-switches-tool', 'typing ${key.keyLabel} in the note editor changed the tool ${tool.name} -> ${rig.tool.name}');
+      _fail(
+        'typing-switches-tool',
+        'typing ${key.keyLabel} in the note editor changed the tool ${tool.name} -> ${rig.tool.name}',
+      );
     }
     if (_rng.nextBool()) await _tester.sendKeyEvent(LogicalKeyboardKey.escape);
   }
@@ -260,11 +277,12 @@ extension _FuzzActions on CanvasGestureFuzz {
     if (!toolSwitchMidGesture && _held.isNotEmpty) return;
     _segImpure = true;
     final rects = [
-      for (final r in _dockRects()) r.deflate(6),
-      for (final r in _chipRects()) r.deflate(2),
-    ].where((r) => !r.isEmpty).toList();
+      for (final r in _dockRects()) ('dock', r.deflate(6)),
+      for (final r in _chipRects()) ('chip', r.deflate(2)),
+    ].where((r) => !r.$2.isEmpty).toList();
     if (rects.isEmpty) return;
-    final pos = _inRect(rects[_rng.nextInt(rects.length)]);
+    final (source, rect) = rects[_rng.nextInt(rects.length)];
+    final pos = _inRect(rect);
     final falls = _reachesSurface(pos);
     final tool = rig.tool;
     final before = (
@@ -277,7 +295,9 @@ extension _FuzzActions on CanvasGestureFuzz {
     final kind = rig.phone || _rng.nextBool()
         ? PointerDeviceKind.touch
         : PointerDeviceKind.mouse;
-    _log('chrome tap ${kind.name} @${_fmt(pos)} reachesSurface=$falls tool=${tool.name}');
+    _log(
+      'chrome tap ${kind.name} @${_fmt(pos)} in $source $rect reachesSurface=$falls tool=${tool.name}',
+    );
     final pointer = TestPointer(_nextPointer++, kind, _deviceFor(kind));
     _server.absorbSent();
     await _send(pointer.down(pos, timeStamp: _clock));
@@ -295,7 +315,7 @@ extension _FuzzActions on CanvasGestureFuzz {
     if (after != before && tool != CanvasTool.pan) {
       _fail(
         'chrome-tap-draws',
-        'a ${kind.name} tap at ${_fmt(pos)} inside the dock card (tool ${tool.name}) '
+        'a ${kind.name} tap at ${_fmt(pos)} inside the $source $rect (tool ${tool.name}) '
             'reached the board: posted ${before.$1}->${after.$1}, ops ${before.$2}->${after.$2}, '
             'objects ${before.$3}->${after.$3}, sheet ${before.$4}->${after.$4}',
       );

@@ -247,13 +247,16 @@ class FuzzRig {
   static Future<FuzzRig> start(
     WidgetTester tester, {
     required bool phone,
+    List<Map<String, dynamic>>? board,
+    Duration placeDelay = Duration.zero,
   }) async {
     tester.view.physicalSize = phone
         ? const Size(390, 844)
         : const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    final fixture = CanvasPaneFixture()..objects = seededBoard();
+    final fixture = CanvasPaneFixture(placeDelay: placeDelay)
+      ..objects = board ?? seededBoard();
     final frames = RecordedFrames();
     final container = fixture.container(
       extraOverrides: [
@@ -278,13 +281,25 @@ class FuzzRig {
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
     await pumpCanvasPane(tester, container, board: true, tool: null);
+    // Registered after the container's, so it runs first and unmounts the pane while the container is alive.
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
     await tester.pumpAndSettle();
     return FuzzRig._(tester, fixture, container, frames, phone);
   }
 
+  /// Unmounts the pane while its container is still alive, as the app does.
+  ///
+  /// Disposing the container first, which is the order test teardowns run in,
+  /// makes the engine's own dispose throw and hides the failure under test.
+  Future<void> close() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 8));
+  }
+
   Rect get surfaceRect => tester.getRect(find.byType(CanvasSurface));
 
-  CanvasTool get tool => tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool;
+  CanvasTool get tool =>
+      tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool;
 
   /// Where a world point is on screen under the camera as it is now.
   Offset toScreen(Offset world) {
@@ -318,7 +333,6 @@ class FuzzRig {
       .map((paint) => paint.painter)
       .whereType<Object>();
 
-  NavigatorState get navigator => tester.state<NavigatorState>(
-    find.byType(Navigator).first,
-  );
+  NavigatorState get navigator =>
+      tester.state<NavigatorState>(find.byType(Navigator).first);
 }

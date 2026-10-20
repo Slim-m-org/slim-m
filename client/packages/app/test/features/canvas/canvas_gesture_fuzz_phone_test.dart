@@ -31,7 +31,11 @@ void main() {
               seed,
               toolSwitchMidGesture: midSwitch,
             );
-            await fuzz.run(_steps);
+            try {
+              await fuzz.run(_steps);
+            } finally {
+              await fuzz.finish();
+            }
             reportFuzz(fuzz, mode: label);
           } finally {
             debugDefaultTargetPlatformOverride = null;

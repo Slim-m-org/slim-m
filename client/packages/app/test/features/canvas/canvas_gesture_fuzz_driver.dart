@@ -109,14 +109,7 @@ class CanvasGestureFuzz {
   // Each invariant is reported once per run, so one bug is one finding.
   void _fail(String invariant, String detail) {
     if (violations.any((v) => v.invariant == invariant)) return;
-    violations.add(
-      FuzzViolation(
-        invariant,
-        detail,
-        _step,
-        List.of(trace),
-      ),
-    );
+    violations.add(FuzzViolation(invariant, detail, _step, List.of(trace)));
   }
 
   void _log(String line) => trace.add('${_step.toString().padLeft(3)} $line');
@@ -136,6 +129,13 @@ class CanvasGestureFuzz {
     await _releaseAll();
     await _segmentEnded();
     await _probe();
+  }
+
+  /// Closes the pane the way the app does and records anything its dispose threw.
+  Future<void> finish() async {
+    await rig.close();
+    final ex = _tester.takeException();
+    if (ex != null) _fail('exception-on-close', '$ex');
   }
 
   var _segActive = false;
@@ -216,7 +216,11 @@ class CanvasGestureFuzz {
   );
 
   List<Rect> _tileRects() => [
-    for (var i = 0; i < find.byType(CanvasPresenceManipulableTile).evaluate().length; i++)
+    for (
+      var i = 0;
+      i < find.byType(CanvasPresenceManipulableTile).evaluate().length;
+      i++
+    )
       _tester.getRect(find.byType(CanvasPresenceManipulableTile).at(i)),
   ];
 
@@ -469,7 +473,9 @@ class CanvasGestureFuzz {
     final pointer = TestPointer(id, kind, _deviceFor(kind));
     _beginSegment();
     _segPrimary = true;
-    _log('burst ${kind.name}#$id from ${_fmt(start)} on $where tool=${rig.tool.name}');
+    _log(
+      'burst ${kind.name}#$id from ${_fmt(start)} on $where tool=${rig.tool.name}',
+    );
     await _send(pointer.down(start, timeStamp: _clock));
     var pos = start;
     final dir = _rng.nextDouble() * 2 * pi;
