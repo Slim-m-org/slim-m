@@ -153,6 +153,7 @@ class Invite {
     required this.revoked,
     required this.usable,
     this.roleGrant,
+    this.createdByName,
   });
 
   final String code;
@@ -174,6 +175,9 @@ class Invite {
   /// A role every account redeeming this code receives, or null for none.
   final String? roleGrant;
 
+  /// Who issued it, or null when they are gone.
+  final String? createdByName;
+
   factory Invite.fromJson(Map<String, dynamic> json) => Invite(
         code: json['code'] as String,
         maxUses: json['max_uses'] as int?,
@@ -183,6 +187,7 @@ class Invite {
         revoked: json['revoked'] as bool,
         usable: json['usable'] as bool,
         roleGrant: json['role_grant'] as String?,
+        createdByName: json['created_by_name'] as String?,
       );
 }
 
