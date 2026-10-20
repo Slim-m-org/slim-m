@@ -7,7 +7,7 @@ Question from the owner: choose another theme to go for, after researching.
 
 Chosen theme: portability.
 Moving a Discord community in, and taking a community or a member's own data out.
-Today slim-m has neither direction: no importer, no space export, no member data export.
+As of 2026-10-17 (before the exports in batch 15), slim-m has neither direction: no importer, no space export, no member data export.
 Verified on `feat/batch15` at 32f18a000: no export or import route in `schema/openapi.yaml`, none in `crates/slimm-server/src/http/`.
 The only backup path is the operator script `scripts/backup.py` (raw database and media copy).
 
