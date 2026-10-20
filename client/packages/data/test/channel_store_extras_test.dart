@@ -9,15 +9,15 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart';
 
 api.Message _message(String id, int seq, int createdAt) => api.Message(
-  id: id,
-  channelId: 'c1',
-  authorId: 'u',
-  authorDisplayName: 'U',
-  seq: seq,
-  content: 'hi',
-  createdAt: createdAt,
-  editedAt: null,
-);
+      id: id,
+      channelId: 'c1',
+      authorId: 'u',
+      authorDisplayName: 'U',
+      seq: seq,
+      content: 'hi',
+      createdAt: createdAt,
+      editedAt: null,
+    );
 
 void main() {
   late SlimmDatabase db;
