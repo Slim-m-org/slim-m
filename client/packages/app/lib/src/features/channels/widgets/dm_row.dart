@@ -136,12 +136,7 @@ class DmRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
-    ref.watch(
-      channelLatestMessageAtProvider((
-        channelId: channel.id,
-        seq: channel.cursor,
-      )),
-    );
+    ref.watch(channelLatestMessageAtProvider(channel.id));
     // Queued, not fetched directly: the controller bounds how many rows become simultaneous requests.
     ref.read(dmCallActivityProvider.notifier).ensureTracked(channel.id);
     final inCall = ref.watch(

@@ -208,7 +208,7 @@ void main() {
         .customSemanticsActionIds!;
     expect(ids, hasLength(2), reason: 'move up and move down');
     final down = CustomSemanticsAction.getAction(ids.last)!;
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    tester.binding.rootPipelineOwner.semanticsOwner!.performAction(
       tester.getSemantics(row).id,
       SemanticsAction.customAction,
       ids.last,

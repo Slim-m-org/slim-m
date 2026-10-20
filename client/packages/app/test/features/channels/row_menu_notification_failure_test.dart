@@ -58,8 +58,8 @@ ProviderContainer _container() {
         () => DateTime(2026, 10, 19, 12),
       ),
       channelLatestMessageAtProvider.overrideWith(
-        (ref, key) async =>
-            DateTime(2026, 10, 19, 11, 55).millisecondsSinceEpoch,
+        (ref, id) =>
+            Stream.value(DateTime(2026, 10, 19, 11, 55).millisecondsSinceEpoch),
       ),
       databaseProvider.overrideWith((ref) async {
         ref.onDispose(db.close);
