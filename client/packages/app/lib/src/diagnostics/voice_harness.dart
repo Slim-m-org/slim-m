@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
 import '../features/voice/providers/voice_controller.dart';
 import '../providers/providers.dart';
@@ -19,6 +20,7 @@ const bool kVoiceHarness = bool.fromEnvironment('SLIMM_VOICE_HARNESS');
 
 const _channelFlag = '--voice-harness-channel=';
 const _signInWait = Duration(seconds: 90);
+const _joinWait = Duration(seconds: 60);
 
 /// The channel id passed as `--voice-harness-channel=<id>`, if any.
 String? harnessChannel(List<String> args) {
@@ -44,8 +46,28 @@ Future<void> joinHarnessChannel(
   }
   final voice = container().read(voiceControllerProvider.notifier);
   await voice.join(channel);
+  final failure = await _joinFailure(container);
+  if (failure != null) {
+    debugPrint('SLIMM_HARNESS join-failed $failure');
+    return;
+  }
   debugPrint('SLIMM_HARNESS joined $channel');
   _logGate(voice, container);
+}
+
+/// Null once the call is connected; otherwise what it ended in, since
+/// [VoiceController.join] reports a failure in state rather than throwing.
+Future<String?> _joinFailure(ProviderContainer Function() container) async {
+  final deadline = DateTime.now().add(_joinWait);
+  while (DateTime.now().isBefore(deadline)) {
+    final call = container().read(voiceControllerProvider);
+    if (call.state == VoiceSessionState.connected) return null;
+    if (call.state == VoiceSessionState.failed) {
+      return 'state=failed error=${call.error}';
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+  }
+  return 'state=${container().read(voiceControllerProvider).state.name} timeout';
 }
 
 void _logGate(VoiceController voice, ProviderContainer Function() container) {

@@ -7,6 +7,7 @@ mixin VoiceSessionMicRelease {
   lk.Room? get _room;
   MicPort get _mic;
   bool get _micWanted;
+  bool _mayPublish = true;
   late final lk.AudioCaptureOptions Function() _plainOpenOptions;
   void _diag(String line, {LogLevel level});
   late final MicRelease _micRelease;
@@ -33,7 +34,7 @@ mixin VoiceSessionMicRelease {
   /// Keeps the capture open while muted, so push to talk keys down instantly.
   Future<void> setKeepMicReady(bool keepReady) async {
     _micRelease.setKeepReady(keepReady);
-    if (!keepReady || _room == null) return;
+    if (!keepReady || _room == null || !_mayPublish) return;
     if (_micRelease.released) {
       await _mic.reopenMuted(_plainOpenOptions());
       _micRelease.reopened();
@@ -44,8 +45,10 @@ mixin VoiceSessionMicRelease {
 
   /// A push-to-talk call joins muted with no track, so the first key down
   /// would otherwise open the device and publish; this does that up front.
+  /// A listen-only token never publishes, so it opens nothing.
   Future<void> _primeMutedMic() async {
-    if (!_micRelease.keepReady || _mic.hasTrack || _room == null) return;
+    if (!_mayPublish || !_micRelease.keepReady) return;
+    if (_mic.hasTrack || _room == null) return;
     try {
       await _mic.reopenMuted(_plainOpenOptions());
       _micRelease.onMuted();

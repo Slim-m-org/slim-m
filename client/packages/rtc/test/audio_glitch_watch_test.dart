@@ -63,4 +63,29 @@ void main() {
     expect(lines, hasLength(1));
     expect(lines.single, contains('Ann'));
   });
+
+  test('our own poor flag carries the identity as it is at sample time',
+      () async {
+    var identity = 'local';
+    AudioSendSample at(int s) => AudioSendSample(
+          timestampMs: s * 1000,
+          packetsSent: s * 50,
+          bytesSent: s * 4000,
+          rttMs: 600,
+        );
+    var second = 0;
+    final watch = AudioGlitchWatch(
+      sources: () => {},
+      local: () async => at(second),
+      localIdOf: () => identity,
+      log: (m, {LogLevel level = LogLevel.info}) {},
+    );
+    identity = 'me';
+
+    await watch.sample();
+    second = 5;
+    await watch.sample();
+
+    expect(watch.health.poorConnections.value, {'me'});
+  });
 }

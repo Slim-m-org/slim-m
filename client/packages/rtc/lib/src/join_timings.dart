@@ -52,6 +52,9 @@ class JoinTimings {
   final _marks = <JoinStage, Duration>{};
   bool _open = false;
 
+  /// Whether a join is in progress, so a watcher can stop once it ends.
+  bool get isOpen => _open;
+
   /// The most recent finished join, for tests and the diagnostics screen.
   JoinSummary? last;
 

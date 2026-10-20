@@ -55,3 +55,38 @@ class Probes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _Running:
+    returncode = None
+
+    def poll(self):
+        return None
+
+
+class WaitFor(unittest.TestCase):
+    def _app(self, text):
+        app = object.__new__(da.Desktop)
+        app.proc = _Running()
+        handle, app.log = tempfile.mkstemp()
+        os.close(handle)
+        self.addCleanup(os.remove, app.log)
+        with open(app.log, "w") as fh:
+            fh.write(text)
+        return app
+
+    def test_the_text_it_waits_for_returns(self):
+        self._app("boot\nSLIMM_HARNESS joined c1\n").wait_for("SLIMM_HARNESS joined", 1)
+
+    def test_a_reported_failure_raises_at_once_with_its_line(self):
+        app = self._app("SLIMM_HARNESS join-failed state=failed error=forbidden\n")
+        with self.assertRaises(AssertionError) as caught:
+            app.wait_for("SLIMM_HARNESS joined", 30, fail_on="SLIMM_HARNESS join-failed")
+        self.assertIn("error=forbidden", str(caught.exception))
+
+    def test_a_failed_join_and_a_silent_launch_are_both_retried(self):
+        import e2e_voice_desktop as desk
+        self.assertTrue(desk.is_join_failure(AssertionError("the desktop app never printed 'x'")))
+        self.assertTrue(desk.is_join_failure(
+            AssertionError("the desktop app reported 'SLIMM_HARNESS join-failed state=failed'")))
+        self.assertFalse(desk.is_join_failure(AssertionError("no remote audio track came up")))

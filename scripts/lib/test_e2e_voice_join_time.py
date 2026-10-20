@@ -29,7 +29,7 @@ class RelativeTest(unittest.TestCase):
     def test_without_a_click_nothing_is_reported(self):
         self.assertEqual(jt.relative({"tokenEnd": 5.0}), {})
 
-    def test_a_prefetched_token_reads_negative(self):
+    def test_a_mark_before_the_click_reads_negative(self):
         marks = {"click": 1000.0, "tokenEnd": 700.0}
         self.assertEqual(jt.relative(marks), {"tokenEnd": -300.0})
 

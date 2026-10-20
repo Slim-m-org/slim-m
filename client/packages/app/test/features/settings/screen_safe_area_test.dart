@@ -241,6 +241,7 @@ class _FakeSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     _state = VoiceSessionState.connected;
     _states.add(_state);

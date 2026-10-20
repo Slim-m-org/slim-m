@@ -259,6 +259,7 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {}
 
   /// How many times [leave] was actually reached, so a test can assert a

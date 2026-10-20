@@ -84,9 +84,16 @@ def _barks(start_s, number, rng, total):
 
 
 def plan(spans):
-    """Where each event goes: `(kind, start_s)` from the sentence spans."""
-    return [("typing_gap", spans[0][1] + 0.5), ("typing_speech", spans[2][0] + 0.6),
-            ("bark_gap", spans[3][1] + 0.7), ("bark_speech", spans[5][0] + 1.0)]
+    """Where each event goes: `(kind, start_s)` from the sentence spans.
+
+    Six or more spans keep the fixed places every earlier measurement used;
+    a short clip with fewer spreads the same four events over what it has.
+    """
+    assert spans, "the noise plan needs at least one speech span"
+    last = len(spans) - 1
+    at = [0, 2, 3, 5] if last >= 5 else [round(i * last / 5) for i in (0, 2, 3, 5)]
+    return [("typing_gap", spans[at[0]][1] + 0.5), ("typing_speech", spans[at[1]][0] + 0.6),
+            ("bark_gap", spans[at[2]][1] + 0.7), ("bark_speech", spans[at[3]][0] + 1.0)]
 
 
 def mix(speech, spans, seed=5):

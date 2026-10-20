@@ -285,8 +285,20 @@ class CallParticipantTile extends StatelessWidget {
 String _poorLabel(VoiceParticipant p) =>
     p.isLocal ? 'your connection is unstable' : 'connection is unstable';
 
-/// Top-left, away from the state badges, so a tile that has several never covers its avatar.
 const double _kBadgeSize = 22;
+
+/// The round chip every tile badge sits in.
+Widget _badgeCircle(AppTokens tokens, Widget icon) => Container(
+  width: _kBadgeSize,
+  height: _kBadgeSize,
+  alignment: Alignment.center,
+  decoration: BoxDecoration(
+    color: tokens.surfaceRaised,
+    shape: BoxShape.circle,
+    border: Border.all(color: tokens.borderSubtle),
+  ),
+  child: icon,
+);
 
 bool _badgesReachAvatar(double width, double avatarSize, VoiceParticipant p) {
   final count = p.isDeafened ? 2 : 1;
@@ -304,16 +316,9 @@ class _PoorConnectionBadge extends StatelessWidget {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Tooltip(
       message: _poorLabel(participant),
-      child: Container(
-        width: 22,
-        height: 22,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          shape: BoxShape.circle,
-          border: Border.all(color: tokens.borderSubtle),
-        ),
-        child: Icon(
+      child: _badgeCircle(
+        tokens,
+        Icon(
           AppIcons.connectionPoor,
           key: poorConnectionBadgeKey,
           size: 12,
@@ -350,7 +355,7 @@ class _StateBadge extends StatelessWidget {
       spacing: AppSpacing.s4,
       children: [
         if (participant.isDeafened)
-          _circle(
+          _badgeCircle(
             tokens,
             Icon(
               AppIcons.headphonesOff,
@@ -359,22 +364,10 @@ class _StateBadge extends StatelessWidget {
               color: tokens.textSecondary,
             ),
           ),
-        _circle(tokens, main),
+        _badgeCircle(tokens, main),
       ],
     );
   }
-
-  Widget _circle(AppTokens tokens, Widget icon) => Container(
-    width: 22,
-    height: 22,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: tokens.surfaceRaised,
-      shape: BoxShape.circle,
-      border: Border.all(color: tokens.borderSubtle),
-    ),
-    child: icon,
-  );
 }
 
 /// The unstable-connection glyph on a call tile, for tests to find.

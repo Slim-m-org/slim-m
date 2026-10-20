@@ -70,6 +70,7 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     joinCount++;
     _state = VoiceSessionState.connected;

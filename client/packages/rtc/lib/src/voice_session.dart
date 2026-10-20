@@ -187,8 +187,7 @@ class VoiceSession
   VoiceDisconnect? _lastDisconnect;
   bool _disposed = false;
 
-  /// See [setSpeakingSensitivity]; 1.0 matches this session's behaviour
-  /// before that setting existed.
+  /// See [setSpeakingSensitivity]; 1.0 is the behaviour before the setting.
   double _speakingSensitivity = 1.0;
 
   ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
@@ -214,9 +213,7 @@ class VoiceSession
   /// How readily [VoiceParticipant.isSpeaking] reports true; see
   /// [passesActivationThreshold] for what this can and cannot do.
   ///
-  /// Safe before a room exists (only stored, for the first [_refreshParticipants]
-  /// to pick up) and live mid-call: it re-evaluates the current roster
-  /// immediately, the same shape [setLocallyMuted] already uses.
+  /// Safe before a room exists, and live mid-call: it re-evaluates the roster.
   void setSpeakingSensitivity(double sensitivity) {
     _speakingSensitivity = sensitivity.clamp(0.0, 1.0);
     _refreshParticipants();
@@ -249,10 +246,9 @@ class VoiceSession
 
   /// Joins a room with a token minted by the server.
   ///
-  /// The token decides what this connection may do: a member without SPEAK gets
-  /// one that cannot publish, and the SFU enforces that, so nothing here needs
-  /// to know about permissions. Rejoining an already-connected session leaves
-  /// the old one first rather than stacking two connections.
+  /// The SFU enforces what the token allows; [canPublish] only stops a
+  /// listen-only join from opening the microphone. Rejoining leaves the old
+  /// connection first rather than stacking two.
   ///
   /// Overlapping calls serialize rather than race, because two rooms would
   /// otherwise fight over one session's state and strand the UI on connecting.
@@ -263,6 +259,7 @@ class VoiceSession
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) {
     final previous = _joining ?? Future<void>.value();
     final current = previous
@@ -274,6 +271,7 @@ class VoiceSession
             token: token,
             microphoneEnabled: microphoneEnabled,
             cameraEnabled: cameraEnabled,
+            canPublish: canPublish,
           ),
         );
     _joining = current.whenComplete(() {
@@ -287,8 +285,10 @@ class VoiceSession
     required String token,
     required bool microphoneEnabled,
     required bool cameraEnabled,
+    required bool canPublish,
   }) async {
     if (_disposed) return;
+    _mayPublish = canPublish;
     if (_room != null) await leave();
     // Claims the session past the leave above, whose own guard has run by now.
     _generation++;

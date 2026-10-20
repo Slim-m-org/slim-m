@@ -155,13 +155,22 @@ def gapped(samples, chunk_s=3.5, gap_s=2.6, rate=RATE):
 
 
 def corpus_dir():
-    """The folder of built clips when E2E_VQ_CORPUS names a complete one, else None."""
+    """The folder of built clips when E2E_VQ_CORPUS is set, else None.
+
+    A set but incomplete folder raises rather than falling back, so a run never
+    reports synthetic speech as the real-voice corpus.
+    """
     path = os.environ.get("E2E_VQ_CORPUS")
-    if not path or not os.path.isdir(path):
+    if not path:
         return None
-    manifest = load_manifest()
-    have = all(os.path.exists(os.path.join(path, c["id"] + ".wav")) for c in manifest["clips"])
-    return path if have else None
+    if not os.path.isdir(path):
+        raise AssertionError(f"E2E_VQ_CORPUS={path} is not a folder; build it with fetch_voice_corpus.py")
+    missing = [c["id"] for c in load_manifest()["clips"]
+               if not os.path.exists(os.path.join(path, c["id"] + ".wav"))]
+    if missing:
+        raise AssertionError(f"E2E_VQ_CORPUS={path} is missing {len(missing)} clip(s), e.g. "
+                             f"{', '.join(missing[:5])}; run fetch_voice_corpus.py")
+    return path
 
 
 def write_reel(path, who, directory):

@@ -51,7 +51,7 @@ class AudioGlitchWatch {
     required this.log,
     this.nameOf = _same,
     this.local,
-    this.localId = 'local',
+    this.localIdOf = _localName,
     VoiceHealth? health,
     this.interval = kGlitchWatchInterval,
   }) : health = health ?? VoiceHealth();
@@ -60,7 +60,10 @@ class AudioGlitchWatch {
   final Map<String, AudioStatsSource> Function() sources;
   final String Function(String identity) nameOf;
   final AudioSendSource? local;
-  final String localId;
+
+  /// Read at each sample: the room's local identity does not exist yet when
+  /// the watch is built.
+  final String Function() localIdOf;
   final VoiceHealth health;
   final VoiceLog log;
   final Duration interval;
@@ -69,6 +72,12 @@ class AudioGlitchWatch {
   final _previous = <String, AudioReceiveSample>{};
 
   static String _same(String identity) => identity;
+  static String _localName() => 'local';
+
+  String get localId => localIdOf();
+
+  /// Whether the sampling timer is live.
+  bool get running => _timer != null;
 
   void start() =>
       _timer ??= Timer.periodic(interval, (_) => unawaited(sample()));
@@ -124,7 +133,7 @@ class AudioGlitchWatch {
     if (source == null) return;
     try {
       final now = await source();
-      if (now != null) health.observeLocal(localId, now);
+      if (now != null) health.observeLocal(localIdOf(), now);
     } on Object {
       return;
     }

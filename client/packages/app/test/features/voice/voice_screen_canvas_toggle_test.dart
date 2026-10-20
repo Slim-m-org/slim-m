@@ -180,6 +180,7 @@ class _ConnectedSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     _participants.add([
       const VoiceParticipant(

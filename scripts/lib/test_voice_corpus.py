@@ -103,10 +103,17 @@ class Reels(unittest.TestCase):
         manifest = corpus.load_manifest()
         with tempfile.TemporaryDirectory() as folder, mock.patch.dict(
                 os.environ, {"E2E_VQ_CORPUS": folder}):
-            self.assertIsNone(corpus.corpus_dir())
+            with self.assertRaises(AssertionError) as caught:
+                corpus.corpus_dir()
+            self.assertIn(manifest["clips"][0]["id"], str(caught.exception))
             for clip in manifest["clips"]:
                 dsp.write_wav(os.path.join(folder, clip["id"] + ".wav"), [0.1] * 480, RATE)
             self.assertEqual(corpus.corpus_dir(), folder)
+
+    def test_corpus_dir_refuses_a_folder_that_is_not_there(self):
+        with mock.patch.dict(os.environ, {"E2E_VQ_CORPUS": "/nonexistent/corpus"}):
+            with self.assertRaises(AssertionError):
+                corpus.corpus_dir()
 
     def test_corpus_dir_is_none_when_unset(self):
         with mock.patch.dict(os.environ, clear=True):

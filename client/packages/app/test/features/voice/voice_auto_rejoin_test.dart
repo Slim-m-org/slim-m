@@ -38,6 +38,7 @@ class _RejoiningSession extends FakeSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     joins++;
     // The real join clears this; keeping it would leak a stale reason into the next drop.

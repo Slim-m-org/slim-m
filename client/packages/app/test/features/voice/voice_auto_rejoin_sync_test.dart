@@ -26,6 +26,7 @@ class _CountingSession extends FakeSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     joins++;
     lastDisconnect = null;

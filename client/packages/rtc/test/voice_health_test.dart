@@ -197,6 +197,14 @@ void main() {
       expect(health.poorConnections.value, isEmpty);
     });
 
+    test('someone flagged poor who then mutes loses the hint', () {
+      final health = VoiceHealth();
+      _feed(health, [0.2, 0.2]);
+      expect(health.poorConnections.value, {'ann'});
+      health.skip('ann');
+      expect(health.poorConnections.value, isEmpty);
+    });
+
     test('someone who left no longer has a hint', () {
       final health = VoiceHealth();
       _feed(health, [0.2, 0.2]);

@@ -203,14 +203,19 @@ class Desktop:
         return [p for p in _marked(os.path.join(self.root, "data"))
                 if open(f"/proc/{p}/comm").read().strip() == "slimm_app"]
 
-    def wait_for(self, text, timeout):
+    def wait_for(self, text, timeout, fail_on=None):
+        """Waits for [text] in the app's log; [fail_on] in it raises at once with its line."""
         deadline = time.time() + timeout
         while time.time() < deadline:
             if self.proc.poll() is not None:
                 raise AssertionError(f"the desktop app exited ({self.proc.returncode})")
             with open(self.log, "r", errors="replace") as fh:
-                if text in fh.read():
-                    return
+                content = fh.read()
+            if fail_on and fail_on in content:
+                line = next(ln for ln in content.splitlines() if fail_on in ln)
+                raise AssertionError(f"the desktop app reported {line.strip()!r}")
+            if text in content:
+                return
             time.sleep(0.5)
         raise AssertionError(f"the desktop app never printed {text!r}")
 
