@@ -42,6 +42,20 @@ def _ice(events, t_cut):
     return seen
 
 
+def resumed_after(series, t_back):
+    """Times after t_back when packets flowed again, per peer connection.
+
+    A connection's own count before the link came back is its baseline, so a
+    rejoin's new connection, counting up from zero, resumes on its first packets.
+    """
+    base = {}
+    for r in series:
+        if r["t"] <= t_back:
+            base[r.get("pc")] = r["packets"]
+    return [r["t"] for r in series
+            if r["t"] > t_back and r["packets"] > base.get(r.get("pc"), 0)]
+
+
 def cut_row(samples, start, events, series, t_cut, t_back):
     """How a listener's call came back after the SFU's egress was dead from t_cut to t_back."""
     levels = _levels(samples)
@@ -49,8 +63,7 @@ def cut_row(samples, start, events, series, t_cut, t_back):
     heard = [(t, lv) for t, lv in zip(stamps, levels) if lv > AUDIBLE_DB]
     during = sum(1 for t, _ in heard if t_cut + 500 <= t < t_back) / 100.0
     after = [t for t, _ in heard if t >= t_back]
-    base = [r["packets"] for r in series if r["t"] <= t_back]
-    resumed = [r["t"] for r in series if r["t"] > t_back and base and r["packets"] > base[-1]]
+    resumed = resumed_after(series, t_back)
     return {"outage_ms": round(t_back - t_cut),
             "audio_during_outage_s": round(during, 2),
             "time_to_audio_ms": round(after[0] - t_back) if after else None,

@@ -80,6 +80,8 @@ def find_clipping(raw, rate):
         if run >= CLIP_RUN:
             runs.append((i - run, i))
         run = 0
+    if run >= CLIP_RUN:
+        runs.append((len(raw) - run, len(raw)))
     merged = []
     for start, end in runs:
         if merged and start - merged[-1][1] < 0.05 * rate:

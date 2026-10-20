@@ -77,3 +77,15 @@ class SpeakingRow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResumedAfter(unittest.TestCase):
+    def test_the_same_connection_resumes_past_its_own_count(self):
+        series = [{"t": 0, "pc": 0, "packets": 1000}, {"t": 2000, "pc": 0, "packets": 1000},
+                  {"t": 2600, "pc": 0, "packets": 1010}]
+        self.assertEqual(ex.resumed_after(series, 2000), [2600])
+
+    def test_a_rejoins_new_connection_resumes_on_its_first_packets(self):
+        series = [{"t": 0, "pc": 0, "packets": 1000}, {"t": 2000, "pc": 0, "packets": 1000},
+                  {"t": 3500, "pc": 1, "packets": 40}]
+        self.assertEqual(ex.resumed_after(series, 2000), [3500])

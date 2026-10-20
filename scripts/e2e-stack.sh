@@ -111,10 +111,16 @@ start_server() {
 
 serve_web() {
   echo "== web build =="
-  local web_dir="${E2E_WEB_DIR:-$ROOT/client/packages/app/build/web}"
+  local tree_web="$ROOT/client/packages/app/build/web"
+  local web_dir="${E2E_WEB_DIR:-$tree_web}"
   # The two gitignored binaries drift needs at runtime; absent, no local database.
   bash "$ROOT/client/packages/app/tool/fetch_web_assets.sh"
-  if [[ ! -f "$web_dir/main.dart.js" || -n "${E2E_REBUILD:-}" ]]; then
+  if [[ "$web_dir" != "$tree_web" ]]; then
+    # A prebuilt bundle is the caller's: never deleted, never rebuilt over.
+    if [[ ! -f "$web_dir/main.dart.js" ]]; then
+      echo "E2E_WEB_DIR=$web_dir has no main.dart.js; point it at a built web bundle"; exit 1
+    fi
+  elif [[ ! -f "$web_dir/main.dart.js" || -n "${E2E_REBUILD:-}" ]]; then
     # Flutter copies web/ into build/web once and never re-syncs a new file into it.
     rm -rf "$web_dir"
     ( cd "$ROOT/client/packages/app" && flutter build web --release )

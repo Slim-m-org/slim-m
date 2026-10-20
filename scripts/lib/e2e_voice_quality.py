@@ -11,6 +11,7 @@ E2E_VQ_SECONDS. E2E_VQ_VARIANT names a row in VARIANTS, E2E_VQ_OUT the output.
 import base64
 import json
 import os
+import shutil
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -45,6 +46,16 @@ VARIANTS = {
     "dtx-off-br64": {"usedtx": "0", "_sender": {"maxBitrate": 64000}},
     "bitrate32-sender": {"_sender": {"maxBitrate": 32000}},
 }
+
+
+def clear_previous_run(directory):
+    """A run scores only what it records: an earlier run's profiles and reel spans go first."""
+    for name in os.listdir(directory):
+        path = os.path.join(directory, name)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        elif name.endswith(".spans.json"):
+            os.remove(path)
 
 
 def write_clip(path, who):
@@ -86,7 +97,11 @@ def capture_seconds(directory):
 def variant_name():
     """The variant's settings key; a numeric suffix names a repeat run of it."""
     name = os.environ.get("E2E_VQ_VARIANT", "baseline")
-    return name if name in VARIANTS else name.rstrip("0123456789")
+    if name in VARIANTS:
+        return name
+    # The longest key the name starts with, so bitrate642 is a repeat of bitrate64.
+    keys = [k for k in VARIANTS if name.startswith(k) and name[len(k):].isdigit()]
+    return max(keys, key=len) if keys else name
 
 
 def out_dir():
@@ -197,6 +212,7 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
     wanted = [p for p in os.environ.get(
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
     directory = out_dir()
+    clear_previous_run(directory)
     for who in "AB":
         write_clip(os.path.join(directory, f"clip-{who}.wav"), who)
     for user in ("vqa", "vqb"):

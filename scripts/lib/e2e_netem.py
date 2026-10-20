@@ -5,12 +5,14 @@
 namespace, so it shapes what the SFU sends to every listener (the downlink,
 which is the path a listener's jitter buffer and concealment see).
 """
+import os
 import subprocess
 import time
 
 IMAGE = "slimm-netem:local"
 DOCKERFILE = "FROM alpine:latest\nRUN apk add --no-cache iproute2\n"
-LIVEKIT_CONTAINER = "slimm-e2e-lk"
+# The stack names its SFU from the same variable, so a second stack is shaped, not the first.
+LIVEKIT_CONTAINER = os.environ.get("E2E_LK_CONTAINER", "slimm-e2e-lk")
 DEVICE = "eth0"
 
 # name -> tc netem arguments; None leaves the link alone.

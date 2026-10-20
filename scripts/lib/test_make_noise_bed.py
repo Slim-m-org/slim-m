@@ -44,3 +44,21 @@ class NoiseBed(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PlanForShortClips(unittest.TestCase):
+    SIX = [(0.0, 1.0), (2.0, 3.0), (4.0, 5.0), (6.0, 7.0), (8.0, 9.0), (10.0, 11.0)]
+
+    def test_six_spans_keep_the_fixed_places(self):
+        self.assertEqual(nb.plan(self.SIX),
+                         [("typing_gap", 1.5), ("typing_speech", 4.6),
+                          ("bark_gap", 7.7), ("bark_speech", 11.0)])
+
+    def test_a_short_clip_still_gets_all_four_events(self):
+        events = nb.plan(self.SIX[:4])
+        self.assertEqual([kind for kind, _ in events],
+                         ["typing_gap", "typing_speech", "bark_gap", "bark_speech"])
+        self.assertEqual(events[3], ("bark_speech", 7.0))
+
+    def test_a_single_span_does_not_crash(self):
+        self.assertEqual(len(nb.plan(self.SIX[:1])), 4)
