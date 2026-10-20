@@ -17,6 +17,7 @@ import '../../../ids.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/labeled_field.dart';
+import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/bot_forms.dart';
 
 /// How long a submission waits for the bot before it says so.
@@ -26,32 +27,42 @@ Future<void> showBotFormSheet(BuildContext context, BotFormRequest request) =>
     showAppSheet<void>(
       context,
       scrolls: true,
-      builder: (context) => BotFormSheet(request: request),
+      builder: (context) => _BotFormSheet(request: request),
     );
 
-class BotFormSheet extends ConsumerStatefulWidget {
-  const BotFormSheet({
-    super.key,
-    required this.request,
-    this.timeout = botFormTimeout,
-  });
+class _BotFormSheet extends ConsumerStatefulWidget {
+  const _BotFormSheet({required this.request});
 
   final BotFormRequest request;
-  final Duration timeout;
 
   @override
-  ConsumerState<BotFormSheet> createState() => _BotFormSheetState();
+  ConsumerState<_BotFormSheet> createState() => _BotFormSheetState();
 }
 
-class _BotFormSheetState extends ConsumerState<BotFormSheet> {
+class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
   late final Map<String, TextEditingController> _controllers = {
     for (final field in widget.request.form.fields)
       field.customId: TextEditingController(text: field.value),
   };
+  // One key per sheet, so a retry after a slow bot is the same submission.
+  final String _submissionId = newMessageId();
   StreamSubscription<api.ServerEvent>? _answers;
   Timer? _timer;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _answers = ref.read(liveEventsProvider).listen((event) {
+      if (event case api.InteractionAnswered(
+        :final interactionId,
+      ) when interactionId == _submissionId) {
+        _timer?.cancel();
+        if (mounted) Navigator.of(context).pop();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -68,39 +79,30 @@ class _BotFormSheetState extends ConsumerState<BotFormSheet> {
   );
 
   Future<void> _submit() async {
-    final id = newMessageId();
     setState(() {
       _busy = true;
       _error = null;
     });
-    unawaited(_answers?.cancel());
-    _answers = ref.read(liveEventsProvider).listen((event) {
-      if (event case api.InteractionAnswered(
-        :final interactionId,
-      ) when interactionId == id) {
-        _timer?.cancel();
-        if (mounted) Navigator.of(context).pop();
-      }
-    });
     _timer?.cancel();
-    _timer = Timer(
-      widget.timeout,
-      () => _fail(
-        'The bot did not answer. It may be offline, so try again in a moment.',
-      ),
-    );
     try {
       await ref
           .read(apiProvider)
           .submitInteractionForm(
             channelId: widget.request.channelId,
             interactionId: widget.request.interactionId,
-            id: id,
+            id: _submissionId,
             fields: {
               for (final entry in _controllers.entries)
                 entry.key: entry.value.text,
             },
           );
+      if (!mounted) return;
+      _timer = Timer(
+        botFormTimeout,
+        () => _fail(
+          'The bot did not answer. It may be offline, so try again in a moment.',
+        ),
+      );
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'submit the form', e, stack);
       _fail(
@@ -113,7 +115,6 @@ class _BotFormSheetState extends ConsumerState<BotFormSheet> {
 
   void _fail(String message) {
     _timer?.cancel();
-    unawaited(_answers?.cancel());
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -155,6 +156,14 @@ class _BotFormSheetState extends ConsumerState<BotFormSheet> {
               ),
             ],
           ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s4),
+            child: Text(
+              'This form was opened by a bot${_where()}. What you enter goes to '
+              'that bot, not to slim-m.',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
           Flexible(
             child: SingleChildScrollView(
               child: Column(
@@ -188,6 +197,13 @@ class _BotFormSheetState extends ConsumerState<BotFormSheet> {
         ],
       ),
     );
+  }
+
+  String _where() {
+    final channel = ref
+        .watch(channelByIdProvider(widget.request.channelId))
+        .valueOrNull;
+    return channel == null ? '' : ' in #${channel.name}';
   }
 
   Widget _field(api.BotFormField field) => LabeledField(

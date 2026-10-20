@@ -28,6 +28,8 @@ class BotFormGate extends ConsumerWidget {
           unawaited(showBotFormSheet(context, request));
         }
       });
+      // An idle app schedules no frame, so the callback above would wait for one.
+      WidgetsBinding.instance.ensureVisualUpdate();
     });
     return child;
   }
