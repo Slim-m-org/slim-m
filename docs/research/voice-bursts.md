@@ -115,9 +115,11 @@ Two RED + DTX off runs out of three were clean of bursts; the sample is small.
 ## Shared audio is published apart from the microphone
 
 Shared audio (a game, a video, music) is not speech, so it does not take the microphone's options.
-`screenShareAudioPublishOptions()` sends it at 96 kbps with DTX and RED off, and `screenShareAudioCaptureOptions()` asks for no echo cancellation, noise suppression, gain control or voice isolation.
+`screenShareAudioPublishOptions()` sends it at 96 kbps with DTX and RED off, and `unprocessShareAudio()` asks a browser's display audio track for no echo cancellation, noise suppression or gain control.
 Before this, the room default applied: 48 kbps plus a RED copy, which is about 99 kbps on the wire against about 97 kbps now.
 The cost is the same and the primary stream has twice the bitrate (offline Opus on a jazz clip: 20.4 dB SNR at 48 kbps, 26.3 dB at 96 kbps, mono).
-The desktop fork's loopback source is a custom source that libwebrtc's processing never sees.
+LiveKit's capture call takes only `audio: true`, so the switches cannot ride on it; the browser gets them through `applyConstraints` after capture, which I have not verified in a real browser.
+The native plugin's `applyConstraints` handles volume only, so desktop does nothing there: the desktop fork's loopback source is a custom source that libwebrtc's processing never sees.
+An earlier version assigned `currentOptions` on the track, which reconfigures nothing and would have made a `restartTrack` open the microphone, so it was removed.
 A microphone device switch used to call `setDeviceId` on every local audio track, share audio included; it now touches the microphone only.
 Stereo needs a TF_STEREO audio feature that livekit_client 2.13.1 does not send, so shared audio is still mono on the wire.

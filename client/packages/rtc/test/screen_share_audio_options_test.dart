@@ -1,7 +1,21 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
+
+class _Track extends Fake implements rtc.MediaStreamTrack {
+  _Track({this.refuse = false});
+
+  final bool refuse;
+  final applied = <Map<String, dynamic>?>[];
+
+  @override
+  Future<void> applyConstraints([Map<String, dynamic>? constraints]) async {
+    applied.add(constraints);
+    if (refuse) throw StateError('OverconstrainedError');
+  }
+}
 
 void main() {
   test('shared audio publishes at a music bitrate', () {
@@ -21,14 +35,36 @@ void main() {
     expect(microphonePublishOptions().red, isFalse);
   });
 
-  test('no voice processing is requested for shared audio', () {
-    final options = screenShareAudioCaptureOptions();
-    expect(options.echoCancellation, isFalse);
-    expect(options.noiseSuppression, isFalse);
-    expect(options.autoGainControl, isFalse);
-    expect(options.highPassFilter, isFalse);
-    expect(options.voiceIsolation, isFalse);
-    expect(options.typingNoiseDetection, isFalse);
+  group('unprocessed capture', () {
+    test('a browser is told to drop echo, noise and gain processing', () async {
+      final track = _Track();
+
+      await unprocessShareAudio(track, platform: lk.PlatformType.web);
+
+      expect(track.applied, [unprocessedAudioConstraints]);
+      expect(unprocessedAudioConstraints, {
+        'echoCancellation': false,
+        'noiseSuppression': false,
+        'autoGainControl': false,
+      });
+    });
+
+    test('a native track is left alone, its capture is already raw', () async {
+      final track = _Track();
+
+      await unprocessShareAudio(track, platform: lk.PlatformType.linux);
+
+      expect(track.applied, isEmpty);
+    });
+
+    test('a browser that refuses the constraints does not fail the share',
+        () async {
+      final track = _Track(refuse: true);
+
+      await unprocessShareAudio(track, platform: lk.PlatformType.web);
+
+      expect(track.applied, hasLength(1));
+    });
   });
 
   test('a microphone change skips the screen share audio track', () {
