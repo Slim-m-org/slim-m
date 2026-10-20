@@ -7977,7 +7977,8 @@ paths:
         form the bot opened and delivered to that bot as an
         `interaction.created` of kind `form_submit`; nothing but the short-lived
         interaction row is stored. The `id` is chosen by the caller, so a retry
-        is the same submission. Charged to the same rate limit class as a press.
+        with the same answers is the same submission. A press accepts one
+        submission; any other gets 409. Charged to the same rate limit class as a press.
       requestBody:
         required: true
         content:
@@ -13438,6 +13439,10 @@ components:
           additionalProperties:
             type: string
           description: The form's answers by field `custom_id`, on kind `form_submit`.
+        origin_interaction_id:
+          type: string
+          format: uuid
+          description: The press the form was opened on, on kind `form_submit`.
         user_id:
           type: string
           format: uuid

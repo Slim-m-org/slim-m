@@ -195,6 +195,22 @@ async fn read(
     Ok(Json(dto(&state).await?))
 }
 
+/// Turning the switch off ends the invites members already made, and says so in the audit log.
+async fn revoke_member_invites(
+    state: &AppState,
+    actor: crate::ids::UserId,
+) -> Result<(), ApiError> {
+    let revoked = state.store.revoke_invites_without_rights().await?;
+    if revoked > 0 {
+        let detail = serde_json::json!({ "count": revoked }).to_string();
+        state
+            .store
+            .record_admin_change(actor, "invite.revoke_members", None, &detail)
+            .await?;
+    }
+    Ok(())
+}
+
 /// An unrecognised policy is refused rather than coerced, so a typo cannot
 /// silently leave a Space on whichever branch the parser defaults to.
 async fn update(
@@ -257,6 +273,9 @@ async fn update(
     }
     if let Some(enabled) = body.members_can_invite {
         state.store.set_members_can_invite(enabled).await?;
+        if !enabled {
+            revoke_member_invites(&state, ctx.user_id).await?;
+        }
     }
     if let Some(welcome) = welcome {
         state.store.set_space_welcome(&welcome).await?;

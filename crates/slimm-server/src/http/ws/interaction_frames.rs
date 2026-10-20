@@ -37,6 +37,7 @@ pub(super) async fn authorize(
                     created_at: interaction.created_at,
                     values: input.values.clone(),
                     fields: input.fields.clone(),
+                    origin_interaction_id: input.origin_id.map(|id| id.to_string()),
                 }
             })
             .await,

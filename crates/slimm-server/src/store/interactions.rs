@@ -51,6 +51,19 @@ pub struct InteractionInput {
     pub values: Vec<String>,
     /// A form's answers by field `custom_id`.
     pub fields: BTreeMap<String, String>,
+    /// The press a form was opened on, so a bot can tell which one it answers.
+    pub origin_id: Option<InteractionId>,
+}
+
+/// Whether a press accepted this submission.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SubmissionClaim {
+    /// The first submission: deliver it.
+    Fresh,
+    /// The same submission again, as a retry of one already accepted.
+    Replay,
+    /// A different submission already won this press.
+    Taken,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +183,42 @@ impl Store {
                 .rows_affected()
                 == 1,
         )
+    }
+
+    /// Accepts `submit_id` with `fields` as the one submission this press will
+    /// ever deliver. One conditional write, so racing submissions cannot both win.
+    pub async fn claim_form_submission(
+        &self,
+        press: InteractionId,
+        submit_id: InteractionId,
+        fields: &BTreeMap<String, String>,
+    ) -> anyhow::Result<SubmissionClaim> {
+        let json = serde_json::to_string(fields)?;
+        let claimed = sqlx::query(
+            "UPDATE interactions SET submitted_id = ?, submitted_fields = ?
+             WHERE id = ? AND submitted_id IS NULL",
+        )
+        .bind(submit_id)
+        .bind(&json)
+        .bind(press)
+        .execute(&self.pool)
+        .await?
+        .rows_affected()
+            == 1;
+        if claimed {
+            return Ok(SubmissionClaim::Fresh);
+        }
+        let row: Option<(Option<InteractionId>, Option<String>)> =
+            sqlx::query_as("SELECT submitted_id, submitted_fields FROM interactions WHERE id = ?")
+                .bind(press)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(match row {
+            Some((Some(id), Some(stored))) if id == submit_id && stored == json => {
+                SubmissionClaim::Replay
+            }
+            _ => SubmissionClaim::Taken,
+        })
     }
 
     /// The form opened for a press still inside its window.

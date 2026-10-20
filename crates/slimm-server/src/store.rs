@@ -155,7 +155,7 @@ pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use export_rows::RowStream;
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
-pub use interactions::{Interaction, InteractionInput, InteractionKind};
+pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
 pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};

@@ -216,6 +216,9 @@ A member's client shows the button as pending, and shows an error on that messag
 Presses are rate limited per member.
 A press is best effort like typing: if you were offline, it is lost.
 
+A submitted form arrives as the same frame with `kind` `form_submit`, the answers in `fields` and the press you opened the form on in `origin_interaction_id`.
+A press accepts one submission, so you hear each form at most once.
+
 See `docs/decisions/0039-bot-message-buttons.md`.
 
 ## Menu entries and call controls

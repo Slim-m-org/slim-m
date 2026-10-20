@@ -195,6 +195,46 @@ impl Store {
         }))
     }
 
+    /// Revokes every unspent invite whose creator no longer holds
+    /// CREATE_INVITE, returning how many. Run when members stop being allowed
+    /// to invite, so the codes they already made do not outlive the switch.
+    pub async fn revoke_invites_without_rights(&self) -> anyhow::Result<u64> {
+        let now = now_ms();
+        let creators = sqlx::query_scalar!(
+            r#"SELECT DISTINCT created_by AS "created_by!: UserId" FROM invites
+               WHERE created_by IS NOT NULL AND revoked_at IS NULL"#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut revoked = 0;
+        for creator in creators {
+            let rights = self.base_permissions(creator).await?;
+            if rights.contains(crate::permissions::Permissions::CREATE_INVITE) {
+                continue;
+            }
+            revoked += sqlx::query!(
+                "UPDATE invites SET revoked_at = ? WHERE created_by = ? AND revoked_at IS NULL",
+                now,
+                creator
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+        }
+        Ok(revoked)
+    }
+
+    /// Who made `code`, if it exists and its maker still has an account.
+    pub async fn invite_creator(&self, code: &str) -> anyhow::Result<Option<UserId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT created_by AS "created_by: UserId" FROM invites WHERE code = ?"#,
+            code
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .flatten())
+    }
+
     /// Invites, newest first. [`created_by`] scopes the answer to one
     /// account's own; `None` asks for every invite in the deployment.
     ///
