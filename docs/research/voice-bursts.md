@@ -79,3 +79,21 @@ In the 200 s clean runs the floor was -68.8 dB (batch 15) and -68.6 dB (origin/m
 In the 60 s runs the leak is a single burst of 0.4 to 1.6 s at -37 dB, at the start of the recording near the loop seam of the looped microphone clip, in the gaps before a word.
 The 200 s loss runs show it too, on both builds (hum change -16 to -24 dB), again only in the first seconds.
 So the cell is real in the sense that Strong with the gate can pass the hum for about a second at the start of a call; the cause is not found, and it is not new in batch 15.
+
+## The shipped configuration: RED on plus DTX off
+
+Same harness and build family; `ship` is this branch's build, `default` the batch 15 build, `RED` the red-only build.
+Cells are bursts / dropouts / ViSQOL / peak over reference (dB) / received kbps per speaker, both directions summed, two runs per cell (default and RED: the earlier run plus one new run).
+
+| profile | default (2 runs) | RED only (2 runs) | RED + DTX off (2 runs) |
+|---|---|---|---|
+| clean | 0 / 0 / 4.31, 4.43 / +1.6, +1.1 / 37 | 0 / 1 / 4.42 / +1.6 / 74 and 0 / 0 / 4.44 / +1.2 / 75 | 0 / 0 / 4.39 / +1.3 / 84 and 0 / 0 / 4.36 / +1.2 / 83 |
+| loss5-jitter30 | 50 / 11 / 4.04 / +5.7 and 33 / 2 / 4.15 / +6.0 / 37 | 2 / 0 / 4.34 / +1.4 and 3 / 0 / 4.42 / +1.1 / 71-72 | 1 / 0 / 4.32 / +1.5 and 1 / 0 / 4.33 / +1.3 / 80 |
+| burst | 52 / 20 / 3.93 / +1.5 and 39 / 14 / 4.12 / +1.2 / 37 | 14 / 14 / 3.91 / +6.0 and 6 / 12 / 3.96 / +1.3 / 70 | 14 / 11 / 4.05 / +6.0 and 13 / 10 / 4.02 / +6.0 / 79 |
+
+- RED + DTX off is not worse than RED alone on any speech cell by more than run-to-run spread: bursts and dropouts are equal or lower, ViSQOL within 0.1.
+- The one cost is bandwidth: about 80 kbps received per speaker (RED alone 72, default 37), because DTX off sends frames through silence too.
+- The burst profile keeps about 13 bursts, 10 dropouts and a +6 dB peak with one clipped run in each ship run; RED does not fix long loss runs.
+- Gliding tone, clean, RED + DTX off, one run: no clipping and peak +0.8 dB (default +6.0 dB with 6 clipped runs), 67.7 kbps.
+  It also showed four 52 ms `level_burst` events at 22-28 s and two 52 ms dropouts in one direction with 2 concealment events on a clean link, which DTX off alone (one run) did not show.
+  I read that as a transient network blip on the shared host and not as the old 0.3-0.5 s clipped note, but it is one run, so treat the tone result as "the clipped burst is gone", not as "the tone path is spotless".
