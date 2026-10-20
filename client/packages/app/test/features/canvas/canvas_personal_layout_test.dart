@@ -307,9 +307,9 @@ void main() {
   test(
     'edits made while the saved layout loads are merged and written',
     () async {
-      final stored = CanvasPersonalLayout(
+      const stored = CanvasPersonalLayout(
         personal: true,
-        places: const {'screen:b': Rect.fromLTWH(10, 10, 100, 60)},
+        places: {'screen:b': Rect.fromLTWH(10, 10, 100, 60)},
       );
       await CanvasLayoutStore(db).save('c1', stored.encode(), now: 1);
       final document = CanvasDocument()

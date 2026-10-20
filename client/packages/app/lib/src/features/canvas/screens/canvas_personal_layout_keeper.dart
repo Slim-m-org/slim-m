@@ -15,6 +15,21 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 /// How long a pan or drag settles before the layout is written.
 const Duration personalLayoutSaveDelay = Duration(milliseconds: 400);
 
+/// The store once it opens, or null after logging why it could not.
+Future<CanvasLayoutStore?> openLayoutStore(Future<CanvasLayoutStore> opening) =>
+    opening.then<CanvasLayoutStore?>((store) => store).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Could not open the layout store; the personal layout will not save',
+        error,
+        stack,
+      );
+      return null;
+    });
+
 class CanvasPersonalLayoutKeeper {
   CanvasPersonalLayoutKeeper({
     required this.channelId,

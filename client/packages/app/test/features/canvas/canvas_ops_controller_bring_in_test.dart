@@ -169,7 +169,7 @@ void main() {
       final rig = _Rig();
       rig.document
         ..applyPlaced(
-          CanvasStrokeInput(
+          const CanvasStrokeInput(
             id: 'huge',
             seq: 1,
             zIndex: 1,
@@ -177,7 +177,7 @@ void main() {
             y: 0,
             w: 3000,
             h: 2000,
-            points: const [],
+            points: [],
             width: 0,
             colorKey: '',
             authorId: 'me',

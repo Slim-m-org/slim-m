@@ -13,7 +13,7 @@ void main() {
   CanvasDocument seeded() => CanvasDocument()
     ..setViewport(const Size(800, 600))
     ..applyPlaced(
-      CanvasStrokeInput(
+      const CanvasStrokeInput(
         id: 'ink',
         seq: 1,
         zIndex: 1,
@@ -21,7 +21,7 @@ void main() {
         y: 0,
         w: 10,
         h: 10,
-        points: const [0, 0, 10, 10],
+        points: [0, 0, 10, 10],
         width: 3,
         colorKey: 'ink',
       ),

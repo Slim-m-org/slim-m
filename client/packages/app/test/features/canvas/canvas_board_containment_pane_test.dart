@@ -73,7 +73,7 @@ void main() {
     await pumpCanvasPane(tester, container, board: true, tool: null);
     surfaceDocument(tester)
       ..applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 'theirs',
           seq: 1,
           zIndex: 1,
@@ -81,7 +81,7 @@ void main() {
           y: 1300,
           w: 300,
           h: 200,
-          points: const [],
+          points: [],
           width: 0,
           colorKey: 'ink',
           authorId: 'someone-else',

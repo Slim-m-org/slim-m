@@ -21,7 +21,6 @@ import 'dart:async';
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show CanvasLayoutStore;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -152,23 +151,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     tiles: tileOverrides,
   );
 
-  late final CanvasPersonalLayoutKeeper
-  _layoutKeeper = CanvasPersonalLayoutKeeper(
-    channelId: channelId,
-    mode: viewMode,
-    store: _ref
-        .read(canvasLayoutStoreProvider.future)
-        .then<CanvasLayoutStore?>((store) => store)
-        .catchError((Object error, StackTrace stack) {
-          api.AppLog.swallowed(
-            api.LogTag.ui,
-            'Could not open the layout store; the personal layout will not save',
-            error,
-            stack,
-          );
-          return null;
-        }),
-  );
+  late final CanvasPersonalLayoutKeeper _layoutKeeper =
+      CanvasPersonalLayoutKeeper(
+        channelId: channelId,
+        mode: viewMode,
+        store: openLayoutStore(_ref.read(canvasLayoutStoreProvider.future)),
+      );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
