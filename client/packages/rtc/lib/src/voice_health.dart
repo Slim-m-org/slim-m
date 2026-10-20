@@ -65,6 +65,12 @@ class QualityGate {
     }
     return false;
   }
+
+  void reset() {
+    poor = false;
+    _badFor = 0;
+    _goodFor = 0;
+  }
 }
 
 class _Stream {
@@ -153,9 +159,14 @@ class VoiceHealth {
   }
 
   /// Forgets what a stream last read, so a gap (muted, resubscribed) is not
-  /// counted as concealment when it comes back.
+  /// counted as concealment when it comes back. A stream with no audio has no
+  /// connection to flag, so its hint goes too.
   void skip(String id) {
-    _remote[id]?.previousReceive = null;
+    final stream = _remote[id];
+    if (stream == null) return;
+    stream.previousReceive = null;
+    stream.gate.reset();
+    _publish();
   }
 
   /// Drops people no longer in the call from the hint, keeping their history.
