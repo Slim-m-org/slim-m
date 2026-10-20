@@ -21,7 +21,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Interaction, InteractionKind, VisibleBotUi, now_ms};
+use crate::store::{Interaction, InteractionInput, InteractionKind, VisibleBotUi, now_ms};
 
 const BODY_LIMIT: usize = 16 * 1024;
 const VOICE_CHANNEL_KIND: &str = "voice";
@@ -204,7 +204,7 @@ async fn use_entry(
         created_at: now_ms(),
         answered: false,
     };
-    record_and_publish(&state, fresh, display_name).await
+    record_and_publish(&state, fresh, display_name, InteractionInput::default()).await
 }
 
 /// A control that offers options needs one of them, and nothing else takes

@@ -24,6 +24,7 @@ mod bootstrap;
 mod bot_command_options;
 mod bot_commands;
 mod bot_prefix;
+mod bot_token;
 mod bot_ui;
 mod bots;
 mod calls;
@@ -116,6 +117,7 @@ pub use bot_commands::{
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
     SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
+pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use calls::CallRecord;
@@ -145,7 +147,7 @@ pub use dms::{DmConversation, OpenDmError};
 pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
-pub use interactions::{Interaction, InteractionKind};
+pub use interactions::{Interaction, InteractionInput, InteractionKind};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
 pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};

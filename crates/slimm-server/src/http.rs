@@ -62,6 +62,7 @@ mod extract;
 pub mod gifs;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
+mod interaction_forms;
 mod interactions;
 mod invite_page;
 mod invites;
@@ -287,6 +288,7 @@ pub fn router(state: AppState) -> Router {
         .merge(bot_ui::routes())
         .merge(ephemeral_messages::routes())
         .merge(interactions::routes())
+        .merge(interaction_forms::routes())
         .merge(message_components::routes())
         .merge(voice::routes())
         .merge(voice_calls::routes())

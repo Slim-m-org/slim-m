@@ -112,6 +112,10 @@ class ReportHistoryRow extends ConsumerWidget {
     AppBadgeVariant.tag,
     'Bot permission granted',
   ),
+  api.AuditLogAction.botTokenReissue => (
+    AppBadgeVariant.warn,
+    'Bot token re-issued',
+  ),
   api.AuditLogAction.webhookCreate => (AppBadgeVariant.tag, 'Webhook created'),
   api.AuditLogAction.webhookRevoke => (AppBadgeVariant.warn, 'Webhook revoked'),
   api.AuditLogAction.webhookRotate => (AppBadgeVariant.tag, 'Webhook rotated'),

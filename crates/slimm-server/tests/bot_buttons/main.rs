@@ -30,6 +30,7 @@ mod call_control_options;
 mod embed_edits;
 mod presses;
 mod security;
+mod selects_and_forms;
 mod sending;
 
 type Client =

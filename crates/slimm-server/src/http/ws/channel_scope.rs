@@ -69,6 +69,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return None,

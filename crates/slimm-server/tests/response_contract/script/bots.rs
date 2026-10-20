@@ -114,6 +114,35 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         json!({ "id": press_id, "custom_id": "yes" }),
     )
     .await;
+    let form_press = uuid::Uuid::now_v7().to_string();
+    c.json(
+        "pressMessageButton",
+        "POST",
+        &format!("/channels/{channel}/messages/{message_id}/interactions"),
+        root,
+        json!({ "id": form_press, "custom_id": "yes" }),
+    )
+    .await;
+    c.json(
+        "openInteractionForm",
+        "POST",
+        &format!("/channels/{channel}/interactions/{form_press}/form"),
+        &bot_token,
+        json!({
+            "custom_id": "survey",
+            "title": "Remind me",
+            "fields": [{ "custom_id": "what", "label": "What" }]
+        }),
+    )
+    .await;
+    c.json(
+        "submitInteractionForm",
+        "POST",
+        &format!("/channels/{channel}/interactions/{form_press}/submit"),
+        root,
+        json!({ "id": uuid::Uuid::now_v7().to_string(), "fields": { "what": "tea" } }),
+    )
+    .await;
     c.json(
         "setMessageComponents",
         "PUT",
@@ -129,7 +158,6 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         &bot_token,
     )
     .await;
-
     c.json(
         "setBotUi",
         "PUT",
@@ -166,6 +194,13 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         &format!("/bots/{bot_id}/permissions"),
         root,
         json!({ "permissions": 0 }),
+    )
+    .await;
+    c.bare(
+        "reissueBotToken",
+        "POST",
+        &format!("/bots/{bot_id}/token"),
+        root,
     )
     .await;
     c.bare("revokeBot", "POST", &format!("/bots/{bot_id}/revoke"), root)

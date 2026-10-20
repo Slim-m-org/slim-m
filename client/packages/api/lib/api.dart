@@ -123,6 +123,7 @@ export 'src/events.dart'
         MessageCreated,
         MessageDeleted,
         InteractionAnswered,
+        InteractionForm,
         MessageComponentsChanged,
         MessageEmbedsChanged,
         MessageEphemeral,

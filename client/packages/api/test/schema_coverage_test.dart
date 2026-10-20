@@ -120,6 +120,9 @@ const Map<String, String> _allowlist = {
   'POST /channels/{}/interactions/{}/ack': 'a bot acknowledges a press from '
       'its own process; this client only receives interaction.answered. See '
       'docs/decisions/0039-bot-message-buttons.md',
+  'POST /channels/{}/interactions/{}/form': 'a bot opens a form for a press '
+      'from its own process; this client only receives interaction.form. See '
+      'docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md',
   'POST /voice/webhook': 'called only by the configured LiveKit deployment '
       'itself, verified by its own JWT signature rather than a session - '
       'the same "no client binding by design" shape as POST /webhooks/{}/{} '

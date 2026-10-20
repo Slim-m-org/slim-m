@@ -23,7 +23,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Interaction, InteractionKind, now_ms};
+use crate::store::{Interaction, InteractionInput, InteractionKind, now_ms};
 
 /// Every body here is a small JSON document; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
@@ -46,6 +46,9 @@ struct ClickRequest {
     /// Chosen by the client, so a retried press is the same press.
     id: String,
     custom_id: String,
+    /// The options chosen when `custom_id` names a select menu.
+    #[serde(default)]
+    values: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -84,23 +87,9 @@ async fn click(
         .filter(|m| m.channel_id == channel_id)
         .ok_or(GONE)?;
     let bot_id = message.author_id.ok_or(GONE)?;
-    let bot_can_hear = state.store.is_bot(bot_id).await?
-        && state
-            .store
-            .has_permission(bot_id, channel_id, Permissions::VIEW_CHANNEL)
-            .await?;
-    if !bot_can_hear {
-        return Err(GONE);
-    }
-    if !state.store.bot_has_live_token(bot_id).await? {
-        return Err(ApiError::NotFound(
-            "that bot has been removed, so its buttons no longer work",
-        ));
-    }
+    require_live_bot(&state, bot_id, channel_id).await?;
     let rows = state.store.components_for_message(message_id).await?;
-    if components::clickable(&rows, &req.custom_id).is_none() {
-        return Err(GONE);
-    }
+    let (kind, input) = press_input(&rows, &req.custom_id, req.values)?;
     let display_name = state
         .store
         .user_profile(ctx.user_id)
@@ -114,12 +103,64 @@ async fn click(
         channel_id,
         message_id: Some(message_id),
         custom_id: req.custom_id,
-        kind: InteractionKind::Button,
+        kind,
         option_id: None,
         created_at: now_ms(),
         answered: false,
     };
-    record_and_publish(&state, fresh, display_name).await
+    record_and_publish(&state, fresh, display_name, input).await
+}
+
+/// The bot must still be a bot that can see the channel and hold a live token,
+/// or its buttons and forms no longer work.
+pub(super) async fn require_live_bot(
+    state: &AppState,
+    bot_id: UserId,
+    channel_id: ChannelId,
+) -> Result<(), ApiError> {
+    let hears = state.store.is_bot(bot_id).await?
+        && state
+            .store
+            .has_permission(bot_id, channel_id, Permissions::VIEW_CHANNEL)
+            .await?;
+    if !hears {
+        return Err(ApiError::NotFound("message not found"));
+    }
+    if !state.store.bot_has_live_token(bot_id).await? {
+        return Err(ApiError::NotFound(
+            "that bot has been removed, so its buttons no longer work",
+        ));
+    }
+    Ok(())
+}
+
+/// What the press is: a button, or a choice from a menu that must be a legal one.
+fn press_input(
+    rows: &[components::ComponentRow],
+    custom_id: &str,
+    values: Option<Vec<String>>,
+) -> Result<(InteractionKind, InteractionInput), ApiError> {
+    if components::clickable(rows, custom_id).is_some() {
+        return match values {
+            None => Ok((InteractionKind::Button, InteractionInput::default())),
+            Some(_) => Err(ApiError::BadRequest("a button takes no values")),
+        };
+    }
+    let select =
+        components::selectable(rows, custom_id).ok_or(ApiError::NotFound("message not found"))?;
+    let values = values.ok_or(ApiError::BadRequest("a select needs values"))?;
+    if !select.accepts(&values) {
+        return Err(ApiError::BadRequest(
+            "the values are not a choice this menu offers",
+        ));
+    }
+    Ok((
+        InteractionKind::Select,
+        InteractionInput {
+            values,
+            ..InteractionInput::default()
+        },
+    ))
 }
 
 /// Stores a fresh click and hands it to the bot, once. A press id is its own
@@ -129,6 +170,7 @@ pub(super) async fn record_and_publish(
     state: &AppState,
     fresh: Interaction,
     clicker_display_name: String,
+    input: InteractionInput,
 ) -> Result<Json<InteractionDto>, ApiError> {
     if state
         .store
@@ -151,6 +193,7 @@ pub(super) async fn record_and_publish(
         state.hub.publish(Event::InteractionCreated {
             interaction: Arc::new(stored),
             clicker_display_name,
+            input: Arc::new(input),
         });
     }
     Ok(Json(dto))

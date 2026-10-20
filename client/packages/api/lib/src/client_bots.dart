@@ -129,6 +129,12 @@ extension SlimmApiBots on SlimmApi {
   Future<void> revokeBot(String botUserId) =>
       _send('POST', '/bots/$botUserId/revoke', expectNoContent: true);
 
+  /// Replaces a bot's token and returns the new one, shown only this once.
+  Future<NewBot> reissueBotToken(String botUserId) async {
+    final json = await _send('POST', '/bots/$botUserId/token');
+    return NewBot.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Replaces what a bot's managed role grants.
   Future<Bot> setBotPermissions(String botUserId, int permissions) async {
     final json = await _send(
