@@ -5,6 +5,8 @@
 /// so the cue survives without a ticker that never settles.
 library;
 
+import 'dart:ui' show SemanticsRole;
+
 import 'package:flutter/material.dart';
 
 import '../../app_metrics.dart';
@@ -43,15 +45,23 @@ class AppSpinner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final spinner = SizedBox.square(
-      dimension: size.dimension,
-      child: CircularProgressIndicator(
-        strokeWidth: size.stroke,
-        color: color ?? tokens.accentFill,
-        value: AppMotion.isReduced(context) ? _reducedSweep : null,
+    final spinner = ExcludeSemantics(
+      // The static sweep is a drawing, not a progress value to announce.
+      child: SizedBox.square(
+        dimension: size.dimension,
+        child: CircularProgressIndicator(
+          strokeWidth: size.stroke,
+          color: color ?? tokens.accentFill,
+          value: AppMotion.isReduced(context) ? _reducedSweep : null,
+        ),
       ),
     );
     if (semanticLabel == null) return spinner;
-    return Semantics(label: semanticLabel, liveRegion: true, child: spinner);
+    return Semantics(
+      label: semanticLabel,
+      role: SemanticsRole.loadingSpinner,
+      liveRegion: true,
+      child: spinner,
+    );
   }
 }
