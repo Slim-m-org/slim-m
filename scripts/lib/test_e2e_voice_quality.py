@@ -11,10 +11,42 @@ class ClearPreviousRun(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             os.makedirs(os.path.join(root, "burst"))
             open(os.path.join(root, "burst", "vqa-rx.wav"), "w").close()
-            for name in ("clip-A.spans.json", "clip-A.wav", "results.json"):
+            for name in ("clip-A.spans.json", "clip-A.wav", "results.json", "corpus.json"):
                 open(os.path.join(root, name), "w").close()
             vq.clear_previous_run(root)
-            self.assertEqual(sorted(os.listdir(root)), ["clip-A.wav", "results.json"])
+            self.assertEqual(sorted(os.listdir(root)), ["clip-A.wav"])
+
+
+class StagedClips(unittest.TestCase):
+    def test_a_setup_that_fails_leaves_the_previous_run_untouched(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = os.path.join(root, "baseline")
+            os.makedirs(os.path.join(run, "clean"))
+            open(os.path.join(run, "results.json"), "w").close()
+            original = vq.write_clip
+            vq.write_clip = lambda path, who: (_ for _ in ()).throw(RuntimeError("no piper"))
+            try:
+                with self.assertRaises(RuntimeError):
+                    vq.stage_clips(run)
+            finally:
+                vq.write_clip = original
+            self.assertEqual(sorted(os.listdir(run)), ["clean", "results.json"])
+            self.assertEqual(os.listdir(root), ["baseline"])
+
+    def test_staged_clips_replace_the_previous_run(self):
+        with tempfile.TemporaryDirectory() as root:
+            run = os.path.join(root, "baseline")
+            os.makedirs(os.path.join(run, "clean"))
+            open(os.path.join(run, "results.json"), "w").close()
+            original = vq.write_clip
+            vq.write_clip = lambda path, who: open(path, "w").close()
+            try:
+                stage = vq.stage_clips(run)
+                vq.install_staged(stage, run)
+            finally:
+                vq.write_clip = original
+            self.assertEqual(sorted(os.listdir(run)), ["clip-A.wav", "clip-B.wav"])
+            self.assertEqual(os.listdir(root), ["baseline"])
 
 
 class VariantName(unittest.TestCase):
@@ -39,3 +71,11 @@ class VariantName(unittest.TestCase):
 
     def test_a_repeat_of_a_plain_variant_still_works(self):
         self.assertEqual(self._named("baseline2"), "baseline")
+
+    def test_an_empty_name_is_the_baseline_and_not_the_whole_output_root(self):
+        self.assertEqual(self._named(""), "baseline")
+
+    def test_an_unknown_or_path_like_name_is_refused(self):
+        for bad in ("nope", "../x", "baseline/../..", ".", "baseline-"):
+            with self.assertRaises(ValueError, msg=bad):
+                self._named(bad)

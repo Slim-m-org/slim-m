@@ -25,6 +25,11 @@ def _num(value, digits=0):
     return "-" if value is None else f"{value:.{digits}f}"
 
 
+def _share(values):
+    known = [v for v in values if v is not None]
+    return f"{statistics.mean(known):.0%}" if known else "-"
+
+
 def latency(root):
     rows = []
     for profile, row in _load(root, "latency").items():
@@ -36,7 +41,7 @@ def latency(root):
                      _num(max((m["max"] for m in m2e), default=None)),
                      _num(statistics.mean(jitter)) if jitter else "-",
                      _num(median - statistics.mean(jitter)) if m2e and jitter else "-",
-                     f"{statistics.mean(d['answered'] for d in both):.0%}"])
+                     _share([d["answered"] for d in both])])
     return _md(["profile", "mouth-to-ear median ms", "p95 ms", "max ms",
                 "jitter buffer ms", "median minus jitter buffer ms", "chirps heard"], rows)
 
@@ -67,7 +72,7 @@ def cut(root):
             ["first audio after link back ms", _num(c["time_to_audio_ms"])],
             ["full rejoin", "yes" if c["rejoined"] else "no"],
             ["call still open", "yes" if c["call_still_open"] else "no"],
-            ["peer connections at end", c["peer_connections"]]]
+            ["new peer connections", c["new_peer_connections"]]]
     rows += [[k, v] for k, v in sorted(t.items())]
     return _md(["measure", "value"], rows)
 

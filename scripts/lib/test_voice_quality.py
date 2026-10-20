@@ -146,12 +146,11 @@ class DetectorHelpersTest(unittest.TestCase):
         self.assertGreater(flat_noise, 0.3)
         self.assertLess(flat_tone, 0.05)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TrailingClip(unittest.TestCase):
     def test_a_run_pinned_at_full_scale_to_the_end_is_counted(self):
         raw = [0.1] * 100 + [1.0] * 10
         self.assertEqual(len(vq.find_clipping(raw, 48000)), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -52,11 +52,6 @@ class Probes(unittest.TestCase):
     def test_gate_summary_without_lines(self):
         self.assertEqual(da.gate_summary([])["open"], None)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
-
 class _Running:
     returncode = None
 
@@ -90,3 +85,7 @@ class WaitFor(unittest.TestCase):
         self.assertTrue(desk.is_join_failure(
             AssertionError("the desktop app reported 'SLIMM_HARNESS join-failed state=failed'")))
         self.assertFalse(desk.is_join_failure(AssertionError("no remote audio track came up")))
+
+
+if __name__ == "__main__":
+    unittest.main()
