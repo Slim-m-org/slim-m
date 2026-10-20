@@ -4,12 +4,14 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:slimm_rtc/rtc.dart';
+
 import 'support/session_fakes.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<void> join(dynamic session) => session.join(
+  Future<void> join(VoiceSession session) => session.join(
         url: 'wss://a.invalid',
         token: 't',
       );
