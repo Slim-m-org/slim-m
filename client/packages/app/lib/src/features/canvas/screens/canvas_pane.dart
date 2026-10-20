@@ -330,6 +330,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   ref,
                   participant: participant,
                   close: close,
+                  withFullscreen: false,
                 ),
           ),
         ),

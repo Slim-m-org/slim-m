@@ -74,7 +74,10 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// that entered it, and the same tool to restore on the way out.
   void _disarmIfAlreadyFullscreen() {
     if (ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId) {
-      unawaited(_windowHold.enter());
+      // enter writes provider state, which a build phase must not.
+      scheduleMicrotask(() {
+        if (_mounted) unawaited(_windowHold.enter());
+      });
     }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
     _toolBeforeFullscreen = _tool;

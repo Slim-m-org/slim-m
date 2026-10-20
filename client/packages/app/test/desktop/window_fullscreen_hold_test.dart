@@ -63,4 +63,30 @@ void main() {
     await h.enter();
     expect(port.fullScreen, isFalse, reason: 'already held, not re-entered');
   });
+
+  test(
+    'two holds on one window leave fullscreen only when both let go',
+    () async {
+      DesktopWindowShell.debugActivate(frameless: true);
+      final route = hold();
+      final tile = hold();
+
+      await tile.enter();
+      await route.enter();
+      route.release();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        port.fullScreen,
+        isTrue,
+        reason: 'the focused tile still wants it',
+      );
+      expect(container.read(fullscreenVideoActiveProvider), isTrue);
+
+      tile.release();
+      await Future<void>.delayed(Duration.zero);
+      expect(port.fullScreen, isFalse);
+      expect(container.read(fullscreenVideoActiveProvider), isFalse);
+    },
+  );
 }

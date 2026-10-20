@@ -96,6 +96,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
         ref,
         participant: participant,
         close: close,
+        withFullscreen: false,
       ),
       child: AppListRow(
         label: participant.name,

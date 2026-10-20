@@ -51,12 +51,14 @@ List<Widget> participantCallMenuItems(
   required VoidCallback close,
   api.UserProfile? knownProfile,
   String? channelId,
+  bool withFullscreen = true,
 }) {
   final streams = participantStreamMenuItems(
     context,
     ref,
     identity: participant.identity,
     close: close,
+    withFullscreen: withFullscreen,
   );
   if (participant.isLocal) return streams;
 

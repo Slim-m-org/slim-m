@@ -65,6 +65,7 @@ const _expandLabel = 'Show this tile full screen';
 Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   WidgetTester tester, {
   bool fullscreenFirst = false,
+  bool focusFirst = false,
   Size size = const Size(1280, 800),
 }) async {
   final fixture = CanvasPaneFixture();
@@ -81,6 +82,12 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   container.read(canvasOpenProvider.notifier).state = 'c1';
   if (fullscreenFirst) {
     container.read(canvasFullscreenProvider.notifier).state = 'c1';
+  }
+  if (focusFirst) {
+    container.read(canvasFocusedTileProvider.notifier).state = (
+      channelId: 'c1',
+      tileKey: _tileKey,
+    );
   }
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -374,5 +381,23 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     expect(port.fullScreen, isFalse, reason: 'dispose releases it');
+  });
+
+  testWidgets('a pane mounting onto a focused tile holds the window without '
+      'writing provider state mid-build', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+
+    final (:voice, :container) = await _pump(
+      tester,
+      fullscreenFirst: true,
+      focusFirst: true,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(port.fullScreen, isTrue);
+    expect(container.read(fullscreenVideoActiveProvider), isTrue);
   });
 }
