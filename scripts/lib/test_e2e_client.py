@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -62,8 +63,17 @@ class EvTest(unittest.TestCase):
         self.assertEqual(c.taps, [])
 
 
-if __name__ == "__main__":
-    unittest.main()
+class FakeTime:
+    """A clock that only moves when the code under test sleeps."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
 
 
 class BootClient(e2e_client.Client):
@@ -86,9 +96,14 @@ class BootClient(e2e_client.Client):
 
 
 class WaitForBootTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(e2e_client, "time", FakeTime())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_a_page_that_never_booted_is_reloaded_once_and_then_boots(self):
         client = BootClient(boots_after_reload=True)
-        client._wait_for_boot(timeout=4)
+        client._wait_for_boot(timeout=8)
         self.assertTrue(client.reloaded)
         self.assertEqual(client.shots, [])
 
@@ -97,3 +112,7 @@ class WaitForBootTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "never booted"):
             client._wait_for_boot(timeout=2)
         self.assertEqual(client.shots, ["app-never-booted"])
+
+
+if __name__ == "__main__":
+    unittest.main()

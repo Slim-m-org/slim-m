@@ -105,10 +105,13 @@ export async function signIn(app: FlutterApp, stack: Stack, username: UserName):
   await app.click('Sign in');
   await app.waitForUrl('#/channels');
   // Setup opens only on an account's first sign-in, so a later worker's browser goes straight to the shell.
-  await app.control(L.SKIP_SETUP, { timeout: 10_000 }).then(
-    (node) => node.evaluate((el) => (el as HTMLElement).click()),
-    () => undefined,
-  );
+  const skip = await app.control(L.SKIP_SETUP, { timeout: 10_000 }).catch(() => undefined);
+  if (skip) {
+    await skip.evaluate((el) => (el as HTMLElement).click());
+    return;
+  }
+  // No Skip button means the shell is already up; if it is not, setup is stuck and this says so here.
+  await app.see(`${username === 'alice' ? 'Alice' : 'Bob'}, online`);
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
