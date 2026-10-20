@@ -46,7 +46,7 @@ class DataExportCard extends ConsumerWidget {
             onPressed: busy ? null : () => _start(context, ref),
           ),
         ),
-        if (jobs.hasError && !jobs.hasValue)
+        if (jobs.hasError)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s16,
@@ -80,7 +80,9 @@ class DataExportCard extends ConsumerWidget {
           return null;
         } on api.ApiException catch (e, stack) {
           api.reportFailure(api.LogTag.ui, copy.failureWhat, e, stack);
-          return reauthFailure(e);
+          return e is api.RateLimitedException
+              ? 'An export was just made, or there were too many password tries. Wait a few minutes.'
+              : reauthFailure(e);
         }
       },
     );

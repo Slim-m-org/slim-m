@@ -14,19 +14,46 @@ final exportPollIntervalProvider = Provider<Duration>(
   (ref) => const Duration(seconds: 2),
 );
 
-/// The caller's exports, newest first. Refreshes itself while any is queued or running.
+class _PollState {
+  int failures = 0;
+  bool polling = false;
+}
+
+/// Outlives each refresh, so a failed poll knows an export was being watched.
+final _pollStateProvider = Provider<_PollState>((ref) => _PollState());
+
+const _maxBackoffDoublings = 4;
+
+/// The caller's exports, newest first. Refreshes itself while any is queued or
+/// running, and keeps asking, with a growing delay, when such a poll fails.
 final dataExportsProvider = FutureProvider.autoDispose<List<api.DataExport>>((
   ref,
 ) async {
-  final jobs = await ref.watch(apiProvider).listExports();
-  if (jobs.any((job) => job.status.isActive)) {
-    final timer = Timer(
-      ref.read(exportPollIntervalProvider),
-      ref.invalidateSelf,
-    );
-    ref.onDispose(timer.cancel);
+  Timer? timer;
+  var disposed = false;
+  ref.onDispose(() {
+    disposed = true;
+    timer?.cancel();
+  });
+  void schedule(Duration delay) {
+    if (!disposed) timer = Timer(delay, ref.invalidateSelf);
   }
-  return jobs;
+
+  final poll = ref.read(_pollStateProvider);
+  final interval = ref.read(exportPollIntervalProvider);
+  try {
+    final jobs = await ref.watch(apiProvider).listExports();
+    poll.failures = 0;
+    poll.polling = jobs.any((job) => job.status.isActive);
+    if (poll.polling) schedule(interval);
+    return jobs;
+  } on Object {
+    if (poll.polling) {
+      schedule(interval * (1 << poll.failures.clamp(0, _maxBackoffDoublings)));
+      poll.failures++;
+    }
+    rethrow;
+  }
 });
 
 /// The newest export of [kind] in [jobs], if any.

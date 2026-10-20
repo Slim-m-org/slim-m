@@ -74,11 +74,19 @@ class _Server {
   final calls = <String>[];
   Object? lastBody;
   bool refusePassword = false;
+  bool cooldown = false;
 
   Future<http.Response> handle(http.Request request) async {
     calls.add('${request.method} ${request.url.path}');
     final json = {'content-type': 'application/json'};
     final path = request.url.path;
+    if (request.method == 'POST' && cooldown) {
+      return http.Response(
+        jsonEncode({'error': 'rate limited'}),
+        429,
+        headers: {...json, 'retry-after': '600'},
+      );
+    }
     if (request.method == 'POST' && refusePassword) {
       return http.Response(
         jsonEncode({'error': 'that password is not correct'}),
@@ -296,6 +304,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('That password is not correct.'), findsOneWidget);
+  });
+
+  testWidgets('the export cooldown is not blamed on password attempts', (
+    tester,
+  ) async {
+    final server = _Server()..cooldown = true;
+    await _pump(tester, server);
+
+    await tester.tap(find.text('Prepare download...'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'hunter2hunter2');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Prepare download'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('An export was just made'), findsOneWidget);
+    expect(find.textContaining('Too many attempts'), findsNothing);
   });
 
   testWidgets('the Space export is hidden from anyone but an administrator', (

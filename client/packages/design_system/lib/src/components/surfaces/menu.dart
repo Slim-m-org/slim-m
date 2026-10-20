@@ -62,12 +62,16 @@ class AppMenu extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: tokens.surfaceRaised,
-          border: Border.all(color: tokens.borderStrong),
           borderRadius: BorderRadius.circular(AppRadii.card),
           boxShadow: floating ? AppShadows.menu : null,
         ),
+        // Drawn over the children so a flush banner cannot cover the border at the corners.
+        foregroundDecoration: BoxDecoration(
+          border: Border.all(color: tokens.borderStrong),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
         // The default 6 is literal in the source, not on the --space-* grid.
-        padding: padding,
+        padding: const EdgeInsets.all(1).add(padding),
         child: Material(
           type: MaterialType.transparency,
           child: Column(mainAxisSize: MainAxisSize.min, children: children),

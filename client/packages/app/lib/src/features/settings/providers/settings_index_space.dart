@@ -57,6 +57,12 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['backup', 'archive', 'download', 'portability', 'move'],
   ),
   SettingsEntry(
+    'export',
+    'Download a copy',
+    description: 'Never includes direct messages or sign-in data.',
+    keywords: ['export', 'backup', 'archive'],
+  ),
+  SettingsEntry(
     'account-recovery',
     'Reset codes',
     description:

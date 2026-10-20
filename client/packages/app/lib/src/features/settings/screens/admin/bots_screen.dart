@@ -5,6 +5,8 @@
 /// The token is shown once, here, and unrecoverable afterwards.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +63,22 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   /// The one and only time this token is legible. Held in state rather than
   /// pushed into a toast, so it stays on screen until it is dismissed.
   api.NewBot? _justCreated;
+  final _revealKey = GlobalKey();
+
+  void _showReveal(api.NewBot issued) {
+    setState(() => _justCreated = issued);
+    // The reveal sits above the list, so a re-issue from a low row must scroll to it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final revealed = _revealKey.currentContext;
+      if (revealed == null || !revealed.mounted) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          revealed,
+          duration: const Duration(milliseconds: 200),
+        ),
+      );
+    });
+  }
 
   @override
   void initState() {
@@ -143,6 +161,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
       children: [
         if (_justCreated case final created?)
           SettingsSecretReveal(
+            key: _revealKey,
             warning:
                 'This is the only time ${created.bot.username}\'s token is '
                 'shown. Copy it now - the server keeps only a hash, so it '
@@ -238,8 +257,9 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                 for (final bot in list)
                   _BotRow(
                     bot: bot,
-                    onReissued: (issued) =>
-                        setState(() => _justCreated = issued),
+                    // A pending reveal is the only copy of that token.
+                    canReissue: _justCreated == null,
+                    onReissued: _showReveal,
                   ),
             ],
           ),
@@ -250,9 +270,14 @@ class _BotsPaneState extends ConsumerState<BotsPane>
 }
 
 class _BotRow extends ConsumerStatefulWidget {
-  const _BotRow({required this.bot, required this.onReissued});
+  const _BotRow({
+    required this.bot,
+    required this.onReissued,
+    required this.canReissue,
+  });
 
   final api.Bot bot;
+  final bool canReissue;
 
   /// Hands the new token up to the pane, which shows it once.
   final ValueChanged<api.NewBot> onReissued;
@@ -352,7 +377,7 @@ class _BotRowState extends ConsumerState<_BotRow>
             label: 'Re-issue token',
             variant: AppButtonVariant.secondary,
             size: AppButtonSize.sm,
-            onPressed: _busy ? null : _reissue,
+            onPressed: _busy || !widget.canReissue ? null : _reissue,
           ),
           if (!bot.isRevoked)
             AppButton(

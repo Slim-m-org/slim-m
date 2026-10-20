@@ -205,8 +205,57 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pump();
     expect(h.requests, hasLength(2));
-    expect(h.requests.last['id'], isNot(h.requests.first['id']));
+    expect(h.requests.last['id'], h.requests.first['id']);
     await tester.pump(botFormTimeout + const Duration(seconds: 1));
+  });
+
+  testWidgets('a bot that answers after the timeout still closes the form', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    await _open(tester, h);
+    await tester.enterText(find.byType(TextField).first, 'x');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(AppButton, 'Set reminder'));
+    await tester.pump();
+    await tester.pump(botFormTimeout + const Duration(seconds: 1));
+    expect(find.textContaining('did not answer'), findsOneWidget);
+
+    h.events.add(
+      api.InteractionAnswered(
+        interactionId: h.requests.single['id'] as String,
+        channelId: 'c1',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Remind me'), findsNothing);
+  });
+
+  testWidgets(
+    'a form arriving in an idle app schedules the frame that shows it',
+    (tester) async {
+      final h = await _pump(tester);
+      await tester.pump();
+      expect(tester.binding.hasScheduledFrame, isFalse);
+      h.events.add(
+        const api.InteractionForm(
+          interactionId: 'i1',
+          channelId: 'c1',
+          form: _form,
+        ),
+      );
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      expect(tester.binding.hasScheduledFrame, isTrue);
+    },
+  );
+
+  testWidgets('the form says a bot opened it and where the input goes', (
+    tester,
+  ) async {
+    final h = await _pump(tester);
+    await _open(tester, h);
+    expect(find.textContaining('opened by a bot'), findsOneWidget);
+    expect(find.textContaining('not to slim-m'), findsOneWidget);
   });
 
   testWidgets('a form the server no longer has is explained inline', (

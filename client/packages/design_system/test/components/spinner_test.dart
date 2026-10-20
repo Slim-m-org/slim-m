@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:ui' show SemanticsRole;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -42,6 +44,25 @@ void main() {
       expect(_arc(tester).value, isNull);
       await _pump(tester, const AppSpinner(), reduced: true);
       expect(_arc(tester).value, isNotNull);
+    });
+
+    testWidgets('a reduced spinner never announces a progress bar',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pump(tester, const AppSpinner(), reduced: true);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        tester.getSemantics(find.byType(AppSpinner)).getSemanticsData().value,
+        isEmpty,
+      );
+      await _pump(tester, const AppSpinner(semanticLabel: 'Loading'),
+          reduced: true);
+      final data = tester
+          .getSemantics(find.bySemanticsLabel('Loading'))
+          .getSemanticsData();
+      expect(data.value, isEmpty);
+      expect(data.role, SemanticsRole.loadingSpinner);
+      handle.dispose();
     });
 
     testWidgets('names itself only when given a label', (tester) async {
