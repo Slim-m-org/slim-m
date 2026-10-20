@@ -10,6 +10,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../modules/widgets/dock_height_reporter.dart';
 import 'canvas_call_dock.dart';
+import 'canvas_dock_collapse.dart';
 import 'canvas_follow_controls.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_view_relay.dart';
@@ -72,14 +73,24 @@ class CanvasDockOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Align(
     alignment: Alignment.bottomCenter,
-    child: Padding(
-      padding: const EdgeInsets.all(AppSpacing.s12),
-      // The dock's hidden-tiles list must notice a hide or show landing in tileOverrides, which nothing else here rebuilds for.
-      child: DockHeightReporter(
-        child: ListenableBuilder(
-          listenable: tileOverrides,
-          builder: (context, _) =>
-              CanvasCallDock(call: call, canvas: canvas, compact: compact),
+    // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
+    child: CanvasDockCollapse(
+      collapsible: canvas.fullscreen,
+      builder: (context, revealed) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.s12,
+          canvas.fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+          AppSpacing.s12,
+          AppSpacing.s12,
+        ),
+        child: DockHeightReporter(
+          foldedHeight: revealed ? null : canvasDockHandleHeight,
+          // The dock's hidden-tiles list must notice a hide or show landing in tileOverrides, which nothing else here rebuilds for.
+          child: ListenableBuilder(
+            listenable: tileOverrides,
+            builder: (context, _) =>
+                CanvasCallDock(call: call, canvas: canvas, compact: compact),
+          ),
         ),
       ),
     ),

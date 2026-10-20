@@ -75,6 +75,7 @@ Widget _wrap({
               screenShareViewFor: (_) => const SizedBox(),
               overrides: overrides,
               onCommit: (_, __) {},
+              onFocus: (_) {},
             ),
           ],
         ),
@@ -132,9 +133,9 @@ void main() {
     },
   );
 
-  testWidgets('tapping Full screen in the menu opens the same route the hover '
-      'control does, and closes the menu', (tester) async {
-    // A real, joined voice session is load-bearing here: `_expand`'s route pops itself the instant the feed is not live, which a bare `ProviderScope` with no session always reports.
+  testWidgets('tapping Full screen in the menu focuses the tile the way the '
+      'hover control does, and closes the menu', (tester) async {
+    final focused = <String>[];
     final harness = VoiceHarness();
     addTearDown(harness.dispose);
     final session = FakeSession();
@@ -160,6 +161,7 @@ void main() {
                 screenShareViewFor: (_) => const SizedBox(),
                 overrides: overrides,
                 onCommit: (_, __) {},
+                onFocus: focused.add,
               ),
             ),
           ),
@@ -176,7 +178,8 @@ void main() {
     await tester.tap(find.text('Full screen'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(FullscreenVideoView), findsOneWidget);
+    expect(focused, ['camera:user-noor']);
+    expect(find.byType(FullscreenVideoView), findsNothing);
     expect(find.text('Hide on your canvas'), findsNothing);
 
     await harness.container.read(voiceControllerProvider.notifier).leave();

@@ -48,6 +48,21 @@ class CanvasCompactDock extends StatelessWidget {
                   canvas: canvas,
                   part: CanvasToolsRowPart.toolsOnly,
                 ),
+                // The header that holds undo, the overflow and the way out is gone in fullscreen, so they move here.
+                if (canvas.fullscreen)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CanvasDockToolsRow(
+                        canvas: canvas,
+                        part: CanvasToolsRowPart.editOnly,
+                      ),
+                      const SizedBox(width: AppSpacing.s8),
+                      CanvasDockExitFullscreen(
+                        onPressed: canvas.onToggleFullscreen,
+                      ),
+                    ],
+                  ),
               ],
             ),
           if (showTools && call != null) const SizedBox(height: AppSpacing.s8),

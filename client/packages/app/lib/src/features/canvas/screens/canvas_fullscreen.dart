@@ -7,14 +7,14 @@
 /// convas on mobile". Read this before adding anything to the list of things
 /// fullscreen hides.
 ///
-/// **What it hides, and the one thing it deliberately does not.** The canvas
-/// identity strip (`CanvasBar`), the channel rail and the member pane all go.
-/// The floating dock stays, in a folded form: `CanvasCallDock` drops the five
-/// drawing tools and keeps the call controls, because that file's own doc
-/// already fixes the one failure this feature must not reintroduce - "a call
-/// nobody can mute or leave is the one failure this dock must never produce".
-/// A viewing mode that took the hang-up button away with the toolbar would be
-/// exactly that.
+/// **What it hides.** The canvas identity strip (`CanvasBar`), the channel
+/// rail and the member pane go. The dock stays with its tools and the call
+/// controls, and tucks itself away behind a half-sphere handle
+/// (`CanvasDockCollapse`) that a pointer near the bottom edge or a tap brings
+/// back; the close button becomes the way out. A viewing mode that took the
+/// tools or the hang-up button away would hide the canvas it is meant to show
+/// - "a call nobody can mute or leave is the one failure this dock must never
+/// produce".
 ///
 /// **Entering disarms the pen, and that is not tidiness.** `CanvasSurface`
 /// pans and zooms on two pointers only, so a one-finger drag draws with
@@ -38,3 +38,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The channel whose canvas is currently fullscreen, or null.
 final canvasFullscreenProvider = StateProvider<String?>((ref) => null);
+
+/// The call tile (a presence key such as `screen:<identity>`) shown filling
+/// one channel's canvas under the ink, or null. Keyed on the channel for the
+/// reason [canvasFullscreenProvider] is.
+final canvasFocusedTileProvider =
+    StateProvider<({String channelId, String tileKey})?>((ref) => null);
