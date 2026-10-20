@@ -326,6 +326,22 @@ void main() {
     });
   });
 
+  test('a scoped clear goes out as its own kind, never as clear', () {
+    fakeAsync((async) {
+      final harness = _Harness();
+      unawaited(
+        harness.ops.clear(
+          10,
+          scope: const api.CanvasClearScope(kinds: ['stroke']),
+        ),
+      );
+      async.flushMicrotasks();
+
+      expect(harness.opRequests.single['kind'], 'clear_scoped');
+      expect(harness.opRequests.single['kinds'], ['stroke']);
+    });
+  });
+
   test('clear removes local ink at or below the fencing seq and can be '
       'undone by restoring it', () {
     fakeAsync((async) {

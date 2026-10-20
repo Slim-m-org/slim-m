@@ -330,16 +330,20 @@ class CanvasOpsController {
       final result = await client.submitCanvasOp(
         channelId,
         id: newCanvasOpId(),
-        kind: 'clear',
+        kind: scope.isEverything ? 'clear' : 'clear_scoped',
         beforeSeq: beforeSeq,
         clearScope: scope,
       );
       if (result.op.affected > 0) {
-        document.clearBelow(
-          beforeSeq,
-          kinds: canvasKindsOf(scope),
-          authorId: scope.authorId,
-        );
+        final kinds = canvasKindsOf(scope);
+        final namesOnlyUnknownKinds = scope.kinds.isNotEmpty && kinds.isEmpty;
+        if (!namesOnlyUnknownKinds) {
+          document.clearBelow(
+            beforeSeq,
+            kinds: kinds,
+            authorId: scope.authorId,
+          );
+        }
         document.refresh();
         _pushUndo(_EraseEntry(result.op.id));
       }

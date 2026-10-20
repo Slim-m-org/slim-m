@@ -14478,7 +14478,7 @@ components:
         One mutation submitted to `submitCanvasOp`. Which of `object_ids`,
         `before_seq`, `kinds`, `author_id`, `target_op`, the move fields, and `z_index` may be
         present depends on `kind`: a `remove` takes `object_ids` and none of
-        the others; a `clear` takes `before_seq`, optionally `kinds` and `author_id`, and none of the others; a
+        the others; a `clear` takes `before_seq` and none of the others; a `clear_scoped` takes `before_seq` and `kinds` or `author_id`, or both; a
         `restore` takes `target_op` and none of the others; a `move` takes
         `object_id`, `x`, `y`, `w` and `h`, and none of `object_ids`,
         `before_seq`, `target_op` or `z_index`; a `reorder` takes `object_id`
@@ -14491,7 +14491,7 @@ components:
           description: Client-minted UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [remove, clear, restore, move, reorder, edit]
+          enum: [remove, clear, clear_scoped, restore, move, reorder, edit]
         object_ids:
           type: array
           minItems: 1
@@ -14503,19 +14503,19 @@ components:
           format: int64
           minimum: 0
           description: >-
-            Required for `clear`. Every live object placed at or below this
+            Required for `clear` and `clear_scoped`. Every live object placed at or below this
             canvas `seq` is removed.
         kinds:
           type: array
           items: { type: string, enum: [stroke, image, note, shape] }
           description: >-
-            Optional, `clear` only. Removes only objects of these kinds; omit
+            `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
         author_id:
           type: string
           format: uuid
           description: >-
-            Optional, `clear` only. Removes only this author's objects.
+            `clear_scoped` only. Removes only this author's objects.
         target_op:
           type: string
           format: uuid
