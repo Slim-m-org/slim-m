@@ -207,7 +207,8 @@ Desktop client built from origin/main, same voices, same harness, clean network,
 - Main is as bad or worse for three voices; only the whisper under Strong is worse on batch 15 (4 of 6 against 0 of 6), and that is one recording per cell.
 - Not the onset detector: run on the sent mix against itself it finds 0 clipped onsets for piper, high female, Scottish female and whisper.
 - The measure compares the received level with the clip's own level frame by frame, and the gaps in the sent audio are digital silence, so room tone and breaths in the sources do not enter it.
-- The clipping appears with Standard and the gate off, so it comes from the capture and compressor chain, not from Strong or the gate.
+- The clipping appears with Standard and the gate off, so my reading is that it comes from the capture and compressor chain and not from Strong or the gate.
+  The lag is tracked per 2 s segment and onsets are scored at 10 ms, so some of what reads as clipping may be jitter buffer delay changes inside a segment; a no-processing arm would separate them.
 - I did not run a no-processing loopback of the desktop client; the harness has no such arm.
 
 ### Is the hum floor measurement landing on the clips' own room tone?

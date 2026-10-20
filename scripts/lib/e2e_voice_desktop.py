@@ -13,7 +13,9 @@ Opt in with E2E_ONLY="voice desktop". E2E_DESKTOP_BUNDLE points at the build,
 E2E_DESKTOP_ARMS and E2E_DESKTOP_PROFILES narrow the run, E2E_DESKTOP_SECONDS
 sets each recording (default 60). E2E_DESKTOP_VOICES lists corpus clip ids (or piper) to run in turn.
 """
+import dataclasses
 import json
+import math
 import os
 import time
 
@@ -80,16 +82,63 @@ def _tokens(server, secret):
                                       "access_expires_at")}
 
 
-def _listen(listener, profile):
+LOOP_MARGIN_S = 8
+MIN_RECORDED = 0.8
+STRONG_MIN, STANDARD_MAX = 0.5, 0.1
+
+
+def record_seconds(mix_seconds):
+    """A recording must cover one full pass of the looped mix, or events beyond the window go unscored."""
+    return max(SECONDS, math.ceil(mix_seconds) + LOOP_MARGIN_S)
+
+
+def _listen(listener, profile, seconds):
     e2e_netem.apply(profile)
     xp.wait_remote_audio(listener, 90)
     time.sleep(WARMUP)
     xp.start_tap(listener, "rx", remote=True)
-    time.sleep(SECONDS)
+    time.sleep(seconds)
     return xp.finish_tap(listener, "rx")
 
 
-def _arm(name, listener, inputs, server, secret, channel, compositor, directory, bundle):
+@dataclasses.dataclass
+class Stack:
+    """What every arm shares: the listener, the inputs and where the run happens."""
+    listener: object
+    inputs: dict
+    server: str
+    secret: str
+    channel: str
+    compositor: str
+    directory: str
+    bundle: str
+    feeder: object
+
+
+def gate_problems(choice, gate):
+    """Why the app's own gate log contradicts the arm it was asked to run."""
+    if not gate["readings"]:
+        return ["the app logged no gate readings"]
+    strong = gate["strong"]
+    if choice == "strong" and strong < STRONG_MIN:
+        return [f"strong arm but rnnoise ran on only {strong:.0%} of readings"]
+    if choice == "standard" and strong > STANDARD_MAX:
+        return [f"standard arm but rnnoise ran on {strong:.0%} of readings"]
+    return []
+
+
+def recording_problems(samples, seconds):
+    """Why a recording cannot be scored: far too short, or silent."""
+    if len(samples) < MIN_RECORDED * seconds * 48000:
+        return [f"recorded {len(samples) / 48000:.1f}s of the {seconds}s asked for"]
+    if not any(abs(v) > 1e-4 for v in samples):
+        return ["the recording is digital silence"]
+    return []
+
+
+def _arm(name, ctx):
+    listener, inputs, server, secret = ctx.listener, ctx.inputs, ctx.server, ctx.secret
+    directory = ctx.directory
     choice, threshold = ARMS[name]
     # Refresh tokens are single use, so every launch gets a pair nobody has spent.
     tokens = _tokens(server, secret)
@@ -99,25 +148,34 @@ def _arm(name, listener, inputs, server, secret, channel, compositor, directory,
          "slimm.voice.input_threshold_db": threshold,
          "slimm.voice.input_threshold_auto": False,
          "slimm.voice.even_out_loud": True})
-    app = da.Desktop(bundle, root, channel, os.path.join(directory, f"app-{name}.log"))
+    app = da.Desktop(ctx.bundle, root, ctx.channel, os.path.join(directory, f"app-{name}.log"))
     clean, mix = (dsp.read_wav(inputs[k]) for k in ("clean", "mix"))
+    seconds = record_seconds(len(mix[0]) / mix[1])
     rows = {}
     try:
         da.full_volume()
-        app.start(compositor)
+        app.start(ctx.compositor)
         app.wait_for("SLIMM_HARNESS joined", 150, fail_on=JOIN_FAILED)
-        for pid in app.app_pids():
-            assert not da.touches_owner_data(pid), f"pid {pid} holds the owner's app data"
+        pids = app.app_pids()
+        da.assert_isolated(pids)
+        assert da.app_captures_mic(pids), "the app is not recording from the virtual microphone"
         for profile in [p for p in os.environ.get(
                 "E2E_DESKTOP_PROFILES", "clean,loss5-jitter30,burst").split(",") if p]:
             da.full_volume()
-            samples, _, dropped = _listen(listener, profile)
+            samples, _, dropped = _listen(listener, profile, seconds)
             xp.save_wav(os.path.join(directory, f"rx-{name}-{profile}.wav"), samples)
+            assert app.proc.poll() is None and ctx.feeder.poll() is None, \
+                f"the app or the microphone feeder died during {profile}"
+            found = recording_problems(samples, seconds)
+            assert not found, f"{name} {profile}: {'; '.join(found)}"
             rows[profile] = {"dropped_frames": dropped, "seconds": round(len(samples) / 48000, 1)}
             rows[profile]["noise"] = voice_noise.analyze(
                 clean, mix, (samples, 48000), inputs["spans"], inputs["events"])
             print(f"  {name:18} {profile:15} {rows[profile]['noise']}")
         rows["gate_log"] = da.gate_summary(app.gate_lines())
+        print(f"  {name:18} gate log {rows['gate_log']}")
+        found = gate_problems(choice, rows["gate_log"])
+        assert not found, f"{name}: {'; '.join(found)}"
     finally:
         e2e_netem.clear()
         app.stop()
@@ -131,9 +189,14 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
     xp.e2e_browsers.register(server, admin_api, USER, secret)
     channel = admin_api.channel_named(L.VOICE_CHANNEL)["id"]
     owner_before = da.default_devices()
-    for voice in [v for v in os.environ.get("E2E_DESKTOP_VOICES", "").split(",") if v] or [None]:
-        _one_voice(voice, (server, secret, admin_api, sign_in), channel, bundle)
-    assert da.default_devices() == owner_before, "the owner's default audio devices changed"
+    assert not any("slimm_vq" in line for line in owner_before), \
+        f"a default device already points at a harness device: {owner_before}"
+    try:
+        for voice in [v for v in os.environ.get("E2E_DESKTOP_VOICES", "").split(",") if v] or [None]:
+            _one_voice(voice, (server, secret, admin_api, sign_in), channel, bundle)
+    finally:
+        after = da.default_devices()
+        assert after == owner_before, f"the owner's default audio devices changed: {after}"
 
 
 def _one_voice(voice, stack, channel, bundle):
@@ -143,25 +206,28 @@ def _one_voice(voice, stack, channel, bundle):
     inputs = {**paths, "spans": spans, "events": events}
     wanted = [a for a in os.environ.get("E2E_DESKTOP_ARMS", ",".join(ARMS)).split(",") if a]
     results = {}
+    owner_devices = da.default_devices()
     with da.nested_compositor(os.path.join(directory, "kwin.log")) as compositor, \
-            da.virtual_mic(paths["mix"]):
+            da.virtual_mic(paths["mix"]) as feeder:
+        assert da.default_devices() == owner_devices, "starting the virtual devices moved a default"
         with xp.one_listener(server, secret, admin_api, sign_in, paths["clean"]) as listener:
+            ctx = Stack(listener, inputs, server, secret, channel, compositor, directory,
+                        bundle, feeder)
             for name in wanted:
-                results[name] = _arm_with_retry(name, listener, inputs, server, secret, channel,
-                                                compositor, directory, bundle)
+                results[name] = _arm_with_retry(name, ctx)
                 with open(os.path.join(directory, "desktop.json"), "w") as fh:
                     json.dump(results, fh, indent=1)
 
 
-def _arm_with_retry(*args):
+def _arm_with_retry(name, ctx):
     """A desktop launch that never joins the call is retried once; the second failure counts."""
     try:
-        return _arm(*args)
+        return _arm(name, ctx)
     except AssertionError as err:
         if not is_join_failure(err):
             raise
-        print(f"  {args[0]}: {err}; retrying once", flush=True)
-        return _arm(*args)
+        print(f"  {name}: {err}; retrying once", flush=True)
+        return _arm(name, ctx)
 
 
 def run_if_selected(server, secret, admin_api, sign_in, room_id):

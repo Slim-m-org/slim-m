@@ -11,9 +11,9 @@ EVENTS = [{"kind": "typing_gap", "start": 4.0, "end": 5.0},
           {"kind": "bark_speech", "start": 6.5, "end": 7.0}]
 
 
-def _speech():
+def _speech(spans=SPANS):
     out = [0.0] * (15 * RATE)
-    for a, b in SPANS:
+    for a, b in spans:
         for i in range(int(a * RATE), int(b * RATE)):
             t = i / RATE
             burst = 0.5 + 0.5 * math.sin(2 * math.pi * 3 * t)
@@ -22,10 +22,10 @@ def _speech():
     return out
 
 
-def _noise():
+def _noise(events=EVENTS):
     rng = random.Random(1)
     bed = [0.01 * math.sin(2 * math.pi * 100 * i / RATE) for i in range(15 * RATE)]
-    for e in EVENTS:
+    for e in events:
         for i in range(int(e["start"] * RATE), int(e["end"] * RATE)):
             bed[i] += rng.uniform(-0.2, 0.2)
     return bed
@@ -76,6 +76,31 @@ class Noise(unittest.TestCase):
     def test_noise_left_over_speech_shows_as_excess(self):
         got = self.run_with(self.mix[0])
         self.assertGreater(got["bark_speech"]["excess_over_speech_db"], 2.0)
+
+
+class LoopedRecording(unittest.TestCase):
+    # Aperiodic on purpose: a clip that repeats within the loop has several equally good alignments.
+    spans = [(1.0, 3.0), (5.5, 8.5), (11.7, 13.0)]
+    events = [{"kind": "typing_gap", "start": 4.0, "end": 5.0},
+              {"kind": "bark_speech", "start": 12.0, "end": 12.6}]
+
+    def _looped(self, offset_s):
+        clean = (_speech(self.spans), RATE)
+        mix = (_sum(clean[0], _noise(self.events)), RATE)
+        start = int(offset_s * RATE)
+        looped = (mix[0] * 2)[start:start + len(mix[0])]
+        return vn.analyze(clean, mix, (looped, RATE), self.spans, self.events)
+
+    def test_a_recording_that_starts_mid_clip_scores_like_one_that_starts_at_zero(self):
+        got = self._looped(5.2)
+        self.assertEqual(got["onsets"]["clipped"], 0)
+        self.assertAlmostEqual(got["hum_floor"]["change_db"], 0.0, delta=0.5)
+        self.assertAlmostEqual(got["typing_gap"]["change_db"], 0.0, delta=0.5)
+
+    def test_an_event_straddling_the_loop_seam_is_still_scored(self):
+        got = self._looped(12.3)
+        self.assertAlmostEqual(got["bark_speech"]["change_db"], 0.0, delta=1.0)
+        self.assertEqual(got["onsets"]["clipped"], 0)
 
 
 if __name__ == "__main__":

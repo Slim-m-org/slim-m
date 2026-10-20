@@ -193,7 +193,7 @@ Noise events in the gaps, from the same runs, `typing` and `bark` in dB change (
   On BEFORE the bark sits 1.8 to 2.7 dB above the speech alone, as sent (2.5 dB), and typing sits level with it.
   On AFTER the bark sits 0.4 to 1.5 dB above speech, so it is trimmed by about 1 to 2 dB, and typing stays within 1.3 dB of speech.
 - Word onsets lose about 10 to 20 ms on average, and 0 to 5 of 10 are clipped by 30 ms or more.
-  Under loss the Standard arms clip as many onsets as the Strong ones, so a good part of it is concealment and not the suppressor.
+  Under loss the Standard arms clip as many onsets as the Strong ones, so a good part of it may be concealment or delay changes inside the 2 s alignment segments and not the suppressor; no arm separates those.
   The Strong arms on AFTER clip more under loss than BEFORE (strong-gate-on loss5: 5 of 10 against 1 of 10, mean 17 against 8 ms; strong-gate-off burst: 4 of 11 against 3 of 10).
   With n of about 10 per cell I would read that as a possible regression to re-measure, not a finding.
 

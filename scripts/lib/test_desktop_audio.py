@@ -87,5 +87,78 @@ class WaitFor(unittest.TestCase):
         self.assertFalse(desk.is_join_failure(AssertionError("no remote audio track came up")))
 
 
+class NestedCompositorIsolation(unittest.TestCase):
+    def test_the_compositor_never_sees_the_owners_xdg_directories(self):
+        owner = {"XDG_CONFIG_HOME": "/home/owner/.config", "XDG_DATA_HOME": "/home/owner/.local/share",
+                 "XDG_CACHE_HOME": "/home/owner/.cache", "XDG_STATE_HOME": "/home/owner/.local/state",
+                 "XDG_RUNTIME_DIR": "/run/user/1000", "DISPLAY": ":0", "WAYLAND_DISPLAY": "wayland-0"}
+        with tempfile.TemporaryDirectory() as private:
+            env = da.kwin_env(owner, private)
+            for var in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"):
+                self.assertTrue(env[var].startswith(private), var)
+            self.assertEqual(env["XDG_RUNTIME_DIR"], "/run/user/1000")
+            self.assertNotIn("DISPLAY", env)
+            self.assertNotIn("WAYLAND_DISPLAY", env)
+
+    def test_the_compositor_runs_on_its_own_session_bus(self):
+        self.assertEqual(da.kwin_command()[:2], ["dbus-run-session", "--"])
+
+    def test_a_leftover_socket_file_does_not_answer(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = os.path.join(root, "wayland-test")
+            open(path, "w").close()
+            self.assertFalse(da._socket_answers(path))
+
+
+class Teardown(unittest.TestCase):
+    def test_stop_without_start_does_not_mask_the_real_error(self):
+        app = da.Desktop("/b", tempfile.mkdtemp(prefix="desk-stop-"), "c", "/dev/null")
+        app.stop()
+
+    def test_a_process_that_ignores_sigterm_is_killed(self):
+        import subprocess
+        proc = subprocess.Popen(
+            ["python3", "-c", "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); print('up', flush=True); time.sleep(60)"],
+            stdout=subprocess.PIPE, start_new_session=True)
+        proc.stdout.readline()
+        da._stop_group(proc, 1)
+        proc.stdout.close()
+        self.assertIsNotNone(proc.poll())
+
+    def test_an_empty_pid_list_does_not_prove_isolation(self):
+        with self.assertRaises(AssertionError):
+            da.assert_isolated([])
+        da.assert_isolated([os.getpid()])
+
+
+class ArmChecks(unittest.TestCase):
+    def test_a_strong_arm_whose_rnnoise_never_ran_is_a_problem(self):
+        import e2e_voice_desktop as desk
+        gate = {"readings": 40, "open": 1.0, "strong": 0.0}
+        self.assertEqual(len(desk.gate_problems("strong", gate)), 1)
+        self.assertEqual(desk.gate_problems("standard", gate), [])
+        self.assertEqual(len(desk.gate_problems("standard", {**gate, "strong": 1.0})), 1)
+        self.assertEqual(len(desk.gate_problems("strong", {"readings": 0, "open": None, "strong": None})), 1)
+
+    def test_a_recording_covers_the_whole_looped_mix(self):
+        import e2e_voice_desktop as desk
+        self.assertEqual(desk.record_seconds(30), desk.SECONDS)
+        self.assertEqual(desk.record_seconds(90), 90 + desk.LOOP_MARGIN_S)
+
+    def test_a_short_or_silent_recording_is_refused(self):
+        import e2e_voice_desktop as desk
+        self.assertEqual(len(desk.recording_problems([0.1] * 48000, 60)), 1)
+        self.assertEqual(len(desk.recording_problems([0.0] * 48000 * 60, 60)), 1)
+        self.assertEqual(desk.recording_problems([0.1] * 48000 * 60, 60), [])
+
+    def test_the_app_must_be_recording_from_the_virtual_mic(self):
+        sources = [{"index": 1, "name": "alsa_input.real"}, {"index": 7, "name": da.MIC}]
+        mine = [{"source": 7, "properties": {"application.process.id": "42"}}]
+        other = [{"source": 1, "properties": {"application.process.id": "42"}}]
+        self.assertTrue(da.recording_from_mic(mine, sources, {42}))
+        self.assertFalse(da.recording_from_mic(other, sources, {42}))
+        self.assertFalse(da.recording_from_mic(mine, sources, {99}))
+
+
 if __name__ == "__main__":
     unittest.main()
