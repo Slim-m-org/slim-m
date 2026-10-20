@@ -89,7 +89,7 @@ fn row_to_json(row: &SqliteRow) -> anyhow::Result<Value> {
                     Value::String(text) => serde_json::from_str(text)?,
                     other => other.clone(),
                 };
-                object.insert(stem.to_owned(), parsed);
+                object.insert(stem.to_owned(), hyphenate_ids(stem, parsed));
             }
             None => {
                 object.insert(name.to_owned(), value);
@@ -97,6 +97,33 @@ fn row_to_json(row: &SqliteRow) -> anyhow::Result<Value> {
         }
     }
     Ok(Value::Object(object))
+}
+
+/// Nested ids come out of SQL as bare hex; rewrites them as hyphenated UUIDs, and an empty one as null.
+fn hyphenate_ids(key: &str, value: Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(k, v)| {
+                    let v = hyphenate_ids(&k, v);
+                    (k, v)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => {
+            Value::Array(items.into_iter().map(|v| hyphenate_ids(key, v)).collect())
+        }
+        Value::String(text) if key == "id" || key.ends_with("_id") || key.ends_with("_ids") => {
+            match text.len() {
+                0 => Value::Null,
+                32 => Uuid::try_parse(&text).map_or(Value::String(text), |id| {
+                    Value::String(id.hyphenated().to_string())
+                }),
+                _ => Value::String(text),
+            }
+        }
+        other => other,
+    }
 }
 
 fn blob_value(bytes: &[u8]) -> Value {
@@ -109,6 +136,20 @@ fn blob_value(bytes: &[u8]) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nested_ids_are_hyphenated_and_an_empty_one_is_null() {
+        let id = Uuid::now_v7();
+        let nested = serde_json::json!({
+            "origin_author_id": "", "role_ids": [id.simple().to_string()],
+            "overwrites": [{ "target_id": id.simple().to_string(), "sha256": "ab" }],
+        });
+        let fixed = hyphenate_ids("x", nested);
+        assert_eq!(fixed["origin_author_id"], Value::Null);
+        assert_eq!(fixed["role_ids"][0], id.to_string());
+        assert_eq!(fixed["overwrites"][0]["target_id"], id.to_string());
+        assert_eq!(fixed["overwrites"][0]["sha256"], "ab");
+    }
 
     #[test]
     fn a_blob_that_is_not_a_uuid_becomes_hex() {

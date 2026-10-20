@@ -62,6 +62,7 @@ use modules::{module_kv, module_permissions, module_stats};
 mod data_exports;
 mod export_member;
 mod export_rows;
+mod export_scope;
 mod export_space;
 mod nicknames;
 mod notification_schedule;
