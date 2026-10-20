@@ -20,6 +20,9 @@ import '../../../widgets/context_menu_region.dart';
 /// The most rows an anchored menu carries; past it the list is a sheet.
 const int _menuRows = 8;
 
+/// A longer label would be cut in the menu, so the sheet shows it whole.
+const int _menuLabelChars = 36;
+
 const double _fieldMaxWidth = 320;
 
 class MessageSelectView extends StatefulWidget {
@@ -44,7 +47,12 @@ class _MessageSelectViewState extends State<MessageSelectView> {
   final _menu = GlobalKey<ContextMenuRegionState>();
 
   bool get _anchored =>
-      widget.select.picksOne && widget.select.options.length <= _menuRows;
+      widget.select.picksOne &&
+      widget.select.options.length <= _menuRows &&
+      widget.select.options.every(
+        (o) =>
+            (o.description ?? '').isEmpty && o.label.length <= _menuLabelChars,
+      );
 
   void _open() {
     if (_anchored) {
@@ -80,8 +88,10 @@ class _MessageSelectViewState extends State<MessageSelectView> {
       ownsFocusNode: false,
       enableLongPress: false,
       menuWidth: _fieldMaxWidth,
+      // An empty list keeps a right-click or the menu key from opening an inert select.
       itemsBuilder: (context, close) => [
-        for (final option in select.options)
+        for (final option
+            in inert ? const <api.SelectChoice>[] : select.options)
           AppMenuItem(
             label: option.label,
             onTap: () {

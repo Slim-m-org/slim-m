@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,7 @@ api.ComponentRow _menu({
   int minValues = 1,
   int maxValues = 1,
   bool disabled = false,
+  String? description,
 }) => api.ComponentRow(
   select: api.MessageSelect(
     customId: 'day',
@@ -33,7 +35,11 @@ api.ComponentRow _menu({
     disabled: disabled,
     options: [
       for (var i = 0; i < options; i++)
-        api.SelectChoice(label: 'Day $i', value: 'd$i'),
+        api.SelectChoice(
+          label: 'Day $i',
+          value: 'd$i',
+          description: description,
+        ),
     ],
   ),
 );
@@ -240,6 +246,52 @@ void main() {
     await tester.tap(find.text('Pick a day'));
     await tester.pumpAndSettle();
     expect(find.byType(AppMenuItem), findsNothing);
+  });
+
+  testWidgets('a right-click opens only a select that can be chosen', (
+    tester,
+  ) async {
+    Future<void> rightClick() async {
+      await tester.tap(find.text('Pick a day'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+    }
+
+    await _pump(tester, _menu());
+    await rightClick();
+    expect(find.byType(AppMenuItem), findsNWidgets(3), reason: 'control');
+
+    await _pump(tester, _menu(disabled: true));
+    await rightClick();
+    expect(find.byType(AppMenuItem), findsNothing, reason: 'disabled');
+
+    await _pump(tester, _menu(), unavailable: true);
+    await rightClick();
+    expect(find.byType(AppMenuItem), findsNothing, reason: 'bot gone');
+  });
+
+  testWidgets('a right-click on a pending select opens nothing', (
+    tester,
+  ) async {
+    await _pump(tester, _menu());
+    await tester.tap(find.text('Pick a day'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Day 0'));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.text('Pick a day'), buttons: kSecondaryButton);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(AppMenuItem), findsNothing);
+    await tester.pump(buttonPressTimeout + const Duration(seconds: 1));
+  });
+
+  testWidgets('options with descriptions open the sheet that shows them', (
+    tester,
+  ) async {
+    await _pump(tester, _menu(description: 'The whole day'));
+    await tester.tap(find.text('Pick a day'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppMenuItem), findsNothing);
+    expect(find.text('The whole day'), findsWidgets);
   });
 
   testWidgets('a menu fits a phone beside its long label', (tester) async {
