@@ -168,6 +168,13 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         json!({ "permissions": 0 }),
     )
     .await;
+    c.bare(
+        "reissueBotToken",
+        "POST",
+        &format!("/bots/{bot_id}/token"),
+        root,
+    )
+    .await;
     c.bare("revokeBot", "POST", &format!("/bots/{bot_id}/revoke"), root)
         .await;
 }

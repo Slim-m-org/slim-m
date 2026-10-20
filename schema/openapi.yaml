@@ -7629,6 +7629,46 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /bots/{botId}/token:
+    parameters:
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The bot's user id.
+    post:
+      operationId: reissueBotToken
+      tags: [bots]
+      summary: Re-issue a bot's token.
+      description: >-
+        For an administrator who lost the token. The old token and its
+        session stop working at once and the new token is returned once, like
+        `createBot`. Works on a bot whose token was revoked. The account, its
+        role and what it wrote are kept. Refused for a caller that is itself a
+        bot, and for a bot that has been removed from the Space (restore it
+        first). Recorded in the moderation history as `bot_token_reissue`.
+      responses:
+        "200":
+          description: The bot, and its new token once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewBot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /bots/commands:
     put:
       operationId: setBotCommands
@@ -12270,6 +12310,7 @@ components:
             - bot_create
             - bot_revoke
             - bot_permission_grant
+            - bot_token_reissue
             - webhook_create
             - webhook_revoke
             - webhook_rotate

@@ -146,7 +146,7 @@ class _BotsPaneState extends ConsumerState<BotsPane>
             warning:
                 'This is the only time ${created.bot.username}\'s token is '
                 'shown. Copy it now - the server keeps only a hash, so it '
-                'cannot be shown again. Revoke the bot and make another if '
+                'cannot be shown again. Re-issue it from the bot\'s row if '
                 'you lose it.',
             value: created.token,
             valueSemanticsLabel: 'Bot token for ${created.bot.username}',
@@ -235,7 +235,12 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                   detail: 'Create one above to give an integration an account.',
                 )
               else
-                for (final bot in list) _BotRow(bot: bot),
+                for (final bot in list)
+                  _BotRow(
+                    bot: bot,
+                    onReissued: (issued) =>
+                        setState(() => _justCreated = issued),
+                  ),
             ],
           ),
         ),
@@ -245,9 +250,12 @@ class _BotsPaneState extends ConsumerState<BotsPane>
 }
 
 class _BotRow extends ConsumerStatefulWidget {
-  const _BotRow({required this.bot});
+  const _BotRow({required this.bot, required this.onReissued});
 
   final api.Bot bot;
+
+  /// Hands the new token up to the pane, which shows it once.
+  final ValueChanged<api.NewBot> onReissued;
 
   @override
   ConsumerState<_BotRow> createState() => _BotRowState();
@@ -263,7 +271,7 @@ class _BotRowState extends ConsumerState<_BotRow>
       title: 'Revoke ${widget.bot.displayName}?',
       message:
           'Its token and every session it holds stop working now. '
-          'This cannot be undone; make a new bot to replace it.',
+          'You can issue it a new token afterwards.',
       confirmLabel: 'Revoke',
     );
     if (!confirmed || !mounted) return;
@@ -276,6 +284,32 @@ class _BotRowState extends ConsumerState<_BotRow>
     if (!mounted) return;
     setState(() => _busy = false);
     if (ok) ref.invalidate(botsProvider);
+  }
+
+  Future<void> _reissue() async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Re-issue ${widget.bot.displayName}\'s token?',
+      message:
+          'The old token stops working now. The bot needs the new one to '
+          'reconnect.',
+      confirmLabel: 'Re-issue',
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _busy = true);
+    api.NewBot? issued;
+    final ok = await guard(
+      whatFailed: 'issue ${widget.bot.username} a new token',
+      action: () async {
+        issued = await ref.read(apiProvider).reissueBotToken(widget.bot.userId);
+      },
+    );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (!ok) return;
+    ref.invalidate(botsProvider);
+    widget.onReissued(issued!);
   }
 
   @override
@@ -291,7 +325,7 @@ class _BotRowState extends ConsumerState<_BotRow>
       meta: '@${bot.username}',
       badge: bot.isRevoked ? null : BotStatusBadge(online: bot.online),
       detail: bot.isRevoked
-          ? 'Revoked. Kept for what it wrote.'
+          ? 'Revoked. Re-issue a token to bring it back.'
           : [
               if (bot.prefix case final prefix?) 'Prefix $prefix.',
               if (!bot.online) _lastSeen(bot.tokenLastUsedAt),
@@ -303,26 +337,32 @@ class _BotRowState extends ConsumerState<_BotRow>
             ].join(' '),
       dimmed: bot.isRevoked,
       stackTrailingWhenNarrow: true,
-      trailing: bot.isRevoked
-          ? null
-          : Wrap(
-              spacing: AppSpacing.s8,
-              runSpacing: AppSpacing.s8,
-              children: [
-                AppButton(
-                  label: 'Permissions',
-                  variant: AppButtonVariant.secondary,
-                  size: AppButtonSize.sm,
-                  onPressed: () => showBotPermissionsSheet(context, bot),
-                ),
-                AppButton(
-                  label: 'Revoke',
-                  variant: AppButtonVariant.danger,
-                  size: AppButtonSize.sm,
-                  onPressed: _busy ? null : _revoke,
-                ),
-              ],
+      trailing: Wrap(
+        spacing: AppSpacing.s8,
+        runSpacing: AppSpacing.s8,
+        children: [
+          if (!bot.isRevoked)
+            AppButton(
+              label: 'Permissions',
+              variant: AppButtonVariant.secondary,
+              size: AppButtonSize.sm,
+              onPressed: () => showBotPermissionsSheet(context, bot),
             ),
+          AppButton(
+            label: 'Re-issue token',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            onPressed: _busy ? null : _reissue,
+          ),
+          if (!bot.isRevoked)
+            AppButton(
+              label: 'Revoke',
+              variant: AppButtonVariant.danger,
+              size: AppButtonSize.sm,
+              onPressed: _busy ? null : _revoke,
+            ),
+        ],
+      ),
       error: actionError,
       onErrorDismiss: clearActionError,
     );

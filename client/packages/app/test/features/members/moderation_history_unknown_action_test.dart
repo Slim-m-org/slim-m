@@ -75,6 +75,7 @@ const _beyondModeration = [
   'bot_create',
   'bot_revoke',
   'bot_permission_grant',
+  'bot_token_reissue',
   'webhook_create',
   'webhook_revoke',
   'webhook_rotate',

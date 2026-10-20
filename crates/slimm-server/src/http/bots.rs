@@ -23,7 +23,9 @@ use crate::hub::Event;
 use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Bot, CreateBotError, UpdateBotPermissionsError, validate_bot_prefix};
+use crate::store::{
+    Bot, CreateBotError, ReissueError, UpdateBotPermissionsError, validate_bot_prefix,
+};
 
 const BODY_LIMIT: usize = 1024;
 
@@ -32,6 +34,7 @@ pub fn routes() -> Router<AppState> {
         .route("/bots", get(list).post(create))
         .route("/bots/suggested-prefix", get(suggested_prefix))
         .route("/bots/{bot_id}/revoke", post(revoke))
+        .route("/bots/{bot_id}/token", post(reissue_token))
         .route("/bots/{bot_id}/permissions", patch(set_permissions))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
@@ -225,6 +228,36 @@ async fn revoke(
         state.hub.publish(Event::SessionRevoked(session_id));
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Replaces a bot's token for an administrator who lost it. The old token and
+/// its session stop working in the same transaction; the new one is shown once.
+async fn reissue_token(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Path(bot_id): Path<String>,
+) -> Result<Json<NewBotDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    require_human(&state, ctx.user_id).await?;
+    let bot_id = UserId(parse_uuid(&bot_id)?);
+    match state.store.reissue_bot_token(bot_id, ctx.user_id).await {
+        Ok(reissued) => {
+            for session_id in reissued.revoked {
+                state.hub.publish(Event::SessionRevoked(session_id));
+            }
+            Ok(Json(NewBotDto {
+                bot: bot_dto(&state, reissued.bot),
+                token: reissued.token,
+            }))
+        }
+        Err(ReissueError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),
+        Err(ReissueError::Removed) => Err(ApiError::Conflict(
+            "restore the bot before issuing it a token",
+        )),
+        Err(ReissueError::Internal(err)) => Err(err.into()),
+    }
 }
 
 /// Changes what a bot's managed role grants; see

@@ -332,7 +332,7 @@ void main() {
       reason: 'the account stays, so what it wrote stays attributed to it',
     );
     expect(
-      find.textContaining('Revoked. Kept for what it wrote.'),
+      find.textContaining('Revoked. Re-issue a token to bring it back.'),
       findsOneWidget,
     );
     expect(find.widgetWithText(AppButton, 'Revoke'), findsNothing);
