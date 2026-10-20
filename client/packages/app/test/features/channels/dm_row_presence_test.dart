@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
@@ -48,10 +47,6 @@ ProviderContainer _container() {
   final db = SlimmDatabase(NativeDatabase.memory());
   return ProviderContainer(
     overrides: [
-      // A live drift stream per row leaves its cleanup timer pending past the test.
-      channelLatestMessageAtProvider.overrideWith(
-        (ref, id) => Stream.value(null),
-      ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
@@ -106,6 +101,7 @@ void main() {
     final avatar = tester.widget<AppAvatar>(find.byType(AppAvatar));
     expect(avatar.status, AppPresence.online);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -120,6 +116,7 @@ void main() {
       final avatar = tester.widget<AppAvatar>(find.byType(AppAvatar));
       expect(avatar.status, AppPresence.unknown);
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }

@@ -16,12 +16,34 @@ final markUnreadClockProvider = Provider<DateTime Function()>(
   (_) => DateTime.now,
 );
 
+/// Every channel's newest held seq. One watch on the small channels table, so
+/// a write to the transcript never re-runs a query per visible row.
+///
+/// Not autoDispose: rows remount constantly and share this one watch.
+final channelCursorsProvider = StreamProvider<Map<String, int>>((ref) {
+  // Watched rather than awaited: an async gap here deadlocks a widget test's teardown, see channelByIdProvider.
+  final store = ref.watch(storeProvider).valueOrNull;
+  if (store == null) return const Stream.empty();
+  return store.watchChannelCursors();
+});
+
+/// One channel's newest held seq, notifying only when that channel's own
+/// cursor moves. The rail's channel list drops cursor-only changes, so its
+/// rows' `cursor` goes stale while a channel stays unread.
+final channelNewestSeqProvider = Provider.autoDispose.family<int, String>(
+  (ref, channelId) => ref.watch(
+    channelCursorsProvider.select((a) => a.valueOrNull?[channelId] ?? 0),
+  ),
+);
+
 /// The send time (ms since epoch) of [channelId]'s newest message, or null
 /// when this client holds none.
-final channelLatestMessageAtProvider = StreamProvider.autoDispose
-    .family<int?, String>((ref, channelId) async* {
+final channelLatestMessageAtProvider = FutureProvider.autoDispose
+    .family<int?, String>((ref, channelId) async {
+      final seq = ref.watch(channelNewestSeqProvider(channelId));
+      if (seq <= 0) return null;
       final store = await ref.watch(storeProvider.future);
-      yield* store.watchNewestMessageAt(channelId);
+      return (await store.messageAtSeq(channelId, seq))?.createdAt;
     });
 
 /// Whether a message sent at [latestAt] is recent enough to mark unread.
@@ -31,7 +53,8 @@ bool offersMarkUnread(int? latestAt, DateTime now) =>
         markUnreadWindow;
 
 /// Keeps [channelId]'s newest message time loaded so a row menu knows
-/// synchronously whether Mark as unread applies, without the row watching it.
+/// synchronously whether Mark as unread applies. It listens rather than
+/// watches, so a new message rebuilds neither this nor the row beneath it.
 class KeepsLatestMessageLoaded extends ConsumerWidget {
   const KeepsLatestMessageLoaded({
     super.key,
@@ -44,7 +67,7 @@ class KeepsLatestMessageLoaded extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.watch(channelLatestMessageAtProvider(channelId));
+    ref.listen(channelLatestMessageAtProvider(channelId), (_, _) {});
     return child;
   }
 }

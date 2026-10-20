@@ -13,7 +13,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -57,10 +56,6 @@ ProviderContainer _container({
   void Function(http.Request request)? onOpen,
 }) => ProviderContainer(
   overrides: [
-    // A live drift stream per row leaves its cleanup timer pending past the test.
-    channelLatestMessageAtProvider.overrideWith(
-      (ref, id) => Stream.value(null),
-    ),
     keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
     sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
     // Without this, DmRow's voiceRosterProvider pulls in the real SyncController.
@@ -136,7 +131,9 @@ void main() {
         findsOneWidget,
       );
       // Explicit: addTearDown runs after flutter_test's own pending-timer check.
+      await tester.pumpWidget(const SizedBox());
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -149,7 +146,9 @@ void main() {
     expect(find.text('Priya'), findsOneWidget);
     expect(find.text(personalSpaceName), findsOneWidget);
     expect(find.textContaining('Start one from the member list'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -169,7 +168,9 @@ void main() {
 
       expect(find.text(personalSpaceName), findsOneWidget);
       expect(find.text('Priya'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -217,7 +218,9 @@ void main() {
           'tapping the impostor row must open their own channel, never '
           'the caller\'s personal space',
     );
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('an unread DM shows the unread marker', (tester) async {
@@ -230,7 +233,9 @@ void main() {
     );
 
     expect(find.byKey(AppListRow.unreadDotKey), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping a DM opens its channel route', (tester) async {
@@ -264,7 +269,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('channel:dm-1'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the personal space row before it exists opens it and '
@@ -301,7 +308,9 @@ void main() {
     final opens = requests.where((r) => r.url.path == '/dms/self');
     expect(opens, hasLength(1));
     expect(find.text('channel:dm-self'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the personal space row once it already exists navigates '
@@ -345,6 +354,8 @@ void main() {
       reason: 'an already-open personal space needs no round trip',
     );
     expect(find.text('channel:dm-self'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

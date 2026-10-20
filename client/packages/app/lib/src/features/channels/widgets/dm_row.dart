@@ -135,8 +135,6 @@ class DmRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
-    ref.watch(channelLatestMessageAtProvider(channel.id));
     // Queued, not fetched directly: the controller bounds how many rows become simultaneous requests.
     ref.read(dmCallActivityProvider.notifier).ensureTracked(channel.id);
     final inCall = ref.watch(
@@ -157,42 +155,49 @@ class DmRow extends ConsumerWidget {
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
       manuallyUnread: channel.manuallyUnread ?? false,
     );
-    return ContextMenuRegion(
-      itemsBuilder: (menuContext, close) => _menuItems(menuContext, ref, close),
-      // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
-      ownsFocusNode: false,
-      menuWidth: 240,
-      child: AppListRow(
-        label: channel.name,
-        selected: selected,
-        unread: indicator.unread,
-        mentioned: indicator.mentioned,
-        muted: muted,
-        leading: UserAvatar(
-          name: channel.name,
-          userId: channel.dmParticipantId,
-          size: AppAvatarSize.s28,
-          presence: true,
+    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
+    return KeepsLatestMessageLoaded(
+      channelId: channel.id,
+      child: ContextMenuRegion(
+        itemsBuilder: (menuContext, close) =>
+            _menuItems(menuContext, ref, close),
+        // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
+        ownsFocusNode: false,
+        menuWidth: 240,
+        child: AppListRow(
+          label: channel.name,
+          selected: selected,
+          unread: indicator.unread,
+          mentioned: indicator.mentioned,
+          muted: muted,
+          leading: UserAvatar(
+            name: channel.name,
+            userId: channel.dmParticipantId,
+            size: AppAvatarSize.s28,
+            presence: true,
+          ),
+          trailing: inCall
+              ? Icon(
+                  AppIcons.startCall,
+                  size: AppSizes.icon16,
+                  color: tokens.accent,
+                )
+              : muted
+              ? Icon(
+                  AppIcons.notificationsOff,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                )
+              : null,
+          stateDescription: inCall ? 'call in progress' : null,
+          onTap: () {
+            // Opens straight into the call pane, the same double action RailCallSummary uses.
+            if (inCall) {
+              ref.read(dmCallOpenProvider.notifier).state = channel.id;
+            }
+            context.go(Routes.channel(channel.id));
+          },
         ),
-        trailing: inCall
-            ? Icon(
-                AppIcons.startCall,
-                size: AppSizes.icon16,
-                color: tokens.accent,
-              )
-            : muted
-            ? Icon(
-                AppIcons.notificationsOff,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              )
-            : null,
-        stateDescription: inCall ? 'call in progress' : null,
-        onTap: () {
-          // Opens straight into the call pane, the same double action RailCallSummary uses.
-          if (inCall) ref.read(dmCallOpenProvider.notifier).state = channel.id;
-          context.go(Routes.channel(channel.id));
-        },
       ),
     );
   }

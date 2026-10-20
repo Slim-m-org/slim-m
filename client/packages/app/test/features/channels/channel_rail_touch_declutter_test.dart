@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_channel_rows.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
@@ -66,10 +65,6 @@ Future<List<List<api.ChannelOrderGroup>>> _pumpRail(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        // A live drift stream per row leaves its cleanup timer pending past the test.
-        channelLatestMessageAtProvider.overrideWith(
-          (ref, id) => Stream.value(null),
-        ),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         mockApiOverride((_) async => http.Response('', 404)),
       ],
