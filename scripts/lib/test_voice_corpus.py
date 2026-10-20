@@ -178,6 +178,24 @@ class DesktopVoices(unittest.TestCase):
         with mock.patch.dict(os.environ, clear=True), self.assertRaises(AssertionError):
             e2e_voice_desktop._voice_samples("cc0-whisper")
 
+    def test_an_arm_that_never_joins_is_retried_once(self):
+        calls = []
+
+        def flaky(name, *_):
+            calls.append(name)
+            if len(calls) == 1:
+                raise AssertionError("the desktop app never printed 'SLIMM_HARNESS joined'")
+            return {"ok": True}
+
+        with mock.patch.object(e2e_voice_desktop, "_arm", flaky):
+            self.assertEqual(e2e_voice_desktop._arm_with_retry("strong-gate-on"), {"ok": True})
+        self.assertEqual(calls, ["strong-gate-on", "strong-gate-on"])
+
+    def test_any_other_failure_is_not_retried(self):
+        with mock.patch.object(e2e_voice_desktop, "_arm", side_effect=AssertionError("owner data")):
+            with self.assertRaises(AssertionError):
+                e2e_voice_desktop._arm_with_retry("strong-gate-on")
+
 
 class PerClip(unittest.TestCase):
     def test_index_signal_numbers_the_clips_and_leaves_the_gaps_zero(self):
