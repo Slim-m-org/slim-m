@@ -352,6 +352,7 @@ class MessageStore {
       await db.delete(db.channelCategories).go();
       // Drafts: the one thing here nobody else has a copy of. See clear's doc.
       await db.delete(db.channelDrafts).go();
+      await db.delete(db.canvasPersonalLayouts).go();
       await db.delete(db.pendingAttachments).go();
     });
   }

@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -162,5 +163,49 @@ void main() {
     await rig.sync.commit('screen:a', _own);
 
     expect(rig.requests, hasLength(1));
+  });
+
+  testWidgets(
+    'the reset action appears with a layout, names itself and resets',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      final rig = Rig();
+      addTearDown(rig.dispose);
+      await tester.pumpWidget(_wrap(rig));
+
+      expect(find.text('Reset my layout'), findsNothing);
+
+      rig.mode.showPersonal();
+      rig.tiles.setRect('screen:a', _own);
+      await tester.pump();
+
+      expect(find.text('Reset my layout'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Reset my layout, return to the shared view'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Reset my layout'));
+      await tester.pump();
+
+      expect(rig.mode.personal, isFalse);
+      expect(rig.tiles.personalPlaces, isEmpty);
+      expect(find.text('Reset my layout'), findsNothing);
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('the reset action is reachable by keyboard', (tester) async {
+    final rig = Rig();
+    addTearDown(rig.dispose);
+    rig.mode.showPersonal();
+    await tester.pumpWidget(_wrap(rig));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(rig.mode.hasLayout, isFalse);
   });
 }
