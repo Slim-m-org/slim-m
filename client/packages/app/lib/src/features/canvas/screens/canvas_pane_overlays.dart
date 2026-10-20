@@ -74,16 +74,16 @@ class CanvasDockOverlay extends StatelessWidget {
   Widget build(BuildContext context) => Align(
     alignment: Alignment.bottomCenter,
     // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
-    child: DockHeightReporter(
-      child: CanvasDockCollapse(
-        collapsible: canvas.fullscreen,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            AppSpacing.s12,
-            canvas.fullscreen ? AppSpacing.s8 : AppSpacing.s12,
-            AppSpacing.s12,
-            AppSpacing.s12,
-          ),
+    child: CanvasDockCollapse(
+      collapsible: canvas.fullscreen,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.s12,
+          canvas.fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+          AppSpacing.s12,
+          AppSpacing.s12,
+        ),
+        child: DockHeightReporter(
           // The dock's hidden-tiles list must notice a hide or show landing in tileOverrides, which nothing else here rebuilds for.
           child: ListenableBuilder(
             listenable: tileOverrides,
