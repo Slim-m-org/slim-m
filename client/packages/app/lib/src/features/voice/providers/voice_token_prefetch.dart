@@ -61,8 +61,13 @@ class VoiceTokenPrefetch {
     if (held != null && !held.failed && !_stale(held)) {
       try {
         return await held.token;
-      } on Object {
-        // The fresh request below raises the same refusal, to the caller.
+      } on Object catch (error, stack) {
+        api.AppLog.swallowed(
+          api.LogTag.voice,
+          'Prefetched voice token failed; asking again',
+          error,
+          stack,
+        );
       }
     }
     return _fetch(channelId);
