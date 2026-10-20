@@ -415,11 +415,8 @@ async fn the_last_person_leaving_removes_the_room_through_the_webhook() {
         .unwrap()
         .status();
     assert_eq!(status, StatusCode::NO_CONTENT);
-    for _ in 0..40 {
-        if !w.listed(&w.alice.0, &id).await {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    panic!("the emptied room was still listed after the webhook");
+    support::wait::wait_until_async("the emptied room to leave the list", || async {
+        !w.listed(&w.alice.0, &id).await
+    })
+    .await;
 }

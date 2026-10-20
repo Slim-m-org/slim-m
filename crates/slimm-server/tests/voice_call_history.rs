@@ -137,7 +137,7 @@ impl World {
 
     /// The webhook writes in a spawned task, so a read waits for it to land.
     async fn calls_once(&self, token: &str, events: usize) -> Value {
-        for _ in 0..40 {
+        support::wait::wait_for("the webhook's events to reach the history", || async {
             let (status, body) = self.calls(token).await;
             assert_eq!(status, StatusCode::OK, "{body}");
             let seen: usize = body["calls"]
@@ -146,12 +146,9 @@ impl World {
                 .iter()
                 .map(|c| c["events"].as_array().unwrap().len())
                 .sum();
-            if seen >= events {
-                return body;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-        }
-        panic!("the webhook's events never reached the history");
+            (seen >= events).then_some(body)
+        })
+        .await
     }
 }
 
@@ -260,6 +257,7 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
     let channel = ChannelId(w.channel.parse().unwrap());
     let kiki = UserId(w.kiki.1.parse().unwrap());
     w.deliver("participant_joined", &w.kiki.1).await;
+    // Spaces the canvas events from the joins in whole milliseconds.
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     for _ in 0..3 {
         w.store
@@ -277,6 +275,7 @@ async fn what_landed_on_the_canvas_during_a_call_is_part_of_it() {
             .await
             .expect("placed");
     }
+    // Spaces the canvas events from the joins in whole milliseconds.
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     w.deliver("participant_left", &w.kiki.1).await;
 

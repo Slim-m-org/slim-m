@@ -15,6 +15,10 @@ use slimm_server::store::Store;
 /// The shared app/state builder, request helpers and account fixtures.
 pub mod app;
 
+/// Bounded polling for an effect that lands asynchronously.
+#[allow(dead_code)]
+pub mod wait;
+
 /// Route and schema extraction shared by `tests/openapi_contract.rs` and
 /// `tests/openapi_429_coverage.rs`.
 pub mod openapi;

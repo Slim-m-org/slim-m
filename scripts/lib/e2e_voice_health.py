@@ -10,7 +10,8 @@ import time
 
 IMAGE = "slimm-netem:local"
 LIVEKIT_CONTAINER = "slimm-e2e-lk"
-LOSSY = "delay 20ms 30ms loss 10%"
+# The jitter buffer is what crosses its 160 ms line; the old 20ms 30ms profile sat at 140-190 ms.
+LOSSY = "delay 100ms 200ms loss 20%"
 HINT = "connection is unstable"
 _LINE = re.compile(r"\[voice-health\][^\"\\]*")
 
@@ -51,11 +52,13 @@ def minute_line_has_real_numbers(a, b, timeout=240):
 
 
 def hint_turns_on_under_loss_and_off_after(a, b):
-    """Impairs the SFU's egress, so what each listener hears is concealed."""
+    """Impairs the SFU's egress, so each listener's jitter buffer grows."""
     _netem(f"tc qdisc replace dev eth0 root netem {LOSSY}")
     try:
+        started = time.time()
         for c in (a, b):
             c.wait_for(HINT, timeout=90)
+            print(f"  {c.name}: hint after {time.time() - started:.0f}s")
             c.shot("voice-health-hint")
             print(f"  {c.name}: the tile hint showed under {LOSSY}")
     finally:
