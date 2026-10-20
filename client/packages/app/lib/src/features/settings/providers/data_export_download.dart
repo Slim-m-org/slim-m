@@ -12,7 +12,10 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../api_failure.dart';
 import '../../../downloads/download_target.dart';
 import '../../../downloads/downloads_controller.dart'
-    show downloadStallProvider, downloadTargetOpenerProvider;
+    show
+        downloadClockProvider,
+        downloadStallProvider,
+        downloadTargetOpenerProvider;
 import '../../../providers/providers.dart';
 
 enum ExportSavePhase { saving, done, failed }
@@ -47,9 +50,22 @@ class ExportSave {
 final exportSavesProvider =
     NotifierProvider<ExportSaves, Map<String, ExportSave>>(ExportSaves.new);
 
+/// How often progress reaches the UI; chunks arrive far faster than that.
+const _progressInterval = Duration(milliseconds: 150);
+
+/// One save attempt, so a cancel or a dispose can never finish another run's file.
+class _Run {
+  _Run(this.target);
+
+  final DownloadTarget target;
+  StreamIterator<List<int>>? chunks;
+  bool cancelled = false;
+}
+
 class ExportSaves extends Notifier<Map<String, ExportSave>> {
-  final Map<String, StreamIterator<List<int>>> _open = {};
-  final Set<String> _cancelled = {};
+  final Map<String, _Run> _runs = {};
+  final Set<String> _asking = {};
+  int _epoch = 0;
 
   @override
   Map<String, ExportSave> build() {
@@ -60,10 +76,12 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
     });
     ref.onDispose(() {
       unawaited(sub.cancel());
-      for (final chunks in _open.values) {
-        unawaited(chunks.cancel());
+      _epoch++;
+      for (final run in _runs.values) {
+        _stop(run);
       }
-      _open.clear();
+      _runs.clear();
+      _asking.clear();
     });
     return const {};
   }
@@ -71,11 +89,12 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
   /// Asks where to save, then streams [job]'s archive there. A dismissed Save
   /// dialog starts nothing and is not a failure.
   Future<void> start(api.DataExport job) async {
-    if (state[job.id]?.phase == ExportSavePhase.saving) return;
-    final filename = _filename(job);
+    final id = job.id;
+    if (state[id]?.phase == ExportSavePhase.saving || !_asking.add(id)) return;
+    final epoch = _epoch;
     final DownloadTarget? target;
     try {
-      target = await ref.read(downloadTargetOpenerProvider)(filename);
+      target = await ref.read(downloadTargetOpenerProvider)(_filename(job));
     } on Object catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -83,85 +102,101 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
         error,
         stack,
       );
-      _set(
-        job.id,
-        const ExportSave(
-          phase: ExportSavePhase.failed,
-          message: 'Could not save the export.',
-        ),
-      );
+      if (epoch == _epoch) _failedSave(id, 'Could not save the export.');
       return;
+    } finally {
+      if (epoch == _epoch) _asking.remove(id);
     }
     if (target == null) return;
-    _cancelled.remove(job.id);
-    _set(
-      job.id,
-      ExportSave(phase: ExportSavePhase.saving, total: job.sizeBytes),
-    );
-    await _run(job, target);
+    if (epoch != _epoch) {
+      await target.discard();
+      return;
+    }
+    final limit = target.maxBytes;
+    final size = job.sizeBytes;
+    if (limit != null && size != null && size > limit) {
+      await target.discard();
+      _failedSave(id, 'This export is too large to save on this device.');
+      return;
+    }
+    final run = _Run(target);
+    _runs[id] = run;
+    _set(id, ExportSave(phase: ExportSavePhase.saving, total: size));
+    await _run(job, run);
   }
 
   /// Stops a running save and removes the partial file.
   Future<void> cancel(String exportId) async {
-    _cancelled.add(exportId);
-    unawaited(_open.remove(exportId)?.cancel());
+    final run = _runs.remove(exportId);
     _clear(exportId);
+    if (run != null) await _stop(run);
   }
 
   void dismiss(String exportId) => _clear(exportId);
 
-  Future<void> _run(api.DataExport job, DownloadTarget target) async {
+  Future<void> _stop(_Run run) async {
+    run.cancelled = true;
+    unawaited(run.chunks?.cancel());
+    await run.target.discard();
+  }
+
+  Future<void> _run(api.DataExport job, _Run run) async {
+    final id = job.id;
     try {
-      final download = await ref.read(apiProvider).openExportDownload(job.id);
-      final length = download.contentLength;
-      if (length != null) _update(job.id, (s) => s.copyWith(total: length));
-      await _pump(job.id, target, download.body);
-      if (_cancelled.contains(job.id)) {
-        await target.discard();
+      final download = await ref.read(apiProvider).openExportDownload(id);
+      if (run.cancelled) {
+        // An unread body keeps the socket open and the server sending.
+        unawaited(download.body.listen(null).cancel());
         return;
       }
-      final saved = await target.finish();
+      final length = download.contentLength;
+      if (length != null) _update(run, id, (s) => s.copyWith(total: length));
+      await _pump(id, run, download.body);
+      if (run.cancelled) return;
+      final saved = await run.target.finish();
+      if (run.cancelled) return;
+      _runs.remove(id);
       if (saved) {
-        _set(job.id, const ExportSave(phase: ExportSavePhase.done));
+        _set(id, const ExportSave(phase: ExportSavePhase.done));
       } else {
-        _clear(job.id);
+        _clear(id);
       }
     } on Object catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'save the export', e, stack);
-      await target.discard();
-      if (_cancelled.contains(job.id)) return;
-      _set(
-        job.id,
-        ExportSave(
-          phase: ExportSavePhase.failed,
-          message: e is api.ApiException
-              ? describeApiFailure('download the export', e)
-              : 'Could not save the export.',
-        ),
+      if (run.cancelled) return;
+      _runs.remove(id);
+      await run.target.discard();
+      _failedSave(
+        id,
+        e is api.ApiException
+            ? describeApiFailure('download the export', e)
+            : 'Could not save the export.',
       );
     }
   }
 
-  Future<void> _pump(
-    String id,
-    DownloadTarget target,
-    Stream<List<int>> body,
-  ) async {
+  Future<void> _pump(String id, _Run run, Stream<List<int>> body) async {
     final chunks = StreamIterator(body);
-    _open[id] = chunks;
+    run.chunks = chunks;
+    final clock = ref.read(downloadClockProvider);
     final stall = ref.read(downloadStallProvider);
     var received = 0;
+    var shownAt = DateTime.fromMillisecondsSinceEpoch(0);
     try {
       while (await chunks.moveNext().timeout(
         stall,
         onTimeout: () => throw const api.TransportException('download stalled'),
       )) {
-        await target.write(chunks.current);
+        await run.target.write(chunks.current);
         received += chunks.current.length;
-        _update(id, (s) => s.copyWith(received: received));
+        final now = clock();
+        if (now.difference(shownAt) >= _progressInterval) {
+          shownAt = now;
+          _update(run, id, (s) => s.copyWith(received: received));
+        }
       }
+      _update(run, id, (s) => s.copyWith(received: received));
     } finally {
-      _open.remove(id);
       unawaited(chunks.cancel());
     }
   }
@@ -177,8 +212,11 @@ class ExportSaves extends Notifier<Map<String, ExportSave>> {
 
   void _clear(String id) => state = {...state}..remove(id);
 
-  void _update(String id, ExportSave Function(ExportSave) change) {
+  void _failedSave(String id, String message) =>
+      _set(id, ExportSave(phase: ExportSavePhase.failed, message: message));
+
+  void _update(_Run run, String id, ExportSave Function(ExportSave) change) {
     final current = state[id];
-    if (current != null) _set(id, change(current));
+    if (current != null && !run.cancelled) _set(id, change(current));
   }
 }

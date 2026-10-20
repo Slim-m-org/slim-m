@@ -47,7 +47,7 @@ class DataExportCopy {
     kind: api.ExportKind.space,
     title: 'Export this Space',
     description: 'A full copy of channels, messages and files.',
-    rowTitle: 'Export this Space',
+    rowTitle: 'Download a copy',
     rowDetail: 'Never includes direct messages or sign-in data.',
     startLabel: 'Prepare export...',
     sheetDescription:
