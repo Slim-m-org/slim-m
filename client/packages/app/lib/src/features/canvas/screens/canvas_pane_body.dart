@@ -346,7 +346,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                       ),
                     CanvasDockOverlay(
                       call: widget.callDock,
-                      canvas: _dockData(),
+                      canvas: _dockData,
                       tileOverrides: widget.tileOverrides,
                       compact: compact,
                     ),

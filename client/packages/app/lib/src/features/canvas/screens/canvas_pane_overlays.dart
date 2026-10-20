@@ -66,7 +66,9 @@ class CanvasDockOverlay extends StatelessWidget {
   });
 
   final CallDockData? call;
-  final CanvasDockData canvas;
+
+  /// Read inside the tile-override listener, so a hide or show reaches the dock's restore list.
+  final CanvasDockData Function() canvas;
   final CanvasPresenceTileOverrides tileOverrides;
   final bool compact;
 
@@ -75,21 +77,21 @@ class CanvasDockOverlay extends StatelessWidget {
     alignment: Alignment.bottomCenter,
     // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
     child: CanvasDockCollapse(
-      collapsible: canvas.fullscreen,
+      collapsible: canvas().fullscreen,
       builder: (context, revealed) => Padding(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.s12,
-          canvas.fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+          canvas().fullscreen ? AppSpacing.s8 : AppSpacing.s12,
           AppSpacing.s12,
           AppSpacing.s12,
         ),
         child: DockHeightReporter(
           foldedHeight: revealed ? null : canvasDockHandleHeight,
-          // The dock's hidden-tiles list must notice a hide or show landing in tileOverrides, which nothing else here rebuilds for.
+          // Nothing else here rebuilds for a tile hide or show.
           child: ListenableBuilder(
             listenable: tileOverrides,
             builder: (context, _) =>
-                CanvasCallDock(call: call, canvas: canvas, compact: compact),
+                CanvasCallDock(call: call, canvas: canvas(), compact: compact),
           ),
         ),
       ),
