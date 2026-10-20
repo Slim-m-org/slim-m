@@ -5787,8 +5787,7 @@ paths:
       summary: List the caller's own per-channel notification overrides.
       description: >
         Only channels the caller has actually overridden appear here - one
-        following the account default (`getNotificationPreference`) carries
-        no entry, never one listed at `everything`.
+        following the default (`getNotificationPreference`) carries no entry.
       responses:
         "200":
           description: The caller's channel-scoped overrides.
@@ -5809,7 +5808,7 @@ paths:
     put:
       operationId: setChannelNotificationOverride
       tags: [push]
-      summary: Mute this channel, or narrow it to mentions only.
+      summary: Mute this channel, narrow it to mentions only, or ask for every message.
       description: >
         Enforced where push recipients are computed
         (`push::recipients::narrow_for_notification_preference`), the same
@@ -5817,8 +5816,9 @@ paths:
         filtered client-side after a push has already landed. Requires
         VIEW_CHANNEL, the same bar reading the channel already sets; a
         channel the caller cannot view answers 403, identically whether or
-        not it exists. `everything` is refused: having no override already
-        means that, so `DELETE` is the way back to it.
+        not it exists. `everything` is a stored override that beats the
+        read-only and bot or webhook downgrades to mentions, and a channel's
+        own default; `DELETE` is the way back to following the default.
       requestBody:
         required: true
         content:
@@ -15414,11 +15414,12 @@ components:
       properties:
         preference:
           type: string
-          enum: [mentions, nothing]
+          enum: [everything, mentions, nothing]
           description: >
-            Never `everything`: having no override already means that, so
-            `DELETE /notification-preferences/channels/{channelId}` is the
-            way back to it rather than a third spelling of the same answer.
+            `everything` is stored like the others, since the default for a
+            read-only channel or a bot's post is mentions. `DELETE
+            /notification-preferences/channels/{channelId}` is the way back to
+            following the default.
 
     ChannelNotificationOverrideEntry:
       type: object

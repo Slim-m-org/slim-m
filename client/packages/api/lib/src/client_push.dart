@@ -93,8 +93,7 @@ extension SlimmApiPush on SlimmApi {
   }
 
   /// The caller's own per-channel overrides - only channels actually
-  /// overridden, never one listed at [NotificationPreference.everything]:
-  /// having no entry there already means that.
+  /// overridden; having no entry means following the default.
   Future<List<ChannelNotificationOverride>>
       listChannelNotificationOverrides() async {
     final json = await _send('GET', '/notification-preferences/channels');
@@ -107,11 +106,9 @@ extension SlimmApiPush on SlimmApi {
         .toList(growable: false);
   }
 
-  /// Mutes [channelId], or narrows it to mentions only. [preference] must be
-  /// [NotificationPreference.mentions] or [NotificationPreference.nothing];
-  /// the server refuses [NotificationPreference.everything], since having no
-  /// override already means that - clear it with
-  /// [clearChannelNotificationOverride] instead.
+  /// Sets [channelId]'s own override. [NotificationPreference.everything] is
+  /// stored too, since a read-only channel or a bot's post defaults to
+  /// mentions; follow the default again with [clearChannelNotificationOverride].
   Future<ChannelNotificationOverride> setChannelNotificationOverride(
     String channelId,
     NotificationPreference preference,

@@ -54,8 +54,7 @@ class ChannelNotificationOverridesState {
   final String? error;
 
   /// [channelId]'s own override, or `null` when it is following the account
-  /// default - never [api.NotificationPreference.everything] itself, since
-  /// an override is never actually stored at that value.
+  /// default.
   api.NotificationPreference? overrideFor(String channelId) =>
       byChannel[channelId];
 
@@ -174,6 +173,10 @@ class ChannelNotificationOverridesController
   /// Mutes [channelId] entirely.
   Future<void> mute(String channelId) =>
       _set(channelId, api.NotificationPreference.nothing);
+
+  /// Asks for every message in [channelId], past a mentions-only default.
+  Future<void> everything(String channelId) =>
+      _set(channelId, api.NotificationPreference.everything);
 
   /// Narrows [channelId] to mentions only.
   Future<void> mentionsOnly(String channelId) =>

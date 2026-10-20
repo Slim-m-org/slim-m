@@ -86,7 +86,7 @@ impl Store {
 
     /// Every channel `user_id` has overridden, for their own settings screen
     /// and the rail's muted glyph - a channel following the account default
-    /// carries no row and is absent here, never listed at `everything`.
+    /// carries no row and is absent here.
     pub async fn list_channel_notification_preferences(
         &self,
         user_id: UserId,
