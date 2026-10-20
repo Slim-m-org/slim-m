@@ -19,9 +19,10 @@ final _emptyOn = RegExp(r'\}\s*on\s+[\w.<>?]+\s*\{\s*\}');
 final _emptyCatchError = RegExp(r'catchError\(\s*\([^)]*\)\s*\{\s*\}');
 final _debugPrint = RegExp(r'\bdebugPrint\s*\(');
 
-/// The logger itself may echo to the console.
+/// The logger may echo to the console, and the voice harness's stdout is what the harness reads.
 const _debugPrintAllowed = {
-  'client/packages/app/lib/src/diagnostics/debug_log.dart'
+  'client/packages/app/lib/src/diagnostics/debug_log.dart',
+  'client/packages/app/lib/src/diagnostics/voice_harness.dart',
 };
 
 void main() {
