@@ -9,6 +9,7 @@ library;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'screen_share.dart';
+import 'screen_share_audio_options.dart';
 import 'screen_share_source_size.dart';
 import 'video_publish_options.dart';
 // ignore: implementation_imports
@@ -56,7 +57,7 @@ Future<void> publishScreenShare(
           publishOptions: screenSharePublishOptionsFor(fitted),
         );
       } else if (track is lk.LocalAudioTrack) {
-        await participant.publishAudioTrack(track);
+        await publishScreenShareAudio(participant, track);
       }
     }
   } catch (_) {

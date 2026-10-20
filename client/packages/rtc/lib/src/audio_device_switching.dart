@@ -7,6 +7,7 @@ library;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_devices.dart';
+import 'screen_share_audio_options.dart';
 import 'pulse_audio.dart';
 import 'voice_models.dart';
 
@@ -244,8 +245,12 @@ class AudioDeviceSwitching {
     lk.MediaDevice device,
   ) async {
     await room.setAudioInputDevice(device);
-    for (final publication
-        in room.localParticipant?.audioTrackPublications ?? const []) {
+    final publications =
+        voiceSourced<lk.LocalTrackPublication<lk.LocalAudioTrack>>(
+      room.localParticipant?.audioTrackPublications ?? const [],
+      (p) => p.source,
+    );
+    for (final publication in publications) {
       final track = publication.track;
       if (track is lk.LocalAudioTrack) await track.setDeviceId(device.deviceId);
     }
