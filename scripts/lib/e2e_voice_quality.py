@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import e2e_audio
 import e2e_browsers
@@ -21,12 +22,14 @@ import e2e_netem
 import e2e_voice_quality_js as js
 import make_quality_clip
 import make_speech_clip
+import voice_corpus
 import voice_quality
 import voice_quality_dsp as dsp
 from e2e_voice import _tap_label
 
 SECONDS = int(os.environ.get("E2E_VQ_SECONDS", "45"))
 SETTLE = 4
+REEL_MARGIN = 8
 CHUNK = 1_500_000
 # Publish-side Opus parameters merged into the SDP (e2e_voice_quality_js.SDP_TWEAK).
 VARIANTS = {
@@ -45,7 +48,10 @@ VARIANTS = {
 
 
 def write_clip(path, who):
-    """The reference clip: piper speech when available (it scores meaningfully), else the synthetic one."""
+    """The reference clip: the real-speech reel when E2E_VQ_CORPUS holds one, else piper speech, else the synthetic one."""
+    folder = voice_corpus.corpus_dir()
+    if folder:
+        return voice_corpus.write_reel(path, who, folder)
     kind = os.environ.get("E2E_VQ_CLIPS", "speech")
     if kind == "speech":
         make_speech_clip.write(path, who, "speech")
@@ -53,7 +59,7 @@ def write_clip(path, who):
         make_quality_clip.write(path, who)
 
 
-def score_mos(directory):
+def score_mos(directory, script="voice_quality_mos.py"):
     """DNSMOS per recording, run in the venv that has onnxruntime; skipped without it."""
     python = os.environ.get("E2E_VQ_MOS_PYTHON") or os.path.expanduser(
         "~/.slimm-scratch/mos-venv/bin/python")
@@ -61,8 +67,20 @@ def score_mos(directory):
         print("  MOS skipped: no venv at", python)
         return
     here = os.path.dirname(os.path.abspath(__file__))
-    subprocess.run([python, os.path.join(here, "voice_quality_mos.py"), directory],
-                   check=True)
+    subprocess.run([python, os.path.join(here, script), directory], check=True)
+
+
+def capture_seconds(directory):
+    """A reel needs one full pass to be scored per clip; a plain clip uses E2E_VQ_SECONDS."""
+    ends = []
+    for who in "AB":
+        path = os.path.join(directory, f"clip-{who}.spans.json")
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                ends.append(json.load(fh)[-1]["end"])
+    if "E2E_VQ_SECONDS" in os.environ or not ends:
+        return SECONDS
+    return int(max(ends)) + REEL_MARGIN
 
 
 def variant_name():
@@ -207,8 +225,11 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
                 time.sleep(SETTLE)
                 folder = os.path.join(directory, profile)
                 os.makedirs(folder, exist_ok=True)
-                for client in (ca, cb):
-                    pcm, rate, rows = _record(client, SECONDS)
+                seconds = capture_seconds(directory)
+                reel = os.path.exists(os.path.join(directory, "clip-A.spans.json"))
+                with ThreadPoolExecutor(max_workers=2 if reel else 1) as pool:
+                    recorded = list(pool.map(lambda c: _record(c, seconds), (ca, cb)))
+                for client, (pcm, rate, rows) in zip((ca, cb), recorded):
                     _save(os.path.join(folder, f"{client.name}-rx.wav"), pcm, rate)
                     summary = stats_summary(rows)
                     summary["rows"] = len(rows)
@@ -227,6 +248,9 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
                 if client.find(L.LEAVE_CALL):
                     _tap_label(client, L.LEAVE_CALL, settle=3)
     print(f"  selected ICE pair: {pair}")
+    if os.path.exists(os.path.join(directory, "clip-A.spans.json")):
+        score_mos(directory, "voice_corpus_score.py")
+        return
     results = analyse_saved(directory)
     score_mos(directory)
     with open(os.path.join(directory, "results.json")) as fh:

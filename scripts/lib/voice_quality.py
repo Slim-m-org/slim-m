@@ -193,10 +193,10 @@ def similarity(rec_spec, exp_spec, exp_db):
     return round(sum(scores) / len(scores), 4) if scores else 0.0
 
 
-def analyze(ref_samples, ref_rate, rec_samples, rec_rate):
+def analyze(ref_samples, ref_rate, rec_samples, rec_rate, aligned=None):
     """The full report for one received recording against its reference clip."""
     ref, rec = dsp.decimate(ref_samples, ref_rate), dsp.decimate(rec_samples, rec_rate)
-    starts, lags = align.track(ref, rec)
+    starts, lags = aligned or align.track(ref, rec)
     expected = align.expected_signal(ref, len(rec), starts, lags)
     rec_db, exp_db = _frame_db(rec), _frame_db(expected)
     rec_spec, exp_spec = dsp.power_spectrogram(rec), dsp.power_spectrogram(expected)
