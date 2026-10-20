@@ -5,6 +5,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -49,6 +50,25 @@ abstract interface class MicPort {
   /// Unpublishes the track without announcing it as a loss, so a fresh one
   /// can take its place.
   Future<void> discard();
+}
+
+/// Publishes [track] so no sound leaves before the mute lands.
+///
+/// livekit's `disable()` does nothing until `start()` has run, and publishing
+/// is what starts the track, so the platform track is silenced directly.
+@visibleForTesting
+Future<void> publishAudioTrackMuted(
+  lk.LocalAudioTrack track,
+  Future<Object?> Function(lk.LocalAudioTrack track) publish,
+) async {
+  track.mediaStreamTrack.enabled = false;
+  try {
+    await publish(track);
+  } catch (_) {
+    await track.stop();
+    rethrow;
+  }
+  await track.mute(stopOnMute: false);
 }
 
 class LiveKitMicPort implements MicPort {
@@ -122,19 +142,11 @@ class LiveKitMicPort implements MicPort {
     await track.disable();
   }
 
-  /// Silent before it is published, so no sound leaves in the gap before the mute.
   Future<void> _publishMuted(lk.AudioCaptureOptions options) async {
     final participant = _room()?.localParticipant;
     if (participant == null) return;
     final track = await lk.LocalAudioTrack.create(options);
-    try {
-      await track.disable();
-      await participant.publishAudioTrack(track);
-    } catch (_) {
-      await track.stop();
-      rethrow;
-    }
-    await track.mute(stopOnMute: false);
+    await publishAudioTrackMuted(track, participant.publishAudioTrack);
   }
 
   @override
