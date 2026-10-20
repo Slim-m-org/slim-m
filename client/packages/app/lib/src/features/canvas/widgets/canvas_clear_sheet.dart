@@ -82,7 +82,7 @@ class _CanvasClearSheet extends StatelessWidget {
           if (authorIds.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'One person\'s content',
+              'One person\'s content (people in view)',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
             const SizedBox(height: AppSpacing.s4),
