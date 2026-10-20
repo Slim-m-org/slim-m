@@ -12,24 +12,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
-import '../../../providers/live_events.dart';
 import '../../messages/providers/pending_interactions.dart';
+import 'bot_presence_refetch.dart';
 import '../../../providers/providers.dart';
 
 /// Channel-scoped because a bot's visibility is per channel.
 final channelBotUiProvider = FutureProvider.autoDispose
     .family<List<api.ChannelBotUi>, String>((ref, channelId) async {
-      final botIds = <String>{};
       // A bot that re-registers its controls would otherwise show stale ones until this channel remounts.
-      final changes = ref.read(liveEventsProvider).listen((event) {
-        if (event is api.BotUiChanged) ref.invalidateSelf();
-        if (event is api.PresenceChanged && botIds.contains(event.userId)) {
-          ref.invalidateSelf();
-        }
-      });
-      ref.onDispose(changes.cancel);
+      final presence = watchBotPresence(
+        ref,
+        alsoWhen: (event) => event is api.BotUiChanged,
+      );
       final bots = await ref.watch(apiProvider).listChannelBotUi(channelId);
-      botIds.addAll(bots.map((b) => b.botUserId));
+      presence.loaded(ref, bots.map((b) => b.botUserId));
       return bots;
     });
 

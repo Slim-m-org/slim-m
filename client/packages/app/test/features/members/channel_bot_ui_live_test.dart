@@ -10,10 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/bot_commands.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import '../../support/fake_api.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'u-me',
@@ -105,6 +108,150 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
       final second = await container.read(channelBotUiProvider('c1').future);
+      expect(second.single.offline, isTrue);
+    },
+  );
+
+  test(
+    'a presence change that lands during the fetch refetches after it',
+    () async {
+      var fetches = 0;
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      final gate = Completer<void>();
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(events.stream),
+          mockApiOverride((request) async {
+            fetches++;
+            if (fetches == 1) await gate.future;
+            return http.Response(
+              jsonEncode([
+                {
+                  'bot_user_id': 'bot-1',
+                  'bot_username': 'b',
+                  'bot_display_name': 'B',
+                  'message_menu': <Object>[],
+                  'call_controls': <Object>[],
+                  'offline': fetches > 1,
+                },
+              ]),
+              200,
+              headers: const {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final held = container.listen(channelBotUiProvider('c1'), (_, _) {});
+      addTearDown(held.close);
+      await Future<void>.delayed(Duration.zero);
+      events.add(
+        const api.PresenceChanged(
+          userId: 'bot-1',
+          status: api.PresenceState.offline,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final bots = await container.read(channelBotUiProvider('c1').future);
+      expect(fetches, 2);
+      expect(bots.single.offline, isTrue);
+    },
+  );
+
+  test('the socket coming back refetches the bot lists', () async {
+    var uiFetches = 0;
+    var commandFetches = 0;
+    final container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+        liveEventsProvider.overrideWithValue(const Stream.empty()),
+        syncControllerProvider.overrideWith((ref) => NoopSyncController(ref)),
+        mockApiOverride((request) async {
+          if (request.url.path == '/channels/c1/bot-ui') uiFetches++;
+          if (request.url.path == '/channels/c1/bot-commands') commandFetches++;
+          return http.Response(
+            jsonEncode(<Object>[]),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    final ui = container.listen(channelBotUiProvider('c1'), (_, _) {});
+    final commands = container.listen(
+      channelBotCommandsProvider('c1'),
+      (_, _) {},
+    );
+    addTearDown(ui.close);
+    addTearDown(commands.close);
+    await container.read(channelBotUiProvider('c1').future);
+    await container.read(channelBotCommandsProvider('c1').future);
+
+    (container.read(syncControllerProvider.notifier) as NoopSyncController)
+        .report(SyncStatus.live);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await container.read(channelBotUiProvider('c1').future);
+    await container.read(channelBotCommandsProvider('c1').future);
+    expect(uiFetches, 2);
+    expect(commandFetches, 2);
+  });
+
+  test(
+    'a listed bot command row reads offline and refetches on presence',
+    () async {
+      var fetches = 0;
+      final events = StreamController<api.ServerEvent>.broadcast();
+      addTearDown(events.close);
+      final container = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
+          liveEventsProvider.overrideWithValue(events.stream),
+          mockApiOverride((request) async {
+            fetches++;
+            return http.Response(
+              jsonEncode([
+                {
+                  'bot_user_id': 'bot-1',
+                  'bot_username': 'b',
+                  'bot_display_name': 'B',
+                  'prefix': '!',
+                'name': 'play',
+                  'description': 'Play',
+                  'offline': fetches > 1,
+                },
+              ]),
+              200,
+              headers: const {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      final held = container.listen(
+        channelBotCommandsProvider('c1'),
+        (_, _) {},
+      );
+      addTearDown(held.close);
+      final first = await container.read(
+        channelBotCommandsProvider('c1').future,
+      );
+      expect(first.single.offline, isFalse);
+
+      events.add(
+        const api.PresenceChanged(
+          userId: 'bot-1',
+          status: api.PresenceState.offline,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      final second = await container.read(
+        channelBotCommandsProvider('c1').future,
+      );
       expect(second.single.offline, isTrue);
     },
   );

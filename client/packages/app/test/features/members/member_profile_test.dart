@@ -97,7 +97,9 @@ void main() {
     expect(find.text('Moderate...'), findsNothing);
   });
 
-  testWidgets('a renamed member still shows the account name', (tester) async {
+  testWidgets('a renamed member shows the account name, labelled', (
+    tester,
+  ) async {
     const renamed = api.UserProfile(
       id: 'user-maya',
       username: 'maya',
@@ -110,8 +112,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('House DJ'), findsOneWidget);
-    expect(find.text('@maya · Maya'), findsOneWidget);
-    expect(find.textContaining('account name'), findsNothing);
+    expect(find.text('@maya · account name Maya'), findsOneWidget);
   });
 
   testWidgets('the profile composes before any action row', (tester) async {
