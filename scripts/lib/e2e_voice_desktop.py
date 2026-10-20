@@ -66,6 +66,14 @@ def _write_inputs(directory, voice=None):
     return paths, spans, events
 
 
+JOIN_FAILED = "SLIMM_HARNESS join-failed"
+
+
+def is_join_failure(err):
+    """A launch that never joined, or said its join failed: worth one retry."""
+    return "never printed" in str(err) or JOIN_FAILED in str(err)
+
+
 def _tokens(server, secret):
     got = e2e_api.Api(server).login(USER, secret, device="e2e-desktop")
     return {key: got[key] for key in ("user_id", "access_token", "refresh_token",
@@ -81,8 +89,10 @@ def _listen(listener, profile):
     return xp.finish_tap(listener, "rx")
 
 
-def _arm(name, listener, inputs, server, tokens, channel, compositor, directory, bundle):
+def _arm(name, listener, inputs, server, secret, channel, compositor, directory, bundle):
     choice, threshold = ARMS[name]
+    # Refresh tokens are single use, so every launch gets a pair nobody has spent.
+    tokens = _tokens(server, secret)
     root = da.seed_profile(
         os.path.join(directory, f"xdg-{name}"), server, tokens,
         {"slimm.voice.noise_suppression": choice,
@@ -95,7 +105,7 @@ def _arm(name, listener, inputs, server, tokens, channel, compositor, directory,
     try:
         da.full_volume()
         app.start(compositor)
-        app.wait_for("SLIMM_HARNESS joined", 150)
+        app.wait_for("SLIMM_HARNESS joined", 150, fail_on=JOIN_FAILED)
         for pid in app.app_pids():
             assert not da.touches_owner_data(pid), f"pid {pid} holds the owner's app data"
         for profile in [p for p in os.environ.get(
@@ -119,15 +129,14 @@ def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
     bundle = os.path.abspath(os.environ.get("E2E_DESKTOP_BUNDLE") or BUNDLE)
     assert os.path.exists(os.path.join(bundle, "slimm_app")), f"no desktop build at {bundle}"
     xp.e2e_browsers.register(server, admin_api, USER, secret)
-    tokens = _tokens(server, secret)
     channel = admin_api.channel_named(L.VOICE_CHANNEL)["id"]
     owner_before = da.default_devices()
     for voice in [v for v in os.environ.get("E2E_DESKTOP_VOICES", "").split(",") if v] or [None]:
-        _one_voice(voice, (server, secret, admin_api, sign_in), tokens, channel, bundle)
+        _one_voice(voice, (server, secret, admin_api, sign_in), channel, bundle)
     assert da.default_devices() == owner_before, "the owner's default audio devices changed"
 
 
-def _one_voice(voice, stack, tokens, channel, bundle):
+def _one_voice(voice, stack, channel, bundle):
     server, secret, admin_api, sign_in = stack
     directory = xp.out_dir("desktop" + (f"-{voice}" if voice else ""))
     paths, spans, events = _write_inputs(directory, voice)
@@ -138,7 +147,7 @@ def _one_voice(voice, stack, tokens, channel, bundle):
             da.virtual_mic(paths["mix"]):
         with xp.one_listener(server, secret, admin_api, sign_in, paths["clean"]) as listener:
             for name in wanted:
-                results[name] = _arm_with_retry(name, listener, inputs, server, tokens, channel,
+                results[name] = _arm_with_retry(name, listener, inputs, server, secret, channel,
                                                 compositor, directory, bundle)
                 with open(os.path.join(directory, "desktop.json"), "w") as fh:
                     json.dump(results, fh, indent=1)
@@ -149,7 +158,7 @@ def _arm_with_retry(*args):
     try:
         return _arm(*args)
     except AssertionError as err:
-        if "never printed" not in str(err):
+        if not is_join_failure(err):
             raise
         print(f"  {args[0]}: {err}; retrying once", flush=True)
         return _arm(*args)
