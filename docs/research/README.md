@@ -85,6 +85,10 @@ Everything below postdates the pre-build research above by weeks and reports on 
 | [mic-handling.md](mic-handling.md) | 2026-10-14 | Mic capture against current practice: what WebRTC's audio processing actually runs in our prebuilt, the rnnoise, gate and compressor chain, Windows communications ducking, push-to-talk reopening the device, voice activity clipping, Opus settings and measurement. Ends in eleven proposals filed as the "Mic P1-P11" Planka cards |
 | [video-handling.md](video-handling.md) | 2026-10-14 | Camera and screen share against current practice: publish encodings and the finding that screen share ceilings likely never reach the encoder, degradation preference, freeze detection, adaptive stream, stats, Wayland and phone thermal handling. Ends in ten proposals filed as the "Video P1-P10" Planka cards |
 | [next-theme-2026-10.md](next-theme-2026-10.md) | 2026-10-19 | Which theme to take next: five candidates weighed against the board, with portability (Discord import and data export) chosen and the web evidence behind it |
+| [voice-quality-harness.md](voice-quality-harness.md) | 2026-10-19 | The first voice quality harness: two browsers in one local call, tc netem loss and jitter, six anomaly detectors, and what each network profile did to the audio. Its burst section is superseded by `voice-bursts.md` |
+| [voice-quality-harness-v2.md](voice-quality-harness-v2.md) | 2026-10-19 | The harness extended with ViSQOL and DNSMOS scores, mouth-to-ear latency, join and speaking-ring timings, and the desktop noise path, with a before and after of two client builds. Single runs and small n, caveated in the note |
+| [voice-bursts.md](voice-bursts.md) | 2026-10-19 | What the loss bursts and the gliding-tone burst were, the livekit_client 2.13.1 `red` default trap, and the RED on plus DTX off publish setting. Small n per cell, read as a direction |
+| [voice-corpus-results.md](voice-corpus-results.md) | 2026-10-20 | The same comparison on 31 licensed real-voice clips, and the desktop noise suppression results per voice. One or two runs per cell, and whole builds are compared |
 
 ## Why this corpus stays, unpruned
 

@@ -15,6 +15,7 @@ import os
 import shutil
 import signal
 import subprocess
+import tempfile
 import time
 
 SINK = "slimm_vq_sink"
@@ -33,7 +34,8 @@ def sweep_stale():
     """Unloads modules a crashed earlier run left behind; they all carry our names."""
     for line in _pactl("list", "short", "modules").splitlines():
         if any(name in line for name in (SINK, MIC, OUT)):
-            _pactl("unload-module", line.split()[0])
+            with contextlib.suppress(subprocess.CalledProcessError):
+                _pactl("unload-module", line.split()[0])
 
 
 @contextlib.contextmanager
@@ -59,12 +61,22 @@ def virtual_mic(wav):
         yield feeder
     finally:
         if feeder is not None:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(feeder.pid, signal.SIGTERM)
-            feeder.wait(timeout=10)
+            _stop_group(feeder, 10)
         for module in reversed(modules):
             with contextlib.suppress(subprocess.CalledProcessError):
                 _pactl("unload-module", module)
+
+
+def _stop_group(proc, grace):
+    """Ends the process group: SIGTERM, then SIGKILL if it outlives `grace` seconds."""
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(proc.pid, signal.SIGTERM)
+    try:
+        proc.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait(timeout=5)
 
 
 def full_volume():
@@ -84,6 +96,25 @@ def full_volume():
     raise AssertionError("the microphone feeder never appeared as a playback stream")
 
 
+def recording_from_mic(outputs, sources, pids):
+    """Whether a recording stream on MIC belongs to one of `pids` (or names no process)."""
+    names = {s["index"]: s["name"] for s in sources}
+    for out in outputs:
+        if names.get(out.get("source")) != MIC:
+            continue
+        owner = out.get("properties", {}).get("application.process.id")
+        if owner is None or int(owner) in pids:
+            return True
+    return False
+
+
+def app_captures_mic(pids):
+    """Asks PipeWire whether the app is recording from the virtual microphone."""
+    outputs = json.loads(_pactl("-f", "json", "list", "source-outputs"))
+    sources = json.loads(_pactl("-f", "json", "list", "sources"))
+    return recording_from_mic(outputs, sources, set(pids))
+
+
 def default_devices():
     """The owner's default sink and source, to prove they did not change."""
     text = _pactl("info")
@@ -94,28 +125,72 @@ def _socket_path():
     return os.path.join(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), SOCKET)
 
 
+def kwin_env(base, private):
+    """The nested compositor's environment: its own config, data, cache and state, never the owner's."""
+    env = {k: v for k, v in base.items() if k not in ("WAYLAND_DISPLAY", "DISPLAY")}
+    for var, sub in (("XDG_CONFIG_HOME", "config"), ("XDG_DATA_HOME", "data"),
+                     ("XDG_CACHE_HOME", "cache"), ("XDG_STATE_HOME", "state")):
+        env[var] = os.path.join(private, sub)
+        os.makedirs(env[var], exist_ok=True)
+    return env
+
+
+def kwin_command():
+    """kwin on a session bus of its own, so it cannot claim org.kde.KWin on the owner's."""
+    return ["dbus-run-session", "--", "kwin_wayland", "--virtual", "--socket", SOCKET,
+            "--no-lockscreen", "--width", "1280", "--height", "800"]
+
+
+def _socket_answers(path):
+    """Whether something is listening on the socket; a leftover file from a dead compositor is not."""
+    import socket
+    with socket.socket(socket.AF_UNIX) as probe:
+        probe.settimeout(1)
+        try:
+            probe.connect(path)
+        except OSError:
+            return False
+    return True
+
+
+def _log_tail(log, lines=15):
+    with contextlib.suppress(OSError), open(log, "r", errors="replace") as fh:
+        return "".join(fh.readlines()[-lines:])
+    return ""
+
+
+def _await_socket(proc, log, timeout=30):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            raise AssertionError(f"the nested compositor exited ({proc.returncode}):\n{_log_tail(log)}")
+        if os.path.exists(_socket_path()) and _socket_answers(_socket_path()):
+            return
+        time.sleep(0.3)
+    raise AssertionError(f"the nested compositor never opened {_socket_path()}:\n{_log_tail(log)}")
+
+
 @contextlib.contextmanager
 def nested_compositor(log):
-    """The `wayland-test` socket, started here unless it already answers."""
-    proc = None
-    if not os.path.exists(_socket_path()):
-        env = {k: v for k, v in os.environ.items() if k not in ("WAYLAND_DISPLAY", "DISPLAY")}
+    """The `wayland-test` socket, started here unless something already answers on it."""
+    proc, private = None, None
+    if not _socket_answers(_socket_path()):
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(_socket_path())
+        private = tempfile.mkdtemp(prefix="slimm-kwin-")
         with open(log, "wb") as out:
             proc = subprocess.Popen(
-                ["kwin_wayland", "--virtual", "--socket", SOCKET, "--no-lockscreen",
-                 "--width", "1280", "--height", "800"],
-                env=env, stdout=out, stderr=out, stdin=subprocess.DEVNULL,
-                start_new_session=True)
-        deadline = time.time() + 30
-        while not os.path.exists(_socket_path()) and time.time() < deadline:
-            time.sleep(0.3)
+                kwin_command(), env=kwin_env(os.environ, private), stdout=out, stderr=out,
+                stdin=subprocess.DEVNULL, start_new_session=True)
     try:
+        if proc is not None:
+            _await_socket(proc, log)
         yield _socket_path()
     finally:
         if proc is not None:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(proc.pid, signal.SIGTERM)
-            proc.wait(timeout=15)
+            _stop_group(proc, 15)
+        if private is not None:
+            shutil.rmtree(private, ignore_errors=True)
 
 
 def seed_profile(root, server, tokens, prefs):
@@ -160,7 +235,22 @@ def touches_owner_data(pid):
                  for fd in os.listdir(f"/proc/{pid}/fd")]
     except OSError:
         return False
-    return any(link.startswith(mine) for link in links)
+    return any(link == mine or link.startswith(mine + os.sep) for link in links)
+
+
+def assert_isolated(pids):
+    """Fails unless at least one app process was found and none holds the owner's data."""
+    assert pids, "no app process was found, so the owner-data check proved nothing"
+    for pid in pids:
+        assert not touches_owner_data(pid), f"pid {pid} holds the owner's app data"
+
+
+def _comm(pid):
+    try:
+        with open(f"/proc/{pid}/comm") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
 
 
 def _marked(marker):
@@ -183,6 +273,7 @@ class Desktop:
     def __init__(self, bundle, root, channel, log):
         self.bundle, self.root, self.channel, self.log = bundle, root, channel, log
         self.proc = None
+        self.out = None
 
     def start(self, compositor):
         env = {k: v for k, v in os.environ.items() if k not in ("DISPLAY",)}
@@ -200,8 +291,7 @@ class Desktop:
             stdin=subprocess.DEVNULL, start_new_session=True)
 
     def app_pids(self):
-        return [p for p in _marked(os.path.join(self.root, "data"))
-                if open(f"/proc/{p}/comm").read().strip() == "slimm_app"]
+        return [p for p in _marked(os.path.join(self.root, "data")) if _comm(p) == "slimm_app"]
 
     def wait_for(self, text, timeout, fail_on=None):
         """Waits for [text] in the app's log; [fail_on] in it raises at once with its line."""
@@ -225,14 +315,12 @@ class Desktop:
 
     def stop(self):
         marker = os.path.join(self.root, "data")
-        if self.proc is not None:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(self.proc.pid, signal.SIGTERM)
-            with contextlib.suppress(subprocess.TimeoutExpired):
-                self.proc.wait(timeout=15)
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(self.proc.pid, signal.SIGKILL)
-        for pid in _marked(marker):
-            with contextlib.suppress(ProcessLookupError):
-                os.kill(pid, signal.SIGTERM)
-        self.out.close()
+        try:
+            if self.proc is not None:
+                _stop_group(self.proc, 15)
+        finally:
+            for pid in _marked(marker):
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(pid, signal.SIGTERM)
+            if self.out is not None:
+                self.out.close()

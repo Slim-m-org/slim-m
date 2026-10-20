@@ -74,11 +74,6 @@ class SpeakingRow(unittest.TestCase):
         got = ex.speaking_row(_quiet(3) + _tone(1), 0.0, events)
         self.assertEqual((got["lit"], got["missed"]), (0, 0))
 
-
-if __name__ == "__main__":
-    unittest.main()
-
-
 class ResumedAfter(unittest.TestCase):
     def test_the_same_connection_resumes_past_its_own_count(self):
         series = [{"t": 0, "pc": 0, "packets": 1000}, {"t": 2000, "pc": 0, "packets": 1000},
@@ -89,3 +84,22 @@ class ResumedAfter(unittest.TestCase):
         series = [{"t": 0, "pc": 0, "packets": 1000}, {"t": 2000, "pc": 0, "packets": 1000},
                   {"t": 3500, "pc": 1, "packets": 40}]
         self.assertEqual(ex.resumed_after(series, 2000), [3500])
+
+
+class CutRowAfterARejoin(unittest.TestCase):
+    def test_a_rejoin_makes_the_audio_time_unmeasurable_not_never(self):
+        events = [{"n": "pc-new", "t": 5000.0}]
+        samples = _quiet(3) + _tone(1)
+        got = ex.cut_row(samples, 0.0, events, [], 1000.0, 2000.0)
+        self.assertTrue(got["rejoined"])
+        self.assertIsNone(got["time_to_audio_ms"])
+        self.assertFalse(got["audio_tap_survived"])
+
+    def test_without_a_rejoin_the_audio_time_is_reported(self):
+        got = ex.cut_row(_quiet(3) + _tone(1), 0.0, [], [], 1000.0, 2000.0)
+        self.assertTrue(got["audio_tap_survived"])
+        self.assertIsNotNone(got["time_to_audio_ms"])
+
+
+if __name__ == "__main__":
+    unittest.main()

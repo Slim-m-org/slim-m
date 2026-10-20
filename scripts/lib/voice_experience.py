@@ -64,15 +64,17 @@ def cut_row(samples, start, events, series, t_cut, t_back):
     during = sum(1 for t, _ in heard if t_cut + 500 <= t < t_back) / 100.0
     after = [t for t, _ in heard if t >= t_back]
     resumed = resumed_after(series, t_back)
+    rejoined = any(e["n"] == "pc-new" and e["t"] >= t_cut for e in events)
     return {"outage_ms": round(t_back - t_cut),
             "audio_during_outage_s": round(during, 2),
-            "time_to_audio_ms": round(after[0] - t_back) if after else None,
+            "time_to_audio_ms": round(after[0] - t_back) if after and not rejoined else None,
+            "audio_tap_survived": not rejoined,
             "time_to_packets_ms": round(resumed[0] - t_back) if resumed else None,
-            "rejoined": any(e["n"] == "pc-new" and e["t"] >= t_cut for e in events),
+            "rejoined": rejoined,
             "transport": _ice(events, t_cut)}
 
 
-def speaking_row(samples, start, events, label="speaking"):
+def speaking_row(samples, start, events):
     """Delay from each speech onset (after long quiet) to the ring lighting up."""
     levels = _levels(samples)
     quiet = int(QUIET_BEFORE_S * 100)

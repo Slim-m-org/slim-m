@@ -79,7 +79,6 @@ extension VoiceSessionTracks on VoiceSession {
   /// uncancelled listener would still reach `_onDisconnected` mid-teardown,
   /// which `_onDisconnected`'s own doc says a `leave()` must never do.
   Future<void> _teardown() async {
-    _joinTimings.finish();
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer = null;
     // Synchronously, and before anything else; see this method's own doc.

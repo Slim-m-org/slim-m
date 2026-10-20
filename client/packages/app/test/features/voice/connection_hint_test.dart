@@ -8,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/settings/widgets/call_health_format.dart';
 import 'package:slimm_app/src/features/settings/widgets/call_health_row.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_health.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_stage_layout.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -35,14 +37,20 @@ Widget _app(Widget child, {List<Override> overrides = const []}) =>
       ),
     );
 
-class _HealthyTile extends ConsumerWidget {
-  const _HealthyTile();
+class _NoCamera implements VoiceController {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
+/// The call stage's own tile builder, so dropping its health argument fails here.
+class _StageTile extends StatelessWidget {
+  const _StageTile(this.participant);
+
+  final VoiceParticipant participant;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => CallParticipantTile(
-    participant: _bob,
-    poorConnection: ref.watch(poorConnectionsProvider).contains(_bob.identity),
-  );
+  Widget build(BuildContext context) =>
+      participantTile(context, participant, _NoCamera(), (_, _) {});
 }
 
 void main() {
@@ -74,7 +82,7 @@ void main() {
     final poor = ValueNotifier<Set<String>>({});
     await tester.pumpWidget(
       _app(
-        const _HealthyTile(),
+        const _StageTile(_bob),
         overrides: [
           poorConnectionsProvider.overrideWith((ref) => ListenableState(poor)),
         ],
@@ -87,6 +95,29 @@ void main() {
     poor.value = {};
     await tester.pump();
     expect(find.byKey(poorConnectionBadgeKey), findsNothing);
+  });
+
+  testWidgets('our own tile shows the hint when our connection is poor', (
+    tester,
+  ) async {
+    const me = VoiceParticipant(
+      identity: 'user-me',
+      name: 'Me',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: true,
+      isScreenSharing: false,
+    );
+    final poor = ValueNotifier<Set<String>>({'user-me'});
+    await tester.pumpWidget(
+      _app(
+        const _StageTile(me),
+        overrides: [
+          poorConnectionsProvider.overrideWith((ref) => ListenableState(poor)),
+        ],
+      ),
+    );
+    expect(find.byKey(poorConnectionBadgeKey), findsOneWidget);
   });
 
   group('the last call on the Troubleshooting page', () {

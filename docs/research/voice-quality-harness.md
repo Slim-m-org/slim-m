@@ -1,6 +1,8 @@
 # Voice quality harness and findings
 
 Written 2026-10-19 against `origin/main` at b2dabe21b, web client, livekit_client 2.13.1, LiveKit server v1.10.1.
+The burst findings in the last section are superseded by `voice-bursts.md`, which tested them with speech and in the browser.
+The static detector in this first run could not fire in digital-silence gaps, so "no static" below covers speech frames only; the detector is fixed and the runs have not been repeated.
 
 ## What the harness is
 
@@ -45,15 +47,16 @@ Reading the table:
 - Packet loss shows as concealment, not as lost packets: `packetsLost` stays near zero while hundreds of concealment events fire, so the SFU's NACK retransmits appear to refill the count after the decoder has already concealed.
   Use `concealmentEvents` and `concealedSamples` as the loss signal.
 - In speech, loss costs short dropouts (50 to 190 ms, heard at 40 to 80 dB below the reference) and short overshoots (50 to 260 ms, up to +14 dB) where concealment is louder than the word it replaced.
-- Neither is noise-like: the static detector found nothing in any profile, and the tone detector found no foreign tone.
+- Neither is noise-like: the static detector found nothing in speech frames in any profile, and the tone detector found no foreign tone.
 - Delay drift of the tracked playout is up to 70 ms over 240 s, with steps of 5 to 25 ms in the lossy profiles; those are the jitter buffer accelerating and decelerating (`removedSamplesForAcceleration` up to 124k samples on the burst profile).
 
 ### Does anything match "a solid static note for about a second"?
 
-No condition produced static or a foreign tone, in any profile, in 20 minutes of two-way audio.
+No condition produced static in speech frames or a foreign tone, in any profile, in 20 minutes of two-way audio on the synthetic clips.
+Static in the silence gaps was not measured, because the detector could not flag it there.
 The closest artefact is a level burst of +7 dB with full-scale clipping, 0.26 to 0.52 s long, that always lands at the same place in the clip: a descending pure-tone sweep at about 27 s, near 1.3 kHz.
 It appeared under loss (loss2, loss5-jitter30, burst) and in short clean runs, and not in a 240 s clean run, so it is intermittent.
-It is not a network effect: a libopus encode and decode of the clip with no network at all reproduces it at 16 to 64 kbps and not at 96 or 128 kbps.
+An offline encode and decode of the clip reproduced it at first, but `voice-bursts.md` shows that was ffmpeg's native Opus decoder and not libopus, so it is not evidence about the browser.
 A steady sine at any frequency or level does not trigger it, and neither does the speech-like content.
 So a swept or gliding tone (whistling, game or music audio) at the 48 kbps ceiling can come out as a louder clipped note for a third of a second.
 That is a plausible source of the report, but this harness has not seen it with speech.

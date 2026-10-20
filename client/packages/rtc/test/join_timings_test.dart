@@ -68,4 +68,14 @@ void main() {
     expect(finished, hasLength(1));
     expect(timings.last, same(finished.single));
   });
+
+  test('a join nobody was heard in ends instead of staying open all call', () {
+    timings.begin();
+    at(1000, JoinStage.connected);
+    at(10 * 60 * 1000, JoinStage.firstRemoteAudio);
+
+    expect(finished, hasLength(1));
+    expect(finished.single.complete, isFalse);
+    expect(timings.isOpen, isFalse);
+  });
 }

@@ -240,11 +240,20 @@ class AudioDeviceSwitching {
   /// room default on desktop, so the published track kept its own old
   /// `deviceId`: it went on capturing the previous microphone, and any later
   /// restart (unmute, push-to-talk) re-opened that one.
+  ///
+  /// On web `Room.setAudioInputDevice` restarts every audio publication, share
+  /// audio included, as a microphone; there only the microphone is touched.
   static Future<void> switchLiveInput(
     lk.Room room,
-    lk.MediaDevice device,
-  ) async {
-    await room.setAudioInputDevice(device);
+    lk.MediaDevice device, {
+    bool? web,
+    void Function(lk.MediaDevice device)? select,
+  }) async {
+    if (web ?? lk.lkPlatformIs(lk.PlatformType.web)) {
+      (select ?? _selectHardwareInput)(device);
+    } else {
+      await room.setAudioInputDevice(device);
+    }
     final publications =
         voiceSourced<lk.LocalTrackPublication<lk.LocalAudioTrack>>(
       room.localParticipant?.audioTrackPublications ?? const [],
@@ -255,6 +264,9 @@ class AudioDeviceSwitching {
       if (track is lk.LocalAudioTrack) await track.setDeviceId(device.deviceId);
     }
   }
+
+  static void _selectHardwareInput(lk.MediaDevice device) =>
+      lk.Hardware.instance.selectedAudioInput = device;
 
   /// [selectInput]'s counterpart for output.
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {

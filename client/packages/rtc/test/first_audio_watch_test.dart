@@ -60,4 +60,19 @@ void main() {
     expect(polls, 3);
     expect(marked, 1);
   });
+
+  test('a stats call that throws does not escape the watch', () async {
+    var polls = 0;
+    await watchFirstAudio(
+      joinOpen: () => polls < 2,
+      packetsReceived: () async {
+        polls++;
+        throw StateError('track gone');
+      },
+      onAudio: () {},
+      every: Duration.zero,
+    );
+
+    expect(polls, 2);
+  });
 }

@@ -10,7 +10,8 @@ Single runs are noisy, so read differences of a few counts as nothing.
 - `microphonePublishOptions()` now publishes with RED on and DTX off.
 - RED on, under 5% loss with 30 ms jitter: `level_burst` 50 to 2, dropouts 11 to 0, ViSQOL 4.04 to 4.34.
 - DTX off, on the gliding-tone clip, clean network: `level_burst` 7 to 0, clipping 6 to 0, peak +6.0 dB to +0.8 dB.
-- Cost: RED roughly doubles the audio payload (received 37 to 72 kbps per speaker including RTP overhead), DTX off adds about 3 kbps.
+- Cost: RED roughly doubles the audio payload (received 37 to 72 kbps per speaker including RTP overhead).
+  DTX off added about 3 kbps on the gliding-tone clip, which has almost no silence, and about 8 to 10 kbps on speech (72 to about 80 kbps with RED); an idle open microphone was not measured and would cost more.
 
 ## A livekit_client 2.13.1 trap
 
@@ -91,8 +92,9 @@ Cells are bursts / dropouts / ViSQOL / peak over reference (dB) / received kbps 
 | loss5-jitter30 | 50 / 11 / 4.04 / +5.7 and 33 / 2 / 4.15 / +6.0 / 37 | 2 / 0 / 4.34 / +1.4 and 3 / 0 / 4.42 / +1.1 / 71-72 | 1 / 0 / 4.32 / +1.5 and 1 / 0 / 4.33 / +1.3 / 80 |
 | burst | 52 / 20 / 3.93 / +1.5 and 39 / 14 / 4.12 / +1.2 / 37 | 14 / 14 / 3.91 / +6.0 and 6 / 12 / 3.96 / +1.3 / 70 | 14 / 11 / 4.05 / +6.0 and 13 / 10 / 4.02 / +6.0 / 79 |
 
-- RED + DTX off is not worse than RED alone on any speech cell by more than run-to-run spread: bursts and dropouts are equal or lower, ViSQOL within 0.1.
-- The one cost is bandwidth: about 80 kbps received per speaker (RED alone 72, default 37), because DTX off sends frames through silence too.
+- RED + DTX off against RED alone, speech, two runs each: ViSQOL is within 0.1 and bursts and dropouts are about equal in most cells.
+  The exception is the burst profile, where the second ship run has 13 bursts and 10 dropouts against 6 and 12 for RED alone and a +6.0 dB peak against +1.3, so "equal or lower" does not hold for every run.
+- The one measured cost is bandwidth: about 80 kbps received per speaker (RED alone 72, default 37), because DTX off sends frames through silence too.
 - The burst profile keeps about 13 bursts, 10 dropouts and a +6 dB peak with one clipped run in each ship run; RED does not fix long loss runs.
 - Gliding tone, clean, RED + DTX off, one run: no clipping and peak +0.8 dB (default +6.0 dB with 6 clipped runs), 67.7 kbps.
   It also showed four 52 ms `level_burst` events at 22-28 s and two 52 ms dropouts in one direction with 2 concealment events on a clean link, which DTX off alone (one run) did not show.

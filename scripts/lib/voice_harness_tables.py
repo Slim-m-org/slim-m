@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Markdown tables from the latency, experience and desktop result files.
 
-usage: voice_harness_tables.py latency|experience|desktop <voice-quality dir>
+usage: voice_harness_tables.py <voice-quality dir> latency|joins|speaking|cut|desktop
 Reads `<dir>/latency/latency.json`, `<dir>/experience/experience.json` or
 `<dir>/desktop/desktop.json`.
 """
@@ -25,18 +25,23 @@ def _num(value, digits=0):
     return "-" if value is None else f"{value:.{digits}f}"
 
 
+def _share(values):
+    known = [v for v in values if v is not None]
+    return f"{statistics.mean(known):.0%}" if known else "-"
+
+
 def latency(root):
     rows = []
     for profile, row in _load(root, "latency").items():
         both = [row["vqa_to_vqb"], row["vqb_to_vqa"]]
         m2e = [d["mouth_to_ear_ms"] for d in both if d["mouth_to_ear_ms"].get("n")]
-        jitter = [row["stats"][n].get("jitterBufferDelayMs", 0) for n in row["stats"]]
+        jitter = [v for v in (row["stats"][n].get("jitterBufferDelayMs") for n in row["stats"]) if v]
         median = statistics.mean(m["median"] for m in m2e) if m2e else None
         rows.append([profile, _num(median), _num(max((m["p95"] for m in m2e), default=None)),
                      _num(max((m["max"] for m in m2e), default=None)),
                      _num(statistics.mean(jitter)) if jitter else "-",
                      _num(median - statistics.mean(jitter)) if m2e and jitter else "-",
-                     f"{statistics.mean(d['answered'] for d in both):.0%}"])
+                     _share([d["answered"] for d in both])])
     return _md(["profile", "mouth-to-ear median ms", "p95 ms", "max ms",
                 "jitter buffer ms", "median minus jitter buffer ms", "chirps heard"], rows)
 
@@ -67,7 +72,7 @@ def cut(root):
             ["first audio after link back ms", _num(c["time_to_audio_ms"])],
             ["full rejoin", "yes" if c["rejoined"] else "no"],
             ["call still open", "yes" if c["call_still_open"] else "no"],
-            ["peer connections at end", c["peer_connections"]]]
+            ["new peer connections", c["new_peer_connections"]]]
     rows += [[k, v] for k, v in sorted(t.items())]
     return _md(["measure", "value"], rows)
 
@@ -93,4 +98,4 @@ def desktop(root):
 KINDS = {"latency": latency, "joins": joins, "speaking": speaking, "cut": cut, "desktop": desktop}
 
 if __name__ == "__main__":
-    print(KINDS[sys.argv[1]](sys.argv[2]))
+    print(KINDS[sys.argv[2]](sys.argv[1]))

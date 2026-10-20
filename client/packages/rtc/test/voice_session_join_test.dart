@@ -45,8 +45,14 @@ class _Mic implements MicPort {
   Future<void> restart(lk.AudioCaptureOptions options) async {}
   @override
   Future<void> release() async {}
+  int reopens = 0;
+  Completer<void>? reopenGate;
   @override
-  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {}
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
+    reopens++;
+    await reopenGate?.future;
+  }
+
   @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
   @override
@@ -138,5 +144,30 @@ void main() {
     expect(millis.keys.toSet(), order.toSet());
     final values = [for (final stage in order) millis[stage]!];
     expect([...values]..sort(), values);
+  });
+
+  test('a join that replaces a live room keeps its own timings', () async {
+    gate.complete();
+    timings.begin();
+    await join();
+    timings.begin();
+    await join();
+    timings.finish();
+
+    expect(timings.last!.millis, contains(JoinStage.connected));
+    expect(timings.last!.millis, contains(JoinStage.micPublished));
+  });
+
+  test('two overlapping primes of the muted mic open it once', () async {
+    gate.complete();
+    await join(micOn: false);
+    mic.reopenGate = Completer<void>();
+
+    final first = session.setKeepMicReady(true);
+    final second = session.setKeepMicReady(true);
+    mic.reopenGate!.complete();
+    await Future.wait([first, second]);
+
+    expect(mic.reopens, 1);
   });
 }

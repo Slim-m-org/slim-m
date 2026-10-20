@@ -367,6 +367,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _heartbeat.stop();
     _autoRejoin.reset();
     _callClock.forget();
+    _ref.read(joinTimingsProvider).finish();
     await _session.leave();
     if (generation != _callGeneration) return;
     // Best-effort and fire-and-forget: this client already disconnected.

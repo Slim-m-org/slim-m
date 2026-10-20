@@ -40,6 +40,9 @@ const Duration kHealthLogEvery = Duration(seconds: 60);
 /// The longest history kept per stream for the end-of-call summary.
 const int kHealthHistoryCap = 2880;
 
+/// Samples land a little short of their nominal interval, so a run counts a bit early.
+const double _intervalTolerance = 0.5;
+
 /// Turns a run of good or bad intervals into a hint that does not flicker.
 class QualityGate {
   bool poor = false;
@@ -55,11 +58,14 @@ class QualityGate {
   }) {
     _badFor = bad ? _badFor + seconds : 0;
     _goodFor = clear ? _goodFor + seconds : 0;
-    if (!poor && _badFor >= kPoorSustain.inMilliseconds / 1000) {
+    if (!poor &&
+        _badFor >= kPoorSustain.inMilliseconds / 1000 - _intervalTolerance) {
       poor = true;
       return true;
     }
-    if (poor && _goodFor >= kRecoverSustain.inMilliseconds / 1000) {
+    if (poor &&
+        _goodFor >=
+            kRecoverSustain.inMilliseconds / 1000 - _intervalTolerance) {
       poor = false;
       return true;
     }
@@ -83,6 +89,13 @@ class _Stream {
   final history = <HealthInterval>[];
   final gate = QualityGate();
   bool present = true;
+
+  /// Drops what the live reading and hint were built from, keeping the history.
+  void forget() {
+    previousReceive = null;
+    gate.reset();
+    window.clear();
+  }
 
   void add(HealthInterval interval) {
     window.add(interval);
@@ -164,8 +177,7 @@ class VoiceHealth {
   void skip(String id) {
     final stream = _remote[id];
     if (stream == null) return;
-    stream.previousReceive = null;
-    stream.gate.reset();
+    stream.forget();
     _publish();
   }
 
@@ -175,7 +187,7 @@ class VoiceHealth {
       if (ids.contains(entry.key)) continue;
       entry.value
         ..present = false
-        ..previousReceive = null;
+        ..forget();
     }
     _publish();
   }
@@ -198,15 +210,29 @@ class VoiceHealth {
     }
     final summary = CallHealthSummary.of(
       endedAt: _clock(),
-      remote: {
-        for (final s in _remote.values)
-          if (s.history.isNotEmpty) s.name: s.history,
-      },
+      remote: _historiesByLabel(),
       local: _local?.history,
     );
-    lastCall.value = summary;
+    // Sitting alone must not erase the numbers of the call before.
+    if (summary.peers.isNotEmpty || lastCall.value == null) {
+      lastCall.value = summary;
+    }
     reset();
     return summaryLines(summary);
+  }
+
+  /// Each person's history under their name, or name and id when two share one.
+  Map<String, List<HealthInterval>> _historiesByLabel() {
+    final withData = _remote.entries.where((e) => e.value.history.isNotEmpty);
+    final names = <String, int>{};
+    for (final e in withData) {
+      names.update(e.value.name, (n) => n + 1, ifAbsent: () => 1);
+    }
+    return {
+      for (final e in withData)
+        names[e.value.name]! > 1 ? '${e.value.name} (${e.key})' : e.value.name:
+            e.value.history,
+    };
   }
 
   void reset() {

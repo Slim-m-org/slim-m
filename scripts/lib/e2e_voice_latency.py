@@ -20,6 +20,22 @@ import voice_latency as lat
 
 SECONDS = int(os.environ.get("E2E_VQ_SECONDS", "45"))
 SETTLE = 4
+RESULTS = "latency.json"
+MIN_CLEAN_CHIRPS = 5
+
+
+def problems(profile, row):
+    """Why a profile's row cannot be trusted: a direction that sent or heard nothing."""
+    found = []
+    for name in ("vqa_to_vqb", "vqb_to_vqa"):
+        d = row[name]
+        if not d["sent"]:
+            found.append(f"{profile} {name}: no chirp left the sender (dead tap or wrong stream)")
+        elif not d["heard"]:
+            found.append(f"{profile} {name}: {d['sent']} chirps sent, none heard")
+        elif profile == "clean" and d["mouth_to_ear_ms"].get("n", 0) < MIN_CLEAN_CHIRPS:
+            found.append(f"{profile} {name}: only {d['mouth_to_ear_ms'].get('n', 0)} chirps crossed")
+    return found
 
 
 def _direction(sender, receiver, folder):
@@ -57,6 +73,10 @@ def a_timed_call(server, secret, admin_api, sign_in, room_id):
     wanted = [p for p in os.environ.get(
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
     directory = xp.out_dir("latency")
+    unknown = [p for p in wanted if p not in e2e_netem.PROFILES]
+    assert not unknown, f"unknown E2E_VQ_PROFILES {unknown}; known: {list(e2e_netem.PROFILES)}"
+    if os.path.exists(os.path.join(directory, RESULTS)):
+        os.remove(os.path.join(directory, RESULTS))
     clips = []
     for who in "AB":
         path = os.path.join(directory, f"latency-{who}.wav")
@@ -76,17 +96,16 @@ def a_timed_call(server, secret, admin_api, sign_in, room_id):
                        "vqb_to_vqa": _direction(taps["vqb"], taps["vqa"], directory),
                        "stats": stats}
                 results[profile] = row
+                with open(os.path.join(directory, RESULTS), "w") as fh:
+                    json.dump(results, fh, indent=1)
                 for name, d in (("vqa->vqb", row["vqa_to_vqb"]), ("vqb->vqa", row["vqb_to_vqa"])):
                     print(f"  {profile:18} {name} sent {d['sent']} heard {d['heard']} "
                           f"{d['mouth_to_ear_ms']}")
         finally:
             e2e_netem.clear()
-    with open(os.path.join(directory, "latency.json"), "w") as fh:
-        json.dump(results, fh, indent=1)
-    clean = results.get("clean")
-    if clean:
-        got = clean["vqa_to_vqb"]["mouth_to_ear_ms"]
-        assert got.get("n", 0) >= 5, f"too few chirps crossed the clean call: {got}"
+    found = [p for profile, row in results.items() for p in problems(profile, row)]
+    assert results, "no profile was measured"
+    assert not found, "; ".join(found)
 
 
 def run_if_selected(server, secret, admin_api, sign_in, room_id):

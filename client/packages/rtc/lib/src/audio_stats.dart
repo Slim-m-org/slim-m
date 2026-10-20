@@ -87,10 +87,20 @@ bool _isAudio(StatsEntry e) =>
     (e.text('kind') ?? e.text('mediaType') ?? 'audio') == 'audio';
 
 double? _pairRttMs(List<StatsEntry> entries) {
-  final pair = entries.where((e) => e.type == 'candidate-pair').where(
-        (e) => (e.flag('nominated') ?? false) || e.text('state') == 'succeeded',
-      );
-  final rtt = pair.firstOrNull?.number('currentRoundTripTime');
+  final pairs = entries.where((e) => e.type == 'candidate-pair').toList();
+  final selectedId = entries
+      .where((e) => e.type == 'transport')
+      .map((e) => e.text('selectedCandidatePairId'))
+      .whereType<String>()
+      .firstOrNull;
+  final selected = pairs.where((e) => e.id == selectedId).firstOrNull ??
+      pairs.where((e) => e.flag('selected') ?? false).firstOrNull;
+  final chosen = selected ??
+      pairs
+          .where((e) =>
+              (e.flag('nominated') ?? false) || e.text('state') == 'succeeded')
+          .firstOrNull;
+  final rtt = chosen?.number('currentRoundTripTime');
   return rtt == null ? null : rtt * 1000;
 }
 
