@@ -151,15 +151,23 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     tiles: tileOverrides,
   );
 
-  late final CanvasPersonalLayoutKeeper _layoutKeeper =
-      CanvasPersonalLayoutKeeper(
-        channelId: channelId,
-        mode: viewMode,
-        store: _ref
-            .read(canvasLayoutStoreProvider.future)
-            .then<CanvasLayoutStore?>((store) => store)
-            .catchError((Object _) => null),
-      );
+  late final CanvasPersonalLayoutKeeper
+  _layoutKeeper = CanvasPersonalLayoutKeeper(
+    channelId: channelId,
+    mode: viewMode,
+    store: _ref
+        .read(canvasLayoutStoreProvider.future)
+        .then<CanvasLayoutStore?>((store) => store)
+        .catchError((Object error, StackTrace stack) {
+          api.AppLog.swallowed(
+            api.LogTag.ui,
+            'Could not open the layout store; the personal layout will not save',
+            error,
+            stack,
+          );
+          return null;
+        }),
+  );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),

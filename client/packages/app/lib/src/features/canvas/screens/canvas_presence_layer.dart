@@ -6,9 +6,9 @@
 /// platform texture a painter cannot sample, and it is the one place that
 /// decides which remote video is worth subscribing to ([onVideoInterest]),
 /// so what is mounted and what the SFU sends never disagree. The reasoning
-/// for presence over canvas objects, the backdrop for sent-to-back tiles and
-/// full screen filling the pane under the ink is in
-/// docs/decisions/0010-canvas-media-tiles.md.
+/// for presence over canvas objects and the backdrop for sent-to-back tiles is
+/// in docs/decisions/0010-canvas-media-tiles.md; full screen filling the pane
+/// under the ink, and the dock folding away, are in 0081.
 library;
 
 import 'package:flutter/foundation.dart' show setEquals;

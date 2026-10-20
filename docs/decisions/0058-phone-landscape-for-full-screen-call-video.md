@@ -1,6 +1,6 @@
 # 0058 - A phone may rotate only while a call's video is full screen
 
-Status: accepted, 2026-10-06.
+Status: accepted, 2026-10-06. Amended by [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md): a canvas tile's full screen no longer reaches this route.
 
 ## The problem
 

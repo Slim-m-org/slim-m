@@ -187,8 +187,8 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// Replaces [rect]/[locked]/[sentToBack] with the server's current answer
   /// for [key] - a fetch on opening the canvas, or a live
   /// `canvas.media_slot.changed` frame - leaving [hidden] untouched, since
-  /// that field is never shared. The server already enforces its own world
-  /// bound on write, so this does not re-clamp [rect].
+  /// that field is never shared. A server rect is pulled onto
+  /// the board, as a live drag is, so a legacy off-board slot cannot paint on the letterbox.
   void applyServer(
     String key, {
     required Rect rect,

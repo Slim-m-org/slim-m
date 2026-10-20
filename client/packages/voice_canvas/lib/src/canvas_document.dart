@@ -108,7 +108,7 @@ class CanvasDocument extends ChangeNotifier {
   /// Dedupe by id is what makes every fetch path safe to repeat: place is
   /// idempotent server-side, so a duplicate from a pan, a live frame or a
   /// reconnect is a no-op here rather than a second mark. The
-  /// [_removedIds] check is what stops a viewport read that was already in
+  /// removed-ids check (`RemovedIds`) is what stops a viewport read that was already in
   /// flight when a removal landed from resurrecting it, permanently, with
   /// nothing later re-delivering the erase.
   int? applyPlaced(CanvasStrokeInput input) {

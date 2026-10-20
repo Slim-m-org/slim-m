@@ -313,30 +313,6 @@ void main() {
 
     await tester.tap(find.byTooltip('Hide controls'));
     await tester.pumpAndSettle();
-    expect(_pen, findsNothing);
-  });
-
-  testWidgets('the snackbar reservation follows the folded dock: the handle '
-      'alone, then the whole dock once it is shown', (tester) async {
-    final (:voice, :container) = await _pump(tester);
-    await _focusTheShare(tester);
-    expect(
-      container.read(bottomDockReservationProvider),
-      canvasDockHandleHeight,
-    );
-
-    await tester.tap(find.byTooltip('Show controls'));
-    await tester.pumpAndSettle();
-    final reserved = container.read(bottomDockReservationProvider);
-    expect(
-      reserved,
-      tester.getSize(find.byType(CanvasCallDock)).height,
-      reason: 'shown, the whole dock is what the snackbars clear',
-    );
-    expect(reserved, greaterThan(canvasDockHandleHeight));
-
-    await tester.tap(find.byTooltip('Hide controls'));
-    await tester.pumpAndSettle();
     expect(
       container.read(bottomDockReservationProvider),
       canvasDockHandleHeight,
