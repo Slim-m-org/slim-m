@@ -101,6 +101,23 @@ void main() {
     },
   );
 
+  testWidgets('choosing the personal view stops following', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true, tool: null);
+    final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.viewRelay.follow('amy');
+
+    engine.viewMode.showPersonal();
+
+    expect(engine.viewRelay.following.value, isNull);
+  });
+
   testWidgets('a person on the canvas can be followed and unfollowed', (
     tester,
   ) async {

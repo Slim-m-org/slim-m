@@ -98,6 +98,24 @@ void main() {
     expect(await store.load('c${canvasLayoutsCap + 4}'), isNotNull);
   });
 
+  test('a layout saved with an old clock survives the cap it just filled',
+      () async {
+    for (var i = 0; i < canvasLayoutsCap; i++) {
+      await store.save('c$i', 'l$i', now: 100 + i);
+    }
+    await store.save('skewed', 'mine', now: 1);
+
+    expect(await store.load('skewed'), 'mine');
+  });
+
+  test('a channel the account does not list still keeps what was just saved',
+      () async {
+    await _channel(db, 'live');
+    await store.save('unlisted', 'mine', now: 1);
+
+    expect(await store.load('unlisted'), 'mine');
+  });
+
   test('clearing the cache takes the layouts with it', () async {
     await store.save('c1', 'one', now: 1);
     await MessageStore(db).clear();

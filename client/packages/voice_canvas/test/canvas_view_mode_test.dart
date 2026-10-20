@@ -36,6 +36,42 @@ void main() {
     document.dispose();
   });
 
+  test('switching to the personal view and straight back keeps nothing', () {
+    mode.showPersonal();
+    mode.showShared();
+
+    expect(mode.hasLayout, isFalse);
+  });
+
+  test('a zoomed personal camera is still kept when leaving the view', () {
+    mode.showPersonal();
+    document.setCamera(document.camera.copyWith(zoom: 2));
+    mode.showShared();
+
+    expect(mode.hasLayout, isTrue);
+  });
+
+  test('the newest places survive a save, a restore and another save', () {
+    mode.showPersonal();
+    for (var i = 0; i < personalPlacesCap + 10; i++) {
+      tiles.setRect('camera:$i', Rect.fromLTWH(i.toDouble(), 0, 100, 60));
+    }
+    final first = CanvasPersonalLayout.decode(mode.layout.encode())!;
+
+    final fresh = CanvasPresenceTileOverrides()..board = canvasBoard;
+    addTearDown(fresh.dispose);
+    fresh.restorePersonalPlaces(first.places);
+    fresh.personal = true;
+    fresh.setRect('camera:new', const Rect.fromLTWH(300, 300, 100, 60));
+    final second = CanvasPersonalLayout(places: fresh.personalPlaces);
+    final back = CanvasPersonalLayout.decode(second.encode())!;
+
+    expect(back.places, hasLength(personalPlacesCap));
+    expect(back.places.containsKey('camera:new'), isTrue);
+    expect(back.places.containsKey('camera:${personalPlacesCap + 9}'), isTrue);
+    expect(back.places.containsKey('camera:10'), isFalse);
+  });
+
   test('a personal drag moves the tile for this viewer only', () {
     mode.showPersonal();
     tiles.setRect('screen:a', const Rect.fromLTWH(900, 500, 360, 203));

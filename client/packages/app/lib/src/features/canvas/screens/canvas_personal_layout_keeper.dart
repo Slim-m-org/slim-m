@@ -42,13 +42,14 @@ class CanvasPersonalLayoutKeeper {
   bool _touched = false;
   bool _disposed = false;
 
-  /// Puts back what was kept, unless the viewer has already moved on.
+  /// Puts back what was kept; anything the viewer did while it loaded wins and is saved.
   Future<void> restore() async {
     try {
       final raw = await (await store)?.load(channelId);
-      if (_disposed || _touched || raw == null) return;
+      if (_disposed || raw == null) return;
       final kept = CanvasPersonalLayout.decode(raw);
-      if (kept != null) mode.restore(kept);
+      if (kept == null) return;
+      _touched ? mode.restoreBeneath(kept) : mode.restore(kept);
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
@@ -57,8 +58,13 @@ class CanvasPersonalLayoutKeeper {
         stack,
       );
     } finally {
-      _kept = mode.layout.encode();
       _restoring = false;
+      if (_touched && !_disposed) {
+        _timer?.cancel();
+        _timer = Timer(saveDelay, _write);
+      } else {
+        _kept = mode.layout.encode();
+      }
     }
   }
 

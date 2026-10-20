@@ -117,6 +117,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     document.setBoard(canvasBoard);
     document.addListener(_onCameraMoved);
     document.addListener(_onViewMoved);
+    viewMode.addListener(_onViewModeChanged);
     _ref.listen<bool>(
       canvasGridSnapProvider,
       (_, snap) => document.snapToGrid.value = snap,
@@ -283,6 +284,11 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _showingView = false;
     _viewCamera = document.camera;
     _viewport = document.viewport;
+  }
+
+  // Choosing the personal view is leaving the followed person's view, even when the camera stays put.
+  void _onViewModeChanged() {
+    if (viewMode.personal) _viewRelay?.stopFollowing();
   }
 
   // Following ends on the follower's own pan or zoom, but a window resize only refits.
@@ -539,6 +545,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     sync.dispose();
     document.removeListener(_onCameraMoved);
     document.removeListener(_onViewMoved);
+    viewMode.removeListener(_onViewModeChanged);
     _viewRelay?.dispose();
     document.dispose();
     _cursorRelay?.dispose();

@@ -62,7 +62,8 @@ class CanvasLayoutStore {
           ..orderBy([(l) => OrderingTerm.desc(l.updatedAt)]))
         .get();
     for (final stale in rows.skip(canvasLayoutsCap)) {
-      await delete(stale.channelId);
+      // A saved row with a stale clock still belongs to the caller.
+      if (stale.channelId != keep) await delete(stale.channelId);
     }
   }
 }
