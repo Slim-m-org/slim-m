@@ -174,6 +174,16 @@ class DesktopVoices(unittest.TestCase):
         self.assertGreaterEqual(len(spans), 3)
         self.assertGreater(len(samples), 12 * RATE)
 
+    def test_a_short_clip_still_yields_enough_phrases_for_the_noise_plan(self):
+        manifest = corpus.load_manifest()
+        talk = (_tone(0.7, -25) + [0.0] * int(0.3 * RATE)) * 12
+        with tempfile.TemporaryDirectory() as folder, mock.patch.dict(
+                os.environ, {"E2E_VQ_CORPUS": folder}):
+            for clip in manifest["clips"]:
+                dsp.write_wav(os.path.join(folder, clip["id"] + ".wav"), talk, RATE)
+            _, spans = e2e_voice_desktop._voice_samples(manifest["clips"][0]["id"])
+        self.assertGreaterEqual(len(spans), 7)
+
     def test_a_named_voice_without_a_corpus_fails_loudly(self):
         with mock.patch.dict(os.environ, clear=True), self.assertRaises(AssertionError):
             e2e_voice_desktop._voice_samples("cc0-whisper")
