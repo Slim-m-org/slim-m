@@ -1,0 +1,1067 @@
+{
+ "version": 1,
+ "rate": 48000,
+ "note": "No audio is committed. python3 scripts/lib/fetch_voice_corpus.py rebuilds the clips; set E2E_VQ_CORPUS to its output folder.",
+ "clips": [
+  {
+   "id": "vctk-p254-low-male",
+   "category": "low-voice",
+   "reel": "A",
+   "description": "VCTK speaker p254, male, English Surrey, 3 read sentences; lowest median pitch of the male speakers surveyed (82 Hz)",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_003_mic1.flac",
+       "sha256": "7292be479f72e6d51ceebb3cbaa2835e3ad9010076ca5d07ffa38946e783e5ca"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_004_mic1.flac",
+       "sha256": "25f346dc62c1b866bb7945861de20c35a8335ed6c632c1d3bfcdc89dd362b610"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_005_mic1.flac",
+       "sha256": "5b350669cf67786265f4cf9af134dc0b0d81bbfb22a09517ef5987abebd9a956"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -22,
+   "sha256": "c0fd380065b665603b12f93941fcb682d34309ed0ed31f27a4538c4c8657142b",
+   "seconds": 19.42,
+   "gain_db": -0.55,
+   "peak_limited": false,
+   "actual_level_dbfs": -22.0,
+   "peak_dbfs": -5.8
+  },
+  {
+   "id": "vctk-p310-high-female",
+   "category": "high-voice",
+   "reel": "B",
+   "description": "VCTK speaker p310, female, American Tennessee, 3 read sentences; among the highest median pitch of the female speakers surveyed (250 Hz)",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_003_mic1.flac",
+       "sha256": "b1492f4edc3b16c8c8828106eb0bc03c92774b196796edefa7637a9b0c86f9e8"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_004_mic1.flac",
+       "sha256": "843ab8a9f4f028999fe074c09f14daa8519515a2f81deb6d0cb3391b86ba790c"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_005_mic1.flac",
+       "sha256": "1c0df878a957afdd68357836252ac36cefab1dd642ac906c0fa8a8dbc6b1e50f"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -25,
+   "sha256": "cb80e98d08e0c316f982413a42ff0cf73d73f1b02ed14de4e877ace1ec5145e8",
+   "seconds": 23.21,
+   "gain_db": 1.55,
+   "peak_limited": false,
+   "actual_level_dbfs": -25.0,
+   "peak_dbfs": -7.1
+  },
+  {
+   "id": "vctk-p234-scottish-f",
+   "category": "accent",
+   "reel": "A",
+   "description": "VCTK speaker p234, female, Scottish West Dumfries, 3 read sentences",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p234/p234_003_mic1.flac",
+       "sha256": "df7be6687426bc76621182ba4add5300544b715f7f84e04ecf52aaeae953fac5"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p234/p234_004_mic1.flac",
+       "sha256": "14b97f0830a3ef0dccdc5738879501cc9fda72bb617529a83b928785bf4f900a"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p234/p234_005_mic1.flac",
+       "sha256": "ace961dd526fe483496ed22f3d234f43767ad5d0cfa8078660553c12c7e3f77e"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -26,
+   "sha256": "2e82bd1514d623da31f5ac0c985bc9ecd8ce3df75742d1514742ff6c1eda49ca",
+   "seconds": 18.89,
+   "gain_db": -0.28,
+   "peak_limited": false,
+   "actual_level_dbfs": -26.0,
+   "peak_dbfs": -5.9
+  },
+  {
+   "id": "vctk-p248-indian-f",
+   "category": "accent",
+   "reel": "B",
+   "description": "VCTK speaker p248, female, Indian, 3 read sentences",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_003_mic1.flac",
+       "sha256": "9483455d6c9a4f7856ad8bd5d3e04317846d67c7c38ea0c1bc6a9b317ab873a7"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_004_mic1.flac",
+       "sha256": "0991f0e369f57d852855a1c3881a38620db0a34f20533d9247f89471d2df95d9"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_005_mic1.flac",
+       "sha256": "d2fbfcf48b783d89235cd2333b92a277b35e34491319a3b7fbf535d50c293b4a"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -21,
+   "sha256": "3b10c956d32e936876d6a4e3adf54d647ea8c1a1291f7ebf213aa509e9e29e1f",
+   "seconds": 24.18,
+   "gain_db": -0.22,
+   "peak_limited": false,
+   "actual_level_dbfs": -21.0,
+   "peak_dbfs": -1.3
+  },
+  {
+   "id": "vctk-p251-indian-m",
+   "category": "accent",
+   "reel": "A",
+   "description": "VCTK speaker p251, male, Indian, 3 read sentences",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_003_mic1.flac",
+       "sha256": "ed03599843cfe187382c64e02878134749f33e95c3fe38f9caa8e83d606d2efb"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_004_mic1.flac",
+       "sha256": "d078a57f68c25b752f9c05e94231c93f4e4b3e18f1d775cf53428aa788ab4ece"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_005_mic1.flac",
+       "sha256": "80d36cef0616b3942916dc9f3aad29265fa2c8e28559d066290c4c06574b8fcd"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -29,
+   "sha256": "c593898c0fd3102d262aa6281b9cb022e4ed4570588dc6d673a3413d2dae330f",
+   "seconds": 18.85,
+   "gain_db": -7.88,
+   "peak_limited": false,
+   "actual_level_dbfs": -29.0,
+   "peak_dbfs": -10.8
+  },
+  {
+   "id": "vctk-p245-irish-m",
+   "category": "accent",
+   "reel": "B",
+   "description": "VCTK speaker p245, male, Irish Dublin, 3 read sentences",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p245/p245_003_mic1.flac",
+       "sha256": "865536a2820f4025f5d51750a6e3ceab2f272bba42732ed96a051e2b919fd376"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p245/p245_004_mic1.flac",
+       "sha256": "b2e58b7c739dc11b1b63a5db6a71814a6cffa1baeb2e9c5d39b0379194d9ec87"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p245/p245_005_mic1.flac",
+       "sha256": "a6f3fae113cb65df68526f9014ac9d5a58dad37482a6ba4f2508ea303c8899a9"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "1592c19d7c81cefeb5c12c30aa2bfb330b2d3578df07c35fa9782f4cdae72969",
+   "seconds": 22.45,
+   "gain_db": -4.91,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -5.4
+  },
+  {
+   "id": "vctk-p314-south-african-f",
+   "category": "accent",
+   "reel": "A",
+   "description": "VCTK speaker p314, female, SouthAfrican Cape Town, 3 read sentences",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p314/p314_003_mic1.flac",
+       "sha256": "e2d762661d9b28527fcfb3306dc73e5dd063e96c303bf3e2cfa3b0726700e5c6"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p314/p314_004_mic1.flac",
+       "sha256": "4ec02ed4e50faf186cb7708535cc0b1db08206ba0e2ccedf03dbd97b47032b3c"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p314/p314_005_mic1.flac",
+       "sha256": "5b49ab9e843f93dcbd89c81d50121d8ea6ea5252b516f0aa80dc836de9e4f701"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -23,
+   "sha256": "03f6849cab01183728e0dd703ef601b10cdb56a01e87753cec86c61410cb7e41",
+   "seconds": 17.63,
+   "gain_db": 4.74,
+   "peak_limited": false,
+   "actual_level_dbfs": -23.0,
+   "peak_dbfs": -3.9
+  },
+  {
+   "id": "vctk-p280-french-nonnative-f",
+   "category": "accent",
+   "reel": "B",
+   "description": "VCTK speaker p280, female, Unknown France (mic2 files unavailable), 3 read sentences; French speaker of non-native English",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p280/p280_003_mic1.flac",
+       "sha256": "ab9aebbdafd3167e1fdbf59b800f5cb384b9109058ffd664c924a679b59be2bb"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p280/p280_004_mic1.flac",
+       "sha256": "a3b5d87c88f29f9b7701195620ed04ee5d61bf7fad33d4d63c2eddbcdaf6fb07"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p280/p280_005_mic1.flac",
+       "sha256": "562b89b1e6c4bafb313d9dceed5129b50cebfeb31f7e3a1f6a3f775abddb019c"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -27,
+   "sha256": "a3fd55b2fbc0a48c7f2fe1811bb6aca4bc9285ad0cb11c66e691506fccddf382",
+   "seconds": 20.55,
+   "gain_db": -7.2,
+   "peak_limited": false,
+   "actual_level_dbfs": -27.0,
+   "peak_dbfs": -10.1
+  },
+  {
+   "id": "cc0-mark-cousins-uk",
+   "category": "accent",
+   "reel": "A",
+   "description": "Unscripted British English, close microphone, 17 s",
+   "licence": "CC0",
+   "attribution": "1Veertje, via Wikimedia Commons (CC0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Mark_Cousins_-_voice_en_20170201.flac",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Mark_Cousins_-_voice_en_20170201.flac",
+       "sha256": "07d1ef5e49c7cf6c96d6428e4e7c449c998080c8cf5f43811f13378e55e075cf"
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -25,
+   "sha256": "88002d57d100c36c24296c3554e20d5cbbc14f5a87578517a96c42bbe35689a5",
+   "seconds": 17.34,
+   "gain_db": -0.04,
+   "peak_limited": false,
+   "actual_level_dbfs": -25.0,
+   "peak_dbfs": -3.3
+  },
+  {
+   "id": "bysa-keith-nugent-au",
+   "category": "accent",
+   "reel": "B",
+   "description": "Australian English introduction, 8 s (shorter than the others; share-alike licence, used internally and not redistributed)",
+   "licence": "CC BY-SA 4.0",
+   "attribution": "Andy Mabbett, via Wikimedia Commons (CC BY-SA 4.0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Keith_Nugent_voice.ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/Keith_Nugent_voice.ogg",
+       "sha256": "77a0ca64d9f1fb0062e8bd4500bade7b700abf2df8d648359ed64e2eb4681058"
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "6bfb308652c21d1f76de74965c0ffdb1721c84b4ab7727e7a31e7dc6e12498fb",
+   "seconds": 7.74,
+   "gain_db": -3.78,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -3.4
+  },
+  {
+   "id": "vctk-p257-fast-f",
+   "category": "fast",
+   "reel": "A",
+   "description": "VCTK speaker p257, female, English Southern England, 3 read sentences; fastest female reader surveyed (18.4 characters per second)",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p257/p257_003_mic1.flac",
+       "sha256": "b74768ef094e2e74f38cf5a6a35960f34b04ff07664cb1831915f09893bfad7d"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p257/p257_004_mic1.flac",
+       "sha256": "bf4df13e9b0fa394e9e6d3749fabaf5d49cf8263334b9f855ef43c672105e40e"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p257/p257_005_mic1.flac",
+       "sha256": "81f3475419d707b744b0874a6bed8bf26d39301637196e3c3621976531e87a14"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -23,
+   "sha256": "c966e08f2fc578af4f16ebacf995ff6ff5742f6aec7c8b78dd64695f66b2cdae",
+   "seconds": 14.83,
+   "gain_db": -1.26,
+   "peak_limited": false,
+   "actual_level_dbfs": -23.0,
+   "peak_dbfs": -3.4
+  },
+  {
+   "id": "vctk-p284-fast-m",
+   "category": "fast",
+   "reel": "B",
+   "description": "VCTK speaker p284, male, Scottish Fife, 3 read sentences; fastest male reader surveyed (17.3 characters per second)",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p284/p284_003_mic1.flac",
+       "sha256": "edb36beaeeee7efdfdfafc4489859510385e07408e97b32a269b1c2f945a4140"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p284/p284_004_mic1.flac",
+       "sha256": "b05e97e6372c0962c04ce57a7bb3cea2a4b7e3e2266cfbedb8b3f3f736e0dca3"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p284/p284_005_mic1.flac",
+       "sha256": "6c72d6fdb61d789ea2bc9950ec21feecbec7723133dab44f78741e964f6b3019"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -27,
+   "sha256": "7e07b2530f3dc99b09c3e6e25e7eb1abf56baa676ddb08b175a5ca2167cdd534",
+   "seconds": 15.08,
+   "gain_db": -4.54,
+   "peak_limited": false,
+   "actual_level_dbfs": -27.0,
+   "peak_dbfs": -8.3
+  },
+  {
+   "id": "vctk-p297-slow-f",
+   "category": "slow",
+   "reel": "A",
+   "description": "VCTK speaker p297, female, American New York, 3 read sentences; slowest reader surveyed (11.4 characters per second)",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p297/p297_003_mic1.flac",
+       "sha256": "abbf62f0c80e7b88c8229597a6b2ade27f81dca5523f10e2066d4dcb8749fe75"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p297/p297_004_mic1.flac",
+       "sha256": "cfff63bfb8148a622157d217e744e1604d01845f42792f0bd1f2d928fd06af63"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p297/p297_005_mic1.flac",
+       "sha256": "d62f6a9bfb2aa963a6f8e1d13e21756242c89c62f8fbb8f2a2a04948d9bfc25f"
+      }
+     ],
+     "gap_ms": 300
+    }
+   ],
+   "level_dbfs": -26,
+   "sha256": "e66b80b9275e05d7bb5bf61483bc305827abc3e604474ef440c3480e4fe63f20",
+   "seconds": 23.3,
+   "gain_db": 0.75,
+   "peak_limited": false,
+   "actual_level_dbfs": -26.0,
+   "peak_dbfs": -7.5
+  },
+  {
+   "id": "librivox-austen-monologue",
+   "category": "monologue",
+   "reel": "B",
+   "description": "One reader, 90 s of continuous narration (Pride and Prejudice)",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Jane Austen, Pride and Prejudice ch. 1-3; public domain",
+   "page": "https://archive.org/details/pride_and_prejudice_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/pride_and_prejudice_librivox/prideandprejudice_01-03_austen_64kb.mp3",
+       "sha256": "61f2ae9748ae419a341dbad96b2a313f072fef4126c2dbf28af41d52c7a7e342",
+       "start_s": 478,
+       "dur_s": 90
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "31d16aed0207a96f4d8d193bc716c854dea5ed507d43f826c3ab485ce0a3df2b",
+   "seconds": 90.0,
+   "gain_db": -1.16,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -1.3
+  },
+  {
+   "id": "librivox-esopo-spanish",
+   "category": "non-english",
+   "reel": "A",
+   "description": "Spanish fable reading, 25 s",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Las Fabulas de Esopo vol. 1; public domain",
+   "page": "https://archive.org/details/fabulas_esopo_01_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/fabulas_esopo_01_librivox/fabula_01_001_esopo_64kb.mp3",
+       "sha256": "ad4d9182b491f33223dc34e2cee71a3bc42528581cd3883f2eda06ae00d881e4",
+       "start_s": 10,
+       "dur_s": 25
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -22,
+   "sha256": "4038249fae129124f1819ff807d9fa75897bff4fabb2feea70081ecd0cbcfc92",
+   "seconds": 25.0,
+   "gain_db": 0.02,
+   "peak_limited": true,
+   "actual_level_dbfs": -23.1,
+   "peak_dbfs": -1.0
+  },
+  {
+   "id": "librivox-laura-german",
+   "category": "non-english",
+   "reel": "B",
+   "description": "German poem reading, 20 s",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Sammlung deutscher Gedichte 018; public domain",
+   "page": "https://archive.org/details/sammlung_deutscher_gedichte_018_1506_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/sammlung_deutscher_gedichte_018_1506_librivox/deutschegedichte018_01_laura_ke_64kb.mp3",
+       "sha256": "3fd5d820876792455ccb8e3bdbfca73b5b0698d7bd336bb8fbbd887c8af80762",
+       "start_s": 48,
+       "dur_s": 20
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -28,
+   "sha256": "70694f985a69bf12776bf6f88169356123753aeedd9c60367eb5fd34e92fd87b",
+   "seconds": 20.0,
+   "gain_db": -0.39,
+   "peak_limited": false,
+   "actual_level_dbfs": -28.0,
+   "peak_dbfs": -7.5
+  },
+  {
+   "id": "librivox-artofwar-mandarin",
+   "category": "non-english",
+   "reel": "A",
+   "description": "Mandarin reading (tonal language), 25 s",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Sun Tzu, Art of War in Chinese; public domain",
+   "page": "https://archive.org/details/art_of_war_chinese_1506_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/art_of_war_chinese_1506_librivox/artofwar_01_sun_64kb.mp3",
+       "sha256": "fa332b862950c2d998ee3ddb485b40a1d15cde198c9cf1f00425268fd7fc320f",
+       "start_s": 0,
+       "dur_s": 25
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -26,
+   "sha256": "9561df002d98affcfdc4e3c4c17ab1475faf64b54c119bf3a410d46ae1f34010",
+   "seconds": 25.0,
+   "gain_db": 2.2,
+   "peak_limited": false,
+   "actual_level_dbfs": -26.0,
+   "peak_dbfs": -8.5
+  },
+  {
+   "id": "cc0-whisper",
+   "category": "soft",
+   "reel": "B",
+   "description": "Whispered speech; the 2.6 s recording repeated four times with 0.6 s gaps",
+   "licence": "CC0",
+   "attribution": "Mx. Granger, via Wikimedia Commons (CC0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Whispering-example.ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/e/e8/Whispering-example.ogg",
+       "sha256": "bbdbe95dfe4742e27845c03fba3a8caf9f0f5ad65e34e512fd5609d155e6304e",
+       "repeat": 4
+      }
+     ],
+     "gap_ms": 600
+    }
+   ],
+   "level_dbfs": -36,
+   "sha256": "e1314f3f3959e65f843afa21e0230817a6cc7a20659005c1318132381b1e973b",
+   "seconds": 12.06,
+   "gain_db": -5.65,
+   "peak_limited": false,
+   "actual_level_dbfs": -36.0,
+   "peak_dbfs": -19.1
+  },
+  {
+   "id": "pd-roosevelt-infamy",
+   "category": "loud",
+   "reel": "A",
+   "description": "Raised-voice oratory (Franklin D. Roosevelt, 8 December 1941 address), 25 s",
+   "licence": "Public domain",
+   "attribution": "Recording: Bradley, John G. (John Grover), 1886-1974 (NARA record)\nDerivative work: Uploaded to Wiki, via Wikimedia Commons (Public domain)",
+   "page": "https://commons.wikimedia.org/wiki/File:Roosevelt_Infamy.ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/7/7e/Roosevelt_Infamy.ogg",
+       "sha256": "fcd8f7d5967e0977020fe281c46bcacc67e379f834b84c51ad3529d05878ceac",
+       "start_s": 0.5,
+       "dur_s": 25
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -15,
+   "sha256": "a80930e986fbb0077af6ed7b52e894a3c08920f8ee60d52adc2e808ce83b7682",
+   "seconds": 25.0,
+   "gain_db": -3.55,
+   "peak_limited": true,
+   "actual_level_dbfs": -16.9,
+   "peak_dbfs": -1.0
+  },
+  {
+   "id": "pd-bryan-cross-of-gold",
+   "category": "loud",
+   "reel": "B",
+   "description": "Loud oratory, a 1920s re-recording of William Jennings Bryan, 25 s",
+   "licence": "Public domain",
+   "attribution": "William Jennings Bryan, via Wikimedia Commons (Public domain)",
+   "page": "https://commons.wikimedia.org/wiki/File:Cross_of_Gold_speech_excerpt.mp3",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/6/60/Cross_of_Gold_speech_excerpt.mp3",
+       "sha256": "af007cd4e2515138cf31e72ce855fd808690697ebba476a613f9cf4f37b2c996",
+       "start_s": 7,
+       "dur_s": 25
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -17,
+   "sha256": "dd112079ab0ac93ff80cd325113e6b3cf6f52c82c151baa9cba156227e15e589",
+   "seconds": 25.0,
+   "gain_db": -6.47,
+   "peak_limited": false,
+   "actual_level_dbfs": -17.0,
+   "peak_dbfs": -3.8
+  },
+  {
+   "id": "by-lonemonk-laughter",
+   "category": "laughter",
+   "reel": "A",
+   "description": "Group laughter and clapping, 10 s",
+   "licence": "CC BY 3.0",
+   "attribution": "lonemonk on freesound.org, via Wikimedia Commons (CC BY 3.0)",
+   "page": "https://commons.wikimedia.org/wiki/File:72844_lonemonk_approx-800-laughter-and-clapter-1.wav",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/e/e5/72844_lonemonk_approx-800-laughter-and-clapter-1.wav",
+       "sha256": "8b928e6307f7db0ce5542ae827075f24ada80f007f3a4fdb415559ec9c4e4055"
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -22,
+   "sha256": "6491307973a7759b32ca2934e9caca5c2fbfb43096fc8776cec862b6dca8f369",
+   "seconds": 9.9,
+   "gain_db": -5.87,
+   "peak_limited": false,
+   "actual_level_dbfs": -22.0,
+   "peak_dbfs": -6.9
+  },
+  {
+   "id": "cc0-twinkle-sung",
+   "category": "singing",
+   "reel": "B",
+   "description": "Solo sung melody with lyrics, 20 s",
+   "licence": "CC0",
+   "attribution": "Dcoetzee, via Wikimedia Commons (CC0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Twinkle_Twinkle_Little_Star_-_sung_with_full_lyrics.ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Twinkle_Twinkle_Little_Star_-_sung_with_full_lyrics.ogg",
+       "sha256": "0a9b05a0929699e30cf5f6f124c6e05251ed1505e2a5eb954746e7cd6a6c2f40",
+       "start_s": 10,
+       "dur_s": 20
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -21,
+   "sha256": "96cf845c2b653f7366f6b06c14f44d3c6522a81331f7a27dabccfd98d821f63c",
+   "seconds": 20.0,
+   "gain_db": -1.57,
+   "peak_limited": false,
+   "actual_level_dbfs": -21.0,
+   "peak_dbfs": -2.7
+  },
+  {
+   "id": "by-lupita-soprano",
+   "category": "singing",
+   "reel": "A",
+   "description": "Soprano with sustained notes and vibrato, 22 s (piano accompaniment)",
+   "licence": "CC BY 3.0",
+   "attribution": "Djblack!, via Wikimedia Commons (CC BY 3.0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Lupita_Pérez_Arias,_O_mio_babbino_caro_(Gianni_Schicchi).ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/5/5a/Lupita_P%C3%A9rez_Arias%2C_O_mio_babbino_caro_%28Gianni_Schicchi%29.ogg",
+       "sha256": "7fb1834008e3073b238d3226d9173495031023f790b9d8a2c2ac9239cf56ebc0",
+       "start_s": 60,
+       "dur_s": 22
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -19,
+   "sha256": "c64f4938f5ccc4a77716e9b55741c1fc9d79b0f1dd553fc8a4a5f2988b61ab63",
+   "seconds": 22.0,
+   "gain_db": -6.72,
+   "peak_limited": false,
+   "actual_level_dbfs": -19.0,
+   "peak_dbfs": -5.8
+  },
+  {
+   "id": "pd-shenandoah-choir",
+   "category": "singing",
+   "reel": "B",
+   "description": "Choir singing (US Air Force Singing Sergeants), 20 s",
+   "licence": "Public domain",
+   "attribution": "Composition: traditional; Arrangement: CMSgt (ret.) Floyd Werle and CMSgt (ret.) Michael Davis; Perf, via Wikimedia Commons (Public domain)",
+   "page": "https://commons.wikimedia.org/wiki/File:Shenandoah.ogg",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/1/19/Shenandoah.ogg",
+       "sha256": "09c9f253bc8d3e82cac2b76d412d01f674d3864b02478a253e51d7f6ae18c5bc",
+       "start_s": 30,
+       "dur_s": 20
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -22,
+   "sha256": "30aeca79f9982a91b6df2037f0cc80a96c7035fb6f31eab88d104496aded360b",
+   "seconds": 20.0,
+   "gain_db": -9.77,
+   "peak_limited": false,
+   "actual_level_dbfs": -22.0,
+   "peak_dbfs": -8.4
+  },
+  {
+   "id": "cc0-woman-humming",
+   "category": "humming",
+   "reel": "A",
+   "description": "A woman humming a tune, 20 s",
+   "licence": "CC0",
+   "attribution": "PSsoundproject, via Wikimedia Commons (CC0)",
+   "page": "https://commons.wikimedia.org/wiki/File:Woman_humming_a_nondescript_tune.wav",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Woman_humming_a_nondescript_tune.wav",
+       "sha256": "c616a7ae88e50215101d8f657318682b11ab9888943fc29f4c89903a8215f740"
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -30,
+   "sha256": "c3bee414c2c45840c3dd5c2919cc4a2252c8ffe9d6a2919eec63af234db5bb67",
+   "seconds": 20.11,
+   "gain_db": -11.07,
+   "peak_limited": false,
+   "actual_level_dbfs": -30.0,
+   "peak_dbfs": -20.5
+  },
+  {
+   "id": "mix-crosstalk-overlap",
+   "category": "crosstalk",
+   "reel": "B",
+   "description": "Two VCTK speakers (p254 and p310) talking at once, full overlap",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_003_mic1.flac",
+       "sha256": "7292be479f72e6d51ceebb3cbaa2835e3ad9010076ca5d07ffa38946e783e5ca"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_004_mic1.flac",
+       "sha256": "25f346dc62c1b866bb7945861de20c35a8335ed6c632c1d3bfcdc89dd362b610"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p254/p254_005_mic1.flac",
+       "sha256": "5b350669cf67786265f4cf9af134dc0b0d81bbfb22a09517ef5987abebd9a956"
+      }
+     ],
+     "gap_ms": 300,
+     "level_dbfs": -24
+    },
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_003_mic1.flac",
+       "sha256": "b1492f4edc3b16c8c8828106eb0bc03c92774b196796edefa7637a9b0c86f9e8"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_004_mic1.flac",
+       "sha256": "843ab8a9f4f028999fe074c09f14daa8519515a2f81deb6d0cb3391b86ba790c"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p310/p310_005_mic1.flac",
+       "sha256": "1c0df878a957afdd68357836252ac36cefab1dd642ac906c0fa8a8dbc6b1e50f"
+      }
+     ],
+     "gap_ms": 300,
+     "level_dbfs": -25,
+     "offset_s": 1.0
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "42994a9f995a2d6f920ac694c86715590f481bf4322c22d3ec16b0bd8c7e9d61",
+   "seconds": 24.21,
+   "gain_db": -0.92,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -6.3
+  },
+  {
+   "id": "mix-crosstalk-interrupt",
+   "category": "crosstalk",
+   "reel": "A",
+   "description": "VCTK p248 interrupted from 5 s by a LibriVox reader",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645; LibriVox, public domain",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_003_mic1.flac",
+       "sha256": "9483455d6c9a4f7856ad8bd5d3e04317846d67c7c38ea0c1bc6a9b317ab873a7"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_004_mic1.flac",
+       "sha256": "0991f0e369f57d852855a1c3881a38620db0a34f20533d9247f89471d2df95d9"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p248/p248_005_mic1.flac",
+       "sha256": "d2fbfcf48b783d89235cd2333b92a277b35e34491319a3b7fbf535d50c293b4a"
+      }
+     ],
+     "gap_ms": 300,
+     "level_dbfs": -24
+    },
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/pride_and_prejudice_librivox/prideandprejudice_01-03_austen_64kb.mp3",
+       "sha256": "61f2ae9748ae419a341dbad96b2a313f072fef4126c2dbf28af41d52c7a7e342",
+       "start_s": 478,
+       "dur_s": 14
+      }
+     ],
+     "level_dbfs": -22,
+     "offset_s": 5.0
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "142848babcb37821ea77eb4d49dd8225c749c2a6cf8af6eed3d6e9bb87332db5",
+   "seconds": 24.18,
+   "gain_db": -2.5,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -3.6
+  },
+  {
+   "id": "mix-speech-over-band",
+   "category": "speech-over-music",
+   "reel": "B",
+   "description": "VCTK p251 speaking over a US Navy Band instrumental, music 10 dB under the voice",
+   "licence": "CC BY 4.0",
+   "attribution": "CSTR VCTK Corpus 0.92, Yamagishi, Veaux and MacDonald, University of Edinburgh, CC BY 4.0, https://doi.org/10.7488/ds/2645; music: US Navy Band, public domain, via Wikimedia Commons",
+   "page": "https://datashare.ed.ac.uk/handle/10283/3443",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_003_mic1.flac",
+       "sha256": "ed03599843cfe187382c64e02878134749f33e95c3fe38f9caa8e83d606d2efb"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_004_mic1.flac",
+       "sha256": "d078a57f68c25b752f9c05e94231c93f4e4b3e18f1d775cf53428aa788ab4ece"
+      },
+      {
+       "url": "https://datashare.ed.ac.uk/bitstream/handle/10283/3443/VCTK-Corpus-0.92.zip",
+       "member": "wav48_silence_trimmed/p251/p251_005_mic1.flac",
+       "sha256": "80d36cef0616b3942916dc9f3aad29265fa2c8e28559d066290c4c06574b8fcd"
+      }
+     ],
+     "gap_ms": 300,
+     "level_dbfs": -22
+    },
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/6/65/Star_Spangled_Banner_instrumental.ogg",
+       "sha256": "025bb322eee1e3e2638e2aa3b1b4e8c8e5c3798dca97fc4d059e7a9ab250c654",
+       "start_s": 30,
+       "dur_s": 24
+      }
+     ],
+     "level_dbfs": -32
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "a07496a568f41571baa9e4f561d2f6979bd545728659dba4c15f67b2ebff3beb",
+   "seconds": 24.0,
+   "gain_db": -0.19,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -3.9
+  },
+  {
+   "id": "mix-speech-over-band-2",
+   "category": "speech-over-music",
+   "reel": "A",
+   "description": "A LibriVox reader over a US Navy Band instrumental, music 7 dB under the voice",
+   "licence": "Public domain",
+   "attribution": "LibriVox, public domain; music: US Navy Band, public domain, via Wikimedia Commons",
+   "page": "https://archive.org/details/pride_and_prejudice_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/pride_and_prejudice_librivox/prideandprejudice_01-03_austen_64kb.mp3",
+       "sha256": "61f2ae9748ae419a341dbad96b2a313f072fef4126c2dbf28af41d52c7a7e342",
+       "start_s": 478,
+       "dur_s": 25
+      }
+     ],
+     "level_dbfs": -22
+    },
+    {
+     "parts": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/a/a6/U.S._Navy_Band%2C_Advance_Australia_Fair_%28instrumental%29.ogg",
+       "sha256": "f4043a83ed6c82bd58aeaa568803bdcbd63081be126c8309d192cfe041406d46",
+       "start_s": 20,
+       "dur_s": 30
+      }
+     ],
+     "level_dbfs": -29
+    }
+   ],
+   "level_dbfs": -24,
+   "sha256": "3eb986056746eec921ac1bad5d812609127ae8f5f30c2c8dc7569e323996f6e0",
+   "seconds": 30.0,
+   "gain_db": -1.86,
+   "peak_limited": false,
+   "actual_level_dbfs": -24.0,
+   "peak_dbfs": -2.9
+  },
+  {
+   "id": "librivox-moby-breaths",
+   "category": "breaths",
+   "reel": "B",
+   "description": "Close-mic reading with audible breaths in the pauses (chosen by a pause-noise detector, 22 s)",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Moby Dick ch. 1-2; public domain",
+   "page": "https://archive.org/details/moby_dick_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/moby_dick_librivox/mobydick_001_002_melville_64kb.mp3",
+       "sha256": "5ec76198d81c3b0618342448b3bd688485032c84f4d3acd35d4c20bb8496f7e5",
+       "start_s": 1052,
+       "dur_s": 22
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -25,
+   "sha256": "a2882d6b7f6c666b10f7649f7ab87c53f318bf044e2e2223ea4e5000a2f2bda0",
+   "seconds": 22.0,
+   "gain_db": -3.0,
+   "peak_limited": false,
+   "actual_level_dbfs": -25.0,
+   "peak_dbfs": -6.9
+  },
+  {
+   "id": "librivox-huckfinn-breaths",
+   "category": "breaths",
+   "reel": "A",
+   "description": "A second reader with pause noise (chosen by the same detector, 20 s)",
+   "licence": "Public domain",
+   "attribution": "LibriVox volunteer recording, Huckleberry Finn ch. 2; public domain",
+   "page": "https://archive.org/details/huck_finn_librivox",
+   "layers": [
+    {
+     "parts": [
+      {
+       "url": "https://archive.org/download/huck_finn_librivox/huckfinn_02_twain_apc_64kb.mp3",
+       "sha256": "9dea31f1feb95a84aff7920c0487af595a99f32b65adff97d04662264e94f241",
+       "start_s": 232,
+       "dur_s": 20
+      }
+     ]
+    }
+   ],
+   "level_dbfs": -27,
+   "sha256": "4a8ab1d9c8183af72968f1c023b12325554efa061122d4a0f89fc6e7693fa07c",
+   "seconds": 20.0,
+   "gain_db": -10.58,
+   "peak_limited": false,
+   "actual_level_dbfs": -27.0,
+   "peak_dbfs": -7.7
+  }
+ ]
+}
