@@ -124,8 +124,7 @@ class _KeepsRowHoveredState extends State<_KeepsRowHovered> {
     _scope = HoverRevealScope.maybeOf(context);
   }
 
-  // A removed MouseRegion fires no onExit, so a click that unmounts the
-  // toolbar would leave the row hovered for good.
+  // A removed MouseRegion fires no onExit, which would leave the row hovered for good.
   @override
   void dispose() {
     final scope = _scope;
