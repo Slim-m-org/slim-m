@@ -19,6 +19,7 @@ export 'src/canvas_hit_test.dart';
 export 'src/canvas_object_previews.dart';
 export 'src/canvas_painters.dart'
     show CursorPainter, DraftStroke, NoteSpanBuilder, RemoteDraftPainter;
+export 'src/canvas_personal_layout.dart';
 export 'src/canvas_presence_layout.dart';
 export 'src/canvas_presence_tile_overrides.dart';
 export 'src/canvas_presence_visibility.dart';

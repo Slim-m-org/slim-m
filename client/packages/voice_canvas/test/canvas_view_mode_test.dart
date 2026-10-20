@@ -113,4 +113,98 @@ void main() {
 
     expect(heard, 2);
   });
+
+  group('a kept layout', () {
+    test('encodes and decodes the camera, the places and the view', () {
+      const kept = CanvasPersonalLayout(
+        personal: true,
+        camera: Camera(x: 4, y: 5, zoom: 1.5),
+        places: {'screen:a': Rect.fromLTWH(1, 2, 3, 4)},
+      );
+
+      final back = CanvasPersonalLayout.decode(kept.encode())!;
+
+      expect(back.personal, isTrue);
+      expect(back.camera, kept.camera);
+      expect(back.places, kept.places);
+    });
+
+    test('anything unreadable decodes to nothing', () {
+      expect(CanvasPersonalLayout.decode('nope'), isNull);
+      expect(CanvasPersonalLayout.decode('[1]'), isNull);
+      final broken = CanvasPersonalLayout.decode(
+        '{"camera":[1,2],"places":{"a":[1,2,0,4],"b":["x",1,1,1]}}',
+      )!;
+      expect(broken.camera, isNull);
+      expect(broken.places, isEmpty);
+    });
+
+    test('keeps no more places than the cap', () {
+      final many = CanvasPersonalLayout(
+        places: {
+          for (var i = 0; i < personalPlacesCap + 10; i++)
+            'camera:$i': const Rect.fromLTWH(0, 0, 10, 10),
+        },
+      );
+
+      final back = CanvasPersonalLayout.decode(many.encode())!;
+
+      expect(back.places, hasLength(personalPlacesCap));
+      expect(
+          back.places.containsKey('camera:${personalPlacesCap + 9}'), isTrue);
+    });
+
+    test('restoring holds the camera and the places to the board', () {
+      mode.restore(
+        const CanvasPersonalLayout(
+          personal: true,
+          camera: Camera(x: 9e6, y: 9e6, zoom: 2),
+          places: {'screen:a': Rect.fromLTWH(9e6, 9e6, 360, 203)},
+        ),
+      );
+
+      expect(mode.personal, isTrue);
+      expect(document.worldView.right, lessThanOrEqualTo(canvasBoard.right));
+      expect(
+          boardHoldsBox(canvasBoard, tiles.stateFor('screen:a').rect!), isTrue);
+    });
+
+    test('a camera restored before the pane has a size waits for one', () {
+      final bare = CanvasDocument()..setBoard(canvasBoard);
+      final bareTiles = CanvasPresenceTileOverrides()..board = canvasBoard;
+      final bareMode = CanvasViewMode(document: bare, tiles: bareTiles);
+      addTearDown(() {
+        bareMode.dispose();
+        bareTiles.dispose();
+        bare.dispose();
+      });
+      final wanted = Camera(
+        x: 1500,
+        y: 1100,
+        zoom: boardFitZoom(canvasBoard, _viewport) * 3,
+      );
+
+      bareMode.restore(CanvasPersonalLayout(personal: true, camera: wanted));
+      bare.setViewport(_viewport);
+
+      expect(bare.camera, clampCameraToBoard(wanted, canvasBoard, _viewport));
+      expect(bare.camera.zoom, wanted.zoom);
+    });
+
+    test('reset drops the camera and the places and shows the shared view', () {
+      mode.showPersonal();
+      document.setCamera(const Camera(x: 400, y: 200, zoom: 1.5));
+      tiles.setRect('screen:a', const Rect.fromLTWH(900, 500, 360, 203));
+      expect(mode.hasLayout, isTrue);
+
+      mode.reset();
+
+      expect(mode.personal, isFalse);
+      expect(mode.hasLayout, isFalse);
+      expect(document.isFitted, isTrue);
+      expect(tiles.stateFor('screen:a').rect, _shared);
+      mode.showPersonal();
+      expect(tiles.stateFor('screen:a').rect, _shared);
+    });
+  });
 }

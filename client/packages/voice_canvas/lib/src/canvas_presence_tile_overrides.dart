@@ -57,6 +57,13 @@ class CanvasPresenceTileState {
   /// second widget rather than a reorder of this one.
   final bool sentToBack;
 
+  CanvasPresenceTileState withoutPersonalRect() => CanvasPresenceTileState(
+        rect: rect,
+        locked: locked,
+        hidden: hidden,
+        sentToBack: sentToBack,
+      );
+
   CanvasPresenceTileState copyWith({
     Rect? rect,
     bool? locked,
@@ -136,6 +143,31 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
       hidden: state.hidden,
       sentToBack: state.sentToBack,
     );
+  }
+
+  /// Where this viewer put each tile for themselves, in the order they were set.
+  Map<String, Rect> get personalPlaces => {
+        for (final e in _states.entries)
+          if (e.value.personalRect case final own?) e.key: own,
+      };
+
+  /// Takes back stored places, held to the board again in case it changed. A key
+  /// nobody is showing is simply never asked for.
+  void restorePersonalPlaces(Map<String, Rect> places) {
+    for (final e in places.entries) {
+      _states[e.key] = _raw(e.key).copyWith(personalRect: _onBoard(e.value));
+    }
+    if (places.isNotEmpty) notifyListeners();
+  }
+
+  void clearPersonalPlaces() {
+    var changed = false;
+    for (final e in _states.entries.toList()) {
+      if (e.value.personalRect == null) continue;
+      _states[e.key] = e.value.withoutPersonalRect();
+      changed = true;
+    }
+    if (changed) notifyListeners();
   }
 
   /// The tile's shared rect, whatever the view in use.

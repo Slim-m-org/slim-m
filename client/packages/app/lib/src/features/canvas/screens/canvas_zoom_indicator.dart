@@ -28,6 +28,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../modules/providers/dock_reservation.dart';
 import 'canvas_outside_board_notice.dart';
+import 'canvas_view_mode_controls.dart';
 
 /// The widest pane where the centred dock can still reach this corner.
 const _beside = 900.0;
@@ -76,7 +77,7 @@ class CanvasZoomIndicator extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (viewMode case final mode?) ...[
-          _modePill(mode),
+          CanvasViewModeControls(mode: mode, tokens: tokens),
           const SizedBox(height: AppSpacing.s8),
         ],
         Row(
@@ -94,67 +95,6 @@ class CanvasZoomIndicator extends ConsumerWidget {
         ),
       ],
     ),
-  );
-
-  Widget _modePill(CanvasViewMode mode) => ListenableBuilder(
-    listenable: mode,
-    builder: (context, _) {
-      final personal = mode.personal;
-      final label = personal ? 'Personal view' : 'Shared view';
-      final colour = personal ? tokens.accent : tokens.textSecondary;
-      return Semantics(
-        container: true,
-        button: true,
-        label: '$label, switch to ${personal ? 'shared' : 'personal'}',
-        excludeSemantics: true,
-        onTap: mode.toggle,
-        child: Tooltip(
-          message: personal
-              ? 'Back to the shared board'
-              : 'Move and zoom for yourself only',
-          child: Material(
-            color: personal ? tokens.accentSoft : tokens.surfaceRaised,
-            shape: StadiumBorder(
-              side: BorderSide(
-                color: personal ? tokens.accent : tokens.borderSubtle,
-              ),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: mode.toggle,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: AppSizes.icon28),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        personal ? AppIcons.account : AppIcons.members,
-                        size: AppSizes.icon16,
-                        color: colour,
-                      ),
-                      const SizedBox(width: AppSpacing.s4),
-                      Text(
-                        label,
-                        style: AppText.caption.copyWith(
-                          color: personal
-                              ? tokens.accent
-                              : tokens.textSecondary,
-                          fontWeight: AppWeights.medium,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    },
   );
 
   Widget _zoomPill() => ListenableBuilder(

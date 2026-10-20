@@ -21,11 +21,13 @@ import 'dart:async';
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_data/data.dart' show CanvasLayoutStore;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_grid_snap.dart';
+import '../providers/canvas_layout_store.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
@@ -43,6 +45,7 @@ import 'canvas_media_slot_sync.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_object_preview_relay.dart';
 import 'canvas_ops_controller.dart';
+import 'canvas_personal_layout_keeper.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
@@ -121,6 +124,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     );
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
+    unawaited(_layoutKeeper.restore());
   }
 
   final Ref _ref;
@@ -146,6 +150,16 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     document: document,
     tiles: tileOverrides,
   );
+
+  late final CanvasPersonalLayoutKeeper _layoutKeeper =
+      CanvasPersonalLayoutKeeper(
+        channelId: channelId,
+        mode: viewMode,
+        store: _ref
+            .read(canvasLayoutStoreProvider.future)
+            .then<CanvasLayoutStore?>((store) => store)
+            .catchError((Object _) => null),
+      );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
@@ -253,8 +267,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   Camera? _viewCamera;
   bool _showingView = false;
 
+  // Following or being summoned shows the shared board; the personal layout stays kept for the way back.
   void _showView(Rect view) {
     _showingView = true;
+    viewMode.showShared();
     document.showBoardView(view);
     _showingView = false;
     _viewCamera = document.camera;
@@ -523,6 +539,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _objectPreviewRelay?.dispose();
     remoteDrafts.dispose();
     activityLog.dispose();
+    _layoutKeeper.dispose();
     viewMode.dispose();
     tileOverrides.dispose();
     objectLocks.dispose();
