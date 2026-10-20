@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'audio_publish_options.dart';
 import 'video_publish_options.dart';
 
 /// How sharp the remote video you watch should be.
@@ -47,6 +48,7 @@ lk.RoomOptions receiveRoomOptions() => lk.RoomOptions(
       adaptiveStream: true,
       dynacast: true,
       defaultVideoPublishOptions: cameraPublishOptions(),
+      defaultAudioPublishOptions: microphonePublishOptions(),
     );
 
 /// Large enough that a tile's drawn size never undercuts the top simulcast

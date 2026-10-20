@@ -11,6 +11,7 @@ export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
 export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
+export 'src/audio_publish_options.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
 export 'src/capture_noise_suppression.dart';
