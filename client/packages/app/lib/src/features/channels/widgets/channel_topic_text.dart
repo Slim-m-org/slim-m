@@ -15,22 +15,24 @@ class ChannelTopicText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Semantics(
-      button: true,
-      label: topic,
-      excludeSemantics: true,
-      onTap: () => _showFullTopic(context),
-      child: Tooltip(
-        message: topic,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+    final touch = AppTouchTargets.of(context);
+    // Left-aligned so the hit area is the text's own width, not the space after it.
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AppTouchHitArea(
+        child: FocusableTapTarget(
+          semanticLabel: topic,
+          ringRadius: AppRadii.control,
           onTap: () => _showFullTopic(context),
-          child: Text(
-            topic,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(color: tokens.textSecondary),
-          ),
+          builder: (context, focused, hovered) {
+            final text = Text(
+              topic,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            );
+            return touch ? text : Tooltip(message: topic, child: text);
+          },
         ),
       ),
     );

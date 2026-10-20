@@ -49,12 +49,7 @@ AppMenuItem? markReadStateMenuItem(
     isDm: isDm,
   );
   final latestAt = container
-      .read(
-        channelLatestMessageAtProvider((
-          channelId: channel.id,
-          seq: channel.cursor,
-        )),
-      )
+      .read(channelLatestMessageAtProvider(channel.id))
       .valueOrNull;
   final now = container.read(markUnreadClockProvider)();
   // Marking a quiet channel unread brings back nothing worth returning to.

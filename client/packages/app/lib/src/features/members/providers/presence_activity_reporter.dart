@@ -25,9 +25,13 @@ import '../../voice/providers/voice_flags.dart';
 /// the server's ten-minute idle window.
 const presenceActiveInterval = Duration(minutes: 1);
 
+/// How recent input still counts as here when a connection opens, just inside
+/// the server's ten-minute idle window, so a reconnect does not flip a reader to away.
+const presenceHelloWindow = Duration(minutes: 9);
+
 class PresenceActivityReporter implements InputListener {
   PresenceActivityReporter({
-    required void Function() send,
+    required bool Function() send,
     required bool Function() inCall,
     SystemIdle? systemIdle,
     Duration interval = presenceActiveInterval,
@@ -36,7 +40,8 @@ class PresenceActivityReporter implements InputListener {
        _systemIdle = systemIdle,
        _interval = interval;
 
-  final void Function() _send;
+  /// Whether a live connection took the frame.
+  final bool Function() _send;
   final bool Function() _inCall;
   final SystemIdle? _systemIdle;
   final Duration _interval;
@@ -51,12 +56,17 @@ class PresenceActivityReporter implements InputListener {
   }
 
   /// Whether the person used this device within the last interval.
-  bool here() {
+  bool here() => _hereWithin(_interval);
+
+  /// What a new connection claims: here within the server's idle window.
+  bool hereAtHello() => _hereWithin(presenceHelloWindow);
+
+  bool _hereWithin(Duration window) {
     final now = clock.now();
     final input = _lastInput;
-    if (input != null && now.difference(input) < _interval) return true;
+    if (input != null && now.difference(input) < window) return true;
     final idle = _systemIdle?.idleTime();
-    if (idle != null && idle < _interval) return true;
+    if (idle != null && idle < window) return true;
     return _inCall();
   }
 
@@ -72,8 +82,7 @@ class PresenceActivityReporter implements InputListener {
     final now = clock.now();
     final last = _lastSent;
     if (last != null && now.difference(last) < minGap) return;
-    _lastSent = now;
-    _send();
+    if (_send()) _lastSent = now;
   }
 
   void dispose() => _timer?.cancel();
@@ -89,11 +98,11 @@ final presenceActivityReporterProvider = Provider<PresenceActivityReporter>((
         ref.read(voiceFlagsProvider).state == VoiceSessionState.connected,
     systemIdle: createSystemIdle(),
   );
-  sync.activeAtHello = reporter.here;
+  sync.activeAtHello = reporter.hereAtHello;
   ViewingInput.instance.add(reporter);
   reporter.start();
   ref.onDispose(() {
-    if (sync.activeAtHello == reporter.here) sync.activeAtHello = null;
+    if (sync.activeAtHello == reporter.hereAtHello) sync.activeAtHello = null;
     ViewingInput.instance.remove(reporter);
     reporter.dispose();
   });

@@ -230,26 +230,22 @@ class _ChannelCategorySectionsState
           );
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
-    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
-    ref.watch(
-      channelLatestMessageAtProvider((
-        channelId: channel.id,
-        seq: channel.cursor,
-      )),
-    );
-    return Padding(
-      padding: const EdgeInsets.only(left: kRailRowInset),
-      child: SelectionMarkerTarget(
-        selected: selected,
-        child: ManagedChannelRow(
-          canManage: widget.canManage,
-          reorderable: longPressDrags,
-          menuKey: _menuKeys.putIfAbsent(
-            channel.id,
-            GlobalKey<ContextMenuRegionState>.new,
+    return KeepsLatestMessageLoaded(
+      channelId: channel.id,
+      child: Padding(
+        padding: const EdgeInsets.only(left: kRailRowInset),
+        child: SelectionMarkerTarget(
+          selected: selected,
+          child: ManagedChannelRow(
+            canManage: widget.canManage,
+            reorderable: longPressDrags,
+            menuKey: _menuKeys.putIfAbsent(
+              channel.id,
+              GlobalKey<ContextMenuRegionState>.new,
+            ),
+            channel: channel,
+            row: body,
           ),
-          channel: channel,
-          row: body,
         ),
       ),
     );

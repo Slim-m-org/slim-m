@@ -16,7 +16,7 @@ Space settings -> Bots, as somebody holding MANAGE_SERVER.
 Give it a username - the same rules a person's follows, so the bot is mentionable the same way - and you get a token starting `slimbot_`.
 
 **The token is shown once.** The server keeps only a hash of it, so it cannot be shown again.
-If you lose it, revoke the bot and make another.
+If you lose it, use Re-issue token on the bot: the old token stops working at once and the bot keeps its messages and role.
 
 A bot cannot create a bot, even one holding MANAGE_SERVER. Provisioning is a human act, so a single compromised credential cannot mint a second one that would survive revoking the first.
 

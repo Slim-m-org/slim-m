@@ -193,8 +193,13 @@ class SyncController extends StateNotifier<SyncStatus> {
   bool Function()? activeAtHello;
 
   /// Tells the server the person used this device recently; a no-op while the
-  /// socket is down, like [notifyTyping].
-  void notifyActive() => _connection?.active();
+  /// socket is down, like [notifyTyping], and false then so the caller retries.
+  bool notifyActive() {
+    final connection = _connection;
+    if (connection == null) return false;
+    connection.active();
+    return true;
+  }
 
   /// Tells the server this user's pointer moved on a channel's canvas.
   ///

@@ -8,10 +8,12 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_channel_rows.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
@@ -64,6 +66,10 @@ Future<List<List<api.ChannelOrderGroup>>> _pumpRail(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        // A live drift stream per row leaves its cleanup timer pending past the test.
+        channelLatestMessageAtProvider.overrideWith(
+          (ref, id) => Stream.value(null),
+        ),
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         mockApiOverride((_) async => http.Response('', 404)),
       ],
@@ -190,6 +196,66 @@ void main() {
     expect(data.hasAction(SemanticsAction.longPress), isTrue);
     expect(data.customSemanticsActionIds, isNotEmpty, reason: 'move up/down');
     handle.dispose();
+  });
+
+  testWidgets('a desktop row offers move actions to a screen reader', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final reports = await _pumpRail(tester, 1280);
+    final row = find.ancestor(
+      of: find.text('a-1'),
+      matching: find.byType(ManagedChannelRow),
+    );
+    final ids = tester
+        .getSemantics(row)
+        .getSemanticsData()
+        .customSemanticsActionIds!;
+    expect(ids, hasLength(2), reason: 'move up and move down');
+    final down = CustomSemanticsAction.getAction(ids.last)!;
+    tester
+        .renderObject(row)
+        .owner!
+        .semanticsOwner!
+        .performAction(
+          tester.getSemantics(row).id,
+          SemanticsAction.customAction,
+          ids.last,
+        );
+    expect(down.label, isNotEmpty);
+    expect(reports, hasLength(1));
+    handle.dispose();
+  });
+
+  testWidgets('Alt+Down on a focused desktop row moves it one place', (
+    tester,
+  ) async {
+    final reports = await _pumpRail(tester, 1280);
+    final row = find.ancestor(
+      of: find.text('a-0'),
+      matching: find.byType(ManagedChannelRow),
+    );
+    final rowElement = row.evaluate().single;
+    bool inRow() {
+      var found = false;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
+        found = found || e == rowElement;
+        return !found;
+      });
+      return found;
+    }
+
+    for (var i = 0; i < 40 && !inRow(); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    }
+    expect(inRow(), isTrue, reason: 'Tab reaches the row');
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+    await tester.pump();
+    expect(reports, hasLength(1));
+    final alpha = reports.single.firstWhere((g) => g.categoryId == 'cat-a');
+    expect(alpha.channelIds.take(2), ['a-1', 'a-0']);
   });
 
   testWidgets('a desktop row keeps its hover kebab and shows no grip', (

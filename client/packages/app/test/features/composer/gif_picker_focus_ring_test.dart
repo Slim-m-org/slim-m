@@ -71,6 +71,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('gif-tile-focus-ring')), findsNothing);
 
+    final before = tester.elementList(find.byType(ClipRRect)).toList();
     FocusManager.instance.highlightStrategy =
         FocusHighlightStrategy.alwaysTraditional;
     addTearDown(
@@ -89,5 +90,11 @@ void main() {
     }
 
     expect(find.byKey(const ValueKey('gif-tile-focus-ring')), findsOneWidget);
+    final after = tester.elementList(find.byType(ClipRRect)).toList();
+    expect(
+      after.take(before.length),
+      orderedEquals(before),
+      reason: 'a focus change must not remount the tiles and their images',
+    );
   });
 }

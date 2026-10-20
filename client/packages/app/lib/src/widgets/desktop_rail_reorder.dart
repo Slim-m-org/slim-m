@@ -180,6 +180,12 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
                   channel.id,
                   widget.onReorder,
                 ),
+                shortcuts: channelMoveShortcuts(
+                  widget.sections,
+                  widget.collapsed,
+                  channel.id,
+                  widget.onReorder,
+                ),
                 child: widget.rowBuilder(channel, true),
               ),
     ];
@@ -192,12 +198,16 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
     required bool isCategory,
     required String liftId,
     required Map<CustomSemanticsAction, VoidCallback> actions,
+    Map<ShortcutActivator, VoidCallback> shortcuts = const {},
     required Widget child,
   }) {
     Widget item = Semantics(
       customSemanticsActions: actions,
       child: dimmed ? _slotFor(isCategory) : child,
     );
+    if (shortcuts.isNotEmpty) {
+      item = CallbackShortcuts(bindings: shortcuts, child: item);
+    }
     if (liftable) {
       item = RawGestureDetector(
         behavior: HitTestBehavior.translucent,

@@ -65,12 +65,18 @@ bool watchCanInviteFriend(WidgetRef ref) {
 Future<void> inviteAFriend(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final String link;
+  // A member's invite already defaults to one use and a day on the server's clock, so a skewed device clock cannot get it refused.
+  final isMember = !container
+      .read(myPermissionsProvider)
+      .hasPermission(Perm.createInvite);
   try {
     final invite = await container
         .read(apiProvider)
         .createInvite(
           maxUses: 1,
-          expiresAt: DateTime.now().add(_inviteLifetime).millisecondsSinceEpoch,
+          expiresAt: isMember
+              ? null
+              : DateTime.now().add(_inviteLifetime).millisecondsSinceEpoch,
         );
     link = buildInviteLink(
       server: container.read(serverUrlProvider),

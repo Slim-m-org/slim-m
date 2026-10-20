@@ -199,11 +199,11 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         ref.watch(userNoteProvider(profile.id)).valueOrNull?.body?.isNotEmpty ??
         false;
     final channelId = widget.channelId;
-    // The off-hours allow-list is per person, not per channel, so only removal belongs under the channel's heading.
-    final channelName =
-        channelId == null || !offersRemoveFromChannel(ref, channelId, profile)
-        ? null
-        : ref.watch(channelByIdProvider(channelId)).valueOrNull?.name;
+    // The off-hours allow-list is per person, not per channel, so only removal belongs in the channel's section.
+    final inChannel =
+        channelId != null &&
+        offersRemoveFromChannel(ref, channelId, profile) &&
+        ref.watch(channelByIdProvider(channelId)).valueOrNull != null;
     final canMessage = widget.actions.contains(ParticipantAction.message);
     final canCall = widget.actions.contains(ParticipantAction.call);
     final blocked = ref.watch(blocksProvider).contains(profile.id);
@@ -242,10 +242,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
           ),
         const _Rule(),
         if (widget.localAudio case final audio?) ...[audio, const _Rule()],
-        if (channelName != null) ...[
-          _channelSection(channelName),
-          const _Rule(),
-        ],
+        if (inChannel) ...[_channelSection(), const _Rule()],
         _menuSection(blocked: blocked),
       ],
     );
@@ -306,7 +303,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
     );
   }
 
-  Widget _channelSection(String channelName) => _Section([
+  Widget _channelSection() => _Section([
     MemberRemoveFromChannelItem(
       channelId: widget.channelId!,
       profile: widget.profile,

@@ -134,10 +134,11 @@ void main() {
 
     expect(world.created, hasLength(1));
     expect(world.created.single['max_uses'], 1);
-    final lifetime =
-        (world.created.single['expires_at'] as int) -
-        DateTime.now().millisecondsSinceEpoch;
-    expect(lifetime, closeTo(const Duration(hours: 24).inMilliseconds, 60000));
+    expect(
+      world.created.single.containsKey('expires_at'),
+      isFalse,
+      reason: 'the server stamps a member invite with its own day',
+    );
     expect(world.sharer.shared.single, endsWith('/invite/abc123'));
   });
 
@@ -165,6 +166,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Invite a friend'), findsOneWidget);
+
+    await tester.tap(find.text('Invite a friend'));
+    await tester.pumpAndSettle();
+    final lifetime =
+        (world.created.single['expires_at'] as int) -
+        DateTime.now().millisecondsSinceEpoch;
+    expect(lifetime, closeTo(const Duration(hours: 24).inMilliseconds, 60000));
   });
 
   testWidgets('the member list header invites in one tap', (tester) async {

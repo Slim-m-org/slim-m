@@ -58,7 +58,8 @@ class _HoverRevealState extends State<HoverReveal> {
   }
 
   void _reportOverlayHover(bool hovered) {
-    if (_overlayHovered != hovered) setState(() => _overlayHovered = hovered);
+    if (!mounted || _overlayHovered == hovered) return;
+    setState(() => _overlayHovered = hovered);
   }
 
   void _reportMenuOpen(bool open) {

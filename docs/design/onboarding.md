@@ -88,5 +88,5 @@ Keycaps stay below it on a layout with a keyboard and are absent on touch.
 
 ## Settings
 
-Settings > General has a Setup card with a "Run setup again" row.
+Settings > Troubleshooting has a Setup card with a "Run setup again" row.
 It is findable in settings search.

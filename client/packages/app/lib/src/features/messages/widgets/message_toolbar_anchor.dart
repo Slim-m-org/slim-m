@@ -105,18 +105,48 @@ bool _plateFits(
 }
 
 /// Reports the pointer over the toolbar to the row, which it has left.
-class _KeepsRowHovered extends StatelessWidget {
+class _KeepsRowHovered extends StatefulWidget {
   const _KeepsRowHovered({required this.child});
 
   final Widget child;
 
   @override
+  State<_KeepsRowHovered> createState() => _KeepsRowHoveredState();
+}
+
+class _KeepsRowHoveredState extends State<_KeepsRowHovered> {
+  HoverRevealScope? _scope;
+  bool _over = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scope = HoverRevealScope.maybeOf(context);
+  }
+
+  // A removed MouseRegion fires no onExit, which would leave the row hovered for good.
+  @override
+  void dispose() {
+    final scope = _scope;
+    if (_over && scope != null) {
+      WidgetsBinding.instance
+        ..addPostFrameCallback((_) => scope.reportOverlayHover(false))
+        ..scheduleFrame();
+    }
+    super.dispose();
+  }
+
+  void _set(bool over) {
+    _over = over;
+    _scope?.reportOverlayHover(over);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final scope = HoverRevealScope.maybeOf(context);
     return MouseRegion(
-      onEnter: (_) => scope?.reportOverlayHover(true),
-      onExit: (_) => scope?.reportOverlayHover(false),
-      child: child,
+      onEnter: (_) => _set(true),
+      onExit: (_) => _set(false),
+      child: widget.child,
     );
   }
 }

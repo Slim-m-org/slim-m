@@ -200,6 +200,18 @@ class _RowState extends State<_Row> {
                     ),
                   ),
                 ],
+                // Its own unshrinking cell, so a long detail ellipsizes before this does.
+                if (suggestion.offline) ...[
+                  const SizedBox(width: AppSpacing.s8),
+                  Text(
+                    'offline',
+                    maxLines: 1,
+                    style: AppText.code.copyWith(
+                      fontSize: 11,
+                      color: tokens.textDisabled,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

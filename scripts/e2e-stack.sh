@@ -19,7 +19,9 @@
 #   E2E_API_PORT [8095]   the server
 #   E2E_WEB_PORT [8356]   the static web build
 #   E2E_LK_PORT [7880]    LiveKit's HTTP/WebSocket port on the host
-#   E2E_RTC_TCP_PORT [7881]  LiveKit's ICE TCP port, so a second stack can run beside the first
+#   E2E_RTC_TCP_PORT [7881]  LiveKit's ICE TCP port
+#   E2E_RTC_UDP_START [21000]  first and last of LiveKit's ICE UDP ports; a second stack
+#   E2E_RTC_UDP_END [21050]    beside the first needs all three moved
 #   E2E_WEB_DIR           serve this prebuilt web bundle instead of the tree's own
 #   E2E_REBUILD           set to rebuild the web client even if one exists
 #   E2E_PASSWORD          pin the seeded accounts' password (default: random)

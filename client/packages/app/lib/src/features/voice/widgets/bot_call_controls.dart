@@ -279,7 +279,8 @@ class _ControlChipState extends State<_ControlChip> {
           ? () => widget.onUse(control, null)
           : () => _menu.currentState?.open(),
     );
-    if (control.options.isEmpty) return chip;
+    // An offline bot would answer 409, so it gets no menu to pick from.
+    if (control.options.isEmpty || widget.offline) return chip;
     return ContextMenuRegion(
       key: _menu,
       // The chip is already a tab stop and owns its press.

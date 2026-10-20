@@ -386,6 +386,23 @@ class _GifTileState extends ConsumerState<_GifTile> {
   bool _focused = false;
 
   @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addHighlightModeListener(_onHighlightMode);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_onHighlightMode);
+    super.dispose();
+  }
+
+  // Without this a switch between mouse and keyboard leaves the ring as it was until the next focus change.
+  void _onHighlightMode(FocusHighlightMode _) {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final result = widget.result;
@@ -401,51 +418,57 @@ class _GifTileState extends ConsumerState<_GifTile> {
         onTap: widget.busy ? null : widget.onTap,
         onFocusChange: (focused) => setState(() => _focused = focused),
         borderRadius: BorderRadius.circular(AppRadii.control),
-        child: Container(
-          key: ringed ? const ValueKey('gif-tile-focus-ring') : null,
-          foregroundDecoration: ringed
-              ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                  border: Border.all(
-                    color: tokens.focusRing,
-                    width: focusRingWidth,
-                  ),
-                )
-              : null,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.control),
-            child: ColoredBox(
-              color: tokens.surfaceBase,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  switch (preview) {
-                    AsyncData(value: final Uint8List bytes) => AnimationGate(
-                      child: Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        cacheWidth: decodeEdge(context, 160),
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: ColoredBox(
+                color: tokens.surfaceBase,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    switch (preview) {
+                      AsyncData(value: final Uint8List bytes) => AnimationGate(
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.cover,
+                          cacheWidth: decodeEdge(context, 160),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
                       ),
-                    ),
-                    AsyncError() => const SizedBox.shrink(),
-                    _ => const Center(
-                      child: AppSpinner(size: AppSpinnerSize.sm),
-                    ),
-                  },
-                  if (widget.selecting)
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceBase.withValues(alpha: 0.65),
+                      AsyncError() => const SizedBox.shrink(),
+                      _ => const Center(
+                        child: AppSpinner(size: AppSpinnerSize.sm),
                       ),
-                      child: const Center(
-                        child: AppSpinner(size: AppSpinnerSize.md),
+                    },
+                    if (widget.selecting)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceBase.withValues(alpha: 0.65),
+                        ),
+                        child: const Center(
+                          child: AppSpinner(size: AppSpinnerSize.md),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
+            if (ringed)
+              IgnorePointer(
+                child: DecoratedBox(
+                  key: const ValueKey('gif-tile-focus-ring'),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.control),
+                    border: Border.all(
+                      color: tokens.focusRing,
+                      width: focusRingWidth,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

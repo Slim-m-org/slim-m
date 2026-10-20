@@ -3,10 +3,10 @@
 /// blocks and posting rights, served by a fake API.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
@@ -34,6 +34,7 @@ api.Message alertMessage(
   String channelId,
   String content, {
   String? authorId = 'alice',
+  String? webhookUsername,
 }) => api.Message(
   id: 'm-${content.hashCode}',
   channelId: channelId,
@@ -43,6 +44,7 @@ api.Message alertMessage(
   content: content,
   createdAt: 0,
   editedAt: null,
+  webhookUsername: webhookUsername,
 );
 
 /// A wired policy over a fake server. [account] is what `/push/preference`
@@ -79,6 +81,10 @@ class AlertRig {
 
   /// Author ids `GET /users` reports as `bot` or `webhook`.
   Map<String, String> automated = const {};
+
+  /// Makes the author lookup a 500, or never answer.
+  bool usersFail = false;
+  bool usersHang = false;
   int permissionRequests = 0;
   final threadParentRequests = <String>[];
 
@@ -178,6 +184,8 @@ class AlertRig {
       return alertJson({'permissions': readOnly.contains(id) ? 2 : 6});
     }
     if (path == '/users') {
+      if (usersHang) return Completer<http.Response>().future;
+      if (usersFail) return alertJson({'error': 'boom'}, 500);
       final ids = request.url.queryParameters['ids']!.split(',');
       return alertJson([
         for (final id in ids)

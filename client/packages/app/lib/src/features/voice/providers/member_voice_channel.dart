@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Which voice channel a member is in, for the chip on their row and card.
 ///
-/// Reads the rosters the rail already keeps (`voiceRosterProvider`, nudged by
-/// live voice events) and the live session for a joined call, so it adds no
-/// poll of its own. Only channels in the local store are asked about, which are
-/// the ones the server let this viewer see; a hidden participant is never on a
-/// roster for anyone else.
+/// Reads `voiceRosterProvider` for every voice channel in the local store and
+/// the live session for a joined call. While a member list is on screen that
+/// polls each of those channels (60 s live, 15 s otherwise), whether or not the
+/// rail draws it, because a chip cannot know which channel a member is in
+/// without asking them all. Only channels in the local store are asked about,
+/// which are the ones the server let this viewer see; a hidden participant is
+/// never on a roster for anyone else.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

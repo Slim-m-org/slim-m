@@ -375,9 +375,7 @@ List<AutocompleteSuggestion> _botCommandRows(
         AutocompleteSuggestion(
           insert: '${command.prefix}${command.name} ',
           label: '${command.prefix}${command.name}',
-          detail:
-              '${command.description} · ${command.botDisplayName}'
-              '${command.offline ? ' · offline' : ''}',
+          detail: '${command.description} · ${command.botDisplayName}',
           offline: command.offline,
         ),
   ];

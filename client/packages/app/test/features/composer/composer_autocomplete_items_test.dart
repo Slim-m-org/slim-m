@@ -251,7 +251,7 @@ void main() {
         ],
       );
       expect(rows.single.offline, isTrue);
-      expect(rows.single.detail, endsWith('· offline'));
+      expect(rows.single.detail, isNot(contains('offline')));
       expect(rows.single.insert, '!ping ', reason: 'still insertable');
     });
 

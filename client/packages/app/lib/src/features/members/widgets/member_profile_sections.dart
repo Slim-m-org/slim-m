@@ -51,7 +51,7 @@ class MemberProfileHeader extends ConsumerWidget {
     final extras = [
       // A nickname hides the account's own name everywhere else, so show it here.
       if (profile.nickname != null && profile.accountDisplayName != null)
-        profile.accountDisplayName!,
+        'account name ${profile.accountDisplayName!}',
       ?profile.pronouns,
     ];
 
