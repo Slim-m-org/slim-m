@@ -26,7 +26,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Interaction, InteractionInput, InteractionKind, now_ms};
+use crate::store::{Interaction, InteractionInput, InteractionKind, SubmissionClaim, now_ms};
 
 /// Both bodies are a few short fields; refused well before axum's 2 MB default.
 const BODY_LIMIT: usize = 64 * 1024;
@@ -135,8 +135,19 @@ async fn submit(
         created_at: now_ms(),
         answered: false,
     };
+    match state
+        .store
+        .claim_form_submission(origin_id, id, &fields)
+        .await?
+    {
+        SubmissionClaim::Taken => {
+            return Err(ApiError::Conflict("this form was already submitted"));
+        }
+        SubmissionClaim::Fresh | SubmissionClaim::Replay => {}
+    }
     let input = InteractionInput {
         fields,
+        origin_id: Some(origin_id),
         ..InteractionInput::default()
     };
     record_and_publish(&state, fresh, display_name, input).await

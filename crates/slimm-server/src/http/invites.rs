@@ -327,6 +327,16 @@ async fn check(
     }
 }
 
+/// A backstop for the sweep done when the switch goes off: a code whose maker
+/// can no longer invite is dead whatever its row says.
+async fn maker_lost_invite_rights(state: &AppState, code: &str) -> Result<bool, ApiError> {
+    let Some(maker) = state.store.invite_creator(code).await? else {
+        return Ok(false);
+    };
+    let rights = state.store.base_permissions(maker).await?;
+    Ok(!rights.contains(Permissions::CREATE_INVITE) && !state.store.members_can_invite().await?)
+}
+
 /// Spends an invite for the signed-in account. A fresh spend publishes
 /// `Event::MemberJoined`; the idempotent already-redeemed retry does not, so a
 /// greeter bot cannot be told the same join twice.
@@ -340,11 +350,11 @@ async fn redeem(
     // transaction, so an unthrottled loop of garbage codes serialised the whole
     // server on the write lock while proving nothing.
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    match state
-        .store
-        .redeem_invite(&invite_code_key(&code), ctx.user_id)
-        .await
-    {
+    let code = invite_code_key(&code);
+    if maker_lost_invite_rights(&state, &code).await? {
+        return Err(ApiError::BadRequest("that invite cannot be used"));
+    }
+    match state.store.redeem_invite(&code, ctx.user_id).await {
         Ok(freshly_redeemed) => {
             if freshly_redeemed {
                 state.hub.publish(Event::MemberJoined(ctx.user_id));

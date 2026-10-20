@@ -35,7 +35,8 @@ That counts as answering the press, and the presser alone receives `interaction.
 The form is kept on the press row (migration 0141, which also widens the `kind` CHECK) so the submission can be checked against it.
 A press opens at most one form.
 The member submits with `POST /channels/{c}/interactions/{i}/submit`, a new idempotent interaction of kind `form_submit`.
-The server fills every field, rejects unknown keys, empty required fields, overlong text and invisible characters, and the bot receives `fields`.
+The server fills every field, rejects unknown keys, empty required fields, overlong text and invisible characters, and the bot receives `fields` and `origin_interaction_id`, the press the form was opened on.
+A press accepts one submission, recorded in the same migration (`submitted_id`, `submitted_fields`) by a conditional write: the same id with the same answers is a retry, anything else gets 409.
 Only the member the form was opened for may submit it, and only while the press is inside its 15 minutes.
 
 ## Client

@@ -3,7 +3,8 @@
 -- (decision 0083), and a form a bot opened is kept on the press it answered so
 -- the submission can be checked against it. Interactions live a quarter of an
 -- hour, so the table is rebuilt in place and the rows it holds are kept: SQLite
--- cannot widen a CHECK constraint any other way.
+-- cannot widen a CHECK constraint any other way. A press also remembers the one
+-- submission it accepted, so a form is delivered to its bot at most once.
 CREATE TABLE interactions_new (
     id BLOB PRIMARY KEY,
     bot_id BLOB NOT NULL,
@@ -16,7 +17,9 @@ CREATE TABLE interactions_new (
     kind TEXT NOT NULL DEFAULT 'button'
         CHECK (kind IN ('button', 'message_menu', 'call_control', 'select', 'form_submit')),
     option_id TEXT,
-    form TEXT
+    form TEXT,
+    submitted_id BLOB,
+    submitted_fields TEXT
 ) STRICT, WITHOUT ROWID;
 
 INSERT INTO interactions_new

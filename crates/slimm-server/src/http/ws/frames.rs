@@ -129,6 +129,9 @@ pub(super) enum ServerFrame {
         /// A submitted form's answers by field `custom_id`.
         #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
         fields: std::collections::BTreeMap<String, String>,
+        /// The press the form was opened on, on a submitted form.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        origin_interaction_id: Option<String>,
     },
     /// A bot opened a form for this account's click.
     #[serde(rename = "interaction.form")]

@@ -331,7 +331,7 @@ async fn opening_the_same_form_again_is_a_retry_not_a_conflict() {
 }
 
 #[tokio::test]
-async fn a_replayed_submission_is_delivered_once_with_its_first_answers() {
+async fn a_replayed_submission_is_delivered_once_and_other_answers_for_its_id_conflict() {
     let w = world().await;
     let sent = posted(&w).await;
     let addr = serve(w.state.clone()).await;
@@ -364,7 +364,10 @@ async fn a_replayed_submission_is_delivered_once_with_its_first_answers() {
 
     assert_eq!(send(json!({ "what": "tea" })).await, StatusCode::OK);
     assert_eq!(send(json!({ "what": "tea" })).await, StatusCode::OK);
-    assert_eq!(send(json!({ "what": "coffee" })).await, StatusCode::OK);
+    assert_eq!(
+        send(json!({ "what": "coffee" })).await,
+        StatusCode::CONFLICT
+    );
 
     let mut delivered = Vec::new();
     while let Some(frame) = frame_of_kind(&mut bot, "interaction.created").await {
@@ -377,4 +380,47 @@ async fn a_replayed_submission_is_delivered_once_with_its_first_answers() {
         vec![json!("tea")],
         "a replay is not delivered again"
     );
+}
+
+#[tokio::test]
+async fn a_press_accepts_one_submission_and_names_itself_in_the_frame() {
+    let w = world().await;
+    let sent = posted(&w).await;
+    let addr = serve(w.state.clone()).await;
+    let mut bot = connect(&w, addr, &w.bot.1).await;
+    let (_, _, press_id) = press(&w, &w.alice.1, &sent, "hit").await;
+    call(
+        &w,
+        "POST",
+        &interaction_uri(&w, &press_id, "form"),
+        &w.bot.1,
+        Some(survey()),
+    )
+    .await;
+    let submit = interaction_uri(&w, &press_id, "submit");
+    let send = |id: String| {
+        let (w, submit) = (&w, submit.clone());
+        async move {
+            call(
+                w,
+                "POST",
+                &submit,
+                &w.alice.1,
+                Some(json!({ "id": id, "fields": { "what": "tea" } })),
+            )
+            .await
+            .0
+        }
+    };
+
+    assert_eq!(send(Uuid::now_v7().to_string()).await, StatusCode::OK);
+    assert_eq!(send(Uuid::now_v7().to_string()).await, StatusCode::CONFLICT);
+
+    let mut delivered = Vec::new();
+    while let Some(frame) = frame_of_kind(&mut bot, "interaction.created").await {
+        if frame["kind"] == "form_submit" {
+            delivered.push(frame["origin_interaction_id"].clone());
+        }
+    }
+    assert_eq!(delivered, vec![json!(press_id)]);
 }

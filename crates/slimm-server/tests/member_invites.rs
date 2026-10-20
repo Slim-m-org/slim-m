@@ -391,3 +391,86 @@ async fn a_member_waiting_on_the_rules_cannot_invite() {
     let (status, _) = w.invite(raid, json!({})).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
+
+async fn is_usable(w: &World, code: &str) -> bool {
+    let (_, check) = call(
+        &w.router,
+        "GET",
+        &format!("/invites/{code}/check"),
+        None,
+        None,
+    )
+    .await;
+    check["usable"] == true
+}
+
+#[tokio::test]
+async fn turning_the_switch_off_revokes_member_invites_and_logs_it() {
+    let w = world().await;
+    w.set_switch(true).await;
+    let member_code = code_of(&w, &w.member).await;
+    let admin_code = code_of(&w, &w.admin).await;
+    w.set_switch(false).await;
+
+    assert!(!is_usable(&w, &member_code).await);
+    assert!(
+        is_usable(&w, &admin_code).await,
+        "an invite with the right stays"
+    );
+    let (_, log) = call(&w.router, "GET", "/space/audit-log", Some(&w.admin), None).await;
+    let entry = log
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "invite.revoke_members");
+    assert_eq!(entry.expect("the sweep is audited")["detail"]["count"], 1);
+}
+
+#[tokio::test]
+async fn removing_a_member_revokes_their_unspent_invites() {
+    let w = world().await;
+    w.set_switch(true).await;
+    let code = code_of(&w, &w.member).await;
+    let nia = w
+        .store
+        .live_user_id_by_username("nia")
+        .await
+        .unwrap()
+        .unwrap();
+    let root = w
+        .store
+        .live_user_id_by_username("root")
+        .await
+        .unwrap()
+        .unwrap();
+    w.store.remove_from_space(nia, root, None).await.unwrap();
+
+    assert!(!is_usable(&w, &code).await);
+}
+
+#[tokio::test]
+async fn a_code_whose_maker_lost_the_right_is_refused_at_redeem() {
+    let w = world().await;
+    w.set_switch(true).await;
+    let code = code_of(&w, &w.member).await;
+    let control = code_of(&w, &w.admin).await;
+    let (omar, _) = register(&w.store, "omar").await;
+    w.store.set_members_can_invite(false).await.unwrap();
+
+    let redeem = |code: String| {
+        let (w, omar) = (&w, omar.clone());
+        async move {
+            call(
+                &w.router,
+                "POST",
+                &format!("/invites/{code}/redeem"),
+                Some(&omar),
+                None,
+            )
+            .await
+            .0
+        }
+    };
+    assert_eq!(redeem(code).await, StatusCode::BAD_REQUEST);
+    assert_eq!(redeem(control).await, StatusCode::NO_CONTENT);
+}
