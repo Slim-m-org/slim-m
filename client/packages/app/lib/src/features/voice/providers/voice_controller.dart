@@ -309,6 +309,7 @@ class VoiceController extends StateNotifier<VoiceState>
       // produces a failure to report; not asking is the honest thing.
       microphoneEnabled: microphoneAtJoin,
       cameraEnabled: state.cameraEnabled && token.canPublish,
+      canPublish: token.canPublish,
     );
     if (superseded()) return;
     // Show the push-to-talk-closed mic in the button; scoped to PTT so the canPublish path is untouched.
