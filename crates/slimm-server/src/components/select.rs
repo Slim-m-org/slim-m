@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A select menu on a bot message: one row, one menu, a bounded list of
-//! choices. See docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+//! choices. See docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 
 use serde::{Deserialize, Serialize};
 

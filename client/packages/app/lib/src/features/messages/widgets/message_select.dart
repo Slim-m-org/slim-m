@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A select menu on a bot's message. See
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 ///
 /// Which surface it opens follows docs/design/desktop-vs-mobile.md. Picking
 /// one value from a short list for a control that stays on screen is rule 2,

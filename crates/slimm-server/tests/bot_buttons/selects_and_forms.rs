@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Select menus on a bot's message, and the small form a bot opens in answer
-//! to a press. See docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+//! to a press. See docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 
 use super::*;
 

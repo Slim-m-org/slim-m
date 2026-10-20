@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Buttons and select menus a bot attaches to its own message. See
 /// docs/decisions/0039-bot-message-buttons.md and
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 library;
 
 enum ComponentButtonStyle {

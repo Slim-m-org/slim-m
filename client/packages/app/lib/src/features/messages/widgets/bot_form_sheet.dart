@@ -2,7 +2,7 @@
 /// The small form a bot opens for a press: a few fields and a submit. A short
 /// task with a submit is `showAppSheet` (docs/design/desktop-vs-mobile.md
 /// rule 4), a bottom sheet under 600 and a dialog above. See
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 library;
 
 import 'dart:async';

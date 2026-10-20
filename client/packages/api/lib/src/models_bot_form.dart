@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A small form a bot opens for the member who pressed its button. See
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 library;
 
 class BotFormField {

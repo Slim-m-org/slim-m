@@ -5,7 +5,7 @@
 /// held until the shell's gate shows it, and drops with the session: the
 /// server keeps the press for a quarter of an hour and nothing here should
 /// outlive a reload. See
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 library;
 
 import 'dart:async';

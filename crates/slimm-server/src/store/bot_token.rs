@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Re-issuing a bot's token: an administrator's answer to a lost credential.
-//! See `docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md`.
+//! See `docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md`.
 
 use crate::auth::{generate_secret, hash_secret};
 use crate::ids::{DeviceId, SessionId, UserId};

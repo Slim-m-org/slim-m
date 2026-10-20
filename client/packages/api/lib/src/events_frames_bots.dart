@@ -59,7 +59,7 @@ class InteractionAnswered extends ServerEvent {
 
 /// A bot opened a form for this account's press. The press counts as answered
 /// and the client shows [form]; submitting it names [interactionId]. See
-/// docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 class InteractionForm extends ServerEvent {
   const InteractionForm({
     required this.interactionId,

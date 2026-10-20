@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A small form a bot opens for the member who pressed its button or chose
-//! from its menu. See docs/decisions/0082-bot-token-reissue-select-menus-and-forms.md.
+//! from its menu. See docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
 
 use std::collections::BTreeMap;
 

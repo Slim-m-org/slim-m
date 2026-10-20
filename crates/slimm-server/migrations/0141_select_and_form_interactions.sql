@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -- A select choice and a form submission are interactions of their own kind
--- (decision 0082), and a form a bot opened is kept on the press it answered so
+-- (decision 0083), and a form a bot opened is kept on the press it answered so
 -- the submission can be checked against it. Interactions live a quarter of an
 -- hour, so the table is rebuilt in place and the rows it holds are kept: SQLite
 -- cannot widen a CHECK constraint any other way.

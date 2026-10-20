@@ -7930,7 +7930,7 @@ paths:
       tags: [bots]
       summary: Open a form for the member who pressed.
       description: >-
-        Decision 0082. Only the bot the press was sent to, within 15 minutes of
+        Decision 0083. Only the bot the press was sent to, within 15 minutes of
         it, and once per press (a second is a 409). The presser's client shows
         the form from an `interaction.form` frame and the press counts as
         answered. The submission arrives as an `interaction.created` of kind
@@ -7970,7 +7970,7 @@ paths:
       tags: [bots]
       summary: Send a form's answers to the bot.
       description: >-
-        Decision 0082. Only the member the form was opened for, while the press
+        Decision 0083. Only the member the form was opened for, while the press
         is still inside its 15 minutes. The answers are checked against the
         form the bot opened and delivered to that bot as an
         `interaction.created` of kind `form_submit`; nothing but the short-lived
