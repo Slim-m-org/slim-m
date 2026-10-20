@@ -96,6 +96,11 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     bool touch = false,
   }) {
     if (_beginResize(world, manageCanvas, selfId, touch)) return;
+    // Hidden by the board's clip, so a press on the letterbox selects nothing.
+    if (!document.acceptsPlacementAt(world)) {
+      document.selectedObjectId.value = null;
+      return;
+    }
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||

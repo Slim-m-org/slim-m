@@ -286,6 +286,8 @@ class CanvasOpsController {
     bool touch = false,
   }) {
     if (_dragBatch.length >= maxRemoveIdsPerOp) return;
+    // Legacy content past the board is hidden by its clip, so a press there must not reach it.
+    if (!document.acceptsPlacementAt(world)) return;
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
