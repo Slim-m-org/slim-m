@@ -114,6 +114,7 @@ Future<ProviderContainer> pumpPersonalSettings(
   WidgetTester tester,
   int permissions, {
   bool scrollToBottom = true,
+  bool? hasDesktopPane,
 }) async {
   final container = _container(permissions);
   addTearDown(container.dispose);
@@ -123,7 +124,7 @@ Future<ProviderContainer> pumpPersonalSettings(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const PersonalSettingsScreen(),
+        home: PersonalSettingsScreen(hasDesktopPane: hasDesktopPane),
       ),
     ),
   );

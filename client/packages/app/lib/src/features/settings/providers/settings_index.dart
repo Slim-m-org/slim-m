@@ -7,6 +7,7 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
+import '../../../routing/routes.dart' show desktopPane;
 import 'settings_index_gates.dart';
 
 export 'settings_index_gates.dart' show SettingsGate;
@@ -384,7 +385,14 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['cache', 'disk', 'clear'],
   ),
   SettingsEntry(
-    'notifications',
+    desktopPane,
+    'Startup',
+    description: 'What happens when the app opens.',
+    keywords: ['boot', 'launch', 'login'],
+    available: _desktop,
+  ),
+  SettingsEntry(
+    desktopPane,
     'Start on login',
     description: 'Opens slim-m in the tray when you sign in.',
     keywords: ['autostart', 'startup', 'boot', 'tray'],
@@ -392,7 +400,7 @@ const personalSettingsIndex = <SettingsEntry>[
     available: _desktop,
   ),
   SettingsEntry(
-    'appearance',
+    desktopPane,
     'Startup splash',
     description: 'How long the splash shows when the app opens.',
     keywords: ['startup', 'launch', 'loading'],

@@ -7,9 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart' show isDesktopHost;
 
-import '../../../providers/desktop_splash_preference.dart';
 import '../providers/display_preferences.dart';
 import '../../../providers/providers.dart';
 import 'display_settings_section.dart';
@@ -106,25 +104,7 @@ class AppearanceSettingsSection extends ConsumerWidget {
               .read(motionPreferenceControllerProvider.notifier)
               .select(next),
         ),
-        if (isDesktopHost) _splashRow(ref),
       ],
-    );
-  }
-
-  /// One row rather than an on/off toggle: Disabled is just the first
-  /// duration choice, so off and how-long are the same control.
-  Widget _splashRow(WidgetRef ref) {
-    return SettingsSelectRow<SplashDuration>(
-      label: 'Startup splash',
-      sheetTitle: 'Startup splash',
-      value: ref.watch(splashDurationControllerProvider),
-      choices: [
-        for (final value in SplashDuration.values)
-          SettingsChoice(value: value, label: value.label),
-      ],
-      sheetFootnote: 'How long the splash shows when the app opens.',
-      onChanged: (next) =>
-          ref.read(splashDurationControllerProvider.notifier).select(next),
     );
   }
 
