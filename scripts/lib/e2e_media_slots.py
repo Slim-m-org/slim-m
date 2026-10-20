@@ -49,7 +49,7 @@ import time
 
 import e2e_board_frame
 import e2e_labels as L
-from e2e_voice import participants_with_mics
+from e2e_voice import _click_channel_row, participants_with_mics
 
 # canvas_presence_layer.dart's own `_tile` builds these, on or off camera.
 ALICE_SELF_LABEL = "Alice, you, on this call's canvas"
@@ -152,9 +152,9 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     print("  hanging up from the canvas dock closed the canvas for both")
     time.sleep(2)
     for c in (a, b):
-        c.click(L.VOICE_CHANNEL)
-    for c in (a, b):
-        c.wait_for(L.MUTE, timeout=20)
+        # The rail row, not an exact-name click, which lands on the header or member chip once the row carries a timer.
+        _click_channel_row(c, L.VOICE_CHANNEL)
+    # The SFU is the proof: the mute button is on screen out of a call too.
     parts = participants_with_mics(room_id)
     assert len(parts) == 2, \
         f"SFU has {len(parts)} participants after rejoining, expected 2"

@@ -5,35 +5,8 @@ Split out of e2e_voice.py to keep that file under the review budget; it
 imports the helpers below rather than duplicating them, the same shape
 e2e_canvas_shapes.py already uses against e2e_canvas.py.
 """
-import time
-
 import e2e_labels as L
-from e2e_voice import _tap_label, participants_with_mics
-
-
-def _click_channel_row(client, channel, timeout=90):
-    """A plain `client.click(channel)` risks landing on the row's own
-    kebab ('Manage <channel>') instead of the row, once the roster grows
-    a participant count and the row's own text stops being an exact match
-    ('lounge' becomes 'lounge\\n1') - `e2e_js.click`'s containment rule
-    then prefers the kebab, since it sits nested inside the row's own
-    tappable container, the same rule that correctly favours a reply's
-    quote button over its enclosing row for a different search. Picking
-    the row by its own name as a *prefix* sidesteps that rule entirely,
-    without touching it and risking every other scenario that depends on
-    it: `join_call`'s own first click of this channel worked precisely
-    because the roster was still empty then, and this is that same click
-    repeated once the roster is not.
-    """
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        for n in client.nodes():
-            if n["t"].lower().startswith(channel.lower()):
-                client.tap(n["x"], n["y"])
-                time.sleep(1.5)
-                return
-        time.sleep(1)
-    raise AssertionError(f"{client.name}: no row named {channel!r} found")
+from e2e_voice import _click_channel_row, _tap_label, participants_with_mics
 
 
 def rejoin_after_leaving(client, room_id, channel=L.VOICE_CHANNEL):
