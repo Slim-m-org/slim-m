@@ -220,7 +220,7 @@ void main() {
                   'bot_username': 'b',
                   'bot_display_name': 'B',
                   'prefix': '!',
-                'name': 'play',
+                  'name': 'play',
                   'description': 'Play',
                   'offline': fetches > 1,
                 },
