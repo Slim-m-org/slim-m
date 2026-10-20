@@ -21,16 +21,17 @@ import '../../support/fake_api.dart';
 
 const _newToken = 'slimbot_fresh0123456789';
 
-Map<String, dynamic> _bot({String? tokenName = 'Helper'}) => {
-  'user_id': 'bot-helper',
-  'username': 'helper',
-  'display_name': 'helper',
-  'created_at': 0,
-  'token_name': tokenName,
-  'role_id': tokenName == null ? null : 'role-helper',
-  'permissions': 0,
-  'online': false,
-};
+Map<String, dynamic> _bot({String? tokenName = 'Helper', String suffix = ''}) =>
+    {
+      'user_id': 'bot-helper$suffix',
+      'username': 'helper$suffix',
+      'display_name': 'helper$suffix',
+      'created_at': 0,
+      'token_name': tokenName,
+      'role_id': tokenName == null ? null : 'role-helper',
+      'permissions': 0,
+      'online': false,
+    };
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -42,8 +43,10 @@ Future<List<String>> _pump(
   WidgetTester tester, {
   String? tokenName = 'Helper',
   int reissueStatus = 200,
+  int botCount = 1,
+  Size size = const Size(800, 2400),
 }) async {
-  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   final posted = <String>[];
@@ -63,14 +66,18 @@ Future<List<String>> _pump(
       ),
       mockApiOverride((request) async {
         if (request.method == 'POST' &&
-            request.url.path == '/bots/bot-helper/token') {
+            request.url.path.startsWith('/bots/bot-helper') &&
+            request.url.path.endsWith('/token')) {
           posted.add(request.url.path);
           return reissueStatus == 200
               ? _json({'bot': _bot(), 'token': _newToken})
               : _json({'error': 'no such bot'}, reissueStatus);
         }
         if (request.method == 'GET' && request.url.path == '/bots') {
-          return _json([_bot(tokenName: tokenName)]);
+          return _json([
+            for (var i = 0; i < botCount; i++)
+              _bot(tokenName: tokenName, suffix: i == 0 ? '' : '$i'),
+          ]);
         }
         return http.Response('[]', 200);
       }),
@@ -161,5 +168,39 @@ void main() {
 
     expect(find.byType(AppErrorState), findsOneWidget);
     expect(find.textContaining(_newToken), findsNothing);
+  });
+
+  testWidgets('a re-issue from a low row brings the token into view', (
+    tester,
+  ) async {
+    await _pump(tester, botCount: 8, size: const Size(390, 844));
+    final last = find.widgetWithText(AppButton, 'Re-issue token').last;
+    await tester.ensureVisible(last);
+    await tester.pumpAndSettle();
+    await tester.tap(last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
+    await tester.pumpAndSettle();
+
+    final token = find.textContaining(_newToken);
+    expect(token, findsOneWidget);
+    final box = tester.getRect(token);
+    expect(box.top, greaterThanOrEqualTo(0));
+    expect(box.bottom, lessThanOrEqualTo(844));
+  });
+
+  testWidgets('a token nobody has copied is not overwritten by another', (
+    tester,
+  ) async {
+    await _pump(tester, botCount: 2);
+    await tester.tap(find.widgetWithText(AppButton, 'Re-issue token').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(AppButton, 'Re-issue').last);
+    await tester.pumpAndSettle();
+
+    final buttons = tester.widgetList<AppButton>(
+      find.widgetWithText(AppButton, 'Re-issue token'),
+    );
+    expect(buttons.every((b) => b.onPressed == null), isTrue);
   });
 }
