@@ -111,3 +111,13 @@ Cells are bursts / dropouts / ViSQOL / peak over reference (dB) / received kbps 
 The 52 ms bursts and concealment events did not recur in two further runs, so the first run was the host, not RED.
 One 52 ms dropout showed up in the third RED + DTX off run with no concealment event; the clicks at the very start of a recording appear with DTX off alone too, so they are the harness joining the stream.
 Two RED + DTX off runs out of three were clean of bursts; the sample is small.
+
+## Shared audio is published apart from the microphone
+
+Shared audio (a game, a video, music) is not speech, so it does not take the microphone's options.
+`screenShareAudioPublishOptions()` sends it at 96 kbps with DTX and RED off, and `screenShareAudioCaptureOptions()` asks for no echo cancellation, noise suppression, gain control or voice isolation.
+Before this, the room default applied: 48 kbps plus a RED copy, which is about 99 kbps on the wire against about 97 kbps now.
+The cost is the same and the primary stream has twice the bitrate (offline Opus on a jazz clip: 20.4 dB SNR at 48 kbps, 26.3 dB at 96 kbps, mono).
+The desktop fork's loopback source is a custom source that libwebrtc's processing never sees.
+A microphone device switch used to call `setDeviceId` on every local audio track, share audio included; it now touches the microphone only.
+Stereo needs a TF_STEREO audio feature that livekit_client 2.13.1 does not send, so shared audio is still mono on the wire.
