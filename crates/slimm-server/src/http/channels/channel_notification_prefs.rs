@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! A per-(caller, channel) override of the account-wide notification
-//! preference (`GET`/`PUT /push/preference`): mute one channel entirely, or
-//! narrow it to mentions only, while every other channel keeps following the
-//! account default.
+//! preference (`GET`/`PUT /push/preference`): mute one channel, narrow it to
+//! mentions only, or ask for every message, while every other channel keeps
+//! following the default.
 //!
-//! `everything` is refused here: having no row already means that, so
-//! writing it would be a second spelling of the same answer rather than a
-//! real override, and `DELETE` is the one way back to "follow the account
-//! default". Enforced exactly once, in
+//! `everything` is a real override: a read-only channel or a bot's post
+//! defaults to mentions, so it is the only way to opt back in to every post.
+//! `DELETE` is the one way back to "follow the default". Enforced exactly once, in
 //! `push::recipients::narrow_for_notification_preference` - the account-wide
 //! preference's own choke point, extended rather than duplicated - never a
 //! filter a client applies after a device has already buzzed.
@@ -60,8 +59,7 @@ struct SetRequest {
 // --- Handlers ---
 
 /// Every channel the caller has overridden, id and preference only - a
-/// channel following the account default carries no row and is absent here,
-/// never listed at `everything`. Unfiltered by the caller's current view of
+/// channel following the default carries no row and is absent here. Unfiltered by the caller's current view of
 /// each channel: every id here is one the caller set themselves, so this
 /// tells them nothing they did not already know.
 async fn list(
@@ -97,11 +95,9 @@ async fn set(
 ) -> Result<Json<ChannelPreferenceDto>, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
-    let preference = NotificationPreference::parse(&req.preference)
-        .filter(|p| *p != NotificationPreference::Everything)
-        .ok_or(ApiError::BadRequest(
-            "preference must be mentions or nothing - everything is what clearing the override already means",
-        ))?;
+    let preference = NotificationPreference::parse(&req.preference).ok_or(ApiError::BadRequest(
+        "preference must be everything, mentions or nothing",
+    ))?;
     if !state
         .store
         .has_permission(ctx.user_id, channel_id, Permissions::VIEW_CHANNEL)

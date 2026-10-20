@@ -158,9 +158,11 @@ Future<void> _set(
   ChannelNotificationOverridesController notifier,
   String channelId,
   api.NotificationPreference preference,
-) => preference == api.NotificationPreference.nothing
-    ? notifier.mute(channelId)
-    : notifier.mentionsOnly(channelId);
+) => switch (preference) {
+  api.NotificationPreference.nothing => notifier.mute(channelId),
+  api.NotificationPreference.mentions => notifier.mentionsOnly(channelId),
+  api.NotificationPreference.everything => notifier.everything(channelId),
+};
 
 /// "Default (Mentions)" style wording for a channel's own default level.
 String channelDefaultMenuLabel(api.NotificationPreference level) =>
@@ -170,7 +172,7 @@ String channelDefaultMenuLabel(api.NotificationPreference level) =>
       api.NotificationPreference.everything => 'Default (All messages)',
     };
 
-/// Mute, mentions only and off-hours entries for [channelId], led by the
+/// Mute, mentions only, all messages and off-hours entries for [channelId], led by the
 /// channel's own default when it sets one ([channelDefault], from
 /// `channelDefaultOf`); choosing it clears this account's own choice.
 ///
@@ -251,6 +253,12 @@ List<AppMenuItem> notificationMenuItems(
           );
         },
       ),
+    AppMenuItem(
+      label: 'All messages',
+      leading: AppIcons.notificationsOn,
+      selected: current == api.NotificationPreference.everything,
+      onTap: () => toggle(api.NotificationPreference.everything),
+    ),
     AppMenuItem(
       label: muteLabel,
       leading: AppIcons.notificationsOff,

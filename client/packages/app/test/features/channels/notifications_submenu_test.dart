@@ -199,6 +199,26 @@ void main() {
         expect(fixture.stored, api.NotificationPreference.mentions);
       });
 
+      testWidgets('All messages stores everything and the entry reads it', (
+        tester,
+      ) async {
+        final fixture = _Fixture();
+        await _pumpRow(tester, fixture, width: width);
+        await _openRowMenu(tester, phone: phone);
+        await _choose(tester, 'All messages');
+
+        expect(fixture.stored, api.NotificationPreference.everything);
+        expect(fixture.requests.single, contains('"everything"'));
+        await _openRowMenu(tester, phone: phone);
+        expect(
+          find.descendant(
+            of: find.widgetWithText(AppMenuItem, 'Notifications'),
+            matching: find.text('All'),
+          ),
+          findsOneWidget,
+        );
+      });
+
       testWidgets('Notify me off hours allows the channel', (tester) async {
         final fixture = _Fixture();
         await _pumpRow(tester, fixture, width: width);
