@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
@@ -60,6 +61,10 @@ ProviderContainer _container({
   final db = SlimmDatabase(NativeDatabase.memory());
   return ProviderContainer(
     overrides: [
+      // A live drift stream per row leaves its cleanup timer pending past the test.
+      channelLatestMessageAtProvider.overrideWith(
+        (ref, id) => Stream.value(null),
+      ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       // Without this, DmRow's voiceRosterProvider pulls in the real SyncController.
