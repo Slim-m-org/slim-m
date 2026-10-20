@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use super::Store;
 use super::export_rows::RowStream;
+use super::export_scope::{community_channel, parent_joins};
 
 const SPACE: &str = "SELECT s.description, s.join_policy, s.message_retention_days,
         s.rules_text, s.welcome_message,
@@ -21,16 +22,20 @@ const CATEGORIES: &str = "SELECT id, name, position, created_at FROM channel_cat
      WHERE deleted_at IS NULL AND ?1 IS NOT NULL ORDER BY position, id";
 
 // Temporary voice rooms and direct messages are not part of the community.
-const CHANNELS: &str = "SELECT c.id, c.name, c.kind, c.topic, c.position, c.created_at,
+const CHANNELS: &str = concat!(
+    "SELECT c.id, c.name, c.kind, c.topic, c.position, c.created_at,
         c.parent_message_id AS thread_of_message_id, c.category_id, c.slow_mode_seconds,
         c.default_notification,
         (SELECT json_group_array(json_object('target_type', o.target_type,
                 'target_id', lower(hex(o.target_id)), 'allow', o.allow, 'deny', o.deny))
            FROM channel_overwrites o WHERE o.channel_id = c.id) AS overwrites_json
-     FROM channels c
-     WHERE c.deleted_at IS NULL AND c.kind <> 'dm' AND c.room_owner_id IS NULL
-       AND ?1 IS NOT NULL
-     ORDER BY c.position, c.id";
+     FROM channels c ",
+    parent_joins!(),
+    " WHERE ",
+    community_channel!(),
+    " AND ?1 IS NOT NULL
+     ORDER BY c.position, c.id"
+);
 
 const MEMBERS: &str = "SELECT u.id, u.username, u.display_name, u.is_bot AS is_bot,
         u.is_webhook AS is_webhook, u.created_at,
@@ -62,40 +67,56 @@ const MESSAGES: &str = "SELECT m.id, m.seq, m.author_id, m.content, m.is_encrypt
      WHERE m.channel_id = ?1 AND m.deleted_at IS NULL
      ORDER BY m.seq";
 
-const MESSAGES_COUNT: &str =
-    "SELECT COUNT(*) FROM messages m JOIN channels c ON c.id = m.channel_id
-     WHERE m.deleted_at IS NULL AND c.deleted_at IS NULL AND c.kind <> 'dm'
-       AND c.room_owner_id IS NULL AND ?1 IS NOT NULL";
+const MESSAGES_COUNT: &str = concat!(
+    "SELECT COUNT(*) FROM messages m JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE m.deleted_at IS NULL AND ",
+    community_channel!(),
+    " AND ?1 IS NOT NULL"
+);
 
-const PINS: &str = "SELECT p.channel_id, p.message_id, p.pinned_by, p.pinned_at
+const PINS: &str = concat!(
+    "SELECT p.channel_id, p.message_id, p.pinned_by, p.pinned_at
      FROM pinned_messages p
      JOIN messages m ON m.id = p.message_id AND m.deleted_at IS NULL
-     JOIN channels c ON c.id = p.channel_id AND c.deleted_at IS NULL AND c.kind <> 'dm'
-     WHERE ?1 IS NOT NULL ORDER BY p.channel_id, p.pinned_at";
+     JOIN channels c ON c.id = p.channel_id ",
+    parent_joins!(),
+    " WHERE ",
+    community_channel!(),
+    " AND ?1 IS NOT NULL ORDER BY p.channel_id, p.pinned_at"
+);
 
 const EMOJI: &str = "SELECT id, name, lower(hex(sha256)) AS sha256, uploader_id, created_at
      FROM custom_emoji WHERE ?1 IS NOT NULL ORDER BY id";
 
-const ATTACHMENTS: &str = "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
+const ATTACHMENTS: &str = concat!(
+    "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
         a.filename, a.created_at
      FROM attachments a
      WHERE ?1 IS NOT NULL
        AND (EXISTS (SELECT 1 FROM message_attachments ma
                       JOIN messages m ON m.id = ma.message_id
-                      JOIN channels c ON c.id = m.channel_id
-                     WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL
-                       AND c.deleted_at IS NULL AND c.kind <> 'dm' AND c.room_owner_id IS NULL)
+                      JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL AND ",
+    community_channel!(),
+    ")
             OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256))
-     ORDER BY a.sha256";
+     ORDER BY a.sha256"
+);
 
-const ATTACHMENTS_COUNT: &str = "SELECT COUNT(*) FROM attachments a
+const ATTACHMENTS_COUNT: &str = concat!(
+    "SELECT COUNT(*) FROM attachments a
      WHERE ?1 IS NOT NULL
        AND (EXISTS (SELECT 1 FROM message_attachments ma
                       JOIN messages m ON m.id = ma.message_id
-                      JOIN channels c ON c.id = m.channel_id
-                     WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL
-                       AND c.deleted_at IS NULL AND c.kind <> 'dm' AND c.room_owner_id IS NULL)
-            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256))";
+                      JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE ma.sha256 = a.sha256 AND m.deleted_at IS NULL AND ",
+    community_channel!(),
+    ")
+            OR EXISTS (SELECT 1 FROM custom_emoji e WHERE e.sha256 = a.sha256))"
+);
 
 /// Every read takes `?1` so one helper binds them all; the value is unused unless noted.
 impl Store {

@@ -184,6 +184,18 @@ async fn download(
     }
     if job.kind == ExportKind::Space {
         require_base_permission(&state, ctx.user_id, Permissions::ADMINISTRATOR).await?;
+    }
+    let (file, len) = state
+        .media
+        .open_export(&job.id.to_string())
+        .await
+        .map_err(|err| {
+            tracing::error!(%err, "a ready export has no file");
+            ApiError::NotFound("this export is not available to download")
+        })?;
+    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
+    // A resumed download is the same download, so only the first byte is audited.
+    if job.kind == ExportKind::Space && starts_at_zero(range) {
         let detail = serde_json::json!({ "size_bytes": job.size_bytes }).to_string();
         state
             .store
@@ -195,15 +207,6 @@ async fn download(
             )
             .await?;
     }
-    let (file, len) = state
-        .media
-        .open_export(&job.id.to_string())
-        .await
-        .map_err(|err| {
-            tracing::error!(%err, "a ready export has no file");
-            ApiError::NotFound("this export is not available to download")
-        })?;
-    let range = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
     let filename = format!(
         "slimm-{}-export-{}.tar",
         job.kind.as_str(),
@@ -215,6 +218,13 @@ async fn download(
         HeaderValue::from_static("private, no-store"),
     );
     Ok(response)
+}
+
+fn starts_at_zero(range: Option<&str>) -> bool {
+    match range.and_then(|r| r.strip_prefix("bytes=")) {
+        None => true,
+        Some(spec) => spec.starts_with('0') && spec[1..].starts_with('-'),
+    }
 }
 
 /// Deletes an export and its file now. A running one is cancelled by its row going.

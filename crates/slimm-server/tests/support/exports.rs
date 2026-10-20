@@ -16,6 +16,9 @@ use uuid::Uuid;
 
 use super::app::{builder, json_body, request, request_authed};
 
+/// A build over a handful of rows takes milliseconds; this is the loaded-runner margin.
+const BUILD_TIMEOUT: Duration = Duration::from_secs(20);
+
 pub const PASSWORD: &str = "correct-horse-battery";
 
 pub struct World {
@@ -25,7 +28,10 @@ pub struct World {
 }
 
 pub fn world(store: Store) -> World {
-    let media = Media::for_tests();
+    world_with_media(store, Media::for_tests())
+}
+
+pub fn world_with_media(store: Store, media: Media) -> World {
     let state: AppState = builder(store.clone()).media(media.clone()).build();
     World {
         store,
@@ -134,16 +140,16 @@ impl World {
     }
 
     pub async fn finished(&self, token: &str, id: &str) -> Value {
-        for _ in 0..800 {
+        let probe = || async {
             let (_, job) = self
                 .call("GET", &format!("/exports/{id}"), token, None)
                 .await;
-            if !matches!(job["status"].as_str(), Some("queued" | "running")) {
-                return job;
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
+            (!matches!(job["status"].as_str(), Some("queued" | "running"))).then_some(job)
+        };
+        match super::wait::poll(BUILD_TIMEOUT, probe).await {
+            Some(job) => job,
+            None => panic!("export {id} never finished"),
         }
-        panic!("export {id} never finished");
     }
 
     pub async fn download(&self, token: &str, id: &str) -> (StatusCode, Vec<u8>) {
@@ -163,6 +169,17 @@ impl World {
             .await
             .unwrap();
         (status, bytes.to_vec())
+    }
+
+    /// Downloads with a `Range` header and returns the status.
+    pub async fn download_range(&self, token: &str, id: &str, range: &str) -> StatusCode {
+        let request = axum::http::Request::builder()
+            .uri(format!("/exports/{id}/download"))
+            .header("authorization", format!("Bearer {token}"))
+            .header("range", range)
+            .body(axum::body::Body::empty())
+            .unwrap();
+        self.router.clone().oneshot(request).await.unwrap().status()
     }
 
     /// A finished export, unpacked.

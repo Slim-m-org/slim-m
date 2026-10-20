@@ -15,7 +15,7 @@ Read `manifest.json` first.
 ## Rules for readers
 
 - `.jsonl` files hold one JSON object per line, UTF-8, with no blank lines. An empty file means none, not unknown.
-- Ids are UUIDs as lowercase hyphenated strings. Times are unix milliseconds.
+- Ids are UUIDs as lowercase hyphenated strings, also inside nested objects and arrays such as `role_ids`, `overwrites` and `forwarded_from`; a missing one is null. Times are unix milliseconds.
 - Unknown fields must be ignored. A new field is not a version change.
 - A different `format_version` than the one a reader knows must be refused, not guessed at.
 - `kind` is `member` or `space`.
@@ -91,4 +91,6 @@ Never in a space export: direct messages, deleted messages or channels, temporar
 ## Lifetime
 
 A finished archive can be downloaded for 24 hours and is then deleted.
+An account keeps one finished archive per kind; a newer one replaces it.
+A build that would not fit in the room set aside for exports fails with a message saying so.
 A member export needs the account's password to start, a space export needs ADMINISTRATOR and the password.

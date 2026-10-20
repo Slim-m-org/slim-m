@@ -15,6 +15,8 @@ use crate::ids::{ExportId, UserId};
 pub const EXPORT_RETENTION_MS: i64 = 24 * 60 * 60 * 1000;
 /// The shortest gap between two exports of one kind by one account.
 const EXPORT_COOLDOWN_MS: i64 = 10 * 60 * 1000;
+/// A queued or running row older than this is dead, whatever its status says.
+const EXPORT_STALE_MS: i64 = 6 * 60 * 60 * 1000;
 /// How long an expired or failed row stays listed before it is deleted.
 const EXPORT_ROW_KEEP_MS: i64 = 7 * 24 * 60 * 60 * 1000;
 
@@ -140,7 +142,7 @@ impl Store {
         let mut tx = self.begin_write().await?;
         let latest = sqlx::query(
             "SELECT status, created_at FROM data_exports
-             WHERE user_id = ? AND kind = ? AND status <> 'failed'
+             WHERE user_id = ? AND kind = ?
              ORDER BY created_at DESC LIMIT 1",
         )
         .bind(user_id)
@@ -150,7 +152,8 @@ impl Store {
         if let Some(row) = latest {
             let status = ExportStatus::parse(row.get("status"));
             let created_at: i64 = row.get("created_at");
-            if matches!(status, ExportStatus::Queued | ExportStatus::Running) {
+            let live = now - created_at < EXPORT_STALE_MS;
+            if live && matches!(status, ExportStatus::Queued | ExportStatus::Running) {
                 return Err(CreateExportError::Busy);
             }
             let wait = created_at + EXPORT_COOLDOWN_MS - now;
@@ -188,10 +191,12 @@ impl Store {
     }
 
     pub async fn data_export(&self, id: ExportId) -> anyhow::Result<Option<DataExport>> {
-        let row = sqlx::query(&format!("SELECT {COLUMNS} FROM data_exports WHERE id = ?"))
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row = sqlx::query(&format!(
+            "SELECT {COLUMNS} FROM data_exports WHERE id = ? AND dismissed = 0"
+        ))
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
         Ok(row.as_ref().map(DataExport::from_row))
     }
 
@@ -202,7 +207,7 @@ impl Store {
         limit: i64,
     ) -> anyhow::Result<Vec<DataExport>> {
         let rows = sqlx::query(&format!(
-            "SELECT {COLUMNS} FROM data_exports WHERE user_id = ?
+            "SELECT {COLUMNS} FROM data_exports WHERE user_id = ? AND dismissed = 0
              ORDER BY created_at DESC LIMIT ?"
         ))
         .bind(user_id)
@@ -212,14 +217,15 @@ impl Store {
         Ok(rows.iter().map(DataExport::from_row).collect())
     }
 
-    pub async fn mark_export_running(&self, id: ExportId) -> anyhow::Result<()> {
-        sqlx::query(
+    /// Claims a queued job; false means it was cancelled or already taken.
+    pub async fn mark_export_running(&self, id: ExportId) -> anyhow::Result<bool> {
+        let done = sqlx::query(
             "UPDATE data_exports SET status = 'running' WHERE id = ? AND status = 'queued'",
         )
         .bind(id)
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(done.rows_affected() == 1)
     }
 
     /// Records progress; false means the row is gone (the account was deleted).
@@ -240,8 +246,16 @@ impl Store {
         Ok(done.rows_affected() == 1)
     }
 
-    pub async fn mark_export_ready(&self, id: ExportId, size_bytes: i64) -> anyhow::Result<bool> {
+    /// Finishes a running job. An account keeps one ready archive per kind, so
+    /// the older ones are expired and their ids returned for the caller to
+    /// delete; `None` means the job was cancelled meanwhile.
+    pub async fn mark_export_ready(
+        &self,
+        id: ExportId,
+        size_bytes: i64,
+    ) -> anyhow::Result<Option<Vec<ExportId>>> {
         let now = now_ms();
+        let mut tx = self.begin_write().await?;
         let done = sqlx::query(
             "UPDATE data_exports
              SET status = 'ready', size_bytes = ?, finished_at = ?, expires_at = ?,
@@ -252,9 +266,23 @@ impl Store {
         .bind(now)
         .bind(now + EXPORT_RETENTION_MS)
         .bind(id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
-        Ok(done.rows_affected() == 1)
+        if done.rows_affected() != 1 {
+            return Ok(None);
+        }
+        let replaced = sqlx::query(
+            "UPDATE data_exports SET status = 'expired', expires_at = ?1
+             WHERE status = 'ready' AND id <> ?2
+               AND (user_id, kind) = (SELECT user_id, kind FROM data_exports WHERE id = ?2)
+             RETURNING id",
+        )
+        .bind(now)
+        .bind(id)
+        .fetch_all(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(Some(replaced.iter().map(|row| row.get("id")).collect()))
     }
 
     pub async fn mark_export_failed(&self, id: ExportId, reason: &str) -> anyhow::Result<()> {
@@ -270,12 +298,22 @@ impl Store {
         Ok(())
     }
 
-    /// Removes the row; the caller deletes the file.
+    /// Hides the export and ends it, keeping the row so the cooldown still
+    /// counts it; the caller deletes the file.
     pub async fn delete_data_export(&self, id: ExportId) -> anyhow::Result<()> {
-        sqlx::query("DELETE FROM data_exports WHERE id = ?")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        let now = now_ms();
+        sqlx::query(
+            "UPDATE data_exports SET dismissed = 1, finished_at = COALESCE(finished_at, ?),
+                 error = CASE WHEN status IN ('queued', 'running') THEN 'cancelled' ELSE error END,
+                 status = CASE status WHEN 'ready' THEN 'expired'
+                                      WHEN 'queued' THEN 'failed'
+                                      WHEN 'running' THEN 'failed' ELSE status END
+             WHERE id = ?",
+        )
+        .bind(now)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -302,6 +340,15 @@ impl Store {
         )
         .bind(now)
         .fetch_all(&self.pool)
+        .await?;
+        sqlx::query(
+            "UPDATE data_exports SET status = 'failed', finished_at = ?1,
+                 error = 'the export did not finish'
+             WHERE status IN ('queued', 'running') AND created_at <= ?1 - ?2",
+        )
+        .bind(now)
+        .bind(EXPORT_STALE_MS)
+        .execute(&self.pool)
         .await?;
         sqlx::query(
             "DELETE FROM data_exports

@@ -5,6 +5,7 @@
 
 use super::Store;
 use super::export_rows::RowStream;
+use super::export_scope::{live_channel, parent_joins};
 use crate::ids::UserId;
 
 const PROFILE: &str = "SELECT id, username, display_name, pronouns, about, status_text,
@@ -35,8 +36,10 @@ const SETTINGS: &str = "SELECT presence_visibility, notification_preference,
 const LINKED: &str = "SELECT provider, external_id, username, display_name, linked_at
      FROM linked_accounts WHERE user_id = ?1 ORDER BY provider";
 
-const MESSAGES: &str = "SELECT m.id, m.channel_id, c.kind AS channel_kind,
-        CASE WHEN c.kind = 'dm' THEN NULL ELSE c.name END AS channel_name,
+// A thread under a direct message reports the direct message's kind and no name.
+const MESSAGES: &str = concat!(
+    "SELECT m.id, m.channel_id, COALESCE(tpc.kind, c.kind) AS channel_kind,
+        CASE WHEN COALESCE(tpc.kind, c.kind) = 'dm' THEN NULL ELSE c.name END AS channel_name,
         c.parent_message_id AS thread_of_message_id,
         m.seq, m.content, m.is_encrypted, m.created_at, m.edited_at, m.reply_to_id,
         (SELECT json_group_array(json_object('sha256', lower(hex(ma.sha256)),
@@ -53,31 +56,46 @@ const MESSAGES: &str = "SELECT m.id, m.channel_id, c.kind AS channel_kind,
             'origin_channel_id', lower(hex(f.origin_channel_id)),
             'origin_created_at', f.origin_created_at) END AS forwarded_from_json
      FROM messages m
-     JOIN channels c ON c.id = m.channel_id
-     LEFT JOIN message_forwards f ON f.message_id = m.id
-     WHERE m.author_id = ?1 AND m.deleted_at IS NULL AND c.deleted_at IS NULL
-     ORDER BY m.fts_rowid";
+     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " LEFT JOIN message_forwards f ON f.message_id = m.id
+     WHERE m.author_id = ?1 AND m.deleted_at IS NULL AND ",
+    live_channel!(),
+    " ORDER BY m.fts_rowid"
+);
 
-const MESSAGES_COUNT: &str = "SELECT COUNT(*) FROM messages m
-     JOIN channels c ON c.id = m.channel_id
-     WHERE m.author_id = ?1 AND m.deleted_at IS NULL AND c.deleted_at IS NULL";
+const MESSAGES_COUNT: &str = concat!(
+    "SELECT COUNT(*) FROM messages m
+     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE m.author_id = ?1 AND m.deleted_at IS NULL AND ",
+    live_channel!()
+);
 
-const REACTIONS: &str = "SELECT r.message_id, m.channel_id, r.emoji, r.created_at
+const REACTIONS: &str = concat!(
+    "SELECT r.message_id, m.channel_id, r.emoji, r.created_at
      FROM reactions r
      JOIN messages m ON m.id = r.message_id
-     JOIN channels c ON c.id = m.channel_id
-     WHERE r.user_id = ?1 AND m.deleted_at IS NULL AND c.deleted_at IS NULL
-     ORDER BY r.message_id, r.emoji";
+     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE r.user_id = ?1 AND m.deleted_at IS NULL AND ",
+    live_channel!(),
+    " ORDER BY r.message_id, r.emoji"
+);
 
 // A saved message carries its text only when the member wrote it.
-const SAVED: &str = "SELECT s.message_id, m.channel_id, s.saved_at,
+const SAVED: &str = concat!(
+    "SELECT s.message_id, m.channel_id, s.saved_at,
         m.author_id = ?1 AS is_own,
         CASE WHEN m.author_id = ?1 THEN m.content END AS content
      FROM saved_messages s
      JOIN messages m ON m.id = s.message_id
-     JOIN channels c ON c.id = m.channel_id
-     WHERE s.user_id = ?1 AND m.deleted_at IS NULL AND c.deleted_at IS NULL
-     ORDER BY s.saved_at, s.message_id";
+     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE s.user_id = ?1 AND m.deleted_at IS NULL AND ",
+    live_channel!(),
+    " ORDER BY s.saved_at, s.message_id"
+);
 
 const NOTES: &str = "SELECT n.subject_id, u.username AS subject_username, n.body,
         n.created_at, n.updated_at
@@ -88,16 +106,29 @@ const BLOCKS: &str = "SELECT b.blocked_id, u.username AS blocked_username, b.cre
      FROM user_blocks b JOIN users u ON u.id = b.blocked_id
      WHERE b.blocker_id = ?1 ORDER BY b.blocked_id";
 
-const POLL_VOTES: &str = "SELECT v.message_id, p.channel_id, v.position, v.voted_at
+const POLL_VOTES: &str = concat!(
+    "SELECT v.message_id, p.channel_id, v.position, v.voted_at
      FROM poll_votes v JOIN polls p ON p.message_id = v.message_id
      JOIN messages m ON m.id = v.message_id AND m.deleted_at IS NULL
-     WHERE v.user_id = ?1 ORDER BY v.message_id";
+     JOIN channels c ON c.id = p.channel_id ",
+    parent_joins!(),
+    " WHERE v.user_id = ?1 AND ",
+    live_channel!(),
+    " ORDER BY v.message_id"
+);
 
-const CALL_EVENTS: &str = "SELECT channel_id, at, kind FROM voice_call_events
-     WHERE user_id = ?1 ORDER BY at";
+const CALL_EVENTS: &str = concat!(
+    "SELECT e.channel_id, e.at, e.kind FROM voice_call_events e
+     JOIN channels c ON c.id = e.channel_id ",
+    parent_joins!(),
+    " WHERE e.user_id = ?1 AND ",
+    live_channel!(),
+    " ORDER BY e.at"
+);
 
 // Files the member uploaded and still has on a live message of their own.
-const ATTACHMENTS: &str = "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
+const ATTACHMENTS: &str = concat!(
+    "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.content_type,
         (SELECT filename FROM attachment_uploaders
           WHERE sha256 = a.sha256 AND uploaded_by = ?1) AS filename
      FROM attachments a
@@ -105,19 +136,28 @@ const ATTACHMENTS: &str = "SELECT lower(hex(a.sha256)) AS sha256, a.size, a.cont
                     WHERE au.sha256 = a.sha256 AND au.uploaded_by = ?1)
        AND EXISTS (SELECT 1 FROM message_attachments ma
                      JOIN messages m ON m.id = ma.message_id
-                     JOIN channels c ON c.id = m.channel_id
-                    WHERE ma.sha256 = a.sha256 AND m.author_id = ?1
-                      AND m.deleted_at IS NULL AND c.deleted_at IS NULL)
-     ORDER BY a.sha256";
+                     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE ma.sha256 = a.sha256 AND m.author_id = ?1
+                      AND m.deleted_at IS NULL AND ",
+    live_channel!(),
+    ")
+     ORDER BY a.sha256"
+);
 
-const ATTACHMENTS_COUNT: &str = "SELECT COUNT(*) FROM attachments a
+const ATTACHMENTS_COUNT: &str = concat!(
+    "SELECT COUNT(*) FROM attachments a
      WHERE EXISTS (SELECT 1 FROM attachment_uploaders au
                     WHERE au.sha256 = a.sha256 AND au.uploaded_by = ?1)
        AND EXISTS (SELECT 1 FROM message_attachments ma
                      JOIN messages m ON m.id = ma.message_id
-                     JOIN channels c ON c.id = m.channel_id
-                    WHERE ma.sha256 = a.sha256 AND m.author_id = ?1
-                      AND m.deleted_at IS NULL AND c.deleted_at IS NULL)";
+                     JOIN channels c ON c.id = m.channel_id ",
+    parent_joins!(),
+    " WHERE ma.sha256 = a.sha256 AND m.author_id = ?1
+                      AND m.deleted_at IS NULL AND ",
+    live_channel!(),
+    ")"
+);
 
 /// The member's export sets, each a stream so a large account stays small in memory.
 impl Store {
