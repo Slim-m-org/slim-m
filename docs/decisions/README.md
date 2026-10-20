@@ -91,3 +91,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0079](0079-message-toolbar-in-the-overlay.md) | The message hover toolbar lives in the overlay | accepted |
 | [0080](0080-board-containment.md) | Nothing leaves the board | accepted |
 | [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md) | Full screen on a canvas tile keeps the canvas | accepted |
+| [0082](0082-personal-canvas-view.md) | A personal view beside the shared board | accepted |

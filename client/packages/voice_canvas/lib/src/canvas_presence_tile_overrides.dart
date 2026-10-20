@@ -31,9 +31,14 @@ class CanvasPresenceTileState {
     this.locked = false,
     this.hidden = false,
     this.sentToBack = false,
+    this.personalRect,
   });
 
   final Rect? rect;
+
+  /// Personal, like [hidden]: where this viewer put the tile for themselves in
+  /// the personal view. Never sent anywhere and never touched by [applyServer].
+  final Rect? personalRect;
 
   /// Shared, not personal: a locked tile stops intercepting the pointer for
   /// *every* viewer - a drawing tool, or a pan, reaches straight through it
@@ -57,8 +62,10 @@ class CanvasPresenceTileState {
     bool? locked,
     bool? hidden,
     bool? sentToBack,
+    Rect? personalRect,
   }) =>
       CanvasPresenceTileState(
+        personalRect: personalRect ?? this.personalRect,
         rect: rect ?? this.rect,
         locked: locked ?? this.locked,
         hidden: hidden ?? this.hidden,
@@ -102,8 +109,37 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     return frame == null ? rect : fitBoxIntoBoard(rect, frame);
   }
 
-  CanvasPresenceTileState stateFor(String key) =>
-      _states[key] ?? _defaultTileState;
+  CanvasPresenceTileState _raw(String key) => _states[key] ?? _defaultTileState;
+
+  bool _personal = false;
+
+  /// Whether this viewer is in the personal view, where a tile drag or resize
+  /// moves the tile for them alone and the shared arrangement is left as it is.
+  bool get personal => _personal;
+
+  set personal(bool value) {
+    if (value == _personal) return;
+    _personal = value;
+    notifyListeners();
+  }
+
+  /// The state painted and hit-tested: [rect] is this viewer's own place for
+  /// the tile in the personal view, and the shared one otherwise.
+  CanvasPresenceTileState stateFor(String key) {
+    final state = _raw(key);
+    final own = state.personalRect;
+    if (!_personal || own == null) return state;
+    return CanvasPresenceTileState(
+      rect: own,
+      personalRect: own,
+      locked: state.locked,
+      hidden: state.hidden,
+      sentToBack: state.sentToBack,
+    );
+  }
+
+  /// The tile's shared rect, whatever the view in use.
+  Rect? sharedRectFor(String key) => _raw(key).rect;
 
   /// This key's own place in the touch order, or null if it has never been
   /// dragged or resized this session - the render order [CanvasPresenceLayer]
@@ -127,7 +163,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     required bool locked,
     required bool sentToBack,
   }) {
-    _states[key] = stateFor(key)
+    _states[key] = _raw(key)
         .copyWith(rect: _onBoard(rect), locked: locked, sentToBack: sentToBack);
     notifyListeners();
   }
@@ -149,7 +185,9 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
       Rect.fromLTWH(clampedLeft, clampedTop, rect.width, rect.height),
     );
     worldEdgeHit.value = clamped.topLeft != rect.topLeft;
-    _states[key] = stateFor(key).copyWith(rect: clamped);
+    _states[key] = _personal
+        ? _raw(key).copyWith(personalRect: clamped)
+        : _raw(key).copyWith(rect: clamped);
     _z[key] = _nextZ++;
     notifyListeners();
   }
@@ -157,21 +195,21 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// Optimistic, local-only; see [setRect]'s own doc for why the caller
   /// still has to commit this onward.
   void setLocked(String key, bool locked) {
-    _states[key] = stateFor(key).copyWith(locked: locked);
+    _states[key] = _raw(key).copyWith(locked: locked);
     notifyListeners();
   }
 
   /// Optimistic, local-only; see [setRect]'s own doc for why the caller
   /// still has to commit this onward.
   void setSentToBack(String key, bool sentToBack) {
-    _states[key] = stateFor(key).copyWith(sentToBack: sentToBack);
+    _states[key] = _raw(key).copyWith(sentToBack: sentToBack);
     notifyListeners();
   }
 
   /// Local and personal - never sent to the server. Unlike [setRect] and
   /// its siblings, this one needs no further commit.
   void setHidden(String key, bool hidden) {
-    _states[key] = stateFor(key).copyWith(hidden: hidden);
+    _states[key] = _raw(key).copyWith(hidden: hidden);
     notifyListeners();
   }
 

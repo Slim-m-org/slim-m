@@ -29,7 +29,6 @@ const List<(String?, String)> _panes = [
   ('App', 'Appearance'),
   ('App', 'Notifications'),
   ('App', 'Voice & screen share'),
-  ('App', 'General'),
   ('Safety', 'Blocked'),
   ('Safety', 'Report status'),
   ('Help', 'Troubleshooting'),

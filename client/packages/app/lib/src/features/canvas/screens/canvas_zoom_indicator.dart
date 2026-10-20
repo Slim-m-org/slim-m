@@ -41,6 +41,7 @@ class CanvasZoomIndicator extends ConsumerWidget {
     required this.document,
     required this.tokens,
     required this.onFit,
+    this.viewMode,
     required this.onBringIn,
   });
 
@@ -52,6 +53,9 @@ class CanvasZoomIndicator extends ConsumerWidget {
 
   final CanvasDocument document;
   final AppTokens tokens;
+
+  /// Switches between the shared board and this viewer's own arrangement.
+  final CanvasViewMode? viewMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,19 +71,90 @@ class CanvasZoomIndicator extends ConsumerWidget {
 
   Widget _readout() => SafeArea(
     minimum: const EdgeInsets.all(AppSpacing.s12),
-    child: Row(
+    child: Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _zoomPill(),
-        Flexible(
-          child: CanvasOutsideBoardNotice(
-            document: document,
-            tokens: tokens,
-            onBringIn: onBringIn,
-          ),
+        if (viewMode case final mode?) ...[
+          _modePill(mode),
+          const SizedBox(height: AppSpacing.s8),
+        ],
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _zoomPill(),
+            Flexible(
+              child: CanvasOutsideBoardNotice(
+                document: document,
+                tokens: tokens,
+                onBringIn: onBringIn,
+              ),
+            ),
+          ],
         ),
       ],
     ),
+  );
+
+  Widget _modePill(CanvasViewMode mode) => ListenableBuilder(
+    listenable: mode,
+    builder: (context, _) {
+      final personal = mode.personal;
+      final label = personal ? 'Personal view' : 'Shared view';
+      final colour = personal ? tokens.accent : tokens.textSecondary;
+      return Semantics(
+        container: true,
+        button: true,
+        label: '$label, switch to ${personal ? 'shared' : 'personal'}',
+        excludeSemantics: true,
+        onTap: mode.toggle,
+        child: Tooltip(
+          message: personal
+              ? 'Back to the shared board'
+              : 'Move and zoom for yourself only',
+          child: Material(
+            color: personal ? tokens.accentSoft : tokens.surfaceRaised,
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: personal ? tokens.accent : tokens.borderSubtle,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: mode.toggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        personal ? AppIcons.account : AppIcons.members,
+                        size: AppSizes.icon16,
+                        color: colour,
+                      ),
+                      const SizedBox(width: AppSpacing.s4),
+                      Text(
+                        label,
+                        style: AppText.caption.copyWith(
+                          color: personal
+                              ? tokens.accent
+                              : tokens.textSecondary,
+                          fontWeight: AppWeights.medium,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
   );
 
   Widget _zoomPill() => ListenableBuilder(

@@ -90,6 +90,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.cameraViewFor,
     required this.screenShareViewFor,
     required this.tileOverrides,
+    this.viewMode,
     required this.onCommitTile,
     required this.onVideoInterest,
     required this.selfBubbleHidden,
@@ -227,6 +228,7 @@ class CanvasPaneBody extends StatefulWidget {
   /// `canvas_presence_layer.dart`'s own doc for why this lives here rather
   /// than as a `CanvasDocument` field.
   final CanvasPresenceTileOverrides tileOverrides;
+  final CanvasViewMode? viewMode;
 
   /// Sends one tile key's current arrangement to the server - see
   /// `CanvasPresenceLayer.onCommit`'s own doc for exactly when this fires.
@@ -462,6 +464,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
       selfId: widget.selfId,
       shapeKind: widget.shapeKind,
       tileOverrides: widget.tileOverrides,
+      viewMode: widget.viewMode,
       tool: widget.tool,
       tokens: tokens,
       menuRequests: _menuRequests,
