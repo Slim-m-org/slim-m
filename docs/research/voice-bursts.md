@@ -97,3 +97,17 @@ Cells are bursts / dropouts / ViSQOL / peak over reference (dB) / received kbps 
 - Gliding tone, clean, RED + DTX off, one run: no clipping and peak +0.8 dB (default +6.0 dB with 6 clipped runs), 67.7 kbps.
   It also showed four 52 ms `level_burst` events at 22-28 s and two 52 ms dropouts in one direction with 2 concealment events on a clean link, which DTX off alone (one run) did not show.
   I read that as a transient network blip on the shared host and not as the old 0.3-0.5 s clipped note, but it is one run, so treat the tone result as "the clipped burst is gone", not as "the tone path is spotless".
+
+### Repeat of the tone clip on a clean link
+
+| run | bursts | clipping | dropouts | clicks | concealment events | kbps |
+|---|---|---|---|---|---|---|
+| RED + DTX off, first run | 4 | 0 | 2 | 2 | 3 | 67.7 |
+| RED + DTX off, second | 0 | 0 | 0 | 2 | 0 | 67.7 |
+| RED + DTX off, third | 0 | 0 | 1 | 0 | 0 | 67.6 |
+| DTX off only, first | 0 | 0 | 0 | 2 | 0 | 32.8 |
+| DTX off only, second | 0 | 0 | 0 | 0 | 0 | 32.9 |
+
+The 52 ms bursts and concealment events did not recur in two further runs, so the first run was the host, not RED.
+One 52 ms dropout showed up in the third RED + DTX off run with no concealment event; the clicks at the very start of a recording appear with DTX off alone too, so they are the harness joining the stream.
+Two RED + DTX off runs out of three were clean of bursts; the sample is small.
