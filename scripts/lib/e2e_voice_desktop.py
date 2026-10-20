@@ -138,10 +138,21 @@ def _one_voice(voice, stack, tokens, channel, bundle):
             da.virtual_mic(paths["mix"]):
         with xp.one_listener(server, secret, admin_api, sign_in, paths["clean"]) as listener:
             for name in wanted:
-                results[name] = _arm(name, listener, inputs, server, tokens, channel,
-                                     compositor, directory, bundle)
-    with open(os.path.join(directory, "desktop.json"), "w") as fh:
-        json.dump(results, fh, indent=1)
+                results[name] = _arm_with_retry(name, listener, inputs, server, tokens, channel,
+                                                compositor, directory, bundle)
+                with open(os.path.join(directory, "desktop.json"), "w") as fh:
+                    json.dump(results, fh, indent=1)
+
+
+def _arm_with_retry(*args):
+    """A desktop launch that never joins the call is retried once; the second failure counts."""
+    try:
+        return _arm(*args)
+    except AssertionError as err:
+        if "never printed" not in str(err):
+            raise
+        print(f"  {args[0]}: {err}; retrying once", flush=True)
+        return _arm(*args)
 
 
 def run_if_selected(server, secret, admin_api, sign_in, room_id):
