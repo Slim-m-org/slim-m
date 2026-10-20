@@ -73,6 +73,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
     if (_totalPointers > 1) {
       _selectDownAt = null;
+      // A pinch owns the camera now; a one-finger pan anchored before it would jump back when the pinch ends.
+      if (widget.tool == CanvasTool.pan) widget.onSelectEnd?.call();
       final hadDraft = !_draft.isEmpty;
       _draft.cancel();
       if (hadDraft) widget.onDraftEnded?.call();

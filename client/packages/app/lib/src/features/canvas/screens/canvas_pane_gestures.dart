@@ -21,13 +21,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   CanvasTool get _defaultTool => canvasDefaultTool();
 
   /// Arms the tool whose key [event] is, unless its button is absent or disabled, or a text field is taking the key.
-  KeyEventResult _onToolKey(
-    KeyEvent event, {
-    required bool canDraw,
-    required bool fullscreen,
-  }) {
+  KeyEventResult _onToolKey(KeyEvent event, {required bool canDraw}) {
     final keyboard = HardwareKeyboard.instance;
-    if (event is! KeyDownEvent || fullscreen) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (keyboard.isControlPressed ||
         keyboard.isMetaPressed ||
         keyboard.isAltPressed) {
@@ -194,7 +190,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   /// Whether the roster is docked beside the canvas, as the shell decides it.
   bool get _memberPaneDocked =>
-      ref.watch(memberPaneVisibleProvider) &&
+      memberPaneWanted(ref, MediaQuery.sizeOf(context)) &&
       LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
 
   void _closeMemberPane() =>
@@ -298,14 +294,20 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  Future<void> _onBringIntoBoard() {
+  Future<void> _onBringIntoBoard() async {
     final manageCanvas = ref
         .read(myChannelPermissionsProvider(widget.channelId))
         .hasPermission(Perm.manageCanvas);
-    return _ops.bringIntoBoard(
+    final result = await _ops.bringIntoBoard(
       manageCanvas: manageCanvas,
       selfId: ref.read(meProvider).valueOrNull?.id,
     );
+    if (result.moved == 0 &&
+        !result.failed &&
+        _mounted &&
+        _document.idsOutsideBoard.isNotEmpty) {
+      _engine.reportError('You can only bring in objects you placed.');
+    }
   }
 
   /// Brings the whole shared board back into view.

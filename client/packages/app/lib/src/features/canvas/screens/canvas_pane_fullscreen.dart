@@ -29,8 +29,12 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       ref.read(canvasFocusedTileProvider.notifier).state = null;
       _windowHold.release();
       _fullscreenFromFocus = false;
-      // Whatever was armed on the way in, or the default tool if this pane opened straight into fullscreen and has nothing of its own to restore.
-      _refresh(() => _tool = _toolBeforeFullscreen ?? _defaultTool);
+      // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
+      _refresh(() {
+        if (_tool == CanvasTool.pan) {
+          _tool = _toolBeforeFullscreen ?? _defaultTool;
+        }
+      });
       _toolBeforeFullscreen = null;
       return;
     }
@@ -74,7 +78,10 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// that entered it, and the same tool to restore on the way out.
   void _disarmIfAlreadyFullscreen() {
     if (ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId) {
-      unawaited(_windowHold.enter());
+      // enter writes provider state, which a build phase must not.
+      scheduleMicrotask(() {
+        if (_mounted) unawaited(_windowHold.enter());
+      });
     }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
     _toolBeforeFullscreen = _tool;

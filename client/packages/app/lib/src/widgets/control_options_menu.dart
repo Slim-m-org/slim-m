@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'context_menu_region.dart';
 import 'control_swatch_row.dart';
+import 'hover_reveal.dart';
 
 /// One row of a control's options menu.
 class ControlOption extends ControlOptionEntry {
@@ -89,6 +90,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       ownsFocusNode: false,
       enableLongPress: !widget.showCaret,
       opensAbove: widget.opensAbove,
+      onOpenChanged: (open) => HoverRevealScope.maybeOf(context)?.pin(open),
       itemsBuilder: (context, close) => [
         for (final entry in widget.options) ..._rows(context, entry, close),
       ],

@@ -11,6 +11,19 @@ Set<CanvasObjectKind> canvasKindsOf(api.CanvasClearScope scope) => {
     if (scope.kinds.contains(kind.name)) kind,
 };
 
+/// Removes what [scope] names below [beforeSeq] from [document]. A scope that
+/// names only kinds this client does not know removes nothing, where an empty
+/// kind set would otherwise read as every kind.
+void clearDocumentScope(
+  CanvasDocument document,
+  int beforeSeq,
+  api.CanvasClearScope scope,
+) {
+  final kinds = canvasKindsOf(scope);
+  if (scope.kinds.isNotEmpty && kinds.isEmpty) return;
+  document.clearBelow(beforeSeq, kinds: kinds, authorId: scope.authorId);
+}
+
 /// A kind-based clear the sheet offers.
 enum CanvasClearTarget {
   drawings('Drawings', ['stroke']),

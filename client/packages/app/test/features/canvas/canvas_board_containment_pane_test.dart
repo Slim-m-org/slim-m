@@ -62,6 +62,47 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('a viewer who can move none of it is told so', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true, tool: null);
+    surfaceDocument(tester)
+      ..applyPlaced(
+        const CanvasStrokeInput(
+          id: 'theirs',
+          seq: 1,
+          zIndex: 1,
+          x: 2400,
+          y: 1300,
+          w: 300,
+          h: 200,
+          points: [],
+          width: 0,
+          colorKey: 'ink',
+          authorId: 'someone-else',
+          kind: CanvasObjectKind.shape,
+          shapeKind: CanvasShapeKind.rectangle,
+        ),
+      )
+      ..refresh();
+    await tester.pump();
+
+    await tester.tap(find.text('1 outside the board - bring in'));
+    await tester.pumpAndSettle();
+
+    expect(fixture.postedOps, isEmpty);
+    expect(
+      find.text('You can only bring in objects you placed.'),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('the pane holds tiles to the board', (tester) async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container();

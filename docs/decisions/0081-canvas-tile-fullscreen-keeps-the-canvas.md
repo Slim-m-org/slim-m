@@ -22,3 +22,14 @@ The owner, 2026-10-14: "when i fullscreen on someones screenshare id still like 
   It is released on exit, Escape, the share ending, closing the canvas and dispose.
 - At phone width the header that held undo, the overflow menu and the way out is gone in fullscreen, so they sit in the dock's tools card beside the tools.
 - The dock reserves only the handle's height while folded, so snackbars sit where the screen is actually free.
+- The window hold is counted, so a canvas tile and a call's fullscreen route sharing one window leave fullscreen only when the last of them lets go.
+- A tile's menu has one Full screen row, the canvas's own.
+  The participant rows on a canvas leave out the route's "Full screen" and "Camera full screen".
+
+## What this gives up
+
+[0058](0058-phone-landscape-for-full-screen-call-video.md) let a locked phone rotate for the fullscreen video route.
+A focused canvas tile no longer opens that route, so a phone cannot rotate to give the feed the whole landscape width; it fills the portrait pane.
+The shell's portrait layout is width-driven (`keepPortraitShell`), so rotating the canvas needs the pane to read the real window size, which is its own piece of work.
+Until the owner decides whether to build it, rotating to watch a share full screen is the call's own fullscreen route, still reachable from the voice screen.
+

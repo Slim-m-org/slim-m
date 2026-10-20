@@ -15,7 +15,7 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../widgets/canvas_clear_scope.dart' show canvasKindsOf;
+import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
@@ -286,6 +286,8 @@ class CanvasOpsController {
     bool touch = false,
   }) {
     if (_dragBatch.length >= maxRemoveIdsPerOp) return;
+    // Legacy content past the board is hidden by its clip, so a press there must not reach it.
+    if (!document.acceptsPlacementAt(world)) return;
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
@@ -330,16 +332,12 @@ class CanvasOpsController {
       final result = await client.submitCanvasOp(
         channelId,
         id: newCanvasOpId(),
-        kind: 'clear',
+        kind: scope.isEverything ? 'clear' : 'clear_scoped',
         beforeSeq: beforeSeq,
         clearScope: scope,
       );
       if (result.op.affected > 0) {
-        document.clearBelow(
-          beforeSeq,
-          kinds: canvasKindsOf(scope),
-          authorId: scope.authorId,
-        );
+        clearDocumentScope(document, beforeSeq, scope);
         document.refresh();
         _pushUndo(_EraseEntry(result.op.id));
       }

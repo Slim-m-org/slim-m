@@ -16,6 +16,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_design_system/design_system.dart' show AppSpacing;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
@@ -65,6 +66,7 @@ const _expandLabel = 'Show this tile full screen';
 Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   WidgetTester tester, {
   bool fullscreenFirst = false,
+  bool focusFirst = false,
   Size size = const Size(1280, 800),
 }) async {
   final fixture = CanvasPaneFixture();
@@ -81,6 +83,12 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   container.read(canvasOpenProvider.notifier).state = 'c1';
   if (fullscreenFirst) {
     container.read(canvasFullscreenProvider.notifier).state = 'c1';
+  }
+  if (focusFirst) {
+    container.read(canvasFocusedTileProvider.notifier).state = (
+      channelId: 'c1',
+      tileKey: _tileKey,
+    );
   }
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -299,32 +307,11 @@ void main() {
     final reserved = container.read(bottomDockReservationProvider);
     expect(
       reserved,
-      tester.getSize(find.byType(CanvasCallDock)).height,
-      reason: 'shown, the whole dock is what the snackbars clear',
-    );
-    expect(reserved, greaterThan(canvasDockHandleHeight));
-
-    await tester.tap(find.byTooltip('Hide controls'));
-    await tester.pumpAndSettle();
-    expect(_pen, findsNothing);
-  });
-
-  testWidgets('the snackbar reservation follows the folded dock: the handle '
-      'alone, then the whole dock once it is shown', (tester) async {
-    final (:voice, :container) = await _pump(tester);
-    await _focusTheShare(tester);
-    expect(
-      container.read(bottomDockReservationProvider),
-      canvasDockHandleHeight,
-    );
-
-    await tester.tap(find.byTooltip('Show controls'));
-    await tester.pumpAndSettle();
-    final reserved = container.read(bottomDockReservationProvider);
-    expect(
-      reserved,
-      tester.getSize(find.byType(CanvasCallDock)).height,
-      reason: 'shown, the whole dock is what the snackbars clear',
+      tester.getSize(find.byType(CanvasCallDock)).height +
+          canvasDockHandleHeight +
+          AppSpacing.s8,
+      reason:
+          'shown, the dock, its gap and its handle are what the snackbars clear',
     );
     expect(reserved, greaterThan(canvasDockHandleHeight));
 
@@ -374,5 +361,23 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
     expect(port.fullScreen, isFalse, reason: 'dispose releases it');
+  });
+
+  testWidgets('a pane mounting onto a focused tile holds the window without '
+      'writing provider state mid-build', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+
+    final (:voice, :container) = await _pump(
+      tester,
+      fullscreenFirst: true,
+      focusFirst: true,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(port.fullScreen, isTrue);
+    expect(container.read(fullscreenVideoActiveProvider), isTrue);
   });
 }

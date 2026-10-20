@@ -4,6 +4,7 @@
 /// following or a summon without being lost, and is never sent. Decision 0082.
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
@@ -302,4 +303,46 @@ void main() {
 
     expect(await CanvasLayoutStore(db).load('c1'), isNotNull);
   });
+
+  test(
+    'edits made while the saved layout loads are merged and written',
+    () async {
+      const stored = CanvasPersonalLayout(
+        personal: true,
+        places: {'screen:b': Rect.fromLTWH(10, 10, 100, 60)},
+      );
+      await CanvasLayoutStore(db).save('c1', stored.encode(), now: 1);
+      final document = CanvasDocument()
+        ..setBoard(canvasBoard)
+        ..setViewport(_viewport);
+      final tiles = CanvasPresenceTileOverrides()..board = canvasBoard;
+      final mode = CanvasViewMode(document: document, tiles: tiles);
+      final opened = Completer<CanvasLayoutStore?>();
+      final keeper = CanvasPersonalLayoutKeeper(
+        channelId: 'c1',
+        mode: mode,
+        store: opened.future,
+        saveDelay: const Duration(milliseconds: 10),
+      );
+      addTearDown(() {
+        keeper.dispose();
+        mode.dispose();
+        tiles.dispose();
+        document.dispose();
+      });
+
+      final restoring = keeper.restore();
+      mode.showPersonal();
+      tiles.setRect('screen:a', _place);
+      opened.complete(CanvasLayoutStore(db));
+      await restoring;
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      final saved = CanvasPersonalLayout.decode(
+        (await CanvasLayoutStore(db).load('c1'))!,
+      )!;
+      expect(saved.places.keys, containsAll(['screen:a', 'screen:b']));
+      expect(saved.places['screen:a'], _place);
+    },
+  );
 }

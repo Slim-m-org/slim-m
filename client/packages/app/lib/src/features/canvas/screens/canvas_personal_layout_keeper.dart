@@ -15,6 +15,21 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 /// How long a pan or drag settles before the layout is written.
 const Duration personalLayoutSaveDelay = Duration(milliseconds: 400);
 
+/// The store once it opens, or null after logging why it could not.
+Future<CanvasLayoutStore?> openLayoutStore(Future<CanvasLayoutStore> opening) =>
+    opening.then<CanvasLayoutStore?>((store) => store).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      AppLog.swallowed(
+        LogTag.ui,
+        'Could not open the layout store; the personal layout will not save',
+        error,
+        stack,
+      );
+      return null;
+    });
+
 class CanvasPersonalLayoutKeeper {
   CanvasPersonalLayoutKeeper({
     required this.channelId,
@@ -42,13 +57,14 @@ class CanvasPersonalLayoutKeeper {
   bool _touched = false;
   bool _disposed = false;
 
-  /// Puts back what was kept, unless the viewer has already moved on.
+  /// Puts back what was kept; anything the viewer did while it loaded wins and is saved.
   Future<void> restore() async {
     try {
       final raw = await (await store)?.load(channelId);
-      if (_disposed || _touched || raw == null) return;
+      if (_disposed || raw == null) return;
       final kept = CanvasPersonalLayout.decode(raw);
-      if (kept != null) mode.restore(kept);
+      if (kept == null) return;
+      _touched ? mode.restoreBeneath(kept) : mode.restore(kept);
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
@@ -57,8 +73,13 @@ class CanvasPersonalLayoutKeeper {
         stack,
       );
     } finally {
-      _kept = mode.layout.encode();
       _restoring = false;
+      if (_touched && !_disposed) {
+        _timer?.cancel();
+        _timer = Timer(saveDelay, _write);
+      } else {
+        _kept = mode.layout.encode();
+      }
     }
   }
 

@@ -173,14 +173,15 @@ impl From<SubmittedOp> for CanvasOpResultDto {
 /// the move-specific fields, and `z_index` are each legal on only one of the
 /// five kinds this slice accepts.
 fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
-    if params.kind != "clear" && (params.kinds.is_some() || params.author_id.is_some()) {
+    let scoped_fields = params.kinds.is_some() || params.author_id.is_some();
+    if !matches!(params.kind.as_str(), "clear_scoped") && scoped_fields {
         return Err(ApiError::BadRequest(
-            "kinds and author_id are only valid for clear",
+            "kinds and author_id are only valid for clear_scoped",
         ));
     }
     match params.kind.as_str() {
         "remove" => parse_remove(params),
-        "clear" => parse_clear(params),
+        "clear" | "clear_scoped" => parse_clear(params),
         "restore" => parse_restore(params),
         "move" => parse_move(params),
         "reorder" => parse_reorder(params),
@@ -217,6 +218,12 @@ fn parse_clear(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
         .ok_or(ApiError::BadRequest("clear needs before_seq"))?;
     if before_seq < 0 {
         return Err(ApiError::BadRequest("before_seq must not be negative"));
+    }
+    let scoped = params.kind == "clear_scoped";
+    if scoped && params.kinds.is_none() && params.author_id.is_none() {
+        return Err(ApiError::BadRequest(
+            "clear_scoped needs kinds or author_id",
+        ));
     }
     let kinds = params.kinds.unwrap_or_default();
     if kinds.len() > CLEAR_KINDS.len()

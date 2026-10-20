@@ -224,7 +224,9 @@ void main() {
     ]) {
       for (final id in ['shape', 'ink']) {
         final from = document.objectBounds(id)!;
-        document.moveObject(id, target.dx, target.dy, from.w, from.h);
+        final fit =
+            document.boxOnBoard(id, target.dx, target.dy, from.w, from.h);
+        document.moveObject(id, fit.x, fit.y, fit.w, fit.h);
         final box = document.objectBounds(id)!;
         expect(
           boardHoldsBox(
@@ -236,10 +238,24 @@ void main() {
         );
       }
     }
-    document.moveObject('shape', 0, 0, 9000, 4000);
+    final big = document.boxOnBoard('shape', 0, 0, 9000, 4000);
+    document.moveObject('shape', big.x, big.y, big.w, big.h);
     final grown = document.objectBounds('shape')!;
     expect(grown.w, lessThanOrEqualTo(canvasBoard.width + 1e-6));
     expect(grown.h, lessThanOrEqualTo(canvasBoard.height + 1e-6));
+  });
+
+  test('moveObject applies the box it is given, so a rollback can leave it out',
+      () {
+    final document = CanvasDocument()
+      ..setBoard(canvasBoard)
+      ..applyPlaced(_shape('shape', const Rect.fromLTWH(100, 100, 300, 200)));
+    addTearDown(document.dispose);
+
+    document.moveObject('shape', 2500, 100, 300, 200);
+
+    expect(document.objectBounds('shape')!.x, 2500);
+    expect(document.idsOutsideBoard, ['shape']);
   });
 
   test('content outside the frame is counted, and bringing it in clears it',

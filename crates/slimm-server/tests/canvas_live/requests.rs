@@ -121,7 +121,7 @@ pub(crate) fn scoped_clear_request(channel: ChannelId, token: &str) -> Request<B
         .body(Body::from(
             json!({
                 "id": Uuid::now_v7().to_string(),
-                "kind": "clear",
+                "kind": "clear_scoped",
                 "before_seq": 100,
                 "kinds": ["stroke"],
             })

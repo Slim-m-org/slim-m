@@ -12,7 +12,7 @@ import 'dart:ui';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../widgets/canvas_clear_scope.dart' show canvasKindsOf;
+import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import 'canvas_activity_log.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_media_slot_sync.dart';
@@ -81,13 +81,9 @@ void dispatchCanvasLiveEvent(
         )
         when channelId == paneChannelId:
       sync.applyLive(seq, () {
-        document.clearBelow(
-          beforeSeq,
-          kinds: canvasKindsOf(scope),
-          authorId: scope.authorId,
-        );
+        clearDocumentScope(document, beforeSeq, scope);
         document.refresh();
-        activityLog?.recordClearedLive(opId);
+        activityLog?.recordClearedLive(opId, scope: scope);
       });
     case api.CanvasObjectsRestored(
           :final channelId,

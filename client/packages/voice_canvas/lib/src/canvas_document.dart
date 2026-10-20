@@ -108,7 +108,7 @@ class CanvasDocument extends ChangeNotifier {
   /// Dedupe by id is what makes every fetch path safe to repeat: place is
   /// idempotent server-side, so a duplicate from a pan, a live frame or a
   /// reconnect is a no-op here rather than a second mark. The
-  /// [_removedIds] check is what stops a viewport read that was already in
+  /// removed-ids check (`RemovedIds`) is what stops a viewport read that was already in
   /// flight when a removal landed from resurrecting it, permanently, with
   /// nothing later re-delivering the erase.
   int? applyPlaced(CanvasStrokeInput input) {
@@ -206,16 +206,15 @@ class CanvasDocument extends ChangeNotifier {
   /// Now [UniformGrid.move] keeps the slot, the points are shifted in place,
   /// and the object keeps its identity. Only [path] is still reallocated,
   /// because `dart:ui` has no in-place translate.
+  ///
+  /// Applies the box exactly as given: a gesture holds it to the board with
+  /// [boxOnBoard] first, so an undo, a rollback or a remote move can put an
+  /// object where the server has it.
   bool moveObject(String id, double x, double y, double w, double h) {
     final slot = _slotById[id];
     if (slot == null) return false;
     final stroke = _strokes[slot];
     if (stroke == null || !stroke.alive) return false;
-    final fitted = boxOnBoard(id, x, y, w, h);
-    x = fitted.x;
-    y = fitted.y;
-    w = fitted.w;
-    h = fitted.h;
     final dx = x - stroke.x;
     final dy = y - stroke.y;
     if (dx == 0 && dy == 0 && w == stroke.w && h == stroke.h) return true;
@@ -230,7 +229,7 @@ class CanvasDocument extends ChangeNotifier {
       ..w = w
       ..h = h
       ..path = stroke.path.shift(Offset(dx, dy));
-    if (_outsideIds.isNotEmpty) _trackOutside(stroke);
+    if (_board != null) _trackOutside(stroke);
     return true;
   }
 

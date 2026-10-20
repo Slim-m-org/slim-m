@@ -12,6 +12,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/hover_reveal.dart';
+
 /// How close to the bottom edge a pointer must come to reveal a collapsed dock.
 const canvasDockRevealZone = 56.0;
 
@@ -42,9 +44,12 @@ class CanvasDockCollapse extends StatefulWidget {
 class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
   bool _pinned = false;
   bool _hovering = false;
+  bool _popupOpen = false;
+  bool _focusWithin = false;
   Timer? _hideTimer;
 
-  bool get _revealed => !widget.collapsible || _pinned || _hovering;
+  bool get _revealed =>
+      !widget.collapsible || _pinned || _hovering || _popupOpen || _focusWithin;
 
   @override
   void didUpdateWidget(covariant CanvasDockCollapse oldWidget) {
@@ -53,6 +58,8 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
       _hideTimer?.cancel();
       _pinned = false;
       _hovering = false;
+      _popupOpen = false;
+      _focusWithin = false;
     }
   }
 
@@ -74,12 +81,25 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
     });
   }
 
+  // A popup's pointer is outside this region's own bounds, so it keeps the dock up itself.
+  void _pinForPopup(bool open) {
+    if (!mounted || _popupOpen == open) return;
+    setState(() => _popupOpen = open);
+  }
+
+  void _onFocusChange(bool focused) {
+    final visible =
+        focused &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    if (_focusWithin != visible) setState(() => _focusWithin = visible);
+  }
+
+  // A press on a hover-revealed dock pins it open; only a pinned one folds.
   void _toggle() {
-    final show = !_revealed;
     _hideTimer?.cancel();
     setState(() {
-      _pinned = show;
       _hovering = false;
+      _pinned = !_pinned;
     });
   }
 
@@ -92,40 +112,50 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
         excluding: !revealed,
         child: IgnorePointer(
           ignoring: !revealed,
-          child: widget.builder(context, revealed),
+          child: Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: _onFocusChange,
+            child: widget.builder(context, revealed),
+          ),
         ),
       ),
     );
-    return MouseRegion(
-      hitTestBehavior: HitTestBehavior.translucent,
-      onEnter: widget.collapsible ? (_) => _enter() : null,
-      onExit: widget.collapsible ? (_) => _leave() : null,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: widget.collapsible ? canvasDockRevealZone : 0,
-        ),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          heightFactor: 1,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (widget.collapsible)
-                _DockHandle(revealed: revealed, onPressed: _toggle),
-              TweenAnimationBuilder<double>(
-                tween: Tween(end: revealed ? 1 : 0),
-                duration: AppMotion.reduced(context, AppMotion.base),
-                curve: Curves.easeOutCubic,
-                child: dock,
-                builder: (context, factor, child) => ClipRect(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    heightFactor: factor,
-                    child: child,
+    return HoverRevealScope(
+      pin: _pinForPopup,
+      reportMenuOpen: (_) {},
+      reportOverlayHover: (_) {},
+      child: MouseRegion(
+        hitTestBehavior: HitTestBehavior.translucent,
+        onEnter: widget.collapsible ? (_) => _enter() : null,
+        onExit: widget.collapsible ? (_) => _leave() : null,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: widget.collapsible ? canvasDockRevealZone : 0,
+          ),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            heightFactor: 1,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.collapsible)
+                  _DockHandle(revealed: revealed, onPressed: _toggle),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(end: revealed ? 1 : 0),
+                  duration: AppMotion.reduced(context, AppMotion.base),
+                  curve: Curves.easeOutCubic,
+                  child: dock,
+                  builder: (context, factor, child) => ClipRect(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      heightFactor: factor,
+                      child: child,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -133,44 +163,99 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
   }
 }
 
-class _DockHandle extends StatelessWidget {
+/// Keeps the enclosing dock revealed for as long as a popup it opened is mounted.
+class CanvasDockPopupPin extends StatefulWidget {
+  const CanvasDockPopupPin({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<CanvasDockPopupPin> createState() => _CanvasDockPopupPinState();
+}
+
+class _CanvasDockPopupPinState extends State<CanvasDockPopupPin> {
+  HoverRevealScope? _scope;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scope = HoverRevealScope.maybeOf(context);
+    if (_scope == null && scope != null) {
+      scheduleMicrotask(() => scope.pin(true));
+    }
+    _scope = scope;
+  }
+
+  @override
+  void dispose() {
+    final scope = _scope;
+    if (scope != null) scheduleMicrotask(() => scope.pin(false));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+class _DockHandle extends StatefulWidget {
   const _DockHandle({required this.revealed, required this.onPressed});
 
   final bool revealed;
   final VoidCallback onPressed;
 
   @override
+  State<_DockHandle> createState() => _DockHandleState();
+}
+
+class _DockHandleState extends State<_DockHandle> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final label = revealed ? 'Hide controls' : 'Show controls';
+    final label = widget.revealed ? 'Hide controls' : 'Show controls';
     return Semantics(
       button: true,
       label: label,
       excludeSemantics: true,
-      onTap: onPressed,
+      onTap: widget.onPressed,
       child: Tooltip(
         message: label,
         child: AppTouchHitArea(
           alignment: Alignment.bottomCenter,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPressed,
-            child: Container(
-              width: _handleSize.width,
-              height: _handleSize.height,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: tokens.surfaceRaised,
-                border: Border.all(color: tokens.borderSubtle),
-                boxShadow: AppShadows.canvasTile,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(_handleSize.height),
-                ),
+          child: FocusableActionDetector(
+            mouseCursor: SystemMouseCursors.click,
+            onShowFocusHighlight: (v) => setState(() => _focused = v),
+            actions: <Type, Action<Intent>>{
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) {
+                  widget.onPressed();
+                  return null;
+                },
               ),
-              child: Icon(
-                revealed ? AppIcons.chevronDown : AppIcons.chevronUp,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
+            },
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onPressed,
+              child: Container(
+                width: _handleSize.width,
+                height: _handleSize.height,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: tokens.surfaceRaised,
+                  border: Border.all(
+                    color: _focused ? tokens.focusRing : tokens.borderSubtle,
+                  ),
+                  boxShadow: AppShadows.canvasTile,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(_handleSize.height),
+                  ),
+                ),
+                child: Icon(
+                  widget.revealed ? AppIcons.chevronDown : AppIcons.chevronUp,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
               ),
             ),
           ),

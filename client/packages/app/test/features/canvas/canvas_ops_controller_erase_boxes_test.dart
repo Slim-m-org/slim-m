@@ -102,4 +102,62 @@ void main() {
 
     expect(document.isAlive('o'), isTrue);
   });
+
+  group('on the letterbox past the board edge', () {
+    CanvasDocument straddling() {
+      final document = CanvasDocument()
+        ..setViewport(const Size(800, 600))
+        ..setBoard(canvasBoard);
+      document
+        ..applyPlaced(
+          const CanvasStrokeInput(
+            id: 'o',
+            seq: 1,
+            zIndex: 1,
+            x: 1880,
+            y: 0,
+            w: 100,
+            h: 80,
+            points: [],
+            width: 0,
+            colorKey: '',
+            authorId: 'me',
+            kind: CanvasObjectKind.shape,
+            shapeKind: CanvasShapeKind.rectangle,
+          ),
+        )
+        ..refresh();
+      return document;
+    }
+
+    test('the eraser cannot reach a hidden part of an object', () {
+      final document = straddling();
+
+      _ops(
+        document,
+      ).onErasePoint(const Offset(1950, 40), manageCanvas: true, selfId: 'me');
+
+      expect(document.isAlive('o'), isTrue);
+    });
+
+    test('the Move tool selects nothing there', () {
+      final document = straddling();
+
+      _ops(
+        document,
+      ).beginSelect(const Offset(1950, 40), manageCanvas: true, selfId: 'me');
+
+      expect(document.selectedObjectId.value, isNull);
+    });
+
+    test('the same object is still erasable on the board', () {
+      final document = straddling();
+
+      _ops(
+        document,
+      ).onErasePoint(const Offset(1900, 40), manageCanvas: true, selfId: 'me');
+
+      expect(document.isAlive('o'), isFalse);
+    });
+  });
 }

@@ -45,7 +45,8 @@ class CanvasViewMode extends ChangeNotifier {
 
   void showShared() {
     if (!personal) return;
-    _personalCamera = document.camera;
+    // An untouched fit camera is not an arrangement of this viewer's own.
+    _personalCamera = document.isFitted ? null : document.camera;
     tiles.personal = false;
     document.fitBoard();
     notifyListeners();
@@ -73,6 +74,18 @@ class CanvasViewMode extends ChangeNotifier {
       tiles.personal = true;
       _applyWhenSized(kept.camera);
     }
+    notifyListeners();
+  }
+
+  /// Takes back a kept layout beneath what this viewer has already done since
+  /// the canvas opened: their own newer places and view are left as they are.
+  void restoreBeneath(CanvasPersonalLayout kept) {
+    final current = tiles.personalPlaces;
+    tiles.restorePersonalPlaces({
+      for (final e in kept.places.entries)
+        if (!current.containsKey(e.key)) e.key: e.value,
+    });
+    _personalCamera ??= kept.camera;
     notifyListeners();
   }
 

@@ -27,6 +27,7 @@ import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
 import '../widgets/canvas_participants_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
+import 'canvas_dock_collapse.dart' show CanvasDockPopupPin;
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
@@ -267,15 +268,19 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             ? Alignment.topRight
             : Alignment.bottomRight,
         offset: Offset(0, widget.opensBelow ? 4 : -4),
-        child: TapRegion(
-          onTapOutside: (_) => _controller.hide(),
-          // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
-          child: ContextMenuKeyboardScope(
-            onDismiss: _controller.hide,
-            child: ValueListenableBuilder<String?>(
-              valueListenable: widget.selection,
-              builder: (context, selected, _) =>
-                  AppMenu(width: 280, children: _menuItems(context, selected)),
+        child: CanvasDockPopupPin(
+          child: TapRegion(
+            onTapOutside: (_) => _controller.hide(),
+            // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
+            child: ContextMenuKeyboardScope(
+              onDismiss: _controller.hide,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: widget.selection,
+                builder: (context, selected, _) => AppMenu(
+                  width: 280,
+                  children: _menuItems(context, selected),
+                ),
+              ),
             ),
           ),
         ),

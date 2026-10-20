@@ -430,4 +430,36 @@ void main() {
       );
     },
   );
+
+  testWidgets('a second finger landing ends the select gesture the first began',
+      (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    var ends = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          tool: CanvasTool.pan,
+          onStroke: (_) {},
+          onSelectEnd: () => ends++,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final first = TestPointer(1, PointerDeviceKind.touch);
+    final second = TestPointer(2, PointerDeviceKind.touch);
+    await tester.sendEventToBinding(first.down(const Offset(100, 100)));
+    expect(ends, 0);
+    await tester.sendEventToBinding(second.down(const Offset(200, 100)));
+
+    expect(ends, 1,
+        reason: 'a pan anchored before the pinch must not outlive it');
+    await tester.sendEventToBinding(second.up());
+    await tester.sendEventToBinding(first.up());
+  });
 }

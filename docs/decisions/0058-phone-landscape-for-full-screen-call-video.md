@@ -1,6 +1,6 @@
 # 0058 - A phone may rotate only while a call's video is full screen
 
-Status: accepted, 2026-10-06.
+Status: accepted, 2026-10-06. Amended by [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md): a canvas tile's full screen no longer reaches this route.
 
 ## The problem
 
@@ -15,7 +15,7 @@ The owner asked for it twice (backlog #210, then on 2026-10-06: "what if a frien
 The shell stays portrait on phones.
 `FullscreenVideoView` (`client/packages/app/lib/src/features/voice/widgets/fullscreen_video_overlay.dart`), the one route that shows a call's camera or screen share full screen, asks to rotate while it is up and gives the lock back when it closes, by any path: the close control, Escape, the back gesture, or the feed ending.
 The watch party is a screen share, so it goes through the same view.
-Canvas landscape is out of scope.
+Canvas landscape is out of scope, and since [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md) a canvas tile's full screen no longer reaches this route, so it does not rotate.
 
 The lock stays native, behind `OrientationChannel` (`packages/platform`, channel `top.npcserver.slimm/orientation`), rather than `SystemChrome`:
 

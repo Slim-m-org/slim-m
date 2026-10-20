@@ -20,7 +20,7 @@ async fn live_ids(pool: &sqlx::SqlitePool, kind: &str) -> i64 {
 }
 
 fn scoped(op_id: &str, before_seq: i64, extra: Value) -> Value {
-    let mut body = json!({ "id": op_id, "kind": "clear", "before_seq": before_seq });
+    let mut body = json!({ "id": op_id, "kind": "clear_scoped", "before_seq": before_seq });
     body.as_object_mut()
         .unwrap()
         .extend(extra.as_object().unwrap().clone());
@@ -146,6 +146,22 @@ async fn scope_fields_are_validated() {
         let (status, _) = submit_op(&app, channel, &token, scoped(&id(), 1, extra)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
+    let plain_with_scope = json!({
+        "id": id(), "kind": "clear", "before_seq": 1, "kinds": ["stroke"],
+    });
+    let (status, _) = submit_op(&app, channel, &token, plain_with_scope).await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "a plain clear never carries a scope"
+    );
+    let empty_scope = json!({ "id": id(), "kind": "clear_scoped", "before_seq": 1 });
+    let (status, _) = submit_op(&app, channel, &token, empty_scope).await;
+    assert_eq!(
+        status,
+        StatusCode::BAD_REQUEST,
+        "a scoped clear names its scope"
+    );
     let remove_with_scope = json!({
         "id": id(), "kind": "remove", "object_ids": [id()], "kinds": ["stroke"],
     });
@@ -169,7 +185,8 @@ async fn a_scoped_clear_is_never_served_as_kind_clear_over_http() {
         scoped(&id(), 2, json!({ "kinds": ["note"] })),
     )
     .await;
-    submit_op(&app, channel, &token, scoped(&id(), 2, json!({}))).await;
+    let plain = json!({ "id": id(), "kind": "clear", "before_seq": 2 });
+    submit_op(&app, channel, &token, plain).await;
 
     let (_, page) = get_ops(&app, channel, &token, "after_seq=0").await;
     let kinds: Vec<&str> = page["ops"]

@@ -14,6 +14,9 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag, ignoreError;
 import 'desktop_window_shell.dart';
 
 class WindowFullscreenHold {
+  /// How many holds share one window, keyed by its chrome flag: the window leaves fullscreen only when the last lets go.
+  static final _owners = Expando<int>();
+
   /// [chromeHidden] is `fullscreenVideoActiveProvider`'s notifier, which the desktop chrome watches to step aside.
   WindowFullscreenHold(this._chromeHidden);
 
@@ -25,6 +28,9 @@ class WindowFullscreenHold {
   Future<void> enter() async {
     if (_held || !DesktopWindowShell.active) return;
     _held = true;
+    final owners = (_owners[_chromeHidden] ?? 0) + 1;
+    _owners[_chromeHidden] = owners;
+    if (owners > 1) return;
     _chromeHidden.state = true;
     try {
       await DesktopWindowShell.port.setFullScreen(true);
@@ -41,6 +47,9 @@ class WindowFullscreenHold {
   void release() {
     if (!_held) return;
     _held = false;
+    final owners = (_owners[_chromeHidden] ?? 1) - 1;
+    _owners[_chromeHidden] = owners;
+    if (owners > 0) return;
     final port = DesktopWindowShell.port;
     scheduleMicrotask(() {
       try {

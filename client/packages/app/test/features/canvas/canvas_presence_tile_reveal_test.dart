@@ -307,4 +307,88 @@ void main() {
       reason: 'a focus reveal must not outlive the focus that started it',
     );
   });
+
+  group('a tile too small for the control row', () {
+    Future<CanvasPresenceTileOverrides> pumpSmall(WidgetTester tester) async {
+      final document = CanvasDocument()..setViewport(const Size(1000, 800));
+      addTearDown(document.dispose);
+      final overrides = CanvasPresenceTileOverrides();
+      addTearDown(overrides.dispose);
+      overrides.applyServer(
+        'camera:user-noor',
+        rect: const Rect.fromLTWH(100, 100, 40, 30),
+        locked: false,
+        sentToBack: false,
+      );
+      await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
+      await tester.pump();
+      return overrides;
+    }
+
+    testWidgets('keeps its hidden buttons out of keyboard focus', (
+      tester,
+    ) async {
+      await pumpSmall(tester);
+
+      _focusLockButton(tester);
+      await tester.pump(AppMotion.fast);
+
+      final icon = find
+          .descendant(
+            of: find.bySemanticsLabel(_lockLabel),
+            matching: find.byWidgetPredicate((w) => w is Icon),
+          )
+          .first;
+      expect(Focus.of(tester.element(icon)).hasFocus, isFalse);
+    });
+
+    testWidgets('still shows the resize grip once touched', (tester) async {
+      await pumpSmall(tester);
+      final grip = find.byType(TileResizeGrip);
+      final ignoring = find.ancestor(
+        of: grip,
+        matching: find.byType(IgnorePointer),
+      );
+      expect(tester.widget<IgnorePointer>(ignoring.first).ignoring, isTrue);
+
+      await tester.tap(find.byKey(_tileKey));
+      await tester.pump(AppMotion.fast);
+
+      expect(tester.widget<IgnorePointer>(ignoring.first).ignoring, isFalse);
+    });
+  });
+
+  testWidgets('resizing at the board edge stops at it and never slides the '
+      'tile', (tester) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final document = CanvasDocument()
+      ..setBoard(canvasBoard)
+      ..setViewport(const Size(1000, 800));
+    addTearDown(document.dispose);
+    final overrides = CanvasPresenceTileOverrides()..board = canvasBoard;
+    addTearDown(overrides.dispose);
+    overrides.applyServer(
+      'camera:user-noor',
+      rect: const Rect.fromLTWH(1800, 100, 100, 75),
+      locked: false,
+      sentToBack: false,
+    );
+    await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
+    await tester.pump();
+    await tester.tap(find.byKey(_tileKey));
+    await tester.pump(AppMotion.fast);
+
+    final grip = tester.getCenter(find.byType(TileResizeGrip));
+    final drag = await tester.startGesture(grip);
+    await drag.moveBy(const Offset(200, 0));
+    await tester.pump();
+    await drag.up();
+    await tester.pump();
+
+    final rect = overrides.stateFor('camera:user-noor').rect!;
+    expect(rect.left, 1800);
+    expect(rect.right, lessThanOrEqualTo(canvasBoard.right + 1e-6));
+  });
 }

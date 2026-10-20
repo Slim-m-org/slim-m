@@ -145,17 +145,25 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     );
   }
 
-  /// Where this viewer put each tile for themselves, in the order they were set.
-  Map<String, Rect> get personalPlaces => {
-        for (final e in _states.entries)
-          if (e.value.personalRect case final own?) e.key: own,
-      };
+  final Map<String, int> _placedAt = {};
+  int _placeClock = 0;
+
+  /// Where this viewer put each tile for themselves, the one set least recently first.
+  Map<String, Rect> get personalPlaces {
+    final keys = [
+      for (final e in _states.entries)
+        if (e.value.personalRect != null) e.key,
+    ]..sort((a, b) => (_placedAt[a] ?? 0).compareTo(_placedAt[b] ?? 0));
+    return {for (final key in keys) key: _states[key]!.personalRect!};
+  }
 
   /// Takes back stored places, held to the board again in case it changed. A key
   /// nobody is showing is simply never asked for.
   void restorePersonalPlaces(Map<String, Rect> places) {
-    for (final e in places.entries) {
+    // Stored newest first, so the oldest takes the earliest stamp.
+    for (final e in places.entries.toList().reversed) {
       _states[e.key] = _raw(e.key).copyWith(personalRect: _onBoard(e.value));
+      _placedAt[e.key] = _placeClock++;
     }
     if (places.isNotEmpty) notifyListeners();
   }
@@ -187,8 +195,8 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// Replaces [rect]/[locked]/[sentToBack] with the server's current answer
   /// for [key] - a fetch on opening the canvas, or a live
   /// `canvas.media_slot.changed` frame - leaving [hidden] untouched, since
-  /// that field is never shared. The server already enforces its own world
-  /// bound on write, so this does not re-clamp [rect].
+  /// that field is never shared. A server rect is pulled onto
+  /// the board, as a live drag is, so a legacy off-board slot cannot paint on the letterbox.
   void applyServer(
     String key, {
     required Rect rect,
@@ -220,6 +228,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     _states[key] = _personal
         ? _raw(key).copyWith(personalRect: clamped)
         : _raw(key).copyWith(rect: clamped);
+    if (_personal) _placedAt[key] = _placeClock++;
     _z[key] = _nextZ++;
     notifyListeners();
   }

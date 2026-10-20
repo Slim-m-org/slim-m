@@ -83,20 +83,29 @@ class _ParticipantRow extends ConsumerStatefulWidget {
 class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
   final _region = GlobalKey<ContextMenuRegionState>();
 
+  List<Widget> _items(BuildContext context, VoidCallback close) =>
+      participantCallMenuItems(
+        context,
+        ref,
+        participant: widget.participant,
+        close: close,
+        withFullscreen: false,
+      );
+
   @override
   Widget build(BuildContext context) {
     final participant = widget.participant;
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    // This device's own row has nothing to open unless it is sharing or has a camera on.
+    final hasMenu = _items(context, () {}).isNotEmpty;
+    final icon = participant.isMuted
+        ? AppIcons.micOff
+        : (hasMenu ? AppIcons.moreVertical : null);
     return ContextMenuRegion(
       key: _region,
       ownsFocusNode: false,
       menuWidth: kParticipantMenuWidth,
-      itemsBuilder: (menuContext, close) => participantCallMenuItems(
-        menuContext,
-        ref,
-        participant: participant,
-        close: close,
-      ),
+      itemsBuilder: _items,
       child: AppListRow(
         label: participant.name,
         meta: participant.isLocal ? 'You' : null,
@@ -106,12 +115,10 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
           size: AppAvatarSize.s28,
           speaking: participant.isSpeaking,
         ),
-        trailing: Icon(
-          participant.isMuted ? AppIcons.micOff : AppIcons.moreVertical,
-          size: AppSizes.icon16,
-          color: tokens.textSecondary,
-        ),
-        onTap: () => _region.currentState?.open(),
+        trailing: icon == null
+            ? null
+            : Icon(icon, size: AppSizes.icon16, color: tokens.textSecondary),
+        onTap: hasMenu ? () => _region.currentState?.open() : null,
       ),
     );
   }

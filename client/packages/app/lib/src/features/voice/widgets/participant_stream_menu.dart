@@ -26,6 +26,7 @@ List<Widget> participantStreamMenuItems(
   WidgetRef ref, {
   required String identity,
   required VoidCallback close,
+  bool withFullscreen = true,
 }) {
   final live = ref
       .read(voiceParticipantsProvider)
@@ -33,8 +34,9 @@ List<Widget> participantStreamMenuItems(
       .firstOrNull;
   if (live == null) return const [];
   return [
-    if (live.isScreenSharing) ..._screenRows(context, ref, live, close),
-    ..._cameraRows(context, ref, live, close),
+    if (live.isScreenSharing)
+      ..._screenRows(context, ref, live, close, withFullscreen),
+    ..._cameraRows(context, ref, live, close, withFullscreen),
   ];
 }
 
@@ -52,6 +54,7 @@ List<Widget> _screenRows(
   WidgetRef ref,
   VoiceParticipant p,
   VoidCallback close,
+  bool withFullscreen,
 ) {
   final watch = ref.read(shareWatchProvider.notifier);
   if (ref.read(shareWatchProvider).stopped.contains(p.identity)) {
@@ -81,12 +84,14 @@ List<Widget> _screenRows(
           )
         : null,
     onStopWatching: () => watch.stop(p.identity),
-    onFullscreen: () => showFullscreenVideo(
-      context,
-      identity: p.identity,
-      label: p.isLocal ? 'Your screen' : "${p.name}'s screen",
-      kind: FullscreenVideoKind.screenShare,
-    ),
+    onFullscreen: withFullscreen
+        ? () => showFullscreenVideo(
+            context,
+            identity: p.identity,
+            label: p.isLocal ? 'Your screen' : "${p.name}'s screen",
+            kind: FullscreenVideoKind.screenShare,
+          )
+        : null,
   );
 }
 
@@ -95,6 +100,7 @@ List<Widget> _cameraRows(
   WidgetRef ref,
   VoiceParticipant p,
   VoidCallback close,
+  bool withFullscreen,
 ) {
   final controller = ref.read(voiceControllerProvider.notifier);
   if (!p.isLocal && controller.isCameraHidden(p.identity)) {
@@ -130,18 +136,19 @@ List<Widget> _cameraRows(
           unawaited(controller.setCameraHidden(p.identity, true));
         },
       ),
-    AppMenuItem(
-      label: 'Camera full screen',
-      leading: AppIcons.expand,
-      onTap: () {
-        close();
-        showFullscreenVideo(
-          context,
-          identity: p.identity,
-          label: p.isLocal ? 'Your camera' : p.name,
-          kind: FullscreenVideoKind.camera,
-        );
-      },
-    ),
+    if (withFullscreen)
+      AppMenuItem(
+        label: 'Camera full screen',
+        leading: AppIcons.expand,
+        onTap: () {
+          close();
+          showFullscreenVideo(
+            context,
+            identity: p.identity,
+            label: p.isLocal ? 'Your camera' : p.name,
+            kind: FullscreenVideoKind.camera,
+          );
+        },
+      ),
   ];
 }

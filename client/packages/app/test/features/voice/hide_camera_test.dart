@@ -56,8 +56,9 @@ Future<(VoiceHarness, FakeSession, VoiceController)> _call(
 
 Future<List<String>> _menuLabels(
   WidgetTester tester,
-  VoiceHarness harness,
-) async {
+  VoiceHarness harness, {
+  bool withFullscreen = true,
+}) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: harness.container,
@@ -75,6 +76,7 @@ Future<List<String>> _menuLabels(
                     .participants
                     .first,
                 close: () {},
+                withFullscreen: withFullscreen,
               ),
             ),
           ),
@@ -89,6 +91,19 @@ Future<List<String>> _menuLabels(
 }
 
 void main() {
+  testWidgets('a canvas leaves out the route-opening full screen rows', (
+    tester,
+  ) async {
+    final (harness, _, controller) = await _call(tester);
+    expect(await _menuLabels(tester, harness), contains('Camera full screen'));
+    expect(
+      await _menuLabels(tester, harness, withFullscreen: false),
+      isNot(contains('Camera full screen')),
+    );
+    await controller.leave();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'Hide camera blocks the track, reads as off, and Show undoes it',
     (tester) async {

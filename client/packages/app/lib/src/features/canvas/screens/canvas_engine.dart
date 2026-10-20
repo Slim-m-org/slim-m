@@ -21,7 +21,6 @@ import 'dart:async';
 import 'package:flutter/painting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_data/data.dart' show CanvasLayoutStore;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -117,6 +116,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     document.setBoard(canvasBoard);
     document.addListener(_onCameraMoved);
     document.addListener(_onViewMoved);
+    viewMode.addListener(_onViewModeChanged);
     _ref.listen<bool>(
       canvasGridSnapProvider,
       (_, snap) => document.snapToGrid.value = snap,
@@ -155,10 +155,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       CanvasPersonalLayoutKeeper(
         channelId: channelId,
         mode: viewMode,
-        store: _ref
-            .read(canvasLayoutStoreProvider.future)
-            .then<CanvasLayoutStore?>((store) => store)
-            .catchError((Object _) => null),
+        store: openLayoutStore(_ref.read(canvasLayoutStoreProvider.future)),
       );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
@@ -275,6 +272,11 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _showingView = false;
     _viewCamera = document.camera;
     _viewport = document.viewport;
+  }
+
+  // Choosing the personal view is leaving the followed person's view, even when the camera stays put.
+  void _onViewModeChanged() {
+    if (viewMode.personal) _viewRelay?.stopFollowing();
   }
 
   // Following ends on the follower's own pan or zoom, but a window resize only refits.
@@ -531,6 +533,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     sync.dispose();
     document.removeListener(_onCameraMoved);
     document.removeListener(_onViewMoved);
+    viewMode.removeListener(_onViewModeChanged);
     _viewRelay?.dispose();
     document.dispose();
     _cursorRelay?.dispose();
