@@ -24,7 +24,7 @@ use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    Bot, CreateBotError, ReissueError, UpdateBotPermissionsError, validate_bot_prefix,
+    Bot, CreateBotError, ReissueError, Role, UpdateBotPermissionsError, validate_bot_prefix,
 };
 
 const BODY_LIMIT: usize = 1024;
@@ -118,6 +118,22 @@ struct NewBotDto {
 
 async fn caller_granted(state: &AppState, user_id: UserId) -> Result<Permissions, ApiError> {
     Ok(state.store.granted_base_permissions(user_id).await?)
+}
+
+/// A bot is only manageable by someone who already holds what its role grants.
+/// Module principals have no managed role, so they are not bots to manage.
+async fn guard_over_bot(
+    state: &AppState,
+    caller: UserId,
+    bot_id: UserId,
+) -> Result<Role, ApiError> {
+    let role = state
+        .store
+        .role_for_bot(bot_id)
+        .await?
+        .ok_or(ApiError::NotFound("no such bot"))?;
+    escalation_guard(caller_granted(state, caller).await?, role.permissions)?;
+    Ok(role)
 }
 
 async fn list(
@@ -221,6 +237,7 @@ async fn revoke(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
+    guard_over_bot(&state, ctx.user_id, bot_id).await?;
     let Some(revoked) = state.store.revoke_bot(bot_id, ctx.user_id).await? else {
         return Err(ApiError::NotFound("no such bot"));
     };
@@ -242,6 +259,7 @@ async fn reissue_token(
     require_manage_server(&state, ctx.user_id).await?;
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
+    guard_over_bot(&state, ctx.user_id, bot_id).await?;
     match state.store.reissue_bot_token(bot_id, ctx.user_id).await {
         Ok(reissued) => {
             for session_id in reissued.revoked {
@@ -274,15 +292,7 @@ async fn set_permissions(
     require_human(&state, ctx.user_id).await?;
     let bot_id = UserId(parse_uuid(&bot_id)?);
 
-    let current = state
-        .store
-        .role_for_bot(bot_id)
-        .await?
-        .ok_or(ApiError::NotFound("no such bot"))?;
-    escalation_guard(
-        caller_granted(&state, ctx.user_id).await?,
-        current.permissions,
-    )?;
+    let current = guard_over_bot(&state, ctx.user_id, bot_id).await?;
 
     let caller_effective = state.store.base_permissions(ctx.user_id).await?;
     let permissions = grantable(caller_effective, req.permissions)?;

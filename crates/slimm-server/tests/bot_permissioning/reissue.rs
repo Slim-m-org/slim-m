@@ -131,3 +131,72 @@ async fn only_an_administrator_may_reissue_and_not_a_removed_or_unknown_bot() {
         .unwrap();
     assert_eq!(removed.status(), StatusCode::CONFLICT);
 }
+
+/// A manager below the bot's role must not take over the bot's credentials.
+#[tokio::test]
+async fn a_weaker_caller_cannot_reissue_or_revoke_a_stronger_bot() {
+    let (store, pool, _guard) = harness("slimm-bot-reissue-escalation").await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::MANAGE_SERVER),
+            true,
+        )
+        .await
+        .unwrap();
+    let (admin_id, root) = admin(&store, "root").await;
+    assert!(
+        !store
+            .base_permissions(admin_id)
+            .await
+            .unwrap()
+            .contains(Permissions::ADMINISTRATOR)
+    );
+    let app = app(store.clone());
+    let (bot_id, old, _) = create_bot(&app, &root, "helper", 0).await;
+    sqlx::query("UPDATE roles SET permissions = ? WHERE managed_bot_id = ?")
+        .bind(Permissions::ADMINISTRATOR.bits())
+        .bind(UserId(bot_id.parse().unwrap()))
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    for path in ["token", "revoke"] {
+        let denied = app
+            .clone()
+            .oneshot(request(
+                "POST",
+                &format!("/bots/{bot_id}/{path}"),
+                &root,
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN, "{path}");
+    }
+    assert_eq!(status_of(&app, &old, "/me").await, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_module_principal_cannot_be_given_a_token() {
+    let (store, pool, _guard) = harness("slimm-bot-reissue-module").await;
+    let (_admin, root) = admin(&store, "root").await;
+    let app = app(store.clone());
+    let id = UserId::generate();
+    sqlx::query("INSERT INTO users (id, username, display_name, created_at, is_bot) VALUES (?, 'module-x', 'x', 0, 1)")
+        .bind(id)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let response = app
+        .clone()
+        .oneshot(request(
+            "POST",
+            &format!("/bots/{}/token", id.0),
+            &root,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
