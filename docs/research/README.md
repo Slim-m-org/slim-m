@@ -84,6 +84,7 @@ Everything below postdates the pre-build research above by weeks and reports on 
 | [hover-toolbar-density-2026-09-30.md](hover-toolbar-density-2026-09-30.md) | 2026-09-30 | Whether a message row should grow to fit its hover toolbar or the toolbar should float above the list. Reads Discord, Zulip, Element and Mattermost from shipped source rather than impressions, and finds nobody reflows a transcript on hover. Concludes the row grows, because Flutter cannot hit-test a child outside its parent the way CSS can, and 30 is already the published pointer row height |
 | [mic-handling.md](mic-handling.md) | 2026-10-14 | Mic capture against current practice: what WebRTC's audio processing actually runs in our prebuilt, the rnnoise, gate and compressor chain, Windows communications ducking, push-to-talk reopening the device, voice activity clipping, Opus settings and measurement. Ends in eleven proposals filed as the "Mic P1-P11" Planka cards |
 | [video-handling.md](video-handling.md) | 2026-10-14 | Camera and screen share against current practice: publish encodings and the finding that screen share ceilings likely never reach the encoder, degradation preference, freeze detection, adaptive stream, stats, Wayland and phone thermal handling. Ends in ten proposals filed as the "Video P1-P10" Planka cards |
+| [next-theme-2026-10.md](next-theme-2026-10.md) | 2026-10-19 | Which theme to take next: five candidates weighed against the board, with portability (Discord import and data export) chosen and the web evidence behind it |
 
 ## Why this corpus stays, unpruned
 
