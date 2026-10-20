@@ -8,6 +8,10 @@ mixin VoiceSessionMicRelease {
   MicPort get _mic;
   bool get _micWanted;
   bool _mayPublish = true;
+  JoinTimings get _joinTimings;
+
+  /// The muted-mic prime in flight, so two callers never publish two tracks.
+  Future<void>? _priming;
   late final lk.AudioCaptureOptions Function() _plainOpenOptions;
   void _diag(String line, {LogLevel level});
   late final MicRelease _micRelease;
@@ -46,11 +50,19 @@ mixin VoiceSessionMicRelease {
   /// A push-to-talk call joins muted with no track, so the first key down
   /// would otherwise open the device and publish; this does that up front.
   /// A listen-only token never publishes, so it opens nothing.
-  Future<void> _primeMutedMic() async {
+  Future<void> _primeMutedMic() {
+    final running = _priming;
+    if (running != null) return running;
+    final next = _primeOnce().whenComplete(() => _priming = null);
+    return _priming = next;
+  }
+
+  Future<void> _primeOnce() async {
     if (!_mayPublish || !_micRelease.keepReady) return;
     if (_mic.hasTrack || _room == null) return;
     try {
       await _mic.reopenMuted(_plainOpenOptions());
+      _joinTimings.mark(JoinStage.micPublished);
       _micRelease.onMuted();
       _capture.opened(webrtcNoiseSuppression: _capture.webrtcNoiseSuppression);
     } catch (e) {

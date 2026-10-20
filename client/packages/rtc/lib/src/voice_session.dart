@@ -304,9 +304,9 @@ class VoiceSession
     try {
       _joinTimings.mark(JoinStage.connectStarted);
       await room.connect(url, token);
-      _joinTimings.mark(JoinStage.connected);
       // A leave or newer join took this room mid-connect and tore it down.
       if (!identical(_room, room)) return;
+      _joinTimings.mark(JoinStage.connected);
       // Publishing is separate from connecting on purpose: a join preview
       // can arrive muted, and a token without SPEAK must not fail the join.
       final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
@@ -322,6 +322,7 @@ class VoiceSession
       reportFailure(LogTag.voice, 'join the call', e, stack);
       if (!identical(_room, room)) return;
       _lastError = e;
+      _joinTimings.finish();
       await _teardown();
       _setState(VoiceSessionState.failed);
     }
@@ -548,6 +549,7 @@ class VoiceSession
     _stallWatchdog.dispose();
     await callStats.dispose();
     health.dispose();
+    _joinTimings.finish();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();

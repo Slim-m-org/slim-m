@@ -16,9 +16,13 @@ Future<void> watchFirstAudio({
   Duration every = _pollEvery,
 }) async {
   for (var i = 0; i < _maxPolls && joinOpen(); i++) {
-    if ((await packetsReceived() ?? 0) > 0) {
-      onAudio();
-      return;
+    try {
+      if ((await packetsReceived() ?? 0) > 0) {
+        onAudio();
+        return;
+      }
+    } on Object {
+      // Stats can fail while a track is torn down; the loop's bounds end the wait.
     }
     await Future<void>.delayed(every);
   }
@@ -27,11 +31,14 @@ Future<void> watchFirstAudio({
 /// What [VoiceSession.join] does besides connecting: the stage marks.
 extension VoiceSessionJoinWork on VoiceSession {
   /// Marks the first remote audio, once a subscribed track has delivered a packet.
-  Future<void> _watchFirstRemoteAudio(lk.RemoteAudioTrack track) =>
-      watchFirstAudio(
-        joinOpen: () => _room != null && _joinTimings.isOpen,
-        packetsReceived: () async =>
-            (await track.getReceiverStats())?.packetsReceived,
-        onAudio: () => _joinTimings.mark(JoinStage.firstRemoteAudio),
-      );
+  Future<void> _watchFirstRemoteAudio(lk.RemoteAudioTrack track) {
+    final room = _room;
+    return watchFirstAudio(
+      joinOpen: () =>
+          room != null && identical(_room, room) && _joinTimings.isOpen,
+      packetsReceived: () async =>
+          (await track.getReceiverStats())?.packetsReceived,
+      onAudio: () => _joinTimings.mark(JoinStage.firstRemoteAudio),
+    );
+  }
 }

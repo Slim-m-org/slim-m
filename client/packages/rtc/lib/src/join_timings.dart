@@ -52,6 +52,9 @@ class JoinTimings {
   final _marks = <JoinStage, Duration>{};
   bool _open = false;
 
+  /// A join that has not heard anyone by now is over; later arrivals are not join latency.
+  static const maxJoin = Duration(seconds: 30);
+
   /// Whether a join is in progress, so a watcher can stop once it ends.
   bool get isOpen => _open;
 
@@ -73,6 +76,11 @@ class JoinTimings {
 
   void mark(JoinStage stage) {
     if (!_open) return;
+    final click = _marks[JoinStage.click];
+    if (click != null && _clock() - click > maxJoin) {
+      finish();
+      return;
+    }
     _marks.putIfAbsent(stage, _clock);
     if (stage == JoinStage.firstRemoteAudio) finish();
   }
