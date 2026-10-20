@@ -63,13 +63,14 @@ async fn only_a_permitted_member_can_create_invites() {
         .unwrap();
     assert_eq!(refused.status(), StatusCode::FORBIDDEN);
 
-    // Listing is gated the same way.
+    // Listing shows only your own, so a member with none sees an empty list.
     let listing = app
         .clone()
         .oneshot(request("GET", "/invites", Some(&member), None))
         .await
         .unwrap();
-    assert_eq!(listing.status(), StatusCode::FORBIDDEN);
+    assert_eq!(listing.status(), StatusCode::OK);
+    assert_eq!(json_body(listing).await, json!([]));
 }
 
 #[tokio::test]

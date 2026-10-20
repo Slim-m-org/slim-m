@@ -139,3 +139,16 @@ async fn choosing_everything_for_the_channel_wakes_a_member_for_a_bot_post() {
 
     assert!(woken.contains(&bob), "got {woken:?}");
 }
+
+#[tokio::test]
+async fn a_bot_dm_still_wakes_the_member_on_the_default() {
+    let (store, _guard, _channel, [alice, bob]) = room("slimm-bot-push-dm").await;
+    let bot = bot(&store, alice).await;
+    let dm = store.open_dm(bot, bob).await.unwrap().id;
+
+    let woken = wake_recipients(&store, dm, bot, "your order shipped")
+        .await
+        .unwrap();
+
+    assert!(woken.contains(&bob), "got {woken:?}");
+}

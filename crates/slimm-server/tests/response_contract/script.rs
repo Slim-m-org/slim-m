@@ -434,7 +434,7 @@ async fn channel_notification_override_calls(c: &mut Contract, root: &str, chann
         "PUT",
         &format!("/notification-preferences/channels/{channel}"),
         root,
-        json!({ "preference": "nothing" }),
+        json!({ "preference": "everything" }),
     )
     .await;
     c.get(

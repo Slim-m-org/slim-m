@@ -426,3 +426,14 @@ async fn an_offline_bot_is_listed_as_offline_and_refuses_a_use_at_once() {
     let (status, _) = use_entry(&w, w.channel, &w.bob.1, menu_use("translate", &sent)).await;
     assert_eq!(status, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn an_unknown_entry_is_not_found_whether_or_not_the_bot_is_online() {
+    let w = world().await;
+    register(&w, &w.bot.1, registration()).await;
+    let sent = plain_message(&w).await;
+    w.state.hub.presence().disconnect(w.bot.0);
+
+    let (status, _) = use_entry(&w, w.channel, &w.bob.1, menu_use("nope", &sent)).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

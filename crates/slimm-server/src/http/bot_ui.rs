@@ -149,9 +149,6 @@ async fn use_entry(
     if !bot_can_hear {
         return Err(GONE);
     }
-    if !state.hub.presence().is_connected(bot_id) {
-        return Err(ApiError::Conflict("that bot is offline right now"));
-    }
     let entry = state
         .store
         .bot_ui_entry(bot_id, req.surface, &req.entry_id)
@@ -186,6 +183,9 @@ async fn use_entry(
         }
     };
     let option_id = chosen_option(&entry, req.option_id)?;
+    if !state.hub.presence().is_connected(bot_id) {
+        return Err(ApiError::Conflict("that bot is offline right now"));
+    }
     let display_name = state
         .store
         .user_profile(ctx.user_id)

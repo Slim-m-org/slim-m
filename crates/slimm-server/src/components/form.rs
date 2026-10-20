@@ -119,8 +119,13 @@ fn validate_field(field: &mut FormField, hidden: fn(char) -> bool) -> Result<(),
 
 impl FormField {
     fn accepts(&self, text: &str, hidden: fn(char) -> bool) -> bool {
-        let visible = |c: char| !(self.multiline && c == '\n') && hidden(c);
-        text.chars().count() <= self.max_length && !text.chars().any(visible)
+        text.chars().count() <= self.max_length && !self.holds_hidden(text, hidden)
+    }
+
+    /// A multiline field keeps line breaks and tabs, which pasted text carries.
+    fn holds_hidden(&self, text: &str, hidden: fn(char) -> bool) -> bool {
+        let layout = |c: char| self.multiline && matches!(c, '\n' | '\r' | '\t');
+        text.chars().any(|c| !layout(c) && hidden(c))
     }
 }
 
@@ -143,8 +148,11 @@ impl Form {
             if field.required && text.trim().is_empty() {
                 return Err("a required field was left empty");
             }
-            if !field.accepts(text, hidden) {
-                return Err("a field's answer is too long or holds invisible characters");
+            if text.chars().count() > field.max_length {
+                return Err("a field's answer is too long");
+            }
+            if field.holds_hidden(text, hidden) {
+                return Err("a field's answer holds invisible characters");
             }
             answers.insert(field.custom_id.clone(), text.to_owned());
         }
@@ -226,6 +234,17 @@ mod tests {
             sparse["note"], "",
             "an unanswered optional field is present and empty"
         );
+    }
+
+    #[test]
+    fn a_multiline_answer_keeps_pasted_tabs_and_crlf() {
+        let form = form();
+        let ok = form
+            .check_answers(answers(&[("what", "x"), ("note", "a\r\n\tb")]), invisible)
+            .unwrap();
+        assert_eq!(ok["note"], "a\r\n\tb");
+        let tab = form.check_answers(answers(&[("what", "a\tb")]), invisible);
+        assert_eq!(tab, Err("a field's answer holds invisible characters"));
     }
 
     #[test]

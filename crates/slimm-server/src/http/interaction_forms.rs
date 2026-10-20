@@ -59,7 +59,14 @@ async fn open(
     form::validate(&mut form, is_hidden_char).map_err(ApiError::BadRequest)?;
     let interaction = own_interaction(&state, ctx.user_id, channel_id, id).await?;
     if !state.store.set_interaction_form(id, &form).await? {
-        return Err(ApiError::Conflict("this press already opened a form"));
+        // A retry of an open whose reply was lost finishes the job instead of failing.
+        let same = state.store.interaction_form(id).await?.as_ref() == Some(&form);
+        if !same {
+            return Err(ApiError::Conflict("this press already opened a form"));
+        }
+        if interaction.answered {
+            return Ok(StatusCode::NO_CONTENT);
+        }
     }
     answer(&state, &interaction).await?;
     state.hub.publish(Event::InteractionForm {

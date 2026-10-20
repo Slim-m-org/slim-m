@@ -125,6 +125,16 @@ async fn logout_closes_the_live_socket() {
 /// returns the sessions it revoked precisely so this cannot silently regress.
 #[tokio::test]
 async fn revoking_a_bot_closes_its_live_socket() {
+    assert_bot_socket_closes_on("revoke", StatusCode::NO_CONTENT).await;
+}
+
+/// A leaked token is replaced, not only revoked: the old token's socket must go too.
+#[tokio::test]
+async fn reissuing_a_bot_token_closes_the_old_live_socket() {
+    assert_bot_socket_closes_on("token", StatusCode::OK).await;
+}
+
+async fn assert_bot_socket_closes_on(verb: &str, expected: StatusCode) {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
     let state = support::app::state(store.clone());
 
@@ -172,14 +182,14 @@ async fn revoking_a_bot_closes_its_live_socket() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/bots/{bot_id}/revoke"))
+                .uri(format!("/bots/{bot_id}/{verb}"))
                 .header("authorization", format!("Bearer {admin_token}"))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
+    assert_eq!(revoked.status(), expected);
 
     let closed = tokio::time::timeout(Duration::from_secs(2), wait_closed(&mut bot_ws)).await;
     assert!(

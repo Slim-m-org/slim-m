@@ -15951,7 +15951,7 @@ components:
           format: uuid
         preference:
           type: string
-          enum: [mentions, nothing]
+          enum: [everything, mentions, nothing]
 
     ChannelPermissions:
       type: object
@@ -17720,7 +17720,7 @@ components:
           type: string
           nullable: true
           description: >
-            `mentions` or `nothing`; null once the channel follows the account
+            `everything`, `mentions` or `nothing`; null once the channel follows the account
             default.
 
     NewDeviceSignIn:

@@ -230,21 +230,12 @@ impl PresenceTracker {
     /// Records a connection closing. Returns `true` if that was the user's
     /// last live connection.
     pub fn disconnect(&self, user_id: UserId) -> bool {
-        self.disconnect_at(user_id, Instant::now())
-    }
-
-    /// [`Self::disconnect`] with an explicit clock.
-    pub fn disconnect_at(&self, user_id: UserId, now: Instant) -> bool {
-        self.disconnect_kind_at(user_id, DeviceKind::Unknown, now)
+        self.disconnect_as(user_id, DeviceKind::Unknown)
     }
 
     /// [`Self::disconnect`] naming the closing client's kind. Returns `true`
     /// when presence visibly changed: the last socket, or the last of a kind.
     pub fn disconnect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
-        self.disconnect_kind_at(user_id, kind, Instant::now())
-    }
-
-    fn disconnect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
         let mut state = lock(&self.state);
         let Some(entry) = state.get_mut(&user_id) else {
             return false;
@@ -252,7 +243,6 @@ impl PresenceTracker {
         let before = entry.devices.signature();
         entry.connections = entry.connections.saturating_sub(1);
         entry.devices.remove(kind);
-        entry.last_active = now;
         if entry.connections == 0 {
             state.remove(&user_id);
             true
@@ -466,6 +456,18 @@ mod tests {
         // A touch resets the clock even past the old timeout.
         tracker.touch_at(alice, past_timeout);
         assert!(!tracker.is_idle_at(alice, past_timeout));
+    }
+
+    #[test]
+    fn a_closing_socket_does_not_reset_the_idle_clock() {
+        let tracker = PresenceTracker::new();
+        let alice = uid();
+        let long_ago = Instant::now() - IDLE_TIMEOUT - Duration::from_secs(1);
+        tracker.connect_at(alice, long_ago);
+        tracker.connect_at(alice, long_ago);
+
+        tracker.disconnect(alice);
+        assert!(tracker.is_idle(alice));
     }
 
     #[test]

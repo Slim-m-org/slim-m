@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO invites (code, created_by, max_uses, expires_at, created_at)\n             SELECT ?1, ?2, ?3, ?4, ?5\n             WHERE (SELECT COUNT(*) FROM invites\n                    WHERE created_by = ?2 AND revoked_at IS NULL\n                      AND (expires_at IS NULL OR expires_at > ?5)\n                      AND (max_uses IS NULL OR uses < max_uses)) < ?6",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "241cf3c4f8bde41ca86a4421bcbeb82a2e8f3b0c3aa0b110fdb4c02bf846c7ad"
+}

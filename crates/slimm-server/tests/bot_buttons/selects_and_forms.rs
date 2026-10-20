@@ -174,12 +174,14 @@ async fn a_bot_opens_a_form_for_the_presser_and_the_answers_reach_only_that_bot(
         "nobody else sees it"
     );
 
+    let mut other = survey();
+    other["title"] = json!("Something else");
     let (status, _) = call(
         &w,
         "POST",
         &interaction_uri(&w, &press_id, "form"),
         &w.bot.1,
-        Some(survey()),
+        Some(other),
     )
     .await;
     assert_eq!(status, StatusCode::CONFLICT, "one form per press");
@@ -313,5 +315,66 @@ async fn a_submission_must_fit_the_form_the_bot_opened() {
     assert_eq!(
         attempt(w.alice.1.clone(), json!({ "what": "ok", "note": "a\nb" })).await,
         StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn opening_the_same_form_again_is_a_retry_not_a_conflict() {
+    let w = world().await;
+    let sent = posted(&w).await;
+    let (_, _, press_id) = press(&w, &w.alice.1, &sent, "hit").await;
+    let uri = interaction_uri(&w, &press_id, "form");
+    for _ in 0..2 {
+        let (status, _) = call(&w, "POST", &uri, &w.bot.1, Some(survey())).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+}
+
+#[tokio::test]
+async fn a_replayed_submission_is_delivered_once_with_its_first_answers() {
+    let w = world().await;
+    let sent = posted(&w).await;
+    let addr = serve(w.state.clone()).await;
+    let mut bot = connect(&w, addr, &w.bot.1).await;
+    let (_, _, press_id) = press(&w, &w.alice.1, &sent, "hit").await;
+    call(
+        &w,
+        "POST",
+        &interaction_uri(&w, &press_id, "form"),
+        &w.bot.1,
+        Some(survey()),
+    )
+    .await;
+    let submit = interaction_uri(&w, &press_id, "submit");
+    let id = Uuid::now_v7().to_string();
+    let send = |fields: Value| {
+        let (w, submit, id) = (&w, submit.clone(), id.clone());
+        async move {
+            call(
+                w,
+                "POST",
+                &submit,
+                &w.alice.1,
+                Some(json!({ "id": id, "fields": fields })),
+            )
+            .await
+            .0
+        }
+    };
+
+    assert_eq!(send(json!({ "what": "tea" })).await, StatusCode::OK);
+    assert_eq!(send(json!({ "what": "tea" })).await, StatusCode::OK);
+    assert_eq!(send(json!({ "what": "coffee" })).await, StatusCode::OK);
+
+    let mut delivered = Vec::new();
+    while let Some(frame) = frame_of_kind(&mut bot, "interaction.created").await {
+        if frame["kind"] == "form_submit" {
+            delivered.push(frame["fields"]["what"].clone());
+        }
+    }
+    assert_eq!(
+        delivered,
+        vec![json!("tea")],
+        "a replay is not delivered again"
     );
 }
