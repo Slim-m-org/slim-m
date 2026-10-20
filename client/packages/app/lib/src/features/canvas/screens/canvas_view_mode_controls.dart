@@ -80,6 +80,7 @@ class _Pill extends StatelessWidget {
       container: true,
       button: true,
       label: semanticLabel,
+      hint: tooltip,
       excludeSemantics: true,
       onTap: onTap,
       child: Material(
@@ -115,8 +116,11 @@ class _Pill extends StatelessWidget {
         ),
       ),
     );
+    // The hint above carries the tooltip; its own node would merge into the canvas surface's label.
     return AppTouchHitArea(
-      child: tooltip == null ? pill : Tooltip(message: tooltip!, child: pill),
+      child: tooltip == null
+          ? pill
+          : Tooltip(message: tooltip!, excludeFromSemantics: true, child: pill),
     );
   }
 }
