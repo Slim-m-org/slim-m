@@ -18,7 +18,7 @@ class _PlatformTrack implements rtc.MediaStreamTrack {
   @override
   String? get id => 'fake';
   @override
-  Function()? onEnded;
+  void Function()? onEnded;
   @override
   Future<void> stop() async {}
   @override

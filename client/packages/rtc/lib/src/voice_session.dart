@@ -148,6 +148,7 @@ class VoiceSession
       );
 
   late final RoomFactory _roomFactory;
+  @override
   final JoinTimings _joinTimings;
   final BroadcastBridge _broadcast;
   final DesktopSources _desktopSources;
