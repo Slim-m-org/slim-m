@@ -123,6 +123,21 @@ pub(super) enum ServerFrame {
         user_id: String,
         user_display_name: String,
         created_at: i64,
+        /// The values chosen from a select menu.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        values: Vec<String>,
+        /// A submitted form's answers by field `custom_id`.
+        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        fields: std::collections::BTreeMap<String, String>,
+    },
+    /// A bot opened a form for this account's click.
+    #[serde(rename = "interaction.form")]
+    InteractionForm {
+        interaction_id: String,
+        channel_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message_id: Option<String>,
+        form: crate::components::form::Form,
     },
     /// The bot answered this account's click.
     #[serde(rename = "interaction.answered")]

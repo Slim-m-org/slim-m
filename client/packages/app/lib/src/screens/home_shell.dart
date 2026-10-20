@@ -63,6 +63,7 @@ import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
+import '../features/messages/widgets/bot_form_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
@@ -101,20 +102,22 @@ class HomeShell extends ConsumerWidget {
     final scaffold = _scaffold(context, ref, layout, facts);
 
     final shell = WhatsNewGate(
-      child: PushToTalkListener(
-        child: CallbackShortcuts(
-          bindings: _shortcutBindings(context, ref),
-          // CallbackShortcuts only fires for a focused descendant, so this
-          // default makes the shortcut work the instant the app opens.
-          child: Focus(
-            autofocus: true,
-            child: _LayoutBridge(
-              layout: layout,
-              child: NewDeviceBannerHost(
-                child: RulesGateBannerHost(
-                  child: UpdateBannerHost(
-                    child: DownloadFailureHost(
-                      child: DatabaseResetNotice(child: scaffold),
+      child: BotFormGate(
+        child: PushToTalkListener(
+          child: CallbackShortcuts(
+            bindings: _shortcutBindings(context, ref),
+            // CallbackShortcuts only fires for a focused descendant, so this
+            // default makes the shortcut work the instant the app opens.
+            child: Focus(
+              autofocus: true,
+              child: _LayoutBridge(
+                layout: layout,
+                child: NewDeviceBannerHost(
+                  child: RulesGateBannerHost(
+                    child: UpdateBannerHost(
+                      child: DownloadFailureHost(
+                        child: DatabaseResetNotice(child: scaffold),
+                      ),
                     ),
                   ),
                 ),

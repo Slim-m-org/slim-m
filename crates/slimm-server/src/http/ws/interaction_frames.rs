@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Authorizing a button click and its answer for one connection. See
+//! Authorizing a button click, a form and its answer for one connection. See
 //! docs/decisions/0039-bot-message-buttons.md.
 
 use super::authorization::Authorization;
 use super::frames::ServerFrame;
+use crate::components::form::Form;
 use crate::hub::Event;
 use crate::permissions::Permissions;
 use crate::store::{Interaction, SessionContext, Store};
@@ -21,6 +22,7 @@ pub(super) async fn authorize(
         Event::InteractionCreated {
             interaction,
             clicker_display_name,
+            input,
         } => Some(
             deliver_to(store, ctx, interaction, interaction.bot_id, || {
                 ServerFrame::InteractionCreated {
@@ -33,6 +35,19 @@ pub(super) async fn authorize(
                     user_id: interaction.clicker_id.to_string(),
                     user_display_name: clicker_display_name.clone(),
                     created_at: interaction.created_at,
+                    values: input.values.clone(),
+                    fields: input.fields.clone(),
+                }
+            })
+            .await,
+        ),
+        Event::InteractionForm { interaction, form } => Some(
+            deliver_to(store, ctx, interaction, interaction.clicker_id, || {
+                ServerFrame::InteractionForm {
+                    interaction_id: interaction.id.to_string(),
+                    channel_id: interaction.channel_id.to_string(),
+                    message_id: interaction.message_id.map(|m| m.to_string()),
+                    form: Form::clone(form),
                 }
             })
             .await,

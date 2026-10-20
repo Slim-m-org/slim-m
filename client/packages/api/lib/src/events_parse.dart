@@ -166,6 +166,16 @@ ServerEvent? _overlayFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         messageId: decoded['message_id'] as String?,
       ),
+    'interaction.form'
+        when decoded['interaction_id'] is String &&
+            decoded['channel_id'] is String &&
+            decoded['form'] is Map<String, dynamic> =>
+      InteractionForm(
+        interactionId: decoded['interaction_id'] as String,
+        channelId: decoded['channel_id'] as String,
+        messageId: decoded['message_id'] as String?,
+        form: BotForm.fromJson(decoded['form'] as Map<String, dynamic>),
+      ),
     'message.ephemeral'
         when decoded['channel_id'] is String &&
             decoded['message'] is Map<String, dynamic> =>
