@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The canvas pane's drawing layers, bottom to top: grid, call-tile backdrop,
+/// The canvas pane's drawing layers, bottom to top: grid, focused feed, call-tile backdrop,
 /// ink surface, object menu, call tiles, note editor and edge indicators.
 library;
 
@@ -8,6 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_focused_feed.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pane_surface_actions.dart';
@@ -42,6 +43,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.tokens,
     required this.menuRequests,
     required this.presenceFrames,
+    this.focusedTileKey,
   });
 
   final CanvasPaneSurfaceActions actions;
@@ -65,6 +67,9 @@ class CanvasPaneSurface extends StatelessWidget {
   final CanvasObjectMenuRequests menuRequests;
   final CanvasPresenceFrameResolver presenceFrames;
 
+  /// The call tile whose feed fills the pane under the ink, if any.
+  final String? focusedTileKey;
+
   @override
   Widget build(BuildContext context) => Stack(
     children: [
@@ -74,6 +79,14 @@ class CanvasPaneSurface extends StatelessWidget {
         line: tokens.borderSubtle,
         letterbox: tokens.surfaceSunken,
       ),
+      if (focusedTileKey case final key?)
+        CanvasFocusedFeed(
+          tileKey: key,
+          participants: callParticipants,
+          cameraViewFor: actions.cameraViewFor,
+          screenShareViewFor: actions.screenShareViewFor,
+          onLost: () => actions.onFocusTile?.call(null),
+        ),
       // Before CanvasSurface, so a sent-to-back tile's own pixels sit under real ink - see canvas_presence_layer.dart's own doc for why its controls stay in the layer below regardless.
       CanvasPresenceBackdrop(
         document: document,
@@ -83,6 +96,7 @@ class CanvasPaneSurface extends StatelessWidget {
         overrides: tileOverrides,
         hideSelfCamera: selfBubbleHidden,
         resolver: presenceFrames,
+        focusedKey: focusedTileKey,
       ),
       CanvasSurface(
         document: document,
@@ -159,6 +173,8 @@ class CanvasPaneSurface extends StatelessWidget {
         tool: tool,
         participantMenuItemsBuilder: actions.participantMenuItemsBuilder,
         resolver: presenceFrames,
+        focusedKey: focusedTileKey,
+        onFocus: actions.onFocusTile,
       ),
       ?noteEditor,
       // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.

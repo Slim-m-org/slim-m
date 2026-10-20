@@ -74,6 +74,7 @@ class CanvasToolsRow extends StatefulWidget {
     required this.hiddenTiles,
     required this.onShowTile,
     required this.onToggleFullscreen,
+    this.fullscreen = false,
     this.showTools = true,
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
@@ -145,10 +146,9 @@ class CanvasToolsRow extends StatefulWidget {
   final List<CanvasHiddenTile> hiddenTiles;
   final ValueChanged<String> onShowTile;
 
-  /// Forwarded to the overflow menu's own "Enter fullscreen" item. This row
-  /// itself is what fullscreen replaces, so it never renders while the mode
-  /// is on and needs no state of its own for it.
+  /// Forwarded to the overflow menu's fullscreen item, which reads [fullscreen].
   final VoidCallback onToggleFullscreen;
+  final bool fullscreen;
 
   /// False while the activity panel has replaced the drawing surface: there
   /// is nothing to draw on, so the five placement/edit tools fold away and
@@ -255,6 +255,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           hiddenTiles: widget.hiddenTiles,
           onShowTile: widget.onShowTile,
           onToggleFullscreen: widget.onToggleFullscreen,
+          fullscreen: widget.fullscreen,
           opensBelow: widget.overflowOpensBelow,
         ),
       ],

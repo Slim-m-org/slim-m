@@ -44,9 +44,23 @@ class CanvasCompactDock extends StatelessWidget {
           if (showTools)
             FloatingDockCard(
               rows: [
-                CanvasDockToolsRow(
-                  canvas: canvas,
-                  part: CanvasToolsRowPart.toolsOnly,
+                // The header that holds the way out is gone in fullscreen, so the exit sits beside the tools.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: CanvasDockToolsRow(
+                        canvas: canvas,
+                        part: CanvasToolsRowPart.toolsOnly,
+                      ),
+                    ),
+                    if (canvas.fullscreen) ...[
+                      const SizedBox(width: AppSpacing.s8),
+                      CanvasDockExitFullscreen(
+                        onPressed: canvas.onToggleFullscreen,
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

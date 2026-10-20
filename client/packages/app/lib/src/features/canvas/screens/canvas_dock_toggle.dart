@@ -26,3 +26,19 @@ class CanvasDockToggle extends StatelessWidget {
     onPressed: onPressed,
   );
 }
+
+/// The way back out of fullscreen, in the slot the close button holds otherwise.
+class CanvasDockExitFullscreen extends StatelessWidget {
+  const CanvasDockExitFullscreen({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => CallDockButton(
+    icon: AppIcons.expand,
+    tooltip: 'Exit fullscreen',
+    // The glyph entering fullscreen carries, lit: there is no shrink glyph in the dock's set.
+    active: true,
+    onPressed: onPressed,
+  );
+}

@@ -35,6 +35,12 @@ Future<void> _enterFullscreen(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Fullscreen tucks the dock behind a handle; this brings it back.
+Future<void> _revealDock(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Show controls'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('the surface takes the identity strip\'s own height back, measured '
       'rather than inferred from the bar having unmounted', (tester) async {
@@ -88,6 +94,7 @@ void main() {
         reason: 'a one-finger drag would otherwise still place a note',
       );
 
+      await _revealDock(tester);
       await tester.tap(find.bySemanticsLabel('Exit fullscreen'));
       await tester.pumpAndSettle();
 
@@ -98,9 +105,8 @@ void main() {
     },
   );
 
-  testWidgets('the tool strip folds away and the way back takes its place', (
-    tester,
-  ) async {
+  testWidgets('the dock keeps its tools in fullscreen, and the way back takes '
+      'the close button\'s place', (tester) async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container();
     addTearDown(container.dispose);
@@ -111,20 +117,16 @@ void main() {
     expect(find.bySemanticsLabel('Exit fullscreen'), findsNothing);
 
     await _enterFullscreen(tester);
+    await _revealDock(tester);
 
-    for (final gone in const [
-      'Pen',
-      'Note',
-      'Eraser',
-      'Undo',
-      'Close canvas',
-    ]) {
+    for (final kept in const ['Pen', 'Note', 'Eraser', 'Undo']) {
       expect(
-        find.bySemanticsLabel(gone),
-        findsNothing,
-        reason: '$gone is chrome fullscreen was asked to drop',
+        find.bySemanticsLabel(kept).hitTestable(),
+        findsOneWidget,
+        reason: '$kept is a canvas control fullscreen must not take away',
       );
     }
+    expect(find.bySemanticsLabel('Close canvas'), findsNothing);
     expect(find.bySemanticsLabel('Exit fullscreen'), findsOneWidget);
   });
 
@@ -163,6 +165,7 @@ void main() {
     final handle = tester.ensureSemantics();
     await pumpCanvasPane(tester, container);
     await _enterFullscreen(tester);
+    await _revealDock(tester);
 
     final tree = tester
         .binding
@@ -192,6 +195,7 @@ void main() {
     expect(container.read(canvasFullscreenProvider), 'c1');
 
     // Leaving fullscreen first is the only route to Close canvas, which is the point: the two are cleared together either way.
+    await _revealDock(tester);
     await tester.tap(find.bySemanticsLabel('Exit fullscreen'));
     await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel('Close canvas'));

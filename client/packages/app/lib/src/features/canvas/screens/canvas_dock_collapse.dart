@@ -1,0 +1,173 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+/// Lets the canvas dock tuck away while the pane is fullscreen, leaving a
+/// half-sphere handle at the bottom edge that brings it back.
+///
+/// A pointer reveals the dock by moving toward the bottom edge; a finger taps
+/// the handle, which is the named equivalent of that hover (docs/design/
+/// desktop-vs-mobile.md, law 3). Outside fullscreen it is a plain pass-through.
+library;
+
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:slimm_design_system/design_system.dart';
+
+/// How close to the bottom edge a pointer must come to reveal a collapsed dock.
+const canvasDockRevealZone = 56.0;
+
+/// How long the dock lingers after the pointer leaves, so crossing a popup does not snap it shut.
+const canvasDockHideDelay = Duration(milliseconds: 500);
+
+const _handleSize = Size(64, 22);
+
+class CanvasDockCollapse extends StatefulWidget {
+  const CanvasDockCollapse({
+    super.key,
+    required this.collapsible,
+    required this.child,
+  });
+
+  final bool collapsible;
+  final Widget child;
+
+  @override
+  State<CanvasDockCollapse> createState() => _CanvasDockCollapseState();
+}
+
+class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
+  bool _pinned = false;
+  bool _hovering = false;
+  Timer? _hideTimer;
+
+  bool get _revealed => !widget.collapsible || _pinned || _hovering;
+
+  @override
+  void didUpdateWidget(covariant CanvasDockCollapse oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.collapsible && !widget.collapsible) {
+      _hideTimer?.cancel();
+      _pinned = false;
+      _hovering = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _enter() {
+    _hideTimer?.cancel();
+    if (!_hovering) setState(() => _hovering = true);
+  }
+
+  void _leave() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(canvasDockHideDelay, () {
+      if (mounted) setState(() => _hovering = false);
+    });
+  }
+
+  void _toggle() {
+    final show = !_revealed;
+    _hideTimer?.cancel();
+    setState(() {
+      _pinned = show;
+      _hovering = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final revealed = _revealed;
+    final dock = ExcludeFocus(
+      excluding: !revealed,
+      child: ExcludeSemantics(
+        excluding: !revealed,
+        child: IgnorePointer(ignoring: !revealed, child: widget.child),
+      ),
+    );
+    return MouseRegion(
+      hitTestBehavior: HitTestBehavior.translucent,
+      onEnter: widget.collapsible ? (_) => _enter() : null,
+      onExit: widget.collapsible ? (_) => _leave() : null,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: widget.collapsible ? canvasDockRevealZone : 0,
+        ),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          heightFactor: 1,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.collapsible)
+                _DockHandle(revealed: revealed, onPressed: _toggle),
+              TweenAnimationBuilder<double>(
+                tween: Tween(end: revealed ? 1 : 0),
+                duration: AppMotion.reduced(context, AppMotion.base),
+                curve: Curves.easeOutCubic,
+                child: dock,
+                builder: (context, factor, child) => ClipRect(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    heightFactor: factor,
+                    child: child,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockHandle extends StatelessWidget {
+  const _DockHandle({required this.revealed, required this.onPressed});
+
+  final bool revealed;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final label = revealed ? 'Hide controls' : 'Show controls';
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      onTap: onPressed,
+      child: Tooltip(
+        message: label,
+        child: AppTouchHitArea(
+          alignment: Alignment.bottomCenter,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onPressed,
+            child: Container(
+              width: _handleSize.width,
+              height: _handleSize.height,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tokens.surfaceRaised,
+                border: Border.all(color: tokens.borderSubtle),
+                boxShadow: AppShadows.canvasTile,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(_handleSize.height),
+                ),
+              ),
+              child: Icon(
+                revealed ? AppIcons.chevronDown : AppIcons.chevronUp,
+                size: AppSizes.icon16,
+                color: tokens.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

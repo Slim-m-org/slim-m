@@ -103,6 +103,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// hands back the tool the person was actually using rather than the
   /// [CanvasTool.pan] the mode itself forced.
   CanvasTool? _toolBeforeFullscreen;
+
+  /// Whether focusing a tile is what dropped the chrome, so ending the focus restores it.
+  bool _fullscreenFromFocus = false;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
   /// The note whose in-place editor is open, if any.
@@ -231,6 +234,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onClose: _closeCanvas,
             fullscreen: fullscreen,
             onToggleFullscreen: _toggleFullscreen,
+            focusedTileKey: _focusedTileKey,
+            onFocusTile: _focusTile,
             tool: _tool,
             onToolChanged: _onToolChanged,
             canUndo: _ops.canUndo,

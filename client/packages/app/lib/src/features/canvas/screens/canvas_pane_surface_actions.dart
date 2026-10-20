@@ -38,6 +38,7 @@ class CanvasPaneSurfaceActions {
     required this.onRecenter,
     required this.onBringIntoBoard,
     this.participantMenuItemsBuilder,
+    this.onFocusTile,
     required this.cameraViewFor,
     required this.screenShareViewFor,
   });
@@ -71,6 +72,7 @@ class CanvasPaneSurfaceActions {
     VoidCallback close,
   )?
   participantMenuItemsBuilder;
+  final ValueChanged<String?>? onFocusTile;
   final CameraViewBuilder cameraViewFor;
   final ScreenShareViewBuilder screenShareViewFor;
 }

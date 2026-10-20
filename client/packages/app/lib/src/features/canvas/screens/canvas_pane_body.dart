@@ -96,6 +96,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onToggleSelfBubbleHidden,
     required this.fullscreen,
     required this.onToggleFullscreen,
+    this.focusedTileKey,
+    this.onFocusTile,
     this.callDock,
     this.participantMenuItemsBuilder,
     this.onSelectTap,
@@ -250,6 +252,10 @@ class CanvasPaneBody extends StatefulWidget {
   /// deliberately stays.
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
+
+  /// The call tile shown full pane under the ink, and the way to change it.
+  final String? focusedTileKey;
+  final ValueChanged<String?>? onFocusTile;
 
   /// Non-null exactly when this device is connected to a call in this
   /// channel right now - `canvas_pane.dart`'s own `callDockDataFor` decides.
@@ -436,6 +442,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
         onEditNote: widget.onEditNote,
         onRecenter: widget.onRecenter,
         onBringIntoBoard: widget.onBringIntoBoard,
+        onFocusTile: widget.onFocusTile,
         participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
         cameraViewFor: widget.cameraViewFor,
         screenShareViewFor: widget.screenShareViewFor,
@@ -459,6 +466,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
       tokens: tokens,
       menuRequests: _menuRequests,
       presenceFrames: _presenceFrames,
+      focusedTileKey: widget.focusedTileKey,
     ),
   );
 }
