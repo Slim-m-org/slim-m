@@ -184,6 +184,50 @@ Cell: speech level change dB / hum floor change dB / onsets clipped of total (me
 - Suppression keeps speech level: yes.
 - Onset clipping: not fine for real voices; the piper figure understates it by a factor of two to five.
 
+## Follow-up questions (2026-10-20)
+
+### Is onset clipping new in batch 15?
+
+No.
+Desktop client built from origin/main, same voices, same harness, clean network, one 60 s recording per cell (clipped onsets of total, mean ms lost):
+
+| voice | main Standard gate off | batch 15 Standard gate off | main Strong gate off | batch 15 Strong gate off |
+|---|---|---|---|---|
+| high female | 11 of 11 (71) | 6 of 11 (51) | 9 of 10 (54) | 5 of 9 (38) |
+| Scottish female | 7 of 12 (45) | 4 of 12 (40) | 3 of 12 (24) | 2 of 11 (18) |
+| low male | 5 of 11 (28) | 5 of 10 (21) | 3 of 11 (12) | 4 of 10 (16) |
+| whisper | 2 of 7 (16) | 0 of 7 (10) | 0 of 6 (8) | 4 of 6 (43) |
+
+- Main is as bad or worse for three voices; only the whisper under Strong is worse on batch 15 (4 of 6 against 0 of 6), and that is one recording per cell.
+- Not the onset detector: run on the sent mix against itself it finds 0 clipped onsets for piper, high female, Scottish female and whisper.
+- The measure compares the received level with the clip's own level frame by frame, and the gaps in the sent audio are digital silence, so room tone and breaths in the sources do not enter it.
+- The clipping appears with Standard and the gate off, so it comes from the capture and compressor chain, not from Strong or the gate.
+- I did not run a no-processing loopback of the desktop client; the harness has no such arm.
+
+### Is the hum floor measurement landing on the clips' own room tone?
+
+No.
+- The hum window is made of frames where the sent mix is only the fan: the gaps are inserted digital silence, so the sent level is -38.5 dB for every voice and the clips' own noise floor is not in it.
+- The leak is real and intermittent in time: with Strong and the gate off, the received gap level per 10 s was -49, -55, -83, -57, -46, -66, -117 dB for the low male and -39, -37, -41, then -117 dB for the high female, against -93 then -117 dB for piper.
+- On origin/main Strong with the gate off removed -13 dB (high female), -2 (Scottish female), -1 (low male) and -0.3 (whisper) of hum, so it is not new in batch 15 either.
+- Why Strong switches on late or only part of the time is not found.
+
+### Is the burst-profile regression the RED bandwidth?
+
+Probably not.
+Shipped build, burst profile, Opus capped at 32 kbps (received 44 kbps with RED), one run, mean per run for the other columns:
+
+| clip type | dropouts today / shipped / shipped at 32k | ViSQOL today / shipped / shipped at 32k |
+|---|---|---|
+| laughter | 0.0 / 2.0 / 1.0 | 4.00 / 3.28 / 2.81 |
+| loud oratory | 4.0 / 8.0 / 4.0 | 3.97 / 3.74 / 3.76 |
+| speech over music | 3.0 / 5.5 / 9.0 | 4.07 / 3.83 / 3.53 |
+| 90 s monologue | 5.0 / 13.5 / 11.0 | 4.36 / 4.25 / 3.62 |
+
+- Cutting the bandwidth by half does not bring the dropouts back to today's level for three of the four, and lowers ViSQOL on music and the monologue, which is the cost of the cap itself.
+- Only loud oratory returns to today's dropout count, which one run cannot separate from noise.
+- So the extra dropouts are not explained by RED's bandwidth; they look tied to RED and DTX-off handling of long loss runs, which this check does not narrow down.
+
 ## Unverified
 
 - One or two runs per cell, one host, netem on the SFU egress only.
