@@ -94,9 +94,7 @@ class _Harness {
         sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
         storeProvider.overrideWith((ref) async => store),
         markUnreadClockProvider.overrideWithValue(() => _now),
-        channelLatestMessageAtProvider.overrideWith(
-          (ref, id) => Stream.value(newest),
-        ),
+        channelLatestMessageAtProvider.overrideWith((ref, id) async => newest),
         // Without this the roster watchers pull in the real SyncController and its retry timer.
         liveEventsProvider.overrideWithValue(const Stream.empty()),
         preferencesProvider.overrideWith(

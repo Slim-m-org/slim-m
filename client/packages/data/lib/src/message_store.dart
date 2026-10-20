@@ -3,6 +3,7 @@
 library;
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:slimm_api/api.dart' as api;
 
 import 'database.dart';

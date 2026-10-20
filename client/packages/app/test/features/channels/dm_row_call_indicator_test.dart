@@ -14,7 +14,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -51,10 +50,6 @@ ProviderContainer _container({required List<Map<String, String>> roster}) {
   final db = SlimmDatabase(NativeDatabase.memory());
   return ProviderContainer(
     overrides: [
-      // A live drift stream per row leaves its cleanup timer pending past the test.
-      channelLatestMessageAtProvider.overrideWith(
-        (ref, id) => Stream.value(null),
-      ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
@@ -112,6 +107,7 @@ void main() {
 
     expect(find.byIcon(AppIcons.startCall), findsNothing);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -142,6 +138,7 @@ void main() {
         reason: 'tapping a row with a call in progress must open into it',
       );
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -161,6 +158,7 @@ void main() {
       expect(find.text('channel:dm-1'), findsOneWidget);
       expect(container.read(dmCallOpenProvider), isNull);
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }

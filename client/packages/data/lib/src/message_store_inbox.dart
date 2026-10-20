@@ -12,15 +12,22 @@ extension MessageStoreInbox on MessageStore {
     return row?.toDto();
   }
 
-  /// When [channelId]'s newest delivered message was sent, or null for none;
-  /// read off the messages themselves because a rail row's cursor lags while a
-  /// channel stays unread.
-  Stream<int?> watchNewestMessageAt(String channelId) {
-    final query = db.select(db.messages)
-      ..where((m) => m.channelId.equals(channelId))
-      ..orderBy([(m) => OrderingTerm.desc(m.seq)])
-      ..limit(1);
-    return query.watchSingleOrNull().map((row) => row?.createdAt).distinct();
+  /// Every channel's newest held seq, by id, read off the small channels table
+  /// so a consumer never queries the transcript per channel. Emits only when a
+  /// cursor actually moves, not on every other write to a channel row.
+  Stream<Map<String, int>> watchChannelCursors() {
+    final channels = db.channels;
+    final query = db.selectOnly(channels)
+      ..addColumns([channels.id, channels.cursor]);
+    return query
+        .watch()
+        .map(
+          (rows) => {
+            for (final row in rows)
+              row.read(channels.id)!: row.read(channels.cursor)!,
+          },
+        )
+        .distinct(mapEquals);
   }
 
   /// For each channel, the message the inbox shows: the one at its mention

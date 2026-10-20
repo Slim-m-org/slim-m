@@ -14,7 +14,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/channels/providers/channel_latest_message_at.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/channel_notification_overrides_controller.dart';
 import 'package:slimm_app/src/features/channels/providers/dms.dart';
@@ -61,10 +60,6 @@ ProviderContainer _container({
   final db = SlimmDatabase(NativeDatabase.memory());
   return ProviderContainer(
     overrides: [
-      // A live drift stream per row leaves its cleanup timer pending past the test.
-      channelLatestMessageAtProvider.overrideWith(
-        (ref, id) => Stream.value(null),
-      ),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       // Without this, DmRow's voiceRosterProvider pulls in the real SyncController.
@@ -150,6 +145,7 @@ void main() {
       expect(find.text('Unblock'), findsNothing);
       // Explicit: addTearDown runs after flutter_test's own pending-timer check.
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -188,6 +184,7 @@ void main() {
     expect(hideRequest, '/dms/user-priya');
     expect(await store.channelRow('dm-1'), isNull);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping Mute sets the channel override to nothing', (
@@ -211,6 +208,7 @@ void main() {
       api.NotificationPreference.nothing,
     );
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the already-selected Mute again clears the override', (
@@ -238,6 +236,7 @@ void main() {
       reason: 'tapping an already-active toggle is this menu\'s undo',
     );
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('an already-blocked peer offers Unblock, not Block again', (
@@ -258,6 +257,7 @@ void main() {
     expect(find.text('Unblock'), findsOneWidget);
     expect(find.text('Block'), findsNothing);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('Open still reaches the channel route from the menu', (
@@ -276,5 +276,6 @@ void main() {
 
     expect(find.text('channel:dm-1'), findsOneWidget);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

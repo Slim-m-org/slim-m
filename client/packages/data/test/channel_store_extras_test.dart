@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A removed channel takes its personal canvas layout with it, and the newest
-/// message time follows the transcript rather than a lagging cursor.
+/// A removed channel takes its personal canvas layout with it, and the cursor
+/// watch emits only when a cursor moves.
 library;
 
 import 'package:drift/native.dart';
@@ -53,14 +53,27 @@ void main() {
     expect(await layouts.load('c1'), isNull);
   });
 
-  test('the newest message time tracks the transcript', () async {
-    final seen = <int?>[];
-    final sub = store.watchNewestMessageAt('c1').listen(seen.add);
+  test('the channel cursors follow each message and stay quiet otherwise',
+      () async {
+    await store.upsertChannels([
+      for (final id in ['c1', 'c2'])
+        api.Channel(id: id, name: id, kind: 'text', createdAt: 1),
+    ]);
+    final seen = <Map<String, int>>[];
+    final sub = store.watchChannelCursors().listen(seen.add);
     addTearDown(sub.cancel);
+    await pumpEventQueue();
+    expect(seen.last, {'c1': 0, 'c2': 0});
+
     await store.applyMessage(_message('m1', 1, 100));
     await store.applyMessage(_message('m2', 2, 200));
     await pumpEventQueue();
-    expect(seen.last, 200);
-    expect(seen.toSet(), containsAll(<int?>[200]));
+    expect(seen.last, {'c1': 2, 'c2': 0});
+
+    final emitted = seen.length;
+    await store.setReadMarker('c1', 2);
+    await store.setOpCursor('c1', 5);
+    await pumpEventQueue();
+    expect(seen, hasLength(emitted), reason: 'no cursor moved');
   });
 }
