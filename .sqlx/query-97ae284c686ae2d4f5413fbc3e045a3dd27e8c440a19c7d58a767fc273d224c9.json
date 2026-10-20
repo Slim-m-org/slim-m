@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT is_bot, is_webhook FROM users WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "is_bot",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "is_webhook",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "97ae284c686ae2d4f5413fbc3e045a3dd27e8c440a19c7d58a767fc273d224c9"
+}

@@ -80,6 +80,9 @@ class _Rig {
 
   /// Channels this account can read but not post in.
   Set<String> readOnly = const {};
+
+  /// Author ids `GET /users` reports as `bot` or `webhook`.
+  Map<String, String> automated = const {};
   int permissionRequests = 0;
   final threadParentRequests = <String>[];
 
@@ -175,6 +178,20 @@ class _Rig {
       permissionRequests++;
       final id = path.split('/')[2];
       return _json({'permissions': readOnly.contains(id) ? 2 : 6});
+    }
+    if (path == '/users') {
+      final ids = request.url.queryParameters['ids']!.split(',');
+      return _json([
+        for (final id in ids)
+          {
+            'id': id,
+            'username': id,
+            'display_name': id,
+            'created_at': 0,
+            if (automated[id] == 'bot') 'is_bot': true,
+            if (automated[id] == 'webhook') 'is_webhook': true,
+          },
+      ]);
     }
     if (path == '/channels/thread-1/thread-parent') {
       threadParentRequests.add(path);
@@ -495,6 +512,51 @@ void main() {
       await _alerts(rig, _message('dm-1', 'hello'));
 
       expect(rig.permissionRequests, 0);
+    });
+  });
+
+  group('a post by a bot or webhook', () {
+    test('an everything default reads as mentions', () async {
+      await wire(_Rig()..automated = {'feedbot': 'bot'});
+
+      final plain = _message('group-1', 'new article', authorId: 'feedbot');
+      final mention = _message('group-1', 'hi @nick', authorId: 'feedbot');
+      expect(await _alerts(rig, plain), isFalse);
+      expect(await _alerts(rig, mention), isTrue);
+    });
+
+    test('a webhook is treated the same way', () async {
+      await wire(_Rig()..automated = {'hook': 'webhook'});
+
+      expect(
+        await _alerts(rig, _message('group-1', 'built', authorId: 'hook')),
+        isFalse,
+      );
+    });
+
+    test('a person still alerts on the default', () async {
+      await wire(_Rig());
+
+      expect(await _alerts(rig, _message('group-1', 'hi')), isTrue);
+    });
+
+    test('an override for the channel still gets every post', () async {
+      await wire(
+        _Rig(overrides: {'group-1': 'everything'})
+          ..automated = {'feedbot': 'bot'},
+      );
+
+      final plain = _message('group-1', 'new article', authorId: 'feedbot');
+      expect(await _alerts(rig, plain), isTrue);
+    });
+
+    test('a bot direct message still alerts', () async {
+      await wire(_Rig()..automated = {'feedbot': 'bot'});
+
+      expect(
+        await _alerts(rig, _message('dm-1', 'hello', authorId: 'feedbot')),
+        isTrue,
+      );
     });
   });
 }
