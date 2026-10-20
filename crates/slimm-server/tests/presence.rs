@@ -229,13 +229,10 @@ async fn presence_flips_to_offline_when_the_last_socket_closes() {
     let offline = next_presence_for(&mut bob_ws, &alice_id_str).await;
     assert_eq!(offline["status"], "offline");
 
-    // Give the server a moment to finish the disconnect bookkeeping the
-    // dropped socket triggered, then confirm REST agrees too.
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert_eq!(
-        presence_status(&state, &bob_access, &alice_id_str).await,
-        "offline"
-    );
+    support::wait::wait_until_async("REST to agree alice is offline", || async {
+        presence_status(&state, &bob_access, &alice_id_str).await == "offline"
+    })
+    .await;
 }
 
 /// One `GET /presence` request naming a hidden user, a plainly visible one,

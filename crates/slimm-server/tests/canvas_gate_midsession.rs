@@ -180,6 +180,7 @@ async fn a_timeout_that_ends_mid_session_lets_ink_through_again() {
     ink(&mut w).await;
     assert!(!arrived(&mut w.alice, "canvas.stroke_preview.updated", QUIET).await);
 
+    // The timeout ends on the wall clock, so the behaviour under test is the waiting.
     tokio::time::sleep(Duration::from_millis(1_500)).await;
     ink(&mut w).await;
     assert!(arrived(&mut w.alice, "canvas.stroke_preview.updated", SEEN).await);

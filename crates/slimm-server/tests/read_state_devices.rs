@@ -125,16 +125,6 @@ async fn send(state: &AppState, token: &str, channel: ChannelId) -> Value {
     serde_json::from_slice(&bytes).unwrap()
 }
 
-async fn wait_until(mut condition: impl FnMut() -> bool) {
-    for _ in 0..100 {
-        if condition() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    panic!("condition never held");
-}
-
 #[tokio::test]
 async fn a_read_on_one_device_reaches_the_same_accounts_other_device_only() {
     let (store, _guard) = support::new_store("slimm-read-state-devices").await;
@@ -278,17 +268,29 @@ async fn a_viewing_frame_is_recorded_and_forgotten_when_the_socket_closes() {
     let open = json!({ "type": "viewing", "channel_ids": [channel.id.to_string(), "not-a-uuid"] });
 
     ws.send(WsMessage::Text(open.to_string())).await.unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     let close = json!({ "type": "viewing", "channel_ids": [] });
     ws.send(WsMessage::Text(close.to_string())).await.unwrap();
-    wait_until(|| !viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("alice to stop viewing", || {
+        !viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     ws.send(WsMessage::Text(open.to_string())).await.unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
     ws.close(None).await.unwrap();
     drop(ws);
-    wait_until(|| !viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("alice to stop viewing", || {
+        !viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 }
 
 async fn report_lifecycle(state: &AppState, token: &str, label: &str) {
@@ -322,7 +324,10 @@ async fn a_device_that_reports_background_stops_being_counted_as_viewing() {
         .send(WsMessage::Text(open.to_string()))
         .await
         .unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     report_lifecycle(&state, &phone_token, "foreground").await;
     assert!(viewing.is_viewing(alice, channel.id));
@@ -357,7 +362,7 @@ async fn a_device_that_reports_background_stops_marking_the_account_active() {
         .send(WsMessage::Text(active.to_string()))
         .await
         .unwrap();
-    wait_until(|| {
+    support::wait::wait_until("both devices to count as active", || {
         viewing
             .active_devices_at(alice, std::time::Instant::now())
             .len()

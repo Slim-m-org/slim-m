@@ -256,14 +256,8 @@ async fn a_far_smaller_preview_keeps_the_picture_s_shape_and_brightness() {
 async fn an_upload_is_previewed_at_every_size_before_anyone_asks() {
     let r = ready("fresh.jpg", jpeg(&photo(2000, 1500), 92)).await;
 
-    let mut stored = 0;
-    for _ in 0..250 {
-        stored = r.media.previews().files().await.unwrap().len();
-        if stored == 3 {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-
-    assert_eq!(stored, 3, "one preview file per size bucket");
+    crate::support::wait::wait_until_async("one preview file per size bucket", || async {
+        r.media.previews().files().await.unwrap().len() == 3
+    })
+    .await;
 }
