@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A join leaves one debug-log line of stage timings, and a token warmed on
-/// hover is the one the join uses.
+/// A join leaves one debug-log line of stage timings and asks for its own token.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/voice/providers/join_timings_provider.dart';
-import 'package:slimm_app/src/features/voice/providers/voice_token_prefetch.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
@@ -47,17 +45,7 @@ void main() {
     expect(logged.single.source, 'voice');
   });
 
-  test('a token warmed before the click is the one the join uses', () async {
-    final controller = harness.controllerWith(FakeSession(), api());
-    harness.container.read(voiceTokenPrefetchProvider).prefetch('channel-1');
-    await pumpEventQueue();
-
-    await controller.join('channel-1');
-
-    expect(tokenRequests, hasLength(1));
-  });
-
-  test('without a warm token the join asks for its own', () async {
+  test('every join asks for its own token', () async {
     final controller = harness.controllerWith(FakeSession(), api());
 
     await controller.join('channel-1');

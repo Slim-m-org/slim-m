@@ -29,7 +29,6 @@ import 'voice_deafen_publish.dart';
 import 'voice_camera_preference.dart';
 import 'join_timings_provider.dart';
 import 'voice_join_muted.dart';
-import 'voice_token_prefetch.dart';
 import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
 import 'volume_drag_throttle.dart';
@@ -285,7 +284,7 @@ class VoiceController extends StateNotifier<VoiceState>
   ) async {
     final timings = _ref.read(joinTimingsProvider)
       ..mark(JoinStage.tokenRequested);
-    final token = await _ref.read(voiceTokenPrefetchProvider).claim(channelId);
+    final token = await _ref.read(apiProvider).voiceToken(channelId);
     timings.mark(JoinStage.tokenReceived);
     final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
     if (superseded()) return;

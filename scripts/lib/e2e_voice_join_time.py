@@ -76,7 +76,7 @@ def _row_point(client, channel, timeout=60):
 
 def _join_once(client, channel):
     x, y = _row_point(client, channel)
-    # A dwell before the click, as a real pointer has; it is what a prefetch rides on.
+    # A dwell before the click, as a real pointer has.
     client.hover(x, y, settle=0.6)
     client.ev("window.__joinMarks.arm()")
     client.tap(x, y)

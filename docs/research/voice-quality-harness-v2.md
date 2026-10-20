@@ -215,3 +215,12 @@ Noise events in the gaps, from the same runs, `typing` and `bark` in dB change (
 - The recovery after a cut is one observation per build.
 - The server was the same for both sides, so nothing here says anything about server changes in `feat/batch15`.
 - DNSMOS and ViSQOL were run on TTS speech, not on people.
+
+## Join token prefetch (removed)
+
+An earlier branch minted the voice token on hover and held it for 30 seconds.
+It was removed before it shipped, and the join asks for its token at click time again.
+The cache was keyed by channel only and outlived a sign-out on a shared device, so the next account could be handed the previous account's token.
+A prefetched token also skipped the server's room lock and user limit checks for up to 30 seconds, because those run only when a token is minted.
+The saving was never measured, so it did not justify either cost.
+The join timing marks (`tokenRequested`, `tokenReceived`) stay and show the round trip.
