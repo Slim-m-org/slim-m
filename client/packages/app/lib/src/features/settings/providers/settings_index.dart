@@ -384,7 +384,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['cache', 'disk', 'clear'],
   ),
   SettingsEntry(
-    'general',
+    'notifications',
     'Start on login',
     description: 'Opens slim-m in the tray when you sign in.',
     keywords: ['autostart', 'startup', 'boot', 'tray'],
@@ -392,15 +392,10 @@ const personalSettingsIndex = <SettingsEntry>[
     available: _desktop,
   ),
   SettingsEntry(
-    'general',
+    'appearance',
     'Startup splash',
-    description: 'The shortest time the splash stays up at startup.',
-    available: _desktop,
-  ),
-  SettingsEntry(
-    'general',
-    'Startup',
-    keywords: ['autostart'],
+    description: 'How long the splash shows when the app opens.',
+    keywords: ['startup', 'launch', 'loading'],
     available: _desktop,
   ),
   SettingsEntry(
