@@ -14,6 +14,10 @@ import voice_quality_dsp as dsp
 SEGMENT = 2 * dsp.ANALYSIS_RATE
 # Wide enough for a concealment insertion, narrow enough to avoid pitch-period ambiguity.
 TRACK_RADIUS_MS = 25
+# A step this large is a rejoin or a stall, not jitter; beyond it the segment is reported as lost.
+REACQUIRE_RADIUS_MS = 300
+# Cosine between a segment and its aligned reference below which the delay is not trusted.
+LOCK_MIN_COSINE = 0.3
 COARSE_DECIMATION = 4
 # Segments quieter than this, in the recording or where the reference says they should be, carry the previous delay forward.
 MIN_ALIGN_DB = -50.0
@@ -53,10 +57,11 @@ def _box(values, step):
 
 
 def _best_near(rec_part, tiled, center, radius, step):
-    """The lag within `radius` of `center`, on a `step` grid, where the ref matches best."""
+    """`(lag, cosine)`: the lag within `radius` of `center`, on a `step` grid, where the ref matches best."""
     low = max(0, center - radius)
     small = _box(rec_part, step)
     span = _box(tiled[low:low + 2 * radius + len(rec_part) + step], step)
+    own = math.sqrt(sum(map(mul, small, small)) or 1e-12)
     best, best_score = low, -math.inf
     for j in range((center + radius - low) // step + 1):
         window = span[j:j + len(small)]
@@ -66,15 +71,33 @@ def _best_near(rec_part, tiled, center, radius, step):
         score = sum(map(mul, small, window)) / energy
         if score > best_score:
             best, best_score = low + j * step, score
-    return best
+    return best, max(best_score, 0.0) / own
 
 
-def track(ref, rec):
-    """`(starts, lags)`: the delay into the looping ref for each 2 s segment of rec."""
+def _edge_pinned(lag, center, radius, step):
+    return abs(lag - center) >= radius - step
+
+
+def _follow(part, tiled, start, lag, radius):
+    """`(lag, cosine, pinned)` for one segment, searching `radius` around the previous lag."""
+    guess, _ = _best_near(part, tiled, lag + start, radius, COARSE_DECIMATION)
+    pinned = _edge_pinned(guess, lag + start, radius, COARSE_DECIMATION)
+    fine, score = _best_near(part, tiled, guess, COARSE_DECIMATION, 1)
+    return fine - start, score, pinned
+
+
+def track_locked(ref, rec):
+    """`(starts, lags, locked)`: the delay per 2 s segment and whether the tracker trusts it.
+
+    A segment whose waveform barely matches the reference, or whose best lag sits at
+    the edge of the search window, is searched again over a much wider range; if that
+    still fails the previous delay is carried forward and the segment is marked lost.
+    """
     tiled = _tile(ref, len(rec) + abs(len(ref)))
     lag = coarse_lag(ref, rec)
     radius = TRACK_RADIUS_MS * dsp.ANALYSIS_RATE // 1000
-    starts, lags = [], []
+    wide = REACQUIRE_RADIUS_MS * dsp.ANALYSIS_RATE // 1000
+    starts, lags, locked = [], [], []
     first = True
     for start in range(0, len(rec), SEGMENT):
         part = rec[start:start + SEGMENT]
@@ -84,14 +107,34 @@ def track(ref, rec):
         reference = tiled[start + lag:start + lag + SEGMENT]
         if dsp.rms_db(part) < MIN_ALIGN_DB or dsp.rms_db(reference) < MIN_ALIGN_DB:
             lags.append(lag)
+            locked.append(True)
             continue
-        wide = radius * 3 if first else radius
+        found, score, pinned = _follow(part, tiled, start, lag, radius * 3 if first else radius)
         first = False
-        guess = _best_near(part, tiled, lag + start, wide, COARSE_DECIMATION) - start
-        fine = _best_near(part, tiled, guess + start, COARSE_DECIMATION, 1) - start
-        lag = fine
+        ok = score >= LOCK_MIN_COSINE and not pinned
+        if not ok:
+            found, score, _ = _follow(part, tiled, start, lag, wide)
+            ok = score >= LOCK_MIN_COSINE
+        if ok:
+            lag = found
         lags.append(lag)
+        locked.append(ok)
+    return starts, lags, locked
+
+
+def track(ref, rec):
+    """`(starts, lags)`: the delay into the looping ref for each 2 s segment of rec."""
+    starts, lags, _ = track_locked(ref, rec)
     return starts, lags
+
+
+def lost_spans(starts, locked, rec_length):
+    """`(first, last)` sample spans of the segments the tracker lost."""
+    spans = []
+    for i, (start, ok) in enumerate(zip(starts, locked)):
+        if not ok:
+            spans.append((start, starts[i + 1] if i + 1 < len(starts) else rec_length))
+    return spans
 
 
 def expected_signal(ref, rec_length, starts, lags):

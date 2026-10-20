@@ -68,12 +68,12 @@ class InjectedArtefactTest(unittest.TestCase):
         rng = random.Random(3)
 
         def burst(rec):
-            at = int(0.2 * RATE)
-            for i in range(at, at + int(0.25 * RATE)):
+            # The clip is digitally silent from 1.96 s to 2.23 s, which lands at 0.59 s in the recording.
+            at = int(0.62 * RATE)
+            for i in range(at, at + int(0.2 * RATE)):
                 rec[i] += rng.uniform(-0.05, 0.05)
         report = self._inject(burst)
-        # The silence gap sits where the looped clip's own first second lands.
-        self.assertTrue([e for e in report["events"] if e["class"] == "static"],
+        self.assertTrue(_span("static", report["events"], 0.62, tolerance=0.3),
                         report["events"])
 
     def test_a_steady_tone_not_in_the_reference_is_found_with_its_pitch(self):
@@ -106,6 +106,29 @@ class InjectedArtefactTest(unittest.TestCase):
         shifted = rec[:int(8 * RATE)] + rec[int(8 * RATE) - 480:-480]
         report = vq.analyze(self.ref, RATE, shifted, RATE)
         self.assertGreaterEqual(report["timing"]["max_step_ms"], 20.0)
+
+    def test_a_large_delay_step_is_followed_not_clamped(self):
+        rec = _received(self.ref)
+        cut = int(6 * RATE)
+        step = int(0.1 * RATE)
+        shifted = rec[:cut] + rec[cut - step:-step]
+        report = vq.analyze(self.ref, RATE, shifted, RATE)
+        self.assertAlmostEqual(report["timing"]["max_step_ms"], 100.0, delta=10.0)
+        self.assertEqual(report["timing"]["lost_s"], 0.0)
+        self.assertEqual(report["counts"].get("dropout", 0), 0, report["events"])
+        self.assertEqual(report["counts"].get("level_burst", 0), 0, report["events"])
+
+    def test_a_stretch_that_matches_nothing_is_reported_lost_not_counted(self):
+        rng = random.Random(5)
+        rec = _received(self.ref)
+        for i in range(int(6 * RATE), int(10 * RATE)):
+            rec[i] = rng.uniform(-0.3, 0.3)
+        report = vq.analyze(self.ref, RATE, rec, RATE)
+        self.assertGreaterEqual(report["timing"]["lost_s"], 2.0)
+        lost_from, lost_to = 6.0, 10.0
+        inside = [e for e in report["events"]
+                  if e["class"] != "clipping" and lost_from <= e["t"] < lost_to]
+        self.assertEqual(inside, [])
 
 
 class DetectorHelpersTest(unittest.TestCase):
