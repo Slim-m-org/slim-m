@@ -280,4 +280,79 @@ void main() {
       expect(lines.where((l) => l.contains('call summary')), isNotEmpty);
     });
   });
+
+  group('a stream that leaves and returns', () {
+    test('a departed stream does not come back flagged poor', () {
+      final health = VoiceHealth();
+      _feed(health, [0.1, 0.1]);
+      expect(health.poorConnections.value, {'ann'});
+
+      health.retain({});
+      expect(health.poorConnections.value, isEmpty);
+      health.retain({'ann'});
+      _ticks(health, 'ann', 'Ann');
+      health.retain({'ann'});
+      expect(health.poorConnections.value, isEmpty);
+    });
+
+    test('a muted stream leaves no stale minute line', () {
+      var now = DateTime(2026);
+      final health = VoiceHealth(clock: () => now);
+      _feed(health, [0.1, 0.1]);
+      health.takeMinuteLine();
+      health.skip('ann');
+      now = now.add(const Duration(seconds: 61));
+      expect(health.takeMinuteLine(), isNull);
+    });
+
+    test('two people with one name both reach the summary', () {
+      final health = VoiceHealth();
+      _ticks(health, 'a', 'Ann');
+      _ticks(health, 'b', 'Ann');
+      health.finish();
+      expect(health.lastCall.value!.peers, hasLength(2));
+    });
+
+    test('a call nobody joined keeps the last real summary', () {
+      final health = VoiceHealth();
+      _ticks(health, 'a', 'Ann');
+      health.finish();
+      final first = health.lastCall.value;
+      health.observeLocal('me', const AudioSendSample(timestampMs: 0));
+      health.observeLocal(
+        'me',
+        const AudioSendSample(timestampMs: 10000, packetsSent: 500),
+      );
+      health.finish();
+      expect(health.lastCall.value, same(first));
+    });
+  });
+
+  test('a run just under the sampling interval still counts', () {
+    final gate = QualityGate();
+    expect(gate.update(seconds: 4.9, bad: true, clear: false), isTrue);
+    expect(gate.update(seconds: 9.9, bad: false, clear: true), isTrue);
+  });
+
+  test('the round trip is the selected pair, not the first succeeded one', () {
+    final sample = parseAudioReceive(const [
+      StatsEntry(type: 'inbound-rtp', id: 'i', values: {'kind': 'audio'}),
+      StatsEntry(type: 'transport', id: 't', values: {
+        'selectedCandidatePairId': 'used',
+      }),
+      StatsEntry(type: 'candidate-pair', id: 'idle', values: {
+        'state': 'succeeded',
+        'currentRoundTripTime': 0.9,
+      }),
+      StatsEntry(type: 'candidate-pair', id: 'used', values: {
+        'currentRoundTripTime': 0.03,
+      }),
+    ]);
+    expect(sample!.rttMs, closeTo(30, 1e-9));
+  });
+}
+
+void _ticks(VoiceHealth health, String id, String name, {int seconds = 10}) {
+  health.observeRemote(id, name, _remote(0));
+  health.observeRemote(id, name, _remote(seconds.toDouble()));
 }

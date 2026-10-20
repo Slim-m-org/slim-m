@@ -5,6 +5,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/audio_stats.dart';
 
 import 'support/session_fakes.dart';
 
@@ -35,4 +36,24 @@ void main() {
 
     expect(watch.running, isFalse);
   });
+
+  test('a join that replaces a live call ends the old call\'s health',
+      () async {
+    final session = instantSession(mic: CountingMic());
+    addTearDown(session.dispose);
+    await join(session);
+    session.health.observeRemote('ann', 'Ann', _reading(0));
+    session.health.observeRemote('ann', 'Ann', _reading(10));
+
+    await join(session);
+
+    expect(session.health.lastCall.value, isNotNull);
+    expect(session.health.hasData, isFalse);
+  });
 }
+
+AudioReceiveSample _reading(double seconds) => AudioReceiveSample(
+      totalSamples: seconds * 48000,
+      clockRate: 48000,
+      concealedSamples: 0,
+    );

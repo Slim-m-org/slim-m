@@ -292,6 +292,8 @@ class VoiceSession
     if (_room != null) await leave();
     // Claims the session past the leave above, whose own guard has run by now.
     _generation++;
+    // A leave this join superseded never reached idle, which is what ends the old call's health.
+    _glitchWatch.finish();
 
     _lastDisconnect = null;
     _setState(VoiceSessionState.connecting);
