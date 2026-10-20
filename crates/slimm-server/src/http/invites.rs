@@ -164,10 +164,31 @@ async fn invite_access(
     if permissions.contains(Permissions::CREATE_INVITE) {
         return Ok((InviteAccess::Permitted, permissions));
     }
+    let waiting = !matches!(
+        state.store.member_gate(user).await?,
+        crate::store::MemberGate::Member
+    );
+    if waiting {
+        return Err(ApiError::Forbidden);
+    }
     if state.store.members_can_invite().await? {
         return Ok((InviteAccess::MemberOnly, permissions));
     }
     Err(ApiError::Forbidden)
+}
+
+/// Whose invites a caller sees and revokes: everyone's only with both
+/// CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
+/// Your own stay manageable whatever the switch says, so turning it off never
+/// strands the codes you already made.
+async fn invite_scope(
+    state: &AppState,
+    user: crate::ids::UserId,
+) -> Result<Option<crate::ids::UserId>, ApiError> {
+    let permissions = state.store.base_permissions(user).await?;
+    let sees_all = permissions.contains(Permissions::CREATE_INVITE)
+        && permissions.contains(Permissions::MANAGE_ROLES);
+    Ok((!sees_all).then_some(user))
 }
 
 /// What a member without CREATE_INVITE gets when the request leaves it open,
@@ -176,6 +197,7 @@ const MEMBER_DEFAULT_USES: i64 = 1;
 const MEMBER_DEFAULT_TTL_MS: i64 = 24 * 60 * 60 * 1000;
 const MEMBER_MAX_USES: i64 = 10;
 const MEMBER_MAX_TTL_MS: i64 = 7 * MEMBER_DEFAULT_TTL_MS;
+const MEMBER_LIVE_INVITE_CAP: i64 = 20;
 
 /// Creates an invite. Requires CREATE_INVITE, or any membership while the
 /// space allows members to invite, in which case it is single-use and
@@ -186,6 +208,7 @@ async fn create(
     Json(req): Json<CreateRequest>,
 ) -> Result<Json<InviteDto>, ApiError> {
     let (access, _) = invite_access(&state, ctx.user_id).await?;
+    let member_only = matches!(access, InviteAccess::MemberOnly);
     if req.max_uses.is_some_and(|max| max < 1) {
         return Err(ApiError::BadRequest("max_uses must be at least 1"));
     }
@@ -215,10 +238,20 @@ async fn create(
         Some(raw) => Some(resolve_grant(&state, ctx.user_id, raw).await?),
     };
 
-    let invite = state
-        .store
-        .create_invite(ctx.user_id, role_grant, max_uses, expires_at)
-        .await?;
+    let invite = if member_only {
+        state
+            .store
+            .create_invite_capped(ctx.user_id, max_uses, expires_at, MEMBER_LIVE_INVITE_CAP)
+            .await?
+            .ok_or(ApiError::BadRequest(
+                "revoke an invite before making another",
+            ))?
+    } else {
+        state
+            .store
+            .create_invite(ctx.user_id, role_grant, max_uses, expires_at)
+            .await?
+    };
     Ok(Json(dto(invite, now_ms())))
 }
 
@@ -232,8 +265,7 @@ async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<InviteDto>>, ApiError> {
-    let (_, permissions) = invite_access(&state, ctx.user_id).await?;
-    let scope = (!permissions.contains(Permissions::MANAGE_ROLES)).then_some(ctx.user_id);
+    let scope = invite_scope(&state, ctx.user_id).await?;
     let now = now_ms();
     let invites = state.store.list_invites(scope).await?;
     Ok(Json(invites.into_iter().map(|i| dto(i, now)).collect()))
@@ -250,8 +282,7 @@ async fn revoke(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     let code = invite_code_key(&code);
-    let (_, permissions) = invite_access(&state, ctx.user_id).await?;
-    let scope = (!permissions.contains(Permissions::MANAGE_ROLES)).then_some(ctx.user_id);
+    let scope = invite_scope(&state, ctx.user_id).await?;
     if state.store.revoke_invite(&code, scope).await? {
         return Ok(StatusCode::NO_CONTENT);
     }

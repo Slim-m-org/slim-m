@@ -152,6 +152,49 @@ impl Store {
         })
     }
 
+    /// Creates a member-made invite unless `created_by` already holds `cap`
+    /// live ones; `None` means the cap was reached. One statement, so two
+    /// racing requests cannot both slip under the cap.
+    pub async fn create_invite_capped(
+        &self,
+        created_by: UserId,
+        max_uses: Option<i64>,
+        expires_at: Option<i64>,
+        cap: i64,
+    ) -> anyhow::Result<Option<Invite>> {
+        let code = generate_code();
+        let now = now_ms();
+        let inserted = sqlx::query!(
+            "INSERT INTO invites (code, created_by, max_uses, expires_at, created_at)
+             SELECT ?1, ?2, ?3, ?4, ?5
+             WHERE (SELECT COUNT(*) FROM invites
+                    WHERE created_by = ?2 AND revoked_at IS NULL
+                      AND (expires_at IS NULL OR expires_at > ?5)
+                      AND (max_uses IS NULL OR uses < max_uses)) < ?6",
+            code,
+            created_by,
+            max_uses,
+            expires_at,
+            now,
+            cap
+        )
+        .execute(&self.pool)
+        .await?;
+        if inserted.rows_affected() == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Invite {
+            code,
+            max_uses,
+            uses: 0,
+            expires_at,
+            created_at: now,
+            revoked: false,
+            role_grant: None,
+            created_by_name: None,
+        }))
+    }
+
     /// Invites, newest first. [`created_by`] scopes the answer to one
     /// account's own; `None` asks for every invite in the deployment.
     ///
