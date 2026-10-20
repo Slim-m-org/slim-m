@@ -6,9 +6,13 @@ library;
 
 import 'package:clock/clock.dart';
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/members/providers/presence_activity_reporter.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/platform.dart';
+
+import '../../support/fake_sync.dart';
 
 class _FakeIdle implements SystemIdle {
   Duration? idle;
@@ -18,13 +22,17 @@ class _FakeIdle implements SystemIdle {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late int sent;
   late bool inCall;
   late _FakeIdle systemIdle;
 
   PresenceActivityReporter reporter({SystemIdle? idle}) =>
       PresenceActivityReporter(
-        send: () => sent++,
+        send: () {
+          sent++;
+          return true;
+        },
         inCall: () => inCall,
         systemIdle: idle,
       )..start();
@@ -88,10 +96,73 @@ void main() {
 
   test('here() answers the hello after a wake from sleep', () {
     withClock(Clock.fixed(DateTime(2026, 10, 19)), () {
-      final r = PresenceActivityReporter(send: () {}, inCall: () => false);
+      final r = PresenceActivityReporter(send: () => true, inCall: () => false);
       expect(r.here(), isFalse);
       r.noteInput();
       expect(r.here(), isTrue);
     });
   });
+
+  test('a reconnect after minutes of reading still claims here', () {
+    fakeAsync((async) {
+      final r = PresenceActivityReporter(send: () => true, inCall: () => false);
+      r.noteInput();
+      async.elapse(const Duration(minutes: 5));
+      expect(r.here(), isFalse);
+      expect(r.hereAtHello(), isTrue);
+      async.elapse(const Duration(minutes: 5));
+      expect(r.hereAtHello(), isFalse);
+    }, initialTime: DateTime(2026, 10, 19));
+  });
+
+  test('a frame no live socket took does not use up the throttle', () {
+    var live = false;
+    var taken = 0;
+    final r = PresenceActivityReporter(
+      send: () {
+        if (live) taken++;
+        return live;
+      },
+      inCall: () => false,
+    );
+    r.noteInput();
+    live = true;
+    r.noteInput();
+    expect(taken, 1);
+  });
+
+  test('the provider wires the hello claim and the active frames', () async {
+    late _RecordingSync sync;
+    final container = ProviderContainer(
+      overrides: [
+        syncControllerProvider.overrideWith(
+          (ref) => sync = _RecordingSync(ref),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(presenceActivityReporterProvider);
+    expect(sync.activeAtHello, isNotNull);
+    expect(sync.activeAtHello!(), isFalse, reason: 'untouched');
+    container.read(presenceActivityReporterProvider).noteInput();
+    expect(sync.actives, 1);
+    expect(sync.activeAtHello!(), isTrue);
+    withClock(
+      Clock.fixed(clock.now().add(const Duration(minutes: 5))),
+      () => expect(sync.activeAtHello!(), isTrue, reason: 'inside the window'),
+    );
+    container.dispose();
+  });
+}
+
+class _RecordingSync extends NoopSyncController {
+  _RecordingSync(super.ref);
+
+  int actives = 0;
+
+  @override
+  bool notifyActive() {
+    actives++;
+    return true;
+  }
 }
