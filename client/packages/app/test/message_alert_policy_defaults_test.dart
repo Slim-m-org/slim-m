@@ -70,6 +70,36 @@ void main() {
       );
     });
 
+    test('a failed author lookup reads as a person and still alerts', () async {
+      await wire(
+        AlertRig()
+          ..automated = {'feedbot': 'bot'}
+          ..usersFail = true,
+      );
+      final plain = alertMessage('group-1', 'new article', authorId: 'feedbot');
+      expect(await alertsFor(rig, plain), isTrue);
+    });
+
+    test('a lookup that never answers falls open after its timeout', () async {
+      await wire(AlertRig()..usersHang = true);
+      final plain = alertMessage('group-1', 'new article', authorId: 'feedbot');
+      expect(await alertsFor(rig, plain), isTrue);
+    });
+
+    test(
+      'a webhook name alone marks a post automated, with no lookup',
+      () async {
+        await wire(AlertRig()..usersFail = true);
+        final plain = alertMessage(
+          'group-1',
+          'built',
+          authorId: 'feedbot',
+          webhookUsername: 'CI',
+        );
+        expect(await alertsFor(rig, plain), isFalse);
+      },
+    );
+
     test('a person still alerts on the default', () async {
       await wire(AlertRig());
 
