@@ -8,6 +8,7 @@ library;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart' show BottomSheet, Dialog;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,11 +43,15 @@ Rect? focusedRect() {
   return render.localToGlobal(Offset.zero) & render.size;
 }
 
-/// Whether keyboard focus sits in the route that is on top.
-bool focusIsInTopRoute() {
+/// Whether keyboard focus sits inside a dialog or bottom sheet.
+///
+/// Asked of the widget tree rather than of the route, because the shell opens
+/// its dialogs on the root navigator while the canvas lives in a nested one.
+bool focusIsInModal() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;
-  return ModalRoute.of(context)?.isCurrent ?? false;
+  return context.findAncestorWidgetOfExactType<Dialog>() != null ||
+      context.findAncestorWidgetOfExactType<BottomSheet>() != null;
 }
 
 Future<void> pressKey(

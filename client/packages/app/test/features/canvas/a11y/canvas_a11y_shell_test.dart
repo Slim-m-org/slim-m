@@ -107,4 +107,32 @@ void main() {
     );
     await teardown(tester, s.container, s.db);
   });
+
+  a11yTest('the Participants sheet takes keyboard focus in the real shell', (
+    tester,
+  ) async {
+    final s = await _openCanvasInShell(tester);
+    await runOverflowItem(tester, 'Participants');
+    expect(find.text('In this call'), findsOneWidget);
+
+    expect(
+      focusIsInModal(),
+      isTrue,
+      reason: 'focus is on "${focusedName(tester)}" behind the sheet',
+    );
+    await teardown(tester, s.container, s.db);
+  });
+
+  a11yTest('Escape closes the Participants sheet in the real shell', (
+    tester,
+  ) async {
+    final s = await _openCanvasInShell(tester);
+    await runOverflowItem(tester, 'Participants');
+
+    await pressKey(tester, LogicalKeyboardKey.escape);
+    await settle(tester);
+
+    expect(find.text('In this call'), findsNothing);
+    await teardown(tester, s.container, s.db);
+  });
 }

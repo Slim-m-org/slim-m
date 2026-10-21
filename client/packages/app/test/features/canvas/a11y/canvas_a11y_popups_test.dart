@@ -115,7 +115,7 @@ void main() {
       expect(find.text('In this call'), findsOneWidget);
 
       expect(
-        focusIsInTopRoute(),
+        focusIsInModal(),
         isTrue,
         reason:
             'focus is on "${focusedName(tester)}" behind the sheet, so the '
@@ -130,7 +130,7 @@ void main() {
       await runOverflowItem(tester, 'Participants');
       expect(find.text('In this call'), findsOneWidget);
 
-      expect(focusIsInTopRoute(), isTrue, reason: focusedName(tester));
+      expect(focusIsInModal(), isTrue, reason: focusedName(tester));
     });
 
     a11yTest('the clear confirmation takes keyboard focus', (tester) async {
@@ -139,7 +139,7 @@ void main() {
       expect(find.text('Clear this canvas?'), findsOneWidget);
 
       expect(
-        focusIsInTopRoute(),
+        focusIsInModal(),
         isTrue,
         reason:
             'focus is on "${focusedName(tester)}" behind a destructive '
