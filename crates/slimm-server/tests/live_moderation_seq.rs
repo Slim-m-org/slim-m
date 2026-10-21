@@ -3,23 +3,19 @@
 //! so a consumer that was offline can tell it missed some. See
 //! `hub::moderation_seq`.
 
-use std::time::Duration;
-
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, read_frame_skipping_presence_timed, serve};
 
 /// Creates a user and returns (rest access token, ws connect ticket, user id).
 async fn ticket_for(store: &Store, user: slimm_server::ids::UserId) -> String {
@@ -32,15 +28,6 @@ async fn ticket_for(store: &Store, user: slimm_server::ids::UserId) -> String {
     store.mint_ws_ticket(&ctx).await.unwrap().0
 }
 
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> (Client, Value) {
     let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
     ws.send(WsMessage::Text(
@@ -48,32 +35,9 @@ async fn connect(addr: std::net::SocketAddr, ticket: &str) -> (Client, Value) {
     ))
     .await
     .unwrap();
-    let ack = read_frame(&mut ws).await;
+    let ack = read_frame_skipping_presence_timed(&mut ws).await;
     assert_eq!(ack["type"], "hello");
     (ws, ack)
-}
-
-/// Reads the next text frame as JSON, skipping `presence.changed`: every
-/// connect in this file publishes one on the same shared hub these tests
-/// assert against, and it is real chatter no test here is checking.
-async fn read_frame(ws: &mut Client) -> Value {
-    tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            match ws.next().await {
-                Some(Ok(WsMessage::Text(text))) => {
-                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                    if frame["type"] == "presence.changed" {
-                        continue;
-                    }
-                    return frame;
-                }
-                Some(Ok(_)) => continue,
-                other => panic!("expected a text frame, got {other:?}"),
-            }
-        }
-    })
-    .await
-    .expect("timed out waiting for a frame")
 }
 
 fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
@@ -136,7 +100,7 @@ async fn a_reconnect_after_a_missed_moderation_event_sees_a_later_head() {
     );
 
     timeout(&state, &admin_token, victim.id).await;
-    let frame = read_frame(&mut ws).await;
+    let frame = read_frame_skipping_presence_timed(&mut ws).await;
     assert_eq!(frame["type"], "member.timeout");
     assert!(
         frame["seq"].as_u64().unwrap() > head,
@@ -197,7 +161,7 @@ async fn each_moderation_event_carries_an_increasing_seq() {
     ];
     for (kind, event) in events {
         state.hub.publish(event);
-        let frame = read_frame(&mut ws).await;
+        let frame = read_frame_skipping_presence_timed(&mut ws).await;
         assert_eq!(frame["type"], kind);
         let seq = frame["seq"]
             .as_u64()

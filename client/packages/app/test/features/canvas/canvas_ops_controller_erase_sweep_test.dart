@@ -5,10 +5,10 @@ library;
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import '../../support/canvas_ops_rig.dart';
 
 CanvasOpsController _ops(CanvasDocument document) {
   final api.SlimmApi client = testApi((request) async {
@@ -18,15 +18,7 @@ CanvasOpsController _ops(CanvasDocument document) {
     channelId: 'c1',
     client: client,
     document: document,
-    commits: CanvasCommitQueue(
-      client: client,
-      channelId: 'c1',
-      onPlaced: (_) {},
-      onFailed: (_, _) {},
-      onRemoved: (_) {},
-      onEraseOnConfirm: (_) async {},
-      timedOutUntil: () => null,
-    ),
+    commits: plainCommitQueue(client),
     onError: (_) {},
     isLocked: (_) => false,
   );

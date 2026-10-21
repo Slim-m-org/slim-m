@@ -10,27 +10,22 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
+use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
     Store, User,
 };
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
-use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
+use support::ws::{connect, read_frame_skipping_presence, serve, user_access_ticket};
 
 async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::new(name);
@@ -42,59 +37,6 @@ async fn new_store(name: &str) -> (Store, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool), guard)
-}
-
-/// Creates a user and returns (rest access token, ws connect ticket).
-async fn user_ticket(store: &Store, name: &str) -> (String, String) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (tokens.access_token, ticket)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// Reads the next text frame as JSON, skipping `presence.changed` - real,
-/// expected chatter from connecting these sockets, not what any test here
-/// checks. See `tests/ws.rs::read_frame`, which this mirrors.
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] == "presence.changed" {
-                    continue;
-                }
-                return frame;
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
 }
 
 fn post(uri: &str, token: &str, body: Value) -> Request<Body> {
@@ -176,7 +118,7 @@ async fn a_second_client_sees_the_launched_app_live() {
     grant_play(&store, &author).await;
     let author_tokens = store.open_session(author.id, "phone").await.unwrap();
 
-    let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
+    let (_watcher_access, watcher_ticket) = user_access_ticket(&store, "watcher").await;
 
     let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
@@ -198,7 +140,7 @@ async fn a_second_client_sees_the_launched_app_live() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let frame = read_frame(&mut watcher_ws).await;
+    let frame = read_frame_skipping_presence(&mut watcher_ws).await;
     assert_eq!(frame["type"], "message.created");
     assert_eq!(frame["message"]["app_surface"]["module_id"], "widget");
     assert_eq!(frame["message"]["app_surface"]["command"], "surf");
@@ -223,7 +165,7 @@ async fn a_second_client_sees_a_poll_live() {
     let author = store.create_user("nia", "Nia").await.unwrap();
     let author_tokens = store.open_session(author.id, "phone").await.unwrap();
 
-    let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
+    let (_watcher_access, watcher_ticket) = user_access_ticket(&store, "watcher").await;
 
     let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
@@ -244,7 +186,7 @@ async fn a_second_client_sees_a_poll_live() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let frame = read_frame(&mut watcher_ws).await;
+    let frame = read_frame_skipping_presence(&mut watcher_ws).await;
     assert_eq!(frame["type"], "message.created");
     assert_eq!(frame["message"]["poll"]["question"], "cats or dogs");
     assert_eq!(
@@ -271,8 +213,8 @@ async fn an_ordinary_message_carries_no_app_or_poll_live() {
         .unwrap();
     let channel = store.create_channel("general", "text").await.unwrap();
 
-    let (author_access, _author_ticket) = user_ticket(&store, "alice").await;
-    let (_watcher_access, watcher_ticket) = user_ticket(&store, "watcher").await;
+    let (author_access, _author_ticket) = user_access_ticket(&store, "alice").await;
+    let (_watcher_access, watcher_ticket) = user_access_ticket(&store, "watcher").await;
 
     let state = support::app::state(store.clone());
     let addr = serve(state.clone()).await;
@@ -289,7 +231,7 @@ async fn an_ordinary_message_carries_no_app_or_poll_live() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let frame = read_frame(&mut watcher_ws).await;
+    let frame = read_frame_skipping_presence(&mut watcher_ws).await;
     assert_eq!(frame["type"], "message.created");
     assert_eq!(frame["message"]["app_surface"], Value::Null);
     assert_eq!(frame["message"]["poll"], Value::Null);
@@ -317,14 +259,14 @@ async fn a_live_frame_carries_the_attachment_the_message_was_sent_with() {
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = support::app::state(store.clone());
 
-    let (alice_access, _alice_ticket) = user_ticket(&store, "alice").await;
+    let (alice_access, _alice_ticket) = user_access_ticket(&store, "alice").await;
     let alice_id = store
         .authenticate(&alice_access)
         .await
         .unwrap()
         .unwrap()
         .user_id;
-    let (_bob_access, bob_ticket) = user_ticket(&store, "bob").await;
+    let (_bob_access, bob_ticket) = user_access_ticket(&store, "bob").await;
 
     // Stored directly, since the fan-out is under test; the id is a sha256 and a short one is refused.
     let bytes = [0x11u8; 32];
@@ -358,7 +300,7 @@ async fn a_live_frame_carries_the_attachment_the_message_was_sent_with() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let frame = read_frame(&mut bob_ws).await;
+    let frame = read_frame_skipping_presence(&mut bob_ws).await;
     assert_eq!(frame["type"], "message.created");
     let attachments = frame["message"]["attachments"]
         .as_array()

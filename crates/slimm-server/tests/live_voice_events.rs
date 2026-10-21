@@ -23,15 +23,13 @@ use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve, user_ticket};
 
 fn enabled_voice() -> VoiceService {
     VoiceService::for_test(
@@ -45,27 +43,6 @@ fn state_for(store: &Store) -> AppState {
     support::app::builder(store.clone())
         .voice(enabled_voice())
         .build()
-}
-
-async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (tokens.access_token, ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {

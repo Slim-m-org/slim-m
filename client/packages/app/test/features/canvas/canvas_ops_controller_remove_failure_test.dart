@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+import '../../support/canvas_ops_rig.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -84,15 +85,7 @@ class _Harness {
         ),
       ),
     );
-    commits = CanvasCommitQueue(
-      client: client,
-      channelId: 'c1',
-      onPlaced: (_) {},
-      onFailed: (_, _) {},
-      onRemoved: (_) {},
-      onEraseOnConfirm: (_) async {},
-      timedOutUntil: () => null,
-    );
+    commits = plainCommitQueue(client);
     ops = CanvasOpsController(
       channelId: 'c1',
       client: client,

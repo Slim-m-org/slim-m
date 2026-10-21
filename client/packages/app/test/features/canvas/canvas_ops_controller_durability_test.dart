@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import '../../support/canvas_ops_rig.dart';
 
 CanvasStrokeInput _object(
   String id, {
@@ -44,19 +45,10 @@ class _Rig {
         requests.add(body);
         final custom = reply?.call(body, requests.length);
         if (custom != null) return custom;
-        return http.Response(
-          jsonEncode({
-            'op': {
-              'id': 'op-${requests.length}',
-              'seq': requests.length,
-              'kind': body['kind'],
-              'affected': (body['object_ids'] as List?)?.length ?? 1,
-              'created_at': 0,
-            },
-            'fresh': true,
-          }),
-          200,
-          headers: {'content-type': 'application/json'},
+        return acceptedOp(
+          n: requests.length,
+          kind: body['kind'],
+          affected: (body['object_ids'] as List?)?.length ?? 1,
         );
       },
       session: api.SessionStore(
@@ -68,15 +60,7 @@ class _Rig {
         ),
       ),
     );
-    commits = CanvasCommitQueue(
-      client: client,
-      channelId: 'c1',
-      onPlaced: (_) {},
-      onFailed: (_, _) {},
-      onRemoved: (_) {},
-      onEraseOnConfirm: (_) async {},
-      timedOutUntil: () => null,
-    );
+    commits = plainCommitQueue(client);
     ops = CanvasOpsController(
       channelId: 'c1',
       client: client,

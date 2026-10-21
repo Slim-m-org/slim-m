@@ -3,53 +3,16 @@
 
 use std::time::{Duration, Instant};
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::presence;
-use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn user_ticket(store: &Store, name: &str) -> (String, slimm_server::ids::UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                return serde_json::from_str(text.as_str()).unwrap();
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
+use support::ws::{Client, read_frame, serve, user_ticket_and_id};
 
 async fn send(ws: &mut Client, frame: Value) {
     ws.send(WsMessage::Text(frame.to_string())).await.unwrap();
@@ -82,7 +45,7 @@ async fn connected_saying(
     let state = support::app::builder(store.clone())
         .hub(hub.clone())
         .build();
-    let (ticket, id) = user_ticket(&store, name).await;
+    let (ticket, id) = user_ticket_and_id(&store, name).await;
     let addr = serve(state).await;
     let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
     send(

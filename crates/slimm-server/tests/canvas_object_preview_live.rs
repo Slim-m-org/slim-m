@@ -4,65 +4,16 @@
 
 use std::time::Duration;
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-async fn user_ticket(store: &Store, name: &str) -> (String, slimm_server::ids::UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                return serde_json::from_str(text.as_str()).unwrap();
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
+use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
 
 async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
     let outcome = tokio::time::timeout(Duration::from_secs(2), async {
@@ -124,10 +75,10 @@ async fn send_preview(
 #[tokio::test]
 async fn a_viewer_with_both_bits_receives_the_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
@@ -156,11 +107,11 @@ async fn a_viewer_with_both_bits_receives_the_preview() {
 #[tokio::test]
 async fn a_member_denied_use_canvas_never_sees_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
 
-    let (carol_ticket, carol_id) = user_ticket(&store, "carol").await;
+    let (carol_ticket, carol_id) = user_ticket_and_id(&store, "carol").await;
     store
         .set_member_overwrite(
             channel,
@@ -196,14 +147,14 @@ async fn a_member_denied_use_canvas_never_sees_a_preview() {
 async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
     use slimm_server::presence::Visibility;
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
     store
         .set_presence_visibility(alice_id, Visibility::Hidden)
         .await
         .unwrap();
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
@@ -230,10 +181,10 @@ async fn a_hidden_users_preview_reaches_a_viewer_of_the_same_canvas() {
 #[tokio::test]
 async fn an_out_of_bounds_preview_is_dropped() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
@@ -259,9 +210,9 @@ async fn an_out_of_bounds_preview_is_dropped() {
 #[tokio::test]
 async fn object_preview_frames_are_rate_limited() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
@@ -304,10 +255,10 @@ async fn object_preview_frames_are_rate_limited() {
 #[tokio::test]
 async fn a_timed_out_member_cannot_send_a_preview() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let until = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -335,10 +286,10 @@ async fn a_timed_out_member_cannot_send_a_preview() {
 #[tokio::test]
 async fn an_oversize_preview_box_is_dropped() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
     let addr = serve(state.clone()).await;
@@ -390,10 +341,10 @@ async fn a_member_cannot_preview_another_members_object() {
     use slimm_server::ids::CanvasObjectId;
     use slimm_server::store::PlaceRequest;
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let object_id = CanvasObjectId::generate();
     store
@@ -441,10 +392,10 @@ async fn a_member_cannot_preview_another_members_object() {
 #[tokio::test]
 async fn a_canvas_manager_can_preview_another_members_object() {
     let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
     let theirs = slimm_server::ids::CanvasObjectId::generate();
     let request = slimm_server::store::PlaceRequest {
         kind: "note",

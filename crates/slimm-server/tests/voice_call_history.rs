@@ -5,12 +5,7 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64STD;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
-use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::ids::{CanvasObjectId, ChannelId, UserId};
@@ -20,8 +15,14 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::livekit_webhook::webhook_request;
+
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
+
+fn signed_webhook(body: &Value) -> Request<Body> {
+    webhook_request(body.clone(), API_KEY, API_SECRET)
+}
 
 struct World {
     app: Router,
@@ -30,35 +31,6 @@ struct World {
     kiki: (String, String),
     channel: String,
     _guard: support::TestDbGuard,
-}
-
-fn signed_webhook(body: &Value) -> Request<Body> {
-    let bytes = serde_json::to_vec(body).unwrap();
-    let header = BASE64URL.encode(r#"{"alg":"HS256","typ":"JWT"}"#);
-    let exp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 300;
-    let claims =
-        json!({ "iss": API_KEY, "exp": exp, "sha256": BASE64STD.encode(Sha256::digest(&bytes)) });
-    let signing_input = format!(
-        "{header}.{}",
-        BASE64URL.encode(serde_json::to_vec(&claims).unwrap())
-    );
-    let mut mac = <Hmac<Sha256>>::new_from_slice(API_SECRET.as_bytes()).unwrap();
-    mac.update(signing_input.as_bytes());
-    let token = format!(
-        "{signing_input}.{}",
-        BASE64URL.encode(mac.finalize().into_bytes())
-    );
-    Request::builder()
-        .method("POST")
-        .uri("/voice/webhook")
-        .header("authorization", token)
-        .header("content-type", "application/webhook+json")
-        .body(Body::from(bytes))
-        .unwrap()
 }
 
 async fn session(store: &Store, name: &str) -> (String, String) {
