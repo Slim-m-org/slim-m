@@ -20,9 +20,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
+import '../../../widgets/bounded_image_decode.dart';
 import '../../composer/widgets/composer_clipboard_image.dart';
 import '../../composer/widgets/composer_clipboard_paste.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_image_hydrator.dart';
 import 'canvas_sync.dart';
 
 /// Longest side, in world units, a pasted image is scaled to fit within.
@@ -42,6 +44,7 @@ class CanvasImagePaste {
     required this.onPlaced,
     required this.onError,
     required this.timedOutUntil,
+    this.onBitmapAttached,
   });
 
   final api.SlimmApi client;
@@ -62,6 +65,9 @@ class CanvasImagePaste {
 
   /// A sentence to show, or null to clear a previously shown one.
   final void Function(String? message) onError;
+
+  /// Told when a decoded paste becomes an object's bitmap, so the image budget counts it.
+  final void Function(String id, ui.Image image)? onBitmapAttached;
 
   /// Registers the event-driven route: call once when this pane mounts.
   void start() => startClipboardImagePaste(_handleNativePaste);
@@ -142,15 +148,20 @@ class CanvasImagePaste {
       ..applyPlaced(input)
       ..setImageBitmap(placed.id, decoded)
       ..refresh();
+    onBitmapAttached?.call(placed.id, decoded);
     return placed;
   }
 
   Future<ui.Image?> _decode(Uint8List bytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      codec.dispose();
-      return frame.image;
+      return await decodeBoundedImage(
+        bytes,
+        maxSide: maxHydratedImageSide,
+        maxSourcePixels: maxHydratedSourcePixels,
+      );
+    } on ImageTooLargeException {
+      if (!_stopped) onError('That image is too large.');
+      return null;
     } catch (_) {
       if (!_stopped) onError('That image could not be read.');
       return null;

@@ -34,6 +34,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     onPlaced: _selectPlaced,
     onError: _engine.reportError,
     timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+    onBitmapAttached: _engine.hydrator.adopt,
   );
 
   CanvasQuickPlacement get _quickPlacement =>

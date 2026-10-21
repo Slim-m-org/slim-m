@@ -47,7 +47,7 @@ void main() {
       });
       document
         ..applyPlaced(
-          CanvasStrokeInput(
+          const CanvasStrokeInput(
             id: 'a',
             seq: 1,
             zIndex: 1,
@@ -55,7 +55,7 @@ void main() {
             y: 0,
             w: 20,
             h: 20,
-            points: const [],
+            points: [],
             width: 0,
             colorKey: '',
             kind: CanvasObjectKind.image,
@@ -64,7 +64,7 @@ void main() {
         )
         ..refresh();
       hydrator.hydrate(
-        api.CanvasObject(
+        const api.CanvasObject(
           id: 'a',
           kind: 'image',
           zIndex: 1,
@@ -85,4 +85,69 @@ void main() {
       expect(urls.single.queryParameters, contains('w'));
     },
   );
+
+  test('zooming in swaps a coarse bitmap for a finer tier', () async {
+    final urls = <Uri>[];
+    final png = solidPng(1500, 1500);
+    final document = CanvasDocument()..setViewport(const Size(400, 400));
+    final hydrator = CanvasImageHydrator(
+      client: testApi(
+        (request) async {
+          urls.add(request.url);
+          return http.Response.bytes(
+            png,
+            200,
+            headers: {'content-type': 'image/png'},
+          );
+        },
+        session: api.SessionStore(
+          tokens: const api.TokenPair(
+            userId: 'me',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 0,
+          ),
+        ),
+      ),
+      document: document,
+    )..devicePixelRatio = 1;
+    addTearDown(() {
+      hydrator.dispose();
+      document.dispose();
+    });
+    document
+      ..applyPlaced(
+        const CanvasStrokeInput(
+          id: 'a',
+          seq: 1,
+          zIndex: 1,
+          x: 0,
+          y: 0,
+          w: 200,
+          h: 200,
+          points: [],
+          width: 0,
+          colorKey: '',
+          kind: CanvasObjectKind.image,
+          attachmentId: 'att-a',
+        ),
+      )
+      ..refresh();
+    hydrator.hydrateVisible();
+    for (var i = 0; i < 400 && !document.hasImageBitmap('a'); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(hydrator.tierOf('a'), 320);
+
+    document
+      ..setCamera(const Camera(zoom: 2))
+      ..refresh();
+    hydrator.hydrateVisible();
+    for (var i = 0; i < 400 && hydrator.tierOf('a') != 640; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(hydrator.tierOf('a'), 640);
+    expect(urls.map((u) => u.queryParameters['w']), ['320', '640']);
+    expect(hydrator.decodedBytes, lessThan(640 * 640 * 4 + 1));
+  });
 }
