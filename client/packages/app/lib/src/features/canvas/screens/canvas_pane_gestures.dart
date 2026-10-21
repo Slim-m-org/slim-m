@@ -105,12 +105,19 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// freshly placed shape with no way to resize it short of a manual switch
   /// to Move first, which is worse than the rapid-placement convenience it
   /// was bought with. [_selectPlaced] now matches the note and paste paths.
-  Future<void> _onShapePlace(Offset world, Size? draggedSize) async {
+  Future<void> _onShapePlace(
+    Offset world,
+    Size? draggedSize, {
+    bool flipX = false,
+    bool flipY = false,
+  }) async {
     final startedWith = _tool;
     final placed = await _quickPlacement.placeShape(
       world,
       _shapeKind,
       draggedSize: draggedSize,
+      flipX: flipX,
+      flipY: flipY,
       onError: _engine.reportError,
     );
     if (placed != null) _selectPlaced(placed.id, startedWith: startedWith);

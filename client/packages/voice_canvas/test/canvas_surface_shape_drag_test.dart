@@ -36,7 +36,7 @@ void main() {
             ink: const Color(0xFFE86A5C),
             tool: CanvasTool.shape,
             onStroke: (_) {},
-            onShapePlace: (world, size) {
+            onShapePlace: (world, size, {flipX = false, flipY = false}) {
               placedAt = world;
               placedSize = size;
             },
@@ -79,7 +79,7 @@ void main() {
             ink: const Color(0xFFE86A5C),
             tool: CanvasTool.shape,
             onStroke: (_) {},
-            onShapePlace: (world, size) {
+            onShapePlace: (world, size, {flipX = false, flipY = false}) {
               placedAt = world;
               placedSize = size;
             },
@@ -114,7 +114,7 @@ void main() {
           tool: CanvasTool.shape,
           shapeKind: CanvasShapeKind.ellipse,
           onStroke: (_) {},
-          onShapePlace: (_, __) {},
+          onShapePlace: (_, __, {flipX = false, flipY = false}) {},
         ),
       ),
     );
@@ -141,7 +141,7 @@ void main() {
             ink: const Color(0xFFE86A5C),
             tool: CanvasTool.shape,
             onStroke: (_) {},
-            onShapePlace: (_, __) => placed++,
+            onShapePlace: (_, __, {flipX = false, flipY = false}) => placed++,
           ),
         ),
       );
@@ -167,4 +167,34 @@ void main() {
       expect(placed, 0);
     },
   );
+
+  testWidgets('an arrow dragged up and to the left places flipped both ways', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    ({bool x, bool y})? flip;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          tool: CanvasTool.shape,
+          shapeKind: CanvasShapeKind.arrow,
+          onStroke: (_) {},
+          onShapePlace: (world, size, {flipX = false, flipY = false}) {
+            flip = (x: flipX, y: flipY);
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final gesture = await tester.startGesture(const Offset(200, 200));
+    await gesture.moveTo(const Offset(80, 120));
+    await gesture.up();
+    await tester.pump();
+
+    expect(flip, (x: true, y: true));
+  });
 }

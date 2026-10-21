@@ -24,7 +24,7 @@ void main() {
             onStroke: (_) {},
             onErase: (_) => acted++,
             onNotePlace: (_) => acted++,
-            onShapePlace: (c, s) => acted++,
+            onShapePlace: (c, s, {flipX = false, flipY = false}) => acted++,
           ),
         ),
       );

@@ -52,7 +52,7 @@ Widget _pane(CanvasDocument document, {required String? error}) =>
               onSelectDrag: (_) {},
               onSelectEnd: () {},
               onNotePlace: (_) {},
-              onShapePlace: (_, __) {},
+              onShapePlace: (_, __, {flipX = false, flipY = false}) {},
               shapeKind: CanvasShapeKind.rectangle,
               onShapeKindChanged: (_) {},
               pen: const CanvasPenStyle(),

@@ -405,7 +405,14 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         widget.onNotePlace?.call(world);
       case CanvasTool.shape:
         final (center, size) = _resolveShapeDrag(world);
-        widget.onShapePlace?.call(center, size);
+        // Read after take(): the draft keeps its direction until the next drag begins.
+        final flip = _shapeDraft.flip;
+        widget.onShapePlace?.call(
+          center,
+          size,
+          flipX: size != null && flip.x,
+          flipY: size != null && flip.y,
+        );
       case CanvasTool.pen:
       case CanvasTool.eraser:
       case CanvasTool.pan:

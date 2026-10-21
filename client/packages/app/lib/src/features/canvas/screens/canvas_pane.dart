@@ -327,8 +327,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                           onCancel: _onNoteEditCancel,
                         ),
                   onNotePlace: (world) => unawaited(_onNotePlace(world)),
-                  onShapePlace: (world, size) =>
-                      unawaited(_onShapePlace(world, size)),
+                  onShapePlace: (world, size, {flipX = false, flipY = false}) =>
+                      unawaited(
+                        _onShapePlace(world, size, flipX: flipX, flipY: flipY),
+                      ),
                   shapeKind: _shapeKind,
                   onShapeKindChanged: (kind) =>
                       setState(() => _shapeKind = kind),
