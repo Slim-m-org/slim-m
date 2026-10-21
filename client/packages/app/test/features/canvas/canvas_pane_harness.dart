@@ -164,6 +164,9 @@ class CanvasPaneFixture {
   /// value here to make the two genuinely disagree.
   final int channelPermissions;
   final List<Map<String, dynamic>> posted = [];
+
+  /// When set, a placement POST is recorded but its reply waits on this.
+  Completer<void>? placeGate;
   List<Map<String, dynamic>> objects = [];
 
   /// Every `GET .../canvas/objects` the pane sent, in order. A count rather
@@ -308,6 +311,7 @@ class CanvasPaneFixture {
             );
           }
           posted.add(body);
+          await placeGate?.future;
           return http.Response(
             jsonEncode({
               ...canvasObjectJson(body['id'] as String),
