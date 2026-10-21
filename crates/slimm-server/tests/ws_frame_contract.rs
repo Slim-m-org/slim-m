@@ -51,8 +51,15 @@ fn accepted_frames() -> BTreeSet<String> {
 }
 
 fn frames_of(enum_name: &str) -> BTreeSet<String> {
-    let path = repo_root().join("crates/slimm-server/src/http/ws/frames.rs");
-    let source = fs::read_to_string(&path).expect("read frames.rs");
+    let file = if enum_name == "ClientFrame" {
+        "client_frames.rs"
+    } else {
+        "frames.rs"
+    };
+    let path = repo_root()
+        .join("crates/slimm-server/src/http/ws")
+        .join(file);
+    let source = fs::read_to_string(&path).expect("read the frames source");
 
     let body = source
         .split_once(&format!("enum {enum_name} {{"))
