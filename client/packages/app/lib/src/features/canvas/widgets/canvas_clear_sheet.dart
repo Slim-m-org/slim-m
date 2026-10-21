@@ -21,6 +21,7 @@ Future<void> requestScopedCanvasClear(
   final choice = await showAppSheet<CanvasClearChoice>(
     context,
     scrolls: true,
+    semanticLabel: 'Clear part of the canvas',
     builder: (_) => _CanvasClearSheet(authorIds: control.authorIds().toList()),
   );
   if (choice == null || !context.mounted) return;
@@ -56,11 +57,14 @@ class _CanvasClearSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'Clear part of the canvas',
-            style: AppText.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
+          Semantics(
+            header: true,
+            child: Text(
+              'Clear part of the canvas',
+              style: AppText.body.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.semi,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),

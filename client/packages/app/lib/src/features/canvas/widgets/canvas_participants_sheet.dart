@@ -19,6 +19,7 @@ Future<void> showCanvasParticipantsSheet(BuildContext context) =>
     showAppSheet<void>(
       context,
       scrolls: true,
+      semanticLabel: 'In this call',
       builder: (_) => const CanvasParticipantsSheet(),
     );
 
@@ -44,11 +45,14 @@ class CanvasParticipantsSheet extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            'In this call',
-            style: AppText.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: AppWeights.semi,
+          Semantics(
+            header: true,
+            child: Text(
+              'In this call',
+              style: AppText.body.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: AppWeights.semi,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
