@@ -11,7 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'database_key.dart';
-import 'encrypted_database.dart' show applyDatabaseKey;
+import 'encrypted_database.dart' show applyConnectionTuning, applyDatabaseKey;
 import 'open_recovery.dart';
 
 /// The file name is part of the contract with anyone debugging a user's
@@ -45,6 +45,9 @@ Future<QueryExecutor> openSlimmDatabase({
   final key = prepared.key;
   return NativeDatabase.createInBackground(
     file,
-    setup: (db) => applyDatabaseKey(db, key),
+    setup: (db) {
+      applyDatabaseKey(db, key);
+      applyConnectionTuning(db);
+    },
   );
 }

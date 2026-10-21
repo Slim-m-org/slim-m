@@ -143,8 +143,8 @@ void main() {
     );
   }
 
-  test('a backend with no setToolTip handler still gets a populated context '
-      'menu', () async {
+  test('a backend with no setToolTip handler is never asked for one and still '
+      'gets a populated context menu', () async {
     final harness = VoiceHarness();
     harness.controllerWith(FakeSession(), voiceApi());
     addTearDown(harness.dispose);
@@ -162,11 +162,13 @@ void main() {
     final controller = DesktopTrayController(
       port: FakeDesktopWindowPort(),
       container: harness.container,
+      toolTipSupported: false,
     );
 
     await controller.start();
     controller.dispose();
 
+    expect(calls.map((call) => call.method), isNot(contains('setToolTip')));
     expect(calls.map((call) => call.method), contains('setContextMenu'));
     final menuCall = calls.firstWhere(
       (call) => call.method == 'setContextMenu',

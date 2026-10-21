@@ -15,20 +15,27 @@ library;
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'host_platform.dart';
+
 const _channelName = 'top.npcserver.slimm/app_lock_window';
 
 /// A no-op wherever nothing answers this channel - desktop and the web - so
 /// a caller never has to check the platform before using it.
 class AppLockWindowChannel {
-  AppLockWindowChannel({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(_channelName);
+  /// [supported] says whether this host has a native half; only Android and
+  /// iOS do.
+  AppLockWindowChannel({MethodChannel? channel, bool? supported})
+      : _channel = channel ?? const MethodChannel(_channelName),
+        _supported = supported ?? (isAndroidHost || isIOSHost);
 
   final MethodChannel _channel;
+  final bool _supported;
 
   /// Best-effort: a missing native handler must not throw, or the one thing
   /// this call exists for - hiding message content - would instead crash
   /// the very toggle meant to protect it.
   Future<void> setPrivacyShield(bool enabled) async {
+    if (!_supported) return;
     try {
       await _channel.invokeMethod<void>('setPrivacyShield', enabled);
     } catch (error, stack) {
