@@ -363,24 +363,6 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                       )
                     : null,
               ),
-            if (widget.callError != null)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.s12),
-                child: AppErrorState(
-                  message: widget.callError!,
-                  onRetry: widget.onRetryCall,
-                ),
-              ),
-            if (widget.error != null)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.s12),
-                child: AppErrorState(
-                  message: widget.error!,
-                  onDismiss: widget.onDismissError,
-                  onRetry: widget.onRetryError,
-                ),
-              ),
-            if (widget.truncated) const CanvasTruncatedNotice(),
             Expanded(
               // Canvas content panned past the top edge must never paint over the header above it.
               child: ClipRect(
@@ -399,6 +381,39 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                       ),
                     if (widget.paging case final paging?)
                       CanvasPagingIndicator(paging: paging),
+                    // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
+                    if (widget.callError != null ||
+                        widget.error != null ||
+                        widget.truncated)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (widget.callError != null)
+                              Padding(
+                                padding: const EdgeInsets.all(AppSpacing.s12),
+                                child: AppErrorState(
+                                  message: widget.callError!,
+                                  onRetry: widget.onRetryCall,
+                                ),
+                              ),
+                            if (widget.error != null)
+                              Padding(
+                                padding: const EdgeInsets.all(AppSpacing.s12),
+                                child: AppErrorState(
+                                  message: widget.error!,
+                                  onDismiss: widget.onDismissError,
+                                  onRetry: widget.onRetryError,
+                                ),
+                              ),
+                            if (widget.truncated) const CanvasTruncatedNotice(),
+                          ],
+                        ),
+                      ),
                     CanvasDockOverlay(
                       call: widget.callDock,
                       canvas: _dockData,
