@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_field.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_note_limits.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_note_spans.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart'
@@ -182,5 +183,39 @@ void main() {
     await tester.pump();
 
     expect(controller.text, '- ni');
+  });
+
+  testWidgets('Enter on a full note adds nothing and says the note is full', (
+    tester,
+  ) async {
+    final controller = await _pump(tester);
+    // Fits with its list marker; the continued marker on Enter would not.
+    final full = 'a' * (maxNoteTextBytes - 14);
+    controller.value = TextEditingValue(
+      text: '- $full',
+      selection: TextSelection.collapsed(offset: full.length + 2),
+    );
+    await tester.pump();
+    expect(find.text('This note is full.'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(controller.text, '- $full');
+    expect(find.text('This note is full.'), findsOneWidget);
+  });
+
+  testWidgets('typing past the limit is refused and says so', (tester) async {
+    final controller = await _pump(tester);
+    controller.text = 'a' * (maxNoteTextBytes - 20);
+    await tester.pump();
+    await tester.enterText(
+      find.byType(TextField),
+      'b' * (maxNoteTextBytes + 10),
+    );
+    await tester.pump();
+
+    expect(noteWireBytes(controller.text), lessThanOrEqualTo(maxNoteTextBytes));
+    expect(find.text('This note is full.'), findsOneWidget);
   });
 }
