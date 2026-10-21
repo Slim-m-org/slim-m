@@ -325,20 +325,24 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   bool get _hasSelfBubble => widget.callParticipants.any((p) => p.isLocal);
 
   /// Which tiles are hidden, for the phone header's Show rows; it notifies only when that set changes.
-  late HiddenTileKeys _hiddenTiles = HiddenTileKeys(widget.tileOverrides);
+  HiddenTileKeys? _hiddenKeys;
+
+  // Built on first read: dispose must not build one from overrides already disposed.
+  HiddenTileKeys get _hiddenTiles =>
+      _hiddenKeys ??= HiddenTileKeys(widget.tileOverrides);
 
   @override
   void didUpdateWidget(covariant CanvasPaneBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.tileOverrides != widget.tileOverrides) {
-      _hiddenTiles.dispose();
-      _hiddenTiles = HiddenTileKeys(widget.tileOverrides);
+      _hiddenKeys?.dispose();
+      _hiddenKeys = null;
     }
   }
 
   @override
   void dispose() {
-    _hiddenTiles.dispose();
+    _hiddenKeys?.dispose();
     _menuRequests.dispose();
     super.dispose();
   }
