@@ -181,12 +181,15 @@ class EventConnection {
   /// [canvasCursor]: no acknowledgement, safe to call as often as the caller
   /// likes, and the server rate-limits it (by the frame's own byte size
   /// rather than by count) and drops the excess silently. [ended] marks the
-  /// gesture's last frame.
+  /// gesture's last frame; [color] and [width] are the pen's, so peers see
+  /// the real ink while it is drawn.
   void canvasStrokePreview(
     String channelId,
     String objectId,
     List<double> points, {
     bool ended = false,
+    String? color,
+    double? width,
   }) =>
       _channel.sink.add(
         jsonEncode({
@@ -195,6 +198,8 @@ class EventConnection {
           'object_id': objectId,
           'points': points,
           'ended': ended,
+          if (color != null) 'color': color,
+          if (width != null) 'width': width,
         }),
       );
 

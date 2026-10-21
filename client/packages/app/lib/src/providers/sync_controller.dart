@@ -223,11 +223,15 @@ class SyncController extends StateNotifier<SyncStatus> {
     String objectId,
     List<double> points, {
     bool ended = false,
+    String? color,
+    double? width,
   }) => _connection?.canvasStrokePreview(
     channelId,
     objectId,
     points,
     ended: ended,
+    color: color,
+    width: width,
   );
 
   /// Tells the server the box of the object this user is dragging or

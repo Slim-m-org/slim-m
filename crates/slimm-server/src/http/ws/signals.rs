@@ -335,6 +335,29 @@ pub(super) struct StrokePreviewFrame {
     pub(super) object_id: String,
     pub(super) points: Vec<f64>,
     pub(super) ended: bool,
+    pub(super) color: Option<String>,
+    pub(super) width: Option<f64>,
+}
+
+/// Longest colour key a preview may carry.
+const MAX_PREVIEW_COLOR_LEN: usize = 32;
+
+/// Widest pen, in world units, a preview may claim.
+const MAX_PREVIEW_WIDTH: f64 = 256.0;
+
+/// A colour key made only of identifier characters, or none.
+fn valid_preview_color(color: Option<String>) -> Option<String> {
+    color.filter(|c| {
+        !c.is_empty()
+            && c.len() <= MAX_PREVIEW_COLOR_LEN
+            && c.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
+    })
+}
+
+/// A finite, positive width within the pen range, or none.
+fn valid_preview_width(width: Option<f64>) -> Option<f64> {
+    width.filter(|w| w.is_finite() && *w > 0.0 && *w <= MAX_PREVIEW_WIDTH)
 }
 
 /// Relays an in-flight stroke preview on a channel's canvas, if the
@@ -396,6 +419,8 @@ pub(super) async fn handle_canvas_stroke_preview(
         object_id,
         points: Arc::new(frame.points),
         ended: frame.ended,
+        color: valid_preview_color(frame.color),
+        width: valid_preview_width(frame.width),
     });
 }
 

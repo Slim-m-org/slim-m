@@ -16446,6 +16446,18 @@ components:
           description: >
             Marks this as the gesture's last frame, whether or not it went
             on to commit a real object.
+        color:
+          type: string
+          description: >
+            The drawer's pen colour key, so peers see the real ink in
+            flight. Identifier characters only, at most 32; anything else
+            is dropped from the relay.
+        width:
+          type: number
+          format: double
+          description: >
+            The drawer's pen width in world units, positive and at most 256;
+            anything else is dropped from the relay.
 
     ClientCanvasView:
       type: object
@@ -16771,6 +16783,13 @@ components:
           items: { type: number, format: double }
         ended:
           type: boolean
+        color:
+          type: string
+          description: The drawer's pen colour key, when they sent a valid one.
+        width:
+          type: number
+          format: double
+          description: The drawer's pen width in world units, when valid.
 
     CanvasViewUpdated:
       type: object

@@ -361,3 +361,44 @@ async fn preview_frames_are_rate_limited_by_bytes() {
         "the byte-rate limiter must refuse some of {total} large rapid frames, only {seen} got through",
     );
 }
+
+/// The drawer's pen colour and width travel with the preview, and a forged
+/// value never reaches a viewer.
+#[tokio::test]
+async fn a_preview_carries_the_pen_colour_and_width_and_drops_bad_ones() {
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-pen").await;
+    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    for (color, width) in [(json!("annotation"), json!(6.5)), (json!("a b!"), json!(1e9))] {
+        alice_ws
+            .send(WsMessage::Text(
+                json!({
+                    "type": "canvas.stroke_preview",
+                    "channel_id": channel.to_string(),
+                    "object_id": new_object_id(),
+                    "points": [1.0, 2.0],
+                    "color": color,
+                    "width": width,
+                })
+                .to_string(),
+            ))
+            .await
+            .unwrap();
+        let frame = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+        if color == json!("annotation") {
+            assert_eq!(frame["color"], "annotation");
+            assert_eq!(frame["width"], 6.5);
+        } else {
+            assert!(frame.get("color").is_none(), "forged colour was relayed");
+            assert!(frame.get("width").is_none(), "forged width was relayed");
+        }
+    }
+}

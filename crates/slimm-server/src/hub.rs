@@ -545,6 +545,8 @@ mod epoch_tests {
             object_id: crate::ids::CanvasObjectId::generate(),
             points: Arc::new(vec![0.0, 0.0]),
             ended: false,
+            color: None,
+            width: None,
         });
         hub.publish(Event::CanvasView {
             channel_id: ChannelId::generate(),

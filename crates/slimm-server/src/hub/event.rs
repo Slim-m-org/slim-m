@@ -571,6 +571,10 @@ pub enum Event {
         object_id: CanvasObjectId,
         points: Arc<Vec<f64>>,
         ended: bool,
+        /// The drawer's pen colour key, when the sender named a valid one.
+        color: Option<String>,
+        /// The drawer's pen width in world units, when valid.
+        width: Option<f64>,
     },
     /// An object mid-drag or mid-resize: the box its mover currently holds.
     ///

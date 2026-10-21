@@ -120,6 +120,8 @@ class CanvasStrokePreview extends ServerEvent {
     required this.objectId,
     required this.points,
     required this.ended,
+    this.color,
+    this.width,
   });
 
   final String channelId;
@@ -127,6 +129,10 @@ class CanvasStrokePreview extends ServerEvent {
   final String objectId;
   final List<double> points;
   final bool ended;
+
+  /// The drawer's pen colour key and world width, when they sent them.
+  final String? color;
+  final double? width;
 }
 
 /// An object mid-drag or mid-resize: the box its mover currently holds.

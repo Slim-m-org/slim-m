@@ -193,6 +193,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 object_id,
                                 points,
                                 ended,
+                                color,
+                                width,
                             }) => {
                                 // The raw wire size, not a re-serialization: it is what this frame actually cost to send.
                                 let frame_bytes = text.as_str().len();
@@ -207,6 +209,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                         object_id,
                                         points,
                                         ended,
+                                        color,
+                                        width,
                                     },
                                     frame_bytes,
                                 )

@@ -55,7 +55,12 @@ void dispatchCanvasLiveEvent(
         when channelId == paneChannelId:
       sync.applyLive(event.seq, () {
         applyPlacedObject(object);
-        strokeDrafts?.settleAuthor(object.authorId);
+        if (object.kind == 'stroke') {
+          strokeDrafts?.settleAuthor(
+            object.authorId,
+            landed: Rect.fromLTWH(object.x, object.y, object.w, object.h),
+          );
+        }
         activityLog?.recordPlacedLive(object);
       });
     case api.CanvasObjectsRemoved(
@@ -127,10 +132,19 @@ void dispatchCanvasLiveEvent(
           :final objectId,
           :final points,
           :final ended,
+          :final color,
+          :final width,
         )
         when channelId == paneChannelId:
       // Never through sync.applyLive, the same reason a cursor is not: no seq.
-      strokePreviewRelay().applyRemote(userId, objectId, points, ended);
+      strokePreviewRelay().applyRemote(
+        userId,
+        objectId,
+        points,
+        ended,
+        color: color,
+        width: width,
+      );
     case api.CanvasObjectPreview(
           :final channelId,
           :final userId,
