@@ -342,7 +342,7 @@ void main() {
     });
   });
 
-  test('clear removes local ink at or below the fencing seq and can be '
+  test('clear posts the fence, leaves the removal to its frame, and can be '
       'undone by restoring it', () {
     fakeAsync((async) {
       final harness = _Harness();
@@ -355,7 +355,11 @@ void main() {
 
       expect(harness.opRequests.single['kind'], 'clear');
       expect(harness.opRequests.single['before_seq'], 10);
-      expect(harness.document.isAlive('old'), isFalse);
+      expect(
+        harness.document.isAlive('old'),
+        isTrue,
+        reason: 'the clear frame names what was spared, so it removes the ink',
+      );
       expect(harness.ops.canUndo, isTrue);
 
       unawaited(harness.ops.undo());
@@ -378,7 +382,7 @@ void main() {
     });
   });
 
-  test('a scoped clear posts its scope and removes only that author', () {
+  test('a scoped clear posts its scope', () {
     fakeAsync((async) {
       final harness = _Harness();
       harness.document
@@ -396,8 +400,6 @@ void main() {
 
       expect(harness.opRequests.single['kinds'], ['stroke']);
       expect(harness.opRequests.single['author_id'], 'ann');
-      expect(harness.document.isAlive('ann-ink'), isFalse);
-      expect(harness.document.isAlive('bob-ink'), isTrue);
       expect(harness.ops.canUndo, isTrue);
     });
   });

@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -124,7 +125,24 @@ class CanvasPaneFixture {
     this.attachmentFetchStatus = 200,
     this.attachmentUploadStatus = 200,
     this.placeDelay = Duration.zero,
-  }) : channelPermissions = channelPermissions ?? mePermissions;
+  }) : channelPermissions = channelPermissions ?? mePermissions {
+    // A read answered after a frame names a head at least that high, as the server's would.
+    events.stream.listen((event) {
+      final seq = switch (event) {
+        api.CanvasObjectPlaced(:final seq) => seq,
+        api.CanvasObjectsRemoved(:final seq) => seq,
+        api.CanvasObjectsRestored(:final seq) => seq,
+        api.CanvasCleared(:final seq) => seq,
+        api.CanvasObjectMoved(:final seq) => seq,
+        api.CanvasObjectReordered(:final seq) => seq,
+        api.CanvasObjectEdited(:final seq) => seq,
+        _ => 0,
+      };
+      if (seq > _eventHead) _eventHead = seq;
+    });
+  }
+
+  int _eventHead = 0;
 
   final StreamController<api.ServerEvent> events =
       StreamController<api.ServerEvent>.broadcast();
@@ -178,6 +196,10 @@ class CanvasPaneFixture {
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
 
+  /// When set, a viewport read answers from the objects as they were when it
+  /// arrived but only after this completes, like a slow response in flight.
+  Completer<void>? viewportGate;
+
   /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
   int? opsHead;
 
@@ -226,11 +248,25 @@ class CanvasPaneFixture {
           }
           postedOps.add(body);
           _opSeq++;
+          final seq = max(_opSeq, objects.length + postedOps.length);
+          if (body['kind'] == 'clear') {
+            // The server echoes a clear to everyone, its author included.
+            scheduleMicrotask(
+              () => events.add(
+                api.CanvasCleared(
+                  channelId: 'c1',
+                  seq: seq,
+                  opId: 'server-op-$_opSeq',
+                  beforeSeq: body['before_seq'] as int,
+                ),
+              ),
+            );
+          }
           return http.Response(
             jsonEncode({
               'op': {
                 'id': 'server-op-$_opSeq',
-                'seq': _opSeq,
+                'seq': seq,
                 'kind': body['kind'],
                 'affected': 1,
                 'created_at': 0,
@@ -334,6 +370,10 @@ class CanvasPaneFixture {
           );
         }
         viewportGets++;
+        final snapshot = List<Map<String, dynamic>>.of(objects);
+        final head = max(snapshot.length, _eventHead);
+        final gate = viewportGate;
+        if (gate != null) await gate.future;
         if (viewportStatus != 200) {
           return http.Response(
             jsonEncode({'error': 'no'}),
@@ -342,9 +382,9 @@ class CanvasPaneFixture {
           );
         }
         return jsonResponse({
-          'objects': objects,
+          'objects': snapshot,
           'has_more': hasMore,
-          'latest_seq': objects.length,
+          'latest_seq': head,
         });
       }),
       ...extraOverrides,

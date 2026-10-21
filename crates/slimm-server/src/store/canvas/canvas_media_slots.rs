@@ -118,7 +118,6 @@ impl Store {
         .await?;
         if let Some(row) = &existing
             && row.locked
-            && locked
             && (row.x != x || row.y != y || row.w != w || row.h != h)
         {
             tx.commit().await?;

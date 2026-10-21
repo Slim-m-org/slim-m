@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM canvas_ops WHERE id IN (\n                   SELECT o.id FROM canvas_ops o\n                   WHERE o.kind = 'clear'\n                     AND o.created_at < ?1\n                     AND NOT EXISTS (\n                         SELECT 1 FROM canvas_ops r\n                         WHERE r.kind = 'restore' AND r.target_op = o.id\n                     )\n                     AND NOT EXISTS (\n                         SELECT 1 FROM canvas_objects obj\n                         WHERE obj.channel_id = o.channel_id\n                           AND obj.seq <= o.bound_seq\n                           AND obj.deleted_at = o.created_at\n                     )\n                   LIMIT ?2\n               )\n               RETURNING channel_id AS \"channel_id!: ChannelId\", seq AS \"seq!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "seq!: i64",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5a5ec2fe08a7fae1477fd4d924cbfb4ac8b8a7b07f07860b0d6717fb0a91a83d"
+}

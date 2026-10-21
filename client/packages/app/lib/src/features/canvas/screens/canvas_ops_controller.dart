@@ -15,7 +15,6 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
@@ -371,9 +370,8 @@ class CanvasOpsController {
         beforeSeq: beforeSeq,
         clearScope: scope,
       );
+      // The clear's own frame removes the objects: it names the locked ones the server spared, which this reply does not.
       if (result.op.affected > 0) {
-        clearDocumentScope(document, beforeSeq, scope);
-        document.refresh();
         _pushUndo(_EraseEntry(result.op.id));
       }
       return true;
@@ -394,6 +392,12 @@ class CanvasOpsController {
         kind: 'remove',
         objectIds: ids,
       );
+      document.confirmRemoved(ids, result.op.seq);
+      if (result.op.affected < ids.length) {
+        // The server leaves locked objects alone, so what was hidden for them has to come back.
+        document.forgetRemoved(ids);
+        unawaited(onRemoveFailed?.call());
+      }
       return result.op.id;
     } on api.ApiException {
       onError(errorMessage);

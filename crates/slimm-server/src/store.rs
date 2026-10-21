@@ -31,7 +31,7 @@ mod calls;
 mod canvas;
 use canvas::{
     canvas_media_slots, canvas_object_locks, canvas_op_clock, canvas_ops, canvas_ops_sweep,
-    canvas_ops_write,
+    canvas_ops_write, canvas_purge,
 };
 mod categories;
 mod category_overwrites;
@@ -127,6 +127,7 @@ pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
 pub use calls::CallRecord;
+pub(crate) use canvas::valid_bounds;
 pub use canvas::{
     CanvasObject, MAX_CANVAS_OBJECT_CAP, MAX_OBJECT_EXTENT, MAX_OBJECTS_PER_CHANNEL,
     MIN_CANVAS_OBJECT_CAP, PlaceError, PlaceRequest, Placement, Rect, ViewportQuery, WORLD_LIMIT,
@@ -140,6 +141,7 @@ pub use canvas_ops_sweep::{CANVAS_OP_RETENTION_MS, SweptCanvasOps};
 pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
+pub use canvas_purge::PurgeError;
 pub use categories::CreatedCategory;
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;

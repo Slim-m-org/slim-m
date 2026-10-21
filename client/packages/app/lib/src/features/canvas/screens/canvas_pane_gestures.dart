@@ -348,8 +348,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     api.CanvasClearScope scope = api.CanvasClearScope.everything,
   }) async {
     // Fenced on the newest head this client can read; a stale one would leave later ink standing.
-    await _sync.catchUp();
-    final fence = _sync.asOfSeq;
+    final fence = await _sync.fenceHead();
     if (fence == null) {
       _engine.reportError('The canvas could not be cleared.');
       return;

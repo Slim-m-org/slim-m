@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CanvasObjectId\" FROM canvas_objects\n           WHERE channel_id = ? AND deleted_at IS NULL AND seq <= ?\n             AND (? IS NULL OR kind IN (SELECT value FROM json_each(?)))\n             AND (? IS NULL OR author_id = ?)\n             AND id IN (SELECT object_id FROM canvas_object_locks)",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0c0bcdfb3d8872fa99fd678d9c5094adacb0a503d3849bc1256d48d21aed6a67"
+}

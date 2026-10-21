@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The `+1` adjacency test a live op frame is judged by, shared by the message
-/// op stream (`message_ops_sync.dart`, `sync_controller.dart`) and the canvas
-/// op stream (`canvas_sync.dart`).
+/// The `+1` adjacency test a live op frame is judged by, used by the message
+/// op stream (`message_ops_sync.dart`, `sync_controller.dart`). The canvas op
+/// stream has its own reducer (`canvas_sync.dart`, decision 0087).
 ///
-/// Both streams are dense - one seq per mutation - so `seq == cursor + 1` is a
+/// The stream is dense - one seq per mutation - so `seq == cursor + 1` is a
 /// real "exactly the next op" test rather than a heuristic. Delivery order
 /// across concurrent writers is best-effort, so a frame two ahead of the cursor
 /// means something in between has not been seen; applying it anyway would move
-/// the cursor past that gap forever. This was written twice, once per stream,
-/// with a comment on each saying it "should read as identical" to the other - a
-/// rule a future change had to land in both by hand. It lives here once now.
+/// the cursor past that gap forever.
 library;
 
 /// What a live op frame asks the caller to do.

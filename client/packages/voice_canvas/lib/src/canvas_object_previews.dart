@@ -16,6 +16,11 @@ const Duration objectPreviewGlideDuration = Duration(milliseconds: 100);
 /// Past this the object returns to where it started: the move never landed.
 const Duration objectPreviewSettleGrace = Duration(seconds: 3);
 
+/// How long after a committed move a straggling preview frame is ignored: the
+/// ephemeral channel is not ordered against the durable one, and a frame that
+/// lands late would drag the object back to a box it has already left.
+const Duration objectPreviewLateFrameWindow = Duration(seconds: 1);
+
 /// A preview with no frame for this long is abandoned (the sender dropped).
 const Duration objectPreviewStaleAfter = Duration(seconds: 6);
 
@@ -71,9 +76,13 @@ class RemoteObjectPreviews {
 
   final CanvasDocument document;
   final Map<String, _Preview> _previews = <String, _Preview>{};
+  final Map<String, DateTime> _settledAt = <String, DateTime>{};
 
   /// Zero (reduce-motion) jumps straight to each reported box.
   Duration glide = objectPreviewGlideDuration;
+
+  /// Whether [objectId] is being shown somewhere other than where it is stored.
+  bool holds(String objectId) => _previews.containsKey(objectId);
 
   /// Whether a glide is in flight; a frozen preview needs no frames.
   bool get isActive => _previews.values.any((p) => !p.landed);
@@ -91,6 +100,11 @@ class RemoteObjectPreviews {
   /// Records the box [objectId] is now reported at, starting its ease from
   /// wherever it is drawn right now.
   void apply(String objectId, ObjectBox box, {required DateTime now}) {
+    final settled = _settledAt[objectId];
+    if (settled != null) {
+      if (now.difference(settled) < objectPreviewLateFrameWindow) return;
+      _settledAt.remove(objectId);
+    }
     final existing = _previews[objectId];
     if (existing == null) {
       final original = document.objectBounds(objectId);
@@ -113,7 +127,10 @@ class RemoteObjectPreviews {
       _previews[objectId]?.endedAt = now;
 
   /// The committed move arrived; the preview has nothing left to say.
-  void settle(String objectId) => _previews.remove(objectId);
+  void settle(String objectId, {required DateTime now}) {
+    _previews.remove(objectId);
+    _settledAt[objectId] = now;
+  }
 
   /// Gives up on every preview past its deadline, putting its object back.
   /// Returns whether any did.
@@ -157,5 +174,8 @@ class RemoteObjectPreviews {
   void _move(ObjectBox box, String id) =>
       document.moveObject(id, box.x, box.y, box.w, box.h);
 
-  void clear() => _previews.clear();
+  void clear() {
+    _previews.clear();
+    _settledAt.clear();
+  }
 }

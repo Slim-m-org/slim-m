@@ -44,7 +44,12 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         attachmentPickerProvider(AttachmentSource.stillImageFiles),
       )();
     } catch (e, stack) {
-      api.reportFailure(api.LogTag.media, 'pick an image for the canvas', e, stack);
+      api.reportFailure(
+        api.LogTag.media,
+        'pick an image for the canvas',
+        e,
+        stack,
+      );
       _engine.reportError('The file picker could not open.');
       return;
     }

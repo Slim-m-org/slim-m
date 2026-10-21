@@ -299,3 +299,54 @@ async fn a_clear_writes_no_target_rows_and_costs_nothing_in_the_page_budget() {
         page.ops.len()
     );
 }
+
+/// An edit carries up to 4 KiB of props on the wire, so it is priced by them, not as a bare target row.
+#[tokio::test]
+async fn a_page_of_edits_stops_at_the_byte_budget() {
+    use slimm_server::ids::CanvasOpId;
+    use slimm_server::store::CanvasOpRequest;
+
+    let (store, _guard) = new_store().await;
+    let author = store.create_user("ann", "Ann").await.unwrap().id;
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let note = slimm_server::ids::CanvasObjectId::generate();
+    let request = slimm_server::store::PlaceRequest {
+        kind: "note",
+        bounds: (0.0, 0.0, 10.0, 10.0),
+        props: "{}",
+        attachment: None,
+    };
+    store
+        .place_canvas_object(channel, author, note, request)
+        .await
+        .unwrap();
+
+    for i in 0..200 {
+        let props = format!(r#"{{"text":"{}{i}"}}"#, "x".repeat(3_900));
+        store
+            .submit_canvas_op(
+                channel,
+                author,
+                CanvasOpId::generate(),
+                true,
+                CanvasOpRequest::Edit {
+                    object_id: note,
+                    props,
+                },
+            )
+            .await
+            .unwrap();
+    }
+
+    let page = store.list_canvas_ops(channel, 0, 200).await.unwrap();
+    let bytes: usize = page
+        .ops
+        .iter()
+        .map(|op| match &op.body {
+            CanvasOpBody::Edit { props, .. } => props.len(),
+            _ => 0,
+        })
+        .sum();
+    assert!(page.has_more, "{} edits fit in one page", page.ops.len());
+    assert!(bytes <= CANVAS_OP_PAGE_BYTES + 4_100, "{bytes} bytes");
+}

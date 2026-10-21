@@ -94,4 +94,6 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0082](0082-personal-canvas-view.md) | A personal view beside the shared board | accepted |
 | [0083](0083-bot-token-reissue-select-menus-and-forms.md) | Bot token re-issue, select menus and forms | accepted |
 | [0084](0084-data-exports.md) | A member exports their own data, an administrator exports the space, as one tar archive | accepted |
+| [0085](0085-canvas-clear-purge-and-paging.md) | A clear spares locked objects, erased canvas content is purged, and a big board pages in | accepted |
 | [0086](0086-avatar-tiles-leave-the-board.md) | Avatar tiles leave the board, the roster moves to the dock, and ink paints above tiles | accepted |
+| [0087](0087-sequenced-canvas-reducer-and-paged-first-read.md) | One sequenced canvas reducer, and a paged first read | accepted |

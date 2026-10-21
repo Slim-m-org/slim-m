@@ -115,6 +115,38 @@ async fn ink(w: &mut World) {
     send(&mut w.bob, frame).await;
 }
 
+async fn view(w: &mut World) {
+    let frame = json!({
+        "type": "canvas.view", "channel_id": w.channel.to_string(),
+        "x": 0.0, "y": 0.0, "w": 100.0, "h": 100.0,
+    });
+    send(&mut w.bob, frame).await;
+}
+
+/// A note of bob's to drag, since a preview of an object nobody holds is dropped.
+async fn bobs_note(w: &World) -> String {
+    let object = slimm_server::ids::CanvasObjectId::generate();
+    let request = slimm_server::store::PlaceRequest {
+        kind: "note",
+        bounds: (0.0, 0.0, 10.0, 10.0),
+        props: "{}",
+        attachment: None,
+    };
+    w.store
+        .place_canvas_object(w.channel, w.bob_id, object, request)
+        .await
+        .unwrap();
+    object.to_string()
+}
+
+async fn drag(w: &mut World, object: &str) {
+    let frame = json!({
+        "type": "canvas.object_preview", "channel_id": w.channel.to_string(),
+        "object_id": object, "x": 1.0, "y": 1.0, "w": 10.0, "h": 10.0,
+    });
+    send(&mut w.bob, frame).await;
+}
+
 const SEEN: Duration = Duration::from_secs(2);
 const QUIET: Duration = Duration::from_millis(400);
 
@@ -140,6 +172,74 @@ async fn a_revoked_use_canvas_stops_the_next_cursor_frame() {
 
     cursor(&mut w).await;
     assert!(!arrived(&mut w.alice, "canvas.cursor.moved", QUIET).await);
+}
+
+#[tokio::test]
+async fn a_revoked_use_canvas_stops_the_next_view_and_object_preview_frames() {
+    let mut w = world().await;
+    let note = bobs_note(&w).await;
+    view(&mut w).await;
+    assert!(arrived(&mut w.alice, "canvas.view.updated", SEEN).await);
+    drag(&mut w, &note).await;
+    assert!(arrived(&mut w.alice, "canvas.object_preview.updated", SEEN).await);
+
+    w.store
+        .set_member_overwrite(
+            w.channel,
+            w.bob_id,
+            Permissions::NONE,
+            Permissions::USE_CANVAS,
+        )
+        .await
+        .unwrap();
+    w.state.hub.publish(Event::OverwriteChanged {
+        channel_id: w.channel,
+        previously_visible_to: Arc::new(vec![w.bob_id]),
+    });
+
+    view(&mut w).await;
+    drag(&mut w, &note).await;
+    assert!(!arrived(&mut w.alice, "canvas.view.updated", QUIET).await);
+    assert!(!arrived(&mut w.alice, "canvas.object_preview.updated", QUIET).await);
+}
+
+/// The view frame is a pointer-class frame, so only the drag freezes; one sender keeps the order honest.
+#[tokio::test]
+async fn a_timeout_set_mid_session_refuses_a_drag_but_not_a_view() {
+    let mut w = world().await;
+    let note = bobs_note(&w).await;
+    let until = now_ms() + 60_000;
+    w.store
+        .set_member_timeout(w.bob_id, until, None, w.alice_id)
+        .await
+        .unwrap();
+    w.state.hub.publish(Event::MemberTimeoutChanged {
+        user_id: w.bob_id,
+        until: Some(until),
+    });
+
+    drag(&mut w, &note).await;
+    view(&mut w).await;
+    let first = next_frame(&mut w.alice).await;
+    assert_eq!(first["type"], "canvas.view.updated", "{first}");
+}
+
+async fn next_frame(ws: &mut Client) -> Value {
+    tokio::time::timeout(SEEN, async {
+        loop {
+            if let Some(Ok(WsMessage::Text(text))) = ws.next().await {
+                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
+                if frame["type"]
+                    .as_str()
+                    .is_some_and(|t| t.starts_with("canvas."))
+                {
+                    return frame;
+                }
+            }
+        }
+    })
+    .await
+    .expect("a frame")
 }
 
 #[tokio::test]

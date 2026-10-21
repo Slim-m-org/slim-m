@@ -73,4 +73,30 @@ void main() {
     expect(op, isA<old.CanvasUnknownOp>());
     expect(op, isNot(isA<old.CanvasClearOp>()));
   });
+
+  test(
+      'a clear that spared locked objects names them on the feed and the frame',
+      () {
+    final op = CanvasOp.fromJson({
+      ..._scopedRow,
+      'kinds': <String>[],
+      'spared_ids': ['o1'],
+    }) as CanvasClearOp;
+    expect(op.sparedIds, ['o1']);
+
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'canvas.cleared_scoped',
+        'channel_id': 'c',
+        'seq': 3,
+        'op_id': 'op',
+        'before_seq': 2,
+        'kinds': <String>[],
+        'spared_ids': ['o1'],
+        'spared_count': 3,
+      }),
+    ) as CanvasCleared;
+    expect(event.sparedIds, ['o1']);
+    expect(event.sparedCount, 3);
+  });
 }

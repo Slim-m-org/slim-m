@@ -9,7 +9,8 @@ use uuid::Uuid;
 
 use super::read_state::read_state;
 use super::{
-    PNG, THUMBS_UP, media_slot_calls, object_lock_calls, overwrite_calls, role_calls, text,
+    PNG, THUMBS_UP, canvas_more_calls, media_slot_calls, object_lock_calls, overwrite_calls,
+    role_calls, text,
 };
 use crate::world::{Contract, Payload};
 
@@ -283,6 +284,7 @@ pub(super) async fn channel_calls(c: &mut Contract, root: &str, bob_id: &str) ->
     .await;
     media_slot_calls(c, root, &channel, bob_id).await;
     object_lock_calls(c, root, &channel).await;
+    canvas_more_calls(c, root, &channel).await;
 
     overwrite_calls(c, root, bob_id, &channel).await;
 

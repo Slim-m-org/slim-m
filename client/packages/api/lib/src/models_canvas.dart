@@ -21,7 +21,7 @@ class CanvasObject {
 
   final String id;
 
-  /// `stroke` today; `image` and `gif` are planned. Deliberately a String: a
+  /// `stroke`, `image`, `note` or `shape`. Deliberately a String: a
   /// client too old to know a kind should skip that object, not fail to parse
   /// the region. There is no `window` kind and there will not be one - a
   /// window is a behaviour of an object, not an object (decision 0004).
@@ -64,6 +64,8 @@ class CanvasViewport {
     required this.objects,
     required this.hasMore,
     required this.latestSeq,
+    this.nextCursor,
+    this.totalObjects,
   });
 
   final List<CanvasObject> objects;
@@ -77,12 +79,20 @@ class CanvasViewport {
   /// the canvas op stream.
   final int latestSeq;
 
+  /// A paged read with more to come: the `cursorSeq` of the next page.
+  final int? nextCursor;
+
+  /// A paged read: how many live objects the whole channel holds.
+  final int? totalObjects;
+
   factory CanvasViewport.fromJson(Map<String, dynamic> json) => CanvasViewport(
         objects: (json['objects'] as List<dynamic>)
             .map((o) => CanvasObject.fromJson(o as Map<String, dynamic>))
             .toList(),
         hasMore: json['has_more'] as bool,
         latestSeq: json['latest_seq'] as int,
+        nextCursor: json['next_cursor'] as int?,
+        totalObjects: json['total_objects'] as int?,
       );
 }
 

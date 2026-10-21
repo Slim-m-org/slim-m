@@ -28,6 +28,20 @@ pub(super) async fn may_relay(
     channel_id: ChannelId,
     frame: Frame,
 ) -> bool {
+    relay_grant(store, hub, ctx, cache, channel_id, frame)
+        .await
+        .is_some()
+}
+
+/// [`may_relay`], handing back the channel permissions the answer rested on.
+pub(super) async fn relay_grant(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+    channel_id: ChannelId,
+    frame: Frame,
+) -> Option<Permissions> {
     // Read before any query, never after; see `PermissionCache::insert`.
     let epoch = hub.permissions_epoch();
     let now = Instant::now();
@@ -38,15 +52,15 @@ pub(super) async fn may_relay(
                 cache.insert(channel_id, answer, now, epoch);
                 answer
             }
-            Err(_) => return false,
+            Err(_) => return None,
         },
     };
     let needed = Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS);
     if !granted.contains(needed) {
-        return false;
+        return None;
     }
     if frame == Frame::Pointer {
-        return true;
+        return Some(granted);
     }
     let until_ms = match cache.timeout_until(now, epoch) {
         Some(cached) => cached,
@@ -55,8 +69,10 @@ pub(super) async fn may_relay(
                 cache.insert_timeout(answer, now, epoch);
                 answer
             }
-            Err(_) => return false,
+            Err(_) => return None,
         },
     };
-    until_ms.is_none_or(|until| now_ms() >= until)
+    until_ms
+        .is_none_or(|until| now_ms() >= until)
+        .then_some(granted)
 }

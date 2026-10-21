@@ -13,7 +13,7 @@ use sqlx::SqliteExecutor;
 
 use super::super::Store;
 use super::{PlaceError, valid_bounds};
-use crate::ids::CanvasObjectId;
+use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
 impl Store {
     /// Moves or resizes an object outside any caller's transaction. Kept as a
@@ -27,6 +27,28 @@ impl Store {
         bounds: (f64, f64, f64, f64),
     ) -> Result<bool, PlaceError> {
         move_canvas_object_query(&self.pool, id, bounds).await
+    }
+
+    /// Whether `user` could move this live, unlocked object right now: the same
+    /// rule a `move` op applies, asked before a drag preview is relayed.
+    pub async fn canvas_object_movable_by(
+        &self,
+        channel_id: ChannelId,
+        id: CanvasObjectId,
+        user: UserId,
+        may_moderate: bool,
+    ) -> Result<bool, sqlx::Error> {
+        let row = sqlx::query!(
+            r#"SELECT author_id AS "author_id: UserId",
+                      EXISTS(SELECT 1 FROM canvas_object_locks WHERE object_id = canvas_objects.id) AS "locked!: bool"
+               FROM canvas_objects
+               WHERE id = ? AND channel_id = ? AND deleted_at IS NULL"#,
+            id,
+            channel_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.is_some_and(|r| !r.locked && (may_moderate || r.author_id == Some(user))))
     }
 }
 

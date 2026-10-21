@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT author_id AS \"author_id: UserId\",\n                      EXISTS(SELECT 1 FROM canvas_object_locks WHERE object_id = canvas_objects.id) AS \"locked!: bool\"\n               FROM canvas_objects\n               WHERE id = ? AND channel_id = ? AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "author_id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "locked!: bool",
+        "ordinal": 1,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "56f05169206f9706ecf8bc90d90550b3c99c462980cbf55729cd7cfee7edfa74"
+}

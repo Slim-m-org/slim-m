@@ -170,7 +170,7 @@ void main() {
         coldFetches++;
       },
       forgetFetchedRegion: () {},
-    );
+    )..seedFromViewport(0);
 
     dispatchCanvasLiveEvent(
       const api.CanvasObjectsRestored(

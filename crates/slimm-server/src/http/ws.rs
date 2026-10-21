@@ -35,7 +35,7 @@ use super::messages::{AttachmentDto, MessageDto};
 use crate::hub::Event;
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
-use frames::ClientFrame;
+use client_frames::ClientFrame;
 use frames::ServerFrame;
 use permission_cache::PermissionCache;
 
@@ -45,6 +45,7 @@ mod authorization_bits;
 mod canvas_frames;
 mod canvas_gate;
 mod channel_scope;
+mod client_frames;
 mod deployment_frames;
 mod ephemeral_frames;
 mod frames;

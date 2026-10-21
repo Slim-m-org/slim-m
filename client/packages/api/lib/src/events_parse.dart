@@ -386,6 +386,11 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         opId: decoded['op_id'] as String,
         beforeSeq: decoded['before_seq'] as int,
         scope: CanvasClearScope.fromJson(decoded),
+        sparedIds: decoded['spared_ids'] is List
+            ? List<String>.from(decoded['spared_ids'] as List<dynamic>)
+            : const [],
+        sparedCount:
+            decoded['spared_count'] is int ? decoded['spared_count'] as int : 0,
       ),
     'canvas.objects.restored'
         when decoded['channel_id'] is String &&

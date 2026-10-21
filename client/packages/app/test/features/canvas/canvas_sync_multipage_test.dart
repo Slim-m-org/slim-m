@@ -115,19 +115,26 @@ void main() {
     });
   });
 
-  test('a page that fails part way leaves the cursor where it was', () {
-    fakeAsync((async) {
-      final feed = _Feed(250, failAfter: 100);
-      final sync = feed.sync()..seedFromViewport(0);
+  test(
+    'a page that fails part way leaves the cursor after the ops it applied',
+    () {
+      fakeAsync((async) {
+        final feed = _Feed(250, failAfter: 100);
+        final sync = feed.sync()..seedFromViewport(0);
 
-      sync.catchUp();
-      async.flushMicrotasks();
+        sync.catchUp();
+        async.flushMicrotasks();
 
-      expect(feed.afterSeqs, [0, 100]);
-      expect(feed.coldFetches, 0);
-      expect(sync.asOfSeq, 0);
-    });
-  });
+        expect(feed.afterSeqs, [0, 100]);
+        expect(feed.coldFetches, 0);
+        expect(
+          sync.asOfSeq,
+          100,
+          reason: 'ops of the page that landed stay applied',
+        );
+      });
+    },
+  );
 
   test('a page that claims more but carries no ops is a reset, not a loop', () {
     fakeAsync((async) {

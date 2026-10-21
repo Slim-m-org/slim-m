@@ -22,6 +22,7 @@ class CanvasObjectPreviewRelay {
     required this.selfId,
     required this.isDraggingLocally,
     this.glide = _fullGlide,
+    this.onAbandoned,
   });
 
   final RemoteObjectPreviews previews;
@@ -37,6 +38,10 @@ class CanvasObjectPreviewRelay {
   /// the setting lives in the widget tree, not here.
   final Duration Function() glide;
 
+  /// A preview was given up on, so its object went back to a box that may no
+  /// longer be where the server has it; the owner reads the region again.
+  final void Function()? onAbandoned;
+
   static Duration _fullGlide() => objectPreviewGlideDuration;
 
   Ticker? _ticker;
@@ -49,7 +54,12 @@ class CanvasObjectPreviewRelay {
     final at = now ?? clock.now();
     _activeObjectId = objectId;
     final last = _lastSent;
-    if (last != null && at.difference(last) < cursorSendInterval) return;
+    // A clock stepped back makes the gap negative, which must not mute the relay.
+    final recent =
+        last != null &&
+        !at.isBefore(last) &&
+        at.difference(last) < cursorSendInterval;
+    if (recent) return;
     _lastSent = at;
     send(objectId, box, false);
   }
@@ -78,7 +88,7 @@ class CanvasObjectPreviewRelay {
   }
 
   /// The committed move arrived: it is the exact final box.
-  void settle(String objectId) => previews.settle(objectId);
+  void settle(String objectId) => previews.settle(objectId, now: clock.now());
 
   /// A frame callback rather than a periodic timer: it fires in step with
   /// paint, and none arrive while the app is hidden.
@@ -101,7 +111,7 @@ class CanvasObjectPreviewRelay {
     final wait = next.difference(clock.now()) + const Duration(milliseconds: 1);
     _deadline = Timer(wait.isNegative ? Duration.zero : wait, () {
       _deadline = null;
-      previews.expire(clock.now());
+      if (previews.expire(clock.now())) onAbandoned?.call();
       _watchDeadline();
     });
   }

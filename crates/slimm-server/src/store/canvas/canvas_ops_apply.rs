@@ -28,6 +28,7 @@ pub(in crate::store) struct ExistingOp {
     pub(in crate::store) kind: String,
     pub(in crate::store) actor_id: Option<UserId>,
     pub(in crate::store) bound_seq: Option<i64>,
+    pub(in crate::store) affected: Option<i64>,
     pub(in crate::store) created_at: i64,
 }
 
@@ -62,7 +63,7 @@ pub(in crate::store) async fn apply_remove(
         if !may_moderate && found.author_id != Some(actor_id) {
             return Err(SubmitOpError::NotAuthorized);
         }
-        if !found.is_dead {
+        if !found.is_dead && !to_remove.contains(object_id) {
             to_remove.push(*object_id);
         }
     }
@@ -260,7 +261,7 @@ pub(in crate::store) async fn apply_restore(
     .await?;
     // The effective cap, read in this same transaction as the count above it.
     let cap = super::super::space::read_canvas_object_cap(&mut **tx).await?;
-    if live + dead.len() as i64 > cap {
+    if !dead.is_empty() && live + dead.len() as i64 > cap {
         return Err(SubmitOpError::ChannelFull);
     }
 
@@ -370,7 +371,8 @@ pub(in crate::store) async fn fetch_op(
         ExistingOp,
         r#"SELECT channel_id AS "channel_id!: ChannelId", seq AS "seq!: i64",
                   kind AS "kind!", actor_id AS "actor_id: UserId",
-                  bound_seq AS "bound_seq: i64", created_at AS "created_at!: i64"
+                  bound_seq AS "bound_seq: i64", affected AS "affected: i64",
+                  created_at AS "created_at!: i64"
            FROM canvas_ops WHERE id = ?"#,
         id
     )
@@ -456,37 +458,23 @@ pub(in crate::store) async fn current_canvas_seq(
     Ok(seq.unwrap_or(0))
 }
 
-/// Recomputes `affected` for a replayed op, since the count itself is not a
-/// stored column. A `remove`'s, `restore`'s, `move`'s or `reorder`'s own
-/// target row already names exactly what it touched, all keyed by the op's
-/// own seq; a `clear` shares one `now` between `deleted_at` and its own
-/// `created_at`, and `canvas_ops_write::now_ms_unique` is what makes that
-/// value exact rather than merely likely - see its own doc for why a plain
-/// `now_ms()` was not enough.
+/// Recomputes `affected` for a replayed op: a `clear` stores its count, since
+/// the `deleted_at` fence stops answering once it is undone; every other kind's
+/// target rows name exactly what it touched.
 pub(in crate::store) async fn affected_count_for(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     channel_id: ChannelId,
     op: &ExistingOp,
 ) -> Result<i64, sqlx::Error> {
-    if op.kind == "remove" || op.kind == "restore" || op.kind == "move" || op.kind == "reorder" {
-        sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_op_targets
-               WHERE channel_id = ? AND seq = ?"#,
-            channel_id,
-            op.seq
-        )
-        .fetch_one(&mut **tx)
-        .await
-    } else {
-        let bound = op.bound_seq.unwrap_or(0);
-        sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
-               WHERE channel_id = ? AND seq <= ? AND deleted_at = ?"#,
-            channel_id,
-            bound,
-            op.created_at
-        )
-        .fetch_one(&mut **tx)
-        .await
+    if op.kind == "clear" {
+        return Ok(op.affected.unwrap_or(0));
     }
+    sqlx::query_scalar!(
+        r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_op_targets
+           WHERE channel_id = ? AND seq = ?"#,
+        channel_id,
+        op.seq
+    )
+    .fetch_one(&mut **tx)
+    .await
 }

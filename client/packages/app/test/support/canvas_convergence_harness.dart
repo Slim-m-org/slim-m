@@ -105,7 +105,7 @@ class CanvasReceiver {
       objectPreviewRelay: () => _objectPreviews,
       applyPlacedObject: (object) {
         final input = canvasStrokeInputFrom(object);
-        if (input != null) document.applyPlaced(input);
+        if (input != null) document.applyPlaced(input, overwrite: true);
       },
       forgetFetchedRegion: () {},
       mediaSlotSync: _mediaSlotSync,

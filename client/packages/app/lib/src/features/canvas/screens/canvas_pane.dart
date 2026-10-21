@@ -301,6 +301,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                       ? () => unawaited(_engine.fetch())
                       : null,
                   truncated: engineState.truncated,
+                  paging: engineState.paging,
                   loading: engineState.loading,
                   onStroke: _onStroke,
                   onErase: _onErase,

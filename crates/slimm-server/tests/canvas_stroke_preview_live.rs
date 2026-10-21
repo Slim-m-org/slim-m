@@ -361,3 +361,42 @@ async fn preview_frames_are_rate_limited_by_bytes() {
         "the byte-rate limiter must refuse some of {total} large rapid frames, only {seen} got through",
     );
 }
+
+/// An odd coordinate list would index past its end in a receiver's painter, so
+/// it is dropped. A valid frame sent right after proves the odd one was
+/// refused, not merely slow: frames arrive in order.
+#[tokio::test]
+async fn an_odd_length_point_list_is_dropped_before_the_next_frame_arrives() {
+    let (store, _guard) = support::new_store("slimm-canvas-stroke-preview-live").await;
+    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    let odd = new_object_id();
+    let sentinel = new_object_id();
+    send_preview(
+        &mut alice_ws,
+        &channel.to_string(),
+        &odd,
+        &[1.0, 2.0, 3.0],
+        false,
+    )
+    .await;
+    send_preview(
+        &mut alice_ws,
+        &channel.to_string(),
+        &sentinel,
+        &[1.0, 2.0],
+        false,
+    )
+    .await;
+
+    let first = next_of_type(&mut bob_ws, "canvas.stroke_preview.updated").await;
+    assert_eq!(first["object_id"], sentinel, "the odd list was relayed");
+}

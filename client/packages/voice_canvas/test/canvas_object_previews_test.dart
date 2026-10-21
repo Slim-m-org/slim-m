@@ -74,7 +74,7 @@ void main() {
     previews.tick(_ms(1000));
 
     expect(document.objectBounds('a')!.x, 100);
-    previews.settle('a');
+    previews.settle('a', now: _ms(1000));
     expect(previews.isActive, isFalse);
     expect(document.objectBounds('a')!.x, 100);
   });

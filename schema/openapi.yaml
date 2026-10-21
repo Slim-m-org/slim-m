@@ -6247,6 +6247,20 @@ paths:
         soft delete does not advance an object's `seq`, so removals belong to
         `listCanvasOps`, the ordered op stream
         this operation's `latest_seq` is also a valid cursor into.
+
+
+        A response also stops once its body would pass about 900 KiB, with
+        `has_more` true; the newest objects are kept.
+
+
+        With `cursor_seq` the region is paged instead, oldest `seq` first, so a
+        client can draw the visible area from one read and then load the rest of
+        the board in the background: each page carries `next_cursor`, to send
+        back as `cursor_seq`, until `has_more` is false, and `total_objects`,
+        how many live objects the whole channel holds, for a progress count.
+        Objects placed or moved while paging arrive through the op stream, so
+        merge pages by object id. `cursor_seq` cannot be combined with the
+        `prev_*` parameters or `after_seq`.
       parameters:
         - name: min_x
           in: query
@@ -6291,6 +6305,14 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: cursor_seq
+          in: query
+          description: >
+            Pages the region by canvas `seq`, oldest first: only objects with a
+            `seq` above this are returned. Start at 0.
+          schema:
+            type: integer
+            format: int64
         - name: limit
           in: query
           description: Page size; the server clamps it.
@@ -6301,7 +6323,7 @@ paths:
             default: 500
       responses:
         "200":
-          description: The objects in the region, in paint order.
+          description: The objects in the region, in paint order (in `seq` order with `cursor_seq`).
           content:
             application/json:
               schema:
@@ -6364,9 +6386,8 @@ paths:
         it is already visible. An attachment never uploaded, already swept as
         an orphan, or not visible to this caller is a 400, the same collapse
         a message's own attachment check already makes. For a `note`, `props`
-        carries `text`, set once at creation - there is no edit verb on this
-        canvas for any kind, so revising a note's text means removing it and
-        placing a new one. For a `shape`, `props` carries `shape`, one of
+        carries `text`; revising it later is an `edit` op (`submitCanvasOp`).
+        For a `shape`, `props` carries `shape`, one of
         `rectangle`, `ellipse`, `line` or `arrow`; a line or an arrow is
         always the diagonal of the object's own `x`/`y`/`w`/`h` box, so
         reshaping either is an ordinary `move` op against a different box,
@@ -6431,8 +6452,10 @@ paths:
         the viewport instead. It is returned when the caller is more than
         2,000 ops behind, when `after_seq` names a point before the oldest op
         this server still retains (a background sweep compacts `remove`,
-        `clear` and `restore` rows older than 30 days, so a client that has
-        been offline for a month can hit this),
+        `clear` and `restore` rows older than 30 days, and deletes the ops of
+        objects erased past the space's message retention window, so a client
+        that has been offline for a month can hit this; so can a cursor part-way
+        through a compacted or deleted stretch, though 0 never does),
         or when `after_seq` is past `latest_seq`, which happens after a
         restore from backup.
 
@@ -6476,7 +6499,7 @@ paths:
     post:
       operationId: submitCanvasOp
       tags: [canvas]
-      summary: Remove objects from a channel's canvas, clear it, restore a removal, move an object, or restack it.
+      summary: Remove objects from a channel's canvas, clear it (all or scoped), restore a removal, move, restack or edit an object.
       description: >
         Requires `VIEW_CHANNEL` and `USE_CANVAS`, evaluated for this channel.
         An unrecognised `kind` is a 400, the same as an unrecognised
@@ -6500,7 +6523,15 @@ paths:
         The fence is required, not optional, because a lost response retried
         without one would wipe whatever was drawn in the interval. An optional
         `kinds` and `author_id` narrow it to those object kinds and that
-        author's objects; restoring the clear undoes only what it removed.
+        author's objects (`clear_scoped`, which needs at least one of the two);
+        restoring the clear undoes only what it removed.
+
+
+        A clear leaves locked objects standing and says which: the op's
+        `spared_ids`. When nothing unlocked matches, the clear removes the
+        locked ones too, so a second clear empties the board. A clear that spared
+        something is served as `clear_scoped`, with `spared_ids`, so a client that
+        predates this treats it as unknown and resyncs.
 
 
         `restore` names a prior `remove` or `clear` op as `target_op` and
@@ -6514,9 +6545,13 @@ paths:
         its ceiling is a 409, refused inside the same transaction that counts.
 
 
-        An object locked in place (`lockCanvasObject`) refuses `move` and
-        `reorder` with 409; a `remove` naming it leaves it in place and
-        removes the rest of the batch.
+        `edit` replaces a live note's props wholesale; it is refused under a
+        timeout and with 409 for a locked note, and only a note can be edited.
+
+
+        An object locked in place (`lockCanvasObject`) refuses `move`,
+        `reorder` and `edit` with 409; a `remove` naming it leaves it in place
+        and removes the rest of the batch.
 
 
         `move` repositions a single live object to `x`, `y`, `w`, `h`,
@@ -6547,11 +6582,11 @@ paths:
         same split `move` already makes.
 
 
-        Refused for `remove`, `clear` and `restore` is a timeout: a timeout
-        freezes the pen, not the eraser, so a timed-out member may still
-        remove or restore their own ink. `move` and `reorder` are the
-        exception, refused under a timeout the same way `placeCanvasObject`
-        is, since both change how ink presents rather than removing it.
+        A timeout does not stop `remove`, `clear` or `restore`: it freezes the
+        pen, not the eraser, so a timed-out member may still remove or restore
+        their own ink. `move`, `reorder` and `edit` are the exception, refused
+        under a timeout the same way `placeCanvasObject` is, since they change
+        how ink presents rather than removing it.
         `affected` may be 0 for any kind - every named object already gone,
         nothing at or below `before_seq`, a restore naming nothing still
         dead, or a move or reorder naming an already-removed object - in
@@ -6570,6 +6605,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CanvasOpResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/canvas/objects/{objectId}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: objectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: purgeCanvasObject
+      tags: [canvas]
+      summary: Remove a canvas object for good.
+      description: >
+        Requires `VIEW_CHANNEL`, `USE_CANVAS` and `MANAGE_CANVAS`. A live
+        object is erased first (and unlocked, since a purge outranks a lock), so
+        every viewer drops it; then its rows, op history and image bytes are
+        deleted and it can no longer be restored. An object already erased is
+        simply deleted. A 409 means the object was restored in between.
+      responses:
+        "204":
+          description: The object is gone for good.
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -14342,6 +14412,17 @@ components:
       type: object
       required: [objects, has_more, latest_seq]
       properties:
+        next_cursor:
+          type: integer
+          format: int64
+          description: >-
+            With `cursor_seq` and `has_more`: the `seq` to send back as
+            `cursor_seq` for the next page. Absent on the last page.
+        total_objects:
+          type: integer
+          format: int64
+          description: >-
+            With `cursor_seq`, how many live objects the whole channel holds.
         objects:
           type: array
           items:
@@ -14349,9 +14430,9 @@ components:
         has_more:
           type: boolean
           description: >-
-            More objects intersect this region than the limit allowed. There is
-            no stable cursor across a region query, so the answer is to ask for
-            a smaller region, not a next page.
+            More objects intersect this region than the limit or the response
+            size allowed. Without `cursor_seq` there is no stable cursor, so the
+            answer is a smaller region; with it, `next_cursor` is the next page.
         latest_seq:
           type: integer
           format: int64
@@ -14420,6 +14501,11 @@ components:
           type: string
           format: uuid
           description: On a `clear_scoped`, only this author's objects were removed.
+        spared_ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: >-
+            On a `clear_scoped`: the locked objects the clear left standing.
         target_op:
           type: string
           format: uuid
@@ -14581,7 +14667,7 @@ components:
               format: int64
             kind:
               type: string
-              enum: [remove, clear, restore, move, reorder]
+              enum: [remove, clear, restore, move, reorder, edit]
             affected:
               type: integer
               format: int64
@@ -16683,6 +16769,17 @@ components:
         author_id:
           type: string
           format: uuid
+        spared_ids:
+          type: array
+          items: { type: string, format: uuid }
+          description: >-
+            Locked objects the clear left standing, up to the same bound
+            `canvas.objects.removed` has. Fewer ids than `spared_count` means
+            refetch.
+        spared_count:
+          type: integer
+          format: int64
+          description: How many locked objects the clear spared; absent when none.
 
     CanvasObjectsRestored:
       type: object
@@ -16959,7 +17056,9 @@ components:
         A canvas object was locked in place or unlocked, gated the same way
         `canvas.object.placed` is. Carries no `seq`: a lock is current state
         beside the op stream, so a reconnecting client rereads
-        `listCanvasObjectLocks`.
+        `listCanvasObjectLocks`. A restore that brings back locked objects
+        (up to the same id bound `canvas.objects.restored` has) publishes one
+        of these per object, since the lock list leaves out erased objects.
       properties:
         type:
           type: string

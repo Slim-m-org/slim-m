@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT deleted_at IS NOT NULL AS \"dead!: bool\" FROM canvas_objects\n               WHERE id = ? AND channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "dead!: bool",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "64779dc849048c320485059291149184df08b29f2ff93b4f998a554a1b5e9bff"
+}

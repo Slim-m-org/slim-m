@@ -34,6 +34,7 @@ import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'canvas_activity_log.dart';
+import 'canvas_board_pager.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_forbidden_message.dart';
@@ -50,6 +51,8 @@ import 'canvas_view_follower.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
 
+part 'canvas_engine_reads.dart';
+
 /// [CanvasEngine.state]'s own shape: the three fields that used to be plain
 /// `setState`-driven fields on `_CanvasPaneState` and still need to trigger a
 /// rebuild when they change. Everything else the engine owns is a
@@ -60,21 +63,29 @@ class CanvasEngineState {
     this.loading = true,
     this.error,
     this.truncated = false,
+    this.paging,
   });
 
   final bool loading;
   final String? error;
   final bool truncated;
 
+  /// How much of the board has arrived while the rest is still being read, or
+  /// null once the whole board is here.
+  final CanvasPaging? paging;
+
   CanvasEngineState copyWith({
     bool? loading,
     String? error,
     bool clearError = false,
     bool? truncated,
+    CanvasPaging? paging,
+    bool clearPaging = false,
   }) => CanvasEngineState(
     loading: loading ?? this.loading,
     error: clearError ? null : (error ?? this.error),
     truncated: truncated ?? this.truncated,
+    paging: clearPaging ? null : (paging ?? this.paging),
   );
 }
 
@@ -99,7 +110,11 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       forgetFetchedRegion: () => _fetched = null,
       onObjectPlaced: hydrator.hydrate,
       onOpApplied: activityLog.recordOp,
-      onHardReset: activityLog.recordResync,
+      onHardReset: _onHardReset,
+      settleObjectPreview: (id) => objectPreviewRelay.settle(id),
+      isShownOffPlace: (id) =>
+          document.elevatedObjectId.value == id ||
+          (_objectPreviewRelay?.previews.holds(id) ?? false),
     );
     // Registered once here, not in build: a listener re-attached per rebuild would fire a catch-up per rebuild, not per transition into live.
     _syncStatusSubscription = _ref.listen<SyncStatus>(syncControllerProvider, (
@@ -109,6 +124,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       if (next == SyncStatus.live) {
         unawaited(sync.catchUp());
         _refetchIfLoadFailed();
+        hydrator.hydrateVisible();
+        if (!_boardPaged && !state.loading) unawaited(fetch(keepError: true));
         unawaited(slotSync.fetch());
         unawaited(objectLocks.fetch());
       }
@@ -235,7 +252,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     client: _client,
     document: document,
     commits: commits,
-    onError: reportError,
+    onError: _reportRefusedWrite,
     onRemoveFailed: () {
       _fetched = null;
       return fetch(keepError: true);
@@ -325,6 +342,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         selfId: () => _ref.read(meProvider).valueOrNull?.id,
         isDraggingLocally: (id) => document.elevatedObjectId.value == id,
         glide: () => objectPreviewGlide,
+        onAbandoned: () {
+          _fetched = null;
+          unawaited(fetch(keepError: true));
+        },
       );
 
   /// Set by the pane from the reduce-motion setting, which only the widget
@@ -336,6 +357,19 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// error this engine can meaningfully retry (re-running [fetch]) is
   /// identified by more than a string literal repeated in two places.
   static const genericLoadError = canvasLoadFailedMessage;
+
+  void _emit(CanvasEngineState Function(CanvasEngineState current) change) {
+    if (mounted) state = change(state);
+  }
+
+  /// A refused write leaves its optimistic local effect behind, and rolling
+  /// that back to the box it started from can undo a newer remote move; the
+  /// region read is the authority.
+  void _reportRefusedWrite(String message) {
+    reportError(message);
+    _fetched = null;
+    unawaited(fetch(keepError: true));
+  }
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
   /// a refused write. A null message clears it, the same as `_refresh(() =>
@@ -365,6 +399,12 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   void _apply(api.CanvasObject object) {
     final input = canvasStrokeInputFrom(object);
     if (input == null) return;
+    if (sync.clearedSincePlacement(object)) {
+      document
+        ..removeObject(object.id)
+        ..refresh();
+      return;
+    }
     document
       ..applyPlaced(input)
       ..refresh();
@@ -390,108 +430,46 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     return 'Someone';
   }
 
-  /// A pan re-reads once the camera has settled, never per frame.
-  ///
-  /// [CanvasDocument]'s listenable fires on any content change too - a fetch
-  /// landing, a live frame, a locally drawn stroke - since [CanvasDocument]'s
-  /// `refresh()` and a real camera move both end in the same
-  /// `notifyListeners()`. Reading [_lastCameraView] is what tells those
-  /// apart: a content-only notification reports the same world view as last
-  /// examined, so it returns before touching [_fetched] at all. Without that
-  /// guard a still-truncated region never becomes "covered", so every one of
-  /// those content notifications re-read a null [_fetched] and rescheduled a
-  /// fetch for the unmoved viewport - forever, since the answer stays
-  /// truncated for the same reason each time.
-
-  void _onCameraMoved() {
-    final view = document.worldView;
-    if (view == _lastCameraView) return;
-    final isFirstView = _lastCameraView == null;
-    _lastCameraView = view;
-    final fetched = _fetched;
-    if (fetched != null &&
-        fetched.contains(view.topLeft) &&
-        fetched.contains(view.bottomRight)) {
-      // Inside what is already fetched, only a bitmap evicted off screen can be missing.
-      _panDebounce?.cancel();
-      _panDebounce = Timer(
-        const Duration(milliseconds: 150),
-        hydrator.hydrateVisible,
-      );
-      return;
-    }
-    _panDebounce?.cancel();
-    if (isFirstView) {
-      unawaited(fetch());
-      return;
-    }
-    _panDebounce = Timer(
-      const Duration(milliseconds: 150),
-      () => unawaited(fetch()),
-    );
+  void _onHardReset() {
+    activityLog.recordResync();
+    _objectPreviewRelay?.previews.clear();
+    _boardPaged = false;
   }
 
-  Rect _padded(Rect view) {
-    final wide = view.inflate(view.width.clamp(1, 4000) / 2);
-    return Rect.fromLTRB(
-      wide.left.clamp(-worldLimit, worldLimit),
-      wide.top.clamp(-worldLimit, worldLimit),
-      wide.right.clamp(-worldLimit, worldLimit),
-      wide.bottom.clamp(-worldLimit, worldLimit),
-    );
-  }
-
-  /// [keepError] spares the message a failed action just reported, which a
-  /// successful read would otherwise clear along with a load error.
+  /// Reads the padded view, then replays the feed from the cursor. Reads that
+  /// overlap in time share one pass; [keepError] spares the message a failed
+  /// action just reported, which a successful read would otherwise clear.
   Future<void> fetch({bool keepError = false}) async {
-    final region = _padded(document.worldView);
-    if (region.width <= 0 || region.height <= 0) return;
+    await _readRegion(keepError: keepError);
+    if (mounted) await sync.catchUp();
+  }
+
+  Completer<void>? _reading;
+  bool _readAgain = false;
+  bool _readAgainKeepsError = true;
+
+  Future<void> _readRegion({required bool keepError}) {
+    final running = _reading;
+    if (running != null) {
+      _readAgain = true;
+      _readAgainKeepsError = _readAgainKeepsError && keepError;
+      return running.future;
+    }
+    final done = _reading = Completer<void>();
+    unawaited(_readRegionLoop(keepError).whenComplete(done.complete));
+    return done.future;
+  }
+
+  Future<void> _readRegionLoop(bool keepError) async {
     try {
-      final page = await _client.canvasViewport(
-        channelId,
-        region: api.CanvasRect(
-          minX: region.left,
-          minY: region.top,
-          maxX: region.right,
-          maxY: region.bottom,
-        ),
-        limit: 2000,
-      );
-      if (!mounted) return;
-      _loadRetry.succeeded();
-      for (final object in page.objects) {
-        final input = canvasStrokeInputFrom(object);
-        if (input != null) {
-          document.applyPlaced(input);
-          hydrator.hydrate(object);
-        }
-      }
-      // Set before refresh(), not after: refresh() reaches _onCameraMoved synchronously and must see this fetch's own answer, not the value from before it ran.
-      state = state.copyWith(
-        loading: false,
-        clearError: !keepError,
-        // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
-        truncated: page.hasMore,
-      );
-      _fetched = page.hasMore ? null : region;
-      document.refresh();
-      sync.seedFromViewport(page.latestSeq);
-      await sync.catchUp();
-    } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
-      if (mounted) {
-        state = state.copyWith(loading: false, error: canvasUnavailableMessage);
-      }
-    } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
-      if (mounted) {
-        state = state.copyWith(loading: false, error: genericLoadError);
-        _loadRetry.schedule(() {
-          if (mounted) unawaited(fetch());
-        });
-      }
+      await _readUntilSettled(keepError);
+    } finally {
+      _reading = null;
     }
   }
+
+  bool _boardPaged = false;
+  bool _paging = false;
 
   // A deploy or a rate limit fails the read for seconds; without this the view stays empty until the person pans or presses Retry.
   final _loadRetry = CanvasLoadRetry();

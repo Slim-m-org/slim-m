@@ -51,6 +51,8 @@ class CanvasCleared extends ServerEvent {
     required this.opId,
     required this.beforeSeq,
     this.scope = CanvasClearScope.everything,
+    this.sparedIds = const [],
+    this.sparedCount = 0,
   });
 
   final String channelId;
@@ -58,6 +60,12 @@ class CanvasCleared extends ServerEvent {
   final String opId;
   final int beforeSeq;
   final CanvasClearScope scope;
+
+  /// The locked objects the clear left standing, up to a bound.
+  final List<String> sparedIds;
+
+  /// How many it spared in all; more than [sparedIds] holds means refetch.
+  final int sparedCount;
 }
 
 /// A removal or a clear was undone.
