@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The notification schedule (`docs/decisions/0033-notification-schedule.md`):
-//! a per-weekday on-hours window, an off-hours policy, two allow-lists, and
-//! an optional snooze. Enforced exactly once, in
-//! `push::recipients::narrow_for_notification_preference`, the only choke
-//! point - never a filter a client applies after a device has already buzzed.
-//!
-//! It replaced the old `/push/quiet-hours` window: migration 0081 seeded every
-//! quiet-hours user into it so nobody's push changed on upgrade, and migration
-//! 0138 dropped the old columns.
+//! The notification schedule (`docs/decisions/0033-notification-schedule.md`): a per-weekday on-hours window, an off-hours policy, two allow-lists and an optional snooze, enforced once in `push::recipients::narrow_for_notification_preference`.
+//! Replaces `/push/quiet-hours`: migration 0081 seeded every quiet-hours user into it and 0138 dropped the old columns.
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;

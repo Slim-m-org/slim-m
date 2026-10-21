@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Keeps one channel's personal canvas layout on this device and puts it back
-/// when the canvas is opened again. Decision 0082.
-///
-/// The layout is local convenience state: it goes to the drift store and never
-/// to the server.
+/// Keeps one channel's personal canvas layout on this device and restores it on reopen (decision 0082); it never goes to the server.
 library;
 
 import 'dart:async';

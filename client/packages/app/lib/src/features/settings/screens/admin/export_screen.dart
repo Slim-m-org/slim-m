@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Export this Space: an administrator's copy of the community in the format
-/// `docs/data-export-format.md` documents.
-///
-/// ADMINISTRATOR, not MANAGE_SERVER, matching `POST /exports/space`: the
-/// archive reads every channel, which MANAGE_SERVER does not allow (decision
-/// 0084). Without the bit the pane says why rather than going blank, the same
-/// rule [AccountRecoveryPane] follows.
+/// Export this Space: an administrator's copy of the community in the format `docs/data-export-format.md` documents.
+/// ADMINISTRATOR, not MANAGE_SERVER, matching `POST /exports/space` since the archive reads every channel (decision 0084); without the bit the pane says why.
 library;
 
 import 'package:flutter/material.dart';

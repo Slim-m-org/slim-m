@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One call tile's live feed filling the canvas pane, painted under the ink
-/// so drawings, images and cursors stay on top of it.
-///
-/// This is what "full screen" on a canvas tile means: the feed grows to the
-/// pane and the canvas stays, where the voice screen's fullscreen route would
-/// have covered it.
+/// One call tile's live feed filling the canvas pane, painted under the ink so drawings and cursors stay on top.
 library;
 
 import 'dart:async';

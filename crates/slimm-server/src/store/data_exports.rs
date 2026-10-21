@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Export jobs: one row per requested archive, from queued to expired.
-//!
-//! The row is the job's status and the only record of the archive; the file
-//! under the media root is named after the row's id. See
-//! `docs/data-export-format.md` for what an archive holds.
+//! The row is the job's status and the only record of the archive, whose file under the media root is named after the row id.
 
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;

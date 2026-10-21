@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What people do on the canvas, for `canvas_engine_fuzz_test.dart`: local
-/// gestures through the real engine API, remote people acting on the server,
-/// and remote drag previews.
-///
-/// A local gesture is a short script run one step per world tick, so frames
-/// and replies land in the middle of a drag or an erase, the way they do for a
-/// person holding the pointer down.
+/// What people do on the canvas for the engine fuzz: local gestures through the real engine API, remote people acting on the server, and remote drag previews.
+/// A local gesture is a script run one step per world tick, so frames and replies land mid-drag.
 library;
 
 import 'dart:async';

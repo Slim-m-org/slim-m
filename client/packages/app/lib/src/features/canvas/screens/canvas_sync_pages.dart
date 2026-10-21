@@ -4,12 +4,8 @@ part of 'canvas_sync.dart';
 /// Viewport pages go through the same reducer as the feed, so a region read
 /// that lands late cannot undo what a live frame already did.
 extension CanvasSyncViewport on CanvasSync {
-  /// Applies one region read that was answered at `page.latestSeq`.
-  ///
-  /// The first read seeds the cursor. A read older than the cursor is brought
-  /// forward by re-applying the logged ops above it, or refused when the log
-  /// no longer reaches that far. A complete read also drops what the document
-  /// shows inside the region but the read does not list.
+  /// Applies one region read answered at `page.latestSeq`: the first seeds the cursor, an older one is brought forward from the op log or refused if the log no longer reaches it.
+  /// A complete read also drops what the document shows in the region but the read omits.
   CanvasPageOutcome applyViewport(
     api.CanvasViewport page,
     Rect region, {

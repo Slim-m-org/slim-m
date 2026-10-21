@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Decision 0086: only a live camera or screen share has a tile. A person with
-/// neither is in the dock's roster, so the board shows no avatar tile for them,
-/// and a tile that does exist has resize, lock and hide but no depth control,
-/// since ink always paints above it.
+/// Decision 0086: only a live camera or screen share has a tile; a tile has resize, lock and hide but no depth control, since ink always paints above it.
 library;
 
 import 'package:flutter/material.dart';

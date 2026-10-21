@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One gesture has one owner: the first accepted pointer, under the tool and
-/// camera it began with. A cancel never commits, a second finger makes a
-/// pinch, a stylus outranks a resting palm, and a foreign camera move or a
-/// tool change ends the gesture instead of relocating it.
+/// One gesture has one owner, the first accepted pointer under the tool and camera it began with: a cancel never commits, a second finger makes a pinch, a stylus outranks a palm, and a foreign camera or tool change ends the gesture.
 library;
 
 import 'package:flutter/gestures.dart';

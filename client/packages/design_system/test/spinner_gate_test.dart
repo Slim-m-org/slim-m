@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Every loading indicator in the client is an [AppSpinner], so size, ink and
-/// reduce-motion behaviour stay in one place.
-///
-/// Reads comment- and string-stripped source, never raw text, so a doc
-/// comment naming the widget is not a use of it.
+/// Every loading indicator in the client is an [AppSpinner]. Reads comment- and string-stripped source so a doc comment naming the widget is not a use.
 library;
 
 import 'dart:io';

@@ -97,12 +97,8 @@ class WebrtcDesktopSources implements DesktopSources {
     }
   }
 
-  /// Windows are listed too except on Linux; see [ScreenShareSource] for why.
-  /// Screens come first, and a window with no title is left out.
-  ///
-  /// On Wayland the plugin must hold back libwebrtc's own portal session for
-  /// this list, or the first share shows the chooser twice
-  /// (`scripts/linux-portal-probe/run.sh` counts them).
+  /// Windows are listed too except on Linux ([ScreenShareSource]); screens first, untitled windows left out.
+  /// On Wayland the plugin must hold back libwebrtc's portal session for this list, or the first share shows the chooser twice (`scripts/linux-portal-probe/run.sh`).
   @override
   Future<List<ScreenShareSource>> list() async {
     if (!required) return const [];

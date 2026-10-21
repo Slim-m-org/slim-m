@@ -2,11 +2,7 @@
 /// The z-sorted, culled slot list a canvas painter walks each frame.
 library;
 
-/// Caches every alive slot sorted by paint order, and filters it to the slots
-/// a cull kept.
-///
-/// A pan or zoom changes which slots are on screen but never their relative
-/// order, so the sort reruns only after [markDirty], not per frame.
+/// Caches every alive slot sorted by paint order and filters it to the slots a cull kept; a pan or zoom never changes relative order, so it re-sorts only after [markDirty].
 class PaintOrderCache {
   final List<int> _sortedAlive = <int>[];
   final List<int> _order = <int>[];
@@ -31,11 +27,7 @@ class PaintOrderCache {
   }
 
   /// [visible] slots in paint order, bottom first.
-  ///
-  /// Sorted here rather than taken as the cull emits them: the grid answers in
-  /// cell order on one branch and slot order on the other and switches on
-  /// zoom, so painting the raw cull would re-layer overlapping ink across the
-  /// adaptive threshold. The returned list is reused by the next call.
+  /// Sorted here because the grid answers in cell order on one branch and slot order on the other, so painting the raw cull would re-layer overlapping ink across the adaptive threshold; the returned list is reused.
   List<int> order({
     required int slotCount,
     required bool Function(int slot) isAlive,

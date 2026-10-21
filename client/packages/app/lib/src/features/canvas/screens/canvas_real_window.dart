@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Lays the canvas out from the real window while a locked phone is turned for
-/// a full screen tile (decision 0086).
-///
-/// The shell keeps a locked phone's `MediaQuery` portrait (`keepPortraitShell`),
-/// so a rotated canvas would still decide its layout from the portrait width.
-/// Like the fullscreen video route, it reads the window itself instead.
+/// Lays the canvas out from the real window while a locked phone is turned for a full screen tile (decision 0086).
+/// The shell keeps a locked phone's `MediaQuery` portrait, so like the fullscreen video route this reads the window itself.
 library;
 
 import 'package:flutter/widgets.dart';

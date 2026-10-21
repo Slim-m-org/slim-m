@@ -6,13 +6,8 @@ import 'dart:collection';
 
 import 'canvas_stroke.dart';
 
-/// Ids the server told the document to drop, so a viewport read still in
-/// flight when the removal landed cannot resurrect them.
-///
-/// Each id remembers the op seq of its removal when that is known, which is
-/// what lets a snapshot taken after the removal bring a restored object back.
-/// Eviction is FIFO once [maxRemovedIdsTracked] is reached, since no read in
-/// flight can name more live ids than the channel's own ceiling.
+/// Ids the server told the document to drop, so a viewport read in flight during the removal cannot resurrect them.
+/// Each remembers its removal's op seq when known, so a later snapshot can restore it; eviction is FIFO at [maxRemovedIdsTracked].
 class RemovedIds {
   final LinkedHashMap<String, int?> _seqs = LinkedHashMap<String, int?>();
 

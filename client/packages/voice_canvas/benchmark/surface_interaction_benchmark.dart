@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What one pointer event and one frame cost on a busy board: drawing, panning
-/// and zooming a mounted `CanvasSurface` at 1k, 5k and 10k strokes, and with
-/// 200 notes and 50 images on top.
-///
-/// Run with `flutter test benchmark/surface_interaction_benchmark.dart`, and
-/// set `CANVAS_PERF_OUT` to keep the JSON.
-///
-/// This is a debug JIT build with assertions on, hosted by `flutter test`, and
-/// no frame here reaches a GPU: a pumped frame is build, layout, paint
-/// recording and compositing, which is the UI-thread half of a real frame.
-/// Read it as an upper bound on that half, never as raster time.
+/// What one pointer event and one frame cost on a busy board: drawing, panning and zooming a mounted `CanvasSurface` at 1k, 5k and 10k strokes, and with 200 notes and 50 images.
+/// A debug JIT build under `flutter test` with no GPU, so read it as an upper bound on the UI-thread half of a frame; `CANVAS_PERF_OUT` keeps the JSON.
 library;
 
 import 'package:flutter/gestures.dart';

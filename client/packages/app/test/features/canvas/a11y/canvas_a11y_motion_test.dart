@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: the canvas under reduce motion.
-///
-/// Each case runs the same scene twice, once with full motion to show that the
-/// check can see the animation, and once reduced, either by the OS switch
-/// (`disableAnimations`) or by a screen reader being on (`accessibleNavigation`).
-/// The loops (speaking ring, cursor glide) must stop ticking; the transitions
-/// (dock fold, tile controls, sheets) must land in the first frame.
+/// The canvas under reduce motion: each case runs the scene at full motion (to prove the check can see animation) and reduced, by the OS switch or a screen reader.
+/// Loops must stop ticking and transitions land in the first frame.
 library;
 
 import 'package:flutter/rendering.dart';

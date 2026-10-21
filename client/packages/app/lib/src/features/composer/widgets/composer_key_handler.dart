@@ -28,15 +28,8 @@ class ComposerKeyHandler {
   final void Function(AutocompleteSuggestion) onAccept;
   final ComposerListKeys _listKeys = ComposerListKeys();
 
-  /// Intercepts the keys the list needs, on the field's own focus node.
-  ///
-  /// It has to be this node rather than an ancestor: text editing handles the
-  /// arrows through `Actions` installed above the field, so a handler higher
-  /// up would run after the caret had already moved.
-  ///
-  /// The paste check sits above the autocomplete guard on purpose, since it
-  /// has to run whether or not a mention list happens to be open, and it
-  /// never returns `handled`, so Flutter's own text paste is untouched.
+  /// Intercepts the keys the list needs on the field's own focus node, since text editing handles arrows above the field and an ancestor would run after the caret moved.
+  /// The paste check sits above the autocomplete guard and never returns `handled`, so Flutter's own text paste is untouched.
   KeyEventResult handle(FocusNode node, KeyEvent event) {
     if (isClipboardPasteChord(event)) onPasteChord();
     // Up in an empty composer edits the caller's last message; with text typed it must move the caret as normal instead.

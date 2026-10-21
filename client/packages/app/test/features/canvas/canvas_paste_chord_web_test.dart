@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Where the keystroke paste is a no-op (web, iOS) the pane must not
-/// consume Ctrl/Cmd+V. On web a handled keydown is preventDefault'ed, so the
-/// browser never fires the DOM `paste` event, the only route that carries
-/// image bytes there. iOS stands in for web here since both report
-/// `pasteKeystrokeReadsClipboardImage == false`.
+/// Where the keystroke paste is a no-op (web, iOS) the pane must not consume Ctrl/Cmd+V, or the browser never fires the DOM `paste` event that carries the image bytes.
 library;
 
 import 'package:flutter/foundation.dart';

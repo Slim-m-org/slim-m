@@ -32,10 +32,7 @@ Future<void> _say(
   if (failure != null && context.mounted) showAppSnackbar(context, failure);
 }
 
-/// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread".
-///
-/// One slot, never both: the entry that would change nothing is not offered,
-/// and Mark as unread only when the newest message is under an hour old.
+/// "Mark as read" while [channel] shows a badge, otherwise "Mark as unread" (only when the newest message is under an hour old); never both.
 AppMenuItem? markReadStateMenuItem(
   BuildContext context,
   ProviderContainer container,
@@ -167,12 +164,8 @@ String channelDefaultMenuLabel(api.NotificationPreference level) =>
       api.NotificationPreference.everything => 'Default (All messages)',
     };
 
-/// Mute, mentions only, all messages and off-hours entries for [channelId], led by the
-/// channel's own default when it sets one ([channelDefault], from
-/// `channelDefaultOf`); choosing it clears this account's own choice.
-///
-/// Read fresh when the menu opens rather than watched: the row itself already
-/// rebuilds on a live change, and an open menu need not react to one landing.
+/// Mute, mentions only, all messages and off-hours entries for [channelId], led by the channel's own default ([channelDefault]) which clears this account's choice.
+/// Read when the menu opens, not watched; the row already rebuilds on live changes.
 List<AppMenuItem> notificationMenuItems(
   BuildContext context,
   ProviderContainer container,

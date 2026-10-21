@@ -9,14 +9,8 @@ import '../../messages/providers/message_actions.dart'
     show lastOwnMessageInChannel;
 import '../../messages/providers/message_editing.dart';
 
-/// Opens the caller's own most recent message in [channelId] for inline
-/// editing. [isMounted] is checked after each await rather than inside
-/// [lastOwnMessageInChannel], which takes no `ref` and so cannot know whether
-/// the composer is still around when its snapshot resolves.
-///
-/// [meProvider] is awaited by its own `.future` rather than read
-/// synchronously: nothing else in the composer keeps it warm, so a cold first
-/// read would otherwise catch it mid-`AsyncLoading` and find no id at all.
+/// Opens the caller's latest message in [channelId] for inline editing; [isMounted] is checked after each await.
+/// [meProvider] is awaited via `.future` because nothing keeps it warm and a cold read would see no id.
 Future<void> editLastOwnMessage(
   WidgetRef ref,
   String channelId, {

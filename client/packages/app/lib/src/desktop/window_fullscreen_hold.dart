@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Holds the OS window fullscreen with its title bar hidden for as long as a
-/// video surface wants the whole display, and gives it back on release.
-///
-/// Shared by the fullscreen video route and the canvas's focused tile so the
-/// two cover the display the same way. A no-op where there is no desktop shell.
+/// Holds the OS window fullscreen with its title bar hidden while a video surface wants the whole display.
+/// A no-op where there is no desktop shell.
 library;
 
 import 'dart:async';

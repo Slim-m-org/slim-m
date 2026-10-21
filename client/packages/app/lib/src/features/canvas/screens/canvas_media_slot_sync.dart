@@ -61,10 +61,7 @@ class CanvasMediaSlotSync {
     }
   }
 
-  /// Sends [key]'s now-settled [rect], plus whatever `overrides.stateFor(key)`
-  /// currently says about lock and depth, to the server. Writes for one key
-  /// run in order, so a quick second drag cannot be overtaken by the first;
-  /// a refused or lost write puts the tile back where the server has it.
+  /// Sends [key]'s settled [rect] with its lock and depth; writes for one key run in order, and a refused or lost write puts the tile back where the server has it.
   Future<void> commit(String key, Rect rect) {
     // A personal-view move is this viewer's alone, so nothing is sent.
     if (overrides.personal) return Future.value();

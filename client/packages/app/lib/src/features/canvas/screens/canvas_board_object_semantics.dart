@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// One screen-reader node per object in view, laid over the object itself,
-/// so a note can be read and an object picked without a pointer.
-///
-/// Built only while assistive technology is on: it rebuilds with every camera
-/// move, which nobody without a screen reader should pay for.
+/// One screen-reader node per object in view, laid over the object.
+/// Built only while assistive technology is on, since it rebuilds with every camera move.
 library;
 
 import 'dart:math' as math;

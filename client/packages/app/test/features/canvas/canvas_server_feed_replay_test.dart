@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Replays op feeds the real Rust server produced into the Dart document.
-///
-/// `crates/slimm-server/tests/canvas_ops/export_feed.rs` drives seeded random
-/// sessions (place, move, remove, clear with kind and author scopes, restore,
-/// reorder, edit, lock) against the real store and writes the whole feed plus
-/// the live objects it ends at. Here a fresh client that joined before anything
-/// was drawn reads that feed through `CanvasSync`, the way a reconnect does,
-/// and must end on exactly the server's live set, boxes, paint order and note
-/// text: the same reducer run in two languages.
-///
-/// Regenerate the files with
-/// `CANVAS_FEED_EXPORT_DIR=client/packages/app/test/fixtures/canvas_server_feeds \
-///  cargo nextest run -p slimm-server --test canvas_ops export_feed`.
+/// Replays op feeds the real Rust server produced (`crates/slimm-server/tests/canvas_ops/export_feed.rs`) through `CanvasSync` the way a reconnect does; the client must end on exactly the server's live set, boxes, paint order and note text.
+/// Regenerate with `CANVAS_FEED_EXPORT_DIR=client/packages/app/test/fixtures/canvas_server_feeds cargo nextest run -p slimm-server --test canvas_ops export_feed`.
 library;
 
 import 'dart:convert';

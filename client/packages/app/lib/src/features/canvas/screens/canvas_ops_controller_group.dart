@@ -30,10 +30,8 @@ class _RedoMoveGroup extends _RedoEntry {
 const Duration _bringInPace = Duration(milliseconds: 60);
 
 extension CanvasOpsControllerGroup on CanvasOpsController {
-  /// Moves every object the caller may move, and the board cannot hold whole,
-  /// back onto the board, stopping at the first refusal. One undo step covers
-  /// the lot. Returns how many it moved, how many were skipped as locked,
-  /// and whether a request failed, which [onError] has already told the viewer.
+  /// Moves every object the caller may move back onto the board, stopping at the first refusal, as one undo step.
+  /// Returns how many moved, how many were locked, and whether a request failed ([onError] has already told the viewer).
   Future<({int moved, int locked, bool failed})> bringIntoBoard({
     required bool manageCanvas,
     required String? selfId,

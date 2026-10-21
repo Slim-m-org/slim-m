@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Whether a live message should alert on this device, shared by the chime
-/// (`notification_sound_controller.dart`) and the desktop banner
-/// (`desktop_message_notifier.dart`) so the two cannot drift apart again.
-///
-/// The steps are the server's own push gate, in the server's order: a message
-/// from yourself, someone you blocked or an account that no longer exists
-/// never alerts; the preference that applies is the channel's own override,
-/// else the parent channel's for a thread, else the account's
-/// (`COALESCE(c.preference, p.preference, u.notification_preference)` in
-/// `channel_notification_prefs.rs`), with an "everything" account default
-/// read as "mentions" in a channel this account cannot post in or for a post
-/// by a bot or webhook; and the notification
-/// schedule has the last word.
+/// Whether a live message should alert on this device, shared by the chime and the desktop banner so they cannot drift.
+/// Follows the server's push gate in order: own, blocked or deleted senders never alert; then the channel override, else the parent's for a thread, else the account's; the notification schedule has the last word.
 library;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;

@@ -8,9 +8,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// Music-grade and unprocessed, unlike the speech-tuned [microphonePublishOptions].
-///
-/// `red: true` turns redundant audio OFF (the flag is inverted in
-/// livekit_client 2.13.1): RED would double a 96 kbps stream for little gain.
+/// `red: true` turns redundant audio OFF (inverted in livekit_client 2.13.1): RED would double a 96 kbps stream for little gain.
 lk.AudioPublishOptions screenShareAudioPublishOptions() =>
     const lk.AudioPublishOptions(
       encoding: lk.AudioEncoding.presetMusicHighQuality,
@@ -27,12 +25,7 @@ const Map<String, dynamic> unprocessedAudioConstraints = {
   'autoGainControl': false,
 };
 
-/// Turns voice processing off on a captured share audio track, where it can be.
-///
-/// LiveKit's `getDisplayMedia` call only takes `audio: true`, so the options
-/// cannot ride on the capture. A browser accepts them afterwards through
-/// `applyConstraints`; the native plugin's `applyConstraints` handles volume
-/// only, and the desktop fork's loopback source is never processed anyway.
+/// Turns voice processing off on a captured share audio track where it can be: `getDisplayMedia` only takes `audio: true`, so a browser accepts the options afterwards via `applyConstraints`, while the native plugin handles volume only.
 Future<void> unprocessShareAudio(
   rtc.MediaStreamTrack track, {
   @visibleForTesting lk.PlatformType? platform,

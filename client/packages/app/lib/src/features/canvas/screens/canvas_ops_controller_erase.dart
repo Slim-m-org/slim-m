@@ -3,12 +3,8 @@ part of 'canvas_ops_controller.dart';
 
 /// The eraser's sweep and its batched removal, and the clear that empties the board.
 extension CanvasOpsControllerErase on CanvasOpsController {
-  /// Erases the topmost ink or shape under [world] the caller is allowed to
-  /// erase - their own always, or anybody's with [manageCanvas] - and
-  /// removes it from view at once. Scoped at hit-test time so a drag
-  /// visibly picks up nothing it cannot touch, rather than sending a
-  /// request the server would refuse anyway. Fires on pointer-down and every
-  /// move; [endErase] is what submits the whole drag as one op.
+  /// Erases the topmost ink or shape under [world] the caller may erase, and removes it from view at once.
+  /// Scoped at hit-test time so a drag never picks up what the server would refuse; [endErase] submits the drag as one op.
   void onErasePoint(
     Offset world, {
     required bool manageCanvas,
@@ -61,11 +57,7 @@ extension CanvasOpsControllerErase on CanvasOpsController {
     if (_dragBatch.length >= maxRemoveIdsPerOp) unawaited(_flushErase());
   }
 
-  /// Submits whatever the drag collected, so undoing an erase drag is atomic
-  /// per op. Every id here was alive at hit-test time and has already been
-  /// removed from view; this only decides whether that also needs cancelling
-  /// from the placement queue - a self-drawn id not yet confirmed - or an
-  /// ordinary op, which is everything else.
+  /// Submits what the drag collected as one op, cancelling from the placement queue any self-drawn id not yet confirmed.
   Future<void> endErase() {
     _lastErase = null;
     return _flushErase();
@@ -95,11 +87,8 @@ extension CanvasOpsControllerErase on CanvasOpsController {
     unawaited(onRemoveFailed?.call());
   }
 
-  /// Clears every object placed at or before [beforeSeq] - see
-  /// `CanvasSync.asOfSeq` for why that is the right fencing token - and
-  /// records the resulting op so [undo] can restore it. Returns whether the
-  /// request itself succeeded, so the caller can decide what to show; a
-  /// clear that touched nothing still succeeds and pushes no undo entry.
+  /// Clears every object placed at or before [beforeSeq] (see `CanvasSync.asOfSeq`) and records the op for [undo].
+  /// Returns whether the request succeeded; a clear that touched nothing succeeds and pushes no undo entry.
   Future<bool> clear(
     int beforeSeq, {
     api.CanvasClearScope scope = api.CanvasClearScope.everything,

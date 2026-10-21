@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The toolbar a hovered or keyboard-focused message row shows: react, reply,
-/// reply in thread, edit on your own messages, and an overflow that opens the
-/// row's existing context menu.
-///
-/// It hangs from the row's top right in the overlay (`message_toolbar_anchor.dart`),
-/// not inside the row, because a control laid out past its parent's edge paints
-/// but cannot be hit. A row shorter than [height] keeps its density spacing and
-/// the plate overhangs the row below it, whole and clickable.
+/// The toolbar a hovered or focused message row shows: react, reply, reply in thread, edit your own, and an overflow into the row's context menu.
+/// It hangs from the row's top right in the overlay (`message_toolbar_anchor.dart`) because a control past its parent's edge paints but cannot be hit.
 library;
 
 import 'package:flutter/material.dart';

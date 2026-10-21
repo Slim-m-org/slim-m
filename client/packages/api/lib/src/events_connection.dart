@@ -17,12 +17,8 @@ class EventConnection {
   /// Events after a successful handshake.
   Stream<ServerEvent> get events => _events;
 
-  /// Connects, mints nothing itself: pass a ticket from
-  /// [SlimmApi.webSocketTicket]. Completes once the server's hello arrives, so
-  /// a returned connection is authenticated and ready.
-  ///
-  /// A non-null [active] promises [active] frames from here on and says
-  /// whether the person is at the device now; see the server's `ClientHello`.
+  /// Connects with a ticket from [SlimmApi.webSocketTicket]; completes once the server's hello arrives.
+  /// A non-null [active] promises [active] frames from here on and says whether the person is at the device now.
   static Future<EventConnection> connect({
     required Uri url,
     required String ticket,
@@ -154,12 +150,7 @@ class EventConnection {
   /// sends it must keep sending it, about once a minute, while they are here.
   void active() => _channel.sink.add(jsonEncode({'type': 'active'}));
 
-  /// Reports this user's pointer position on a channel's canvas.
-  ///
-  /// Ephemeral like [typing]: no acknowledgement, no retry, and safe to call
-  /// as often as the caller likes - the server rate-limits and drops the
-  /// excess silently. The caller is expected to throttle on its own so a
-  /// well-behaved client rarely hits that limit in the first place.
+  /// Reports this user's pointer position on a channel's canvas. Ephemeral like [typing]: unacknowledged, and the server rate-limits and drops the excess silently, so the caller should throttle.
   void canvasCursor(
     String channelId,
     double x,
@@ -176,13 +167,8 @@ class EventConnection {
         }),
       );
 
-  /// Relays this device's own in-flight stroke, a delta of [points] since
-  /// this [objectId]'s last frame. The same ephemeral shape as
-  /// [canvasCursor]: no acknowledgement, safe to call as often as the caller
-  /// likes, and the server rate-limits it (by the frame's own byte size
-  /// rather than by count) and drops the excess silently. [ended] marks the
-  /// gesture's last frame; [color] and [width] are the pen's, so peers see
-  /// the real ink while it is drawn.
+  /// Relays this device's in-flight stroke as a delta of [points] since this [objectId]'s last frame.
+  /// Ephemeral like [canvasCursor]: unacknowledged, and the server drops excess by byte size. [ended] marks the last frame; [color] and [width] are the pen's.
   void canvasStrokePreview(
     String channelId,
     String objectId,

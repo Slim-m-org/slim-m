@@ -19,15 +19,8 @@ typedef ScreenShareViewBuilder = Widget Function(String identity);
 const presenceCameraOnSize = Size(220, 160);
 const presenceScreenShareSize = Size(360, 203);
 
-/// Every tile key this call's roster has right now: a camera tile for whoever
-/// has a camera on, plus a screen tile for whoever is sharing. A person with
-/// neither has no tile; the dock's roster and their cursor label carry them
-/// (docs/decisions/0086-avatar-tiles-leave-the-board.md).
-///
-/// Built through `videoSubscriptionKey` rather than by string interpolation
-/// here, because these same keys are what `VoiceSession.setVideoInterest`
-/// matches remote video publications against; see that function's own doc
-/// for why one shared builder beats two agreeing literals.
+/// Every tile key this call's roster has now: a camera tile per camera and a screen tile per share; a person with neither has none (decision 0086).
+/// Built through `videoSubscriptionKey` because `VoiceSession.setVideoInterest` matches video publications against the same keys.
 Set<String> presenceTileKeys(List<VoiceParticipant> participants) {
   final keys = <String>{};
   for (final p in participants) {
@@ -65,11 +58,7 @@ Size presenceTileSize(String key) => presenceTileKind(key) == screenTrackKind
     ? presenceScreenShareSize
     : presenceCameraOnSize;
 
-/// Every tile's current world rect - an override's own drag or resize if it
-/// has one, [layout]'s default arrangement otherwise - excluding whatever is
-/// hidden this call. The one place both widgets read a rect from, so a
-/// control can never end up manipulating a different box than the one a
-/// person sees painted.
+/// Every tile's current world rect, its override if it has one else [layout]'s default, minus hidden tiles; the single source both widgets read so a control never moves a different box than the painted one.
 Map<String, Rect> presenceOnCanvasRects({
   required Set<String> keys,
   required CanvasPresenceLayout layout,

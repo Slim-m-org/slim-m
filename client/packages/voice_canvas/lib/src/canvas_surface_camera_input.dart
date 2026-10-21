@@ -4,23 +4,8 @@ part of 'canvas_surface.dart';
 /// The wheel, the web's scale signal and the two-finger pinch: everything
 /// that moves the camera rather than a tool.
 extension _CanvasSurfaceCameraInput on _CanvasSurfaceState {
-  /// A plain wheel notch pans vertically - the one axis a mouse wheel
-  /// itself reports, and what a trackpad's own vertical swipe already
-  /// produces too - while Ctrl/Cmd zooms and Shift adds the horizontal axis
-  /// a single-axis wheel cannot report on its own. A trackpad's native
-  /// two-axis swipe keeps panning freely in both directions unmodified,
-  /// which switching the unmodified case to zoom would have broken; a
-  /// middle-mouse grab-drag (see [_beginPan]) is what actually gives a
-  /// plain mouse free motion in both axes, not the wheel.
-  ///
-  /// The actual arithmetic lives in [cameraAfterWheelScroll], a pure
-  /// function rather than a method here, because this surface is no longer
-  /// the only thing a wheel event can land on: a manipulable presence tile
-  /// in the app layer sits in front of it with its own opaque hit test, and
-  /// has to answer for that same gesture rather than silently swallowing it
-  /// - see that widget's own doc for why. Two independent copies of this
-  /// would drift the day only one changed; this is the one place either
-  /// caller reads it from.
+  /// A plain wheel notch pans vertically, Ctrl/Cmd zooms and Shift adds the horizontal axis; a trackpad's two-axis swipe keeps panning both ways, and a middle-mouse drag ([_beginPan]) gives a mouse free motion.
+  /// The arithmetic is the pure [cameraAfterWheelScroll] because a presence tile in the app layer sits in front of this surface and must answer the same gesture; two copies would drift.
   void _signal(PointerSignalEvent event) {
     final document = widget.document;
     // On the web a ctrl-wheel or trackpad pinch arrives as a scale event, never as a scroll.

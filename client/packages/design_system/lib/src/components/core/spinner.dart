@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The one loading indicator: an accent arc at a token size.
-///
-/// Under reduce-motion the arc stops and holds a static three-quarter sweep,
-/// so the cue survives without a ticker that never settles.
+/// The one loading indicator: an accent arc at a token size that holds a static three-quarter sweep under reduce-motion.
 library;
 
 import 'dart:ui' show SemanticsRole;

@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: the canvas inside the real [HomeShell], with the member
-/// pane docked beside it and a voice call connected.
-///
-/// The pane-only rig answers most questions; these are the ones that need the
-/// shell around the canvas: whether Escape reaches the right widget when the
-/// member pane is really on screen, and where keyboard focus goes when the
-/// canvas closes.
+/// The canvas inside the real [HomeShell] with the member pane docked and a call connected: whether Escape reaches the right widget and where focus goes when the canvas closes.
 library;
 
 import 'package:flutter/services.dart';

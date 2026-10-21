@@ -16,9 +16,7 @@ final markUnreadClockProvider = Provider<DateTime Function()>(
   (_) => DateTime.now,
 );
 
-/// Every channel's newest held seq. One watch on the small channels table, so
-/// a write to the transcript never re-runs a query per visible row.
-///
+/// Every channel's newest held seq from one watch on the small channels table, so a transcript write never re-runs a query per visible row.
 /// Not autoDispose: rows remount constantly and share this one watch.
 final channelCursorsProvider = StreamProvider<Map<String, int>>((ref) {
   // Watched rather than awaited: an async gap here deadlocks a widget test's teardown, see channelByIdProvider.

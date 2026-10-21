@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The web implementation: the browser's own `paste` DOM event, which hands
-/// over pasted bytes directly with no extra permission prompt.
-///
-/// Ctrl+V goes through the `paste` event, which needs no permission. Only a
-/// tapped "Paste image" uses the async `navigator.clipboard.read()`, whose
-/// permission prompt that tap can carry. Only an item whose MIME type starts with `image/` is treated as a
-/// pasted image; anything else (plain text, the common case) is left alone,
-/// so the browser's own default paste still lands wherever Flutter's text
-/// field is really backed by an `<input>` or `<textarea>`.
-///
-/// State is module-level because the seam is a pair of top-level functions;
-/// the newest caller gets the paste, and a caller that stops hands it back to
-/// the one it started over (an open canvas under a focused composer).
-///
-/// [hasClipboardImage] stays false: the browser cannot check the clipboard
-/// ahead of a real paste without a prompt, so the composer's poll-gated
-/// "Paste image" row stays hidden on web.
+/// The web implementation: the browser's `paste` event hands over bytes with no permission prompt; only a tapped "Paste image" uses `navigator.clipboard.read()`.
+/// State is module-level (the seam is top-level functions): the newest caller gets the paste and hands it back when it stops. [hasClipboardImage] stays false, as the browser cannot check ahead.
 library;
 
 import 'dart:async';
@@ -24,16 +9,10 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
-/// False here: the browser hands the bytes over on its own
-/// `paste` event, so a keystroke that also polled would stage the same image
-/// twice. [hasClipboardImage] answers false on web anyway, so this is belt
-/// and braces rather than the only thing stopping it.
+/// False here: the browser hands the bytes over on its own `paste` event, so a polling keystroke would stage the image twice.
 const bool pasteKeystrokeReadsClipboardImage = false;
 
-/// A pasted image's bytes and a filename, also the ownership token
-/// [stopClipboardImagePaste] checks - declared independently of the stub's
-/// own copy since the two are conditional-import siblings, the same reason
-/// [ClipboardImageReadException] below is duplicated rather than shared.
+/// A pasted image's bytes and filename, also the ownership token [stopClipboardImagePaste] checks; duplicated from the stub because conditional-import siblings cannot share it.
 typedef PastedImageHandler = void Function(Uint8List bytes, String filename);
 
 final _handlers = <PastedImageHandler>[];
@@ -139,15 +118,8 @@ String _filenameFor(String mimeType) {
   return 'pasted-image.$extension';
 }
 
-/// The web half of the seam's exception type.
-///
-/// Declared here as well as in the stub because the two are conditional-
-/// import siblings: a caller writing `on ClipboardImageReadException` must
-/// compile on every target, and a type that exists on one side only fails
-/// dart2js while passing `dart analyze` outright. That is exactly how the
-/// web build broke without any gate noticing.
-///
-/// Thrown here when the browser refuses a tapped clipboard read.
+/// The web half of the exception type, declared here too because conditional-import siblings must both define it or dart2js fails while `dart analyze` passes.
+/// Thrown when the browser refuses a tapped clipboard read.
 class ClipboardImageReadException implements Exception {
   const ClipboardImageReadException(this.message);
 

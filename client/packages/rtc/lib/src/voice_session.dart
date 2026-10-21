@@ -245,16 +245,8 @@ class VoiceSession
   /// tell that a newer call has taken this session over; see [leave].
   int _generation = 0;
 
-  /// Joins a room with a token minted by the server.
-  ///
-  /// The SFU enforces what the token allows; [canPublish] only stops a
-  /// listen-only join from opening the microphone. Rejoining leaves the old
-  /// connection first rather than stacking two.
-  ///
-  /// Overlapping calls serialize rather than race, because two rooms would
-  /// otherwise fight over one session's state and strand the UI on connecting.
-  /// A second tap of Join, or a channel switch mid-connect, waits for the first
-  /// attempt to settle, so the state ends as the *last* caller asked for.
+  /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
+  /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
   Future<void> join({
     required String url,
     required String token,
@@ -327,12 +319,7 @@ class VoiceSession
         _desktopSources.list,
       );
 
-  /// Mutes or unmutes the local microphone.
-  ///
-  /// Returns whether the microphone ended up in the requested state, which is
-  /// not the same as whether the call asked for it: a token without SPEAK, or a
-  /// denied OS permission, both mean no. The UI needs to reflect what happened
-  /// rather than what was requested, or the button lies.
+  /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
   Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
 
   /// Enables or disables the local camera live, mid-call. The [join]-time

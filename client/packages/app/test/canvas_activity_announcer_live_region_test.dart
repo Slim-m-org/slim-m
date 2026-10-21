@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The activity announcer's live region must be its own semantics node.
-///
-/// Merged into the pane's focus scope next to the ticking call timer, its
-/// label changes every second and a screen reader re-reads it each tick.
+/// The activity announcer's live region must be its own semantics node, or its label re-reads every second beside the call timer.
 library;
 
 import 'dart:ui' show Tristate;

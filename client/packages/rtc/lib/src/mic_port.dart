@@ -52,10 +52,7 @@ abstract interface class MicPort {
   Future<void> discard();
 }
 
-/// Publishes [track] so no sound leaves before the mute lands.
-///
-/// livekit's `disable()` does nothing until `start()` has run, and publishing
-/// is what starts the track, so the platform track is silenced directly.
+/// Publishes [track] so no sound leaves before the mute lands: livekit's `disable()` does nothing until `start()` ran, and publishing starts the track, so the platform track is silenced directly.
 @visibleForTesting
 Future<void> publishAudioTrackMuted(
   lk.LocalAudioTrack track,

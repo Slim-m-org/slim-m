@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Everyone in the call as a compact row of avatars in the canvas dock, since
-/// a person with no camera or share has no tile on the board (decision 0086).
-///
-/// Each avatar shows who is speaking and who is muted, and opens the same menu
-/// a call tile has: left-click or tap, right-click, or long-press.
+/// Everyone in the call as a row of avatars in the canvas dock, since a person with no camera or share has no tile (decision 0086).
+/// Each shows speaking and muted state and opens the same menu a call tile has.
 library;
 
 import 'package:flutter/material.dart';

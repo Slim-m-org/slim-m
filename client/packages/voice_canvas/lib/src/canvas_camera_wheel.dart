@@ -49,10 +49,7 @@ Camera cameraAfterWheelScroll(
   );
 }
 
-/// How much one wheel event of vertical delta [dy] scales the zoom.
-///
-/// Proportional to the delta so a smooth wheel's many small events add up to
-/// what one notch does, and capped so a single large delta cannot leap.
+/// How much one wheel event of vertical delta [dy] scales the zoom: proportional so many small events equal a notch, and capped so one large delta cannot leap.
 double wheelZoomFactor(double dy) => math
     .exp(-dy * _zoomPerWheelPixel)
     .clamp(minWheelZoomStep, maxWheelZoomStep);

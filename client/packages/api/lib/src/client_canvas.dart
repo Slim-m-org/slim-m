@@ -91,16 +91,8 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasObject.fromJson);
   }
 
-  /// Submits a canvas mutation - `remove`, `clear`, `clear_scoped`, `restore`,
-  /// `move`, `reorder`, or `edit` - idempotent by [id] exactly as [placeCanvasObject] is: a
-  /// replay answers with the stored op, `fresh: false`, and publishes
-  /// nothing.
-  ///
-  /// Exactly one of [objectIds] (`remove`), [beforeSeq] (`clear`, plus
-  /// [clearScope] for `clear_scoped`),
-  /// [targetOp] (`restore`), [objectId] plus [x]/[y]/[w]/[h] (`move`),
-  /// [objectId] plus [zIndex] (`reorder`), or [objectId] plus [props]
-  /// (`edit`) is meaningful for a given [kind]; the server rejects any other combination with a 400.
+  /// Submits a canvas mutation, idempotent by [id] like [placeCanvasObject]: a replay answers with the stored op
+  /// (`fresh: false`) and publishes nothing. Only the fields that [kind] needs are read; the server 400s the rest.
   Future<CanvasOpResult> submitCanvasOp(
     String channelId, {
     required String id,
@@ -172,12 +164,8 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasMediaSlotPage.fromJson);
   }
 
-  /// Moves, resizes, locks or restacks one participant's camera or
-  /// screen-share tile. [userId] names the participant the tile represents,
-  /// never necessarily the caller: anyone who can draw on this canvas may
-  /// rearrange anyone's tile, the same shared-editing trust this channel
-  /// already grants over drawing. Every field is sent on every call; the
-  /// stored row is replaced outright rather than merged.
+  /// Moves, resizes, locks or restacks one participant's tile; [userId] is the participant it represents, not the caller.
+  /// Any member who can draw may rearrange any tile, and every field is sent each call because the row is replaced, not merged.
   Future<CanvasMediaSlot> putCanvasMediaSlot(
     String channelId, {
     required String kind,

@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! A per-(caller, channel) override of the account-wide notification
-//! preference (`GET`/`PUT /push/preference`): mute one channel, narrow it to
-//! mentions only, or ask for every message, while every other channel keeps
-//! following the default.
-//!
-//! `everything` is a real override: a read-only channel or a bot's post
-//! defaults to mentions, so it is the only way to opt back in to every post.
-//! `DELETE` is the one way back to "follow the default". Enforced exactly once, in
-//! `push::recipients::narrow_for_notification_preference` - the account-wide
-//! preference's own choke point, extended rather than duplicated - never a
-//! filter a client applies after a device has already buzzed.
+//! A per-(caller, channel) override of the account-wide notification preference (`GET`/`PUT /push/preference`): mute, mentions only, or every message.
+//! `everything` is a real override (a read-only channel or bot post defaults to mentions) and `DELETE` returns to the default; enforced once, in `push::recipients::narrow_for_notification_preference`.
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;

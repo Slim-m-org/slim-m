@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: Escape, focus and modality for everything that pops up
-/// from the canvas dock (the overflow menu, the pen options, and the sheets and
-/// confirmation the overflow menu opens), driven from the keyboard.
-///
-/// The pane binds Escape for the docked member pane and for fullscreen with a
-/// `CallbackShortcuts` that sits above every popup, so a test that only opens
-/// the menu in a row-sized harness (as `canvas_tools_row_accessibility_test`
-/// does) never meets it.
+/// Escape, focus and modality for everything that pops up from the dock, driven from the keyboard.
+/// The pane binds Escape with a `CallbackShortcuts` above every popup, which a row-sized harness never meets.
 library;
 
 import 'package:flutter/services.dart';

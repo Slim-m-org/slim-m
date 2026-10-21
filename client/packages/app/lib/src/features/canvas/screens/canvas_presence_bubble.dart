@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What a camera or screen-share tile shows, split in two so the ink can paint
-/// between them: the video body paints in `CanvasPresenceBackdrop` under the
-/// ink, and the name badge paints in `CanvasPresenceLayer` above it.
-///
-/// Purely visual: nothing here knows it is draggable, resizable, lockable or
-/// hideable - that is `canvas_presence_tile.dart`.
+/// What a camera or screen-share tile shows, split so ink paints between the video body (`CanvasPresenceBackdrop`) and the name badge (`CanvasPresenceLayer`).
+/// Purely visual; interaction lives in `canvas_presence_tile.dart`.
 library;
 
 import 'package:flutter/material.dart';
@@ -67,12 +63,8 @@ class CanvasCameraBadge extends StatelessWidget {
   }
 }
 
-/// A screen share's name badge.
-///
-/// It shows on hover rather than sitting permanently over the share, since a
-/// permanent chip crowded the video. Hover is an input capability, not a width
-/// one, so [PointerRevealed] reads the mouse tracker: on a pure touch device it
-/// stays always-on rather than becoming unreachable information.
+/// A screen share's name badge, shown on hover so a permanent chip does not crowd the video.
+/// [PointerRevealed] reads the mouse tracker, so a pure touch device keeps it always on.
 class CanvasScreenShareBadge extends StatelessWidget {
   const CanvasScreenShareBadge({super.key, required this.participant});
 

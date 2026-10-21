@@ -1,34 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The right-hand member pane: the deployment's roster.
-///
-/// Presence is real now: `presenceSeedProvider` (in `member_presence.dart`,
-/// where the roster and presence data this pane renders all live now)
-/// batch-fetches status for the resolved member list and
-/// the presence controller keeps it current from live `presence.changed`
-/// events, so the roster grouping gets a real status map instead of an empty
-/// one.
-///
-/// A member's first role becomes a badge. `@everyone` is excluded server-side,
-/// so an empty list means no badge rather than no data. The in-call chip is
-/// derived from the voice rosters by `MemberVoiceChip`, not read off a profile.
-///
-/// The roster is `channelMembersProvider`, narrowed server-side to who holds
-/// VIEW_CHANNEL in [AppMemberPane.channelId]. It used to be the whole
-/// deployment, which listed people an overwrite had shut out of the channel
-/// the pane was sitting beside - the pane's own heading claims to say who is
-/// here, so that was wrong even though none of it was secret. The unfiltered
-/// roster is still readable from the same route by any authenticated caller,
-/// which is why this is a display filter and nothing more.
-///
-/// The pane must still never be offered for a DM, whose two participants are
-/// never this list; `home_shell.dart`'s `_MemberPaneSlot` and
-/// `channel_header.dart`'s `ChannelHeader.isDm` are what withhold it there.
-///
-/// This pane watches presence only through `rosterEntriesProvider`, which
-/// regroups when someone crosses between sections and not when a dot changes
-/// colour within one. Each `MemberRow` separately watches its own id for the
-/// dot itself, which is what keeps a single dot change from rebuilding every
-/// row.
+/// The right-hand member pane: the roster of who holds VIEW_CHANNEL in [AppMemberPane.channelId] (`channelMembersProvider`), a display filter only.
+/// Presence comes from `presenceSeedProvider` and live `presence.changed`; a first role becomes a badge and the in-call chip is derived by `MemberVoiceChip`.
+/// Never offered for a DM (`_MemberPaneSlot`, `ChannelHeader.isDm`).
+/// It watches presence through `rosterEntriesProvider` (regroups on section change); each `MemberRow` watches its own dot so one change does not rebuild every row.
 library;
 
 import 'dart:async';

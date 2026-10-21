@@ -177,10 +177,8 @@ async fn invite_access(
     Err(ApiError::Forbidden)
 }
 
-/// Whose invites a caller sees and revokes: everyone's only with both
-/// CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
-/// Your own stay manageable whatever the switch says, so turning it off never
-/// strands the codes you already made.
+/// Whose invites a caller sees and revokes: everyone's only with both CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
+/// Your own stay manageable whatever the switch says, so turning it off never strands codes you made.
 async fn invite_scope(
     state: &AppState,
     user: crate::ids::UserId,

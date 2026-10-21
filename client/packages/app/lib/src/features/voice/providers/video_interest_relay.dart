@@ -28,10 +28,8 @@ class VideoInterestRelay {
   Set<String>? _sent;
   bool _mountPending = false;
 
-  /// A canvas pane's own narrowing (its viewport, or one expanded tile); null on unmount.
-  ///
-  /// Kept per [owner], so a pane leaving cannot clear the interest of another
-  /// pane for the same channel that mounted first.
+  /// A canvas pane's own narrowing (its viewport or one expanded tile); null on unmount.
+  /// Kept per [owner] so a pane leaving cannot clear another pane's interest in the same channel.
   void declare(Set<String>? tileKeys, {Object owner = _soleOwner}) {
     if (tileKeys == null) {
       _canvas.remove(owner);

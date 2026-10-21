@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What this device's camera does when it follows someone or is summoned, and
-/// what its own movement tells the relay.
-///
-/// Split out of `canvas_engine.dart` for the file budget; the engine owns the
-/// relay and the document, this owns the camera's side of following.
+/// What this device's camera does when it follows someone or is summoned, and what its own movement tells the relay.
 library;
 
 import 'dart:async';
@@ -39,10 +35,8 @@ class CanvasViewFollower {
   Timer? _ease;
   Size _viewport = Size.zero;
 
-  /// Following or being summoned shows the shared board; the personal layout stays kept for the way back.
-  ///
-  /// A followed view arrives about ten times a second, so the camera eases to
-  /// each one instead of jumping.
+  /// Following or being summoned shows the shared board and keeps the personal layout for the way back.
+  /// A followed view arrives about ten times a second, so the camera eases to each instead of jumping.
   void showView(Rect view) {
     _showingView = true;
     viewMode.showShared();

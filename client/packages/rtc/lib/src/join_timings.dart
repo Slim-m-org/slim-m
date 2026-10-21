@@ -2,12 +2,7 @@
 /// When each stage of one voice join happened, for a single debug-log line.
 library;
 
-/// The stages of a join, in the order a sequential join reaches them.
-///
-/// [connected] is when LiveKit's connect returns, which is after the signalling
-/// socket is open and the primary peer connection is up, so it covers both.
-/// [micPublished] covers opening the capture and publishing it, which the
-/// SDK does in one call.
+/// The stages of a join in the order a sequential join reaches them; [connected] covers the signalling socket and primary peer connection, [micPublished] the capture open and publish.
 enum JoinStage {
   click,
   tokenRequested,
@@ -37,10 +32,7 @@ class JoinSummary {
   }
 }
 
-/// Collects the stage marks of the join in progress.
-///
-/// A mark outside a join, or a second mark of the same stage, is ignored, so a
-/// reconnect or a roster event never rewrites an earlier join's numbers.
+/// Collects the stage marks of the join in progress; a mark outside a join or a repeat is ignored so a reconnect never rewrites earlier numbers.
 class JoinTimings {
   JoinTimings({Duration Function()? clock, this.onFinished})
       : _clock = clock ?? _stopwatchClock();

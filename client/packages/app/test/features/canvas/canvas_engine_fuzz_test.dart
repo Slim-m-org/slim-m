@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Seeded random sessions against real `CanvasEngine`s on a virtual network.
-///
-/// Two engines (one a moderator) share a modelled server with three more
-/// people acting on it directly. Everything the client does goes through the
-/// real engine API: strokes through the commit queue, erase drags, select
-/// drags and resizes, delete, reorder, note edits, undo and redo, scoped
-/// clears, note and shape placement, locks and camera moves. The network
-/// delays, reorders and repeats frames, loses requests before and after the
-/// server acts, rate limits, and drops sockets, so local optimistic changes
-/// meet late, rejected and missing echoes.
-///
-/// Each seed ends by settling the network and comparing every client with the
-/// server, then replaying the server's whole feed into a fresh document. Every
-/// violation is collected by category with the first seed that hit it and how
-/// many seeds did; set `CANVAS_FUZZ_TRACE_DIR` to keep the full event trace of
-/// each failing seed, `CANVAS_FUZZ_SEEDS` and `CANVAS_FUZZ_FIRST` to rerun a
-/// range, `CANVAS_FUZZ_TICKS` to change the length.
+/// Seeded random sessions against real `CanvasEngine`s on a virtual network: two engines (one a moderator) and three more people share a modelled server, with delayed, reordered, repeated and lost frames, rate limits and dropped sockets.
+/// Each seed settles, compares every client with the server and replays the feed into a fresh document; `CANVAS_FUZZ_TRACE_DIR`, `CANVAS_FUZZ_SEEDS`, `CANVAS_FUZZ_FIRST` and `CANVAS_FUZZ_TICKS` keep traces and pick the range.
 library;
 
 import 'dart:async';

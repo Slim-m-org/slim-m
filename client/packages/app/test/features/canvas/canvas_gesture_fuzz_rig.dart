@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The real canvas pane, a call roster, a seeded board and recorders for the
-/// ephemeral frames it sends, shared by the gesture fuzz suites.
-///
-/// Not a `_test.dart` file, so `flutter test` does not try to run it.
+/// The real canvas pane, a call roster, a seeded board and recorders for the ephemeral frames it sends, shared by the gesture fuzz suites.
 library;
 
 import 'package:flutter/material.dart';
@@ -290,10 +287,7 @@ class FuzzRig {
     return FuzzRig._(tester, fixture, container, frames, phone);
   }
 
-  /// Unmounts the pane while its container is still alive, as the app does.
-  ///
-  /// Disposing the container first, which is the order test teardowns run in,
-  /// makes the engine's own dispose throw and hides the failure under test.
+  /// Unmounts the pane while its container is alive, as the app does; disposing the container first makes the engine's dispose throw and hides the failure under test.
   Future<void> close() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 8));

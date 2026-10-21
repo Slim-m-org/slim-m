@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Hand-pinned interleavings of what `canvas_engine_fuzz_test.dart` found,
-/// one test per root cause, on the same engines and modelled server.
-///
-/// Each test states what a viewer should see and fails today. They run real
-/// `CanvasEngine`s, so they cover the wiring (`fetch`, `_apply`, the live
-/// dispatch) and not only `CanvasDocument` and `CanvasSync` alone.
+/// Hand-pinned interleavings the engine fuzz found, one test per root cause, on real `CanvasEngine`s and the modelled server so the wiring (`fetch`, `_apply`, live dispatch) is covered.
 library;
 
 import 'dart:async';

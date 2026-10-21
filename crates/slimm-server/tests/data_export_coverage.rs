@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Every column that points at a user has to have been thought about when a
-//! member's data is exported: either the file that carries it is named here,
-//! or the reason it stays out is.
-//!
-//! Schema-driven like `account_deletion_coverage.rs`, so a new table with a
-//! user reference fails here until somebody decides. Each exported file is
-//! also checked against a real archive, so a name cannot outlive the file.
+//! Every column that points at a user must have been thought about for a member's export: the file that carries it is named here, or the reason it stays out.
+//! Schema-driven like `account_deletion_coverage.rs`, so a new table fails until someone decides; each file is also checked against a real archive.
 
 use slimm_server::config::Config;
 use slimm_server::db;

@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The `active` frame: a client that reports real use stops having its
-//! keepalive pings count as activity. Owner report: "a user is still marked as
-//! online even though their computer has been asleep and not touched in 8
-//! hours" - the app kept pinging, and every ping reset the idle clock.
+//! The `active` frame: a client that reports real use stops having its keepalive pings count as activity, so a sleeping machine that keeps pinging goes away.
 
 use std::time::{Duration, Instant};
 

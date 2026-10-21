@@ -114,10 +114,7 @@ mixin VoiceSessionInputGate {
     });
   }
 
-  /// Whether a meter is on screen in a focused app. Only then are the gate's
-  /// readings taken at the display rate; otherwise just fast enough for the
-  /// dead-mic watchdog, the Strong fallback and automatic sensitivity, and
-  /// not at all while the microphone is closed.
+  /// Whether a meter is on screen in a focused app; only then are readings taken at the display rate, otherwise just fast enough for the dead-mic watchdog, Strong fallback and automatic sensitivity, and not at all while the mic is closed.
   void setLevelDisplayed(bool displayed) {
     if (displayed == _levelDisplayed) return;
     _levelDisplayed = displayed;

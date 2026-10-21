@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The two pointer fixes in `canvas_presence_tile.dart` hold now that every
-/// tile's video paints in `CanvasPresenceBackdrop` under the surface and only
-/// the control shell sits above it: a second finger on a tile still cancels a
-/// shape placement, and a middle-button drag on a tile still pans the canvas.
+/// A second finger on a tile still cancels a shape placement, and a middle-button drag on a tile still pans, with video under the surface and only the control shell above it.
 library;
 
 import 'package:flutter/gestures.dart';

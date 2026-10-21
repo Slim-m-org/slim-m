@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The controls of the camera and screen-share tiles for everyone on this
-/// channel's call, placed in the canvas's world space over [CanvasSurface].
-///
-/// A video track is a platform texture a painter cannot sample, so the video
-/// paints in `CanvasPresenceBackdrop` under the ink and this layer carries the
-/// gestures and chrome. It is also the one place that decides which remote
-/// video is worth subscribing to ([onVideoInterest]), so what is mounted and
-/// what the SFU sends never disagree. The reasoning for presence over canvas
-/// objects is in docs/decisions/0010-canvas-media-tiles.md; full screen filling
-/// the pane under the ink, and the dock folding away, are in 0081; avatar-only
-/// people leaving the board and ink above every tile are in 0086.
+/// The controls of the camera and screen-share tiles for everyone on this call, in the canvas's world space over [CanvasSurface].
+/// The video paints in `CanvasPresenceBackdrop` under the ink; this layer carries gestures and chrome and decides which remote video to subscribe to ([onVideoInterest]).
+/// Design: docs/decisions/0010-canvas-media-tiles.md, 0081 and 0086.
 library;
 
 import 'package:flutter/foundation.dart' show setEquals;
@@ -28,10 +20,7 @@ export 'canvas_presence_bubble.dart';
 export 'canvas_presence_geometry.dart'
     show CameraViewBuilder, ScreenShareViewBuilder;
 
-/// Every camera and screen-share tile, world-anchored and individually
-/// draggable, resizable, lockable and hideable through [overrides]. Renders
-/// nothing when nobody has a feed up, so a canvas opened on a channel with no
-/// active call pays for none of this.
+/// Every camera and screen-share tile, world-anchored and draggable, resizable, lockable and hideable through [overrides]; renders nothing when no feed is up.
 class CanvasPresenceLayer extends StatefulWidget {
   const CanvasPresenceLayer({
     super.key,
@@ -67,11 +56,8 @@ class CanvasPresenceLayer extends StatefulWidget {
   final List<VoiceParticipant> participants;
   final CanvasPresenceTileOverrides overrides;
 
-  /// The canvas's own active tool, forwarded to every tile - see
-  /// `canvas_presence_tile.dart`'s own doc for why anything but
-  /// [CanvasTool.pan] makes a tile transparent to a pointer. Defaults to
-  /// [CanvasTool.pan] so a caller with no notion of tools (most of this
-  /// file's own test suite) keeps every tile fully interactive, unchanged.
+  /// The canvas's active tool, forwarded to every tile; anything but [CanvasTool.pan] makes a tile transparent to a pointer (see `canvas_presence_tile.dart`).
+  /// Defaults to pan so a caller with no notion of tools keeps tiles interactive.
   final CanvasTool tool;
 
   /// Sends [overrides]' current answer for one tile key onward to the
@@ -217,12 +203,8 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     );
   }
 
-  /// Records what this build resolved and, if that differs from the last
-  /// answer delivered, schedules one post-frame delivery of it.
-  ///
-  /// The set is stored eagerly and read again inside the callback, so a
-  /// second build landing before the frame ends delivers the newer answer
-  /// once rather than two answers in order.
+  /// Records what this build resolved and, if it differs from the last delivery, schedules one post-frame delivery.
+  /// The set is read again inside the callback, so two builds before the frame deliver only the newer answer.
   void _reportInterest(Set<String>? keys) {
     if (_reported && _sameAsLast(keys)) return;
     _reported = true;

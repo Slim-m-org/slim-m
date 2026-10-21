@@ -171,19 +171,9 @@ class CanvasDocument extends ChangeNotifier {
         visible: scene.visible,
       );
 
-  /// Adds a stroke, or returns the slot it already occupies, or refuses one
-  /// this document has already been told to drop.
-  ///
-  /// Dedupe by id is what makes every fetch path safe to repeat: place is
-  /// idempotent server-side, so a duplicate from a pan, a live frame or a
-  /// reconnect is a no-op here rather than a second mark. The
-  /// removed-ids check (`RemovedIds`) is what stops a viewport read that was already in
-  /// flight when a removal landed from resurrecting it, permanently, with
-  /// nothing later re-delivering the erase.
-  ///
-  /// [overwrite] is for a snapshot read, which is authoritative for the box
-  /// and text of an object it names; a live echo or a placement reply never
-  /// sets it, since either can arrive after a newer move.
+  /// Adds a stroke, returns the slot it already occupies, or refuses one this document was told to drop.
+  /// Dedupe by id makes every fetch path safe to repeat, and `RemovedIds` stops a read in flight during a removal from resurrecting it.
+  /// [overwrite] is for snapshot reads, authoritative for box and text; a live echo or placement reply can arrive after a newer move and never sets it.
   int? applyPlaced(
     CanvasStrokeInput input, {
     bool overwrite = false,
@@ -265,12 +255,7 @@ class CanvasDocument extends ChangeNotifier {
     return slot;
   }
 
-  /// Attaches a decoded bitmap to a live [CanvasObjectKind.image] object.
-  ///
-  /// [image] is disposed immediately, rather than attached, if [id] is no
-  /// longer alive by the time its decode finishes - the race between a fetch
-  /// in flight and a removal landing first - since nothing else would ever
-  /// free bytes nobody can reach again.
+  /// Attaches a decoded bitmap to a live image object; [image] is disposed instead if [id] died while the decode ran, since nothing else would free it.
   void setImageBitmap(String id, ui.Image image) {
     final slot = _slotById[id];
     final stroke = slot == null ? null : _strokes[slot];
@@ -347,28 +332,16 @@ class CanvasDocument extends ChangeNotifier {
   /// never-landed one.
   bool wasRemoved(String id) => _removed.contains(id);
 
-  /// Removes a placed object by id, or records the id as removed even if
-  /// this document never held it - the in-flight-viewport-page race the
-  /// removal design exists to close.
-  ///
-  /// A no-op on an id already removed or never placed at all, so a batched
-  /// remove op replaying an id twice, or naming one this pane never
-  /// fetched, costs nothing.
+  /// Removes a placed object by id, or records the id as removed even if never held, closing the in-flight-viewport-page race.
+  /// A no-op for an id already removed or never placed, so a replayed batch costs nothing.
   void removeObject(String id, {int? seq}) {
     _removed.add(id, seq: seq);
     final slot = _slotById[id];
     if (slot != null) _freeSlot(slot);
   }
 
-  /// Removes every stroke placed at or below [beforeSeq].
-  ///
-  /// The `0 <` guard spares a locally drawn stroke, which carries `seq: 0`
-  /// until the server confirms it - without it, a clear in flight would
-  /// erase ink as it is drawn, before its own placement is even known.
-  ///
-  /// [kinds] and [authorId] narrow it the way a scoped clear does; empty and
-  /// null match everything. [opSeq] is the clear's own seq, when known, and
-  /// [spare] names locked objects the clear left standing.
+  /// Removes every stroke placed at or below [beforeSeq]; the `0 <` guard spares a local stroke (`seq: 0` until confirmed) so a clear in flight does not erase ink as it is drawn.
+  /// [kinds] and [authorId] narrow it like a scoped clear, [opSeq] is the clear's own seq when known, and [spare] names locked objects left standing.
   void clearBelow(
     int beforeSeq, {
     Set<CanvasObjectKind> kinds = const {},
@@ -398,15 +371,8 @@ class CanvasDocument extends ChangeNotifier {
   void confirmRemoved(Iterable<String> ids, int seq) =>
       _removed.confirm(ids, seq);
 
-  /// Drops ids from the removed-id tombstone set: a restore, which never
-  /// re-materializes a stroke locally since its payload was freed on
-  /// removal, so only makes a later fetch of the object able to land again.
-  ///
-  /// The stale `_slotById` entry has to go too, not only the tombstone:
-  /// `applyPlaced` refuses a duplicate naming a slot this document has since
-  /// freed regardless of whether the id is still tombstoned, so leaving it
-  /// behind would make a restored id un-placeable forever even after the
-  /// fetch this method exists to let land.
+  /// Drops ids from the removed-id tombstone set after a restore, so a later fetch can land again.
+  /// The stale `_slotById` entry goes too: `applyPlaced` refuses a duplicate naming a freed slot even when the id is no longer tombstoned.
   void forgetRemoved(Iterable<String> ids) {
     final restored = ids.toSet();
     if (restored.isEmpty) return;
@@ -462,11 +428,7 @@ class CanvasDocument extends ChangeNotifier {
     }
   }
 
-  /// Re-culls against the current camera and repaints.
-  ///
-  /// Separate from [applyPlaced] so a snapshot of several hundred objects
-  /// costs one cull and one repaint rather than one of each per object, the
-  /// same reason [CanvasScene.add] does not notify.
+  /// Re-culls against the current camera and repaints; separate from [applyPlaced] so a snapshot of hundreds of objects costs one cull and one repaint.
   void refresh() => _reculled();
 
   void _reculled() {

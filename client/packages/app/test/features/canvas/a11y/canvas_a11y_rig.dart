@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Shared rig for the canvas accessibility probe: a real [CanvasPane] over a
-/// connected call, pumped with semantics on at a chosen window size.
-///
-/// Not a `_test.dart` file, so `flutter test` does not run it. The reading
-/// helpers (semantics rows, focus order, pixels, touch reach) live in
-/// `canvas_a11y_probe.dart`.
+/// Shared rig for the canvas accessibility tests: a real [CanvasPane] over a connected call, with semantics on at a chosen window size.
 library;
 
 import 'package:flutter/material.dart';
@@ -87,10 +82,7 @@ class A11yRig {
   bool get memberPaneVisible => container.read(memberPaneVisibleProvider);
 }
 
-/// Pumps a [CanvasPane] on channel `c1`, semantics on, at a pixel ratio of one.
-///
-/// [call] joins a connected call with [participants]; [screenReader] sets the
-/// platform's accessible-navigation flag, which the app treats like reduce motion.
+/// Pumps a [CanvasPane] on channel `c1` with semantics on; [call] joins with [participants] and [screenReader] sets accessible-navigation, which the app treats like reduce motion.
 Future<A11yRig> pumpA11yCanvas(
   WidgetTester tester, {
   Size size = desktopSize,

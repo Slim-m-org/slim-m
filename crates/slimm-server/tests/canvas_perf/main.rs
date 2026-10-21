@@ -1,17 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! What a busy canvas costs the server: writes, op writes and the two feed
-//! reads, on a canvas holding 10,000 objects, with payload sizes.
-//!
-//! ```text
-//! cargo nextest run --release --test canvas_perf --run-ignored all --no-capture
-//! ```
-//!
-//! Ignored by default because it writes thousands of rows and takes a while.
-//! It is a measurement and gates nothing; `CANVAS_PERF_OUT` keeps the JSON.
-//!
-//! Every number is one process, one SQLite file on the local disk, a glibc
-//! allocator and no network, so it bounds the server's own share of a request
-//! from below. The production image is musl and sits behind a proxy.
+//! What a busy canvas costs the server: writes, op writes and the two feed reads on a canvas of 10,000 objects, with payload sizes.
+//! Ignored by default (`cargo nextest run --release --test canvas_perf --run-ignored all --no-capture`) and gates nothing; `CANVAS_PERF_OUT` keeps the JSON.
+//! One process, a local SQLite file, glibc and no network, so it bounds the server's own share from below; production is musl behind a proxy.
 
 use std::time::{Duration, Instant};
 

@@ -144,10 +144,7 @@ impl<'a> Builder<'a> {
         Ok(())
     }
 
-    /// Writes a stream of rows as JSON lines; returns the row count.
-    ///
-    /// An empty set is written too unless `skip_empty`, so a reader can tell
-    /// "nothing" from "not exported".
+    /// Writes a stream of rows as JSON lines and returns the row count; an empty set is written too unless `skip_empty`, so a reader can tell "nothing" from "not exported".
     pub(super) async fn jsonl(
         &mut self,
         path: &str,

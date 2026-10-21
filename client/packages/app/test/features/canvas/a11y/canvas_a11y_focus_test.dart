@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: is keyboard focus visible on every control?
-///
-/// Tabs through the pane and, for each stop, compares the pixels under the
-/// focused control with the same pixels once focus is moved away. A control
-/// whose pixels do not change shows a keyboard user nothing. Each call tile's
-/// own controls are left out: they are hidden until focused, so their pixels
-/// change whether or not they draw a ring (they use `AppIconButton`'s ring).
+/// Keyboard focus must be visible on every control: tab through the pane and compare pixels under the focused control with focus moved away.
+/// Call tile controls are left out since they are hidden until focused.
 library;
 
 import 'package:flutter/services.dart';

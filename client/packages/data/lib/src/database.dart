@@ -178,11 +178,8 @@ class ChannelDrafts extends Table {
   Set<Column> get primaryKey => {channelId};
 }
 
-/// One viewer's own layout of one channel's canvas: camera and tile places.
-///
-/// Like [ChannelDrafts], not a cache of server state: it is never sent anywhere
-/// (decision 0082). The database file is already one per account (decision
-/// 0068), so the channel id alone keys it without two accounts meeting.
+/// One viewer's own layout of one channel's canvas, camera and tile places; never sent anywhere (decision 0082).
+/// The database is one per account (decision 0068), so the channel id alone keys it.
 @DataClassName('CanvasPersonalLayoutRow')
 class CanvasPersonalLayouts extends Table {
   TextColumn get channelId => text()();

@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The gesture fuzz at a 390 wide phone window with the Android platform
-/// override, where the compact dock, touch hit reach and touch handles apply.
-///
-/// `isDesktopHost` is true under `flutter test` on Linux, and the canvas
-/// branches on window width and `AppTouchTargets` rather than on it, so the
-/// width and the platform override are what put the pane on its mobile path.
+/// The gesture fuzz at a 390 wide phone window with the Android override, where the compact dock and touch reach apply; width and the override, not `isDesktopHost`, put the pane on its mobile path.
 library;
 
 import 'package:flutter/foundation.dart';

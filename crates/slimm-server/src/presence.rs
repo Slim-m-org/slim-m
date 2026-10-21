@@ -41,11 +41,8 @@ pub mod presence_activity;
 pub mod typing;
 pub mod viewing;
 
-/// How long a connected user with no observed activity (an `active` frame, a
-/// typing refresh, or a ping from a client that sends no `active`) is shown as
-/// away rather than online, absent an
-/// explicit away/dnd/hidden preference. Only affects the `Online` preference;
-/// a user who chose Away, Dnd, or Hidden already said what they want shown.
+/// How long a connected user with no observed activity (an `active` frame, typing refresh, or a ping from a client that sends no `active`) shows as away rather than online.
+/// Only affects the `Online` preference; Away, Dnd and Hidden already said what to show.
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 /// The status a user has durably chosen, independent of whether they are
@@ -192,12 +189,8 @@ impl PresenceTracker {
         self.connect_kind_at(user_id, DeviceKind::Unknown, true, now)
     }
 
-    /// [`Self::connect`] naming the client's kind. Returns `true` when the
-    /// user's presence visibly changed: their first socket, or a kind they
-    /// were not yet connected from.
-    ///
-    /// `active` is false only for a client that reports activity itself and
-    /// says nobody is at the device, so a reconnect after sleep is not use.
+    /// [`Self::connect`] naming the client's kind; true when presence visibly changed (first socket, or a kind not yet connected).
+    /// `active` is false only for a client that reports activity itself and says nobody is at the device, so a reconnect after sleep is not use.
     pub fn connect_as(&self, user_id: UserId, kind: DeviceKind, active: bool) -> bool {
         self.connect_kind_at(user_id, kind, active, Instant::now())
     }

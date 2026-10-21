@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A data export card: the start action, and the status of the newest job of
-/// its kind with progress and a download once it is ready.
-///
-/// Used for a member's own data (Account & devices) and for the whole Space
-/// (Space settings, ADMINISTRATOR only). Starting asks for the password in the
-/// proof sheet, the same way issuing a reset code does (decision 0084).
+/// A data export card: the start action plus the newest job's status, progress and download.
+/// Used for a member's own data and for the whole Space (ADMINISTRATOR); starting asks for the password (decision 0084).
 library;
 
 import 'package:flutter/material.dart';

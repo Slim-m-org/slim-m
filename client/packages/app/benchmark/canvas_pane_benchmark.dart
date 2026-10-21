@@ -1,16 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What a pointer move and a frame cost in the whole `CanvasPane` on a busy
-/// board with a 25-person call: dragging a selection, drawing, erasing,
-/// panning, zooming, someone starting to speak, and remote cursors moving.
-/// Alongside the time, how many widgets rebuilt and which render objects
-/// repainted, which `flutter test` can count exactly even though it cannot
-/// time the GPU.
-///
-/// Run with `flutter test benchmark/canvas_pane_benchmark.dart` from
-/// `client/packages/app`; set `CANVAS_PERF_OUT` to keep the JSON.
-///
-/// A debug JIT build with assertions on; read the rebuild counts as exact and
-/// the times as an upper bound on the UI thread half of a real frame.
+/// Cost of a pointer move and a frame in the whole `CanvasPane` on a busy board with a 25-person call.
+/// Run `flutter test benchmark/canvas_pane_benchmark.dart` in `client/packages/app`; `CANVAS_PERF_OUT` keeps the JSON.
 library;
 
 import 'package:flutter/gestures.dart';

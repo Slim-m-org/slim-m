@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The video of every camera and screen-share tile, painted *before*
-/// [CanvasSurface] in `canvas_pane_surface.dart`'s Stack, so ink, live drafts
-/// and cursors composite on top of every tile (decision 0086).
-///
-/// Carries no gesture of its own, on purpose: [CanvasPresenceManipulableTile]
-/// owns every tile's drag, resize, lock and hide at the same screen position.
-/// This widget only answers "what does a tile look like right now".
+/// The video of every camera and screen-share tile, painted before [CanvasSurface] so ink, drafts and cursors sit above it (decision 0086).
+/// Carries no gesture; [CanvasPresenceManipulableTile] owns every tile's drag, resize, lock and hide.
 library;
 
 import 'package:flutter/widgets.dart';

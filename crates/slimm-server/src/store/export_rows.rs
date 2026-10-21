@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Reading rows for an export one at a time, so no export ever holds a table
-//! in memory.
-//!
-//! A query names its output columns and this module turns each row into a JSON
-//! object: a 16-byte blob is a UUID, a column named `is_*` or `has_*` is a
-//! boolean, and a column ending `_json` holds JSON text that is parsed and
-//! nested under the name without the suffix.
+//! Reads rows for an export one at a time so no export holds a table in memory.
+//! A 16-byte blob is a UUID, `is_*` and `has_*` columns are booleans, and a `_json` column is parsed and nested under the name without the suffix.
 
 use serde_json::{Map, Value};
 use sqlx::sqlite::SqliteRow;

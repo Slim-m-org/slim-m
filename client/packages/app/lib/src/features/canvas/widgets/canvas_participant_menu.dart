@@ -12,10 +12,7 @@ import '../../voice/widgets/call_participant_tiles.dart'
     show kParticipantMenuWidth;
 import '../../voice/widgets/participant_call_menu.dart';
 
-/// Opens the same menu a call tile has, on right-click, long-press or [open].
-///
-/// [builder] gets a null `open` when the participant has nothing to offer, such
-/// as this device's own row while it is not sharing.
+/// Opens the same menu a call tile has, on right-click, long-press or [open]; [builder] gets a null `open` when the participant has nothing to offer.
 class CanvasParticipantMenu extends ConsumerStatefulWidget {
   const CanvasParticipantMenu({
     super.key,

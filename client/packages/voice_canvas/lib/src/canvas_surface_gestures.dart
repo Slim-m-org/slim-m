@@ -8,10 +8,7 @@ const double _shapeDragThreshold = 4.0;
 /// How far, in screen pixels, a select gesture may travel and still be a tap.
 const double _selectTapSlop = 6.0;
 
-/// The one tool gesture a surface runs at a time. It belongs to the first
-/// accepted pointer and the tool and camera that were current when that
-/// pointer went down; it ends when that pointer lifts or is cancelled, or
-/// sooner when a second pointer turns it into a pinch.
+/// The one tool gesture a surface runs at a time: it belongs to the first accepted pointer under the tool and camera current at its down, and ends on lift, cancel or a second pointer turning it into a pinch.
 class _Gesture {
   _Gesture(this.pointer, this.tool, this.camera, this.downAt);
 
@@ -23,12 +20,8 @@ class _Gesture {
   Camera camera;
 }
 
-/// Every pointer, scroll and scale handler [_CanvasSurfaceState.build]
-/// wires up, plus the coordinate conversion and cursor choice they share.
-/// A `part of` file rather than a mixin: the eraser and placement tools
-/// read and write [_CanvasSurfaceState]'s own private pointer-tracking
-/// fields directly, the same access `canvas_document_selection.dart`'s
-/// extension already leans on for `CanvasDocument`'s private slot table.
+/// Every pointer, scroll and scale handler [_CanvasSurfaceState.build] wires up, plus the coordinate conversion and cursor choice they share.
+/// A `part of` file because the eraser and placement tools read and write the state's private pointer-tracking fields directly.
 extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// A tool switch or a pan starting/ending are the only cursor changes,
   /// never a per-hover one - this widget deliberately never rebuilds for
@@ -65,10 +58,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       kind == PointerDeviceKind.stylus ||
       kind == PointerDeviceKind.invertedStylus;
 
-  /// The pointers taking part in a gesture plus
-  /// [CanvasDocument.externalPointers] - a second finger a presence tile
-  /// absorbed before this widget's own [Listener] ever saw its down event
-  /// still has to count as a real second pointer.
+  /// The pointers in a gesture plus [CanvasDocument.externalPointers]: a second finger a presence tile absorbed still counts as a real second pointer.
   int get _totalPointers =>
       _downPointers.length + widget.document.externalPointers.count;
 
@@ -276,10 +266,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     if (_gesture?.pointer == event.pointer) _cancelGesture();
   }
 
-  /// Ends the gesture keeping what it did: a pen stroke is committed, an
-  /// erase or a drag is submitted. A [lift] also resolves a tap, a note or a
-  /// shape placement; without one (the tool or camera changed under it) the
-  /// pointer is simply ignored from here until it lifts.
+  /// Ends the gesture keeping what it did (commit a stroke, submit an erase or drag); a [lift] also resolves a tap, note or shape placement, and without one the pointer is ignored until it lifts.
   void _finishGesture({PointerUpEvent? lift, bool wasAlone = true}) {
     final gesture = _gesture;
     if (gesture == null) return;
@@ -420,11 +407,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     }
   }
 
-  /// [world], unchanged, and a null size for a plain tap (nothing in
-  /// [_shapeDraft] worth calling a drag); otherwise the dragged box's own
-  /// centre and world-space size, clipped to the board and clamped to the
-  /// same [minObjectSize]..`maxObjectExtent` a resize handle already
-  /// respects, so a placement drag can never commit a box a resize could not.
+  /// [world] unchanged and a null size for a plain tap; otherwise the dragged box's centre and size, clipped to the board and clamped to [minObjectSize]..`maxObjectExtent` like a resize handle, so a placement drag can never commit a box a resize could not.
   (Offset, Size?) _resolveShapeDrag(Offset world) {
     final screen = _shapeDraft.take();
     if (screen == null ||
@@ -445,13 +428,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     return (bounds.center, Size(width, height));
   }
 
-  /// Starts a grab-pan from [screen], the anchor every later [_updatePan]
-  /// measures its delta against, owned by [pointer] alone - see
-  /// `_panPointer`'s own doc. Called from [_down] when the pan button is
-  /// the first (or only) one pressed, and from [_move] when it joins an
-  /// already-down button - the two call sites [_isPanButton] itself is
-  /// checked from, since a second button joining a mouse pointer already
-  /// down is delivered as a move, never a second down.
+  /// Starts a grab-pan from [screen], the anchor every later [_updatePan] measures against, owned by [pointer] alone.
+  /// Called from [_down], and from [_move] when a second button joins a mouse already down, which arrives as a move, never a second down.
   void _beginPan(int pointer, Offset screen) {
     _panning.value = true;
     _panPointer = pointer;

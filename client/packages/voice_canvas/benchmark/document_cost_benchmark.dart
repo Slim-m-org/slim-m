@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the document's own algorithms cost as a board grows: building it,
-/// re-sorting paint order after one placement, listing the visible ids a drag
-/// snaps against, and hit testing in a crowd.
-///
-/// Run with `flutter test benchmark/document_cost_benchmark.dart`. This is a
-/// debug JIT build, so read the growth between sizes more than the absolute
-/// figure; `profile/` holds the profile-mode window run.
+/// What the document's own algorithms cost as a board grows: building, re-sorting paint order, listing visible ids a drag snaps against, and hit testing in a crowd.
+/// A debug JIT build, so read the growth between sizes more than the absolute figure.
 library;
 
 import 'package:flutter/painting.dart';

@@ -5,11 +5,7 @@ library;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-/// Converts a wire object into what the document needs to paint a stroke or
-/// an image, or null for a kind this client does not draw. Shared between a
-/// viewport page, a live placement, and a `place` op read off the catch-up
-/// feed, so the three paths cannot silently disagree on what counts as
-/// paintable.
+/// Converts a wire object into what the document paints, or null for a kind this client does not draw; shared by viewport pages, live placements and the catch-up feed.
 CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
   return switch (object.kind) {
     'stroke' => _strokeInputFrom(object),
@@ -46,10 +42,7 @@ CanvasStrokeInput? _strokeInputFrom(api.CanvasObject object) {
   );
 }
 
-/// `props.attachment` is the one field this client actually reads; the rest
-/// of an image's props (`content_type`, the natural pixel size) are only
-/// ever written, not read back, since the box on the wire already says how
-/// large to paint it.
+/// Only `props.attachment` is read; the wire box already says how large to paint.
 CanvasStrokeInput? _imageInputFrom(api.CanvasObject object) {
   final attachment = object.props['attachment'];
   if (attachment is! String) return null;

@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Everyone in the call, each row opening the menu their call tile has.
-///
-/// The canvas hides or moves tiles, so a person can be hard to find or reach
-/// on the board; this list reaches everyone the same way at any width.
+/// Everyone in the call, each row opening the menu their call tile has, reachable the same way at any width.
 library;
 
 import 'package:flutter/material.dart';

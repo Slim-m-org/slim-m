@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Synthetic busy boards for the canvas interaction benchmarks.
-///
-/// The shared board is one fixed 1920x1080 frame (decision 0073), so a large
-/// canvas is not spread over a big world: every object lands in the same
-/// frame and all of them are on screen at the fit zoom. That is the case
-/// these boards model, and it is why culling buys nothing here.
+/// Synthetic busy boards for the canvas benchmarks.
+/// The shared board is one fixed 1920x1080 frame (decision 0073), so every object is on screen at the fit zoom and culling buys nothing.
 library;
 
 import 'dart:async';
@@ -167,10 +163,7 @@ List<CanvasStrokeInput> boardInputs(BoardSpec spec) {
   return inputs;
 }
 
-/// Builds the document for [spec] and fits the camera to the board.
-///
-/// Images are placed without bitmaps; [attachBitmaps] gives them pixels,
-/// which needs an async engine call a plain synchronous builder cannot make.
+/// Builds the document for [spec] and fits the camera to the board; images get pixels from [attachBitmaps], which needs an async engine call.
 CanvasDocument buildBoard(BoardSpec spec, {ui.Size viewport = _pane}) {
   final doc = CanvasDocument()..setBoard(canvasBoard);
   boardInputs(spec).forEach(doc.applyPlaced);

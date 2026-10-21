@@ -40,11 +40,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     onToggleFullscreen: widget.onToggleFullscreen,
   );
 
-  /// `document.objectCount` is the same trigger `_surface` already listens
-  /// to, since a placed or removed object is exactly what changes
-  /// `liveCountsByKind` too - without this, the summary would freeze at
-  /// whatever it read when the panel was last opened, since nothing else
-  /// rebuilds this widget on a live document change by design.
+  /// Rebuilds on `document.objectCount`, the same trigger `_surface` uses, so the summary does not freeze at the count it read when opened.
   Widget _panel() => ValueListenableBuilder<int>(
     valueListenable: widget.document.objectCount,
     builder: (context, count, child) => CanvasActivityPanel(

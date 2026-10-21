@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Expanding one canvas presence tile asks the pane to focus its feed.
-///
-/// Covers the affordance and its one gate (a camera showing the avatar
-/// fallback has no feed to expand), that expanding reports the tile key
-/// instead of opening the voice screen's route over the canvas
-/// (`canvas_focused_tile_test.dart` owns what the pane then does), and the
-/// subscription half: the focused tile stops being drawn here but every
-/// tile stays subscribed.
-///
-/// The interest assertions read the real reported sets: a fixture of three
-/// cameras all inside the viewport is what makes a wrong answer visible.
+/// Expanding a presence tile asks the pane to focus its feed: the affordance and its gate (no feed for an avatar fallback), the reported tile key, and the subscription half (the focused tile stops drawing here but every tile stays subscribed).
+/// `canvas_focused_tile_test.dart` owns what the pane then does.
 library;
 
 import 'package:flutter/gestures.dart';

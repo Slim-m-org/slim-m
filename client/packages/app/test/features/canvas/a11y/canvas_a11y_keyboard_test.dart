@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: can the canvas and its dock be used with a keyboard alone?
-///
-/// Tab order and stops, Enter and Space on the tools, undo and redo from the
-/// keyboard, and the part a keyboard cannot do at all today: put anything on
-/// the board, select it, or move the camera.
+/// The canvas and its dock with a keyboard alone: tab order, Enter and Space on tools, undo and redo, and putting something on the board, selecting it or moving the camera.
 library;
 
 import 'package:flutter/services.dart';

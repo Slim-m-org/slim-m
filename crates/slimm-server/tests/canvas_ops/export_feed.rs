@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Seeded random canvas sessions against the real store, exported as the wire
-//! JSON a client would read: the whole op feed and the live objects it ends at.
-//!
-//! The Dart client replays these files through its own document and reducers
-//! (`client/packages/app/test/features/canvas/canvas_server_feed_replay_test.dart`)
-//! and must land on the same live set, boxes, paint order and note text. Set
-//! `CANVAS_FEED_EXPORT_DIR` to write the files; without it the test only checks
-//! the feed it produced is internally sound.
+//! Seeded random canvas sessions against the real store, exported as the wire JSON a client reads: the whole op feed and the live objects it ends at.
+//! The Dart client replays them (`client/packages/app/test/features/canvas/canvas_server_feed_replay_test.dart`); `CANVAS_FEED_EXPORT_DIR` writes the files, otherwise the test only checks the feed is sound.
 
 use std::path::PathBuf;
 

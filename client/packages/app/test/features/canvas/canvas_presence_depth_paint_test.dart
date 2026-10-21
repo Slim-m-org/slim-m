@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Whether the grid, every call tile and real ink actually composite in the
-/// order decision 0086 sets (grid, tile video, ink) rather than the order
-/// `Stack.children` merely suggests.
-///
-/// That is the exact weak-test shape PR #515's canvas-grid fix names
-/// as the reason the grid painted over a sent-to-back tile for weeks with a
-/// green suite the whole time: a widget correctly *positioned* in the tree
-/// can still paint nothing, or paint the wrong thing, and an ordering
-/// assertion cannot see either. This renders the real, assembled
-/// `CanvasPaneBody` to a raster and reads pixels back - the same technique
-/// `presence_desaturation_test.dart` uses for exactly this reason - so the
-/// claim under test is "what a viewer's eye would actually see," not "what
-/// order the widgets were constructed in."
+/// Whether the grid, every call tile and real ink composite in decision 0086's order (grid, tile video, ink), read back from a raster of the assembled `CanvasPaneBody`.
+/// An ordering assertion on `Stack.children` cannot see a widget that is positioned correctly but paints nothing.
 library;
 
 import 'dart:typed_data';

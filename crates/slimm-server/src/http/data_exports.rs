@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Starting, watching and downloading data exports (decision 0084).
-//!
-//! A member exports only their own data. A space export needs ADMINISTRATOR,
-//! the one bit that already reads every channel, because MANAGE_SERVER does not
-//! and the archive holds every channel's messages. Both ask for the caller's
-//! password, since an archive is a copy of everything the session can see.
+//! A member exports only their own data; a space export needs ADMINISTRATOR, the one bit that reads every channel. Both ask for the caller's password.
 
 use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
@@ -164,10 +160,7 @@ async fn show(
     Ok(Json(owned(&state, ctx.user_id, &export_id).await?.into()))
 }
 
-/// Streams a finished archive with range support, so a large one can resume.
-///
-/// A space archive is re-checked against ADMINISTRATOR now, not when it was
-/// requested, and each download of one is audited.
+/// Streams a finished archive with range support so a large one can resume; a space archive is re-checked against ADMINISTRATOR at download time and each download is audited.
 async fn download(
     Authed(ctx): Authed,
     parts: Parts,

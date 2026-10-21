@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A scripted canvas session for a real, profile-mode window.
-///
-/// `flutter test` cannot rasterise, so it cannot say what a pan or a stroke
-/// commit costs the GPU thread. This runs the same busy boards in an actual
-/// window and records `FrameTiming` for every frame: build time, raster time
-/// and the span between them. Driven by `run.sh`, which builds it with
-/// `flutter build linux --profile` and keeps it inside a nested compositor.
+/// A scripted canvas session for a real profile-mode window, since `flutter test` cannot rasterise: records `FrameTiming` (build, raster and the span between) for every frame.
+/// Driven by `run.sh`, which builds with `flutter build linux --profile` inside a nested compositor.
 library;
 
 import 'dart:async';

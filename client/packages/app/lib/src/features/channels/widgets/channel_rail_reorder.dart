@@ -1,36 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Drag-to-reorder across the whole channel-rail listing: every category
-/// section in one list, so a channel of any kind can be dragged into any
-/// category - the property backlog item #34 asked for. See
-/// docs/decisions/0006-channel-categories.md.
-///
-/// A plain [Column] when nobody may reorder, when no channel exists (a lone
-/// header in a reorder list hit-tests a tap to the wrong render object), or
-/// when one channel has only its own section to sit in. A lone channel with a
-/// second section still reorders: it is the only way to file it there.
-/// Otherwise every
-/// category's header and channel rows are one flat item list, which is what
-/// lets a drag cross a section boundary at all.
-///
-/// The list is a bare [SliverReorderableList] in a [ShrinkWrappingViewport],
-/// not a `ReorderableListView`: that owns an inner scrollable, so a drag's
-/// edge auto-scroll would act on a view that never moves and a channel could
-/// not be carried past the fold. Without one, the rail's own scroll view is
-/// the scrollable the drag scrolls.
-///
-/// At pointer widths [DesktopRailReorder] takes over: a held press lifts a row
-/// or a category header and a line shows where it will land. On touch a drag
-/// that starts at once is a scroll; a held press opens the row's options
-/// ([onHeldInPlace]) and the row only lifts if the held finger then moves
-/// (`hold_then_move_drag.dart`; `docs/design/desktop-vs-mobile.md`, "drag to
-/// reorder"). Without a gesture, Alt+Up and Alt+Down on a focused row move it at
-/// pointer widths, and a screen reader gets move actions on every row at
-/// either width.
-///
-/// The settle animation of a held drag does not honour `AppMotion` or the OS
-/// reduce-motion toggle: [SliverReorderableList] takes no animation style and
-/// hardcodes its 250ms slide (Flutter 3.44, `reorderable_list.dart`).
-/// Closing that needs a vendored reorder implementation.
+/// Drag-to-reorder across the whole channel-rail listing, so a channel can be dragged into any category (docs/decisions/0006-channel-categories.md).
+/// A plain [Column] when nobody may reorder, no channel exists, or a channel has no other section to move to; otherwise one flat list so a drag can cross sections.
+/// A bare [SliverReorderableList] so the rail's own scroll view is what the drag scrolls; pointer widths use [DesktopRailReorder], touch uses hold-then-move (docs/design/desktop-vs-mobile.md, "drag to reorder").
+/// The held-drag settle animation ignores reduce-motion: [SliverReorderableList] hardcodes its 250ms slide.
 library;
 
 import 'package:flutter/material.dart';

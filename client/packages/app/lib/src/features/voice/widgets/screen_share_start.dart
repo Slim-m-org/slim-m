@@ -33,15 +33,8 @@ Future<({bool proceed, String? id})> pickShareSource(
   return (proceed: chosen != null, id: chosen?.id);
 }
 
-/// The space-wide screen-share ceiling, or `null` on any failure to fetch
-/// it, or on a server too old to report one. Read from `GET /version`,
-/// unauthenticated, rather than the MANAGE_SERVER-gated
-/// `GET /space/screen-share` the admin screen uses: every device sharing a
-/// screen has to know this, not only one with an admin bit. This is a
-/// client-advertised courtesy cap, not a security boundary, so a Space
-/// this device cannot reach right now must not be the reason a share never
-/// starts: failing open publishes at the quality already chosen, exactly
-/// what happened before this setting existed.
+/// The space-wide screen-share ceiling from the unauthenticated `GET /version`, or null on failure or an older server.
+/// It is a courtesy cap, not a boundary, so an unreachable Space fails open and the share starts at the chosen quality.
 Future<int?> screenShareCeiling(WidgetRef ref) async {
   try {
     final version = await ref.read(apiProvider).version();

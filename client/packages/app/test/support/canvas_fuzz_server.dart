@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// An in-memory model of the server's canvas, written from
-/// `crates/slimm-server/src/store/canvas/` and `.../http/canvas/`, for
-/// `canvas_engine_fuzz_test.dart`: the same op stream, the same dense seq, the
-/// same "an op row exists only for a real state transition" rule, the same
-/// soft delete and restore fence, the same locked-object skip and the same
-/// feed that joins a place op to the object's current row.
-///
-/// It answers in the server's wire JSON and publishes the server's frames, so
-/// the real `CanvasEngine` is driven end to end.
+/// An in-memory model of the server's canvas for the engine fuzz, written from `crates/slimm-server/src/store/canvas/` and `.../http/canvas/`: same dense seq, op rows only for real state transitions, soft delete and restore fence, locked-object skip.
+/// It answers in wire JSON and publishes the server's frames, so the real `CanvasEngine` runs end to end.
 library;
 
 import 'package:slimm_api/api.dart' as api;

@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Report 4 in the backlog channel, in the owner's own words: "if I move a
-/// shape over top of a screen recording, even while that screen recording
-/// is locked and moved to back, I cannot touch the rectangle again, same
-/// for notes" - `CanvasPresenceManipulableTile`'s outer `Listener` claimed
-/// every pointer within its bounds regardless of lock or depth, so a
-/// select-tool click meant for a shape sitting under a locked
-/// tile never reached `CanvasSurface` at all.
+/// A locked tile must not swallow pointers: a select-tool click meant for a shape under a locked tile has to reach `CanvasSurface`.
 library;
 
 import 'package:flutter/material.dart';

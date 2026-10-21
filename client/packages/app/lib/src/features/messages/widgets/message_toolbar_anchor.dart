@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Hosts a row's hover toolbar in the app overlay, hung from the row's top
-/// right, so a row shorter than the toolbar keeps its density spacing.
-///
-/// A control laid out past its row's edge paints but cannot be hit, because
-/// every ancestor rejects a pointer outside its own box. The overlay has no
-/// such ancestors, so the whole plate stays clickable however short the row.
+/// Hosts a row's hover toolbar in the app overlay, hung from the row's top right.
+/// Overlay ancestors do not reject pointers outside their box, so the plate stays clickable however short the row.
 library;
 
 import 'package:flutter/material.dart';

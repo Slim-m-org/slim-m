@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A composer's slot in `composerFocusNodeProvider`, kept out of its State.
-///
-/// Captured once rather than read from `ref` on release: by then Riverpod has
-/// already detached the element's `ref`, and reading it throws. Every write
-/// waits a frame because bind and release can run inside the very build that
-/// swaps the composer out (for `BlockedDmNotice` among others), and a provider
-/// write from there is a build-time mutation, which Riverpod rejects outside
-/// tests too.
+/// Captured once because Riverpod detaches `ref` before release; every write waits a frame because bind and release can run inside the build that swaps the composer out.
 library;
 
 import 'package:flutter/widgets.dart';

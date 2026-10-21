@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: the fullscreen canvas from the keyboard.
-///
-/// Fullscreen folds the dock behind a handle. The call controls must stay
-/// reachable ("a call nobody can mute or leave is the one failure this dock
-/// must never produce"), so these follow a keyboard user from a fresh
-/// fullscreen to Mute, Leave call and back out.
+/// The fullscreen canvas from the keyboard: the call controls stay reachable from a fresh fullscreen to Mute, Leave call and back out.
 library;
 
 import 'package:flutter/services.dart';

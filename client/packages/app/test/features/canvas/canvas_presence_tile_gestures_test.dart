@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What a pointer does on a call tile: a drag follows the pointer even past a
-/// clamp, a mode switch mid-drag cancels it, a drawing tool never meets the
-/// controls, a hover still moves this device's cursor for everyone, and a
-/// two-finger pinch zooms the canvas instead of being swallowed.
+/// What a pointer does on a call tile: a drag follows past a clamp, a mode switch cancels it, a drawing tool never meets the controls, a hover moves this device's cursor, and a pinch zooms the canvas.
 library;
 
 import 'package:flutter/gestures.dart';

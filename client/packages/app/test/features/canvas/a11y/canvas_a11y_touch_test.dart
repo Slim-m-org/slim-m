@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: touch targets and large text at phone width.
-///
-/// A target counts as 44 logical pixels only if a real hit test lands on the
-/// control from the centre and the four corners of a 44 pixel square around
-/// it, so a drawn-small control with a padded hit area passes and a padding
-/// wrapper that an ancestor clips does not.
+/// Touch targets and large text at phone width: a target counts as 44 logical pixels only if a real hit test lands from the centre and four corners of a 44 pixel square.
 library;
 
 import 'package:flutter/services.dart';

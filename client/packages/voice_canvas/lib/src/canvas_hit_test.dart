@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which stroke, or which box object, a pointer landed on.
-///
-/// A stroke is nearest-segment-within-tolerance against its own points,
-/// never its bounding box: a long diagonal stroke's box covers area its ink
-/// never touches, so testing the box would let an eraser take out a
-/// neighbour the drawn line never crossed. An image and a note are their
-/// whole box; a shape answers only on its outline, so the empty inside of a
-/// frame lets a press through to whatever lies beneath.
+/// Which stroke, or box object, a pointer landed on.
+/// A stroke is nearest-segment-within-tolerance, never its bounding box, so an eraser cannot take a neighbour the line never crossed; images and notes are their whole box and a shape answers only on its outline.
 library;
 
 import 'dart:math' as math;
@@ -80,11 +74,7 @@ String? hitTestStroke(
   return null;
 }
 
-/// Finds the topmost live image, note or shape object [world] lands on and
-/// that [allowed] accepts, or null.
-///
-/// An image or a note is its whole box. A shape is only its outline, so the
-/// empty inside of a frame lets a press through to whatever lies beneath.
+/// Finds the topmost live image, note or shape [world] lands on that [allowed] accepts, or null; a shape is only its outline so presses through its empty inside reach what lies beneath.
 String? hitTestBoxAt(
   CanvasDocument document,
   Offset world, {
@@ -102,10 +92,7 @@ String? hitTestBoxAt(
       accepts: (stroke) => stroke.kind != CanvasObjectKind.stroke,
     );
 
-/// The topmost live object of any kind [world] lands on that [allowed]
-/// accepts, so select, erase and the context menu agree on what is on top.
-///
-/// [touch] widens the reach for a finger. [accepts] narrows the kinds.
+/// The topmost live object of any kind [world] lands on that [allowed] accepts, so select, erase and the context menu agree; [touch] widens the reach and [accepts] narrows the kinds.
 String? hitTestTopmost(
   CanvasDocument document,
   Offset world, {
