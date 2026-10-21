@@ -73,12 +73,16 @@ class CallControls extends ConsumerStatefulWidget {
     required this.voice,
     this.extraControl,
     this.tight = false,
+    this.musicInMenu = false,
   });
 
   final VoiceController controller;
 
   /// Camera switch and the extra control wrap to a second row, and the mic's caret gives way to a long press, for a card too narrow to hold them all.
   final bool tight;
+
+  /// The music button's place is the mic menu's music rows, so the row stays one line.
+  final bool musicInMenu;
 
   /// One more control, drawn straight after share - the canvas toggle.
   final Widget? extraControl;
@@ -177,6 +181,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       children: [
         MicOptionsMenu(
           showCaret: micCaret,
+          withMusic: widget.musicInMenu,
           child: _micButton(voice, listenOnly, holdOpensOptions: !micCaret),
         ),
         const SizedBox(width: AppSpacing.s8),

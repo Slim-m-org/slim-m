@@ -15,6 +15,7 @@ import '../../../routing/routes.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../providers/noise_suppression.dart';
+import '../screens/hold_music_dock_toggle.dart' show holdMusicMenuOptions;
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
 
@@ -35,10 +36,14 @@ class MicOptionsMenu extends ConsumerStatefulWidget {
     super.key,
     required this.showCaret,
     required this.child,
+    this.withMusic = false,
   });
 
   final bool showCaret;
   final Widget child;
+
+  /// The music controls ride in this menu when the dock has no slot for their button.
+  final bool withMusic;
 
   @override
   ConsumerState<MicOptionsMenu> createState() => _MicOptionsMenuState();
@@ -113,6 +118,7 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
             ),
           ),
         ],
+        if (widget.withMusic) ...holdMusicMenuOptions(ref),
         ControlOption(
           label: 'Voice settings',
           icon: AppIcons.settings,

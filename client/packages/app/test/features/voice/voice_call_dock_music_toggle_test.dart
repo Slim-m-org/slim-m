@@ -70,6 +70,14 @@ Future<ProviderContainer> _pump(
   );
 }
 
+/// The music is either its own button or, on a dock too narrow for one, rows in the mic's long-press menu.
+Future<void> _expectMusicReachable(WidgetTester tester) async {
+  if (find.bySemanticsLabel(_off).evaluate().isNotEmpty) return;
+  await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+  await tester.pumpAndSettle();
+  expect(find.text('Play music'), findsOneWidget);
+}
+
 void main() {
   testWidgets('alone, the dock offers the music toggle and it persists', (
     tester,
@@ -122,7 +130,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.bySemanticsLabel(_off), findsOneWidget);
+    await _expectMusicReachable(tester);
   });
 
   for (final width in [360.0, 440.0, 720.0, 1000.0]) {
@@ -146,7 +154,7 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      expect(find.bySemanticsLabel(_off), findsOneWidget);
+      await _expectMusicReachable(tester);
     });
   }
 
@@ -157,11 +165,8 @@ void main() {
       await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
 
       expect(tester.takeException(), isNull);
-      expect(find.bySemanticsLabel(_off), findsOneWidget);
       expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
-      await tester.tap(find.bySemanticsLabel(_off));
-      await tester.pump();
-      expect(find.bySemanticsLabel(_on), findsOneWidget);
+      await _expectMusicReachable(tester);
     });
   }
 

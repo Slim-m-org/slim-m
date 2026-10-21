@@ -36,36 +36,22 @@ class InputSensitivityMeter extends ConsumerWidget {
     final preview = inCall ? null : ref.watch(micMeterProvider);
     final level = inCall ? reading?.levelDb : preview?.levelDb;
     final voice = inCall ? reading?.voice : preview?.voice;
-    final scale = AppText.micro.copyWith(
-      fontFamily: AppFonts.mono,
-      color: tokens.textSecondary,
-    );
     return MicPreviewHold(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.s16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Input sensitivity',
-                    style: AppText.ui.copyWith(color: tokens.textPrimary),
-                  ),
-                ),
-                Text(
-                  '${threshold.round()} dB',
-                  style: AppText.caption.copyWith(
-                    fontFamily: AppFonts.mono,
-                    color: tokens.textSecondary,
-                  ),
-                ),
-              ],
+            Text(
+              'Input sensitivity',
+              style: AppText.ui.copyWith(color: tokens.textPrimary),
             ),
-            const SizedBox(height: AppSpacing.s8),
+            // Room for the value bubble that rises over the thumb.
+            const SizedBox(height: AppSpacing.s32),
             AppSlider(
               tall: true,
+              splitTrack: true,
+              valueLabel: (db) => '${db.round()} dB',
               value: threshold,
               min: kInputFloorDb,
               max: 0,
@@ -78,14 +64,6 @@ class InputSensitivityMeter extends ConsumerWidget {
                   : (db) => ref
                         .read(voiceSettingsControllerProvider.notifier)
                         .setInputThreshold(db),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('${kInputFloorDb.round()} dB', style: scale),
-                Text('0 dB', style: scale),
-              ],
             ),
             if (preview?.status == MicPreviewStatus.unavailable)
               const MicTroubleNotice(

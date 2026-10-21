@@ -53,11 +53,16 @@ List<Widget> callRowsWithExtras(
 }) {
   final alone = ref.watch(callAloneProvider);
   final extras = dockExtras(alone: alone, toggle: toggle);
-  Widget callRow(Widget? extra, {bool tight = false}) => CallControls(
+  Widget callRow(
+    Widget? extra, {
+    bool tight = false,
+    bool musicInMenu = false,
+  }) => CallControls(
     controller: controller,
     voice: voice,
     extraControl: extra,
     tight: tight,
+    musicInMenu: musicInMenu,
   );
   final switchCameraShown =
       voice.cameraEnabled && canSwitchCamera(ref, controller);
@@ -71,7 +76,12 @@ List<Widget> callRowsWithExtras(
   if (!fitsWith(0)) return [callRow(extras, tight: true)];
   if (extras == null) return [callRow(null)];
   final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
-  return fits ? [callRow(extras)] : [Center(child: extras), callRow(null)];
+  if (fits) return [callRow(extras)];
+  // The one rule of desktop-vs-mobile.md: width decides, so music folds into the mic menu.
+  if (alone && fitsWith(toggle != null ? toggleSlots : 0)) {
+    return [callRow(toggle, musicInMenu: true)];
+  }
+  return [Center(child: extras), callRow(null, musicInMenu: alone)];
 }
 
 /// Whether the call row plus [extraCount] extra buttons fit one line at [width],

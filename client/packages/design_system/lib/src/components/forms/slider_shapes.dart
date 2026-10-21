@@ -21,6 +21,8 @@ class TroughTrackShape extends SliderTrackShape with BaseSliderTrackShape {
     required this.fillColor,
     required this.meterColor,
     required this.meterFraction,
+    this.quietColor,
+    this.hearColor,
   });
 
   final bool tall;
@@ -29,6 +31,10 @@ class TroughTrackShape extends SliderTrackShape with BaseSliderTrackShape {
   final Color fillColor;
   final Color meterColor;
   final double? meterFraction;
+
+  /// With both set, the `tall` trough is two tones split at the thumb: quiet before it, heard after.
+  final Color? quietColor;
+  final Color? hearColor;
 
   @override
   void paint(
@@ -59,6 +65,29 @@ class TroughTrackShape extends SliderTrackShape with BaseSliderTrackShape {
 
     canvas.save();
     canvas.clipRRect(rrect);
+
+    final quiet = quietColor;
+    final hear = hearColor;
+    if (tall && quiet != null && hear != null) {
+      canvas.drawRect(
+        Rect.fromLTRB(
+          trackRect.left,
+          trackRect.top,
+          thumbCenter.dx,
+          trackRect.bottom,
+        ),
+        Paint()..color = quiet,
+      );
+      canvas.drawRect(
+        Rect.fromLTRB(
+          thumbCenter.dx,
+          trackRect.top,
+          trackRect.right,
+          trackRect.bottom,
+        ),
+        Paint()..color = hear,
+      );
+    }
 
     final meterFraction = this.meterFraction;
     if (meterFraction != null && meterFraction > 0) {

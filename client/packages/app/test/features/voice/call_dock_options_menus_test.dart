@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/noise_suppression.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -18,6 +19,14 @@ import 'package:slimm_rtc/rtc.dart';
 import 'voice_call_controls_harness.dart';
 
 const _usb = AudioDevice(id: 'usb-1', label: 'USB headset');
+const _me = VoiceParticipant(
+  identity: 'me',
+  name: 'Me',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: true,
+  isScreenSharing: false,
+);
 const _connected = VoiceFlags(state: VoiceSessionState.connected);
 
 InertSession _session() => InertSession(
@@ -158,5 +167,33 @@ void main() {
                 .decoration!
             as BoxDecoration;
     expect(chip.color, AppTokens.light.accentSoft);
+  });
+
+  testWidgets('alone on a narrow dock the music rides in the mic menu', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(340, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpVoiceCallDock(
+      tester,
+      _connected,
+      width: 340,
+      session: _session(),
+      extraOverrides: [
+        voiceParticipantsProvider.overrideWithValue(const [_me]),
+      ],
+    );
+    await tester.pump();
+
+    expect(find.byTooltip(RegExp('music')), findsNothing);
+    final rows = find.byType(FloatingDockCard);
+    expect(tester.getSize(rows).height, lessThan(80), reason: 'one call row');
+
+    await tester.tap(find.byTooltip('Microphone options'));
+    await tester.pumpAndSettle();
+    expect(find.text('MUSIC WHILE ALONE'), findsOneWidget);
+    expect(find.text('Play music'), findsOneWidget);
   });
 }

@@ -61,7 +61,13 @@ void main() {
   ) async {
     await _pump(tester);
     expect(_meter(), findsOneWidget);
-    expect(find.text('-50 dB'), findsOneWidget);
+    expect(
+      find.text('-50 dB'),
+      findsNothing,
+      reason: 'shown only on the thumb',
+    );
+    expect(find.text('-80 dB'), findsNothing);
+    expect(find.text('0 dB'), findsNothing);
     expect(find.text('Sound below the line is not sent.'), findsOneWidget);
     expect(find.text('Voice activity sensitivity'), findsNothing);
   });
@@ -74,7 +80,7 @@ void main() {
     slider.onChanged!(-35);
     await tester.pumpAndSettle();
 
-    expect(find.text('-35 dB'), findsOneWidget);
+    expect(tester.widget<AppSlider>(_meter()).value, -35);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.input_threshold_db'), -35);
     expect(session.inputGateCalls.last, (enabled: true, thresholdDb: -35.0));
@@ -198,7 +204,7 @@ void main() {
     tester.widget<SettingsToggleRow>(toggle).onChanged!(false);
     await tester.pumpAndSettle();
 
-    expect(find.text('-44 dB'), findsOneWidget);
+    expect(tester.widget<AppSlider>(_meter()).value.round(), -44);
     expect(tester.widget<AppSlider>(_meter()).onChanged, isNotNull);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getDouble('slimm.voice.input_threshold_db'), -44);
