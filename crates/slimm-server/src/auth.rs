@@ -219,11 +219,20 @@ mod tests {
         held.abort();
         let _ = held.await;
 
-        let next = auth.hash_password("y".to_owned()).await;
-        assert!(
-            matches!(next, Err(HashError::Busy)),
-            "a cancelled login freed its permit while its hash kept running: {next:?}"
+        // Checked at once, not by racing a second hash: a fast runner finishes a real hash inside any wait.
+        assert_eq!(
+            auth.permits.available_permits(),
+            0,
+            "a cancelled login freed its permit while its hash kept running"
         );
+        let started = Instant::now();
+        while auth.permits.available_permits() == 0 {
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "the permit never came back after the hash ended"
+            );
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
     }
 
     /// Pinned against the published SHA-256 vectors, lowercase hex: the stored
