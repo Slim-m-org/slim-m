@@ -68,6 +68,30 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     }
   }
 
+  /// Deletes [objectId] for good after a confirmation; the server unlocks and erases it first.
+  Future<void> _onPurge(String objectId) async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Delete this for good?',
+      message:
+          'It is removed for everyone and cannot be brought back with Undo.',
+      confirmLabel: 'Delete for good',
+      cancelLabel: 'Keep it',
+    );
+    if (!confirmed || !_mounted) return;
+    try {
+      await ref.read(apiProvider).purgeCanvasObject(widget.channelId, objectId);
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.ui, 'purge a canvas object', e, stack);
+      _engine.reportError('That could not be deleted.');
+      return;
+    }
+    if (!_mounted || !_document.isAlive(objectId)) return;
+    _document
+      ..removeObject(objectId)
+      ..refresh();
+  }
+
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
         client: ref.read(apiProvider),

@@ -39,9 +39,6 @@ import 'support/code_only.dart';
 /// Each of these is a real gap rather than a decision, except the first. They
 /// are listed so the gap is visible and counted, not so it is forgiven.
 const Map<String, String> _allowlist = {
-  'purgeCanvasObject': 'the moderator purge of an erased or live object '
-      '(decision 0085); the context-menu action that calls it comes with the '
-      'canvas client work (2026-10-21)',
   'getExport': 'one export by id, for API clients and scripts that follow a '
       'single job; the app holds at most one job per kind and polls the short '
       'list from listExports instead (2026-10-20)',

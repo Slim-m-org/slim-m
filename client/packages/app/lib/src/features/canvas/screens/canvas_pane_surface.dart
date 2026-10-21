@@ -154,6 +154,7 @@ class CanvasPaneSurface extends StatelessWidget {
         onBringToFront: actions.onBringToFront,
         onSendToBack: actions.onSendToBack,
         onDeleteSelected: actions.onDeleteSelected,
+        onPurge: actions.onPurge,
         onPasteImageAt: actions.onPasteImageAt,
         onAddNoteAt: actions.onNotePlace,
         onEditNote: actions.onEditNote,

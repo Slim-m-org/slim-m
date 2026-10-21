@@ -58,6 +58,7 @@ class _Harness {
   final List<String> requests = [];
   final List<String> restacked = [];
   final List<String> deleted = [];
+  final List<String> purged = [];
 
   Widget build() => MaterialApp(
     theme: buildTheme(Brightness.dark, AppTokens.dark),
@@ -76,6 +77,7 @@ class _Harness {
             onBringToFront: restacked.add,
             onSendToBack: restacked.add,
             onDeleteSelected: deleted.add,
+            onPurge: purged.add,
             onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
@@ -151,5 +153,33 @@ void main() {
     await tester.pumpWidget(harness.build());
     await _openMenu(tester);
     expect(find.text('Lock in place'), findsOneWidget);
+  });
+
+  testWidgets('a canvas moderator can delete a locked object for good', (
+    tester,
+  ) async {
+    final harness = _Harness(authorId: 'someone-else', canManage: true);
+    addTearDown(harness.document.dispose);
+    await tester.pumpWidget(harness.build());
+    await _openMenu(tester);
+    await tester.tap(find.text('Lock in place'));
+    await tester.pumpAndSettle();
+
+    await _openMenu(tester);
+    await tester.tap(find.text('Delete for good'));
+    await tester.pumpAndSettle();
+
+    expect(harness.purged, ['photo']);
+  });
+
+  testWidgets('a plain member is not offered delete for good', (tester) async {
+    final harness = _Harness(authorId: 'me');
+    addTearDown(harness.document.dispose);
+    await tester.pumpWidget(harness.build());
+
+    await _openMenu(tester);
+
+    expect(find.text('Delete'), findsOneWidget);
+    expect(find.text('Delete for good'), findsNothing);
   });
 }
