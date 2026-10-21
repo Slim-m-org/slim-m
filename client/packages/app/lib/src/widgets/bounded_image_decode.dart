@@ -11,7 +11,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 
 /// The declared size of an image was past the ceiling the caller allows.
 class ImageTooLargeException implements Exception {
@@ -36,7 +36,9 @@ Future<ui.Image> decodeBoundedImage(
   required int maxSide,
   int? maxSourcePixels,
 }) async {
-  if (kIsWeb) return _decodeBoundedOnWeb(bytes, maxSide, maxSourcePixels);
+  if (kIsWeb) {
+    return decodeBoundedViaPostDecodeCheck(bytes, maxSide, maxSourcePixels);
+  }
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
   ui.ImageDescriptor? descriptor;
   ui.Codec? codec;
@@ -63,7 +65,8 @@ Future<ui.Image> decodeBoundedImage(
 
 /// The web engine cannot read a descriptor's size, so the size is checked
 /// after the browser's own decode and an oversized result is redrawn smaller.
-Future<ui.Image> _decodeBoundedOnWeb(
+@visibleForTesting
+Future<ui.Image> decodeBoundedViaPostDecodeCheck(
   Uint8List bytes,
   int maxSide,
   int? maxSourcePixels,
