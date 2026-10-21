@@ -67,6 +67,7 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   WidgetTester tester, {
   bool fullscreenFirst = false,
   bool focusFirst = false,
+  bool sharing = true,
   Size size = const Size(1280, 800),
 }) async {
   final fixture = CanvasPaneFixture();
@@ -74,7 +75,7 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   final container = fixture.container(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _DrivenVoiceController(ref, _call()),
+        (ref) => voice = _DrivenVoiceController(ref, _call(sharing: sharing)),
       ),
     ],
   );
@@ -379,5 +380,24 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(port.fullScreen, isTrue);
     expect(container.read(fullscreenVideoActiveProvider), isTrue);
+  });
+
+  testWidgets('returning to a channel whose focused share ended leaves the '
+      'window windowed and nothing focused', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+
+    final (:voice, :container) = await _pump(
+      tester,
+      fullscreenFirst: true,
+      focusFirst: true,
+      sharing: false,
+    );
+
+    expect(container.read(canvasFocusedTileProvider), isNull);
+    expect(port.fullScreen, isFalse, reason: 'no feed, so no fullscreen');
+    expect(container.read(fullscreenVideoActiveProvider), isFalse);
   });
 }
