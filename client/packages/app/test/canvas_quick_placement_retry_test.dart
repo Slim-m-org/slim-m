@@ -18,6 +18,14 @@ void main() {
     final ids = <String>[];
     final client = api.SlimmApi(
       baseUrl: Uri.parse('http://test.invalid'),
+      session: api.SessionStore(
+        tokens: const api.TokenPair(
+          userId: 'me',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
       httpClient: MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         ids.add(body['id'] as String);

@@ -113,10 +113,9 @@ void main() {
       unawaited(h.ops.editNote('n', longText));
       async.flushMicrotasks();
 
-      final grows = h.requests.where((r) {
-        final props = r['props'] as Map<String, dynamic>?;
-        return r['kind'] == 'move' && ((props?['h'] as num?) ?? 0) >= needed;
-      });
+      final grows = h.requests.where(
+        (r) => r['kind'] == 'move' && ((r['h'] as num?) ?? 0) >= needed,
+      );
       expect(
         grows,
         isNotEmpty,

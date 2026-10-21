@@ -46,7 +46,8 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
 
   /// Writes [text] locally first, for the same immediate feedback a drag
   /// gives, and returns the text it replaced; null when the request failed
-  /// (the old text is put back) or the note is gone from this client.
+  /// (the old text is put back) or the note is gone from this client. A
+  /// longer text also grows the box so it is not clipped for everyone.
   Future<String?> _editTo(
     String objectId,
     String text,
@@ -57,19 +58,42 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     document.setNoteText(objectId, text);
     document.refresh();
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'edit',
-        objectId: objectId,
-        props: {'text': text},
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'edit',
+          objectId: objectId,
+          props: {'text': text},
+        ),
       );
-      return before;
     } on api.ApiException {
-      document.setNoteText(objectId, before);
-      document.refresh();
+      if (document.noteTextOf(objectId) == text) {
+        document.setNoteText(objectId, before);
+        document.refresh();
+      }
       onError(errorMessage);
       return null;
     }
+    await _regrowNote(objectId, text);
+    return before;
+  }
+
+  /// Never shrinks: a box someone sized by hand keeps its height.
+  Future<void> _regrowNote(String objectId, String text) async {
+    final bounds = document.objectBounds(objectId);
+    if (bounds == null) return;
+    final box = noteBoxFor(text, width: bounds.w, minHeight: bounds.h);
+    if (box.height <= bounds.h) return;
+    final to = (x: bounds.x, y: bounds.y, w: bounds.w, h: box.height);
+    document.moveObject(objectId, to.x, to.y, to.w, to.h);
+    document.refresh();
+    await _commitBounds(
+      objectId,
+      bounds,
+      to,
+      'That note could not be resized.',
+      record: false,
+    );
   }
 }

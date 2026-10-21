@@ -119,10 +119,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CanvasNoteEditor), findsNothing);
-    expect(fixture.postedOps, hasLength(1));
-    expect(fixture.postedOps.single['kind'], 'edit');
-    expect(fixture.postedOps.single['object_id'], 'note');
-    expect(fixture.postedOps.single['props'], {'text': 'after **bold**'});
+    final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');
+    expect(edits, hasLength(1));
+    expect(edits.single['object_id'], 'note');
+    expect(edits.single['props'], {'text': 'after **bold**'});
     expect(surfaceDocument(tester).noteTextOf('note'), 'after **bold**');
 
     await tester.tap(find.bySemanticsLabel('Undo'));

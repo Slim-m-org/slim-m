@@ -37,7 +37,7 @@ void main() {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(
-        CanvasStrokeInput(
+        const CanvasStrokeInput(
           id: 's',
           seq: 1,
           zIndex: 1,
@@ -45,7 +45,7 @@ void main() {
           y: 100,
           w: 100,
           h: 0,
-          points: const [0, 0, 100, 0],
+          points: [0, 0, 100, 0],
           width: 3,
           colorKey: 'annotation',
           authorId: 'me',

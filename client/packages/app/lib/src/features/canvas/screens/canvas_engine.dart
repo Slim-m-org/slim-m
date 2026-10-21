@@ -169,12 +169,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     channelId: channelId,
     client: _client,
     overrides: tileOverrides,
+    onError: reportError,
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.
   late final CanvasObjectLocks objectLocks = CanvasObjectLocks(
     channelId: channelId,
     client: _client,
+    onError: reportError,
   );
 
   late final CanvasImageHydrator hydrator = CanvasImageHydrator(
@@ -528,6 +530,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _loadRetry.cancel();
     _panDebounce?.cancel();
     _queue?.close();
+    _opsController?.dispose();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();
     sync.dispose();

@@ -21,20 +21,6 @@ http.Response _json(Object body, [int status = 200]) => http.Response(
   headers: {'content-type': 'application/json'},
 );
 
-CanvasStrokeInput _stroke(String id, {int seq = 5}) => CanvasStrokeInput(
-  id: id,
-  seq: seq,
-  zIndex: 1,
-  x: 100,
-  y: 100,
-  w: 40,
-  h: 0,
-  points: const [0, 0, 40, 0],
-  width: 4,
-  colorKey: 'annotation',
-  authorId: 'me',
-);
-
 CanvasStrokeInput _image(String id) => CanvasStrokeInput(
   id: id,
   seq: 5,
