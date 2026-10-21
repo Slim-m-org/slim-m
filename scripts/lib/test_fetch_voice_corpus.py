@@ -79,9 +79,11 @@ class Cache(unittest.TestCase):
 class Confinement(unittest.TestCase):
     def test_only_https_on_a_manifest_host_is_fetched(self):
         for url in ("http://archive.org/a.wav", "https://evil.test/a.wav",
-                    "https://archive.org.evil.test/a.wav", "file:///etc/passwd"):
+                    "https://archive.org.evil.test/a.wav", "https://archive.org@evil.test/a.wav",
+                    "file:///etc/passwd"):
             with self.assertRaises(ValueError):
                 fetch.checked_url(url)
+        self.assertEqual(fetch.checked_url("https://archive.org/download/a.wav"), "https://archive.org/download/a.wav")
         self.assertEqual(fetch.checked_redirect("https://ia8.us.archive.org/x"), "https://ia8.us.archive.org/x")
 
     def test_a_cache_outside_the_work_directories_is_refused(self):
