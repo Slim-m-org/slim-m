@@ -47,24 +47,7 @@ extension CanvasEngineReads on CanvasEngine {
       final page = await _readRect(region);
       if (!mounted) return false;
       _loadRetry.succeeded();
-      final outcome = sync.applyViewport(
-        page,
-        region,
-        onObject: hydrator.hydrate,
-      );
-      if (outcome == CanvasPageOutcome.stale) return true;
-      // Before refresh(), which reaches _onCameraMoved at once; clears only the read's own failures, never an action's message.
-      _emit(
-        (s) => s.copyWith(
-          loading: false,
-          clearError: !keepError && _isReadFailure(s.error),
-        ),
-      );
-      // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
-      _fetched = page.hasMore ? null : region;
-      document.refresh();
-      hydrator.hydrateVisible();
-      if (!_boardPaged) unawaited(_pageBoard(page));
+      if (_applyPage(page, region, keepError: keepError)) return true;
     } on api.ForbiddenException catch (error, stack) {
       _readFailed(error, stack, canvasUnavailableMessage);
     } on api.NotFoundException catch (error, stack) {
@@ -78,6 +61,33 @@ extension CanvasEngineReads on CanvasEngine {
         });
       }
     }
+    return false;
+  }
+
+  /// Returns whether the page was stale; otherwise the page is applied.
+  bool _applyPage(
+    api.CanvasViewport page,
+    Rect region, {
+    required bool keepError,
+  }) {
+    final outcome = sync.applyViewport(
+      page,
+      region,
+      onObject: hydrator.hydrate,
+    );
+    if (outcome == CanvasPageOutcome.stale) return true;
+    // Before refresh(), which reaches _onCameraMoved at once; clears only the read's own failures, never an action's message.
+    _emit(
+      (s) => s.copyWith(
+        loading: false,
+        clearError: !keepError && _isReadFailure(s.error),
+      ),
+    );
+    // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
+    _fetched = page.hasMore ? null : region;
+    document.refresh();
+    hydrator.hydrateVisible();
+    if (!_boardPaged) unawaited(_pageBoard(page));
     return false;
   }
 

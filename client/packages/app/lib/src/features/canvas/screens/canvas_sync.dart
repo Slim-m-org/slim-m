@@ -266,22 +266,28 @@ class CanvasSync {
       final cursor = _asOfSeq;
       if (cursor == null) return _PassEnd.restarted;
       final result = await _fetchPage(cursor);
-      if (_disposed) return _PassEnd.failed;
-      if (epoch != _epoch) return _PassEnd.restarted;
-      if (result == null) {
-        _scheduleRetry();
-        return _PassEnd.failed;
-      }
-      if (result.reset || !_applyOps(result.ops)) {
-        await _hardReset();
-        return _PassEnd.restarted;
-      }
-      if (!result.hasMore) return _finishCatchUp(result.latestSeq);
+      final end = await _unusablePage(result, epoch);
+      if (end != null) return end;
+      if (!result!.hasMore) return _finishCatchUp(result.latestSeq);
       // A page that claims more and carries nothing cannot be paged past.
       if (result.ops.isEmpty) break;
     }
     await _hardReset();
     return _PassEnd.restarted;
+  }
+
+  Future<_PassEnd?> _unusablePage(api.CanvasOpsPage? result, int epoch) async {
+    if (_disposed) return _PassEnd.failed;
+    if (epoch != _epoch) return _PassEnd.restarted;
+    if (result == null) {
+      _scheduleRetry();
+      return _PassEnd.failed;
+    }
+    if (result.reset || !_applyOps(result.ops)) {
+      await _hardReset();
+      return _PassEnd.restarted;
+    }
+    return null;
   }
 
   /// Applies the ops above the cursor in order, moving it as each lands, so a
