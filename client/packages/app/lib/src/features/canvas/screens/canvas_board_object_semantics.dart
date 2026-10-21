@@ -6,8 +6,11 @@
 /// move, which nobody without a screen reader should pay for.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:slimm_design_system/design_system.dart' show AppSizes;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 /// More nodes than this in view is a wall of noise; the board's own label still counts them all.
@@ -66,13 +69,14 @@ class _CanvasBoardObjectSemanticsState
               for (final id in document.visibleIds.take(_maxNodes))
                 if (id != selected)
                   if (document.objectBounds(id) case final bounds?)
-                    Positioned(
-                      left: (bounds.x - camera.x) * camera.zoom,
-                      top: (bounds.y - camera.y) * camera.zoom,
-                      width: (bounds.w * camera.zoom).clamp(1, double.infinity),
-                      height: (bounds.h * camera.zoom).clamp(
-                        1,
-                        double.infinity,
+                    Positioned.fromRect(
+                      rect: _reachable(
+                        Rect.fromLTWH(
+                          (bounds.x - camera.x) * camera.zoom,
+                          (bounds.y - camera.y) * camera.zoom,
+                          bounds.w * camera.zoom,
+                          bounds.h * camera.zoom,
+                        ),
                       ),
                       child: Semantics(
                         container: true,
@@ -88,6 +92,13 @@ class _CanvasBoardObjectSemanticsState
       ),
     );
   }
+
+  /// Never smaller than a fingertip, centred on the object, however small it is drawn.
+  static Rect _reachable(Rect rect) => Rect.fromCenter(
+    center: rect.center,
+    width: math.max(rect.width, AppSizes.rowTouch),
+    height: math.max(rect.height, AppSizes.rowTouch),
+  );
 
   static String _labelFor(CanvasDocument document, String id) =>
       switch (document.kindOf(id)) {

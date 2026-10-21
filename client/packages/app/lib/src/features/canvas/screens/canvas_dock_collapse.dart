@@ -146,7 +146,15 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.collapsible)
-                  _DockHandle(revealed: revealed, onPressed: _toggle),
+                  // Room above the slim handle at touch density, so its hit area reaches a full 44.
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: AppTouchTargets.of(context)
+                          ? AppSizes.rowTouch - canvasDockHandleHeight
+                          : 0,
+                    ),
+                    child: _DockHandle(revealed: revealed, onPressed: _toggle),
+                  ),
                 TweenAnimationBuilder<double>(
                   tween: Tween(end: revealed ? 1 : 0),
                   duration: AppMotion.reduced(context, AppMotion.base),
@@ -220,15 +228,16 @@ class _DockHandleState extends State<_DockHandle> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final label = widget.revealed ? 'Hide controls' : 'Show controls';
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      onTap: widget.onPressed,
-      child: Tooltip(
-        message: label,
-        child: AppTouchHitArea(
-          alignment: Alignment.bottomCenter,
+    // Outermost, so the reach into the room above is not cut off by the semantics and tooltip boxes.
+    return AppTouchHitArea(
+      alignment: Alignment.bottomCenter,
+      child: Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        onTap: widget.onPressed,
+        child: Tooltip(
+          message: label,
           child: FocusableActionDetector(
             mouseCursor: SystemMouseCursors.click,
             onShowFocusHighlight: (v) => setState(() => _focused = v),

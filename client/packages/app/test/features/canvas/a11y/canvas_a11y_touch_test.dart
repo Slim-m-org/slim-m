@@ -23,8 +23,12 @@ Iterable<SemRow> _fingerControls(WidgetTester tester) =>
       (r) =>
           !r.isDisabled &&
           r.accessibleName.isNotEmpty &&
-          !_tileText.any(r.label.contains),
+          !_tileText.any(r.label.contains) &&
+          !_objectNodes.hasMatch(r.label),
     );
+
+/// The screen-reader nodes laid over board objects (C-091): a finger there presses the board, which selects the object.
+final _objectNodes = RegExp(r'^(Drawing|Image|Shape|Note:)');
 
 String _gaps(WidgetTester tester, Iterable<SemRow> rows) => [
   for (final row in rows)

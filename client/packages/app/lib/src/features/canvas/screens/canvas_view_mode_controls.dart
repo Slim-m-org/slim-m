@@ -99,11 +99,16 @@ class _Pill extends StatelessWidget {
               children: [
                 Icon(icon, size: AppSizes.icon16, color: colour),
                 const SizedBox(width: AppSpacing.s4),
-                Text(
-                  label,
-                  style: AppText.caption.copyWith(
-                    color: colour,
-                    fontWeight: AppWeights.medium,
+                // Shrinks with an ellipsis at very large text instead of overflowing the pill.
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: colour,
+                      fontWeight: AppWeights.medium,
+                    ),
                   ),
                 ),
               ],

@@ -265,47 +265,56 @@ class _PersonButtonState extends State<_PersonButton> {
     final target = widget.target;
     final selected = widget.selected;
     final tokens = widget.tokens;
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: selected
-          ? 'Following ${target.name}, tap to stop'
-          : 'Follow ${target.name}',
-      excludeSemantics: true,
-      onTap: widget.onTap,
-      child: Tooltip(
-        message: selected
-            ? 'Stop following ${target.name}'
-            : 'Follow ${target.name}',
-        child: InkResponse(
+    final touch = AppTouchTargets.of(context);
+    // Layout room around the 32 square, so its hit area reaches a full 44 at touch density.
+    return Padding(
+      padding: EdgeInsets.all(touch ? (AppSizes.rowTouch - 32) / 2 : 0),
+      child: AppTouchHitArea(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: selected
+              ? 'Following ${target.name}, tap to stop'
+              : 'Follow ${target.name}',
+          excludeSemantics: true,
           onTap: widget.onTap,
-          onFocusChange: (focused) => setState(() => _focused = focused),
-          radius: AppSpacing.s24,
-          // An outer ring, not a recolour: focusRing and accentFill are the same colour, and selection owns the inner ring.
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _focused ? tokens.focusRing : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
+          child: Tooltip(
+            message: selected
+                ? 'Stop following ${target.name}'
+                : 'Follow ${target.name}',
+            child: InkResponse(
+              onTap: widget.onTap,
+              onFocusChange: (focused) => setState(() => _focused = focused),
+              radius: AppSpacing.s24,
+              // An outer ring, not a recolour: focusRing and accentFill are the same colour, and selection owns the inner ring.
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: selected ? tokens.accentFill : Colors.transparent,
+                    color: _focused ? tokens.focusRing : Colors.transparent,
                     width: 2,
                   ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(2),
-                  child: UserAvatar(
-                    name: target.name,
-                    userId: target.id,
-                    size: AppAvatarSize.s24,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? tokens.accentFill
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: UserAvatar(
+                        name: target.name,
+                        userId: target.id,
+                        size: AppAvatarSize.s24,
+                      ),
+                    ),
                   ),
                 ),
               ),

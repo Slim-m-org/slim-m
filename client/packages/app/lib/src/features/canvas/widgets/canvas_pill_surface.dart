@@ -36,7 +36,8 @@ class _CanvasPillSurfaceState extends State<CanvasPillSurface> {
   @override
   Widget build(BuildContext context) {
     final tokens = widget.tokens;
-    return Material(
+    final touch = AppTouchTargets.of(context);
+    final pill = Material(
       color: widget.color ?? tokens.surfaceRaised,
       shape: StadiumBorder(
         side: _focused
@@ -49,6 +50,14 @@ class _CanvasPillSurfaceState extends State<CanvasPillSurface> {
         onFocusChange: (focused) => setState(() => _focused = focused),
         child: widget.child,
       ),
+    );
+    if (!touch) return pill;
+    // Layout room around the 28-high pill, so its hit area reaches a full 44 at touch density.
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: (AppSizes.rowTouch - AppSizes.icon28) / 2,
+      ),
+      child: AppTouchHitArea(child: pill),
     );
   }
 }

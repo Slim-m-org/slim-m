@@ -87,7 +87,10 @@ class _RosterAvatar extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: open,
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.s4),
+                // A 44 square at touch density, 36 at pointer density.
+                padding: EdgeInsets.all(
+                  AppTouchTargets.of(context) ? AppSpacing.s8 : AppSpacing.s4,
+                ),
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -145,7 +148,9 @@ class _MoreChip extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: () => showCanvasParticipantsSheet(context),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.s4),
+            padding: EdgeInsets.all(
+              AppTouchTargets.of(context) ? AppSpacing.s8 : AppSpacing.s4,
+            ),
             child: Text(
               '+$count',
               style: AppText.caption.copyWith(
