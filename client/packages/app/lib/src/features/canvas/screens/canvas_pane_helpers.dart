@@ -75,6 +75,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         document: _document,
         timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
         authorId: () => ref.read(meProvider).valueOrNull?.id,
+        clearedSincePlacement: _engine.sync.clearedSincePlacement,
       );
 
   /// What the canvas says when this device's call in the channel failed or dropped for good.

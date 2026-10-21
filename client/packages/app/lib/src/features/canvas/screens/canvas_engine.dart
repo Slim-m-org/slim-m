@@ -241,6 +241,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     onRemoved: (id) {
       document
         ..removeObject(id)
+        // The removal's seq is unread; the cursor bounds it, and the feed replays it if a stale read lands first.
+        ..confirmRemoved([id], sync.asOfSeq ?? 0)
         ..refresh();
       reportError('That stroke was erased while it was being saved.');
     },

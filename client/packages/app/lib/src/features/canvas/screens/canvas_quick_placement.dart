@@ -43,12 +43,18 @@ class CanvasQuickPlacement {
     required this.document,
     required this.timedOutUntil,
     this.authorId = _noAuthor,
+    this.clearedSincePlacement = _neverCleared,
   });
+
+  static bool _neverCleared(api.CanvasObject object) => false;
 
   static String? _noAuthor() => null;
 
   /// Who the optimistic copy shows as the author of, until the reply says.
   final String? Function() authorId;
+
+  /// Whether a clear already applied here swept the object while its reply was in flight.
+  final bool Function(api.CanvasObject object) clearedSincePlacement;
 
   bool _inFlight = false;
 
@@ -139,7 +145,11 @@ class CanvasQuickPlacement {
         ),
       );
       final input = canvasStrokeInputFrom(placed);
-      if (input != null) {
+      if (clearedSincePlacement(placed)) {
+        document
+          ..removeObject(id)
+          ..refresh();
+      } else if (input != null) {
         document
           ..applyPlaced(input)
           ..refresh();
