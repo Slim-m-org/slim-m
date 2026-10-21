@@ -367,8 +367,19 @@ async fn an_oversize_preview_box_is_dropped() {
         ))
         .await
         .unwrap();
+    // Frames arrive in order, so a valid one after it proves the oversize box was refused.
+    send_preview(
+        &mut alice_ws,
+        &store,
+        alice_id,
+        &channel.to_string(),
+        1.0,
+        1.0,
+    )
+    .await;
 
-    assert_nothing_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    let first = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    assert_eq!(first["w"], 40.0, "the oversize box was relayed: {first}");
 }
 
 /// A preview moves content on every screen, so only the object's author (or
@@ -382,7 +393,7 @@ async fn a_member_cannot_preview_another_members_object() {
     let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
     store.bootstrap_deployment(alice_id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
 
     let object_id = CanvasObjectId::generate();
     store
@@ -416,6 +427,52 @@ async fn a_member_cannot_preview_another_members_object() {
         ))
         .await
         .unwrap();
+    send_preview(&mut bob_ws, &store, bob_id, &channel.to_string(), 5.0, 5.0).await;
 
-    assert_nothing_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
+    let first = next_of_type(&mut alice_ws, "canvas.object_preview.updated").await;
+    assert_ne!(
+        first["object_id"],
+        object_id.to_string(),
+        "bob's preview of alice's object was relayed"
+    );
+}
+
+/// A canvas manager may drag anyone's object, so their preview of bob's reaches him.
+#[tokio::test]
+async fn a_canvas_manager_can_preview_another_members_object() {
+    let (store, _guard) = support::new_store("slimm-canvas-object-preview-live").await;
+    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let theirs = slimm_server::ids::CanvasObjectId::generate();
+    let request = slimm_server::store::PlaceRequest {
+        kind: "note",
+        bounds: (0.0, 0.0, 40.0, 20.0),
+        props: "{}",
+        attachment: None,
+    };
+    store
+        .place_canvas_object(channel, bob_id, theirs, request)
+        .await
+        .unwrap();
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    alice_ws
+        .send(WsMessage::Text(
+            json!({
+                "type": "canvas.object_preview", "channel_id": channel.to_string(),
+                "object_id": theirs.to_string(),
+                "x": 7.0, "y": 7.0, "w": 40.0, "h": 20.0,
+            })
+            .to_string(),
+        ))
+        .await
+        .unwrap();
+
+    let frame = next_of_type(&mut bob_ws, "canvas.object_preview.updated").await;
+    assert_eq!(frame["object_id"], theirs.to_string());
 }

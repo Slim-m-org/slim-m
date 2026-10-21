@@ -66,6 +66,7 @@ async fn an_erased_object_past_retention_is_hard_deleted_by_the_sweep() {
     .await
     .unwrap();
 
+    store.set_message_retention_days(30).await.unwrap();
     store.sweep_canvas_ops().await.unwrap();
 
     let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM canvas_objects WHERE id = ?")

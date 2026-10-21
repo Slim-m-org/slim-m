@@ -37,7 +37,7 @@ mod bot_ui;
 mod bots;
 pub mod build_id;
 mod canvas;
-use canvas::{canvas_media_slots, canvas_object_locks};
+use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;
 mod categories;
 mod category_overwrites;
@@ -237,6 +237,7 @@ pub fn router(state: AppState) -> Router {
         .merge(canvas::routes())
         .merge(canvas_media_slots::routes())
         .merge(canvas_object_locks::routes())
+        .merge(canvas_purge::routes())
         .merge(categories::routes())
         .merge(category_overwrites::routes())
         .merge(channel_notification_prefs::routes())

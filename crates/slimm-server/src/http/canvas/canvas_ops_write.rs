@@ -147,6 +147,9 @@ pub(in crate::http) async fn submit_op(
     // No await between the commit and this call; see `ws::permission_cache`.
     if outcome.fresh && outcome.affected > 0 {
         publish(&state, channel_id, op_id, &outcome);
+        if outcome.kind == "restore" {
+            republish_locks(&state, channel_id, &outcome.touched_ids).await;
+        }
     }
 
     Ok((StatusCode::CREATED, Json(CanvasOpResultDto::from(outcome))))
@@ -343,7 +346,12 @@ fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     Ok(CanvasOpRequest::Edit { object_id, props })
 }
 
-fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: &SubmittedOp) {
+pub(super) fn publish(
+    state: &AppState,
+    channel_id: ChannelId,
+    op_id: CanvasOpId,
+    outcome: &SubmittedOp,
+) {
     match outcome.kind.as_str() {
         "remove" => state.hub.publish(Event::CanvasObjectsRemoved {
             channel_id,
@@ -412,6 +420,21 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
             }
         }
         _ => {}
+    }
+}
+
+/// Tells viewers which restored objects are locked, since a lock outlives the erase that hid it.
+async fn republish_locks(state: &AppState, channel_id: ChannelId, restored: &[CanvasObjectId]) {
+    let ids = restorable_ids(restored);
+    let Ok(locked) = state.store.locked_canvas_objects(&ids).await else {
+        return;
+    };
+    for object_id in locked {
+        state.hub.publish(Event::CanvasObjectLockChanged {
+            channel_id,
+            object_id,
+            locked: true,
+        });
     }
 }
 

@@ -191,8 +191,9 @@ fn moves_permissions(event: &Event) -> bool {
 ///
 /// [`Event::EphemeralMessage`] rides here too, being unnumbered and never
 /// stored, at a rate a bot's write limit keeps far below the cursors'.
-/// Otherwise only [`Event::CanvasCursorMoved`] and [`Event::CanvasStrokePreview`]
-/// qualify: both are rate-limited well above what a human notices, carry no
+/// Otherwise only the live canvas frames qualify - [`Event::CanvasCursorMoved`],
+/// [`Event::CanvasStrokePreview`], [`Event::CanvasObjectPreview`] and
+/// [`Event::CanvasView`] - plus [`Event::WatchTick`]: each is rate-limited well above what a human notices, carry no
 /// `seq`, are never persisted, and have no catch-up path a reconnect could use
 /// anyway (see their own doc comments in `hub/event.rs`). `TypingStarted`/
 /// `TypingStopped` are ephemeral in the same sense but stay durable here: they
