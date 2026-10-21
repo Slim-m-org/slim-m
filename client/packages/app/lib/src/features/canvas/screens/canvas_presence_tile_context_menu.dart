@@ -54,9 +54,7 @@ class CanvasPresenceTileContextMenu extends StatefulWidget {
     super.key,
     required this.controller,
     required this.locked,
-    required this.sentToBack,
     this.onToggleLocked,
-    this.onToggleSentToBack,
     required this.onHide,
     this.onExpand,
     this.participantItemsBuilder,
@@ -64,13 +62,11 @@ class CanvasPresenceTileContextMenu extends StatefulWidget {
 
   final CanvasPresenceTileMenuController controller;
   final bool locked;
-  final bool sentToBack;
 
   /// Null renders no row for this verb at all, matching `TileControls`'s own
   /// null-means-no-button shape - this menu offers exactly its verbs and
-  /// nothing else, so an avatar-only tile's menu is just "Hide".
+  /// nothing else.
   final VoidCallback? onToggleLocked;
-  final VoidCallback? onToggleSentToBack;
   final VoidCallback onHide;
   final VoidCallback? onExpand;
 
@@ -148,14 +144,6 @@ class _CanvasPresenceTileContextMenuState
         label: widget.locked ? 'Unlock' : 'Lock in place',
         leading: widget.locked ? AppIcons.tileUnlocked : AppIcons.tileLocked,
         onTap: () => _run(onToggleLocked),
-      ),
-    if (widget.onToggleSentToBack case final onToggleSentToBack?)
-      AppMenuItem(
-        label: widget.sentToBack ? 'Bring to front' : 'Send to back',
-        leading: widget.sentToBack
-            ? AppIcons.bringToFront
-            : AppIcons.sendToBack,
-        onTap: () => _run(onToggleSentToBack),
       ),
     AppMenuItem(
       label: 'Hide on your canvas',

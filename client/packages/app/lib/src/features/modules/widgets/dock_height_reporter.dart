@@ -56,11 +56,15 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   );
   double _lastReported = 0;
 
+  /// Who published each reservation last, so a dock leaving does not zero a height another dock now holds.
+  static final _publisher = Expando<_DockHeightReporterState>();
+
   void _report() {
     final measured = _key.currentContext?.size?.height ?? 0;
     final height = widget.foldedHeight ?? measured + widget.extraHeight;
     if (height == _lastReported) return;
     _lastReported = height;
+    _publisher[_reservation] = this;
     final local = widget.onHeight;
     if (local != null) {
       local(height);
@@ -79,7 +83,11 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   void dispose() {
     final local = widget.onHeight != null;
     Future.microtask(() {
-      if (!local && _reservation.mounted) _reservation.state = 0;
+      if (local || !_reservation.mounted) return;
+      if (_publisher[_reservation] == this) {
+        _publisher[_reservation] = null;
+        _reservation.state = 0;
+      }
     });
     super.dispose();
   }

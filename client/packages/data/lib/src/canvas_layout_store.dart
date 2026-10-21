@@ -58,12 +58,17 @@ class CanvasLayoutStore {
             ))
           .go();
     }
-    final rows = await (_db.select(_db.canvasPersonalLayouts)
-          ..orderBy([(l) => OrderingTerm.desc(l.updatedAt)]))
+    // Ids only, past the cap: the layout blobs themselves never cross the isolate port to prune.
+    final layouts = _db.canvasPersonalLayouts;
+    final stale = await (_db.selectOnly(layouts)
+          ..addColumns([layouts.channelId])
+          ..orderBy([OrderingTerm.desc(layouts.updatedAt)])
+          ..limit(1 << 30, offset: canvasLayoutsCap))
+        .map((row) => row.read(layouts.channelId)!)
         .get();
-    for (final stale in rows.skip(canvasLayoutsCap)) {
+    for (final id in stale) {
       // A saved row with a stale clock still belongs to the caller.
-      if (stale.channelId != keep) await delete(stale.channelId);
+      if (id != keep) await delete(id);
     }
   }
 }

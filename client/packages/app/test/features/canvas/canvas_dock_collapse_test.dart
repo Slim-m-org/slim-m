@@ -149,6 +149,73 @@ void main() {
     });
   });
 
+  testWidgets('a second popup opening as the first closes keeps the dock up', (
+    tester,
+  ) async {
+    final first = ValueNotifier(true);
+    final second = ValueNotifier(false);
+    Widget pinned(ValueNotifier<bool> open, Key key) =>
+        ValueListenableBuilder<bool>(
+          valueListenable: open,
+          builder: (_, isOpen, _) => isOpen
+              ? CanvasDockPopupPin(child: SizedBox(key: key))
+              : const SizedBox.shrink(),
+        );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CanvasDockCollapse(
+              collapsible: true,
+              builder: (_, _) => SizedBox(
+                height: 48,
+                width: 200,
+                child: Column(
+                  children: [
+                    pinned(first, const Key('a')),
+                    pinned(second, const Key('b')),
+                    const SizedBox(
+                      width: 100,
+                      height: 20,
+                      child: ColoredBox(
+                        key: Key('dock-field'),
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dock-field')).hitTestable(), findsOneWidget);
+
+    second.value = true;
+    await tester.pump();
+    await tester.pump();
+    first.value = false;
+    await tester.pump();
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('dock-field')).hitTestable(),
+      findsOneWidget,
+      reason: 'the second popup still holds the dock open',
+    );
+
+    second.value = false;
+    await tester.pump();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dock-field')).hitTestable(), findsNothing);
+  });
+
   testWidgets('the folded dock is reachable and revealed from the keyboard', (
     tester,
   ) async {

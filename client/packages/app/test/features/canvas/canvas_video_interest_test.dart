@@ -21,6 +21,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _noor = VoiceParticipant(
   identity: 'user-noor',
@@ -29,6 +30,7 @@ const _noor = VoiceParticipant(
   isMuted: true,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 const _ada = VoiceParticipant(
@@ -38,6 +40,7 @@ const _ada = VoiceParticipant(
   isMuted: true,
   isLocal: false,
   isScreenSharing: true,
+  isCameraOn: true,
 );
 
 Widget _wrap(Widget child) => ProviderScope(
@@ -62,7 +65,7 @@ Widget _layer(
   CanvasPresenceTileOverrides overrides,
   _Reports reports, {
   bool hideSelfCamera = false,
-}) => CanvasPresenceLayer(
+}) => PresenceStack(
   document: document,
   participants: participants,
   cameraViewFor: _noView,

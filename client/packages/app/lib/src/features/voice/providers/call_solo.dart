@@ -15,3 +15,8 @@ bool isAloneInCall(List<VoiceParticipant> participants) =>
 final callAloneProvider = Provider<bool>(
   (ref) => isAloneInCall(ref.watch(voiceParticipantsProvider)),
 );
+
+/// Whether anyone besides you is in the live call; the canvas dock lists people only then.
+final callHasOthersProvider = Provider<bool>(
+  (ref) => ref.watch(voiceParticipantsProvider).any((p) => !p.isLocal),
+);

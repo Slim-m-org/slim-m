@@ -51,27 +51,49 @@ class CanvasViewRelay {
 
   /// Call whenever this device's visible part of the board may have changed.
   void reportLocal(Rect view) {
-    if (view == _lastSent && _throttle == null) return;
+    if (view == _lastSent && _pending == null) return;
     _pending = view;
     if (_throttle != null) return;
-    _flush();
+    if (_flush()) _armThrottle();
+  }
+
+  // Re-armed after each send, so a view that keeps moving goes out once per interval and not twice.
+  void _armThrottle() {
     _throttle = Timer(viewSendInterval, () {
       _throttle = null;
-      if (_pending != null && _pending != _lastSent) _flush();
+      if (_flush()) _armThrottle();
     });
   }
 
-  void _flush() {
+  /// Sends the pending view if anyone can receive it; otherwise keeps it for the next report or repeat.
+  bool _flush() {
     final view = _pending;
+    if (view == null) return false;
+    if (!_audience()) {
+      _repeat ??= Timer.periodic(viewRepeatInterval, (_) => _tick());
+      return false;
+    }
     _pending = null;
-    if (view == null || (canSend != null && !canSend!())) return;
     _lastSent = view;
     send(view, summon: false);
     _repeat?.cancel();
     _repeat = view == board
         ? null
-        : Timer.periodic(viewRepeatInterval, (_) => send(view, summon: false));
+        : Timer.periodic(viewRepeatInterval, (_) => _tick());
+    return true;
   }
+
+  void _tick() {
+    if (!_audience()) return;
+    if (_pending != null) {
+      _flush();
+      return;
+    }
+    final latest = _lastSent;
+    if (latest != null) send(latest, summon: false);
+  }
+
+  bool _audience() => canSend?.call() ?? true;
 
   /// Brings everyone else to [view].
   void summonEveryone(Rect view) => send(view, summon: true);
@@ -90,7 +112,7 @@ class CanvasViewRelay {
 
   void stopFollowing() => following.value = null;
 
-  /// A person who left can no longer be followed.
+  /// A person who left can no longer be followed, and a later return must not pull the camera.
   void forget(String userId) {
     _views.remove(userId);
     if (following.value == userId) stopFollowing();

@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/window_fullscreen_hold.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
@@ -23,6 +24,7 @@ void main() {
   tearDown(() {
     container.dispose();
     DesktopWindowShell.debugReset();
+    WindowFullscreenHold.debugReset();
   });
 
   WindowFullscreenHold hold() => WindowFullscreenHold(
@@ -89,4 +91,59 @@ void main() {
       expect(container.read(fullscreenVideoActiveProvider), isFalse);
     },
   );
+
+  test(
+    'a window that was already fullscreen is left fullscreen on release',
+    () async {
+      DesktopWindowShell.debugActivate(frameless: true);
+      port.fullScreen = true;
+      final h = hold();
+
+      await h.enter();
+      h.release();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(port.fullScreen, isTrue, reason: 'the person had F11 on already');
+      expect(container.read(fullscreenVideoActiveProvider), isFalse);
+    },
+  );
+
+  test(
+    'a hold taken over in the same frame keeps the window fullscreen',
+    () async {
+      DesktopWindowShell.debugActivate(frameless: true);
+      final old = hold();
+      await old.enter();
+
+      // A remount: the new pane's hold arrives before the old one lets go.
+      final fresh = hold();
+      final entering = fresh.enter();
+      old.release();
+      await entering;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(port.fullScreen, isTrue);
+      expect(container.read(fullscreenVideoActiveProvider), isTrue);
+    },
+  );
+
+  test('the OS leaving fullscreen on its own releases the hold', () async {
+    DesktopWindowShell.debugActivate(frameless: true);
+    final h = hold();
+    await h.enter();
+    expect(WindowFullscreenHold.anyHeld, isTrue);
+
+    port.fullScreen = false;
+    port.emit(DesktopWindowEventKind.leaveFullScreen);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(h.held, isFalse);
+    expect(WindowFullscreenHold.anyHeld, isFalse);
+    expect(
+      container.read(fullscreenVideoActiveProvider),
+      isFalse,
+      reason: 'the title bar must come back with the window',
+    );
+  });
 }

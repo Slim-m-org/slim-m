@@ -25,6 +25,7 @@ const _local = VoiceParticipant(
   isMuted: false,
   isLocal: true,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 ProviderContainer _containerWithSelfInCall() => CanvasPaneFixture().container(

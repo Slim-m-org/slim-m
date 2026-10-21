@@ -35,8 +35,20 @@ void main() {
       ], reason: 'a report inside the throttle window must be dropped');
 
       async.elapse(cursorSendInterval + const Duration(milliseconds: 1));
+      expect(
+        sent,
+        [const Offset(1, 1), const Offset(2, 2)],
+        reason:
+            'the position the throttle held back goes out as its window ends',
+      );
+
       relay.reportLocalPointer(const Offset(3, 3));
-      expect(sent, [const Offset(1, 1), const Offset(3, 3)]);
+      async.elapse(cursorSendInterval + const Duration(milliseconds: 1));
+      expect(sent, [
+        const Offset(1, 1),
+        const Offset(2, 2),
+        const Offset(3, 3),
+      ]);
     });
   });
 
@@ -153,27 +165,101 @@ void main() {
     },
   );
 
-  test('a pointer leaving hides the remote cursor and is sent once', () {
+  CanvasCursorRelay relayWith({
+    required CanvasCursors cursors,
+    List<Offset>? sent,
+    List<Offset>? left,
+    bool Function()? canSend,
+  }) => CanvasCursorRelay(
+    cursors: cursors,
+    paletteSize: 6,
+    send: (x, y) => sent?.add(Offset(x, y)),
+    sendLeft: (x, y) => left?.add(Offset(x, y)),
+    resolveLabel: (_) => 'Someone',
+    isBlocked: (_) => false,
+    selfId: () => 'self',
+    canSend: canSend,
+  );
+
+  test('a pointer leaving is sent once, from where it last was', () {
+    fakeAsync((async) {
+      final cursors = CanvasCursors();
+      final left = <Offset>[];
+      final relay = relayWith(cursors: cursors, left: left);
+
+      relay.reportLocalPointerLeft();
+      async.elapse(cursorLeftGrace);
+      expect(left, isEmpty, reason: 'nothing was ever sent to retract');
+
+      relay.reportLocalPointer(const Offset(7, 9));
+      relay.reportLocalPointerLeft();
+      relay.reportLocalPointerLeft();
+      async.elapse(cursorLeftGrace);
+      expect(left, [const Offset(7, 9)], reason: 'not the (0, 0) corner');
+
+      relay.dispose();
+      cursors.dispose();
+    });
+  });
+
+  test('a pointer that comes straight back never tells anyone it left', () {
+    fakeAsync((async) {
+      final cursors = CanvasCursors();
+      final left = <Offset>[];
+      final relay = relayWith(cursors: cursors, left: left);
+
+      relay.reportLocalPointer(const Offset(1, 1));
+      relay.reportLocalPointerLeft();
+      async.elapse(cursorLeftGrace ~/ 2);
+      relay.reportLocalPointer(const Offset(2, 2));
+      async.elapse(cursorLeftGrace * 2);
+
+      expect(left, isEmpty);
+      relay.dispose();
+      cursors.dispose();
+    });
+  });
+
+  test('a resting pointer is repeated before its cursor goes stale', () {
+    fakeAsync((async) {
+      final cursors = CanvasCursors();
+      final sent = <Offset>[];
+      final relay = relayWith(cursors: cursors, sent: sent);
+
+      relay.reportLocalPointer(const Offset(5, 5));
+      async.elapse(cursorKeepaliveInterval + const Duration(milliseconds: 1));
+
+      expect(sent, [const Offset(5, 5), const Offset(5, 5)]);
+      expect(
+        cursorKeepaliveInterval,
+        lessThan(cursorStaleAfter),
+        reason: 'a repeat later than the prune would be too late',
+      );
+      relay.dispose();
+      cursors.dispose();
+    });
+  });
+
+  test('closing the canvas retracts a pointer that is still down', () {
+    fakeAsync((async) {
+      final cursors = CanvasCursors();
+      final left = <Offset>[];
+      final relay = relayWith(cursors: cursors, left: left);
+
+      relay.reportLocalPointer(const Offset(3, 4));
+      relay.dispose();
+
+      expect(left, [const Offset(3, 4)]);
+      expect(async.nonPeriodicTimerCount + async.periodicTimerCount, 0);
+      cursors.dispose();
+    });
+  });
+
+  test('a remote leave hides the cursor', () {
     final cursors = CanvasCursors();
     addTearDown(cursors.dispose);
-    var left = 0;
-    final relay = CanvasCursorRelay(
-      cursors: cursors,
-      paletteSize: 6,
-      send: (_, _) {},
-      sendLeft: () => left++,
-      resolveLabel: (_) => 'Someone',
-      isBlocked: (_) => false,
-      selfId: () => 'self',
-    );
+    final relay = relayWith(cursors: cursors);
     addTearDown(relay.dispose);
-
-    relay.reportLocalPointerLeft();
-    expect(left, 0, reason: 'nothing was ever sent, so nothing to retract');
-    relay.reportLocalPointer(const Offset(1, 1));
-    relay.reportLocalPointerLeft();
-    relay.reportLocalPointerLeft();
-    expect(left, 1);
 
     relay.applyRemote('alice', 4, 4);
     expect(cursors.all, hasLength(1));

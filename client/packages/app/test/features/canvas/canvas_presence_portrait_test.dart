@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/geometry.dart';
 import '../../visual/canvas_assembled_scene.dart';
@@ -55,7 +56,18 @@ Future<void> _pump(
   height: height,
   theme: 'dark',
   document: buildEmptyDocument(),
-  participants: busyParticipants,
+  participants: [
+    for (final p in busyParticipants)
+      VoiceParticipant(
+        identity: p.identity,
+        name: p.name,
+        isSpeaking: p.isSpeaking,
+        isMuted: p.isMuted,
+        isLocal: p.isLocal,
+        isScreenSharing: p.isScreenSharing,
+        isCameraOn: true,
+      ),
+  ],
 );
 
 void main() {

@@ -22,6 +22,7 @@ import '../../members/providers/bot_ui_uses.dart';
 import '../providers/voice_controller.dart';
 import 'call_dock_button.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../../widgets/hover_reveal.dart';
 
 /// One bot's controls for the call.
 class BotCallGroup {
@@ -44,12 +45,15 @@ List<BotCallGroup> botCallGroups(
 
 /// The bots on [channelId]'s call that offer controls, live.
 List<BotCallGroup> botCallGroupsFor(WidgetRef ref, String channelId) {
-  final participants = ref.watch(
-    voiceControllerProvider.select((voice) => voice.participants),
+  // Joined into one string so a mic level or speaking flip, which changes no identity, never rebuilds the dock.
+  final present = ref.watch(
+    voiceControllerProvider.select(
+      (voice) => voice.participants.map((p) => p.identity).join('|'),
+    ),
   );
   return botCallGroups(
     ref.watch(channelBotUiProvider(channelId)).valueOrNull ?? const [],
-    {for (final p in participants) p.identity},
+    present.isEmpty ? <String>{} : present.split('|').toSet(),
   );
 }
 
@@ -267,6 +271,7 @@ class _ControlChipState extends State<_ControlChip> {
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
+    final reveal = HoverRevealScope.maybeOf(context);
     final chip = CallDockButton(
       icon: _iconFor(control.icon),
       tooltip: widget.offline
@@ -287,6 +292,8 @@ class _ControlChipState extends State<_ControlChip> {
       ownsFocusNode: false,
       enableLongPress: false,
       opensAbove: true,
+      // A fullscreen dock folds away under an open menu unless told to stay.
+      onOpenChanged: (open) => reveal?.pin(open),
       itemsBuilder: (context, close) => [
         AppMenuLabel(control.label),
         for (final option in control.options)

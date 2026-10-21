@@ -18,10 +18,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _noor = VoiceParticipant(
   identity: 'user-noor',
@@ -46,7 +46,7 @@ Widget _wrap({
       body: SizedBox(
         width: 1200,
         height: 800,
-        child: CanvasPresenceLayer(
+        child: PresenceStack(
           document: document,
           participants: participants,
           cameraViewFor: (_) => const SizedBox(),

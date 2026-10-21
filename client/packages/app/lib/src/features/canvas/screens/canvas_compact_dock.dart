@@ -17,9 +17,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/floating_dock_card.dart';
+import '../../voice/providers/call_solo.dart';
 import '../../voice/widgets/bot_call_chips.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
+import '../widgets/canvas_call_roster.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
@@ -70,16 +72,21 @@ class CanvasCompactDock extends StatelessWidget {
             Consumer(
               builder: (context, ref, _) => FloatingDockCard(
                 trailing: CallLeaveButton(controller: call.controller),
-                rows: callRowsWithExtras(
-                  context,
-                  ref,
-                  // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
-                  width: MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
-                  controller: call.controller,
-                  voice: call.voice,
-                  toggle: botCallChipsFor(ref, call.channelId),
-                  toggleSlots: botCallChipCount(ref, call.channelId),
-                ),
+                rows: [
+                  if (ref.watch(callHasOthersProvider))
+                    const CanvasCallRoster(),
+                  ...callRowsWithExtras(
+                    context,
+                    ref,
+                    // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
+                    width:
+                        MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
+                    controller: call.controller,
+                    voice: call.voice,
+                    toggle: botCallChipsFor(ref, call.channelId),
+                    toggleSlots: botCallChipCount(ref, call.channelId),
+                  ),
+                ],
               ),
             ),
         ],

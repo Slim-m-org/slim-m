@@ -10,13 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../widgets/context_menu_region.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../../voice/providers/voice_flags.dart';
-import '../../voice/widgets/call_participant_tiles.dart'
-    show kParticipantMenuWidth;
-import '../../voice/widgets/participant_call_menu.dart';
+import 'canvas_participant_menu.dart';
 
 Future<void> showCanvasParticipantsSheet(BuildContext context) =>
     showAppSheet<void>(
@@ -71,55 +68,36 @@ class CanvasParticipantsSheet extends ConsumerWidget {
   }
 }
 
-class _ParticipantRow extends ConsumerStatefulWidget {
+class _ParticipantRow extends StatelessWidget {
   const _ParticipantRow({super.key, required this.participant});
 
   final VoiceParticipant participant;
 
   @override
-  ConsumerState<_ParticipantRow> createState() => _ParticipantRowState();
-}
-
-class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
-  final _region = GlobalKey<ContextMenuRegionState>();
-
-  List<Widget> _items(BuildContext context, VoidCallback close) =>
-      participantCallMenuItems(
-        context,
-        ref,
-        participant: widget.participant,
-        close: close,
-        withFullscreen: false,
-      );
-
-  @override
   Widget build(BuildContext context) {
-    final participant = widget.participant;
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    // This device's own row has nothing to open unless it is sharing or has a camera on.
-    final hasMenu = _items(context, () {}).isNotEmpty;
-    final icon = participant.isMuted
-        ? AppIcons.micOff
-        : (hasMenu ? AppIcons.moreVertical : null);
-    return ContextMenuRegion(
-      key: _region,
-      ownsFocusNode: false,
-      menuWidth: kParticipantMenuWidth,
-      itemsBuilder: _items,
-      child: AppListRow(
-        label: participant.name,
-        meta: participant.isLocal ? 'You' : null,
-        leading: UserAvatar(
-          name: participant.name,
-          userId: participant.identity,
-          size: AppAvatarSize.s28,
-          speaking: participant.isSpeaking,
-        ),
-        trailing: icon == null
-            ? null
-            : Icon(icon, size: AppSizes.icon16, color: tokens.textSecondary),
-        onTap: hasMenu ? () => _region.currentState?.open() : null,
-      ),
+    return CanvasParticipantMenu(
+      participant: participant,
+      builder: (context, open) {
+        // This device's own row has nothing to open unless it is sharing or has a camera on.
+        final icon = participant.isMuted
+            ? AppIcons.micOff
+            : (open != null ? AppIcons.moreVertical : null);
+        return AppListRow(
+          label: participant.name,
+          meta: participant.isLocal ? 'You' : null,
+          leading: UserAvatar(
+            name: participant.name,
+            userId: participant.identity,
+            size: AppAvatarSize.s28,
+            speaking: participant.isSpeaking,
+          ),
+          trailing: icon == null
+              ? null
+              : Icon(icon, size: AppSizes.icon16, color: tokens.textSecondary),
+          onTap: open,
+        );
+      },
     );
   }
 }

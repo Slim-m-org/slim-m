@@ -46,6 +46,7 @@ import 'canvas_object_preview_relay.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_personal_layout_keeper.dart';
 import 'canvas_stroke_preview_relay.dart';
+import 'canvas_view_follower.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
 
@@ -115,8 +116,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
     document.setBoard(canvasBoard);
     document.addListener(_onCameraMoved);
-    document.addListener(_onViewMoved);
-    viewMode.addListener(_onViewModeChanged);
+    document.addListener(_follower.onViewMoved);
+    viewMode.addListener(_follower.onViewModeChanged);
     _ref.listen<bool>(
       canvasGridSnapProvider,
       (_, snap) => document.snapToGrid.value = snap,
@@ -129,6 +130,19 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
 
   final Ref _ref;
   final String channelId;
+
+  int _panes = 0;
+
+  /// A pane for this channel started using the engine.
+  void attachPane() => _panes++;
+
+  /// A pane stopped using it; the last one out closes the engine at once rather
+  /// than a frame later, because its relays hold periodic timers. A second pane
+  /// still mounted (the page fade between two panes of one channel) keeps it.
+  void detachPane() {
+    if (_panes > 0) _panes--;
+    if (_panes == 0) dispose();
+  }
 
   late final api.SlimmApi _client = _ref.read(apiProvider);
 
@@ -230,20 +244,22 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   );
 
   CanvasCursorRelay? _cursorRelay;
-  CanvasCursorRelay get cursorRelay => _cursorRelay ??= CanvasCursorRelay(
-    cursors: cursors,
-    paletteSize: AppCanvasColors.cursors.length,
-    send: (x, y) => _ref
-        .read(syncControllerProvider.notifier)
-        .notifyCanvasCursor(channelId, x, y),
-    sendLeft: () => _ref
-        .read(syncControllerProvider.notifier)
-        .notifyCanvasCursor(channelId, 0, 0, left: true),
-    resolveLabel: _cursorLabel,
-    isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
-    selfId: () => _ref.read(meProvider).valueOrNull?.id,
-    canSend: _cursorHasAudience,
-  );
+  CanvasCursorRelay get cursorRelay => _cursorRelay ??= _buildCursorRelay();
+
+  CanvasCursorRelay _buildCursorRelay() {
+    // Read once: the relay says it left from dispose, when the container may no longer answer.
+    final sync = _ref.read(syncControllerProvider.notifier);
+    return CanvasCursorRelay(
+      cursors: cursors,
+      paletteSize: AppCanvasColors.cursors.length,
+      send: (x, y) => sync.notifyCanvasCursor(channelId, x, y),
+      sendLeft: (x, y) => sync.notifyCanvasCursor(channelId, x, y, left: true),
+      resolveLabel: _cursorLabel,
+      isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+      selfId: () => _ref.read(meProvider).valueOrNull?.id,
+      canSend: _cursorHasAudience,
+    );
+  }
 
   CanvasViewRelay? _viewRelay;
   CanvasViewRelay get viewRelay => _viewRelay ??= CanvasViewRelay(
@@ -255,47 +271,19 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
           w: view.width,
           h: view.height,
         ), summon: summon),
-    showView: _showView,
+    showView: _follower.showView,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
     canSend: _cursorHasAudience,
   );
 
-  Camera? _viewCamera;
-  bool _showingView = false;
-
-  // Following or being summoned shows the shared board; the personal layout stays kept for the way back.
-  void _showView(Rect view) {
-    _showingView = true;
-    viewMode.showShared();
-    document.showBoardView(view);
-    _showingView = false;
-    _viewCamera = document.camera;
-    _viewport = document.viewport;
-  }
-
-  // Choosing the personal view is leaving the followed person's view, even when the camera stays put.
-  void _onViewModeChanged() {
-    if (viewMode.personal) _viewRelay?.stopFollowing();
-  }
-
-  // Following ends on the follower's own pan or zoom, but a window resize only refits.
-  void _onViewMoved() {
-    final visible = document.visibleBoard;
-    if (visible == null || document.viewport.isEmpty || _showingView) return;
-    viewRelay.reportLocal(visible);
-    final followed = _viewRelay?.following.value;
-    final resized = _viewport != document.viewport;
-    _viewport = document.viewport;
-    if (followed == null) return;
-    if (resized) {
-      _showView(viewRelay.viewOf(followed));
-    } else if (document.camera != _viewCamera) {
-      viewRelay.stopFollowing();
-    }
-  }
-
-  Size _viewport = Size.zero;
+  late final CanvasViewFollower _follower = CanvasViewFollower(
+    document: document,
+    viewMode: viewMode,
+    relay: () => viewRelay,
+    existingRelay: () => _viewRelay,
+    glide: () => objectPreviewGlide,
+  );
 
   bool _cursorHasAudience() {
     final inCallHere = _ref.read(voiceFlagsProvider).channelId == channelId;
@@ -527,13 +515,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     hydrator.dispose();
     _loadRetry.cancel();
     _panDebounce?.cancel();
+    _follower.dispose();
     _queue?.close();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();
     sync.dispose();
     document.removeListener(_onCameraMoved);
-    document.removeListener(_onViewMoved);
-    viewMode.removeListener(_onViewModeChanged);
+    document.removeListener(_follower.onViewMoved);
+    viewMode.removeListener(_follower.onViewModeChanged);
     _viewRelay?.dispose();
     document.dispose();
     _cursorRelay?.dispose();

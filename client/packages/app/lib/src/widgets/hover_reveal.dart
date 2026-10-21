@@ -54,7 +54,7 @@ class _HoverRevealState extends State<HoverReveal> {
   }
 
   void _pin(bool pinned) {
-    if (_pinned != pinned) setState(() => _pinned = pinned);
+    if (mounted && _pinned != pinned) setState(() => _pinned = pinned);
   }
 
   void _reportOverlayHover(bool hovered) {
@@ -63,7 +63,7 @@ class _HoverRevealState extends State<HoverReveal> {
   }
 
   void _reportMenuOpen(bool open) {
-    if (_menuOpen != open) setState(() => _menuOpen = open);
+    if (mounted && _menuOpen != open) setState(() => _menuOpen = open);
   }
 
   @override

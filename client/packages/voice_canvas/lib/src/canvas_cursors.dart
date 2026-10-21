@@ -88,6 +88,18 @@ class CanvasCursors extends ChangeNotifier {
   /// Every remote cursor currently shown.
   Iterable<CanvasCursor> get all => _cursors.values;
 
+  Set<String> _speaking = const <String>{};
+
+  /// Whether [id] is talking on the call right now; a painter glows their label.
+  bool isSpeaking(String id) => _speaking.contains(id);
+
+  /// Replaces who is talking; notifies only when the set changed.
+  void setSpeaking(Set<String> ids) {
+    if (setEquals(ids, _speaking)) return;
+    _speaking = Set<String>.unmodifiable(ids);
+    notifyListeners();
+  }
+
   /// Records or refreshes one participant's position.
   ///
   /// [glide] is how long a painter will take to reach the new target; it is

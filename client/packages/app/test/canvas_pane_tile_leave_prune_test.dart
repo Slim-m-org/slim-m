@@ -34,6 +34,7 @@ const _noor = VoiceParticipant(
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 void main() {

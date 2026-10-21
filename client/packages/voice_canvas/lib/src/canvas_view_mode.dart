@@ -28,7 +28,10 @@ class CanvasViewMode extends ChangeNotifier {
   /// What would be kept for this viewer if they left now.
   CanvasPersonalLayout get layout => CanvasPersonalLayout(
         personal: personal,
-        camera: personal ? document.camera : _personalCamera,
+        // A fitted camera is a literal zoom of this window; kept as null it refits on a smaller one.
+        camera: personal
+            ? (document.isFitted ? null : document.camera)
+            : _personalCamera,
         places: tiles.personalPlaces,
       );
 

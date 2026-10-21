@@ -4,10 +4,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/bot_call_controls.dart';
+import 'package:slimm_app/src/widgets/hover_reveal.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/canvas_call_dock_fixtures.dart';
@@ -124,5 +127,48 @@ void main() {
       );
       await _leave(tester, call);
     });
+  });
+
+  testWidgets('a bot control\'s option menu holds a collapsed dock open', (
+    tester,
+  ) async {
+    const group = BotCallGroup(
+      bot: _jellyfin,
+      controls: [
+        api.BotUiEntry(
+          id: 'volume',
+          label: 'Volume',
+          icon: 'volume',
+          options: [api.BotUiOption(id: 'up', label: 'Louder')],
+        ),
+      ],
+    );
+    final pins = <bool>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: HoverRevealScope(
+              pin: pins.add,
+              reportMenuOpen: (_) {},
+              reportOverlayHover: (_) {},
+              child: const Align(
+                alignment: Alignment.bottomCenter,
+                child: BotCallControls(channelId: 'c1', groups: [group]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Volume'));
+    await tester.pumpAndSettle();
+    expect(pins, [true]);
+
+    await tester.tap(find.text('Louder'));
+    await tester.pumpAndSettle();
+    expect(pins, [true, false]);
   });
 }

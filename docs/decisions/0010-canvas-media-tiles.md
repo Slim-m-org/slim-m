@@ -3,6 +3,7 @@
 Date: 2026-08-06.
 Status: accepted; built 2026-08-08 (PRs #471, #476 - `http/canvas_media_slots.rs`, the two media-slot routes, and the lock-enforcement fix). Built annotation added 2026-08-11 by the full-stack review.
 Amended by [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md): full screen on a tile no longer opens a covering route.
+Amended by [0086](0086-avatar-tiles-leave-the-board.md): only a live camera or share has a tile, and ink paints above tiles.
 
 ## The owner's own words, verbatim
 

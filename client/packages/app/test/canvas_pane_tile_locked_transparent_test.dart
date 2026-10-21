@@ -4,7 +4,7 @@
 /// is locked and moved to back, I cannot touch the rectangle again, same
 /// for notes" - `CanvasPresenceManipulableTile`'s outer `Listener` claimed
 /// every pointer within its bounds regardless of lock or depth, so a
-/// select-tool click meant for a shape sitting under a locked, sent-to-back
+/// select-tool click meant for a shape sitting under a locked
 /// tile never reached `CanvasSurface` at all.
 library;
 
@@ -31,7 +31,7 @@ const _cameraOn = VoiceParticipant(
 const _tileKey = ValueKey('camera:user-noor');
 
 void main() {
-  testWidgets('a shape dragged over a locked, sent-to-back tile can still be '
+  testWidgets('a shape dragged over a locked tile can still be '
       'selected and dragged again', (tester) async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container(
@@ -82,17 +82,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(surfaceDocument(tester).selectedObjectId.value, isNull);
 
-    // Lock, then send the tile to the back - the two-tap reveal-then-operate sequence a real touch does.
+    // Lock the tile - the two-tap reveal-then-operate sequence a real touch does.
     await tester.tap(find.byKey(_tileKey));
     await tester.pump();
     await tester.tap(find.bySemanticsLabel('Lock this tile in place'));
     await tester.pump();
-    await tester.tap(find.byKey(_tileKey), warnIfMissed: false);
-    await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Send this tile to the back'));
-    await tester.pump();
 
-    // The shape's own new position, now covered by the locked, backed tile.
+    // The shape's own new position, now covered by the locked tile.
     gesture = await tester.startGesture(tileCenter);
     await gesture.up();
     await tester.pumpAndSettle();
@@ -101,7 +97,7 @@ void main() {
       surfaceDocument(tester).selectedObjectId.value,
       shapeId,
       reason:
-          'a locked, sent-to-back tile must not swallow a select click '
+          'a locked tile must not swallow a select click '
           'meant for a shape moved over it',
     );
 
@@ -116,7 +112,7 @@ void main() {
     expect(
       after.x,
       closeTo(before.x + 60, 0.5),
-      reason: 'a locked, sent-to-back tile must not swallow a drag either',
+      reason: 'a locked tile must not swallow a drag either',
     );
   });
 }

@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
@@ -56,7 +55,7 @@ void main() {
     );
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await pumpCanvasPane(tester, container, tool: null);
+    await pumpCanvasPane(tester, container, tool: null, board: true);
     await tester.pumpAndSettle();
 
     final before = surfaceDocument(tester).camera;

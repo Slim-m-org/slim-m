@@ -353,7 +353,7 @@ class CursorPainter extends CustomPainter {
       }
       final color = colors[cursor.colorIndex % colors.length];
       _paintGlyph(canvas, at, color);
-      _paintLabel(canvas, at, cursor.id, cursor.label, color);
+      _paintLabel(canvas, at, cursor, color);
     }
     // Reconcile every frame, since a size check misses a departed cursor whose slot an off-screen (uncached) one took.
     _labels.retain({for (final c in all) c.id});
@@ -399,15 +399,17 @@ class CursorPainter extends CustomPainter {
     ..strokeWidth = 2;
   static final Paint _glyphFill = Paint();
 
-  void _paintLabel(
-    Canvas canvas,
-    Offset at,
-    String id,
-    String label,
-    Color color,
-  ) {
+  static final Paint _speakingGlow = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+  static final Paint _speakingRim = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2
+    ..color = const Color(0xFFFFFFFF);
+
+  void _paintLabel(Canvas canvas, Offset at, CanvasCursor cursor, Color color) {
+    final label = cursor.label;
     if (label.isEmpty) return;
-    final painter = _labels.painterFor(id, label, color);
+    final painter = _labels.painterFor(cursor.id, label, color);
     final origin = Offset(at.dx + 14, at.dy + 12);
     final chip = RRect.fromRectAndRadius(
       Rect.fromLTWH(
@@ -418,6 +420,13 @@ class CursorPainter extends CustomPainter {
       ),
       const Radius.circular(6),
     );
+    if (cursors.isSpeaking(cursor.id)) {
+      canvas.drawRRect(
+        chip.inflate(3),
+        _speakingGlow..color = color.withValues(alpha: 0.9),
+      );
+      canvas.drawRRect(chip.inflate(1), _speakingRim);
+    }
     canvas.drawRRect(chip, Paint()..color = color);
     painter.paint(canvas, origin);
   }

@@ -54,6 +54,7 @@ class CanvasPersonalLayoutKeeper {
   Camera? _camera;
   Timer? _timer;
   bool _restoring = true;
+  bool _applying = false;
   bool _touched = false;
   bool _disposed = false;
 
@@ -64,7 +65,13 @@ class CanvasPersonalLayoutKeeper {
       if (_disposed || raw == null) return;
       final kept = CanvasPersonalLayout.decode(raw);
       if (kept == null) return;
-      _touched ? mode.restoreBeneath(kept) : mode.restore(kept);
+      // The restore's own notifications are not the viewer changing anything.
+      _applying = true;
+      try {
+        _touched ? mode.restoreBeneath(kept) : mode.restore(kept);
+      } finally {
+        _applying = false;
+      }
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
@@ -74,12 +81,13 @@ class CanvasPersonalLayoutKeeper {
       );
     } finally {
       _restoring = false;
+      // Adopt what was restored as already kept, so opening a canvas does not rewrite its row.
+      final adopted = _disposed ? _kept : mode.layout.encode();
       if (_touched && !_disposed) {
         _timer?.cancel();
         _timer = Timer(saveDelay, _write);
-      } else {
-        _kept = mode.layout.encode();
       }
+      if (!_touched) _kept = adopted;
     }
   }
 
@@ -90,7 +98,7 @@ class CanvasPersonalLayoutKeeper {
   }
 
   void _onLayoutMaybeChanged() {
-    if (_disposed) return;
+    if (_disposed || _applying) return;
     if (_restoring) {
       _touched = _touched || mode.layout.encode() != _kept;
       return;
@@ -101,6 +109,8 @@ class CanvasPersonalLayoutKeeper {
 
   void _write() {
     _timer = null;
+    // Before the pane is measured the camera is still the default, which is nobody's choice.
+    if (mode.personal && mode.document.viewport.isEmpty) return;
     final layout = mode.layout;
     final encoded = layout.encode();
     if (encoded == _kept) return;

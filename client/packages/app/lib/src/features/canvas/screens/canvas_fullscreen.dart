@@ -44,3 +44,7 @@ final canvasFullscreenProvider = StateProvider<String?>((ref) => null);
 /// reason [canvasFullscreenProvider] is.
 final canvasFocusedTileProvider =
     StateProvider<({String channelId, String tileKey})?>((ref) => null);
+
+/// The channel whose fullscreen was entered by focusing a tile, so ending the
+/// focus puts the chrome back. In a provider so a remounted pane remembers it.
+final canvasFullscreenFromFocusProvider = StateProvider<String?>((ref) => null);

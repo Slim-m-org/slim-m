@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// C-019: a trackpad two-finger pan with the cursor over an unlocked tile
-/// arrives as PointerPanZoom, which the tile's pan recognizer accepts, so it
-/// drags the tile (and saves the slot for everyone) instead of leaving it put.
+/// arrives as PointerPanZoom, which the tile's pan recognizer accepted, so it
+/// dragged the tile (and saved the slot for everyone) instead of the camera.
 library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -22,6 +23,7 @@ const _here = VoiceParticipant(
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 void main() {
@@ -48,7 +50,8 @@ void main() {
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
     final tile = find.byType(CanvasPresenceManipulableTile);
-    final before = tester.getTopLeft(tile);
+    expect(tile, findsOneWidget);
+    final cameraBefore = surfaceDocument(tester).camera;
 
     final pointer = TestPointer(1, PointerDeviceKind.trackpad);
     await tester.sendEventToBinding(
@@ -63,10 +66,18 @@ void main() {
     await tester.sendEventToBinding(pointer.panZoomEnd());
     await tester.pump();
 
+    final overrides = container
+        .read(canvasEngineProvider('c1').notifier)
+        .tileOverrides;
     expect(
-      tester.getTopLeft(tile),
-      before,
-      reason: 'trackpad pan must not move the tile',
+      overrides.stateFor('camera:user-noor').rect,
+      isNull,
+      reason: 'trackpad pan must not drag the tile or save its slot',
+    );
+    expect(
+      surfaceDocument(tester).camera,
+      isNot(cameraBefore),
+      reason: 'the pan moves the camera, as it does over bare canvas',
     );
   });
 }

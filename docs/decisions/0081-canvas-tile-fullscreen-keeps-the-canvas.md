@@ -3,6 +3,7 @@
 
 Status: accepted
 Date: 2026-10-19
+Amended by [0086](0086-avatar-tiles-leave-the-board.md): a phone rotates while a canvas tile is full screen.
 
 ## The ask
 

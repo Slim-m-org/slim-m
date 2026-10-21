@@ -83,6 +83,8 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
   @override
   Widget build(BuildContext context) {
     final child = KeyedSubtree(key: _childKey, child: widget.child);
+    // Looked up now: the menu reports closing from dispose, when this context can no longer be asked.
+    final reveal = HoverRevealScope.maybeOf(context);
     if (widget.options.isEmpty) return child;
     return ContextMenuRegion(
       key: _region,
@@ -90,7 +92,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       ownsFocusNode: false,
       enableLongPress: !widget.showCaret,
       opensAbove: widget.opensAbove,
-      onOpenChanged: (open) => HoverRevealScope.maybeOf(context)?.pin(open),
+      onOpenChanged: (open) => reveal?.pin(open),
       itemsBuilder: (context, close) => [
         for (final entry in widget.options) ..._rows(context, entry, close),
       ],

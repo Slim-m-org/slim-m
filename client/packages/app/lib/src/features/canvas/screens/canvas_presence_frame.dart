@@ -78,3 +78,24 @@ class CanvasPresenceFrameResolver {
     );
   }
 }
+
+/// Tells a document notification that moved the view from one that only
+/// changed content, so tiles do not rebuild for every stroke or remote preview.
+class CanvasViewChangeGate {
+  Camera? _camera;
+  Size? _viewport;
+  Rect? _board;
+
+  bool changed(CanvasDocument document) {
+    final camera = document.camera;
+    final viewport = document.viewport;
+    final board = document.board;
+    if (camera == _camera && viewport == _viewport && board == _board) {
+      return false;
+    }
+    _camera = camera;
+    _viewport = viewport;
+    _board = board;
+    return true;
+  }
+}
