@@ -13,7 +13,7 @@ void main() {
     tester,
   ) async {
     final fixture = CanvasPaneFixture(opsPostStatus: 403)
-      ..objects = [canvasNoteJson('note')];
+      ..objects = [canvasNoteJson('note', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -25,7 +25,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
     final tap = await tester.startGesture(
-      screenFor(tester, const Offset(15, 15)),
+      screenFor(tester, const Offset(415, 15)),
     );
     await tap.up();
     await tester.pumpAndSettle();

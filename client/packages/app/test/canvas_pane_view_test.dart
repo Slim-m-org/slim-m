@@ -66,7 +66,8 @@ void main() {
   testWidgets('Delete removes the current selection and posts one remove op', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasNoteJson('note', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -77,7 +78,7 @@ void main() {
     await tester.pump();
     // A mouse click selects; a finger tap on a note opens its editor instead.
     final gesture = await tester.startGesture(
-      screenFor(tester, const Offset(15, 15)),
+      screenFor(tester, const Offset(415, 15)),
       kind: PointerDeviceKind.mouse,
     );
     await gesture.up();
@@ -97,7 +98,8 @@ void main() {
   /// Backspace is the second key that shape, note and text tools already
   /// train a person to reach for; both must delete, not only one of them.
   testWidgets('Backspace also removes the current selection', (tester) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasNoteJson('note', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -107,7 +109,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
     final gesture = await tester.startGesture(
-      screenFor(tester, const Offset(15, 15)),
+      screenFor(tester, const Offset(415, 15)),
       kind: PointerDeviceKind.mouse,
     );
     await gesture.up();
@@ -124,7 +126,8 @@ void main() {
   /// Nothing selected must mean nothing happens - no crash reaching into a
   /// null id, and no op posted for a selection that was never there.
   testWidgets('Delete with nothing selected posts no op', (tester) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasNoteJson('note', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -147,10 +150,14 @@ void main() {
     'the select tool cannot pick up another member\'s object when only the '
     'deployment-wide bit grants MANAGE_CANVAS, not the per-channel answer',
     (tester) async {
-      final fixture = CanvasPaneFixture(
-        mePermissions: Perm.manageCanvas,
-        channelPermissions: 0,
-      )..objects = [canvasNoteJson('foreign', authorId: 'someone-else')];
+      final fixture =
+          CanvasPaneFixture(
+              mePermissions: Perm.manageCanvas,
+              channelPermissions: 0,
+            )
+            ..objects = [
+              canvasNoteJson('foreign', x: 400, authorId: 'someone-else'),
+            ];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -160,7 +167,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
       final gesture = await tester.startGesture(
-        screenFor(tester, const Offset(15, 15)),
+        screenFor(tester, const Offset(415, 15)),
       );
       await gesture.moveTo(screenFor(tester, const Offset(60, 60)));
       await gesture.up();
@@ -178,7 +185,7 @@ void main() {
     "cannot be undone",
     (tester) async {
       final fixture = CanvasPaneFixture(mePermissions: Perm.manageCanvas)
-        ..objects = [canvasObjectJson('a')];
+        ..objects = [canvasObjectJson('a', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
