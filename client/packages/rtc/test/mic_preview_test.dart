@@ -135,4 +135,21 @@ void main() {
     expect(preview.current.status, MicPreviewStatus.unavailable);
     expect(source.events.last, 'close');
   });
+
+  test(
+      'a stop during an open that never finishes does not hold up the next start',
+      () async {
+    final source = _Source()..openDelay = const Duration(hours: 1);
+    final preview = _preview(source, openTimeout: const Duration(hours: 1));
+    addTearDown(preview.dispose);
+
+    unawaited(preview.start(null));
+    await _until(() => source.events.contains('open:default'));
+    await preview.stop();
+    source.openDelay = Duration.zero;
+    await preview.start('mic-2');
+
+    expect(preview.current.status, isNot(MicPreviewStatus.unavailable));
+    expect(source.events, contains('open:mic-2'));
+  });
 }

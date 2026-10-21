@@ -66,6 +66,8 @@ class MicPreview {
   final _readings = StreamController<MicPreviewReading>.broadcast();
   MicPreviewReading _current = const MicPreviewReading(MicPreviewStatus.idle);
   Timer? _timer;
+  Timer? _openTimer;
+  Completer<void>? _opening;
   int _generation = 0;
   int _misses = 0;
   bool _polling = false;
@@ -83,7 +85,7 @@ class MicPreview {
       await _source.close();
       if (mine != _generation) return;
       try {
-        await _source.open(deviceId).timeout(openTimeout);
+        await _openWithin(deviceId);
       } on Object {
         if (mine == _generation) {
           _emit(const MicPreviewReading(MicPreviewStatus.unavailable));
@@ -115,9 +117,48 @@ class MicPreview {
   Future<void> _enqueue(Future<void> Function() job) =>
       _queue = _queue.then((_) => job(), onError: (_) => job());
 
+  /// Fails the open after [openTimeout] with a timer [stop] can cancel, so no timer outlives the preview.
+  Future<void> _openWithin(String? deviceId) {
+    final done = Completer<void>();
+    _cancelOpen();
+    _opening = done;
+    _openTimer = Timer(openTimeout, () {
+      if (!done.isCompleted) {
+        done.completeError(TimeoutException('microphone open', openTimeout));
+      }
+    });
+    _source.open(deviceId).then(
+      (_) {
+        if (!done.isCompleted) done.complete();
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!done.isCompleted) done.completeError(error, stack);
+      },
+    );
+    return done.future.whenComplete(() {
+      if (identical(_opening, done)) {
+        _openTimer?.cancel();
+        _openTimer = null;
+        _opening = null;
+      }
+    });
+  }
+
   void _stopTimer() {
     _timer?.cancel();
     _timer = null;
+    _cancelOpen();
+  }
+
+  /// Ends a pending open as failed, so a stop never leaves the job queue waiting on it.
+  void _cancelOpen() {
+    _openTimer?.cancel();
+    _openTimer = null;
+    final pending = _opening;
+    _opening = null;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('microphone open cancelled'));
+    }
   }
 
   Future<void> _poll(int mine) async {
