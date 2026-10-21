@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Decision 0086 and the 2026-10-20 owner call: a locked phone turns to
-/// landscape only while a canvas tile is full screen, and the canvas then lays
-/// out from the real window. Mobile-only, so the orientation channel is faked:
-/// `flutter test` on Linux never answers it.
+/// Decision 0086: a locked phone turns to landscape only while a canvas tile is full screen, and the canvas lays out from the real window; the orientation channel is faked since Linux never answers it.
 library;
 
 import 'package:flutter/material.dart';

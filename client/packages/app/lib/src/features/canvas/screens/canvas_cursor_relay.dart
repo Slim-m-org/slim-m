@@ -96,10 +96,7 @@ class CanvasCursorRelay {
     _pruneTimer = null;
   }
 
-  /// Call on every local pointer move, drawing or not; throttles internally
-  /// to [cursorSendInterval] so the caller does not have to. The newest
-  /// position held back by the throttle is sent when its window ends, and a
-  /// resting pointer repeats every [cursorKeepaliveInterval].
+  /// Call on every local pointer move; throttled to [cursorSendInterval], with the held-back newest position sent when the window ends and a resting pointer repeating every [cursorKeepaliveInterval].
   void reportLocalPointer(Offset world, {DateTime? now}) {
     if (canSend != null && !canSend!()) return;
     _leftGrace?.cancel();
@@ -137,10 +134,7 @@ class CanvasCursorRelay {
     }
   }
 
-  /// Call when the local pointer leaves the canvas or a touch lifts. Sent at
-  /// most once per stretch over the canvas, and never throttled away; it
-  /// waits [cursorLeftGrace] so a pointer that moves straight onto a tile
-  /// does not flicker away.
+  /// Call when the pointer leaves the canvas or a touch lifts; sent once per stretch and delayed by [cursorLeftGrace] so moving onto a tile does not flicker.
   void reportLocalPointerLeft() {
     if (_lastSent == null) return;
     _leftGrace?.cancel();

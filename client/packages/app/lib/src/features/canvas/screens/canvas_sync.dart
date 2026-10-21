@@ -1,26 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Reconciles a channel's canvas op stream against the local document.
-///
-/// The canvas has no durable local state - `CanvasDocument` lives in the
-/// mounted pane and dies with it - so "the pane was closed" and "the client
-/// was offline" are the same state, and the recovery for both is already a
-/// cold viewport read. What this closes is the narrower case: the pane
-/// stayed open across a drop, or a live frame arrived out of order, or the
-/// server started emitting an op kind this client has never heard of.
-///
-/// One sequenced reducer applies everything that can change the document:
-/// live frames, catch-up pages and viewport pages. The cursor is the highest
-/// op reflected; an op at or below it is skipped, the next one applies, a
-/// later one waits in a buffer while a catch-up fetches what is between. A
-/// viewport page older than the cursor is brought forward from the op log.
-///
-/// Deliberately plain Dart, holding no `Ref` and no `BuildContext`: staying
-/// off Riverpod is what lets a live frame apply inside the frame that
-/// produced it, the same reason `CanvasDocument` is a bare `ChangeNotifier`
-/// rather than a provider. `CanvasPane` owns the socket subscription and the
-/// `syncControllerProvider` listener and calls into this class; this class
-/// never reaches back into the widget tree except through the two callbacks
-/// it is handed.
+/// Reconciles a channel's canvas op stream against the local document, which has no durable state: a closed pane and an offline client both recover by a cold viewport read.
+/// One sequenced reducer applies live frames, catch-up pages and viewport pages: ops at or below the cursor are skipped, the next applies, later ones buffer while a catch-up fills the gap.
+/// Plain Dart with no `Ref` or `BuildContext`, so a live frame applies inside the frame that produced it.
 library;
 
 import 'dart:async';
@@ -162,13 +143,8 @@ class CanvasSync {
   final SplayTreeMap<int, _Buffered> _early = SplayTreeMap<int, _Buffered>();
   final CanvasOpLog _log = CanvasOpLog();
 
-  /// The highest op this document reflects, or null before the first
-  /// viewport read has landed.
-  ///
-  /// Also the clear control's fencing token: sending this back as
-  /// `before_seq` says "clear everything already reflected in what I've
-  /// seen," so a lost response retried cannot wipe ink drawn in the
-  /// interval it was in flight.
+  /// The highest op this document reflects, or null before the first viewport read.
+  /// Also the clear control's fencing token: sent as `before_seq` it means "clear what I have seen", so a retried clear cannot wipe ink drawn while it was in flight.
   int? get asOfSeq => _asOfSeq;
 
   void dispose() {
@@ -178,25 +154,16 @@ class CanvasSync {
     _early.clear();
   }
 
-  /// Seeds the cursor from a viewport read's own `latestSeq`, but only the
-  /// first time.
-  ///
-  /// A region refetch while the pane stays open must never move this
-  /// forward: an erase at seq 50 in region one, then a pan to region two
-  /// whose own read answers at seq 60, would otherwise leave the cursor past
-  /// the very op that says region one's object is gone.
+  /// Seeds the cursor from a viewport read's `latestSeq`, only the first time.
+  /// A later region refetch must not advance it, or the cursor could pass the op that removed another region's object.
   void seedFromViewport(int latestSeq) {
     if (_asOfSeq != null) return;
     _asOfSeq = latestSeq;
     _log.reset(latestSeq);
   }
 
-  /// A live frame named [seq] arrived; [apply] materializes its own payload
-  /// and [replay] is what a later, older viewport page needs to re-apply.
-  ///
-  /// Ignored before the first read has seeded the cursor, and when already
-  /// reflected. Applied if it is exactly the next op. Anything further ahead
-  /// waits in a buffer, and a catch-up fetches what is between.
+  /// A live frame named [seq] arrived; [apply] materializes its payload and [replay] is what a later, older viewport page re-applies.
+  /// Ignored before the first read seeds the cursor or when already reflected; applied if exactly next, otherwise buffered while a catch-up fetches the gap.
   void applyLive(int? seq, void Function() apply, {api.CanvasOp? replay}) {
     if (seq == null) {
       _guarded(apply);
@@ -215,12 +182,8 @@ class CanvasSync {
     unawaited(catchUp());
   }
 
-  /// Reconciles an op the live frame could not carry, without advancing the
-  /// cursor past it.
-  ///
-  /// The one caller is a restore whose frame arrived with no ids. Deliberately
-  /// not [applyLive] with an empty apply: that would move the cursor past the
-  /// only op able to clear those tombstones.
+  /// Reconciles an op the live frame could not carry without advancing the cursor past it (a restore frame with no ids).
+  /// Not [applyLive] with an empty apply, which would skip the only op able to clear those tombstones.
   void deferToFeed() => unawaited(catchUp());
 
   bool _guarded(void Function() apply) {
@@ -255,11 +218,7 @@ class CanvasSync {
     }
   }
 
-  /// Pages the ops feed from the current cursor, applying every op in order.
-  ///
-  /// A request made while one is running sets a flag instead of being
-  /// dropped: whatever the first call's pages could not have seen is fetched
-  /// by one more pass. A pass that fails leaves its own retry timer.
+  /// Pages the ops feed from the cursor, applying every op in order; a request during a run sets a flag for one more pass, and a failed pass leaves its own retry timer.
   Future<void> catchUp() async {
     if (_disposed || _asOfSeq == null) return;
     if (_catchingUp) {
@@ -419,12 +378,8 @@ class CanvasSync {
     onObjectPlaced?.call(object);
   }
 
-  /// Fetches one page, retrying a rate limit with backoff rather than
-  /// surfacing it as a reset: a client catching up during a burst must not
-  /// have a 429 turned into a document wipe. Null means every retry was
-  /// spent, or some other failure occurred; either way the caller abandons
-  /// this attempt rather than resetting, since a future gap or reconnect
-  /// tries again.
+  /// Fetches one page, retrying a rate limit with backoff so a 429 never becomes a document wipe.
+  /// Null means retries were spent or another failure occurred; the caller abandons the attempt and a later gap or reconnect retries.
   Future<api.CanvasOpsPage?> _fetchPage(int afterSeq) async {
     var delay = const Duration(milliseconds: 250);
     for (var attempt = 0; attempt < 3; attempt++) {
@@ -446,10 +401,8 @@ class CanvasSync {
     return null;
   }
 
-  /// Empties the document, drops the cursor, and cold-fetches. A second reset
-  /// inside the floor is postponed to the end of it rather than dropped, so a
-  /// server emitting an unknown kind cannot make a refetch loop and a stale
-  /// client is never left stale.
+  /// Empties the document, drops the cursor and cold-fetches.
+  /// A second reset inside the floor is postponed to its end rather than dropped, so an unknown op kind cannot loop and a stale client is never left stale.
   Future<void> _hardReset() async {
     final since = _sinceReset;
     if (since != null && since.elapsed < hardResetFloor) {

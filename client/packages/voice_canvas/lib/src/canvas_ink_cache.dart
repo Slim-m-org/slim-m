@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The committed ink, rasterised once into a texture that pans and zooms draw
-/// from.
-///
-/// Impeller keeps no raster cache, so replaying thousands of strokes costs the
-/// GPU the same on every frame, even one a remote cursor merely nudged. A
-/// texture a little larger than the view turns that into one image draw.
+/// The committed ink rasterised once into a texture that pans and zooms draw from.
+/// Impeller keeps no raster cache, so replaying thousands of strokes costs the GPU the same every frame, even one a remote cursor nudged.
 library;
 
 import 'dart:async';

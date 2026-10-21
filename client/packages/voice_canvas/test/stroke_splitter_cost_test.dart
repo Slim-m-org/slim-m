@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-013: `splitStroke` re-encodes the whole segment whenever a point lowers
+/// `splitStroke` re-encodes the whole segment whenever a point lowers
 /// the running min, so a stroke drawn up and to the left costs far more at
 /// pen-up than the same stroke drawn down and to the right.
 library;

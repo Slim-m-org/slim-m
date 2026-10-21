@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A virtual network around real `CanvasEngine`s, for
-/// `canvas_engine_fuzz_test.dart`.
-///
-/// Each [FuzzClient] is a real engine (document, sync, commit queue, ops
-/// controller, live-event dispatch) on a `ProviderContainer`. Their HTTP goes
-/// to a [FuzzServer]; their WebSocket frames come from its publish hook. The
-/// [FuzzWorld] decides, tick by tick, when each request reaches the server,
-/// when each reply or frame reaches a client, and what fails: a request dropped
-/// before or after the server acted, a rate limit, a reply lost, frames
-/// reordered or repeated, a socket that drops for a while. All in virtual
-/// time (`fake_async`), so a seed is reproducible.
+/// A virtual network around real `CanvasEngine`s for the engine fuzz: each [FuzzClient] is an engine on a `ProviderContainer`, talking to a [FuzzServer].
+/// [FuzzWorld] decides per tick when requests, replies and frames arrive and what fails (drops, rate limits, reorders, repeats, socket loss), in `fake_async` time so a seed reproduces.
 library;
 
 import 'dart:async';
@@ -89,10 +80,7 @@ class FuzzConfig {
   /// How far behind a client may fall before the server tells it to start over.
   final int resetGap;
 
-  /// Behaviours the generator leaves out, so a known failure does not hide
-  /// the next one: `previews` (remote drags), `deleteLocked` (Delete on a
-  /// locked selection), `foreignEdit` (a note edit the UI would not offer), `locks`,
-  /// and `lostPlacementReplies` (a placement whose reply is lost).
+  /// Behaviours the generator leaves out so a known failure does not hide the next: `previews`, `deleteLocked`, `foreignEdit`, `locks` and `lostPlacementReplies`.
   final Set<String> avoid;
 
   bool allows(String behaviour) => !avoid.contains(behaviour);

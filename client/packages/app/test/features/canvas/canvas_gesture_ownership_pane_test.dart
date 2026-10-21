@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The pane side of gesture ownership: a press on an object beats a nearby
-/// cursor, a first tap only selects, a late reply leaves the tool alone, the
-/// object menu offers Delete for images and notes, and touch holds open it
-/// without a mouse or a second finger being able to.
+/// The pane side of gesture ownership: a press on an object beats a nearby cursor, a first tap only selects, a late reply leaves the tool alone, the object menu offers Delete for images and notes, and touch holds open it.
 library;
 
 import 'dart:async';

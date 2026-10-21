@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What decoded images cost to keep: resident memory for 10, 25 and 50 images
-/// at the sizes the app's hydrator produces.
-///
-/// The hydrator decodes to at most 2048 on the long side and evicts only
-/// images that are off screen, so a board whose images are all in view keeps
-/// every one at full size however small each is drawn.
-///
-/// Run with `flutter test benchmark/image_memory_benchmark.dart`.
+/// Resident memory for 10, 25 and 50 decoded images at the sizes the hydrator produces.
+/// The hydrator evicts only off-screen images, so a board with every image in view keeps each at full size.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

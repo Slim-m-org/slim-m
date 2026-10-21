@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Joins a voice channel at launch so the voice quality harness can drive the
-/// real desktop capture chain without clicking through the UI.
-///
-/// Reachable only from a build made with `--dart-define=SLIMM_VOICE_HARNESS=true`:
-/// the flag is a compile-time constant, so every other build drops this code.
-/// See docs/research/voice-quality-harness-v2.md.
+/// Joins a voice channel at launch for the voice quality harness; only built with `--dart-define=SLIMM_VOICE_HARNESS=true`.
 library;
 
 import 'dart:async';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-022: "Paste image" on a clipboard holding no image (or on a platform
+/// "Paste image" on a clipboard holding no image (or on a platform
 /// with no clipboard image channel at all) must say so, not do nothing.
 library;
 

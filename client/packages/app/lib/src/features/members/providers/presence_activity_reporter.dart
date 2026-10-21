@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Tells the server when the person is really at this device, so a client
-/// left running on a sleeping or untouched machine shows away instead of
-/// online. Owner report: "a user is still marked as online even though their
-/// computer has been asleep and not touched in 8 hours".
-///
-/// Here means input in the app, input anywhere on the machine where the host
-/// can tell ([SystemIdle]), or being in a call. Every account container
-/// reports: being at the machine counts for each server, not only the one on
-/// screen.
+/// Tells the server when the person is really at this device, so an untouched or sleeping machine shows away instead of online.
+/// Here means app input, host-wide input where known ([SystemIdle]), or being in a call; every account container reports.
 library;
 
 import 'dart:async';

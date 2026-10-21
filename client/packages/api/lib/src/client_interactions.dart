@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'client.dart';
 
-/// Pressing a bot's button, choosing from its menu and submitting its form.
-/// The bot's own answers (replace the buttons, ack, reply privately, open a
-/// form) are called from its process, never from this client. See
-/// docs/decisions/0039-bot-message-buttons.md and
-/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
+/// A bot's button press, menu choice and form submit; its own answers come from its process, never this client.
 extension SlimmApiInteractions on SlimmApi {
   /// Presses [customId] on [messageId]. [id] is the caller's own UUID, so a
   /// retry after a timeout is the same press rather than a second one.

@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Counts widget rebuilds and render-object repaints, by type, so a benchmark
-/// can say what one pointer move touched and not only how long it took.
-///
-/// Debug-only hooks: they exist in `flutter test` and in debug runs, and are
-/// absent from profile and release builds, where the counts come out empty.
+/// Counts widget rebuilds and render-object repaints by type, so a benchmark says what a pointer move touched; debug-only hooks, empty in profile and release.
 library;
 
 import 'package:flutter/rendering.dart';

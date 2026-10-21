@@ -44,10 +44,7 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     return before == null ? null : _EditEntry(objectId, before);
   }
 
-  /// Writes [text] locally first, for the same immediate feedback a drag
-  /// gives, and returns the text it replaced; null when the request failed
-  /// (the old text is put back) or the note is gone from this client. A
-  /// longer text also grows the box so it is not clipped for everyone.
+  /// Writes [text] locally first and returns the text it replaced, or null when the request failed (old text restored) or the note is gone; longer text also grows the box.
   Future<String?> _editTo(
     String objectId,
     String text,

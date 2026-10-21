@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Where a presence tile's pieces paint (decision 0086): the video in
-/// [CanvasPresenceBackdrop], before [CanvasSurface] so ink, drafts and cursors
-/// land on top of every tile, and the controls in [CanvasPresenceLayer] above
-/// the surface, since [CanvasSurface] claims every pointer in its own bounds.
-///
-/// The paint-order test asserts `Stack.children` order alone;
-/// `canvas_presence_depth_paint_test.dart` is the pixel-level companion.
+/// Where a presence tile's pieces paint (decision 0086): video in [CanvasPresenceBackdrop] before [CanvasSurface], controls in [CanvasPresenceLayer] above it.
+/// Asserts `Stack.children` order; `canvas_presence_depth_paint_test.dart` is the pixel-level companion.
 library;
 
 import 'package:flutter/material.dart';

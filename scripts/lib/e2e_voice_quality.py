@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Two people in a call play known clips to each other; what arrives is scored.
 
-Alice and bob each capture a different reference clip (make_quality_clip.py).
-Each side taps the decoded remote track to PCM and samples the receive-side
-concealment counters, once per network profile (e2e_netem.py). Analysis is
-voice_quality.py's. Opt in with E2E_ONLY="voice quality"; the profiles come
-from E2E_VQ_PROFILES (comma list, default all) and the capture length from
-E2E_VQ_SECONDS. E2E_VQ_VARIANT names a row in VARIANTS, E2E_VQ_OUT the output.
+Each side taps the decoded remote track to PCM and samples the receive-side concealment counters per network profile (e2e_netem.py); voice_quality.py analyses it.
+Opt in with E2E_ONLY="voice quality"; E2E_VQ_PROFILES (comma list), E2E_VQ_SECONDS, E2E_VQ_VARIANT (a row in VARIANTS) and E2E_VQ_OUT tune it.
 """
 import base64
 import json

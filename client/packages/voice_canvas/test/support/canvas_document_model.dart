@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// An independent reference model of what a [CanvasDocument] should hold, for
-/// `canvas_document_fuzz_test.dart`.
-///
-/// It is written from the documented contract of the document (dedupe by id,
-/// tombstones, scoped clear, restore, kill) and never calls into the document
-/// or the spatial grid, so a bug shared by both could not make them agree.
+/// An independent reference model of what a [CanvasDocument] should hold, written from its documented contract and never calling into the document or grid, so a bug shared by both cannot make them agree.
 library;
 
 import 'dart:math' as math;

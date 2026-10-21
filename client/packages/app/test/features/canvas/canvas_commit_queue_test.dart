@@ -277,7 +277,7 @@ void main() {
     },
   );
 
-  test('a brief outage does not kill queued ink (C-007)', () {
+  test('a brief outage does not kill queued ink', () {
     fakeAsync((async) {
       var outage = true;
       final harness = _Harness(

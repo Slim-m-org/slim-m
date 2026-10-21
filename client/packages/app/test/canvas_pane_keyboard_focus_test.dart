@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-096: the pane's keyboard focus is claimed only at mount, so a click on
+/// The pane's keyboard focus is claimed only at mount, so a click on
 /// the canvas after focus left must hand it back for Ctrl+Z to work.
 library;
 

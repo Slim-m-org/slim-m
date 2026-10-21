@@ -4,10 +4,7 @@ part of 'voice_session.dart';
 const _pollEvery = Duration(milliseconds: 50);
 const _maxPolls = 100;
 
-/// Polls [packetsReceived] until audio arrives, then calls [onAudio].
-///
-/// Does nothing unless [joinOpen] says a join is in progress, and stops the
-/// moment it is not, so a later subscription in a long call never polls.
+/// Polls [packetsReceived] until audio arrives, then calls [onAudio]; stops once [joinOpen] says the join is over, so a later subscription never polls.
 @visibleForTesting
 Future<void> watchFirstAudio({
   required bool Function() joinOpen,

@@ -287,11 +287,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     if (_ops.activeMove == null) _dragPan.begin(world);
   }
 
-  /// An image keeps its aspect and a note or shape resizes freely; holding
-  /// Shift flips either. Read fresh on every drag point rather than once at
-  /// [_onSelectStart], so releasing the key mid-drag takes effect immediately
-  /// rather than on the next gesture. Alt moves freely; touch has no
-  /// modifier, so it always snaps.
+  /// Images keep their aspect and notes or shapes resize freely; Shift flips either, Alt moves freely, touch always snaps.
+  /// Read on every drag point so releasing a key mid-drag takes effect at once.
   void _onSelectDrag(Offset world) {
     if (_dragPan.active) {
       _dragPan.drag(world, _document);
@@ -484,12 +481,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  /// Who to show on the canvas as a camera bubble: nobody, unless this
-  /// device itself has joined a call in this exact channel - a canvas
-  /// viewer who has not joined the call has no LiveKit room to render a
-  /// live texture from at all (`VoiceSession.cameraViewFor` answers nothing
-  /// without one), so there is no video to lay out for anybody in that
-  /// case, not even for participants known some other way.
+  /// Who to show as a camera bubble: nobody unless this device joined a call in this channel, since without one there is no LiveKit room to render from.
   List<VoiceParticipant> _callParticipants() {
     final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
     if (channelId != widget.channelId) return const [];

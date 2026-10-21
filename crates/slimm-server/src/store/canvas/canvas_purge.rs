@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Removing erased canvas content for good (decision 0085): a moderator purge
-//! of one object, and the sweep that deletes objects erased longer ago than
-//! the space's message retention window (nothing when retention is off).
-//!
-//! A hard delete takes the object row, its op rows, targets, audit rows,
-//! lock and attachment link with it; the attachment sweep then frees the image
-//! bytes once nothing else references them. The ops it removes leave a gap a
-//! cursor inside it cannot replay across, so the channel's swept watermark
-//! rises to the highest seq removed and `list_canvas_ops` resets cursors behind it.
+//! Removing erased canvas content for good (decision 0085): a moderator purge of one object, and the sweep that deletes objects erased longer ago than the space's message retention window (nothing when retention is off).
+//! A hard delete takes the object, its ops, targets, audit rows, lock and attachment link; the swept watermark rises to the highest seq removed so `list_canvas_ops` resets cursors behind it.
 
 use sqlx::QueryBuilder;
 

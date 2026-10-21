@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Driving and reading keyboard focus in the canvas accessibility probe: Tab
-/// stops by name, arrow keys inside menus, and the keyboard route into the
-/// overflow menu.
-///
-/// Not a `_test.dart` file, so `flutter test` does not run it.
+/// Driving and reading keyboard focus in the canvas accessibility tests: Tab stops by name, arrows in menus, the keyboard route into the overflow menu.
 library;
 
 import 'package:flutter/rendering.dart';
@@ -43,10 +39,7 @@ Rect? focusedRect() {
   return render.localToGlobal(Offset.zero) & render.size;
 }
 
-/// Whether keyboard focus sits inside a dialog or bottom sheet.
-///
-/// Asked of the widget tree rather than of the route, because the shell opens
-/// its dialogs on the root navigator while the canvas lives in a nested one.
+/// Whether keyboard focus sits inside a dialog or sheet, asked of the widget tree because the shell opens dialogs on the root navigator.
 bool focusIsInModal() {
   final context = FocusManager.instance.primaryFocus?.context;
   if (context == null) return false;

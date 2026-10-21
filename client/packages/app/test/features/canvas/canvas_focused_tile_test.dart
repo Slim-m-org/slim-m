@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Full screen on a canvas tile keeps the canvas.
-///
-/// The owner: "as a viewer within the canvas when i fullscreen on someones
-/// screenshare id still like to see if someone draws something or puts an
-/// image on it, i want to maintain those controls in fullscreen, but maybe we
-/// make the dock collapsable with a half sphere ... it only appears if you
-/// move mouse towards bottom of screen".
-///
-/// Driven through the real [CanvasPane]. Geometry is read off laid-out render
-/// boxes: the feed must fill the surface it sits under, and a collapsed dock
-/// must still leave a handle on screen to bring it back.
+/// Full screen on a canvas tile keeps the canvas, with the dock collapsible behind a handle.
+/// Driven through the real [CanvasPane]; the feed must fill the surface and a collapsed dock must leave a handle on screen.
 library;
 
 import 'package:flutter/gestures.dart';

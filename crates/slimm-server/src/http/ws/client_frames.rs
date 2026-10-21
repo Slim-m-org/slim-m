@@ -26,22 +26,16 @@ pub(super) enum ClientFrame {
     /// no explicit "stop" frame: the state lapses on its own without a refresh.
     #[serde(rename = "typing")]
     Typing { channel_id: String },
-    /// The channels this connection has open and focused right now, replacing
-    /// its previous report; empty when none. Lapses after
-    /// [`crate::viewing::VIEWING_TTL`], so a client refreshes it periodically.
-    /// Used only to skip push for what this account is already reading.
-    /// `active` says the user has used this device recently, which skips
-    /// message pushes to their other devices for a short while.
+    /// The channels this connection has open and focused, replacing its previous report; lapses after [`crate::viewing::VIEWING_TTL`].
+    /// Used only to skip push for what the account is already reading; `active` says the user used this device recently, which skips message pushes to their other devices briefly.
     #[serde(rename = "viewing")]
     Viewing {
         channel_ids: Vec<String>,
         #[serde(default)]
         active: bool,
     },
-    /// A pointer position on a channel's canvas. Rate-limited and authorized
-    /// the same bar the canvas HTTP routes use (view plus `USE_CANVAS`); see
-    /// [`super::signals::handle_canvas_cursor`]. No "stop" frame either, for
-    /// the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
+    /// A pointer position on a channel's canvas, rate-limited and authorized like the canvas HTTP routes (view plus `USE_CANVAS`); see [`super::signals::handle_canvas_cursor`].
+    /// There is no "stop" frame, for the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
     #[serde(rename = "canvas.cursor")]
     CanvasCursor {
         channel_id: String,
@@ -51,12 +45,8 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         left: bool,
     },
-    /// An in-flight stroke preview on a channel's canvas. Rate-limited by the
-    /// frame's own byte size rather than by count, and authorized on the same
-    /// bar the canvas write route uses (view plus `USE_CANVAS`, plus a direct
-    /// timeout check a cursor frame does not need, since this one carries
-    /// drawing content); see
-    /// [`super::signals::handle_canvas_stroke_preview`].
+    /// An in-flight stroke preview on a channel's canvas, rate-limited by byte size rather than count.
+    /// Authorized like the canvas write route (view plus `USE_CANVAS` plus a timeout check, since it carries drawing content); see [`super::signals::handle_canvas_stroke_preview`].
     #[serde(rename = "canvas.stroke_preview")]
     CanvasStrokePreview {
         channel_id: String,

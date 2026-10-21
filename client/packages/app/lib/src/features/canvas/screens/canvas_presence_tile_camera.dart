@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Pan and zoom that land on a tile still move the camera.
-///
-/// A tile is opaque to the surface beneath it, so a trackpad two-finger
-/// scroll or pinch and a two-finger touch pinch over a tile reached nothing,
-/// and the scroll was read as a drag of the tile itself.
+/// Pan and zoom that land on a tile still move the camera, since a tile is opaque to the surface beneath it.
 library;
 
 import 'package:flutter/gestures.dart';

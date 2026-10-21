@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Data exports: a member's own data and a whole space, written as one tar
-//! archive by a background job.
-//!
-//! A job first writes small JSON and JSON-lines sections to a scratch
-//! directory, one database stream at a time, then streams them and the
-//! attachment files into the archive behind a manifest. Memory use does not
-//! grow with the data. `docs/data-export-format.md` is the format reference.
+//! Data exports: a member's own data or a whole space, written as one tar archive by a background job.
+//! Sections go to a scratch directory one database stream at a time, then stream with the attachments into the archive behind a manifest, so memory does not grow with the data (`docs/data-export-format.md`).
 
 mod build;
 mod member;

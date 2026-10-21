@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A camera or screen-share tile's controls in the canvas's world space: drag,
-/// resize, lock so drawing reaches through it, or hide - the AR-glasses framing
-/// the owner asked for. The video itself paints in `CanvasPresenceBackdrop`,
-/// under the ink, so this layer carries only the gestures and the chrome.
-///
-/// Its controls show on hover, focus or a first touch rather than always
-/// (backlog reports 3 and 0.35.1), and a locked tile can always reveal its
-/// own unlock button. Unless it is unlocked under the pan tool, the tile
-/// passes pointers through so a pen stroke can start over it (report 2).
-/// Why presence tiles are not canvas objects is in
-/// docs/decisions/0010-canvas-media-tiles.md; why ink paints above them, in 0086.
+/// A camera or screen-share tile's controls in world space: drag, resize, lock so drawing reaches through it, or hide.
+/// They show on hover, focus or a first touch, and a locked tile can always reveal its unlock button.
+/// Why tiles are not canvas objects: docs/decisions/0010-canvas-media-tiles.md; why ink paints above them: 0086.
 library;
 
 import 'dart:async';
@@ -252,10 +244,7 @@ class _CanvasPresenceManipulableTileState
   void _onHoverEnter(PointerEnterEvent _) => setState(() => _hovering = true);
   void _onHoverExit(PointerExitEvent _) => setState(() => _hovering = false);
 
-  /// Called on every pointer down within this tile, mouse or touch alike -
-  /// harmless for a mouse, which already reveals through [_hovering] and
-  /// will have exited (clearing this too) well before [_hideTimer] could
-  /// ever fire.
+  /// Called on every pointer down in this tile; harmless for a mouse, which reveals through [_hovering] and exits before [_hideTimer] fires.
   void _revealForTouch() {
     _hideTimer?.cancel();
     if (!_revealedForTouch) setState(() => _revealedForTouch = true);
@@ -323,13 +312,7 @@ class _CanvasPresenceManipulableTileState
     );
   }
 
-  /// A wheel notch landing inside this tile's own opaque bounds - see this
-  /// file's own library doc for why `CanvasSurface` never gets a chance to
-  /// answer for it otherwise, and never has to while [_passThrough] is
-  /// true, when it does. [event.localPosition] is relative to this tile's
-  /// own top-left, not the canvas viewport `cameraAfterWheelScroll` expects,
-  /// so it is re-based onto this tile's own on-screen origin before being
-  /// handed to the same pure math `CanvasSurface` reads.
+  /// A wheel notch inside this tile's opaque bounds, which `CanvasSurface` never sees; its position is re-based onto the tile's on-screen origin for `cameraAfterWheelScroll`.
   void _onPointerSignal(PointerSignalEvent event) {
     if (_passThrough) return;
     if (event is! PointerScrollEvent) return;

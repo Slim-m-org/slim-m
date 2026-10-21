@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-097: a touch stroke that starts at the right edge of the open canvas
+/// A touch stroke that starts at the right edge of the open canvas
 /// must not slide the member roster drawer over it.
 library;
 

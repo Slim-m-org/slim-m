@@ -236,13 +236,8 @@ class AudioDeviceSwitching {
     }
   }
 
-  /// `Room.setAudioInputDevice` only sets the native recording device and the
-  /// room default on desktop, so the published track kept its own old
-  /// `deviceId`: it went on capturing the previous microphone, and any later
-  /// restart (unmute, push-to-talk) re-opened that one.
-  ///
-  /// On web `Room.setAudioInputDevice` restarts every audio publication, share
-  /// audio included, as a microphone; there only the microphone is touched.
+  /// `Room.setAudioInputDevice` only sets the native device and room default on desktop, so the published track kept capturing the old microphone and re-opened it on restart.
+  /// On web it restarts every audio publication, share audio included, so there only the microphone is touched.
   static Future<void> switchLiveInput(
     lk.Room room,
     lk.MediaDevice device, {

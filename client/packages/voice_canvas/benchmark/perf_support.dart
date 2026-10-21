@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Sampling, summary statistics and result output shared by the canvas
-/// interaction benchmarks.
-///
-/// Where `harness.dart` times a pure-Dart body in a tight batch, these
-/// benchmarks time whole pointer-move-plus-frame iterations, so each sample
-/// is kept and summarised as a distribution: a median alone hides the
-/// dropped-frame tail that decides whether drawing feels smooth.
+/// Sampling, summary statistics and result output shared by the canvas interaction benchmarks, which keep each pointer-move-plus-frame sample so the dropped-frame tail a median hides is visible.
 library;
 
 import 'dart:convert';

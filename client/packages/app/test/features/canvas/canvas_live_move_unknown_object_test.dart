@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-042: a live move naming an object this client never fetched must make
+/// A live move naming an object this client never fetched must make
 /// the client refetch, else an object moved into the fetched region never
 /// appears.
 library;

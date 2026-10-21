@@ -83,20 +83,9 @@ class _ResizeState {
 /// need `CanvasOpsController`'s own private `_drag`/`_resize` fields and
 /// undo stack.
 extension CanvasOpsControllerSelect on CanvasOpsController {
-  /// Grabs a resize handle on the current selection if [world] lands on
-  /// one, or otherwise picks up the topmost live object under [world] the
-  /// caller may move - their own, or anybody's with [manageCanvas] -
-  /// selecting it and remembering its original bounds so [dragSelect] can
-  /// preview locally and [undo] can reverse whichever this turns out to be.
-  /// A stroke is selectable for reorder (see `CanvasOpsControllerReorder`)
-  /// but never dragged, since a freehand mark has no box a person expects to
-  /// relocate the way a placed box object's is. Deselects, silently, if
-  /// nothing is there: the same "scope at hit-test time" choice
-  /// [onErasePoint] already makes.
-  ///
-  /// A handle only exists on a box kind (see `SelectionPainter`'s own doc
-  /// for why a stroke never grows one), so the resize branch is skipped for
-  /// a stroke without needing its own check here.
+  /// Grabs a resize handle on the selection if [world] lands on one, else picks up the topmost live object
+  /// the caller may move, remembering its bounds for [dragSelect] and [undo]; deselects if nothing is there.
+  /// A stroke is selectable for reorder but never dragged, and only box kinds have a resize handle.
   void beginSelect(
     Offset world, {
     required bool manageCanvas,
@@ -151,18 +140,8 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     return true;
   }
 
-  /// Whether [world] lands in the innermost half of [bounds] - the zone a
-  /// plain move-drag always wins, regardless of how far
-  /// `hitTestResizeHandle`'s own zoom-scaled radius reaches (its own doc:
-  /// "never becomes unhittable zoomed out", a deliberate, unbounded growth
-  /// as zoom shrinks). Without this, a selected object small enough that
-  /// its whole body sits inside that fixed screen-space radius - a
-  /// resized-down or naturally small pasted image is the easy way there,
-  /// with `minObjectSize` (8) well under it at zoom 1 - could never be
-  /// grabbed for a plain move again: every click, including dead centre,
-  /// resolved to a resize. The guard only ever narrows where a resize may
-  /// start; a click anywhere near an edge or corner, or outside the box
-  /// entirely, is untouched.
+  /// Whether [world] lands in the innermost half of [bounds], where a plain move-drag always wins.
+  /// Without it a small selected object sits wholly inside the zoom-scaled resize radius and every click, even dead centre, resolves to a resize.
   bool _isDeepInterior(
     ({double x, double y, double w, double h}) bounds,
     Offset world,

@@ -3,14 +3,12 @@
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 use slimm_server::store::{CanvasOpRequest, ClearScope, PlaceRequest, Store, SubmitOpError};
-use sqlx::SqlitePool;
 
 use crate::fixtures::{
     self, app, general, id, new_store_and_pool, post_object, register, remove, stroke, submit_op,
 };
 use crate::replay::{Client, first_diff};
-
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+use crate::support::canvas::age_canvas_history;
 
 pub async fn place(
     store: &Store,
@@ -41,21 +39,6 @@ pub async fn submit(
     store
         .submit_canvas_op(channel, actor, CanvasOpId::generate(), true, request)
         .await
-}
-
-async fn age_everything(pool: &SqlitePool) {
-    sqlx::query("UPDATE canvas_ops SET created_at = created_at - ?")
-        .bind(31 * DAY_MS)
-        .execute(pool)
-        .await
-        .unwrap();
-    sqlx::query(
-        "UPDATE canvas_objects SET deleted_at = deleted_at - ? WHERE deleted_at IS NOT NULL",
-    )
-    .bind(31 * DAY_MS)
-    .execute(pool)
-    .await
-    .unwrap();
 }
 
 pub async fn replay_matches_live(store: &Store, channel: ChannelId) -> Result<(), String> {
@@ -262,7 +245,7 @@ async fn sweeping_a_remove_and_its_restore_does_not_change_what_a_later_clear_re
         .await
         .expect("before the sweep");
 
-    age_everything(&pool).await;
+    age_canvas_history(&pool, 31).await;
     store.sweep_canvas_ops().await.unwrap();
     replay_matches_live(&store, channel)
         .await
@@ -295,7 +278,7 @@ async fn a_large_backlog_of_undone_erases_sweeps_to_a_feed_that_still_replays() 
         .await
         .unwrap();
     }
-    age_everything(&pool).await;
+    age_canvas_history(&pool, 31).await;
     for pass in 0..3 {
         store.sweep_canvas_ops().await.unwrap();
         replay_matches_live(&store, channel)
@@ -319,7 +302,7 @@ async fn erased_objects_do_not_accumulate_forever() {
             .await
             .unwrap();
     }
-    age_everything(&pool).await;
+    age_canvas_history(&pool, 31).await;
     store.sweep_canvas_ops().await.unwrap();
     let kept: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM canvas_objects")
         .fetch_one(&pool)

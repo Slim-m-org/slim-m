@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The channel scope shared by the export queries. A thread is its own `text`
-//! channel row, so it is judged by the channel and message it hangs from:
-//! a thread left behind by a deleted parent or sitting under a direct message
-//! must not pass for a live community channel.
+//! The channel scope shared by the export queries: a thread is its own `text` channel row, judged by the channel and message it hangs from, so one left by a deleted parent or under a direct message does not pass for a live channel.
 
 /// Joins the parent message `tpm` and parent channel `tpc` of a channel aliased `c`.
 macro_rules! parent_joins {

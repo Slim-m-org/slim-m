@@ -160,17 +160,7 @@ extension CanvasEngineReads on CanvasEngine {
   }
 
   /// A pan re-reads once the camera has settled, never per frame.
-  ///
-  /// [CanvasDocument]'s listenable fires on any content change too - a fetch
-  /// landing, a live frame, a locally drawn stroke - since [CanvasDocument]'s
-  /// `refresh()` and a real camera move both end in the same
-  /// `notifyListeners()`. Reading [_lastCameraView] is what tells those
-  /// apart: a content-only notification reports the same world view as last
-  /// examined, so it returns before touching [_fetched] at all. Without that
-  /// guard a still-truncated region never becomes "covered", so every one of
-  /// those content notifications re-read a null [_fetched] and rescheduled a
-  /// fetch for the unmoved viewport - forever, since the answer stays
-  /// truncated for the same reason each time.
+  /// A content-only notification reports the same world view as last time, so it returns early; otherwise a truncated region reschedules a fetch forever.
 
   void _onCameraMoved() {
     final view = document.worldView;

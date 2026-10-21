@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A frame that changes no committed content must not re-issue the committed
-/// ink.
-///
-/// Impeller has no raster cache, so every `StrokePainter.paint` re-rasterises
-/// every visible stroke. A remote cursor moving keeps frames coming, so a
-/// still board pays the full cost per frame (C-014).
+/// A frame that changes no committed content must not re-issue the committed ink: Impeller has no raster cache, and a moving remote cursor keeps frames coming.
 library;
 
 import 'dart:typed_data';

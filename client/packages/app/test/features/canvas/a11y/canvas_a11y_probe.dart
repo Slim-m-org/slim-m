@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the canvas accessibility probe reads off a running pane: the live
-/// semantics tree as rows, the keyboard focus order, painted pixels, and
-/// where a finger-sized press lands.
-///
-/// Not a `_test.dart` file, so `flutter test` does not run it.
+/// Reads a running canvas pane for the accessibility tests: the semantics tree as rows, focus order, painted pixels and where a finger-sized press lands.
 library;
 
 import 'dart:io';
@@ -101,10 +97,7 @@ Rect _globalRect(SemanticsNode node) {
 SemanticsNode _semanticsRoot(WidgetTester tester) =>
     tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!;
 
-/// Every semantics node in the live tree that is on screen, depth first.
-///
-/// Read from the root of the live tree, so a node a modal route or a zero-size
-/// box dropped is absent, exactly as it is for a screen reader.
+/// Every on-screen semantics node in the live tree, depth first, so a node a modal route or zero-size box dropped is absent as it is for a screen reader.
 List<SemRow> semanticsRows(WidgetTester tester, {bool onlyControls = false}) {
   final rows = <SemRow>[];
   void visit(SemanticsNode node, int depth) {
@@ -192,10 +185,7 @@ Set<int> _semanticsIdsAt(WidgetTester tester, Offset point) {
   return ids;
 }
 
-/// Where a [min]-sized square around [row]'s control fails to press it.
-///
-/// A finger lands anywhere in a 44 logical pixel square around what it aims
-/// at, so the centre and all four corners of that square have to reach the control.
+/// Where a [min]-sized square around [row]'s control fails to press it: the centre and all four corners must reach the control.
 List<String> touchGaps(WidgetTester tester, SemRow row, {double min = 44}) {
   final rect = row.rect;
   final area = Rect.fromCenter(

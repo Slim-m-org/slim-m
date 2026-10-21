@@ -75,6 +75,12 @@ client/packages/app/build/ui-snapshots/
 .claude/worktrees/
 # Job-file instances handed to subagents; the template is docs/agents/job-template.md.
 .claude/jobs/
+# Per-machine agent state; anything else under .claude/ (agents, settings.json) may be committed.
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/sources/
+# Python wheels downloaded into the repo root while setting up a local tool.
+/*.whl
 __pycache__/
 
 # design-sync (claude.ai/design) staging and output

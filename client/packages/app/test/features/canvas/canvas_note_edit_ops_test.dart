@@ -103,7 +103,7 @@ class _Harness {
 }
 
 void main() {
-  test('editing a note to much longer text regrows its box (C-087)', () {
+  test('editing a note to much longer text regrows its box', () {
     fakeAsync((async) {
       final h = _Harness();
       final longText = List.generate(8, (i) => 'paragraph $i\n').join();

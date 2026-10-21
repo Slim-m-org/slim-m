@@ -60,13 +60,7 @@ async fn a_canvas_frame_needs_both_bits_and_a_denied_member_never_sees_one() {
     );
 }
 
-/// The same load-bearing property as the placement test above, for the five
-/// other frames: a member an overwrite denies `USE_CANVAS` must receive
-/// neither a removal, a clear, a restore, a move, nor a reorder, exactly as
-/// she receives no placement. Extends the reachability guard `extra_bit`
-/// exists for:
-/// reverting it to a `matches!` naming only `CanvasObjectPlaced` fails this
-/// the moment any one of the five fires.
+/// A member an overwrite denies `USE_CANVAS` must receive no removal, clear, restore, move or reorder, just as she receives no placement; reverting `extra_bit` to a `matches!` naming only `CanvasObjectPlaced` fails this.
 #[tokio::test]
 async fn a_removal_a_clear_a_restore_a_move_and_a_reorder_need_both_bits_and_a_denied_member_never_sees_any()
  {

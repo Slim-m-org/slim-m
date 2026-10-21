@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The board is drivable from the keyboard: it holds focus when the pane
 /// opens, arrows pan, ] and [ step the selection, Enter opens the selected
-/// object's menu or places with the armed tool (C-091).
+/// object's menu or places with the armed tool.
 library;
 
 import 'package:flutter/services.dart';

@@ -51,4 +51,4 @@ A read of any kind also stops at about 900 KiB of response with `has_more` true.
 ## Not done
 
 - The client work (visible-area-first load, the "loaded / total" indicator, the purge menu item, honouring `spared_ids`) is batch 2.
-- Moving `props` to a side table to cut the write cost of a huge clear (C-027) is not done; hold time is unchanged.
+- Moving `props` to a side table to cut the write cost of a huge clear is not done; hold time is unchanged.

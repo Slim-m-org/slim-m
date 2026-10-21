@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Everything the desktop voice scenario needs from the machine, cleaned up after.
 
-A PipeWire null sink plus a remapped virtual source stand in for a microphone
-(a feeder loops a WAV into the sink), a second null sink swallows the app's
-playback, and a nested `kwin_wayland --virtual` gives the Flutter window
-somewhere to be. The owner's default devices, display and files are never
-touched: the app reads PULSE_SOURCE / PULSE_SINK for itself only, runs with
-its own XDG directories, and every module and process started here is
-removed again.
+A PipeWire null sink plus a remapped virtual source stand in for a microphone, a second sink swallows playback, and a nested `kwin_wayland --virtual` hosts the window.
+The owner's default devices, display and files are never touched, and every module and process started here is removed again.
 """
 import contextlib
 import json

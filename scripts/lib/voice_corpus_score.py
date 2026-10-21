@@ -1,12 +1,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Per-clip scores for a received corpus reel.
 
-A recording of a reel is aligned once; the aligned index signal then says which
-clip every received sample belongs to, so anomaly events, loudness over the
-reference and ViSQOL can be attributed to a clip and rolled up by category.
+The reel recording is aligned once, so anomaly events, loudness over the reference and ViSQOL are attributed to a clip and rolled up by category.
 
-usage: voice_corpus_score.py <variant-dir>   (reads <profile>/<who>-rx.wav and clip-<A|B>.*)
-Run it with the venv python that has numpy, scipy and onnxruntime (see voice_quality_mos.py).
+usage: voice_corpus_score.py <variant-dir>   (reads <profile>/<who>-rx.wav and clip-<A|B>.*; use the venv python from voice_quality_mos.py)
 """
 import json
 import os

@@ -25,27 +25,9 @@ extension CanvasDocumentGeometry on CanvasDocument {
     return (x: stroke.x, y: stroke.y, w: stroke.w, h: stroke.h);
   }
 
-  /// Repositions a live object to a new box, in place - a stroke's own points
-  /// move with it, so a moved stroke still hit-tests against its drawn shape
-  /// rather than its old one. Returns false if [id] is unknown or has been
-  /// removed.
-  ///
-  /// **Called once per pointer event for the whole of a drag or a resize**,
-  /// which is what every choice here is about. It used to free the grid slot
-  /// and insert a fresh one, allocating a replacement [CanvasStroke], a fresh
-  /// `Float32List` of every point, and a shifted [Path] each time. The grid
-  /// never renumbers or reuses a parked slot, so the remove-then-add also
-  /// leaked one slot per pointer event, for the session: a single drag across
-  /// a screen leaked a few hundred, and every later linear cull walked all of
-  /// them.
-  ///
-  /// Now [UniformGrid.move] keeps the slot, the points are shifted in place,
-  /// and the object keeps its identity. The object-local [path] never moves:
-  /// the painter translates it by the stroke's own origin.
-  ///
-  /// Applies the box exactly as given: a gesture holds it to the board with
-  /// [boxOnBoard] first, so an undo, a rollback or a remote move can put an
-  /// object where the server has it.
+  /// Repositions a live object to a new box in place, so a moved stroke still hit-tests against its drawn shape; false if [id] is unknown or removed.
+  /// Called per pointer event during a drag, so [UniformGrid.move] keeps the slot and points shift in place: free-and-reinsert leaked a grid slot per event and allocated a stroke, `Float32List` and [Path] each time.
+  /// The box is applied as given; a gesture holds it to the board with [boxOnBoard] first, so undo, rollback or a remote move can place an object where the server has it.
   bool moveObject(String id, double x, double y, double w, double h) {
     final slot = _slotById[id];
     if (slot == null) return false;

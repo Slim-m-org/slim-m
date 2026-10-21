@@ -144,12 +144,8 @@ ScreenShareFit fitScreenShare(
   );
 }
 
-/// A screen the OS will let this app capture.
-///
-/// A screen, or on Windows and macOS a window. Linux lists screens only:
-/// enumerating windows through libwebrtc's desktop capturer segfaults the
-/// process on Fedora Wayland (SIGSEGV, exit 139, reproduced 2026-07-27), a
-/// native crash Dart cannot catch, and the portal's own picker chooses there.
+/// A screen the OS will let this app capture; on Windows and macOS also a window.
+/// Linux lists screens only: enumerating windows through libwebrtc's capturer segfaults on Fedora Wayland (exit 139), which Dart cannot catch, and the portal picker chooses there.
 class ScreenShareSource {
   const ScreenShareSource({
     required this.id,

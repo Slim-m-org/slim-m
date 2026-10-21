@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Absolute loudness of a received call recording against its reference clip.
 
-`level_burst` compares each frame with the reference frame at the same time, so
-a word shifted by tens of milliseconds reads as a burst. These numbers ask a
-different question: did anything come out louder than the loudest the sender
-ever said?
+`level_burst` compares frame by frame, so a word shifted by tens of milliseconds reads as a burst; this asks whether anything came out louder than the loudest the sender ever said.
 
 usage: voice_burst_abs.py <harness output dir>   (reads <profile>/<who>-rx.wav)
 """

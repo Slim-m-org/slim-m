@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Hand-written replays of what the gesture fuzz found about gestures that are
-/// cut short, redirected or ignored: a tool switch while a pointer is down, a
-/// cancelled pointer, a right click, and two pointers at once.
-///
-/// Each asserts the behaviour a person would expect, so each fails until its
-/// bug is fixed. They run on the fuzz rig: the real pane, a four-person call
-/// and a seeded board of strokes, notes, shapes and an image.
+/// Hand-written replays of gestures the fuzz found cut short, redirected or ignored: a tool switch with a pointer down, a cancelled pointer, a right click and two pointers at once, on the fuzz rig.
 library;
 
 import 'package:flutter/gestures.dart';

@@ -156,11 +156,7 @@ class RemoteStrokeDrafts extends ChangeNotifier {
   }
 
   /// A committed stroke by [authorId] arrived: drops their finished drafts.
-  ///
-  /// With [landed], the box of the ink that arrived, a draft goes only once
-  /// the ink landed so far covers it, so a stroke split into several
-  /// segments keeps its ghost until the last one lands rather than shrinking
-  /// to the first.
+  /// With [landed], a draft goes only once the landed ink covers it, so a split stroke keeps its ghost until the last segment.
   void settleAuthor(String? authorId, {Rect? landed}) {
     if (authorId == null) return;
     final drafts =

@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// CP9: a note's body text must be laid out once and reused across the frames
-/// `StrokePainter` paints on every camera move, not re-shaped each time. A
-/// note's layout depends only on its text and its projected size, so a pan
-/// (zoom and box fixed) reuses it, while a zoom or a resize rebuilds it.
-///
-/// A rendered frame looks identical whether or not the text was re-laid-out, so
-/// these count layouts through [debugNoteLabelLayoutCounts], the same way the
-/// cursor-label and member-row tests do.
+/// A note's body text is laid out once and reused across camera moves; a pan reuses the layout, a zoom or resize rebuilds it.
+/// Counts layouts through [debugNoteLabelLayoutCounts], since a rendered frame looks identical either way.
 library;
 
 import 'package:flutter/rendering.dart';
@@ -64,7 +58,7 @@ void main() {
     expect(
       debugNoteLabelLayoutCounts['n1'],
       lessThan(frames ~/ 3),
-      reason: 'C-063: the layout key holds the exact zoom, so every zoom '
+      reason: 'the layout key holds the exact zoom, so every zoom '
           'frame re-shapes every visible note',
     );
   });

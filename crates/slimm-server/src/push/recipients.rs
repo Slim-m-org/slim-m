@@ -368,10 +368,7 @@ struct Audience<'a> {
     automated: bool,
 }
 
-/// The preference that applies once posting rights and authorship are known:
-/// without an override for this channel, "everything" becomes "mentions" for a
-/// reader who cannot post in it, and for any reader when a bot or webhook
-/// wrote the message, so a busy feed does not wake everyone it reaches.
+/// The preference once posting rights and authorship are known: without a channel override, "everything" becomes "mentions" for a reader who cannot post and for any reader of a bot or webhook post.
 /// An explicit choice for the channel always stands.
 fn read_only_default(
     choice: NotificationChoice,

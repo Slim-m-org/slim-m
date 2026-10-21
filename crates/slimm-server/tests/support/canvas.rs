@@ -3,6 +3,25 @@
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
 use slimm_server::store::{CanvasObject, CanvasOpRequest, Rect, Store, ViewportQuery};
+use sqlx::SqlitePool;
+
+pub const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+
+/// Moves every canvas op and erased object `days` into the past, so the retention sweeps see them as old.
+pub async fn age_canvas_history(pool: &SqlitePool, days: i64) {
+    sqlx::query("UPDATE canvas_ops SET created_at = created_at - ?")
+        .bind(days * DAY_MS)
+        .execute(pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE canvas_objects SET deleted_at = deleted_at - ? WHERE deleted_at IS NOT NULL",
+    )
+    .bind(days * DAY_MS)
+    .execute(pool)
+    .await
+    .unwrap();
+}
 
 /// Reads the product answers only as one `viewport_snapshot`, kept under their old names.
 pub trait CanvasReads {

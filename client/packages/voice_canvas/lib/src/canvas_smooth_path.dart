@@ -4,11 +4,7 @@ library;
 
 import 'dart:ui';
 
-/// A path through the polyline `[x0, y0, x1, y1, ...]` offset by ([dx], [dy]).
-///
-/// Each sample is a control point and the midpoints between samples are on the
-/// curve, so the stroke never overshoots the samples the pen actually hit and
-/// the stored points stay raw.
+/// A path through the polyline `[x0, y0, x1, y1, ...]` offset by ([dx], [dy]): samples are control points and midpoints are on the curve, so the stroke never overshoots and stored points stay raw.
 Path smoothPolyline(List<double> flat, {double dx = 0, double dy = 0}) {
   final path = Path();
   final count = flat.length ~/ 2;

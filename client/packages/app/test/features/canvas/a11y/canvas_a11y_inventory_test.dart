@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Accessibility probe: what a screen reader meets on the canvas pane.
-///
-/// Walks the live semantics tree of the whole pane (board, call tiles, follow
-/// panel, dock) and lists every control with its label, role and actions. Set
-/// `A11Y_DUMP_DIR` to keep the listings. The assertions are about names that
-/// merge into the wrong node, nodes Flutter drops, and content with no node.
+/// What a screen reader meets on the canvas pane: the live semantics tree listed per control, asserting names that merge into the wrong node, dropped nodes and content with no node.
+/// `A11Y_DUMP_DIR` keeps the listings.
 library;
 
 import 'dart:ui' as ui;

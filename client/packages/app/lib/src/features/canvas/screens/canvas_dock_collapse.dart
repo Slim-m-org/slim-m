@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Lets the canvas dock tuck away while the pane is fullscreen, leaving a
-/// half-sphere handle at the bottom edge that brings it back.
-///
-/// A pointer reveals the dock by moving toward the bottom edge; a finger taps
-/// the handle, which is the named equivalent of that hover (docs/design/
-/// desktop-vs-mobile.md, law 3). Outside fullscreen it is a plain pass-through.
+/// Lets the canvas dock tuck away in fullscreen behind a handle that a pointer near the bottom edge or a tap brings back
+/// (docs/design/desktop-vs-mobile.md, law 3).
 library;
 
 import 'dart:async';

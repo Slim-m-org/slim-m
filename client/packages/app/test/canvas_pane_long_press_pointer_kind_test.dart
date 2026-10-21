@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-075: the object menu's long-press must not fire for a held mouse button.
+/// The object menu's long-press must not fire for a held mouse button.
 library;
 
 import 'package:flutter/gestures.dart';

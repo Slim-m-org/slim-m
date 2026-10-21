@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What renders *inside* a presence tile - a live camera view or a screen
-/// share; a participant with neither has no tile (decision 0086) - split out of
-/// `canvas_presence_layer_test.dart` once this content pushed it past the
-/// 500-line hard limit. That file covers layout and manipulation (drag,
-/// resize, lock, hide, paint order); this one covers what gets painted.
+/// What renders inside a presence tile: a live camera view or a screen share (decision 0086); layout and manipulation are in `canvas_presence_layer_test.dart`.
 library;
 
 import 'package:flutter/material.dart';

@@ -53,11 +53,7 @@ bool channelEarnsASound({
 bool readOnlyDefaultApplies(api.NotificationPreference? account) =>
     account == null || account == api.NotificationPreference.everything;
 
-/// The account default as it applies in one message, mirroring the server's
-/// `push::recipients::read_only_default`: "everything" becomes "mentions"
-/// where this account cannot post or when a bot or webhook wrote the message,
-/// so a busy feed does not alert everyone it reaches. Only used when there is
-/// no override for the channel.
+/// The account default as it applies to one message, mirroring `push::recipients::read_only_default`: "everything" becomes "mentions" where this account cannot post or a bot or webhook wrote it.
 api.NotificationPreference? readOnlyDefault(
   api.NotificationPreference? account, {
   required bool canSend,

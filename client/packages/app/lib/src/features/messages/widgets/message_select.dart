@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A select menu on a bot's message. See
-/// docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md.
-///
-/// Which surface it opens follows docs/design/desktop-vs-mobile.md. Picking
-/// one value from a short list for a control that stays on screen is rule 2,
-/// the anchored menu (a sheet under 600 wide, via `ContextMenuRegion`). More
-/// than eight options, or a choice of several, is a short task with a submit,
-/// rule 4: `showAppSheet`.
+/// A select menu on a bot's message (docs/decisions/0083-bot-token-reissue-select-menus-and-forms.md).
+/// Surface per docs/design/desktop-vs-mobile.md: one value from a short list is rule 2, the anchored menu; more than eight options, or several choices, is rule 4, `showAppSheet`.
 library;
 
 import 'dart:async';

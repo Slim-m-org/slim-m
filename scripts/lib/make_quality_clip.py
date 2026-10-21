@@ -1,13 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """The reference clips the voice quality harness plays through a call.
 
-Voiced syllables with moving pitch and vowel formants (the part a speech codec
-is tuned for), log sine sweeps (the part it is not), and silence gaps with
-nothing in them, so any sound heard there is an artefact. Deliberately free of
-noise and steady tones: both are anomaly classes the analysis hunts for.
-
-Two variants differ in pitch, wording and sweep, so a call carries a different
-voice each way. 48kHz mono 16-bit, which is what Chrome's fake capture needs.
+Voiced syllables with moving pitch and formants, log sine sweeps, and silent gaps where any sound is an artefact; deliberately free of noise and steady tones, which the analysis hunts for.
+Two variants differ in pitch, wording and sweep so each way carries a different voice; 48 kHz mono 16-bit, as Chrome's fake capture needs.
 """
 import math
 import random

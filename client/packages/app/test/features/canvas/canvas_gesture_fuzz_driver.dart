@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A seeded random pointer driver for the real canvas pane, and the
-/// invariants it checks after every step and whenever every pointer is up.
-///
-/// Not a `_test.dart` file, so `flutter test` does not try to run it.
+/// A seeded random pointer driver for the real canvas pane and the invariants it checks after every step and whenever every pointer is up.
 library;
 
 import 'dart:convert';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-091: the board needs a keyboard and screen-reader route. Content must
+/// The board needs a keyboard and screen-reader route. Content must
 /// reach the semantics tree without a pointer selection, and the zoom keys
 /// must move the camera.
 library;

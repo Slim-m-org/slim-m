@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Invite a friend": one action that makes a single-use, 24 hour invite and
-/// hands its link to the share sheet, or the clipboard where there is none.
-///
-/// Reached from the Space menu and the member list header, so a member never
-/// has to find Space settings to bring someone in.
+/// "Invite a friend": makes a single-use 24 hour invite and hands its link to the share sheet or clipboard, from the Space menu and the member list header.
 library;
 
 import 'package:flutter/foundation.dart';

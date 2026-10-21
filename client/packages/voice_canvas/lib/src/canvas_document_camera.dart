@@ -3,16 +3,8 @@ part of 'canvas_document.dart';
 
 /// The camera and viewport of [CanvasDocument], clamped to the world or the board.
 extension CanvasDocumentCamera on CanvasDocument {
-  /// Moves the camera, clamped so the view stays inside the bounded world and
-  /// the zoom inside the range a viewport read is sized for.
-  ///
-  /// Silent when the clamp lands on the camera already held, the same guard
-  /// [setViewport] keeps and for a sharper reason. This is called once per
-  /// pointer event for the whole of a pan or a pinch, and a gesture that runs
-  /// into a world edge or a zoom stop keeps resolving to the held camera for
-  /// as long as the finger stays down. Every notification from here rebuilds
-  /// both presence layers, so those are whole rebuilds of a frame that has
-  /// not changed.
+  /// Moves the camera, clamped to the bounded world and the zoom range a viewport read is sized for.
+  /// Silent when the clamp lands on the held camera: this runs per pointer event and a gesture against a world edge would otherwise rebuild both presence layers for an unchanged frame.
   void setCamera(Camera next) {
     final clamped = _clamp(next);
     final board = _board;

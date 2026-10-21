@@ -1,26 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Randomized property test for the server's canvas op model.
-//!
-//! Seeded sequences of place, move, resize, edit, erase, reorder, clear,
-//! scoped clear, restore, lock, unlock and retried ops, from two to four
-//! writers, run against a real store next to a reference model. Between steps
-//! it checks that the table matches the model, that reference clients folding
-//! the ops feed (cold-joined mid-run, or replayed from 0 with assorted page
-//! sizes) land on the live table, that the viewport read matches a brute-force
-//! filter, that the log is dense and its timestamps unique, and that the
-//! compaction sweep never deletes an op that still undoes something.
-//!
-//! A violation is shrunk to a short step list and printed with its seed. Env:
-//! `CANVAS_FUZZ_SEEDS` (default 32), `CANVAS_FUZZ_STEPS` (default 200),
-//! `CANVAS_FUZZ_BASE` (first seed, default 1), `CANVAS_FUZZ_STATS` (print what
-//! each seed range exercised) and `CANVAS_FUZZ_SKIP`, a comma list of
-//! generator families to switch off so a run can dig past a known finding:
-//! `dup_ids`, `cap_lower`, `degenerate`, `subnormal`, `sweep`, `retry`, `lock`,
-//! `image`, `mods`, `restart` and `bulk`.
-//!
-//! Besides the sharded randomized runs, `repros` holds one small test per
-//! finding, `racing` the cross-channel and concurrent-writer cases, `events`
-//! the live frames against the feed, and `http_garbage` hostile bodies.
+//! Randomized property test for the server's canvas op model: seeded sequences from two to four writers against a real store next to a reference model, checked between steps.
+//! A violation is shrunk and printed with its seed; `CANVAS_FUZZ_SEEDS`, `_STEPS`, `_BASE`, `_STATS` and `_SKIP` tune a run.
+//! `repros` holds one test per finding, `racing` the concurrent cases, `events` live frames against the feed, `http_garbage` hostile bodies.
 
 mod checks;
 mod compare;

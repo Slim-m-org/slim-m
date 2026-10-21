@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Audit C-114: at phone width the overflow menu lives in the header's
+/// At phone width the overflow menu lives in the header's
 /// `CanvasCompactEditGroup`, which was handed a one-time `CanvasDockData`
 /// snapshot, so a tile hidden afterwards never got its "Show" restore row.
 library;

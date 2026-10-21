@@ -21,10 +21,8 @@ class CanvasObject {
 
   final String id;
 
-  /// `stroke`, `image`, `note` or `shape`. Deliberately a String: a
-  /// client too old to know a kind should skip that object, not fail to parse
-  /// the region. There is no `window` kind and there will not be one - a
-  /// window is a behaviour of an object, not an object (decision 0004).
+  /// `stroke`, `image`, `note` or `shape`. A String so a client too old to know a kind skips the object
+  /// instead of failing the region; there is no `window` kind (decision 0004).
   final String kind;
 
   final int zIndex;

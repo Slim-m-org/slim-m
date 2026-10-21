@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Regression for C-098: push-to-talk must not open the mic for a paste chord
+/// Regression: push-to-talk must not open the mic for a paste chord
 /// or for typing into a text field other than the composer (a canvas note).
 library;
 

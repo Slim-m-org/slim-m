@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-081: a late placement reply must not yank the tool out from under
+/// A late placement reply must not yank the tool out from under
 /// whatever the person switched to while it was in flight.
 library;
 

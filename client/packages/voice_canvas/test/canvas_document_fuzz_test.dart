@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Seeded random op streams against [CanvasDocument], checked after every
-/// step against an independent reference model
-/// (`support/canvas_document_model.dart`).
-///
-/// Every violation is collected by category with the seed, the step and the
-/// tail of the op trace that produced it, and the test fails once at the end
-/// listing all of them, so one run names every distinct way the document
-/// disagrees with the contract it documents.
-///
-/// Invariants: the object count, every per-object field, the grid finding
-/// exactly the live objects, paint order being a sorted permutation of the
-/// live visible ids, no removed or killed id being hit-testable, the
-/// selection never naming a removed object, and the board bookkeeping.
-/// `CANVAS_DOC_FUZZ_SEEDS`, `_STEPS` and `_POOL` size the run.
+/// Seeded random op streams against [CanvasDocument], checked after every step against an independent reference model (`support/canvas_document_model.dart`).
+/// Violations are collected by category with the seed, step and op trace tail, and the test fails once at the end; `CANVAS_DOC_FUZZ_SEEDS`, `_STEPS` and `_POOL` size the run.
 library;
 
 import 'dart:io';

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-041: a note placement is one unretried POST, so a transient failure
+/// A note placement is one unretried POST, so a transient failure
 /// loses the typed text instead of retrying with the same id.
 library;
 

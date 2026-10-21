@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Seeded random pointer sequences against the real canvas pane at a desktop
-/// width: mouse, touch, stylus and trackpad, one to three pointers, cancels,
-/// tool switches mid-gesture, wheel and remote edits.
-///
-/// The "no mid-gesture tool switch" group runs the same sequences with every
-/// tool change held back until all pointers are up, so a bug there is not
-/// hidden behind the tool-switch one.
-///
-/// `--dart-define=FUZZ_SEEDS=200 --dart-define=FUZZ_STEPS=120` widens a run;
-/// a failing seed is replayed by running the same numbers again.
+/// Seeded random pointer sequences against the real canvas pane at desktop width: mouse, touch, stylus and trackpad, one to three pointers, cancels, tool switches, wheel and remote edits.
+/// A second group holds tool changes until all pointers are up; `--dart-define=FUZZ_SEEDS` and `FUZZ_STEPS` widen a run.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

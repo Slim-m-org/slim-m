@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Hand-written replays of what the gesture fuzz and its follow-up probes found
-/// about input that blocks or distorts creative work: panning from a stroke, a
-/// long erase drag, a scroll mid-stroke, a stylus with a resting palm, finger
-/// reach on a wide window, and the note editor on a sideways phone.
-///
-/// Each asserts the behaviour a person would expect, so each fails until its
-/// bug is fixed.
+/// Hand-written replays of input the gesture fuzz found that blocks or distorts drawing: panning from a stroke, a long erase drag, a mid-stroke scroll, a stylus with a resting palm, finger reach and the note editor on a sideways phone.
 library;
 
 import 'package:flutter/foundation.dart';

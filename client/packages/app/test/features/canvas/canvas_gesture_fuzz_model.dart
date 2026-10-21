@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What the fake server holds after everything the pane sent and every live
-/// frame the fuzz injected, so a run can tell the pane's picture of the board
-/// from the real one.
-///
-/// Not a `_test.dart` file, so `flutter test` does not try to run it.
+/// What the fake server holds after everything the pane sent and every injected live frame, to tell the pane's picture of the board from the real one.
 library;
 
 import 'dart:ui';

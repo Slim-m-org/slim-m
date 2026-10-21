@@ -219,10 +219,7 @@ class CanvasOpsController {
     }
   }
 
-  /// Reverses the most recent drawn or erased gesture, or does nothing if
-  /// there is none. What it reversed becomes available to [redo]. An entry
-  /// leaves the stack only once its reversal succeeded, so a throttle or a
-  /// dropped connection never strands what it was holding.
+  /// Reverses the most recent drawn or erased gesture and makes it available to [redo]; an entry leaves the stack only once its reversal succeeded.
   Future<void> undo() async {
     if (_historyBusy) return;
     _historyBusy = true;

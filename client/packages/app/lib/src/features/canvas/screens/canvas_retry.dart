@@ -24,11 +24,8 @@ bool isTransientCanvasFailure(api.ApiException error) => switch (error) {
   _ => false,
 };
 
-/// Runs [send] again after a transient failure, always with the same
-/// request (so the server's idempotency key makes a lost reply harmless),
-/// backing off up to [_maxDelay] and honouring a throttle's `retryAfter`.
-/// Rethrows the last failure after [maxAttempts] (null retries until
-/// [giveUp] says stop), and at once for anything a retry cannot fix.
+/// Reruns [send] after a transient failure with the same request (so the idempotency key makes a lost reply harmless), backing off and honouring `retryAfter`.
+/// Rethrows after [maxAttempts] (null retries until [giveUp] says stop), and at once for anything a retry cannot fix.
 Future<T> retryCanvasRequest<T>(
   Future<T> Function() send, {
   int? maxAttempts = 6,

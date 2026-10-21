@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The audio counters of a call as plain data, read from a raw stats report.
-///
-/// A raw report carries fields the livekit wrapper drops (samples received,
-/// jitter buffer emitted count, the candidate pair's round trip), so these are
-/// parsed here from [StatsEntry] rather than from the wrapper's types.
+/// The audio counters of a call as plain data, parsed from a raw [StatsEntry] report because the livekit wrapper drops some fields (samples received, jitter buffer emitted count, candidate pair round trip).
 library;
 
 import 'call_stats.dart' show StatsEntry;

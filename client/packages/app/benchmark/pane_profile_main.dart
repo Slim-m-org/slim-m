@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The real `CanvasPane`, on a busy board with a full call, in a profile-mode
-/// window: build and raster time for every frame of a scripted session.
-///
-/// The network and the media session are fakes; everything else is shipped
-/// code. Built and driven by `pane_profile.sh`, inside a nested compositor.
+/// The real `CanvasPane` on a busy board with a full call, in a profile-mode window; driven by `pane_profile.sh`.
 library;
 
 import 'dart:async';

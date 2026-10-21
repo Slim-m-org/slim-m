@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! C-028: an erased object past retention is never reclaimed.
+//! An erased object past retention is never reclaimed.
 
 use slimm_server::config::Config;
 use slimm_server::db;

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The canvas overflow menu's two additions: "Clear part of the canvas" (a
 /// scope picked in a sheet, then confirmed) and "Participants" (the call's
-/// people, each opening the menu their call tile has).
+/// people, each opening the menu their call tile has); a sheet opened from it
+/// takes keyboard focus so pane hotkeys stay quiet behind it.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -54,8 +56,12 @@ const _bobTalking = VoiceParticipant(
   isScreenSharing: false,
 );
 
+final paneKeys = <String>[];
+const _paneFocus = ValueKey('pane focus');
+
 Future<void> _pump(
   WidgetTester tester, {
+  bool paneHotkeys = false,
   CanvasScopedClear? scopedClear,
   bool inCall = false,
   bool speaking = false,
@@ -65,6 +71,34 @@ Future<void> _pump(
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
+  final home = Scaffold(
+    body: Align(
+      alignment: Alignment.topRight,
+      child: CanvasOverflowMenu(
+        opensBelow: true,
+        onPasteImage: () {},
+        canDraw: true,
+        onToggleFullscreen: () {},
+        canManage: true,
+        onClear: () async {},
+        scopedClear: scopedClear,
+        selection: ValueNotifier(null),
+        onBringToFront: (_) {},
+        onSendToBack: (_) {},
+        onDeleteSelected: (_) {},
+        activityLogOpen: false,
+        onToggleActivityLog: () {},
+        tool: CanvasTool.pan,
+        shapeKind: CanvasShapeKind.rectangle,
+        onShapeKindChanged: (_) {},
+        hasSelfBubble: inCall,
+        selfBubbleHidden: false,
+        onToggleSelfBubbleHidden: () {},
+        hiddenTiles: const [],
+        onShowTile: (_) {},
+      ),
+    ),
+  );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -80,34 +114,15 @@ Future<void> _pump(
       ],
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topRight,
-            child: CanvasOverflowMenu(
-              opensBelow: true,
-              onPasteImage: () {},
-              canDraw: true,
-              onToggleFullscreen: () {},
-              canManage: true,
-              onClear: () async {},
-              scopedClear: scopedClear,
-              selection: ValueNotifier(null),
-              onBringToFront: (_) {},
-              onSendToBack: (_) {},
-              onDeleteSelected: (_) {},
-              activityLogOpen: false,
-              onToggleActivityLog: () {},
-              tool: CanvasTool.pan,
-              shapeKind: CanvasShapeKind.rectangle,
-              onShapeKindChanged: (_) {},
-              hasSelfBubble: inCall,
-              selfBubbleHidden: false,
-              onToggleSelfBubbleHidden: () {},
-              hiddenTiles: const [],
-              onShowTile: (_) {},
-            ),
-          ),
-        ),
+        home: paneHotkeys
+            ? CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.keyE): () =>
+                      paneKeys.add('e'),
+                },
+                child: Focus(key: _paneFocus, autofocus: true, child: home),
+              )
+            : home,
       ),
     ),
   );
@@ -116,6 +131,8 @@ Future<void> _pump(
 }
 
 void main() {
+  setUp(paneKeys.clear);
+
   testWidgets('no scoped clear item without the control', (tester) async {
     await _pump(tester);
 
@@ -252,5 +269,31 @@ void main() {
     await _pump(tester);
 
     expect(find.text('Participants'), findsNothing);
+  });
+
+  testWidgets('Participants sheet takes focus and pane hotkeys stay quiet', (
+    tester,
+  ) async {
+    await _pump(tester, inCall: true, paneHotkeys: true);
+    await tester.tap(find.text('Participants'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
+
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    // The sheet's route holds focus; anything at or under the pane behind it would hear the hotkeys.
+    final behind =
+        focusContext == null ||
+        find
+            .descendant(
+              of: find.byKey(_paneFocus),
+              matching: find.byElementPredicate((e) => e == focusContext),
+            )
+            .evaluate()
+            .isNotEmpty ||
+        find.byKey(_paneFocus).evaluate().contains(focusContext);
+    expect(behind, isFalse, reason: 'focus is on ${focusContext?.widget}');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    expect(paneKeys, isEmpty, reason: 'pane hotkey fired behind the sheet');
   });
 }
