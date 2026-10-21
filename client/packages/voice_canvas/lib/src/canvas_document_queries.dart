@@ -171,11 +171,11 @@ extension CanvasDocumentQueries on CanvasDocument {
     return bounds;
   }
 
-  /// A snapshot taken at or after an id's removal that still lists the id
-  /// says the object was restored since.
+  /// A snapshot taken after an id's removal that still lists the id says it was restored since.
+  /// One taken at the removal's own seq reflects the removal, so it cannot be a restore.
   bool _restoredBefore(String id, int? snapshotSeq) {
     final removedAt = _removed.seqOf(id);
-    return snapshotSeq != null && removedAt != null && snapshotSeq >= removedAt;
+    return snapshotSeq != null && removedAt != null && snapshotSeq > removedAt;
   }
 
   bool _alreadyReflected(int seq) {

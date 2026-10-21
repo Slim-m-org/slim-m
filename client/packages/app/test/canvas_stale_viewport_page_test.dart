@@ -58,7 +58,11 @@ void main() {
     await tester.pump();
     expect(surfaceDocument(tester).objectCount.value, 0);
 
+    // The camera settling mid-flight asks for another pass, which then reads at the clear's own head.
+    final again = engine.fetch();
+
     fixture.viewportGate!.complete();
+    await tester.runAsync(() async => again);
     await tester.runAsync(() async => inFlight);
     await tester.pump();
 
