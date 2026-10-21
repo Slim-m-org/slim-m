@@ -5,7 +5,8 @@
 /// label changes every second and a screen reader re-reads it each tick.
 library;
 
-import 'package:flutter/semantics.dart';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_activity_panel.dart';
 
@@ -27,14 +28,13 @@ void main() {
     );
     final data = node.getSemanticsData();
     expect(
-      data.hasFlag(SemanticsFlag.isLiveRegion),
+      data.flagsCollection.isLiveRegion,
       isTrue,
       reason: 'sanity: the finder reached the live region',
     );
     expect(
-      data.hasFlag(SemanticsFlag.isFocused) ||
-          data.hasFlag(SemanticsFlag.isFocusable),
-      isFalse,
+      data.flagsCollection.isFocused,
+      Tristate.none,
       reason:
           'merged into the pane focus scope, so any timer text there '
           'changes this live label every second',

@@ -65,8 +65,13 @@ void main() {
     document.selectedObjectId.value = 'note-1';
     await tester.pump();
 
-    final root =
-        tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!;
+    final root = tester
+        .binding
+        .renderViews
+        .first
+        .owner!
+        .semanticsOwner!
+        .rootSemanticsNode!;
     final reached = _anyNode(
       root,
       (n) => n.label.contains('Selected note') && !n.rect.isEmpty,
