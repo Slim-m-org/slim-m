@@ -4,7 +4,6 @@
 /// pen-up than the same stroke drawn down and to the right.
 library;
 
-import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
