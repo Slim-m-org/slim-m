@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::ids::ChannelId;
+use crate::ids::{CanvasObjectId, ChannelId};
 use crate::permissions::Permissions;
 
 /// How long an answer may be reused before it is asked again.
@@ -18,10 +18,16 @@ use crate::permissions::Permissions;
 /// second still asks once rather than once per message.
 pub(super) const TTL: Duration = Duration::from_secs(5);
 
+/// Most channels one connection caches; frames naming random channel ids would otherwise grow it forever.
+const MAX_CHANNELS: usize = 256;
+/// Most objects one connection remembers as previewable at once.
+const MAX_PREVIEWABLE: usize = 64;
+
 /// One connection's cached per-channel permission sets.
 pub(super) struct PermissionCache {
     entries: HashMap<ChannelId, Entry>,
     timeout: Option<TimeoutEntry>,
+    previewable: HashMap<(ChannelId, CanvasObjectId), Instant>,
 }
 
 /// The member's timeout expiry as last read, kept as an instant rather than a
@@ -43,7 +49,37 @@ impl PermissionCache {
         Self {
             entries: HashMap::new(),
             timeout: None,
+            previewable: HashMap::new(),
         }
+    }
+
+    /// Whether the member was just found able to move this object, so a drag's
+    /// stream of previews asks the store once rather than once per frame.
+    pub(super) fn previewable(
+        &self,
+        channel_id: ChannelId,
+        object_id: CanvasObjectId,
+        now: Instant,
+    ) -> bool {
+        self.previewable
+            .get(&(channel_id, object_id))
+            .is_some_and(|asked_at| now.duration_since(*asked_at) < TTL)
+    }
+
+    pub(super) fn insert_previewable(
+        &mut self,
+        channel_id: ChannelId,
+        object_id: CanvasObjectId,
+        now: Instant,
+    ) {
+        if self.previewable.len() >= MAX_PREVIEWABLE {
+            self.previewable
+                .retain(|_, asked_at| now.duration_since(*asked_at) < TTL);
+        }
+        if self.previewable.len() >= MAX_PREVIEWABLE {
+            self.previewable.clear();
+        }
+        self.previewable.insert((channel_id, object_id), now);
     }
 
     /// The cached timeout expiry (`Some(None)` is a cached "not timed out"), or `None` to go and ask.
@@ -90,6 +126,13 @@ impl PermissionCache {
         now: Instant,
         epoch: u64,
     ) {
+        if self.entries.len() >= MAX_CHANNELS && !self.entries.contains_key(&channel_id) {
+            self.entries
+                .retain(|_, entry| now.duration_since(entry.asked_at) < TTL);
+            if self.entries.len() >= MAX_CHANNELS {
+                self.entries.clear();
+            }
+        }
         self.entries.insert(
             channel_id,
             Entry {
@@ -164,6 +207,25 @@ mod tests {
         assert_eq!(cache.timeout_until(now, 7), Some(Some(5)));
         assert_eq!(cache.timeout_until(now, 8), None);
         assert_eq!(cache.timeout_until(now + TTL, 7), None);
+    }
+
+    #[test]
+    fn the_cache_never_holds_more_than_its_cap_of_channels() {
+        let (mut cache, _, now) = cache();
+        for _ in 0..(MAX_CHANNELS * 3) {
+            cache.insert(ChannelId::generate(), VIEW, now, 7);
+        }
+        assert!(cache.entries.len() <= MAX_CHANNELS);
+    }
+
+    #[test]
+    fn a_previewable_object_is_remembered_for_the_window_only() {
+        let (mut cache, channel, now) = cache();
+        let object = CanvasObjectId::generate();
+        assert!(!cache.previewable(channel, object, now));
+        cache.insert_previewable(channel, object, now);
+        assert!(cache.previewable(channel, object, now));
+        assert!(!cache.previewable(channel, object, now + TTL));
     }
 
     #[test]

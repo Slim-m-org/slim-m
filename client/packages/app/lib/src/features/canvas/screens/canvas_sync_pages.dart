@@ -14,6 +14,7 @@ extension CanvasSyncViewport on CanvasSync {
     api.CanvasViewport page,
     Rect region, {
     void Function(api.CanvasObject object)? onObject,
+    bool listsWholeRegion = true,
   }) {
     final head = page.latestSeq;
     seedFromViewport(head);
@@ -28,7 +29,9 @@ extension CanvasSyncViewport on CanvasSync {
       onObject?.call(object);
     }
     // A document still behind the snapshot differs from it by ops the feed is about to bring.
-    if (!page.hasMore && head <= cursor) _dropUnlisted(page, region, head);
+    if (listsWholeRegion && !page.hasMore && head <= cursor) {
+      _dropUnlisted(page, region, head);
+    }
     if (head < cursor) _log.after(head).forEach(_reapply);
     document.refresh();
     return CanvasPageOutcome.applied;
@@ -40,10 +43,16 @@ extension CanvasSyncViewport on CanvasSync {
     var cleared = false;
     for (final op in _log.after(object.seq)) {
       switch (op) {
-        case api.CanvasClearOp(:final beforeSeq, :final scope):
+        case api.CanvasClearOp(
+          :final beforeSeq,
+          :final scope,
+          :final sparedIds,
+        ):
           cleared =
               cleared ||
-              (beforeSeq >= object.seq && _scopeCovers(scope, object));
+              (beforeSeq >= object.seq &&
+                  _scopeCovers(scope, object) &&
+                  !sparedIds.contains(object.id));
         case api.CanvasRestoreOp(:final objectIds):
           // Restored again since, or a restore too large to name its objects.
           if (objectIds.isEmpty || objectIds.contains(object.id)) {

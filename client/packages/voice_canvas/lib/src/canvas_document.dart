@@ -351,18 +351,21 @@ class CanvasDocument extends ChangeNotifier {
   /// erase ink as it is drawn, before its own placement is even known.
   ///
   /// [kinds] and [authorId] narrow it the way a scoped clear does; empty and
-  /// null match everything. [opSeq] is the clear's own seq, when known.
+  /// null match everything. [opSeq] is the clear's own seq, when known, and
+  /// [spare] names locked objects the clear left standing.
   void clearBelow(
     int beforeSeq, {
     Set<CanvasObjectKind> kinds = const {},
     String? authorId,
     int? opSeq,
+    Set<String> spare = const {},
   }) {
     for (var slot = 0; slot < _strokes.length; slot++) {
       final stroke = _strokes[slot];
       if (stroke == null || stroke.seq <= 0 || stroke.seq > beforeSeq) continue;
       if (kinds.isNotEmpty && !kinds.contains(stroke.kind)) continue;
       if (authorId != null && stroke.authorId != authorId) continue;
+      if (spare.contains(stroke.id)) continue;
       _removed.add(stroke.id, seq: opSeq);
       _freeSlot(slot);
     }

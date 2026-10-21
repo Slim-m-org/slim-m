@@ -142,6 +142,7 @@ async fn scope_fields_are_validated() {
     for extra in [
         json!({ "kinds": ["window"] }),
         json!({ "author_id": "not-a-uuid" }),
+        json!({ "kinds": [] }),
     ] {
         let (status, _) = submit_op(&app, channel, &token, scoped(&id(), 1, extra)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST);

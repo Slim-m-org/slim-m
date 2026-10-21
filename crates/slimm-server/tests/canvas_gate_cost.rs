@@ -79,8 +79,10 @@ async fn live_canvas_frames_cost_no_permission_queries_per_frame() {
     store.bootstrap_deployment(alice.id).await.unwrap();
     let channel = store.list_channels().await.unwrap()[0].id;
     let mut tickets = Vec::new();
+    let mut drawer_id = None;
     for name in ["draws", "watches"] {
         let user = store.create_user(name, name).await.unwrap();
+        drawer_id.get_or_insert(user.id);
         let tokens = store.open_session(user.id, "device").await.unwrap();
         let ctx = store
             .authenticate(&tokens.access_token)
@@ -97,10 +99,21 @@ async fn live_canvas_frames_cost_no_permission_queries_per_frame() {
     let mut drawer = connect(addr, &tickets[0]).await;
     let mut watcher = connect(addr, &tickets[1]).await;
 
+    let dragged = slimm_server::ids::CanvasObjectId::generate();
+    let request = slimm_server::store::PlaceRequest {
+        kind: "note",
+        bounds: (0.0, 0.0, 10.0, 10.0),
+        props: "{}",
+        attachment: None,
+    };
+    store
+        .place_canvas_object(channel, drawer_id.unwrap(), dragged, request)
+        .await
+        .unwrap();
     let send_one = |n: usize| {
         json!({
             "type": "canvas.object_preview", "channel_id": channel.to_string(),
-            "object_id": uuid::Uuid::now_v7().to_string(),
+            "object_id": dragged.to_string(),
             "x": n as f64, "y": 0.0, "w": 10.0, "h": 10.0,
         })
         .to_string()

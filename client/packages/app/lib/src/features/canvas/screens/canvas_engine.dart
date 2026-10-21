@@ -244,7 +244,6 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       return fetch(keepError: true);
     },
     isLocked: objectLocks.isLocked,
-    applyOwn: sync.applyLive,
   );
 
   CanvasCursorRelay? _cursorRelay;
@@ -355,6 +354,10 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         selfId: () => _ref.read(meProvider).valueOrNull?.id,
         isDraggingLocally: (id) => document.elevatedObjectId.value == id,
         glide: () => objectPreviewGlide,
+        onAbandoned: () {
+          _fetched = null;
+          unawaited(fetch(keepError: true));
+        },
       );
 
   /// Set by the pane from the reduce-motion setting, which only the widget

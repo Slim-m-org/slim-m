@@ -241,11 +241,25 @@ class CanvasPaneFixture {
           }
           postedOps.add(body);
           _opSeq++;
+          final seq = max(_opSeq, objects.length + postedOps.length);
+          if (body['kind'] == 'clear') {
+            // The server echoes a clear to everyone, its author included.
+            scheduleMicrotask(
+              () => events.add(
+                api.CanvasCleared(
+                  channelId: 'c1',
+                  seq: seq,
+                  opId: 'server-op-$_opSeq',
+                  beforeSeq: body['before_seq'] as int,
+                ),
+              ),
+            );
+          }
           return http.Response(
             jsonEncode({
               'op': {
                 'id': 'server-op-$_opSeq',
-                'seq': max(_opSeq, objects.length + postedOps.length),
+                'seq': seq,
                 'kind': body['kind'],
                 'affected': 1,
                 'created_at': 0,

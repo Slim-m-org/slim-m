@@ -29,6 +29,31 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasViewport.fromJson);
   }
 
+  /// One page of [region] in seq order, oldest first, from [cursorSeq]
+  /// (start at 0): load the visible area with [canvasViewport], then page the
+  /// rest of a big board in with this until `nextCursor` is null.
+  Future<CanvasViewport> canvasViewportPage(
+    String channelId, {
+    required CanvasRect region,
+    required int cursorSeq,
+    int? limit,
+  }) async {
+    final query = <String, String>{
+      'min_x': '${region.minX}',
+      'min_y': '${region.minY}',
+      'max_x': '${region.maxX}',
+      'max_y': '${region.maxY}',
+      'cursor_seq': '$cursorSeq',
+      if (limit != null) 'limit': '$limit',
+    };
+    final json = await _send(
+      'GET',
+      '/channels/$channelId/canvas/objects',
+      query: query,
+    );
+    return CanvasViewport.fromJson(json as Map<String, dynamic>);
+  }
+
   /// Places one object, idempotent by [id].
   ///
   /// [id] is a client-generated UUIDv7 and is the idempotency key, exactly as
@@ -200,4 +225,8 @@ extension SlimmApiCanvas on SlimmApi {
   /// Unlocks [objectId]; the same rule as [lockCanvasObject].
   Future<void> unlockCanvasObject(String channelId, String objectId) =>
       _send('DELETE', '/channels/$channelId/canvas/objects/$objectId/lock');
+
+  /// Removes [objectId] for good, locked or not; a canvas moderator only.
+  Future<void> purgeCanvasObject(String channelId, String objectId) =>
+      _send('DELETE', '/channels/$channelId/canvas/objects/$objectId');
 }

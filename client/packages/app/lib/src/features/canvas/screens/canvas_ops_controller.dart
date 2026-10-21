@@ -15,7 +15,6 @@ import 'package:flutter/painting.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 
@@ -91,7 +90,6 @@ class CanvasOpsController {
     required this.onError,
     this.onRemoveFailed,
     this.isLocked = _nothingLocked,
-    this.applyOwn,
   });
 
   static bool _nothingLocked(String objectId) => false;
@@ -110,11 +108,6 @@ class CanvasOpsController {
   /// Reads the region again after a remove the server refused, so the
   /// objects hidden for it come back from the server, the way a restore does.
   final Future<void> Function()? onRemoveFailed;
-
-  /// Runs a write's local effect through the op stream by its [seq], so a
-  /// reply that arrives after a newer op was applied cannot undo it.
-  final void Function(int seq, void Function() apply, {api.CanvasOp? replay})?
-  applyOwn;
 
   final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
   final Queue<_RedoEntry> _redoStack = Queue<_RedoEntry>();
@@ -342,29 +335,8 @@ class CanvasOpsController {
         beforeSeq: beforeSeq,
         clearScope: scope,
       );
+      // The clear's own frame removes the objects: it names the locked ones the server spared, which this reply does not.
       if (result.op.affected > 0) {
-        void clearLocally() {
-          clearDocumentScope(document, beforeSeq, scope, opSeq: result.op.seq);
-          document.refresh();
-        }
-
-        final own = applyOwn;
-        if (own == null) {
-          clearLocally();
-        } else {
-          own(
-            result.op.seq,
-            clearLocally,
-            replay: api.CanvasClearOp(
-              seq: result.op.seq,
-              id: result.op.id,
-              actorId: null,
-              createdAt: result.op.createdAt,
-              beforeSeq: beforeSeq,
-              scope: scope,
-            ),
-          );
-        }
         _pushUndo(_EraseEntry(result.op.id));
       }
       return true;

@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use super::canvas_gate::{Frame, may_relay};
+use super::canvas_gate::{Frame, may_relay, relay_grant};
 use super::frames::ServerFrame;
 use super::permission_cache::PermissionCache;
 use crate::hub::{Event, Hub};
@@ -14,7 +14,7 @@ use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::{self, DeviceKind, Status, Visibility};
 use crate::ratelimit::{Class, RateLimiter};
-use crate::store::{SessionContext, Store, WORLD_LIMIT};
+use crate::store::{SessionContext, Store, WORLD_LIMIT, valid_bounds};
 
 /// Ensures a disconnect is always recorded and published, no matter which
 /// branch of the read loop in `super::serve` causes it to return: a `Drop`
@@ -479,13 +479,7 @@ pub(super) async fn handle_canvas_object_preview(
     };
     let channel_id = ChannelId(channel_id);
     let [x, y, w, h] = frame.rect;
-    if frame
-        .rect
-        .iter()
-        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
-        || w < 0.0
-        || h < 0.0
-    {
+    if !valid_bounds(x, y, w, h) {
         return;
     }
     let key = format!("u:{}", ctx.user_id);
@@ -494,14 +488,26 @@ pub(super) async fn handle_canvas_object_preview(
     }
     hub.presence().touch(ctx.user_id);
 
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Ink).await {
+    let Some(granted) = relay_grant(store, hub, ctx, cache, channel_id, Frame::Ink).await else {
         return;
+    };
+    let object_id = CanvasObjectId(object_id);
+    let may_moderate = granted.contains(Permissions::MANAGE_CANVAS);
+    let now = std::time::Instant::now();
+    if !cache.previewable(channel_id, object_id, now) {
+        let movable = store
+            .canvas_object_movable_by(channel_id, object_id, ctx.user_id, may_moderate)
+            .await;
+        if !movable.unwrap_or(false) {
+            return;
+        }
+        cache.insert_previewable(channel_id, object_id, now);
     }
 
     hub.publish(Event::CanvasObjectPreview {
         channel_id,
         user_id: ctx.user_id,
-        object_id: CanvasObjectId(object_id),
+        object_id,
         x,
         y,
         w,

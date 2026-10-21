@@ -37,6 +37,7 @@ pub use self::canvas_geometry::{
 pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
 
 pub(super) mod canvas_audit;
+pub(super) mod canvas_clear;
 pub(super) mod canvas_edit;
 pub(super) mod canvas_geometry;
 pub(super) mod canvas_media_slots;
@@ -47,6 +48,7 @@ pub(super) mod canvas_ops;
 pub(super) mod canvas_ops_apply;
 pub(super) mod canvas_ops_sweep;
 pub(super) mod canvas_ops_write;
+pub(super) mod canvas_purge;
 
 /// A placed canvas object.
 #[derive(Debug, Clone)]
@@ -310,6 +312,70 @@ impl Store {
     }
 }
 
+/// The R-tree stores 32-bit floats, which round a coordinate this close to zero down to zero; the exact test after it decides.
+const RTREE_PAD: f64 = 1e-6;
+
+impl Store {
+    /// One page of a region in `seq` order, for loading a whole board after its visible part.
+    /// Returns the canvas head, the channel's live object count and the page; `limit` is a row count.
+    pub async fn viewport_page(
+        &self,
+        channel_id: ChannelId,
+        view: Rect,
+        cursor_seq: i64,
+        limit: i64,
+    ) -> anyhow::Result<(i64, i64, Vec<CanvasObject>)> {
+        let mut tx = self.begin_read().await?;
+        let latest_seq = latest_canvas_seq_query(&mut *tx, channel_id).await?;
+        let total = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!: i64" FROM canvas_objects
+               WHERE channel_id = ? AND deleted_at IS NULL"#,
+            channel_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        let key = channel_key(channel_id);
+        let (rt_min_x, rt_max_x) = (view.min_x - RTREE_PAD, view.max_x + RTREE_PAD);
+        let (rt_min_y, rt_max_y) = (view.min_y - RTREE_PAD, view.max_y + RTREE_PAD);
+        let objects = sqlx::query_as!(
+            CanvasObject,
+            r#"SELECT o.id AS "id!: CanvasObjectId", o.kind AS "kind!",
+                      o.z_index AS "z_index!: i64",
+                      o.x AS "x!: f64", o.y AS "y!: f64",
+                      o.w AS "w!: f64", o.h AS "h!: f64",
+                      o.props AS "props!", o.author_id AS "author_id: UserId",
+                      o.seq AS "seq!: Seq", o.created_at AS "created_at!: i64"
+               FROM canvas_rtree r
+               CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id
+               WHERE r.min_key <= ? AND r.max_key >= ?
+                 AND r.max_x >= ? AND r.min_x <= ?
+                 AND r.max_y >= ? AND r.min_y <= ?
+                 AND o.channel_id = ? AND o.deleted_at IS NULL AND o.seq > ?
+                 AND o.x <= ? AND o.x + o.w >= ?
+                 AND o.y <= ? AND o.y + o.h >= ?
+               ORDER BY o.seq ASC
+               LIMIT ?"#,
+            key,
+            key,
+            rt_min_x,
+            rt_max_x,
+            rt_min_y,
+            rt_max_y,
+            channel_id,
+            cursor_seq,
+            view.max_x,
+            view.min_x,
+            view.max_y,
+            view.min_y,
+            limit
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok((latest_seq, total, objects))
+    }
+}
+
 async fn viewport_objects_query<'e, E>(
     executor: E,
     channel_id: ChannelId,
@@ -327,6 +393,8 @@ where
         max_y: 0.0,
     });
     let has_previous = i64::from(query.previous.is_some());
+    let (rt_min_x, rt_max_x) = (view.min_x - RTREE_PAD, view.max_x + RTREE_PAD);
+    let (rt_min_y, rt_max_y) = (view.min_y - RTREE_PAD, view.max_y + RTREE_PAD);
 
     let rows = sqlx::query_as!(
         CanvasObject,
@@ -351,10 +419,10 @@ where
            LIMIT ?"#,
         key,
         key,
-        view.min_x,
-        view.max_x,
-        view.min_y,
-        view.max_y,
+        rt_min_x,
+        rt_max_x,
+        rt_min_y,
+        rt_max_y,
         channel_id,
         view.max_x,
         view.min_x,

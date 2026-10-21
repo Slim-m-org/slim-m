@@ -3,20 +3,14 @@
 /// converges on the same objects however many there are.
 library;
 
-import 'dart:collection';
-import 'dart:ui';
-
 import 'package:slimm_api/api.dart' as api;
 
 import 'canvas_sync.dart';
 
-/// A tile this small that is still crowded is given up on and reported.
-const double minPagedTile = 32;
-
-/// A board past the object cap cannot need more reads than this to be walked.
+/// A board past the object cap cannot need more pages than this to be walked.
 const int maxPagedReads = 400;
 
-/// A tile whose page keeps arriving older than the document is read again this often.
+/// A page that keeps arriving older than the document is read again this often.
 const int maxStaleTileReads = 3;
 
 /// Objects held so far against the board's total, when the server says it.
@@ -42,63 +36,37 @@ class CanvasBoardPager {
     required this.isCancelled,
   });
 
-  final Future<api.CanvasViewport> Function(Rect region) read;
-  final CanvasPageOutcome Function(api.CanvasViewport page, Rect region) apply;
+  /// One page of the region from a seq cursor, oldest first.
+  final Future<api.CanvasViewport> Function(int cursorSeq) read;
+  final CanvasPageOutcome Function(api.CanvasViewport page) apply;
 
-  /// Called after every applied tile with the total the server reported, if any.
+  /// Called after every applied page with the total the server reported, if any.
   final void Function(int? total) onProgress;
   final bool Function() isCancelled;
 
-  /// Pages [seeds] in order, splitting any tile the server could not return
-  /// whole. Returns false when a tile stayed crowded at the smallest size.
-  Future<bool> run(List<Rect> seeds) async {
-    final queue = Queue<Rect>.of(seeds);
+  /// Pages the board by seq until the server has no more. Returns false when
+  /// it gave up: cancelled, too many pages, or a server that cannot page.
+  Future<bool> run() async {
+    var cursor = 0;
     int? total;
-    var complete = true;
-    var reads = 0;
-    while (queue.isNotEmpty) {
-      if (isCancelled()) return false;
-      if (++reads > maxPagedReads) return false;
-      final tile = queue.removeFirst();
-      final page = await _readTile(tile);
-      if (page == null) continue;
+    for (var reads = 0; reads < maxPagedReads; reads++) {
+      final page = await _readPage(cursor);
+      if (page == null) return false;
       total ??= page.totalObjects;
       onProgress(total);
-      if (!page.hasMore) continue;
-      if (tile.shortestSide <= minPagedTile) {
-        complete = false;
-        continue;
-      }
-      queue.addAll(_quarters(tile));
+      final next = page.nextCursor;
+      if (next == null) return !page.hasMore;
+      cursor = next;
     }
-    return complete;
+    return false;
   }
 
-  Future<api.CanvasViewport?> _readTile(Rect tile) async {
+  Future<api.CanvasViewport?> _readPage(int cursor) async {
     for (var attempt = 0; attempt < maxStaleTileReads; attempt++) {
-      final page = await read(tile);
+      final page = await read(cursor);
       if (isCancelled()) return null;
-      if (apply(page, tile) == CanvasPageOutcome.applied) return page;
+      if (apply(page) == CanvasPageOutcome.applied) return page;
     }
     return null;
   }
-
-  static List<Rect> _quarters(Rect r) {
-    final c = r.center;
-    return [
-      Rect.fromLTRB(r.left, r.top, c.dx, c.dy),
-      Rect.fromLTRB(c.dx, r.top, r.right, c.dy),
-      Rect.fromLTRB(r.left, c.dy, c.dx, r.bottom),
-      Rect.fromLTRB(c.dx, c.dy, r.right, r.bottom),
-    ];
-  }
-
-  /// The board first, then the four strips of world around it.
-  static List<Rect> seedsFor(Rect board, Rect world) => [
-    board,
-    Rect.fromLTRB(world.left, world.top, world.right, board.top),
-    Rect.fromLTRB(world.left, board.bottom, world.right, world.bottom),
-    Rect.fromLTRB(world.left, board.top, board.left, board.bottom),
-    Rect.fromLTRB(board.right, board.top, world.right, board.bottom),
-  ];
 }

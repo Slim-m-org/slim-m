@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT COUNT(*) AS \"count!: i64\" FROM canvas_op_targets\n               WHERE channel_id = ? AND seq = ?",
+  "query": "SELECT COUNT(*) AS \"count!: i64\" FROM canvas_op_targets\n           WHERE channel_id = ? AND seq = ?",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "4f611a93c3a1a65bccecb529390b77bec85e634cc5423a790e23d4387827c7d9"
+  "hash": "0aad053ea1e0147fd0e079880f2f88a3e7ce67dfba9f3328afca460933ea1432"
 }

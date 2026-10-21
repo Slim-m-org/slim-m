@@ -37,19 +37,26 @@ The owner's answers on 2026-10-21: every viewer converges on the same board, and
   The floor is measured on a monotonic clock.
 - A write the server refused, or only partly carried out, reads the region again, since rolling back to the box the gesture started from can undo a newer remote move.
 
+- A clear names the locked objects the server spared ([0085](0085-canvas-clear-purge-and-paging.md)).
+  The client keeps those standing, and reads again when the frame spared more than it could name.
+  Its own clear is removed by the clear's frame, not inferred from the reply, since only the frame names what was spared.
+- A restore reads the locks again, since the server republishes the lock of every locked object it brings back.
+- A drag preview that is given up on reads the region again, because the box it restores may no longer be the server's.
+
 The seeded fuzz (`canvas_engine_fuzz_test.dart`, 200 seeds in each of four configurations, run in under ten seconds) holds the engine to this and passes with no divergence.
-Seeds 400 to 1400 were also run once: one seed of 4000 still ended with a box left where a remote drag preview put it, which is left to a later pass.
+Seeds 0 to 1299 were run once in every configuration with none failing.
+The fuzz leaves out one behaviour, lost replies to a stroke placement, which ends in the commit queue giving up after three tries and belongs to the no-lost-work batch.
 
 ## Decision: a paged first read
 
 The first read of a canvas is the padded visible area, as before.
-Once it lands the engine reads the rest of the board in the background: the board first, then the strips of world around it, splitting any tile the server could not return whole.
-The count ("120 / 480 objects", or "120 objects loaded" when the server does not report a total) is a small pill at the top of the canvas, only while paging.
-A tile that stays crowded at the smallest size leaves the existing "some ink is not shown" notice up.
+Once it lands the engine pages the rest of the board in the background by seq cursor (`cursor_seq`, `next_cursor`, `total_objects` from decision [0085](0085-canvas-clear-purge-and-paging.md)), merging by object id.
+The count ("120 / 480 objects", or "120 objects loaded" when no total is known) is a small pill at the top of the canvas, only while paging.
+A server that cannot page, or a board that needs more than 400 pages, leaves the existing "some ink is not shown" notice up.
 When paging finishes the whole world counts as fetched, so panning no longer reads again.
-`total_objects` is an optional field on the viewport read; the client uses it when the server sends it.
+A page does not speak for the objects it omits, so a paged read never drops anything from the document.
 
 ## Not done
 
-- The server does not yet send `total_objects` or a stable cursor across a region read, so a crowded region is split by area rather than paged.
-- The lock and media-slot frames still carry no ordering (C-165), which needs a server change.
+- The lock and media-slot frames still carry no ordering (C-165), which needs a wire change on both sides.
+- The moderator purge (`purgeCanvasObject`) is bound but has no menu item here.

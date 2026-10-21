@@ -68,6 +68,7 @@ class FuzzOp {
   int? beforeSeq;
   List<String> kinds = const [];
   String? scopeAuthor;
+  List<String> spared = const [];
   String? targetOp;
   int? z;
   Map<String, dynamic>? props;

@@ -386,8 +386,14 @@ class CanvasSync {
         for (final id in objectIds) {
           document.removeObject(id, seq: op.seq);
         }
-      case api.CanvasClearOp(:final beforeSeq, :final scope):
-        clearDocumentScope(document, beforeSeq, scope, opSeq: op.seq);
+      case api.CanvasClearOp(:final beforeSeq, :final scope, :final sparedIds):
+        clearDocumentScope(
+          document,
+          beforeSeq,
+          scope,
+          opSeq: op.seq,
+          spared: sparedIds.toSet(),
+        );
       case api.CanvasMoveOp(
         :final objectId,
         :final x,

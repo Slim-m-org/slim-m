@@ -62,6 +62,7 @@ sealed class CanvasOp {
           createdAt: createdAt,
           beforeSeq: json['before_seq'] as int,
           scope: CanvasClearScope.fromJson(json),
+          sparedIds: _stringList(json['spared_ids']),
         ),
       'restore' => CanvasRestoreOp(
           seq: seq,
@@ -167,10 +168,14 @@ class CanvasClearOp extends CanvasOp {
     required super.createdAt,
     required this.beforeSeq,
     this.scope = CanvasClearScope.everything,
+    this.sparedIds = const [],
   });
 
   final int beforeSeq;
   final CanvasClearScope scope;
+
+  /// The locked objects the clear left standing; a replay keeps them.
+  final List<String> sparedIds;
 }
 
 /// A removal or a clear named by [targetOp] was undone.

@@ -88,14 +88,27 @@ void dispatchCanvasLiveEvent(
           :final opId,
           :final beforeSeq,
           :final scope,
+          :final sparedIds,
+          :final sparedCount,
         )
         when channelId == paneChannelId:
       sync.applyLive(
         seq,
         () {
-          clearDocumentScope(document, beforeSeq, scope, opSeq: seq);
+          clearDocumentScope(
+            document,
+            beforeSeq,
+            scope,
+            opSeq: seq,
+            spared: sparedIds.toSet(),
+          );
           document.refresh();
           activityLog?.recordClearedLive(opId, scope: scope);
+          if (sparedCount > sparedIds.length) {
+            // The frame could not name every object it spared, so the read says which.
+            forgetFetchedRegion();
+            unawaited(sync.coldFetch());
+          }
         },
         replay: api.CanvasClearOp(
           seq: seq,
@@ -104,6 +117,7 @@ void dispatchCanvasLiveEvent(
           createdAt: 0,
           beforeSeq: beforeSeq,
           scope: scope,
+          sparedIds: sparedIds,
         ),
       );
     case api.CanvasObjectsRestored(
@@ -133,6 +147,8 @@ void dispatchCanvasLiveEvent(
           activityLog?.recordRestoredLive(opId, objectIds.length);
           // A restored object's payload was freed on removal and the camera-move guard only checks on an actual pan, so nothing repaints it without this - see CanvasSync.coldFetch's own doc.
           unawaited(sync.coldFetch());
+          // A restore brings back the locks of the locked objects it restores.
+          unawaited(objectLocks.fetch());
         },
         replay: api.CanvasRestoreOp(
           seq: seq,

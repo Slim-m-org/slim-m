@@ -49,4 +49,49 @@ void main() {
       'limit',
     });
   });
+
+  test('canvasViewportPage pages by cursor and reads the totals', () async {
+    Map<String, String>? query;
+    final api = SlimmApi(
+      baseUrl: _base,
+      session: SessionStore(tokens: _tokens()),
+      httpClient: MockClient((request) async {
+        query = request.url.queryParameters;
+        return http.Response(
+          jsonEncode({
+            'objects': <Object>[],
+            'has_more': true,
+            'latest_seq': 9,
+            'next_cursor': 4,
+            'total_objects': 12,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+    final page = await api.canvasViewportPage(
+      'c1',
+      region: const CanvasRect(minX: -1, minY: -2, maxX: 3, maxY: 4),
+      cursorSeq: 0,
+      limit: 500,
+    );
+    expect(query!['cursor_seq'], '0');
+    expect((page.nextCursor, page.totalObjects), (4, 12));
+  });
+
+  test('purgeCanvasObject deletes the object itself', () async {
+    http.Request? seen;
+    final api = SlimmApi(
+      baseUrl: _base,
+      session: SessionStore(tokens: _tokens()),
+      httpClient: MockClient((request) async {
+        seen = request;
+        return http.Response('', 204);
+      }),
+    );
+    await api.purgeCanvasObject('c1', 'o1');
+    expect(seen!.method, 'DELETE');
+    expect(seen!.url.path, '/channels/c1/canvas/objects/o1');
+  });
 }

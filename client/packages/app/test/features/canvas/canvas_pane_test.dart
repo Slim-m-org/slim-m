@@ -249,8 +249,8 @@ void main() {
 
       expect(
         fixture.viewportGets,
-        6,
-        reason: 'the view, the board, four strips',
+        2,
+        reason: 'the view, then one page of the board',
       );
     },
   );

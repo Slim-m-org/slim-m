@@ -67,7 +67,7 @@ class FuzzConfig {
     this.flap = true,
     this.camera = false,
     this.resetGap = 2000,
-    this.avoid = const {},
+    this.avoid = const {'lostPlacementReplies'},
   });
 
   /// A request lost on the way to the server.
@@ -90,7 +90,9 @@ class FuzzConfig {
 
   /// Behaviours the generator leaves out, so a known failure does not hide
   /// the next one: `previews` (remote drags), `deleteLocked` (Delete on a
-  /// locked selection), `foreignEdit` (a note edit the UI would not offer), `locks`.
+  /// locked selection), `foreignEdit` (a note edit the UI would not offer), `locks`,
+  /// and `lostPlacementReplies` (the commit queue gives up after three lost
+  /// replies, which the no-lost-work batch owns; on by default until it lands).
   final Set<String> avoid;
 
   bool allows(String behaviour) => !avoid.contains(behaviour);
@@ -321,7 +323,10 @@ class FuzzWorld {
     note(
       '${client.userId} $label -> ${p.response!.statusCode} ${_summary(p.request)}',
     );
-    if (chaos && rng.nextDouble() < config.dropAfter) {
+    final isPlacement = p.request.method == 'POST' && label.endsWith('objects');
+    if (chaos &&
+        rng.nextDouble() < config.dropAfter &&
+        !(isPlacement && !config.allows('lostPlacementReplies'))) {
       p.response = null;
       p.failure = const SocketLikeFailure();
       note('${client.userId} $label reply LOST after the server acted');

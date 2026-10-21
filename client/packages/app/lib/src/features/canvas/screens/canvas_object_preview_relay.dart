@@ -22,6 +22,7 @@ class CanvasObjectPreviewRelay {
     required this.selfId,
     required this.isDraggingLocally,
     this.glide = _fullGlide,
+    this.onAbandoned,
   });
 
   final RemoteObjectPreviews previews;
@@ -36,6 +37,10 @@ class CanvasObjectPreviewRelay {
   /// The ease to use right now; zero under reduce-motion. A callback because
   /// the setting lives in the widget tree, not here.
   final Duration Function() glide;
+
+  /// A preview was given up on, so its object went back to a box that may no
+  /// longer be where the server has it; the owner reads the region again.
+  final void Function()? onAbandoned;
 
   static Duration _fullGlide() => objectPreviewGlideDuration;
 
@@ -106,7 +111,7 @@ class CanvasObjectPreviewRelay {
     final wait = next.difference(clock.now()) + const Duration(milliseconds: 1);
     _deadline = Timer(wait.isNegative ? Duration.zero : wait, () {
       _deadline = null;
-      previews.expire(clock.now());
+      if (previews.expire(clock.now())) onAbandoned?.call();
       _watchDeadline();
     });
   }

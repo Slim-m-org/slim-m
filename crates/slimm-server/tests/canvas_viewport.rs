@@ -202,3 +202,136 @@ async fn a_crowded_region_reports_that_it_held_something_back() {
     assert_eq!(body["has_more"], Value::Bool(true));
     assert_eq!(body["latest_seq"], Value::from(2));
 }
+
+/// A whole-world read must stay under a byte budget, not just a row count.
+#[tokio::test]
+async fn a_whole_world_read_stays_under_a_byte_budget() {
+    const BUDGET_BYTES: usize = 1024 * 1024;
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS),
+            true,
+        )
+        .await
+        .unwrap();
+    let app = app(store.clone());
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let (token, user) = register(&store, "ann").await;
+
+    let props = format!(r#"{{"d":"{}"}}"#, "x".repeat(4000));
+    for i in 0..2100 {
+        store
+            .place_canvas_object(
+                channel,
+                user,
+                CanvasObjectId::generate(),
+                PlaceRequest {
+                    kind: "stroke",
+                    bounds: (f64::from(i), 0.0, 10.0, 10.0),
+                    props: &props,
+                    attachment: None,
+                },
+            )
+            .await
+            .expect("placed");
+    }
+
+    let uri = format!(
+        "/channels/{channel}/canvas/objects?min_x=-1000000&min_y=-1000000&max_x=1000000&max_y=1000000&limit=2000"
+    );
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(uri)
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(
+        bytes.len() <= BUDGET_BYTES,
+        "whole-world read returned {} bytes, budget {BUDGET_BYTES}",
+        bytes.len()
+    );
+}
+
+/// Places `count` strokes along the x axis, one unit apart.
+async fn strokes(store: &Store, channel: ChannelId, author: UserId, count: i32) {
+    for i in 0..count {
+        let request = PlaceRequest {
+            kind: "stroke",
+            bounds: (f64::from(i) * 20.0, 0.0, 10.0, 10.0),
+            props: "{}",
+            attachment: None,
+        };
+        store
+            .place_canvas_object(channel, author, CanvasObjectId::generate(), request)
+            .await
+            .expect("placed");
+    }
+}
+
+#[tokio::test]
+async fn a_whole_board_pages_in_seq_order_and_reports_its_size() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let (token, user) = register(&store, "ann").await;
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    strokes(&store, channel, user, 5).await;
+    let world = "min_x=-1000000&min_y=-1000000&max_x=1000000&max_y=1000000";
+
+    let (status, first) = get(
+        &app,
+        &format!("/channels/{channel}/canvas/objects?{world}&cursor_seq=0&limit=2"),
+        &token,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{first}");
+    let seqs: Vec<i64> = first["objects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|o| o["seq"].as_i64().unwrap())
+        .collect();
+    assert_eq!(seqs, [1, 2]);
+    assert_eq!(first["has_more"], Value::Bool(true));
+    assert_eq!(first["next_cursor"], Value::from(2));
+    assert_eq!(first["total_objects"], Value::from(5));
+
+    let (_, last) = get(
+        &app,
+        &format!("/channels/{channel}/canvas/objects?{world}&cursor_seq=4&limit=2"),
+        &token,
+    )
+    .await;
+    assert_eq!(last["objects"].as_array().unwrap().len(), 1);
+    assert_eq!(last["has_more"], Value::Bool(false));
+    assert!(last.get("next_cursor").is_none(), "{last}");
+}
+
+#[tokio::test]
+async fn a_page_never_mixes_the_cursor_with_the_pan_parameters() {
+    let (store, _guard) = new_store().await;
+    let app = app(store.clone());
+    let (token, _) = register(&store, "ann").await;
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let base = format!("/channels/{channel}/canvas/objects?min_x=0&min_y=0&max_x=10&max_y=10");
+
+    for extra in [
+        "after_seq=1",
+        "prev_min_x=0&prev_min_y=0&prev_max_x=1&prev_max_y=1",
+    ] {
+        let (status, _) = get(&app, &format!("{base}&cursor_seq=0&{extra}"), &token).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{extra}");
+    }
+    let (status, _) = get(&app, &format!("{base}&cursor_seq=-1"), &token).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

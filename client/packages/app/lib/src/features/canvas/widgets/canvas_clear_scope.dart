@@ -19,6 +19,7 @@ void clearDocumentScope(
   int beforeSeq,
   api.CanvasClearScope scope, {
   int? opSeq,
+  Set<String> spared = const {},
 }) {
   final kinds = canvasKindsOf(scope);
   if (scope.kinds.isNotEmpty && kinds.isEmpty) return;
@@ -27,6 +28,7 @@ void clearDocumentScope(
     kinds: kinds,
     authorId: scope.authorId,
     opSeq: opSeq,
+    spare: spared,
   );
 }
 

@@ -99,7 +99,6 @@ extension CanvasEngineReads on CanvasEngine {
       worldLimit,
       worldLimit,
     );
-    final seeds = CanvasBoardPager.seedsFor(canvasBoard, world);
     void progress(int? total) {
       if (mounted) {
         _emit(
@@ -116,19 +115,25 @@ extension CanvasEngineReads on CanvasEngine {
     try {
       progress(first.totalObjects);
       final complete = await CanvasBoardPager(
-        read: _readRect,
-        apply: (page, tile) {
+        read: (cursor) => _client.canvasViewportPage(
+          channelId,
+          region: _wireRect(world),
+          cursorSeq: cursor,
+          limit: 2000,
+        ),
+        apply: (page) {
           final outcome = sync.applyViewport(
             page,
-            tile,
+            world,
             onObject: hydrator.hydrate,
+            listsWholeRegion: false,
           );
           document.refresh();
           return outcome;
         },
         onProgress: progress,
         isCancelled: () => !mounted,
-      ).run(seeds);
+      ).run();
       if (!mounted) return;
       if (complete) _fetched = world;
       _emit((s) => s.copyWith(truncated: !complete, clearPaging: true));

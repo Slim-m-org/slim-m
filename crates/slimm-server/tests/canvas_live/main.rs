@@ -17,6 +17,7 @@
 mod delivery;
 mod fixtures;
 mod gating;
+mod locks;
 mod requests;
 #[path = "../support/mod.rs"]
 mod support;

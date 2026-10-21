@@ -176,3 +176,37 @@ async fn a_locked_slots_depth_may_still_be_toggled() {
     let slots = store.list_canvas_media_slots(channel).await.unwrap();
     assert!(slots[0].sent_to_back);
 }
+
+/// A client that missed the lock frame sends its stale `locked: false` with a
+/// drag; the stored lock decides, so the tile neither moves nor unlocks.
+#[tokio::test]
+async fn a_move_that_claims_the_slot_is_unlocked_is_still_refused() {
+    let (path, _guard) = crate::support::TestDbGuard::new("slimm-media-slot-stale-lock");
+    let config = Config {
+        port: 0,
+        database_path: path,
+        hash_concurrency: 2,
+        ..Config::default()
+    };
+    let store = Store::new(db::connect(&config).await.unwrap());
+    let (access, _ticket, alice) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (bob_access, _ticket, _bob) = user_ticket(&store, "bob").await;
+    let state = state_for(&store);
+    let put = |token: &str, body: Value| put_slot_request(channel, token, "screen", alice, body);
+
+    let locked = http::router(state.clone())
+        .oneshot(put(&access, locked_body(10.0, 10.0, true)))
+        .await
+        .unwrap();
+    assert_eq!(locked.status(), StatusCode::OK);
+    let stale = http::router(state.clone())
+        .oneshot(put(&bob_access, locked_body(500.0, 500.0, false)))
+        .await
+        .unwrap();
+    assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+
+    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    assert_eq!((slots[0].x, slots[0].locked), (10.0, true));
+}

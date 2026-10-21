@@ -132,7 +132,7 @@ class FuzzServer {
 
   FuzzSubmit _done(FuzzOp op, int affected) => FuzzSubmit(op, affected, true)
     ..seq = op.seq
-    ..kind = op.kind == 'clear' && op.kinds.isNotEmpty
+    ..kind = op.kind == 'clear' && (op.kinds.isNotEmpty || op.spared.isNotEmpty)
         ? 'clear_scoped'
         : op.kind
     ..id = op.id
@@ -188,13 +188,20 @@ class FuzzServer {
     final kinds = ((body['kinds'] as List?) ?? const []).cast<String>();
     final scopeAuthor = body['author_id'] as String?;
     final now = ++_clock;
-    final touched = [
+    final matching = [
       for (final o in objects.values)
         if (o.live &&
             o.seq <= before &&
             (kinds.isEmpty || kinds.contains(o.kind)) &&
             (scopeAuthor == null || o.author == scopeAuthor))
           o,
+    ];
+    // Unlocked objects first; a clear that finds only locked ones takes them too.
+    final unlocked = matching.where((o) => !locked.contains(o.id)).toList();
+    final touched = unlocked.isEmpty ? matching : unlocked;
+    final spared = [
+      for (final o in matching)
+        if (!touched.contains(o)) o.id,
     ];
     if (touched.isEmpty) return _zero(opId, 'clear');
     final op =
@@ -207,7 +214,8 @@ class FuzzServer {
           )
           ..beforeSeq = before
           ..kinds = kinds
-          ..scopeAuthor = scopeAuthor;
+          ..scopeAuthor = scopeAuthor
+          ..spared = spared;
     ops.add(op);
     opById[opId] = op;
     for (final o in touched) {
@@ -220,6 +228,8 @@ class FuzzServer {
         opId: opId,
         beforeSeq: before,
         scope: api.CanvasClearScope(kinds: kinds, authorId: scopeAuthor),
+        sparedIds: spared,
+        sparedCount: spared.length,
       ),
     );
     return _done(op, touched.length);
@@ -474,9 +484,11 @@ class FuzzServer {
       case 'clear':
         return {
           ...base,
-          'kind': op.kinds.isEmpty && op.scopeAuthor == null
+          'kind':
+              op.kinds.isEmpty && op.scopeAuthor == null && op.spared.isEmpty
               ? 'clear'
               : 'clear_scoped',
+          if (op.spared.isNotEmpty) 'spared_ids': op.spared,
           'before_seq': op.beforeSeq,
           if (op.kinds.isNotEmpty) 'kinds': op.kinds,
           if (op.scopeAuthor != null) 'author_id': op.scopeAuthor,

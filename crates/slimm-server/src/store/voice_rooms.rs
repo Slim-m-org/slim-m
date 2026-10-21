@@ -64,6 +64,14 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
+             VALUES (?, 'message', 1), (?, 'canvas', 1)",
+            id,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         self.channel(id)
             .await?
