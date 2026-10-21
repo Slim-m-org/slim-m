@@ -25,6 +25,7 @@ void main() {
     'light': (Brightness.light, AppTokens.light),
     'dark': (Brightness.dark, AppTokens.dark),
     'trueBlack': (Brightness.dark, AppTokens.trueBlack),
+    'mocha': (Brightness.dark, AppTokens.mocha),
   };
 
   themes.forEach((name, entry) {

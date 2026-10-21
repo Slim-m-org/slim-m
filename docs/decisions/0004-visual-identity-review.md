@@ -323,3 +323,8 @@ Cards are containers, not controls, so `AppCard` keeps the hairline: a 3:1 card 
 Dividers, card header rules, chips and menu separators keep the hairline too.
 `borderStrong` on light was darkened from `#898E93` to `#858A8F` because the old value reached only 2.92:1 on `surfaceSunken`.
 It now measures 3.08 to 3.48 in light, 3.41 to 4.04 in dark and 4.16 to 4.48 on true black, and `component_boundary_contrast_test.dart` computes this from the tokens.
+
+### Addendum 2026-10-21: a fourth palette
+
+Catppuccin Mocha joined light, dark and true black as an opt-in theme with its own accent.
+The default identity above is unchanged; the record is [0088](0088-catppuccin-mocha-theme.md).

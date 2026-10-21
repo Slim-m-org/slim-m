@@ -54,6 +54,7 @@ String _labelOf(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.light => 'Light',
   AppThemeChoice.dark => 'Dark',
   AppThemeChoice.trueBlack => 'True black',
+  AppThemeChoice.catppuccin => 'Catppuccin',
 };
 
 Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
@@ -212,6 +213,29 @@ void main() {
     expect(theme.brightness, Brightness.dark);
     expect(theme.extension<AppTokens>(), AppTokens.dark);
   });
+
+  testWidgets(
+    'a stored Catppuccin choice paints the mocha tokens on relaunch',
+    (tester) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+
+      final first = _restartedContainer();
+      await first.read(themeControllerProvider.notifier).restore();
+      await first
+          .read(themeControllerProvider.notifier)
+          .select(AppThemeChoice.catppuccin);
+
+      final relaunched = _restartedContainer();
+      await relaunched.read(themeControllerProvider.notifier).restore();
+      await _pumpApp(tester, relaunched);
+
+      final theme = _paintedTheme(tester);
+      expect(theme.brightness, Brightness.dark);
+      expect(theme.extension<AppTokens>(), AppTokens.mocha);
+      expect(theme.extension<AppTokens>()!.accent, const Color(0xFFCBA6F7));
+    },
+  );
 
   testWidgets('true black is reachable, and following the system never is', (
     tester,

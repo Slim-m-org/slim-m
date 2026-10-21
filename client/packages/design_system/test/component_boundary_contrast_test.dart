@@ -27,6 +27,7 @@ const _themes = {
   'light': (Brightness.light, AppTokens.light),
   'dark': (Brightness.dark, AppTokens.dark),
   'trueBlack': (Brightness.dark, AppTokens.trueBlack),
+  'mocha': (Brightness.dark, AppTokens.mocha),
 };
 
 Color _edgeOf(WidgetTester tester, Type owner, Color fill) {

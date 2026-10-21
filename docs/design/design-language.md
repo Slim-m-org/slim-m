@@ -44,14 +44,17 @@ Risk: restraint can drift into blandness, mitigated by confining the accent to a
 Neutrals are a cool slate scale, authored in OKLCH for perceptually even lightness steps, exported to sRGB hex for the Dart token file.
 The accent is a muted teal, far in hue from Discord's blurple, Slack's aubergine, and Teams' blue, so no screenshot reads as a competitor's app.
 
-| Role | Light | Dark | True black |
-|---|---|---|---|
-| surface.base | #F7F8F9 | #17191C | #000000 |
-| surface.raised | #FFFFFF | #1F2226 | #121316 |
-| border.subtle | #E1E4E8 | #2B2F34 | #232427 |
-| text.primary | #1B1E22 | #ECEDEF | #ECEDEF |
-| text.secondary | #5B6169 | #A7AEB6 | #A7AEB6 |
-| accent.default | #1B6F91 | #58B4D8 | #40B6D9 |
+| Role | Light | Dark | True black | Catppuccin |
+|---|---|---|---|---|
+| surface.base | #F7F8F9 | #17191C | #000000 | #1E1E2E |
+| surface.raised | #FFFFFF | #1F2226 | #121316 | #313244 |
+| border.subtle | #E1E4E8 | #2B2F34 | #232427 | #45475A |
+| text.primary | #1B1E22 | #ECEDEF | #ECEDEF | #CDD6F4 |
+| text.secondary | #5B6169 | #A7AEB6 | #A7AEB6 | #A6ADC8 |
+| accent.default | #1B6F91 | #58B4D8 | #40B6D9 | #CBA6F7 |
+
+The Catppuccin column is Catppuccin Mocha, a fourth palette added on 2026-10-21 with its own mauve accent; the table shows only the headline roles, the full mapping is in [decisions/0088-catppuccin-mocha-theme.md](../decisions/0088-catppuccin-mocha-theme.md).
+The Light, Dark and True black columns above predate several token revisions, and `app_tokens.dart` is the source of truth for them.
 
 The accent moved from the teal this table originally carried (#2B8A83 / #4FBDB4) to glacier cyan on 2026-07-27.
 The reasoning, including that the review's own stated argument for the move turned out to be wrong when measured, is in [decisions/0004-visual-identity-review.md](../decisions/0004-visual-identity-review.md).

@@ -201,6 +201,7 @@ void main() {
         AppTokens.light,
         AppTokens.dark,
         AppTokens.trueBlack,
+        AppTokens.mocha,
       ]) {
         final delta = (_luma(tokens.borderStrong) - _luma(tokens.borderSubtle))
             .abs();
