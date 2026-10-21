@@ -278,7 +278,7 @@ class CanvasCallDock extends ConsumerWidget {
                     CanvasDockToolsRow(canvas: canvas),
                     _callRow(call, toggle: _toggle(canvas), alone: alone),
                   ]
-                : [..._stackedCanvasRows(canvas), _callRow(call)],
+                : [..._stackedCanvasRows(canvas), _callRow(call, tight: true)],
           ],
         );
       },
@@ -313,9 +313,11 @@ class CanvasCallDock extends ConsumerWidget {
     CallDockData call, {
     Widget? toggle,
     bool alone = false,
+    bool tight = false,
   }) => CallControls(
     controller: call.controller,
     voice: call.voice,
+    tight: tight,
     extraControl: dockExtras(alone: alone, toggle: toggle),
   );
 

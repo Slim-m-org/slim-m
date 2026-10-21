@@ -16,6 +16,9 @@ import 'package:flutter/material.dart';
 /// redeclaring its own copy of the same margin.
 const double menuScreenMargin = 8;
 
+/// Enough for a few rows, so a screen too short for the trigger's upward room still shows a usable menu.
+const double _minAboveHeight = 96;
+
 /// Places the menu at its anchor, sliding it back inside the viewport rather
 /// than letting it run off an edge: a long-press on a message low on a phone
 /// screen otherwise puts Delete past the bottom of the display.
@@ -33,8 +36,13 @@ class MessageMenuLayout extends SingleChildLayoutDelegate {
   final EdgeInsets padding;
 
   @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      BoxConstraints.loose(constraints.biggest).deflate(padding);
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final loose = BoxConstraints.loose(constraints.biggest).deflate(padding);
+    if (!above) return loose;
+    // A menu opening upward is shortened to the room above its anchor so it never reaches down over the trigger.
+    final room = math.max(_minAboveHeight, anchor.dy - padding.top);
+    return loose.copyWith(maxHeight: math.min(loose.maxHeight, room));
+  }
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {

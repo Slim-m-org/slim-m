@@ -21,11 +21,12 @@ import '../../support/interactive_rects.dart';
 const _phones = {'390x844': Size(390, 844), '360x640': Size(360, 640)};
 
 /// Of the viewport height, all the dock's cards together.
-const _maxDockFraction = 0.21;
+// Alone, the music button no longer fits beside deafen and takes its own row.
+const _maxDockFraction = 0.31;
 
 /// The canvas dock lists the others in the call as one more row (decision 0086).
 /// Its pill, roster and Follow rows each take real layout room to reach 44 px.
-const _maxCanvasDockFraction = 0.27;
+const _maxCanvasDockFraction = 0.37;
 
 const _canvasControls = [
   'Pan',

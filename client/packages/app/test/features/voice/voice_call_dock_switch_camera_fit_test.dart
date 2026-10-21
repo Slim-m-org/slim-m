@@ -15,8 +15,8 @@ const _cameraOn = VoiceFlags(
   cameraEnabled: true,
 );
 
-// Five 52dp controls, four 8dp gaps, the leave divider, card padding and border.
-const _fiveControls = 319.0;
+// Six 52dp controls (mic, deafen, camera, share, leave, toggle), five 8dp gaps, the leave divider, card padding and border.
+const _sixControls = 379.0;
 
 void main() {
   testWidgets(
@@ -26,7 +26,7 @@ void main() {
         tester,
         _cameraOn,
         canvasChannelId: 'c1',
-        width: _fiveControls,
+        width: _sixControls,
         touch: true,
         session: InertSession()
           ..cameraDeviceList = const [CameraDevice(id: 'a', label: 'Cam A')],
@@ -48,7 +48,7 @@ void main() {
       tester,
       _cameraOn,
       canvasChannelId: 'c1',
-      width: _fiveControls,
+      width: _sixControls,
       touch: true,
       session: InertSession()
         ..cameraDeviceList = const [

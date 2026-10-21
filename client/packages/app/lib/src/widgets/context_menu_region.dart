@@ -64,6 +64,7 @@ class ContextMenuRegion extends StatefulWidget {
     this.opensAbove = false,
     this.focusNode,
     this.menuWidth = 200,
+    this.tapRegionGroupId,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -125,6 +126,9 @@ class ContextMenuRegion extends StatefulWidget {
   /// Wider for a menu that carries a slider.
   final double menuWidth;
 
+  /// Taps inside a [TapRegion] of this group do not count as outside the menu, so a trigger can toggle it.
+  final Object? tapRegionGroupId;
+
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
 }
@@ -170,6 +174,12 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// [at], a global position, anchors the menu beside the control that asked
   /// instead of at the region's corner.
   void open({Offset? at}) => _setOpen(true, pointerGlobal: at);
+
+  /// Closes the menu or sheet if one is open.
+  void close() => _setOpen(false);
+
+  /// Closes the menu when it is open and opens it otherwise, for a trigger that owns both.
+  void toggle() => _controller.isShowing || _sheetOpen ? close() : open();
 
   /// [pinRow] mirrors [onOpenChanged]'s own doc: true (the default) for a
   /// right-click and every close, false for a long press, which has nothing
@@ -288,6 +298,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
           child: AnimatedMenuSurface(
             controller: _controller,
             child: TapRegion(
+              groupId: widget.tapRegionGroupId,
               onTapOutside: (_) => _setOpen(false),
               child: ContextMenuKeyboardScope(
                 onDismiss: () => _setOpen(false),

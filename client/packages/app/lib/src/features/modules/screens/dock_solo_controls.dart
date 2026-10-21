@@ -61,12 +61,10 @@ List<Widget> callRowsWithExtras(
   );
   final switchCameraShown =
       voice.cameraEnabled && canSwitchCamera(ref, controller);
-  final speakerShown = controller.supportsAudioOutputSelection;
   bool fitsWith(int extraCount) => callRowFits(
     context,
     width,
     switchCameraShown: switchCameraShown,
-    speakerShown: speakerShown,
     extraCount: extraCount,
   );
   // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
@@ -95,23 +93,21 @@ bool callRowFits(
   BuildContext context,
   double width, {
   required bool switchCameraShown,
-  required bool speakerShown,
   required int extraCount,
 }) {
   final touch = AppTouchTargets.of(context);
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, [speaker], camera, [switch camera], share, leave, and the extras.
-  final controlCount =
-      (switchCameraShown ? 5 : 4) + (speakerShown ? 1 : 0) + extraCount;
+  // mic, deafen, camera, [switch camera], share, leave, and the extras.
+  final controlCount = (switchCameraShown ? 6 : 5) + extraCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
-  // Measured, not derived: the caret's width less what the share half gives back, at pointer density only.
-  final shareCaret = touch ? 0.0 : AppSpacing.s24;
+  // Measured, not derived: each caret's width less what its primary half gives back, at pointer density only; the mic and share both carry one.
+  final carets = touch ? 0.0 : 2 * AppSpacing.s24;
   final needed =
-      shareCaret +
+      carets +
       controlCount * button +
       (controlCount - 1) * AppSpacing.s8 +
       leaveDivider +

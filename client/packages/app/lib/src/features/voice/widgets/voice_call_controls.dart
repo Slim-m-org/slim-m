@@ -46,6 +46,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart' show MicStatus, VoiceSessionState;
 
 import 'level_display_hold.dart';
+import 'mic_options_menu.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
 import '../providers/mic_status.dart';
@@ -54,7 +55,6 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
-import 'audio_output_sheet.dart';
 import 'camera_source_sheet.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
@@ -77,7 +77,7 @@ class CallControls extends ConsumerStatefulWidget {
 
   final VoiceController controller;
 
-  /// Speaker, camera switch and the extra control wrap to a second row, for a card too narrow to hold them all at touch size.
+  /// Camera switch and the extra control wrap to a second row, and the mic's caret gives way to a long press, for a card too narrow to hold them all.
   final bool tight;
 
   /// One more control, drawn straight after share - the canvas toggle.
@@ -101,9 +101,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
 
   /// The same guard as [_shareRequestInFlight], for [_switchCamera].
   bool _cameraSwitchInFlight = false;
-
-  /// The same guard as [_shareRequestInFlight], for [_switchSpeaker].
-  bool _speakerSwitchInFlight = false;
 
   /// Whichever source [_startShare] last resolved a picker's choice to -
   /// preselected (never silently reused) the next time the picker opens, so
@@ -165,12 +162,11 @@ class _CallControlsState extends ConsumerState<CallControls> {
     // Touch density is the width-derived compact test; that row has no room for a caret only quality asked for.
     final showCaret = !touch || (voice.screenSharing && _canSwitchSource);
     final pairedAtTouch = showCaret && touch;
+    // A tight row has no width for the mic's caret either; a long press opens its menu instead.
+    final micCaret = !touch && !widget.tight;
     // mainAxisSize.min: this row sizes to its own content now that it has no
     // full-width bar to fill, so whatever floating card embeds it - alone or
     // beside a canvas's own controls - can size itself to match.
-    final speaker = widget.controller.supportsAudioOutputSelection
-        ? _speakerButton(context)
-        : null;
     final switchCamera =
         voice.cameraEnabled && canSwitchCamera(ref, widget.controller)
         ? _switchCameraButton(context)
@@ -179,11 +175,12 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final primary = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _micButton(voice, listenOnly),
-        if (speaker != null && !widget.tight) ...[
-          const SizedBox(width: AppSpacing.s8),
-          speaker,
-        ],
+        MicOptionsMenu(
+          showCaret: micCaret,
+          child: _micButton(voice, listenOnly, holdOpensOptions: !micCaret),
+        ),
+        const SizedBox(width: AppSpacing.s8),
+        _deafenButton(voice),
         const SizedBox(width: AppSpacing.s8),
         _cameraButton(voice, listenOnly),
         if (switchCamera != null && !widget.tight) ...[
@@ -206,7 +203,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
       ],
     );
     if (!widget.tight) return primary;
-    final spilled = [?speaker, ?switchCamera, ?extra];
+    final spilled = [?switchCamera, ?extra];
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -227,7 +224,11 @@ class _CallControlsState extends ConsumerState<CallControls> {
     );
   }
 
-  Widget _micButton(VoiceFlags voice, String? listenOnly) {
+  Widget _micButton(
+    VoiceFlags voice,
+    String? listenOnly, {
+    required bool holdOpensOptions,
+  }) {
     return Consumer(
       builder: (context, ref, _) {
         final micStatus =
@@ -244,6 +245,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             active: false,
             pending: micStatus == MicStatus.reconnecting && trouble != null,
             unavailable: listenOnly != null,
+            holdOpensOptions: holdOpensOptions,
             destructive:
                 (!voice.microphoneEnabled || lost) && listenOnly == null,
             level: voice.microphoneEnabled
@@ -268,16 +270,17 @@ class _CallControlsState extends ConsumerState<CallControls> {
     return labelWithShortcut(label, AppAction.toggleMuteCall);
   }
 
-  Widget _speakerButton(BuildContext context) {
+  /// One click stops all incoming audio, the same toggle as the user panel's headphones; output devices stay in Voice settings.
+  Widget _deafenButton(VoiceFlags voice) {
     return CallDockButton(
-      icon: AppIcons.speaker,
-      tooltip: 'Switch speaker',
+      icon: voice.deafened ? AppIcons.speakerOff : AppIcons.speaker,
+      tooltip: labelWithShortcut(
+        voice.deafened ? 'Undeafen' : 'Deafen',
+        AppAction.toggleDeafenCall,
+      ),
       active: false,
-      pending: _speakerSwitchInFlight,
-      onPressed: () {
-        if (_speakerSwitchInFlight) return;
-        unawaited(_switchSpeaker(context));
-      },
+      destructive: voice.deafened,
+      onPressed: () => unawaited(widget.controller.toggleDeafen()),
     );
   }
 
@@ -292,7 +295,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             voice.cameraEnabled ? 'Turn off camera' : 'Turn on camera',
             AppAction.toggleCameraCall,
           ),
-      active: false,
+      active: voice.cameraEnabled && listenOnly == null,
       unavailable: listenOnly != null,
       pending: voice.cameraPending,
       onPressed: () => unawaited(widget.controller.toggleCamera()),
@@ -463,32 +466,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
       await controller.selectCameraDevice(chosen);
     } finally {
       if (mounted) setState(() => _cameraSwitchInFlight = false);
-    }
-  }
-
-  /// Goes through the same settings notifier the standalone Voice Settings
-  /// picker uses, `setAudioOutputDevice` persisting the choice and applying
-  /// it live in one call, so the two never drift out of sync with each other.
-  Future<void> _switchSpeaker(BuildContext context) async {
-    setState(() => _speakerSwitchInFlight = true);
-    try {
-      final devices = await widget.controller.audioOutputDevices();
-      if (!context.mounted) return;
-      final selectedId = ref
-          .read(voiceSettingsControllerProvider)
-          .audioOutputDeviceId;
-      final chosen = await showAudioOutputSheet(
-        context,
-        devices,
-        selectedId: selectedId,
-      );
-      if (chosen == null) return;
-      final device = isSystemDefaultAudioDevice(chosen) ? null : chosen;
-      await ref
-          .read(voiceSettingsControllerProvider.notifier)
-          .setAudioOutputDevice(device);
-    } finally {
-      if (mounted) setState(() => _speakerSwitchInFlight = false);
     }
   }
 }

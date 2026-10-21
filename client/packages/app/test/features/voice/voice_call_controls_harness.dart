@@ -46,6 +46,9 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
     this.supportsScreenShareAudio = true,
     this.supportsAudioOutputSelection = false,
     this.audioOutputDeviceList = const [],
+    this.supportsInputGate = false,
+    this.supportsAudioInputSelection = false,
+    this.audioInputDeviceList = const [],
   }) : _needsSource = needsSource,
        _sources = sources ?? Future.value(const []),
        _outcome = outcome,
@@ -172,7 +175,7 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   void setVideoBlocked(Set<String> tileKeys) {}
 
   @override
-  bool get supportsInputGate => false;
+  final bool supportsInputGate;
 
   @override
   Stream<InputGateReading> get inputGateReadings => const Stream.empty();
@@ -223,7 +226,12 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   }
 
   @override
-  bool get supportsAudioInputSelection => false;
+  final bool supportsAudioInputSelection;
+
+  /// What [audioInputDevices] answers with.
+  final List<AudioDevice> audioInputDeviceList;
+
+  AudioDevice? lastSelectedAudioInput;
 
   @override
   final bool supportsAudioOutputSelection;
@@ -239,13 +247,16 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   Stream<void> get audioDeviceChanges => const Stream.empty();
 
   @override
-  Future<List<AudioDevice>> audioInputDevices() async => const [];
+  Future<List<AudioDevice>> audioInputDevices() async => audioInputDeviceList;
 
   @override
   Future<List<AudioDevice>> audioOutputDevices() async => audioOutputDeviceList;
 
   @override
-  Future<bool> selectAudioInputDevice(AudioDevice? device) async => false;
+  Future<bool> selectAudioInputDevice(AudioDevice? device) async {
+    lastSelectedAudioInput = device;
+    return true;
+  }
 
   @override
   Future<bool> selectAudioOutputDevice(AudioDevice? device) async {
@@ -286,7 +297,12 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   }
 
   @override
-  Future<bool> setDeafened(bool value) async => true;
+  Future<bool> setDeafened(bool value) async {
+    deafenCalls.add(value);
+    return true;
+  }
+
+  final deafenCalls = <bool>[];
 
   @override
   Future<ScreenShareOutcome> setScreenShareEnabled(
@@ -374,9 +390,13 @@ Future<ProviderContainer> pumpControls(
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: Scaffold(
-          body: CallControls(
-            controller: container.read(voiceControllerProvider.notifier),
-            voice: voice,
+          // Bottom, where the dock lives, so menus opening upward have room.
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: CallControls(
+              controller: container.read(voiceControllerProvider.notifier),
+              voice: voice,
+            ),
           ),
         ),
       ),
