@@ -377,7 +377,10 @@ async fn a_preview_carries_the_pen_colour_and_width_and_drops_bad_ones() {
     let mut alice_ws = connect(addr, &alice_ticket).await;
     let mut bob_ws = connect(addr, &bob_ticket).await;
 
-    for (color, width) in [(json!("annotation"), json!(6.5)), (json!("a b!"), json!(1e9))] {
+    for (color, width) in [
+        (json!("annotation"), json!(6.5)),
+        (json!("a b!"), json!(1e9)),
+    ] {
         alice_ws
             .send(WsMessage::Text(
                 json!({

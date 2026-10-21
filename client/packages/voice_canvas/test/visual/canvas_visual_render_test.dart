@@ -6,7 +6,7 @@
 /// every painter here is exercised only by tests that assert on recorded
 /// draw calls (`canvas_painters_test.dart`), never on what actually lands on
 /// screen. Run with `SLIMM_CANVAS_VISUAL=1 flutter test
-/// test/visual/canvas_visual_render.dart` to write PNGs under
+/// test/visual/canvas_visual_render_test.dart` to write PNGs under
 /// `build/canvas-visual/`; without the flag this still runs (and still
 /// fails on a real painter exception) but writes nothing, so it stays part
 /// of the ordinary suite.

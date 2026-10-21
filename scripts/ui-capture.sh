@@ -10,7 +10,7 @@
 # app package's test/ (resting screens and overlays: sheets, dialogs,
 # popovers, gesture-opened menus), `test/visual/canvas_assembled_snapshot_
 # test.dart` (the assembled canvas pane), and voice_canvas's `test/visual/
-# canvas_visual_render.dart` (the canvas painters, no widget tree at all).
+# canvas_visual_render_test.dart` (the canvas painters, no widget tree at all).
 # Each already knows how to render its own surfaces; this only runs them with
 # the right env var in the right directory and gathers what they wrote.
 #
@@ -94,7 +94,7 @@ JOBS=(
   "overlay-member-selection|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_member_selection_test.dart"
   "overlay-remove-from-channel|overlays|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_overlay_snapshot_remove_from_channel_test.dart"
   "canvas-assembled|canvas-assembled|client/packages/app|SLIMM_CANVAS_ASSEMBLED|build/canvas-assembled-snapshots|test/visual/canvas_assembled_snapshot_test.dart"
-  "canvas-painters|canvas-painters|client/packages/voice_canvas|SLIMM_CANVAS_VISUAL|build/canvas-visual|test/visual/canvas_visual_render.dart"
+  "canvas-painters|canvas-painters|client/packages/voice_canvas|SLIMM_CANVAS_VISUAL|build/canvas-visual|test/visual/canvas_visual_render_test.dart"
 )
 
 filter=("$@")
