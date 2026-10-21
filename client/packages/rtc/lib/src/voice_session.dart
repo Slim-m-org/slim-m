@@ -281,56 +281,6 @@ class VoiceSession
     return current;
   }
 
-  Future<void> _join({
-    required String url,
-    required String token,
-    required bool microphoneEnabled,
-    required bool cameraEnabled,
-    required bool canPublish,
-  }) async {
-    if (_disposed) return;
-    _mayPublish = canPublish;
-    if (_room != null) await leave();
-    // Claims the session past the leave above, whose own guard has run by now.
-    _generation++;
-    // A leave this join superseded never reached idle, which is what ends the old call's health.
-    _glitchWatch.finish();
-
-    _lastDisconnect = null;
-    _setState(VoiceSessionState.connecting);
-    final generation = _generation;
-    await _forgetUnpluggedDevices();
-    if (_disposed || generation != _generation) return;
-    final room = _roomFactory();
-    _room = room;
-    _listen(room);
-    try {
-      _joinTimings.mark(JoinStage.connectStarted);
-      await room.connect(url, token);
-      // A leave or newer join took this room mid-connect and tore it down.
-      if (!identical(_room, room)) return;
-      _joinTimings.mark(JoinStage.connected);
-      // Publishing is separate from connecting on purpose: a join preview
-      // can arrive muted, and a token without SPEAK must not fail the join.
-      final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
-      if (cameraEnabled) {
-        await _trySetCamera(true);
-      }
-      if (!microphoneEnabled) await _primeMutedMic();
-      if (!identical(_room, room)) return;
-      _refreshParticipants();
-      _setState(VoiceSessionState.connected);
-      if (micFailed) _retryMicAfterJoin();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'join the call', e, stack);
-      if (!identical(_room, room)) return;
-      _lastError = e;
-      _joinTimings.finish();
-      await _teardown();
-      _setState(VoiceSessionState.failed);
-    }
-  }
-
   /// Leaves the call. Safe to call when not in one.
   ///
   /// Resets [deafened] along with everything else: there is no room left to
