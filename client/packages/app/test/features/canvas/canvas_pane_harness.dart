@@ -171,6 +171,10 @@ class CanvasPaneFixture {
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
 
+  /// When set, a viewport read answers from the objects as they were when it
+  /// arrived but only after this completes, like a slow response in flight.
+  Completer<void>? viewportGate;
+
   /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
   int? opsHead;
 
@@ -323,6 +327,9 @@ class CanvasPaneFixture {
           );
         }
         viewportGets++;
+        final snapshot = List<Map<String, dynamic>>.of(objects);
+        final gate = viewportGate;
+        if (gate != null) await gate.future;
         if (viewportStatus != 200) {
           return http.Response(
             jsonEncode({'error': 'no'}),
@@ -331,9 +338,9 @@ class CanvasPaneFixture {
           );
         }
         return jsonResponse({
-          'objects': objects,
+          'objects': snapshot,
           'has_more': hasMore,
-          'latest_seq': objects.length,
+          'latest_seq': snapshot.length,
         });
       }),
       ...extraOverrides,
