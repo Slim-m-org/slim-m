@@ -51,8 +51,7 @@ extension CanvasEngineReads on CanvasEngine {
         onObject: hydrator.hydrate,
       );
       if (outcome == CanvasPageOutcome.stale) return true;
-      // Set before refresh(), not after: refresh() reaches _onCameraMoved synchronously and must see this fetch's own answer, not the value from before it ran.
-      // Only the read's own failures: a pan or refit must not wipe what an action just said.
+      // Before refresh(), which reaches _onCameraMoved at once; clears only the read's own failures, never an action's message.
       _emit(
         (s) => s.copyWith(
           loading: false,
