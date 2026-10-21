@@ -108,9 +108,7 @@ void main() {
     expect(find.bySemanticsLabel(_on), findsNothing);
   });
 
-  testWidgets('with a speaker button at 360 and no canvas it still folds', (
-    tester,
-  ) async {
+  testWidgets('at 360 with no canvas the row still folds', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await pumpVoiceCallDock(
       tester,

@@ -139,6 +139,9 @@ class CanvasOverflowMenu extends StatefulWidget {
 class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   final _controller = OverlayPortalController();
 
+  /// Puts the trigger inside the open menu's tap region, so pressing it again closes the menu.
+  final _tapGroup = Object();
+
   /// Mirrors the portal's visibility for the trigger's expanded state.
   final _open = ValueNotifier<bool>(false);
 
@@ -233,13 +236,16 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         // Says whether its menu is open, as a disclosure button should.
         child: ValueListenableBuilder<bool>(
           valueListenable: _open,
-          builder: (context, open, _) => Semantics(
-            expanded: open,
-            child: AppIconButton(
-              icon: AppIcons.moreVertical,
-              semanticLabel: 'More canvas actions',
-              tooltip: 'More canvas actions',
-              onPressed: _toggle,
+          builder: (context, open, _) => TapRegion(
+            groupId: _tapGroup,
+            child: Semantics(
+              expanded: open,
+              child: AppIconButton(
+                icon: AppIcons.moreVertical,
+                semanticLabel: 'More canvas actions',
+                tooltip: 'More canvas actions',
+                onPressed: _toggle,
+              ),
             ),
           ),
         ),
@@ -320,6 +326,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         offset: Offset(0, widget.opensBelow ? 4 : -4),
         child: CanvasDockPopupPin(
           child: TapRegion(
+            groupId: _tapGroup,
             onTapOutside: (_) => _hide(),
             // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
             child: ContextMenuKeyboardScope(

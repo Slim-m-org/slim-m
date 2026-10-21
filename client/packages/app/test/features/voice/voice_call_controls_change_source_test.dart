@@ -145,11 +145,14 @@ void main() {
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
           home: Scaffold(
-            body: CallControls(
-              controller: container.read(voiceControllerProvider.notifier),
-              voice: const VoiceFlags(
-                state: VoiceSessionState.connected,
-                screenSharing: true,
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: CallControls(
+                controller: container.read(voiceControllerProvider.notifier),
+                voice: const VoiceFlags(
+                  state: VoiceSessionState.connected,
+                  screenSharing: true,
+                ),
               ),
             ),
           ),
