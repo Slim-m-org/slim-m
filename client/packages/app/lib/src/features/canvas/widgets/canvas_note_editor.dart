@@ -82,9 +82,16 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
     return Stack(
       children: [
         Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          // Named, so the cover a screen reader meets over the board says what a tap on it does.
+          child: Semantics(
+            label: 'Save and close the note',
+            button: true,
             onTap: _save,
+            excludeSemantics: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _save,
+            ),
           ),
         ),
         Positioned.fill(
@@ -170,6 +177,7 @@ class _Panel extends StatelessWidget {
                 focusNode: focusNode,
                 onSave: onSave,
                 onCancel: onCancel,
+                hintText: 'Note text',
                 minLines: 2,
                 maxLines: 8,
               ),

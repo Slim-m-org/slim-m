@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -116,6 +117,8 @@ class CanvasSurfaceStatus extends StatelessWidget {
     required this.loading,
     required this.hasError,
     required this.hasCallParticipants,
+    this.onAddNote,
+    this.onAddShape,
     required this.child,
   });
 
@@ -124,6 +127,11 @@ class CanvasSurfaceStatus extends StatelessWidget {
   final bool loading;
   final bool hasError;
   final bool hasCallParticipants;
+
+  /// Offered to a screen reader on the board itself, placing at the view's centre.
+  final VoidCallback? onAddNote;
+  final VoidCallback? onAddShape;
+
   final Widget child;
 
   @override
@@ -132,6 +140,10 @@ class CanvasSurfaceStatus extends StatelessWidget {
     builder: (context, count, child) => Semantics(
       container: true,
       label: loading ? 'Canvas, loading' : 'Canvas, ${canvasSummary(document)}',
+      customSemanticsActions: {
+        if (onAddNote case final add?) _addNote: add,
+        if (onAddShape case final add?) _addShape: add,
+      },
       child: Stack(
         children: [
           child!,
@@ -147,3 +159,6 @@ class CanvasSurfaceStatus extends StatelessWidget {
     child: child,
   );
 }
+
+const _addNote = CustomSemanticsAction(label: 'Add a note');
+const _addShape = CustomSemanticsAction(label: 'Add a shape');

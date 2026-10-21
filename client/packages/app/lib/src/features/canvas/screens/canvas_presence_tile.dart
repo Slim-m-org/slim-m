@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderProxyBox;
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -393,7 +394,7 @@ class _CanvasPresenceManipulableTileState
   }) {
     final room = !needsRoom || _roomForControls;
     final shown = _controlsVisible && room;
-    return IgnorePointer(
+    return _PointerGate(
       ignoring: !shown,
       child: AnimatedOpacity(
         opacity: shown ? 1 : 0,
@@ -412,6 +413,12 @@ class _CanvasPresenceManipulableTileState
         ),
       ),
     );
+  }
+
+  void _openMenuAtCentre() {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return;
+    _menuController.open(box.localToGlobal(box.size.center(Offset.zero)));
   }
 
   @override
@@ -449,6 +456,8 @@ class _CanvasPresenceManipulableTileState
           child: Semantics(
             container: true,
             label: widget.semanticLabel,
+            // The menu a right-click or a hold opens; the gesture below publishes nothing, since a semantic tap never sends its secondary tap.
+            onLongPress: _openMenuAtCentre,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -464,6 +473,7 @@ class _CanvasPresenceManipulableTileState
                   ignoring: _passThrough,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    excludeFromSemantics: true,
                     // Opens this tile's own menu rather than a no-op now, but still HitTestBehavior.opaque - a right-click on a tile must never leak to a canvas object underneath it, `canvas_self_presence_overlay.dart`'s old precedent for this exact absorption. onLongPressStart is its touch equivalent (law 3), matching canvas_object_context_menu.dart's own precedent.
                     onSecondaryTapUp: (details) =>
                         _menuController.open(details.globalPosition),
@@ -495,4 +505,32 @@ class _CanvasPresenceManipulableTileState
       ),
     );
   }
+}
+
+/// Hides its child from pointers only. IgnorePointer also blocks semantics
+/// actions, which left a screen reader's tap on a hidden control doing nothing.
+class _PointerGate extends SingleChildRenderObjectWidget {
+  const _PointerGate({required this.ignoring, super.child});
+
+  final bool ignoring;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderPointerGate(ignoring);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderPointerGate renderObject,
+  ) => renderObject.ignoring = ignoring;
+}
+
+class _RenderPointerGate extends RenderProxyBox {
+  _RenderPointerGate(this.ignoring);
+
+  bool ignoring;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      !ignoring && super.hitTest(result, position: position);
 }

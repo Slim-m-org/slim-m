@@ -13,6 +13,7 @@ import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 
 import '../../../support/semantics_audit.dart';
 import 'canvas_a11y_probe.dart';
@@ -46,10 +47,15 @@ void main() {
 
       a11yTest('the dock controls have distinct names', (tester) async {
         await pumpA11yCanvas(tester, size: entry.value);
-        final window = tester.view.physicalSize;
+        // The dock's own top, not a fixed band: the roster row makes a phone dock taller than 160.
+        final dockTop = find
+            .byType(FloatingDockCard)
+            .evaluate()
+            .map((e) => tester.getRect(find.byWidget(e.widget)).top)
+            .reduce((a, b) => a < b ? a : b);
         final names = [
           for (final row in semanticsRows(tester, onlyControls: true))
-            if (row.rect.top > window.height - 160) row.name,
+            if (row.rect.top >= dockTop - 1) row.name,
         ];
         expect(names.toSet().length, names.length, reason: names.join('\n'));
         expect(names, containsAll(['Pan', 'Pen', 'Note', 'Shape', 'Eraser']));
@@ -143,13 +149,14 @@ void main() {
       expect(hides, tiles, reason: '$tiles tiles but $hides Hide controls');
     });
 
-    a11yTest('activating the Hide control of a camera-off tile hides it', (
-      tester,
-    ) async {
+    // Camera-off people have no tile any more (decision 0086); a share tile has the same Hide.
+    a11yTest('activating the Hide control of a tile hides it', (tester) async {
       await pumpA11yCanvas(tester);
-      final hide = semanticsRows(tester).singleWhere(
-        (r) => r.label.contains('Sam') && r.label.contains('Hide this tile'),
-      );
+      final hides = semanticsRows(
+        tester,
+      ).where((r) => r.label.contains('Hide this tile'));
+      final hideCount = hides.length;
+      final hide = hides.first;
 
       tester.binding.renderViews.first.owner!.semanticsOwner!.performAction(
         hide.node.id,
@@ -158,8 +165,8 @@ void main() {
       await settle(tester);
 
       expect(
-        rowsNamed(tester, "Sam, on this call's canvas"),
-        isEmpty,
+        semanticsRows(tester).where((r) => r.label.contains('Hide this tile')),
+        hasLength(lessThan(hideCount)),
         reason:
             'the node is announced as a Hide button and the tap does nothing',
       );
@@ -169,16 +176,15 @@ void main() {
       tester,
     ) async {
       await pumpA11yCanvas(tester);
-      final sam = semanticsRows(
-        tester,
-      ).singleWhere((r) => r.label.startsWith('Sam, on this call'));
+      // Mute state is told in the dock roster, where everyone in the call is listed (decision 0086).
+      final sam = semanticsRows(tester).where((r) => r.label.startsWith('Sam'));
 
       expect(
-        sam.label.toLowerCase(),
-        contains('muted'),
+        sam.any((r) => r.label.toLowerCase().contains('muted')),
+        isTrue,
         reason:
             'the mute badge and the speaking ring are drawn, never labelled: '
-            '${sam.label.replaceAll('\n', ' / ')}',
+            '${sam.map((r) => r.label).join(' / ')}',
       );
     });
 
@@ -257,40 +263,42 @@ void main() {
   });
 
   group('the in-place note editor', () {
-    a11yTest(
-      'the text field has a name and nothing unlabeled covers the board',
-      (tester) async {
-        await pumpA11yCanvas(
-          tester,
-          call: false,
-          objects: [canvasNoteJson('n1', x: 100, text: 'hello world')],
-        );
-        useFreeCamera(tester);
-        await tester.pump();
-        await tester.tapAt(screenFor(tester, const Offset(110, 20)));
-        await tester.pump(const Duration(milliseconds: 100));
-        final rows = semanticsRows(tester);
-        final field = rows.where((r) => r.flags.isTextField);
-        expect(
-          field,
-          isNotEmpty,
-          reason: 'a touch tap on a note opens its editor',
-        );
+    a11yTest('the text field has a name and nothing unlabeled covers the board', (
+      tester,
+    ) async {
+      await pumpA11yCanvas(
+        tester,
+        call: false,
+        objects: [canvasNoteJson('n1', x: 100, text: 'hello world')],
+      );
+      useFreeCamera(tester);
+      await tester.pump();
+      // A finger's first tap selects the note; a tap on the selected note opens its editor.
+      await tester.tapAt(screenFor(tester, const Offset(110, 20)));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tapAt(screenFor(tester, const Offset(110, 20)));
+      await tester.pump(const Duration(milliseconds: 100));
+      final rows = semanticsRows(tester);
+      final field = rows.where((r) => r.flags.isTextField);
+      expect(
+        field,
+        isNotEmpty,
+        reason: 'a touch tap on a note opens its editor',
+      );
 
-        final unnamedField = [
-          for (final row in field)
-            if (row.label.isEmpty && row.hint.isEmpty) row.describe(),
-        ];
-        final blankCover = [
-          for (final row in rows)
-            if (row.taps &&
-                row.accessibleName.isEmpty &&
-                row.rect.width * row.rect.height > 200 * 200)
-              row.describe(),
-        ];
-        expect([...unnamedField, ...blankCover], isEmpty);
-      },
-    );
+      final unnamedField = [
+        for (final row in field)
+          if (row.label.isEmpty && row.hint.isEmpty) row.describe(),
+      ];
+      final blankCover = [
+        for (final row in rows)
+          if (row.taps &&
+              row.accessibleName.isEmpty &&
+              row.rect.width * row.rect.height > 200 * 200)
+            row.describe(),
+      ];
+      expect([...unnamedField, ...blankCover], isEmpty);
+    });
   });
 
   group('sheets and dialogs', () {

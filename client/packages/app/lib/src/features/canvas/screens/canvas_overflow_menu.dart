@@ -138,31 +138,51 @@ class CanvasOverflowMenu extends StatefulWidget {
 
 class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   final _controller = OverlayPortalController();
+
+  /// Mirrors the portal's visibility for the trigger's expanded state.
+  final _open = ValueNotifier<bool>(false);
+
+  void _hide() {
+    _controller.hide();
+    _open.value = false;
+  }
+
+  void _toggle() {
+    _controller.toggle();
+    _open.value = _controller.isShowing;
+  }
+
+  @override
+  void dispose() {
+    _open.dispose();
+    super.dispose();
+  }
+
   final _link = LayerLink();
 
   void _paste() {
-    _controller.hide();
+    _hide();
     widget.onPasteImage();
   }
 
   void _toggleActivityLog() {
-    _controller.hide();
+    _hide();
     widget.onToggleActivityLog();
   }
 
   void _enterFullscreen() {
-    _controller.hide();
+    _hide();
     widget.onToggleFullscreen();
   }
 
   void _toggleSelfBubble() {
-    _controller.hide();
+    _hide();
     widget.onToggleSelfBubbleHidden();
   }
 
   /// Opens a modal once the menu is gone: its closing focus scope would otherwise take focus back from the new route.
   void _openAfterClose(Future<void> Function() open) {
-    _controller.hide();
+    _hide();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(open());
     });
@@ -175,7 +195,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
       _openAfterClose(() => requestScopedCanvasClear(context, control));
 
   void _showTile(String key) {
-    _controller.hide();
+    _hide();
     widget.onShowTile(key);
   }
 
@@ -210,33 +230,40 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
       child: OverlayPortal(
         controller: _controller,
         overlayChildBuilder: (_) => _buildMenu(),
-        child: AppIconButton(
-          icon: AppIcons.moreVertical,
-          semanticLabel: 'More canvas actions',
-          tooltip: 'More canvas actions',
-          onPressed: _controller.toggle,
+        // Says whether its menu is open, as a disclosure button should.
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _open,
+          builder: (context, open, _) => Semantics(
+            expanded: open,
+            child: AppIconButton(
+              icon: AppIcons.moreVertical,
+              semanticLabel: 'More canvas actions',
+              tooltip: 'More canvas actions',
+              onPressed: _toggle,
+            ),
+          ),
         ),
       ),
     );
   }
 
   void _bringToFront(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onBringToFront(objectId);
   }
 
   void _sendToBack(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onSendToBack(objectId);
   }
 
   void _delete(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onDeleteSelected(objectId);
   }
 
   void _pickShapeKind(CanvasShapeKind kind) {
-    _controller.hide();
+    _hide();
     widget.onShapeKindChanged(kind);
   }
 
@@ -293,10 +320,10 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         offset: Offset(0, widget.opensBelow ? 4 : -4),
         child: CanvasDockPopupPin(
           child: TapRegion(
-            onTapOutside: (_) => _controller.hide(),
+            onTapOutside: (_) => _hide(),
             // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
             child: ContextMenuKeyboardScope(
-              onDismiss: _controller.hide,
+              onDismiss: _hide,
               child: ValueListenableBuilder<String?>(
                 valueListenable: widget.selection,
                 builder: (context, selected, _) => AppMenu(
@@ -351,7 +378,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
               : 'Snap to grid',
           leading: AppIcons.snapToGrid,
           onTap: () {
-            _controller.hide();
+            _hide();
             unawaited(ref.read(canvasGridSnapProvider.notifier).toggle());
           },
         ),

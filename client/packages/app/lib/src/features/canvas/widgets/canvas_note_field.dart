@@ -259,25 +259,29 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    minLines: widget.minLines,
-                    maxLines: widget.maxLines,
-                    keyboardType: TextInputType.multiline,
-                    inputFormatters: [
-                      NoteByteLimitFormatter(onRefused: _markFull),
-                    ],
-                    style: AppText.body.copyWith(color: tokens.textPrimary),
-                    cursorColor: tokens.accent,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: widget.hintText,
+                  // Named outside the field too: its hint leaves the accessible name once there is text.
+                  child: Semantics(
+                    label: widget.hintText,
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: widget.focusNode,
+                      minLines: widget.minLines,
+                      maxLines: widget.maxLines,
+                      keyboardType: TextInputType.multiline,
+                      inputFormatters: [
+                        NoteByteLimitFormatter(onRefused: _markFull),
+                      ],
+                      style: AppText.body.copyWith(color: tokens.textPrimary),
+                      cursorColor: tokens.accent,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: widget.hintText,
+                      ),
                     ),
                   ),
                 ),

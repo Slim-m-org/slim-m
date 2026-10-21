@@ -236,18 +236,14 @@ void main() {
 
     final grip = find.byType(TileResizeGrip);
     expect(grip, findsOneWidget);
-    final ignorePointer = find.ancestor(
-      of: grip,
-      matching: find.byType(IgnorePointer),
-    );
-    expect(tester.widget<IgnorePointer>(ignorePointer.first).ignoring, isTrue);
+    expect(_hittable(tester, grip), isFalse);
 
     await tester.tap(find.byKey(_tileKey));
     await tester.pump(AppMotion.fast);
 
     expect(
-      tester.widget<IgnorePointer>(ignorePointer.first).ignoring,
-      isFalse,
+      _hittable(tester, grip),
+      isTrue,
       reason:
           'a reveal must uncover the resize grip exactly as it does '
           'the lock/depth/hide row',
@@ -345,16 +341,12 @@ void main() {
     testWidgets('still shows the resize grip once touched', (tester) async {
       await pumpSmall(tester);
       final grip = find.byType(TileResizeGrip);
-      final ignoring = find.ancestor(
-        of: grip,
-        matching: find.byType(IgnorePointer),
-      );
-      expect(tester.widget<IgnorePointer>(ignoring.first).ignoring, isTrue);
+      expect(_hittable(tester, grip), isFalse);
 
       await tester.tap(find.byKey(_tileKey));
       await tester.pump(AppMotion.fast);
 
-      expect(tester.widget<IgnorePointer>(ignoring.first).ignoring, isFalse);
+      expect(_hittable(tester, grip), isTrue);
     });
   });
 
@@ -391,4 +383,13 @@ void main() {
     expect(rect.left, 1800);
     expect(rect.right, lessThanOrEqualTo(canvasBoard.right + 1e-6));
   });
+}
+
+/// Whether a pointer at [finder]'s centre reaches it, the way a real press would.
+bool _hittable(WidgetTester tester, Finder finder) {
+  final target = tester.renderObject(finder);
+  return tester
+      .hitTestOnBinding(tester.getCenter(finder))
+      .path
+      .any((entry) => entry.target == target);
 }

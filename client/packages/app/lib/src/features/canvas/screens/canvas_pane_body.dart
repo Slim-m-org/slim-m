@@ -525,6 +525,12 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     loading: widget.loading,
     hasError: widget.error != null,
     hasCallParticipants: widget.callParticipants.isNotEmpty,
+    onAddNote: canvasErrorBlocksDrawing(widget.error)
+        ? null
+        : () => widget.onNotePlace(widget.document.worldView.center),
+    onAddShape: canvasErrorBlocksDrawing(widget.error)
+        ? null
+        : () => widget.onShapePlace(widget.document.worldView.center, null),
     child: CanvasPaneSurface(
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
