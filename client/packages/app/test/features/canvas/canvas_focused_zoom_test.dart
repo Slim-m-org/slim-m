@@ -63,8 +63,8 @@ void main() {
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: const Offset(400, 300));
     await tester.sendEventToBinding(
-      PointerScaleEvent(
-        position: const Offset(400, 300),
+      const PointerScaleEvent(
+        position: Offset(400, 300),
         kind: PointerDeviceKind.mouse,
         scale: 2,
       ),

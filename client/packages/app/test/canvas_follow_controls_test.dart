@@ -4,10 +4,7 @@
 /// cursor frames that change nobody on the list.
 library;
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart' show debugOnRebuildDirtyWidget;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_follow_controls.dart';

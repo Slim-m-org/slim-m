@@ -2,8 +2,6 @@
 /// The follow panel on a phone with many others in the call.
 library;
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
