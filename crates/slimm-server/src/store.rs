@@ -46,6 +46,7 @@ mod dock_sources;
 mod emoji;
 mod forward_cascade;
 mod interactions;
+mod invite_reuse;
 mod invites;
 mod linked_accounts;
 mod member_gate;

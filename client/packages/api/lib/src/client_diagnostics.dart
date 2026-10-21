@@ -83,8 +83,7 @@ class _ApiProbe implements ConnectionProbe {
       await for (final chunk in response.stream) {
         cancel?.throwIfCancelled();
         received += chunk.length;
-        // The clock starts at the first chunk, and that chunk is not counted:
-        // what the socket buffered before this loop ran was never timed.
+        // The first chunk starts the clock uncounted: what the socket buffered before it was never timed.
         if (!clock.isRunning) {
           clock.start();
         } else {
@@ -97,8 +96,7 @@ class _ApiProbe implements ConnectionProbe {
     } catch (e) {
       throw TransportException('GET /diagnostics/download failed: $e');
     }
-    // A body that came as one chunk has no inside to time, so the whole
-    // request is the only honest figure.
+    // A one-chunk body has nothing inside to time, so the whole request is the honest figure.
     if (timed == 0) return ProbeTransfer(received, asked.elapsed);
     return ProbeTransfer(timed, clock.elapsed);
   }
