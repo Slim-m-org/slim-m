@@ -49,7 +49,7 @@ void main() {
   });
 
   test('a flipped line is hit along the diagonal it was drawn', () {
-    final flipped = CanvasStrokeInput(
+    const flipped = CanvasStrokeInput(
       id: 'f',
       seq: 1,
       zIndex: 1,
@@ -57,7 +57,7 @@ void main() {
       y: 100,
       w: 200,
       h: 100,
-      points: const [],
+      points: [],
       width: 2,
       colorKey: 'shape',
       kind: CanvasObjectKind.shape,

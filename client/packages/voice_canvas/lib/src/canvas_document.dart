@@ -58,6 +58,7 @@ class CanvasDocument extends ChangeNotifier {
 
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
+  double _bottomInset = 0;
   bool _isDisposed = false;
   int _contentRevision = 0;
   double _maxStrokeWidth = 0;
@@ -128,10 +129,31 @@ class CanvasDocument extends ChangeNotifier {
   double get zoomFloor {
     final board = _board;
     if (board == null || _viewport.isEmpty) return minZoom;
-    return math.min(minZoom, boardFitZoom(board, _viewport));
+    return math.min(minZoom, boardFitZoom(board, _fitView));
   }
 
   Size get viewport => _viewport;
+
+  /// The viewport less the floating dock at its foot: what fitting and
+  /// clamping the board aim at, while painting and culling still use all of it.
+  Size get _fitView => Size(
+        _viewport.width,
+        math.max(
+            math.min(1, _viewport.height), _viewport.height - _bottomInset),
+      );
+
+  /// How much of the viewport's foot a floating dock covers, so the fitted
+  /// board sits above it and its bottom edge stays reachable.
+  void setBottomInset(double inset) {
+    final next = inset.isFinite ? math.max(0.0, inset) : 0.0;
+    if (next == _bottomInset) return;
+    _bottomInset = next;
+    final board = _board;
+    _camera = board != null && _atFit
+        ? boardFitCamera(board, _fitView)
+        : _clamp(_camera);
+    _reculled();
+  }
 
   /// Slots the last cull kept, in paint order.
   List<int> get paintOrder => _paintOrder.order(
@@ -522,7 +544,7 @@ class CanvasDocument extends ChangeNotifier {
     worldEdgeHit.value =
         board == null && (clamped.x != next.x || clamped.y != next.y);
     if (board != null && !_viewport.isEmpty) {
-      _atFit = clamped.zoom <= boardFitZoom(board, _viewport) + 1e-9;
+      _atFit = clamped.zoom <= boardFitZoom(board, _fitView) + 1e-9;
     }
     if (clamped == _camera) return;
     _camera = clamped;
@@ -533,10 +555,11 @@ class CanvasDocument extends ChangeNotifier {
     if (size == _viewport) return;
     _viewport = size;
     final board = _board;
-    _camera =
-        board != null && _atFit ? boardFitCamera(board, size) : _clamp(_camera);
+    _camera = board != null && _atFit
+        ? boardFitCamera(board, _fitView)
+        : _clamp(_camera);
     if (board != null && !size.isEmpty) {
-      _atFit = _camera.zoom <= boardFitZoom(board, size) + 1e-9;
+      _atFit = _camera.zoom <= boardFitZoom(board, _fitView) + 1e-9;
     }
     _reculled();
   }
@@ -551,7 +574,7 @@ class CanvasDocument extends ChangeNotifier {
 
   Camera _clamp(Camera next) {
     final board = _board;
-    if (board != null) return clampCameraToBoard(next, board, _viewport);
+    if (board != null) return clampCameraToBoard(next, board, _fitView);
     final zoom = next.zoom.clamp(minZoom, maxZoom);
     final w = _viewport.width / zoom;
     final h = _viewport.height / zoom;

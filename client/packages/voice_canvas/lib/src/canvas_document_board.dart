@@ -11,8 +11,7 @@ extension CanvasDocumentBoard on CanvasDocument {
     _board = board;
     _atFit = true;
     _retrackAllOutside();
-    _camera =
-        board == null ? _clamp(_camera) : boardFitCamera(board, _viewport);
+    _camera = board == null ? _clamp(_camera) : boardFitCamera(board, _fitView);
     _reculled();
   }
 
@@ -93,7 +92,7 @@ extension CanvasDocumentBoard on CanvasDocument {
   /// Brings the whole board back into view.
   void fitBoard() {
     final board = _board;
-    if (board != null) setCamera(boardFitCamera(board, _viewport));
+    if (board != null) setCamera(boardFitCamera(board, _fitView));
   }
 
   /// The part of the board in view, or null when no board is set.
@@ -105,6 +104,6 @@ extension CanvasDocumentBoard on CanvasDocument {
   /// Shows [view] (a board rectangle) fitted to this viewport's own aspect.
   void showBoardView(ui.Rect view) {
     final board = _board;
-    if (board != null) setCamera(cameraForBoardView(view, board, _viewport));
+    if (board != null) setCamera(cameraForBoardView(view, board, _fitView));
   }
 }

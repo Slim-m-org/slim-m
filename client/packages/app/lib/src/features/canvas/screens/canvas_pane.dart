@@ -40,6 +40,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../widgets/app_drop_zone.dart';
+import '../../modules/providers/dock_reservation.dart';
 import '../../messages/widgets/attachment_picker.dart'
     show AttachmentSource, attachmentPickerProvider;
 import '../../messages/widgets/image_drop_zone.dart'
@@ -173,6 +174,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _engine.attachPane(); // also forces the late field's ref.read now
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
+    _document.setBottomInset(ref.read(bottomDockReservationProvider));
   }
 
   @override
@@ -227,6 +229,11 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       objectPreviewGlideDuration,
     );
     ref.listen(voiceFlagsProvider, _closeWhenCallEnds);
+    // The fitted board sits above the floating dock, so its foot is never hidden at fit.
+    ref.listen(
+      bottomDockReservationProvider,
+      (_, height) => _document.setBottomInset(height),
+    );
     final noteSpanStyle = _noteSpanStyle(context);
     final editingNote = _editingNoteId != null;
     final focusedTile = _focusedTileKey;
