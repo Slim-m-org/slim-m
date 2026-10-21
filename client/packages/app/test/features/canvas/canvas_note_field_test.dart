@@ -166,4 +166,21 @@ void main() {
       expect(link.style.color, style.linkInk);
     });
   });
+
+  testWidgets('Enter while an IME composition is open leaves the text alone', (
+    tester,
+  ) async {
+    final controller = await _pump(tester);
+
+    controller.value = const TextEditingValue(
+      text: '- ni',
+      selection: TextSelection.collapsed(offset: 4),
+      composing: TextRange(start: 2, end: 4),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(controller.text, '- ni');
+  });
 }
