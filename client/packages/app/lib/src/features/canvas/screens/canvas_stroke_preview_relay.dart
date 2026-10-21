@@ -69,6 +69,10 @@ class CanvasStrokePreviewRelay {
   /// captured once, matching `CanvasCursorRelay.selfId`'s own reasoning.
   final String? Function() selfId;
 
+  /// The pen the gesture in progress is drawn with, sent along so peers see
+  /// the real ink; null for a gesture that named none.
+  ({String colorKey, double width})? pen;
+
   Timer? _pruneTimer;
   Timer? _flushTimer;
   String? _activeObjectId;
@@ -90,7 +94,11 @@ class CanvasStrokePreviewRelay {
   /// Call for every `DraftPointAdded` while this device draws: mints a new
   /// draft id on the first point of a gesture and starts the flush timer,
   /// or buffers onto the one already in progress.
-  void reportLocalDraftPoint(Offset world) {
+  void reportLocalDraftPoint(
+    Offset world, {
+    ({String colorKey, double width})? pen,
+  }) {
+    this.pen = pen ?? this.pen;
     _activeObjectId ??= newCanvasDraftId();
     _pending.add(world);
     _flushTimer ??= Timer.periodic(strokePreviewSendInterval, (_) => _flush());
@@ -106,6 +114,7 @@ class CanvasStrokePreviewRelay {
     _flushTimer?.cancel();
     _flushTimer = null;
     _activeObjectId = null;
+    pen = null;
   }
 
   void _flush({bool ended = false}) {
@@ -146,19 +155,31 @@ class CanvasStrokePreviewRelay {
     String userId,
     String objectId,
     List<double> points,
-    bool ended,
-  ) {
+    bool ended, {
+    String? color,
+    double? width,
+  }) {
     if (userId == selfId() || isBlocked(userId)) return;
-    if (ended) {
-      drafts.finish(objectId, now: clock.now());
-      return;
+    if (points.isNotEmpty) {
+      _append(userId, objectId, points, color: color, width: width);
     }
-    if (points.isEmpty) return;
+    if (ended) drafts.finish(objectId, now: clock.now());
+  }
+
+  void _append(
+    String userId,
+    String objectId,
+    List<double> points, {
+    String? color,
+    double? width,
+  }) {
     drafts.appendOrCreate(
       objectId: objectId,
       authorId: userId,
       points: points,
       colorIndex: canvasParticipantColorIndex(userId, paletteSize),
+      colorKey: color,
+      width: width,
       now: clock.now(),
     );
     _armPrune();

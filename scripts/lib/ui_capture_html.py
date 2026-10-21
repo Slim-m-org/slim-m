@@ -67,7 +67,7 @@ CATEGORY_INFO = {
         ),
         "grow": (
             "Add a scene to "
-            "client/packages/voice_canvas/test/visual/canvas_visual_render.dart."
+            "client/packages/voice_canvas/test/visual/canvas_visual_render_test.dart."
         ),
     },
 }

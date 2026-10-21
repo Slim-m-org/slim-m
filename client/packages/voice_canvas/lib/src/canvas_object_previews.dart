@@ -105,6 +105,8 @@ class RemoteObjectPreviews {
       if (now.difference(settled) < objectPreviewLateFrameWindow) return;
       _settledAt.remove(objectId);
     }
+    // A peer's frame can name any size; a box no object may have would index millions of grid cells on every viewer.
+    if (!(box.w <= maxObjectExtent && box.h <= maxObjectExtent)) return;
     final existing = _previews[objectId];
     if (existing == null) {
       final original = document.objectBounds(objectId);

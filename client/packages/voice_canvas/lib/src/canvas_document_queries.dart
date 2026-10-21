@@ -93,6 +93,42 @@ extension CanvasDocumentQueries on CanvasDocument {
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 
+  /// Every live slot inside [world] (padded for ink width), in paint order.
+  List<int> orderedSlotsIn(ui.Rect world) {
+    final pad = cullPad;
+    final out = CullResult();
+    scene.queryRect(
+      world.left - pad,
+      world.top - pad,
+      world.right + pad,
+      world.bottom + pad,
+      out,
+    );
+    final slots = [
+      for (final slot in out.slots)
+        if (strokeIfAlive(slot) != null) slot,
+    ]..sort(comparePaintOrder);
+    return slots;
+  }
+
+  /// The on-screen images that hold a bitmap, so a zoom can tell which are
+  /// now drawn larger than they were decoded.
+  List<({String id, String attachmentId})> get visibleImagesHoldingBitmap => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?)
+            if (stroke.kind == CanvasObjectKind.image &&
+                stroke.image != null &&
+                stroke.attachmentId != null)
+              (id: stroke.id, attachmentId: stroke.attachmentId!),
+      ];
+
+  /// The attachment [id] names, or null for any other object.
+  String? attachmentIdOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    return stroke != null && stroke.alive ? stroke.attachmentId : null;
+  }
+
   /// Live object counts by kind, across the whole document rather than only
   /// what the last cull kept - the one query the accessibility summary
   /// needs and nothing else here does, so it is a scan rather than a

@@ -56,6 +56,23 @@ void main() {
     expect(input.colorKey, 'shape');
   });
 
+  test('an arrow carries the way it points', () {
+    final input = canvasStrokeInputFrom(
+      _object(
+        kind: 'shape',
+        props: {'shape': 'arrow', 'flip_x': true, 'flip_y': true},
+      ),
+    );
+    expect(input!.flipX, isTrue);
+    expect(input.flipY, isTrue);
+
+    final plain = canvasStrokeInputFrom(
+      _object(kind: 'shape', props: {'shape': 'arrow'}),
+    );
+    expect(plain!.flipX, isFalse);
+    expect(plain.flipY, isFalse);
+  });
+
   test('a shape naming an unrecognised primitive does not parse', () {
     expect(
       canvasStrokeInputFrom(_object(kind: 'shape', props: {'shape': 'star'})),

@@ -94,4 +94,40 @@ void main() {
 
     expect(event, isNull);
   });
+
+  test('carries the drawer pen colour and width when sent', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'canvas.stroke_preview.updated',
+        'channel_id': 'chan-1',
+        'user_id': 'user-1',
+        'object_id': 'draft-1',
+        'points': [1.0, 2.0],
+        'ended': false,
+        'color': 'blue',
+        'width': 6,
+      }),
+    );
+
+    final preview = event! as CanvasStrokePreview;
+    expect(preview.color, 'blue');
+    expect(preview.width, 6.0);
+  });
+
+  test('a frame without a pen has no colour or width', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'canvas.stroke_preview.updated',
+        'channel_id': 'chan-1',
+        'user_id': 'user-1',
+        'object_id': 'draft-1',
+        'points': [1.0, 2.0],
+        'ended': false,
+      }),
+    );
+
+    final preview = event! as CanvasStrokePreview;
+    expect(preview.color, isNull);
+    expect(preview.width, isNull);
+  });
 }

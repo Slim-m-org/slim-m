@@ -8,6 +8,9 @@
 /// committed ink lives in.
 library;
 
+import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 
 /// One other participant's in-flight stroke, accumulated from every delta
@@ -19,6 +22,8 @@ class CanvasStrokeDraft {
     required this.authorId,
     required this.points,
     required this.colorIndex,
+    this.colorKey,
+    this.width,
     this.ended = false,
   });
 
@@ -35,6 +40,26 @@ class CanvasStrokeDraft {
 
   /// See `CanvasCursors`' own `CanvasCursor.colorIndex`.
   final int colorIndex;
+
+  /// The drawer's pen colour key and world width, when they sent them; the
+  /// ghost paints with these so it does not change look when it lands.
+  final String? colorKey;
+  final double? width;
+
+  /// The box the points span, for matching the ghost to the ink that lands.
+  Rect get bounds {
+    var minX = double.infinity;
+    var minY = double.infinity;
+    var maxX = double.negativeInfinity;
+    var maxY = double.negativeInfinity;
+    for (var i = 0; i + 1 < points.length; i += 2) {
+      minX = math.min(minX, points[i]);
+      maxX = math.max(maxX, points[i]);
+      minY = math.min(minY, points[i + 1]);
+      maxY = math.max(maxY, points[i + 1]);
+    }
+    return minX > maxX ? Rect.zero : Rect.fromLTRB(minX, minY, maxX, maxY);
+  }
 
   /// The drawer let go: kept showing until their committed stroke arrives so
   /// the ink never blinks out between the two.
@@ -57,7 +82,10 @@ const int maxDraftPreviewPoints = 4000;
 
 /// How long a finished draft waits for its committed stroke before it is
 /// dropped as a gesture that never committed.
-const Duration finishedDraftGrace = Duration(seconds: 2);
+const Duration finishedDraftGrace = Duration(seconds: 5);
+
+/// Finished draft ids remembered so a frame arriving late cannot revive one.
+const int finishedDraftMemory = 64;
 
 /// Remote in-flight strokes, keyed by [CanvasStrokeDraft.objectId].
 ///
@@ -69,6 +97,8 @@ const Duration finishedDraftGrace = Duration(seconds: 2);
 class RemoteStrokeDrafts extends ChangeNotifier {
   final Map<String, CanvasStrokeDraft> _drafts = <String, CanvasStrokeDraft>{};
   final Map<String, DateTime> _lastSeen = <String, DateTime>{};
+  final Map<String, Rect> _landed = <String, Rect>{};
+  final List<String> _retired = <String>[];
 
   /// Every in-flight stroke currently shown.
   Iterable<CanvasStrokeDraft> get all => _drafts.values;
@@ -80,8 +110,11 @@ class RemoteStrokeDrafts extends ChangeNotifier {
     required String authorId,
     required List<double> points,
     required int colorIndex,
+    String? colorKey,
+    double? width,
     DateTime? now,
   }) {
+    if (_retired.contains(objectId)) return;
     final existing = _drafts[objectId];
     final merged = existing == null
         ? List<double>.from(points)
@@ -95,6 +128,9 @@ class RemoteStrokeDrafts extends ChangeNotifier {
       authorId: authorId,
       points: capped,
       colorIndex: colorIndex,
+      colorKey: colorKey ?? existing?.colorKey,
+      width: width ?? existing?.width,
+      ended: existing?.ended ?? false,
     );
     _lastSeen[objectId] = now ?? DateTime.now();
     notifyListeners();
@@ -111,20 +147,44 @@ class RemoteStrokeDrafts extends ChangeNotifier {
       authorId: draft.authorId,
       points: draft.points,
       colorIndex: draft.colorIndex,
+      colorKey: draft.colorKey,
+      width: draft.width,
       ended: true,
     );
     _lastSeen[objectId] = now ?? DateTime.now();
     notifyListeners();
   }
 
-  /// The committed stroke by [authorId] arrived: drops their finished drafts.
-  void settleAuthor(String? authorId) {
+  /// A committed stroke by [authorId] arrived: drops their finished drafts.
+  ///
+  /// With [landed], the box of the ink that arrived, a draft goes only once
+  /// the ink landed so far covers it, so a stroke split into several
+  /// segments keeps its ghost until the last one lands rather than shrinking
+  /// to the first.
+  void settleAuthor(String? authorId, {Rect? landed}) {
     if (authorId == null) return;
-    final done = _drafts.values
-        .where((d) => d.ended && d.authorId == authorId)
-        .map((d) => d.objectId)
-        .toList(growable: false);
+    final drafts =
+        _drafts.values.where((d) => d.ended && d.authorId == authorId);
+    if (drafts.isEmpty) return;
+    final covered = landed == null
+        ? null
+        : (_landed[authorId] =
+            _landed[authorId]?.expandToInclude(landed) ?? landed);
+    final done = [
+      for (final draft in drafts)
+        if (covered == null || _covers(covered, draft)) draft.objectId,
+    ];
+    if (done.isNotEmpty) _landed.remove(authorId);
     done.forEach(end);
+  }
+
+  static bool _covers(Rect landed, CanvasStrokeDraft draft) {
+    final reach = landed.inflate((draft.width ?? 3) + 2);
+    final box = draft.bounds;
+    return reach.left <= box.left &&
+        reach.top <= box.top &&
+        reach.right >= box.right &&
+        reach.bottom >= box.bottom;
   }
 
   /// Drops one draft immediately: the drawer signalled the gesture ended, or
@@ -132,6 +192,8 @@ class RemoteStrokeDrafts extends ChangeNotifier {
   void end(String objectId) {
     if (_drafts.remove(objectId) == null) return;
     _lastSeen.remove(objectId);
+    _retired.add(objectId);
+    if (_retired.length > finishedDraftMemory) _retired.removeAt(0);
     notifyListeners();
   }
 
@@ -164,6 +226,8 @@ class RemoteStrokeDrafts extends ChangeNotifier {
     if (_drafts.isEmpty) return;
     _drafts.clear();
     _lastSeen.clear();
+    _landed.clear();
+    _retired.clear();
     notifyListeners();
   }
 }

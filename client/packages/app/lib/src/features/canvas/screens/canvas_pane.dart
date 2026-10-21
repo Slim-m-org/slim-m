@@ -344,7 +344,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onPointerMoved: _onPointerMoved,
                   onPointerLeft: () => _relay.reportLocalPointerLeft(),
                   remoteDrafts: _remoteDrafts,
-                  onDraftPoint: _strokePreview.reportLocalDraftPoint,
+                  onDraftPoint: (world) => _strokePreview.reportLocalDraftPoint(
+                    world,
+                    pen: (
+                      colorKey: _pen.colorKey,
+                      width: canvasPenWorldWidth(
+                        _pen.width,
+                        _document.camera.zoom,
+                      ),
+                    ),
+                  ),
                   onDraftEnded: _strokePreview.endLocalDraft,
                   callParticipants: _callParticipants(),
                   cameraViewFor: (identity) => ref

@@ -92,13 +92,19 @@ class CanvasQuickPlacement {
     Offset world,
     CanvasShapeKind shapeKind, {
     Size? draggedSize,
+    bool flipX = false,
+    bool flipY = false,
     required void Function(String message) onError,
   }) => _place(
     kind: 'shape',
     world: world,
     w: draggedSize?.width ?? defaultShapeWidth,
     h: draggedSize?.height ?? defaultShapeHeight,
-    props: {'shape': canvasShapeKindToWire(shapeKind)},
+    props: {
+      'shape': canvasShapeKindToWire(shapeKind),
+      if (flipX) 'flip_x': true,
+      if (flipY) 'flip_y': true,
+    },
     onError: onError,
   );
 

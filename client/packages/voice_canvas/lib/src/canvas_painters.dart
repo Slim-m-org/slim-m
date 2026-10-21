@@ -19,11 +19,13 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_document.dart';
+import 'canvas_ink_cache.dart';
 import 'canvas_snap.dart' show gridSpacingFor;
 import 'note_label_cache.dart';
 
@@ -105,8 +107,15 @@ class GridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(GridPainter oldDelegate) => false;
+  bool shouldRepaint(GridPainter oldDelegate) =>
+      oldDelegate.line != line ||
+      oldDelegate.letterbox != letterbox ||
+      !identical(oldDelegate.document, document);
 }
+
+/// The thinnest a stroke is ever painted, in screen pixels, so ink drawn while
+/// zoomed in stays visible to someone viewing the whole board.
+const double minInkScreenPx = 1.5;
 
 /// Styles a note's text: markdown, mentions and emoji as spans over [base].
 typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
@@ -170,18 +179,108 @@ class StrokePainter extends CustomPainter {
   final List<BoxShadow> elevationShadow;
 
   final NoteLabelCache _noteLabels = NoteLabelCache();
+  late final InkLayerCache _ink = InkLayerCache(
+    onSettle: () {
+      if (!document.isDisposed) document.refresh();
+    },
+  );
+  final Paint _inkTexturePaint = Paint();
+  bool _builtThisFrame = false;
 
-  /// Frees the note-text cache; a [CustomPainter] has no teardown hook of its
-  /// own, so the owning surface calls this from its own `dispose`.
-  void disposeNoteLabels() => _noteLabels.dispose();
+  /// Device pixels per logical pixel, so the ink texture is as sharp as the live ink.
+  double devicePixelRatio =
+      ui.PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
+
+  /// Frees the note-text cache and the ink texture; a [CustomPainter] has no
+  /// teardown hook of its own, so the owning surface calls this from its own
+  /// `dispose`.
+  void dispose() {
+    _noteLabels.dispose();
+    _ink.dispose();
+  }
 
   @visibleForTesting
   int get debugNoteLabelCacheSize => _noteLabels.size;
+
+  @visibleForTesting
+  bool get debugHasInkTexture => _ink.hasImage;
 
   @override
   void paint(Canvas canvas, Size size) {
     final camera = document.camera;
     final elevated = document.elevatedObjectId.value;
+    final revision = document.contentRevision;
+    final still = _ink.still(camera.zoom, revision, elevated);
+    _builtThisFrame = false;
+    final order = document.paintOrder;
+    if (_paintFromTexture(
+      canvas,
+      size,
+      camera,
+      elevated,
+      still: still,
+      order: order,
+    )) {
+      return;
+    }
+    // Reconcile every frame so a note culled or removed since the last paint drops its cached text.
+    _noteLabels.retain(_paintSlots(canvas, camera, order, elevated));
+    if (!_builtThisFrame && _ink.fits(size, devicePixelRatio)) {
+      _ink.settleSoon();
+    }
+  }
+
+  /// Draws the committed ink as one texture plus the few objects newer than
+  /// it; false when the texture cannot stand in, so the caller paints live.
+  bool _paintFromTexture(
+    Canvas canvas,
+    Size size,
+    Camera camera,
+    String? elevated, {
+    required ({bool content, bool camera}) still,
+    required List<int> order,
+  }) {
+    final revision = document.contentRevision;
+    List<int>? extras;
+    bool usable() {
+      if (!_ink.covers(camera, size, revision, elevated, devicePixelRatio)) {
+        return false;
+      }
+      extras = _ink.extrasOf(order);
+      return extras != null;
+    }
+
+    var ok = usable();
+    if (!ok && still.content ||
+        ok && still.camera && _ink.isStretched(camera)) {
+      final noteIds = <String>{};
+      final built = _ink.build(
+        document: document,
+        camera: camera,
+        size: size,
+        dpr: devicePixelRatio,
+        elevated: elevated,
+        paintSlots: (c, cam, slots) =>
+            noteIds.addAll(_paintSlots(c, cam, slots, elevated)),
+      );
+      _builtThisFrame = true;
+      if (built) _noteLabels.retain(noteIds);
+      ok = built && usable();
+    }
+    if (!ok) return false;
+    _ink.draw(canvas, camera, _inkTexturePaint);
+    _paintSlots(canvas, camera, extras!, elevated);
+    if (_ink.isStretched(camera)) _ink.settleSoon();
+    return true;
+  }
+
+  /// Paints [slots], bottom first, and returns the ids of the notes among them.
+  Set<String> _paintSlots(
+    Canvas canvas,
+    Camera camera,
+    List<int> slots,
+    String? elevated,
+  ) {
     final noteIds = <String>{};
     final paint = Paint()
       ..color = ink
@@ -190,7 +289,7 @@ class StrokePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..isAntiAlias = true;
 
-    for (final slot in document.paintOrder) {
+    for (final slot in slots) {
       final stroke = document.strokeAt(slot);
       final isElevated = stroke.id == elevated;
       switch (stroke.kind) {
@@ -228,12 +327,11 @@ class StrokePainter extends CustomPainter {
       canvas.scale(camera.zoom);
       paint
         ..color = inkColors[stroke.colorKey] ?? ink
-        ..strokeWidth = stroke.width;
+        ..strokeWidth = math.max(stroke.width, minInkScreenPx / camera.zoom);
       canvas.drawPath(stroke.path, paint);
       canvas.restore();
     }
-    // Reconcile every frame so a note culled or removed since the last paint drops its cached text.
-    _noteLabels.retain(noteIds);
+    return noteIds;
   }
 
   /// A live bitmap paints normally; a load that failed for good draws the

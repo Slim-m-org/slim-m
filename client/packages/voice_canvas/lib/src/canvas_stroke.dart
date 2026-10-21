@@ -133,6 +133,8 @@ class CanvasStrokeInput {
     this.text,
     this.shapeKind,
     this.groupId,
+    this.flipX = false,
+    this.flipY = false,
   });
 
   final String id;
@@ -178,7 +180,25 @@ class CanvasStrokeInput {
   /// erased and deleted as the one mark the person drew. Null for anything
   /// that was never split.
   final String? groupId;
+
+  /// Which way a line or arrow runs inside its box; see [shapeSegment].
+  final bool flipX;
+  final bool flipY;
 }
+
+/// The endpoints of a line or arrow inside a `w` by `h` box, from its tail to
+/// its head. Unflipped it runs top-left to bottom-right; [flipX] and [flipY]
+/// swap the head to the left and the top, so an arrow can point any way.
+(Offset, Offset) shapeSegment(
+  double w,
+  double h, {
+  bool flipX = false,
+  bool flipY = false,
+}) =>
+    (
+      Offset(flipX ? w : 0, flipY ? h : 0),
+      Offset(flipX ? 0 : w, flipY ? 0 : h),
+    );
 
 /// A stroke ready to paint: its [Path] is built once, at insert, in
 /// object-local coordinates and reused every frame.
@@ -203,6 +223,8 @@ class CanvasStroke {
     this.text,
     this.shapeKind,
     this.groupId,
+    this.flipX = false,
+    this.flipY = false,
   });
 
   final String id;
@@ -261,6 +283,10 @@ class CanvasStroke {
 
   /// See [CanvasStrokeInput.groupId].
   final String? groupId;
+
+  /// See [CanvasStrokeInput.flipX].
+  final bool flipX;
+  final bool flipY;
 
   /// Every point in absolute world coordinates, for hit testing against a
   /// world-space pointer with no per-call offset arithmetic.

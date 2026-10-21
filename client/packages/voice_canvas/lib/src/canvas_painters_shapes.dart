@@ -49,34 +49,40 @@ extension _StrokePainterShapes on StrokePainter {
     );
     canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = color);
     final text = stroke.text;
-    const pad = 8.0;
     if (text == null ||
         text.isEmpty ||
-        box.width <= pad * 2 ||
-        box.height <= pad * 2) {
+        stroke.w <= noteWorldPad * 2 ||
+        stroke.h <= noteWorldPad * 2 ||
+        noteWorldFontSize * camera.zoom < minNoteTextScreenPx) {
       return;
     }
-    const lineHeightMultiple = 1.3;
-    final fontSize = 12 * camera.zoom;
-    // Keyed on all the layout depends on: a pan holds these steady and hits, a zoom or resize changes one and rebuilds.
+    // Laid out in world units: the wrap and the line budget are the same on every viewer's screen, and a zoom only scales the result.
     final painter = _noteLabels.painterFor(
       stroke.id,
-      (text, camera.zoom, stroke.w, stroke.h, noteSpansRevision),
+      (text, stroke.w, stroke.h, noteSpansRevision),
       () => TextPainter(
-        text: _noteSpan(text, fontSize, lineHeightMultiple),
+        text: _noteSpan(text, noteWorldFontSize, noteLineHeight),
         textDirection: TextDirection.ltr,
         maxLines: noteMaxLines(
-          box.height,
-          fontSize * lineHeightMultiple,
-          pad: pad,
+          stroke.h,
+          noteWorldFontSize * noteLineHeight,
+          pad: noteWorldPad,
         ),
         ellipsis: '…',
-      )..layout(maxWidth: box.width - pad * 2, minWidth: 0),
+      )..layout(maxWidth: stroke.w - noteWorldPad * 2, minWidth: 0),
     );
     canvas.save();
-    // A clip at exactly `pad`, matching the text's own offset below.
-    canvas.clipRect(box.deflate(pad));
-    painter.paint(canvas, box.topLeft + const Offset(pad, pad));
+    canvas.translate(box.left, box.top);
+    canvas.scale(camera.zoom);
+    canvas.clipRect(
+      Rect.fromLTWH(
+        noteWorldPad,
+        noteWorldPad,
+        stroke.w - noteWorldPad * 2,
+        stroke.h - noteWorldPad * 2,
+      ),
+    );
+    painter.paint(canvas, const Offset(noteWorldPad, noteWorldPad));
     canvas.restore();
   }
 
@@ -128,15 +134,29 @@ extension _StrokePainterShapes on StrokePainter {
     );
     canvas.scale(camera.zoom);
     final local = Rect.fromLTWH(0, 0, stroke.w, stroke.h);
-    final paint = _shapeStroke..color = color;
+    final (tail, head) = shapeSegment(
+      stroke.w,
+      stroke.h,
+      flipX: stroke.flipX,
+      flipY: stroke.flipY,
+    );
+    final paint = _shapeStroke
+      ..color = color
+      ..strokeWidth = math.max(shapeOutlineWorld, minInkScreenPx / camera.zoom);
     switch (stroke.shapeKind) {
       case CanvasShapeKind.ellipse:
         canvas.drawOval(local, paint);
       case CanvasShapeKind.line:
-        canvas.drawLine(local.topLeft, local.bottomRight, paint);
+        canvas.drawLine(tail, head, paint);
       case CanvasShapeKind.arrow:
-        canvas.drawLine(local.topLeft, local.bottomRight, paint);
-        _paintArrowhead(canvas, local.topLeft, local.bottomRight, paint);
+        canvas.drawLine(tail, head, paint);
+        _paintArrowhead(
+          canvas,
+          tail,
+          head,
+          paint,
+          math.max(arrowheadLength, minArrowheadScreenPx / camera.zoom),
+        );
       case CanvasShapeKind.rectangle:
       case null:
         canvas.drawRect(local, paint);
@@ -144,12 +164,32 @@ extension _StrokePainterShapes on StrokePainter {
     canvas.restore();
   }
 
-  void _paintArrowhead(Canvas canvas, Offset from, Offset to, Paint paint) {
-    final (left, right) = arrowheadWings(from, to);
+  void _paintArrowhead(
+    Canvas canvas,
+    Offset from,
+    Offset to,
+    Paint paint,
+    double headLength,
+  ) {
+    final (left, right) = arrowheadWings(from, to, headLength: headLength);
     canvas.drawLine(to, left, paint);
     canvas.drawLine(to, right, paint);
   }
 }
+
+/// A note's padding, font size and line height, in world units.
+const double noteWorldPad = 8;
+const double noteWorldFontSize = 12;
+const double noteLineHeight = 1.3;
+
+/// Text smaller than this on screen is a smudge, so it is not laid out or drawn.
+const double minNoteTextScreenPx = 1.5;
+
+/// A shape's outline width in world units, and the least it shows on screen.
+const double shapeOutlineWorld = 2;
+
+/// The least an arrowhead wing reaches on screen.
+const double minArrowheadScreenPx = 9;
 
 /// How far back each arrowhead wing reaches, in world units for a committed
 /// arrow and scaled by zoom for the live preview.

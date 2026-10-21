@@ -326,6 +326,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
               objectId,
               points,
               ended: ended,
+              color: _strokePreviewRelay?.pen?.colorKey,
+              width: _strokePreviewRelay?.pen?.width,
             ),
         isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
         selfId: () => _ref.read(meProvider).valueOrNull?.id,

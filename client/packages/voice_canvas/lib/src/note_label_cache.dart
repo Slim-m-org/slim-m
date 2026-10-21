@@ -13,14 +13,13 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-/// What a note's laid-out text depends on: its text, the camera zoom (which
-/// sets the font size), its world width and height (which set the wrap width
-/// and line count), and the revision of whatever styles its spans (a member
-/// list arriving relabels a mention). Records give this structural equality
-/// for free.
+/// What a note's laid-out text depends on: its text, its world width and
+/// height (which set the wrap width and line count), and the revision of
+/// whatever styles its spans (a member list arriving relabels a mention). Zoom
+/// is not part of it: the layout is in world units and a zoom only scales it.
+/// Records give this structural equality for free.
 typedef NoteLayoutKey = (
   String text,
-  double zoom,
   double w,
   double h,
   int spansRevision,

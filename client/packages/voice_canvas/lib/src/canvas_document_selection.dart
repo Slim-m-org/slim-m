@@ -59,6 +59,7 @@ extension CanvasDocumentSelection on CanvasDocument {
     if (stroke == null || !stroke.alive) return false;
     stroke.zIndex = zIndex;
     _paintOrder.markDirty();
+    _changed();
     return true;
   }
 
@@ -82,6 +83,7 @@ extension CanvasDocumentSelection on CanvasDocument {
       return false;
     }
     stroke.text = text;
+    _changed();
     return true;
   }
 
@@ -100,8 +102,8 @@ extension CanvasDocumentSelection on CanvasDocument {
     int? hi;
     for (final stroke in _strokes) {
       if (stroke == null || !stroke.alive) continue;
-      // A stroke still waiting on its commit sits at a placeholder z no server holds.
-      if (stroke.zIndex == provisionalLocalZIndex) continue;
+      // Every stroke still waiting on its commit sits at or above the placeholder z no server holds.
+      if (stroke.zIndex >= provisionalLocalZIndex) continue;
       lo = lo == null ? stroke.zIndex : math.min(lo, stroke.zIndex);
       hi = hi == null ? stroke.zIndex : math.max(hi, stroke.zIndex);
     }

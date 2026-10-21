@@ -72,7 +72,7 @@ void main() {
     final recorder = PictureRecorder();
     painter.paint(Canvas(recorder), const Size(800, 600));
     recorder.endRecording().dispose();
-    painter.disposeNoteLabels();
+    painter.dispose();
 
     expect(seen, ['hello **there**']);
   });

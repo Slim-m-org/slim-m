@@ -21,14 +21,19 @@ import 'canvas_external_pointers.dart';
 import 'canvas_paint_order.dart';
 import 'canvas_removed_ids.dart';
 import 'canvas_scene.dart';
+import 'canvas_smooth_path.dart';
 import 'canvas_snap.dart';
 import 'canvas_stroke.dart';
+import 'spatial_grid.dart' show CullResult;
 
 export 'canvas_stroke.dart';
 
 part 'canvas_document_board.dart';
 part 'canvas_document_queries.dart';
 part 'canvas_document_selection.dart';
+
+/// A forged width must not stretch a cull to the whole board.
+const double _maxCullPad = 128;
 
 /// The document: index, camera, strokes, and dedupe by id.
 class CanvasDocument extends ChangeNotifier {
@@ -53,6 +58,9 @@ class CanvasDocument extends ChangeNotifier {
 
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
+  bool _isDisposed = false;
+  int _contentRevision = 0;
+  double _maxStrokeWidth = 0;
   ui.Rect? _board;
   bool _atFit = true;
 
@@ -97,6 +105,19 @@ class CanvasDocument extends ChangeNotifier {
 
   /// Whether moves and resizes snap to the grid; set by the viewer, per device.
   final ValueNotifier<bool> snapToGrid = ValueNotifier<bool>(false);
+
+  /// Bumped when an object already placed changes how it paints (a move, a
+  /// removal, a reorder, a bitmap); a new object does not, so a cache of the
+  /// committed ink can layer additions over itself instead of rebuilding.
+  int get contentRevision => _contentRevision;
+
+  /// How far a cull reaches past a box so thick ink at the screen edge still paints.
+  double get cullPad => math.min(_maxStrokeWidth / 2, _maxCullPad);
+
+  void _changed() => _contentRevision++;
+
+  /// Whether [dispose] ran, so a timer that outlives the document can skip it.
+  bool get isDisposed => _isDisposed;
 
   Camera get camera => _camera;
 
@@ -164,23 +185,14 @@ class CanvasDocument extends ChangeNotifier {
       }
       if (overwrite) _overwriteFrom(existing, input);
       _paintOrder.markDirty();
+      _changed();
       return known;
     }
-    final path = Path();
+    final path = smoothPolyline(input.points);
     final points = Float32List(input.points.length);
     for (var i = 0; i + 1 < input.points.length; i += 2) {
-      final px = input.points[i];
-      final py = input.points[i + 1];
-      if (i == 0) {
-        path.moveTo(px, py);
-      } else {
-        path.lineTo(px, py);
-      }
-      points[i] = px + input.x;
-      points[i + 1] = py + input.y;
-    }
-    if (input.points.length == 2) {
-      path.lineTo(input.points[0], input.points[1]);
+      points[i] = input.points[i] + input.x;
+      points[i + 1] = input.points[i + 1] + input.y;
     }
     final slot = scene.add(
       input.x,
@@ -208,12 +220,15 @@ class CanvasDocument extends ChangeNotifier {
         text: input.text,
         shapeKind: input.shapeKind,
         groupId: input.groupId,
+        flipX: input.flipX,
+        flipY: input.flipY,
       ),
     );
     if (input.groupId case final group?) {
       (_slotsByGroup[group] ??= <int>[]).add(slot);
     }
     _slotById[input.id] = slot;
+    _maxStrokeWidth = math.max(_maxStrokeWidth, input.width);
     _trackOutside(_strokes[slot]);
     objectCount.value = objectCount.value + 1;
     _paintOrder.markDirty();
@@ -257,8 +272,8 @@ class CanvasDocument extends ChangeNotifier {
   /// them.
   ///
   /// Now [UniformGrid.move] keeps the slot, the points are shifted in place,
-  /// and the object keeps its identity. Only [path] is still reallocated,
-  /// because `dart:ui` has no in-place translate.
+  /// and the object keeps its identity. The object-local [path] never moves:
+  /// the painter translates it by the stroke's own origin.
   ///
   /// Applies the box exactly as given: a gesture holds it to the board with
   /// [boxOnBoard] first, so an undo, a rollback or a remote move can put an
@@ -280,9 +295,10 @@ class CanvasDocument extends ChangeNotifier {
       ..x = x
       ..y = y
       ..w = w
-      ..h = h
-      ..path = stroke.path.shift(Offset(dx, dy));
+      ..h = h;
     if (_board != null) _trackOutside(stroke);
+    // The dragged object paints live above the cached ink, so its own moves leave the cache valid.
+    if (elevatedObjectId.value != id) _changed();
     return true;
   }
 
@@ -299,10 +315,11 @@ class CanvasDocument extends ChangeNotifier {
       image.dispose();
       return;
     }
-    final previous = stroke.image;
-    if (previous != null && !identical(previous, image)) previous.dispose();
+    // A tier swap or a repeat paste replaces a held bitmap, which nothing else frees.
+    if (!identical(stroke.image, image)) stroke.image?.dispose();
     stroke.image = image;
     stroke.imageLoadFailed = false;
+    _changed();
     notifyListeners();
   }
 
@@ -316,6 +333,7 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive || stroke.image != null) return;
     stroke.imageLoadFailed = true;
+    _changed();
     notifyListeners();
   }
 
@@ -334,6 +352,7 @@ class CanvasDocument extends ChangeNotifier {
     if (image == null) return;
     stroke!.image = null;
     image.dispose();
+    _changed();
     notifyListeners();
   }
 
@@ -352,6 +371,7 @@ class CanvasDocument extends ChangeNotifier {
     _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
     _paintOrder.markDirty();
+    _changed();
   }
 
   /// A dying object must not stay offered a resize, reorder or delete.
@@ -448,6 +468,8 @@ class CanvasDocument extends ChangeNotifier {
     objectCount.value = 0;
     selectedObjectId.value = null;
     elevatedObjectId.value = null;
+    _maxStrokeWidth = 0;
+    _changed();
     notifyListeners();
   }
 
@@ -464,6 +486,7 @@ class CanvasDocument extends ChangeNotifier {
     // A killed stroke was already counted out.
     if (stroke.alive) objectCount.value = objectCount.value - 1;
     _paintOrder.markDirty();
+    _changed();
   }
 
   void _disposeImages() {
@@ -540,12 +563,19 @@ class CanvasDocument extends ChangeNotifier {
   void _reculled() {
     final board = _board;
     final view = board == null ? worldView : worldView.intersect(board);
-    scene.setViewport(view.left, view.top, view.right, view.bottom);
+    final pad = cullPad;
+    scene.setViewport(
+      view.left - pad,
+      view.top - pad,
+      view.right + pad,
+      view.bottom + pad,
+    );
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _disposeImages();
     objectCount.dispose();
     outsideBoardCount.dispose();

@@ -64,6 +64,8 @@ pub(super) enum ClientFrame {
         points: Vec<f64>,
         #[serde(default)]
         ended: bool,
+        color: Option<String>,
+        width: Option<f64>,
     },
     /// The box of an object this client is dragging or resizing, so others
     /// can follow it before the move commits. Gated like a cursor, plus a

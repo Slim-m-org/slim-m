@@ -108,6 +108,8 @@ CanvasStrokeInput? _shapeInputFrom(api.CanvasObject object) {
     authorId: object.authorId,
     kind: CanvasObjectKind.shape,
     shapeKind: shapeKind,
+    flipX: object.props['flip_x'] == true,
+    flipY: object.props['flip_y'] == true,
   );
 }
 

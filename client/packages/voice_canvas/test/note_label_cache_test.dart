@@ -72,7 +72,7 @@ void main() {
     );
   });
 
-  test('a zoom change re-lays-out the note text', () {
+  test('a zoom change keeps the world-unit layout', () {
     debugResetNoteLabelLayoutCounts();
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     addTearDown(document.dispose);
@@ -87,8 +87,8 @@ void main() {
     painter.paint(canvas, const Size(800, 600));
     expect(
       debugNoteLabelLayoutCounts['n1'],
-      2,
-      reason: 'the font scales with zoom, so the text must re-shape',
+      1,
+      reason: 'the layout is in world units, so zoom only scales it',
     );
   });
 
@@ -163,32 +163,29 @@ void main() {
     );
   });
 
-  test('the cache reuses by key and rebuilds when text, zoom or size changes',
+  test('the cache reuses by key and rebuilds when text, size or spans change',
       () {
     debugResetNoteLabelLayoutCounts();
     final cache = NoteLabelCache();
 
-    cache.painterFor('n', ('hi', 1, 10, 10, 0), _build);
-    cache.painterFor('n', ('hi', 1, 10, 10, 0), _build);
+    cache.painterFor('n', ('hi', 10, 10, 0), _build);
+    cache.painterFor('n', ('hi', 10, 10, 0), _build);
     expect(debugNoteLabelLayoutCounts['n'], 1, reason: 'same key, one layout');
 
-    cache.painterFor('n', ('hi', 2, 10, 10, 0), _build);
-    expect(debugNoteLabelLayoutCounts['n'], 2, reason: 'zoom changed');
+    cache.painterFor('n', ('hi', 20, 10, 0), _build);
+    expect(debugNoteLabelLayoutCounts['n'], 2, reason: 'width changed');
 
-    cache.painterFor('n', ('hi', 2, 20, 10, 0), _build);
-    expect(debugNoteLabelLayoutCounts['n'], 3, reason: 'width changed');
+    cache.painterFor('n', ('bye', 20, 10, 0), _build);
+    expect(debugNoteLabelLayoutCounts['n'], 3, reason: 'text changed');
 
-    cache.painterFor('n', ('bye', 2, 20, 10, 0), _build);
-    expect(debugNoteLabelLayoutCounts['n'], 4, reason: 'text changed');
-
-    cache.painterFor('n', ('bye', 2, 20, 10, 1), _build);
-    expect(debugNoteLabelLayoutCounts['n'], 5, reason: 'spans revision bumped');
+    cache.painterFor('n', ('bye', 20, 10, 1), _build);
+    expect(debugNoteLabelLayoutCounts['n'], 4, reason: 'spans revision bumped');
   });
 
   test('retain drops cached text for notes no longer present', () {
     final cache = NoteLabelCache();
-    cache.painterFor('a', ('a', 1, 10, 10, 0), _build);
-    cache.painterFor('b', ('b', 1, 10, 10, 0), _build);
+    cache.painterFor('a', ('a', 10, 10, 0), _build);
+    cache.painterFor('b', ('b', 10, 10, 0), _build);
     expect(cache.size, 2);
 
     cache.retain({'a'});

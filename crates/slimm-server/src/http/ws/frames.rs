@@ -313,6 +313,8 @@ pub(super) enum ServerFrame {
         object_id: String,
         points: Vec<f64>,
         ended: bool,
+        color: Option<String>,
+        width: Option<f64>,
     },
     #[serde(rename = "canvas.object_preview.updated")]
     CanvasObjectPreview {
