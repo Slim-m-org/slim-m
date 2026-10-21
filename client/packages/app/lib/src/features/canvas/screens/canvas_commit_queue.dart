@@ -96,6 +96,7 @@ class CanvasCommitQueue {
   final Set<String> _armedForRemoval = <String>{};
   final Set<String> _attempted = <String>{};
   String? _inFlightId;
+  var _unreadableReplies = 0;
   bool _running = false;
   bool _closed = false;
   bool _expired = false;
@@ -154,46 +155,48 @@ class CanvasCommitQueue {
   /// deploy must not delete ink the drawer can still see on their screen.
   Future<void> _send(CanvasCommit commit) async {
     _inFlightId = commit.id;
+    _unreadableReplies = 0;
     try {
-      var malformed = 0;
-      while (true) {
-        try {
-          _attempted.add(commit.id);
-          final object = await retryCanvasRequest(
-            () => _place(commit),
-            maxAttempts: _attemptsBeforeRotating,
-            giveUp: () => _expired,
-          );
-          _confirm(commit, object);
-          return;
-        } on api.ApiException catch (error, stack) {
-          api.reportFailure(
-            api.LogTag.ui,
-            'send a canvas change',
-            error,
-            stack,
-          );
-          if (isTransientCanvasFailure(error) && !_expired) {
-            // A reply that never reads must not hold up every stroke behind it.
-            if (_pending.isEmpty) continue;
-            _pending.add(commit);
-            return;
-          }
-          _refuse(commit, error);
-          return;
-        } on Object catch (error, stack) {
-          // A reply that cannot be read may still mean the stroke landed, so ask again with the same id.
-          api.reportFailure(api.LogTag.ui, 'read a canvas reply', error, stack);
-          if (++malformed >= _maxUnreadableReplies || _expired) {
-            _refuse(commit, null);
-            return;
-          }
-          await Future<void>.delayed(_unreadableReplyDelay);
-        }
+      var finished = false;
+      while (!finished) {
+        finished = await _attempt(commit);
       }
     } finally {
       if (_inFlightId == commit.id) _inFlightId = null;
       if (!_pending.any((c) => c.id == commit.id)) _attempted.remove(commit.id);
+    }
+  }
+
+  /// Whether the commit is settled; false asks for another try with the same id.
+  Future<bool> _attempt(CanvasCommit commit) async {
+    try {
+      _attempted.add(commit.id);
+      final object = await retryCanvasRequest(
+        () => _place(commit),
+        maxAttempts: _attemptsBeforeRotating,
+        giveUp: () => _expired,
+      );
+      _confirm(commit, object);
+      return true;
+    } on api.ApiException catch (error, stack) {
+      api.reportFailure(api.LogTag.ui, 'send a canvas change', error, stack);
+      if (isTransientCanvasFailure(error) && !_expired) {
+        // A reply that never reads must not hold up every stroke behind it.
+        if (_pending.isEmpty) return false;
+        _pending.add(commit);
+        return true;
+      }
+      _refuse(commit, error);
+      return true;
+    } on Object catch (error, stack) {
+      // A reply that cannot be read may still mean the stroke landed, so ask again with the same id.
+      api.reportFailure(api.LogTag.ui, 'read a canvas reply', error, stack);
+      if (++_unreadableReplies >= _maxUnreadableReplies || _expired) {
+        _refuse(commit, null);
+        return true;
+      }
+      await Future<void>.delayed(_unreadableReplyDelay);
+      return false;
     }
   }
 

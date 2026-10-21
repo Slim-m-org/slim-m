@@ -209,7 +209,7 @@ def gate_summary(lines):
     """Share of gate readings that were open, and that rnnoise processed."""
     total = open_ = strong = 0
     for line in lines:
-        parts = dict(p.split("=") for p in line.split() if "=" in p)
+        parts = {key: value for key, value in (p.split("=") for p in line.split() if "=" in p)}
         total += int(parts["readings"])
         open_ += int(parts["open"])
         strong += int(parts["strong"])

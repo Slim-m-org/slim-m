@@ -124,18 +124,13 @@ mixin VoiceSessionInputGate {
   void _syncGateRate() => _refreshParticipants();
 
   /// The slowest rate every consumer of a reading is happy with.
-  void _applyGateRate() {
-    _gate.setRate(
-      _levelDisplayed
-          ? InputGateRate.display
-          : !_mic.open
-              ? InputGateRate.off
-              : _autoThreshold != null
-                  ? InputGateRate.adapt
-                  : _capture.watchingStrong
-                      ? InputGateRate.watch
-                      : InputGateRate.slow,
-    );
+  void _applyGateRate() => _gate.setRate(_gateRate());
+
+  InputGateRate _gateRate() {
+    if (_levelDisplayed) return InputGateRate.display;
+    if (!_mic.open) return InputGateRate.off;
+    if (_autoThreshold != null) return InputGateRate.adapt;
+    return _capture.watchingStrong ? InputGateRate.watch : InputGateRate.slow;
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the

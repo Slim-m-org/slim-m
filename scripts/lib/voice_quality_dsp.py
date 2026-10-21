@@ -68,32 +68,40 @@ def fft(values, inverse=False):
         arr = np.asarray(values, dtype=complex)
         out = np.fft.ifft(arr) if inverse else np.fft.fft(arr)
         return out.tolist()
+    out = _bit_reversed(values)
+    sign = 1 if inverse else -1
+    length = 2
+    while length <= n:
+        _butterflies(out, length, cmath.exp(sign * 2j * math.pi / length))
+        length <<= 1
+    return [v / n for v in out] if inverse else out
+
+
+def _bit_reversed(values):
     out = list(values)
     j = 0
-    for i in range(1, n):
-        bit = n >> 1
+    for i in range(1, len(out)):
+        bit = len(out) >> 1
         while j & bit:
             j ^= bit
             bit >>= 1
         j ^= bit
         if i < j:
             out[i], out[j] = out[j], out[i]
-    sign = 1 if inverse else -1
-    length = 2
-    while length <= n:
-        step = cmath.exp(sign * 2j * math.pi / length)
-        half = length // 2
-        twiddles = [1 + 0j] * half
-        for k in range(1, half):
-            twiddles[k] = twiddles[k - 1] * step
-        for start in range(0, n, length):
-            for k in range(half):
-                a = out[start + k]
-                b = out[start + k + half] * twiddles[k]
-                out[start + k] = a + b
-                out[start + k + half] = a - b
-        length <<= 1
-    return [v / n for v in out] if inverse else out
+    return out
+
+
+def _butterflies(out, length, step):
+    half = length // 2
+    twiddles = [1 + 0j] * half
+    for k in range(1, half):
+        twiddles[k] = twiddles[k - 1] * step
+    for start in range(0, len(out), length):
+        for k in range(half):
+            a = out[start + k]
+            b = out[start + k + half] * twiddles[k]
+            out[start + k] = a + b
+            out[start + k + half] = a - b
 
 
 _WINDOW = [0.5 - 0.5 * math.cos(2 * math.pi * i / FRAME) for i in range(FRAME)]

@@ -46,7 +46,8 @@ VARIANTS = {
 }
 
 
-STALE_RESULTS = ("results.json", "corpus.json")
+RESULTS_FILE = "results.json"
+STALE_RESULTS = (RESULTS_FILE, "corpus.json")
 
 
 def clear_previous_run(directory):
@@ -144,7 +145,7 @@ def out_dir():
     return path
 
 
-def _init_script(variant):
+def _init_script():
     tweak = json.dumps({k: v for k, v in VARIANTS[variant_name()].items()
                         if not k.startswith("_")})
     raw = "" if os.environ.get("E2E_VQ_PROCESSING") else js.RAW_CAPTURE_ALL
@@ -233,23 +234,73 @@ def analyse_saved(directory):
             with open(os.path.join(folder, f"{who}-stats.json")) as fh:
                 report["stats"] = json.load(fh)
             results.setdefault(profile, {})[who] = report
-    with open(os.path.join(directory, "results.json"), "w") as fh:
+    with open(os.path.join(directory, RESULTS_FILE), "w") as fh:
         json.dump(results, fh, indent=2)
     return results
 
 
-def a_scored_call(server, secret, admin_api, sign_in, room_id):
-    e2e_netem.ensure_image()
-    variant = variant_name()
+def _wanted_profiles():
     wanted = [p for p in os.environ.get(
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
     unknown = [p for p in wanted if p not in e2e_netem.PROFILES]
     assert not unknown, f"unknown E2E_VQ_PROFILES {unknown}; known: {list(e2e_netem.PROFILES)}"
+    return wanted
+
+
+def _join_and_settle(ca, cb):
+    for client in (ca, cb):
+        e2e_browsers.dismiss_welcome(client)
+        client.click(L.VOICE_CHANNEL)
+        client.wait_for(L.IN_CALL)
+    for client in (ca, cb):
+        e2e_audio.AudioProbe(client).wait_for_streams(1)
+    sender = VARIANTS[variant_name()].get("_sender")
+    for client in (ca, cb):
+        if sender:
+            client.ev(f"window.__vq.setSender({json.dumps(sender)})")
+    time.sleep(SETTLE)
+
+
+def _save_side(folder, client, recording):
+    """Writes one side's received audio and stats; returns the stats summary."""
+    pcm, rate, rows = recording
+    _save(os.path.join(folder, f"{client.name}-rx.wav"), pcm, rate)
+    summary = stats_summary(rows)
+    summary["rows"] = len(rows)
+    summary["pair"] = _ev_json(client, "window.__vq.pair")
+    summary["outbound"] = _ev_json(client, "window.__vq.out")
+    summary["senders"] = e2e_audio.AudioProbe(client).senders()
+    summary["codec"] = _ev_json(client, "window.__vq.codecs")
+    with open(os.path.join(folder, f"{client.name}-stats.json"), "w") as fh:
+        json.dump(summary, fh, indent=2)
+    with open(os.path.join(folder, f"{client.name}-stats-raw.json"), "w") as fh:
+        json.dump(rows, fh)
+    return summary
+
+
+def _record_profile(ca, cb, directory, profile):
+    """Records one network profile on both sides; returns the selected ICE pair."""
+    print(f"  profile {profile}: {e2e_netem.apply(profile)}")
+    time.sleep(SETTLE)
+    folder = os.path.join(directory, profile)
+    os.makedirs(folder, exist_ok=True)
+    seconds = capture_seconds(directory)
+    reel = os.path.exists(os.path.join(directory, "clip-A.spans.json"))
+    with ThreadPoolExecutor(max_workers=2 if reel else 1) as pool:
+        recorded = list(pool.map(lambda c, secs=seconds: _record(c, secs), (ca, cb)))
+    summaries = [_save_side(folder, client, recording)
+                 for client, recording in zip((ca, cb), recorded)]
+    return next((s["pair"] for s in summaries if s["pair"]), None)
+
+
+def a_scored_call(server, secret, admin_api, sign_in):
+    e2e_netem.ensure_image()
+    wanted = _wanted_profiles()
     directory = out_dir()
     install_staged(stage_clips(directory), directory)
     for user in ("vqa", "vqb"):
         e2e_browsers.register(server, admin_api, user, secret)
-    script = _init_script(variant)
+    script = _init_script()
     pair = None
     with e2e_browsers.browser("vqa", os.path.join(directory, "clip-A.wav")) as ca, \
             e2e_browsers.browser("vqb", os.path.join(directory, "clip-B.wav")) as cb:
@@ -257,39 +308,9 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
             e2e_audio.install(client, extra=script)
             sign_in(client, server, user, secret)
         try:
-            for client in (ca, cb):
-                e2e_browsers.dismiss_welcome(client)
-                client.click(L.VOICE_CHANNEL)
-                client.wait_for(L.IN_CALL)
-            for client in (ca, cb):
-                e2e_audio.AudioProbe(client).wait_for_streams(1)
-            sender = VARIANTS[variant_name()].get("_sender")
-            for client in (ca, cb):
-                if sender:
-                    client.ev(f"window.__vq.setSender({json.dumps(sender)})")
-            time.sleep(SETTLE)
+            _join_and_settle(ca, cb)
             for profile in wanted:
-                print(f"  profile {profile}: {e2e_netem.apply(profile)}")
-                time.sleep(SETTLE)
-                folder = os.path.join(directory, profile)
-                os.makedirs(folder, exist_ok=True)
-                seconds = capture_seconds(directory)
-                reel = os.path.exists(os.path.join(directory, "clip-A.spans.json"))
-                with ThreadPoolExecutor(max_workers=2 if reel else 1) as pool:
-                    recorded = list(pool.map(lambda c: _record(c, seconds), (ca, cb)))
-                for client, (pcm, rate, rows) in zip((ca, cb), recorded):
-                    _save(os.path.join(folder, f"{client.name}-rx.wav"), pcm, rate)
-                    summary = stats_summary(rows)
-                    summary["rows"] = len(rows)
-                    summary["pair"] = _ev_json(client, "window.__vq.pair")
-                    summary["outbound"] = _ev_json(client, "window.__vq.out")
-                    summary["senders"] = e2e_audio.AudioProbe(client).senders()
-                    summary["codec"] = _ev_json(client, "window.__vq.codecs")
-                    pair = pair or summary["pair"]
-                    with open(os.path.join(folder, f"{client.name}-stats.json"), "w") as fh:
-                        json.dump(summary, fh, indent=2)
-                    with open(os.path.join(folder, f"{client.name}-stats-raw.json"), "w") as fh:
-                        json.dump(rows, fh)
+                pair = pair or _record_profile(ca, cb, directory, profile)
         finally:
             e2e_netem.clear()
             for client in (ca, cb):
@@ -301,7 +322,7 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
         return
     results = analyse_saved(directory)
     score_mos(directory)
-    with open(os.path.join(directory, "results.json")) as fh:
+    with open(os.path.join(directory, RESULTS_FILE)) as fh:
         results = json.load(fh)
     for profile, sides in results.items():
         for who, report in sides.items():
@@ -315,9 +336,9 @@ def a_scored_call(server, secret, admin_api, sign_in, room_id):
                 f"{who}: the clean call scored {report['similarity']}"
 
 
-def run_if_selected(server, secret, admin_api, sign_in, room_id):
+def run_if_selected(server, secret, admin_api, sign_in):
     """Long and network-impairing, so only a run that names it takes part."""
     if "voice quality" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice quality' to run it")
         return
-    a_scored_call(server, secret, admin_api, sign_in, room_id)
+    a_scored_call(server, secret, admin_api, sign_in)

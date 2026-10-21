@@ -16,21 +16,40 @@ import http.client
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 import zipfile
+from pathlib import Path
 
 import voice_corpus as corpus
 import voice_quality_dsp as dsp
+from work_roots import ROOTS
 
 AGENT = "slimm-voice-corpus/1.0 (https://github.com/Slim-m-org)"
 DEFAULT_OUT = os.path.expanduser("~/.slimm-scratch/tmp/voice-corpus/clips")
 TRIES = 6
+# The hosts the manifest's sources live on; archive.org also serves from ia*.us.archive.org.
+ALLOWED_HOSTS = ("archive.org", "datashare.ed.ac.uk", "upload.wikimedia.org")
+
+
+def checked_url(url):
+    """The URL itself when it is https on an allowed host; anything else is an error."""
+    parts = urllib.parse.urlsplit(url)
+    host = parts.hostname or ""
+    if parts.scheme != "https" or not any(
+            host == allowed or host.endswith("." + allowed) for allowed in ALLOWED_HOSTS):
+        raise ValueError(f"{url}: only https downloads from {', '.join(ALLOWED_HOSTS)} are allowed")
+    return url
 
 
 def sha256_file(path):
+    path = Path(path).resolve()
+    if not any(path.is_relative_to(root) for root in ROOTS):
+        raise ValueError(f"{path}: outside the work directories")
     digest = hashlib.sha256()
     with open(path, "rb") as fh:
         for block in iter(lambda: fh.read(1 << 20), b""):
@@ -43,7 +62,7 @@ class RangeFile(io.RawIOBase):
 
     def __init__(self, url):
         self.pos = 0
-        self.size, self.url = _retry(lambda: self._probe(url))
+        self.size, self.url = _retry(lambda: self._probe(checked_url(url)))
 
     @staticmethod
     def _probe(url):
@@ -52,7 +71,7 @@ class RangeFile(io.RawIOBase):
             total = resp.headers.get("Content-Range", "").partition("/")[2]
             if not total.isdigit():
                 raise OSError(f"{url}: the server ignored the Range request")
-            return int(total), resp.geturl()
+            return int(total), checked_url(resp.geturl())
 
     def seekable(self):
         return True
@@ -97,9 +116,12 @@ def _retry(action):
 
 class Fetcher:
     def __init__(self, cache):
-        self.cache = cache
+        root = Path(cache).resolve()
+        if not any(root.is_relative_to(allowed) for allowed in ROOTS):
+            raise SystemExit(f"{root}: outside the work directories")
+        self.cache = str(root)
         self.zips = {}
-        os.makedirs(cache, exist_ok=True)
+        os.makedirs(root, exist_ok=True)
 
     def _zip(self, url):
         if url not in self.zips:
@@ -108,10 +130,14 @@ class Fetcher:
 
     def path(self, part):
         """The local file for a part, downloaded (and hash-checked) when missing."""
-        key = part["url"] + "#" + part.get("member", "")
-        name = hashlib.sha256(key.encode()).hexdigest()[:16] + "-" + os.path.basename(
-            part.get("member") or part["url"].split("?")[0])
-        path = os.path.join(self.cache, name)
+        key = checked_url(part["url"]) + "#" + part.get("member", "")
+        base = os.path.basename(part.get("member") or part["url"].split("?")[0])
+        name = hashlib.sha256(key.encode()).hexdigest()[:16] + "-" + re.sub(r"[^A-Za-z0-9._-]", "_", base)
+        cache = Path(self.cache)
+        path = (cache / name).resolve()
+        if not path.is_relative_to(cache):
+            raise ValueError(f"{name}: not a file name inside the cache")
+        path = str(path)
         if not os.path.exists(path) or (part.get("sha256") and sha256_file(path) != part["sha256"]):
             self._download(part, path)
         return path
@@ -121,8 +147,8 @@ class Fetcher:
             if part.get("member"):
                 data = _retry(lambda: self._zip(part["url"]).read(part["member"]))
             else:
-                req = urllib.request.Request(part["url"], headers={"User-Agent": AGENT})
-                data = _retry(lambda: urllib.request.urlopen(req, timeout=180).read())
+                req = urllib.request.Request(checked_url(part["url"]), headers={"User-Agent": AGENT})
+                data = _retry(lambda req=req: urllib.request.urlopen(req, timeout=180).read())
             with open(path, "wb") as fh:
                 fh.write(data)
             if not part.get("sha256") or sha256_file(path) == part["sha256"]:
@@ -165,7 +191,10 @@ def record_sources(fetcher, clip):
 
 
 def main(argv):
-    out = argv[argv.index("--out") + 1] if "--out" in argv else DEFAULT_OUT
+    out = Path(argv[argv.index("--out") + 1] if "--out" in argv else DEFAULT_OUT).resolve()
+    if not any(out.is_relative_to(root) for root in ROOTS):
+        raise SystemExit(f"{out}: outside the work directories")
+    out = str(out)
     only = argv[argv.index("--only") + 1].split(",") if "--only" in argv else None
     record = "--record" in argv
     manifest = corpus.load_manifest()

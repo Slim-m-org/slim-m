@@ -14,9 +14,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import voice_quality_align as align
 import voice_quality_dsp as dsp
+from work_roots import ROOTS
 
 RATE = dsp.ANALYSIS_RATE
 MIN_RUN_S = 3.0
@@ -106,8 +108,7 @@ def visqol_scores(pairs):
         ["docker", "image", "inspect", VISQOL_IMAGE], capture_output=True).returncode == 0
     if not have or not pairs:
         return None
-    work = tempfile.mkdtemp(prefix="visqol-", dir=os.environ.get("TMPDIR"))
-    try:
+    with tempfile.TemporaryDirectory(prefix="visqol-") as work:
         lines = ["reference,degraded"]
         for i, (ref, deg) in enumerate(pairs):
             for kind, samples in (("ref", ref), ("deg", deg)):
@@ -122,8 +123,6 @@ def visqol_scores(pairs):
             check=True, capture_output=True)
         with open(os.path.join(work, "out.csv")) as fh:
             return parse_visqol_csv(fh.read(), len(pairs))
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
 
 
 def score(ref_samples, ref_rate, rec_samples, rec_rate):
@@ -149,6 +148,10 @@ def score(ref_samples, ref_rate, rec_samples, rec_rate):
 
 def score_directory(directory):
     """Adds a `mos` block to every side in `results.json` and saves it back."""
+    directory = Path(directory).resolve()
+    if not any(directory.is_relative_to(root) for root in ROOTS):
+        raise SystemExit(f"{directory}: outside the work directories")
+    directory = str(directory)
     refs = {who: dsp.read_wav(os.path.join(directory, f"clip-{who}.wav")) for who in "AB"}
     path = os.path.join(directory, "results.json")
     with open(path) as fh:

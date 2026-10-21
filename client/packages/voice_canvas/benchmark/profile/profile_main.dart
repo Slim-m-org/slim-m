@@ -241,104 +241,8 @@ Future<void> _run(Rig rig) async {
   };
   final phases = Platform.environment['PROFILE_PHASES'] ?? 'specs,sweep';
   for (final spec in phases.contains('specs') ? _specs : const <BoardSpec>[]) {
-    final doc =
-        buildBoard(spec, viewport: Size(size.width / dpr, size.height / dpr));
-    await attachBitmaps(doc, spec.images);
-    rig.use(doc);
-    await _frame();
-    await _frame();
-    final center = Offset(size.width / dpr / 2, size.height / dpr / 2);
-    final tag = spec.label;
-
-    doc.setCamera(const Camera(x: 700, y: 300, zoom: 2));
-    rig.tool = CanvasTool.pan;
-    await _frame();
-    rows.add(await _measure('pan $tag', () async {
-      _send(_down(center, kMiddleMouseButton));
-      var at = center;
-      for (var i = 0; i < 300; i++) {
-        final delta = Offset(i.isEven ? 3 : -3, 1);
-        at += delta;
-        _timedSend(_move(at, delta, kMiddleMouseButton));
-        await _frame();
-      }
-      _send(_up(at));
-    }));
-
-    doc.setCamera(const Camera(x: 400, y: 200, zoom: 1.5));
-    await _frame();
-    rows.add(await _measure('zoom sweep $tag', () async {
-      for (var i = 0; i < 360; i++) {
-        final scale = (i ~/ 45).isEven ? 1.04 : 1 / 1.04;
-        _timedSend(PointerScaleEvent(
-          viewId: _view,
-          position: center,
-          scale: scale,
-          kind: PointerDeviceKind.mouse,
-          device: 31,
-        ));
-        await _frame();
-      }
-    }));
-
-    doc.fitBoard();
-    await _frame();
-    final fit = doc.camera.zoom;
-    meta['fit_zoom_$tag'] = double.parse(fit.toStringAsFixed(3));
-    rows.add(await _measure('repaint at fit (drag a note) $tag', () async {
-      final id = spec.notes > 0 ? 'note-0' : 'stroke-0';
-      final b = doc.objectBounds(id)!;
-      doc.elevatedObjectId.value = id;
-      for (var i = 0; i < 300; i++) {
-        doc.moveObject(id, b.x + i, b.y + (i % 40), b.w, b.h);
-        doc.refresh();
-        await _frame();
-      }
-      doc.elevatedObjectId.value = null;
-    }));
-
-    rig.tool = CanvasTool.pen;
-    await _frame();
-    rows.add(await _measure('draw 6 strokes $tag', () async {
-      for (var s = 0; s < 6; s++) {
-        var at = Offset(200.0 + s * 140, 200);
-        _send(_down(at, kPrimaryButton));
-        for (var i = 1; i <= 100; i++) {
-          final next = Offset(
-            200.0 + s * 140 + 90 * (i % 40) / 40,
-            200 + i * 2.5,
-          );
-          _timedSend(_move(next, next - at, kPrimaryButton));
-          at = next;
-          await _frame();
-        }
-        _send(_up(at));
-        await _frame();
-      }
-    }));
-
-    rows.add(await _measure('remote cursors+drafts $tag', () async {
-      for (var i = 0; i < 300; i++) {
-        for (var u = 0; u < 8; u++) {
-          rig.cursors.upsert(
-            id: 'u$u',
-            x: 200.0 + u * 150 + i,
-            y: 300 + (i % 60) * 4,
-            label: 'User $u',
-            colorIndex: u,
-          );
-        }
-        rig.drafts.appendOrCreate(
-          objectId: 'draft',
-          authorId: 'u1',
-          points: [100.0 + i, 100.0 + (i % 50), 104.0 + i, 104.0 + (i % 50)],
-          colorIndex: 1,
-        );
-        await _frame();
-      }
-      rig.drafts.clear();
-    }));
-    meta['rss_kb_after_$tag'] = rssKb();
+    rows.addAll(await _specRows(rig, spec, size, dpr, meta));
+    meta['rss_kb_after_${spec.label}'] = rssKb();
   }
   if (phases.contains('sweep')) rows.addAll(await _sweep(rig, size, dpr));
   if (phases.contains('objects')) {
@@ -356,6 +260,125 @@ Future<void> _run(Rig rig) async {
   }
   debugPrint('DONE');
   exit(0);
+}
+
+/// The scripted scenarios for one board spec, with its fit zoom added to [meta].
+Future<List<Map<String, Object>>> _specRows(
+  Rig rig,
+  BoardSpec spec,
+  ui.Size size,
+  double dpr,
+  Map<String, Object> meta,
+) async {
+  final doc =
+      buildBoard(spec, viewport: Size(size.width / dpr, size.height / dpr));
+  await attachBitmaps(doc, spec.images);
+  rig.use(doc);
+  await _frame();
+  await _frame();
+  final center = Offset(size.width / dpr / 2, size.height / dpr / 2);
+  final tag = spec.label;
+  final rows = <Map<String, Object>>[];
+
+  doc.setCamera(const Camera(x: 700, y: 300, zoom: 2));
+  rig.tool = CanvasTool.pan;
+  await _frame();
+  rows.add(await _measure('pan $tag', () => _pan(center)));
+
+  doc.setCamera(const Camera(x: 400, y: 200, zoom: 1.5));
+  await _frame();
+  rows.add(await _measure('zoom sweep $tag', () => _zoomSweep(center)));
+
+  doc.fitBoard();
+  await _frame();
+  meta['fit_zoom_$tag'] = double.parse(doc.camera.zoom.toStringAsFixed(3));
+  rows.add(await _measure(
+      'repaint at fit (drag a note) $tag', () => _dragNote(doc, spec)));
+
+  rig.tool = CanvasTool.pen;
+  await _frame();
+  rows.add(await _measure('draw 6 strokes $tag', _drawStrokes));
+  rows.add(
+      await _measure('remote cursors+drafts $tag', () => _remoteLive(rig)));
+  return rows;
+}
+
+Future<void> _pan(Offset center) async {
+  _send(_down(center, kMiddleMouseButton));
+  var at = center;
+  for (var i = 0; i < 300; i++) {
+    final delta = Offset(i.isEven ? 3 : -3, 1);
+    at += delta;
+    _timedSend(_move(at, delta, kMiddleMouseButton));
+    await _frame();
+  }
+  _send(_up(at));
+}
+
+Future<void> _zoomSweep(Offset center) async {
+  for (var i = 0; i < 360; i++) {
+    final scale = (i ~/ 45).isEven ? 1.04 : 1 / 1.04;
+    _timedSend(PointerScaleEvent(
+      viewId: _view,
+      position: center,
+      scale: scale,
+      kind: PointerDeviceKind.mouse,
+      device: 31,
+    ));
+    await _frame();
+  }
+}
+
+Future<void> _dragNote(CanvasDocument doc, BoardSpec spec) async {
+  final id = spec.notes > 0 ? 'note-0' : 'stroke-0';
+  final b = doc.objectBounds(id)!;
+  doc.elevatedObjectId.value = id;
+  for (var i = 0; i < 300; i++) {
+    doc.moveObject(id, b.x + i, b.y + (i % 40), b.w, b.h);
+    doc.refresh();
+    await _frame();
+  }
+  doc.elevatedObjectId.value = null;
+}
+
+Future<void> _drawStrokes() async {
+  for (var s = 0; s < 6; s++) {
+    var at = Offset(200.0 + s * 140, 200);
+    _send(_down(at, kPrimaryButton));
+    for (var i = 1; i <= 100; i++) {
+      final next = Offset(
+        200.0 + s * 140 + 90 * (i % 40) / 40,
+        200 + i * 2.5,
+      );
+      _timedSend(_move(next, next - at, kPrimaryButton));
+      at = next;
+      await _frame();
+    }
+    _send(_up(at));
+    await _frame();
+  }
+}
+
+Future<void> _remoteLive(Rig rig) async {
+  for (var i = 0; i < 300; i++) {
+    for (var u = 0; u < 8; u++) {
+      rig.cursors.upsert(
+        id: 'u$u',
+        x: 200.0 + u * 150 + i,
+        y: 300 + (i % 60) * 4,
+        label: 'User $u',
+        colorIndex: u,
+      );
+    }
+    rig.drafts.appendOrCreate(
+      objectId: 'draft',
+      authorId: 'u1',
+      points: [100.0 + i, 100.0 + (i % 50), 104.0 + i, 104.0 + (i % 50)],
+      colorIndex: 1,
+    );
+    await _frame();
+  }
+  rig.drafts.clear();
 }
 
 /// Idle frames (one remote cursor moving) at fit, which is the cost of

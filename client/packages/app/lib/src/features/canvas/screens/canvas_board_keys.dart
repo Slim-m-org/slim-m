@@ -132,9 +132,8 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     if (ids.isEmpty) return false;
     final current = _document.selectedObjectId.value;
     final at = current == null ? -1 : ids.indexOf(current);
-    final next = at < 0
-        ? (direction > 0 ? 0 : ids.length - 1)
-        : (at + direction) % ids.length;
+    final entry = direction > 0 ? 0 : ids.length - 1;
+    final next = at < 0 ? entry : (at + direction) % ids.length;
     _document.selectedObjectId.value = ids[next];
     return true;
   }

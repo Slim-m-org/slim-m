@@ -33,7 +33,7 @@ class Cache(unittest.TestCase):
         self.dir = tempfile.mkdtemp(prefix="vq-fetch-")
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
         self.good = b"abc"
-        self.part = {"url": "https://example.test/a.wav", "sha256": hashlib.sha256(self.good).hexdigest()}
+        self.part = {"url": "https://upload.wikimedia.org/a.wav", "sha256": hashlib.sha256(self.good).hexdigest()}
 
     def _fetcher(self, body):
         opened = []
@@ -76,13 +76,30 @@ class Cache(unittest.TestCase):
         self.assertEqual(len(opened), 2)
 
 
+class Confinement(unittest.TestCase):
+    def test_only_https_on_a_manifest_host_is_fetched(self):
+        for url in ("http://archive.org/a.wav", "https://evil.test/a.wav",
+                    "https://archive.org.evil.test/a.wav", "file:///etc/passwd"):
+            with self.assertRaises(ValueError):
+                fetch.checked_url(url)
+        self.assertEqual(fetch.checked_url("https://ia8.us.archive.org/x"), "https://ia8.us.archive.org/x")
+
+    def test_a_cache_outside_the_work_directories_is_refused(self):
+        with self.assertRaises(SystemExit):
+            fetch.Fetcher("/proc/slimm-cache")
+
+    def test_a_path_outside_the_work_directories_is_not_hashed(self):
+        with self.assertRaises(ValueError):
+            fetch.sha256_file("/etc/hostname")
+
+
 class BuildLayer(unittest.TestCase):
     def test_a_part_repeats_and_the_layer_is_offset_and_gained(self):
         class Stub:
             def path(self, part):
                 return part["url"]
 
-        with mock.patch.object(fetch, "decode", lambda path, start, dur: [0.1] * 100):
+        with mock.patch.object(fetch, "decode", return_value=[0.1] * 100):
             samples, offset, gain = fetch.build_layer(
                 Stub(), {"parts": [{"url": "x", "repeat": 2}], "gap_ms": 0,
                          "offset_s": 1.5, "gain_db": -6})

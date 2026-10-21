@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'canvas_engine.dart';
 
+const _readFailureTag = 'load canvas contents';
+
 /// The region reads of [CanvasEngine]: one pass over the padded view, and the
 /// background walk over the rest of the board once it lands.
 extension CanvasEngineReads on CanvasEngine {
@@ -55,10 +57,7 @@ extension CanvasEngineReads on CanvasEngine {
       _emit(
         (s) => s.copyWith(
           loading: false,
-          clearError:
-              !keepError &&
-              (s.error == CanvasEngine.genericLoadError ||
-                  s.error == canvasUnavailableMessage),
+          clearError: !keepError && _isReadFailure(s.error),
         ),
       );
       // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
@@ -67,27 +66,13 @@ extension CanvasEngineReads on CanvasEngine {
       hydrator.hydrateVisible();
       if (!_boardPaged) unawaited(_pageBoard(page));
     } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
-      if (mounted) {
-        _emit(
-          (s) => s.copyWith(loading: false, error: canvasUnavailableMessage),
-        );
-      }
+      _readFailed(error, stack, canvasUnavailableMessage);
     } on api.NotFoundException catch (error, stack) {
       // A deleted channel never comes back, so retrying only hammers the server.
-      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
-      if (mounted) {
-        _emit(
-          (s) => s.copyWith(loading: false, error: canvasUnavailableMessage),
-        );
-      }
+      _readFailed(error, stack, canvasUnavailableMessage);
     } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'load canvas contents', error, stack);
+      _readFailed(error, stack, CanvasEngine.genericLoadError);
       if (mounted) {
-        _emit(
-          (s) =>
-              s.copyWith(loading: false, error: CanvasEngine.genericLoadError),
-        );
         _loadRetry.schedule(() {
           if (mounted) unawaited(fetch());
         });
@@ -95,6 +80,15 @@ extension CanvasEngineReads on CanvasEngine {
     }
     return false;
   }
+
+  void _readFailed(api.ApiException error, StackTrace stack, String message) {
+    api.reportFailure(api.LogTag.ui, _readFailureTag, error, stack);
+    if (mounted) _emit((s) => s.copyWith(loading: false, error: message));
+  }
+
+  bool _isReadFailure(String? error) =>
+      error == CanvasEngine.genericLoadError ||
+      error == canvasUnavailableMessage;
 
   /// The visible area is up; this brings in the rest, quietly, and says how far it is.
   Future<void> _pageBoard(api.CanvasViewport first) async {

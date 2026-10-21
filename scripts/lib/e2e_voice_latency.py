@@ -34,7 +34,7 @@ def problems(profile, row):
     return found
 
 
-def _direction(sender, receiver, folder):
+def _direction(sender, receiver):
     """Delay stats for what `sender` said as `receiver` heard it."""
     tx, tx_start, _ = sender["local"]
     rx, rx_start, dropped = receiver["remote"]
@@ -64,7 +64,7 @@ def _record(a, b, seconds):
     return taps, stats
 
 
-def a_timed_call(server, secret, admin_api, sign_in, room_id):
+def a_timed_call(server, secret, admin_api, sign_in):
     e2e_netem.ensure_image()
     wanted = [p for p in os.environ.get(
         "E2E_VQ_PROFILES", ",".join(e2e_netem.PROFILES)).split(",") if p]
@@ -88,8 +88,8 @@ def a_timed_call(server, secret, admin_api, sign_in, room_id):
                 print(f"  profile {profile}: {e2e_netem.apply(profile)}")
                 time.sleep(SETTLE)
                 taps, stats = _record(a, b, SECONDS)
-                row = {"vqa_to_vqb": _direction(taps["vqa"], taps["vqb"], directory),
-                       "vqb_to_vqa": _direction(taps["vqb"], taps["vqa"], directory),
+                row = {"vqa_to_vqb": _direction(taps["vqa"], taps["vqb"]),
+                       "vqb_to_vqa": _direction(taps["vqb"], taps["vqa"]),
                        "stats": stats}
                 results[profile] = row
                 with open(os.path.join(directory, RESULTS), "w") as fh:
@@ -104,8 +104,8 @@ def a_timed_call(server, secret, admin_api, sign_in, room_id):
     assert not found, "; ".join(found)
 
 
-def run_if_selected(server, secret, admin_api, sign_in, room_id):
+def run_if_selected(server, secret, admin_api, sign_in):
     if "voice latency" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice latency' to run it")
         return
-    a_timed_call(server, secret, admin_api, sign_in, room_id)
+    a_timed_call(server, secret, admin_api, sign_in)

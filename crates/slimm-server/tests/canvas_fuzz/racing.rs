@@ -2,8 +2,10 @@
 //! Cross-channel isolation and the concurrency cases a single-threaded
 //! script cannot reach.
 
-use slimm_server::ids::{CanvasObjectId, CanvasOpId, UserId};
-use slimm_server::store::{CanvasOpRequest, ClearScope, PlaceError, PlaceRequest, SubmitOpError};
+use slimm_server::ids::{CanvasObjectId, CanvasOpId, ChannelId, UserId};
+use slimm_server::store::{
+    CanvasOpRequest, ClearScope, PlaceError, PlaceRequest, Store, SubmitOpError,
+};
 
 use crate::fixtures::{self, general, new_store_and_pool, register};
 use crate::repros::{place, replay_matches_live, submit};
@@ -159,6 +161,68 @@ fn random_request(
     }
 }
 
+type Outcome = (
+    CanvasOpId,
+    Result<slimm_server::store::SubmittedOp, SubmitOpError>,
+);
+
+async fn race_batch(
+    store: &Store,
+    channel: ChannelId,
+    actor: UserId,
+    batch: Vec<(CanvasOpId, CanvasOpRequest)>,
+) -> Vec<Outcome> {
+    let mut tasks = Vec::new();
+    for (op, request) in batch {
+        let store = store.clone();
+        tasks.push(tokio::spawn(async move {
+            (
+                op,
+                store
+                    .submit_canvas_op(channel, actor, op, true, request)
+                    .await,
+            )
+        }));
+    }
+    let mut outcomes = Vec::new();
+    for task in tasks {
+        outcomes.push(task.await.unwrap());
+    }
+    outcomes
+}
+
+/// Counts how often each op id applied fresh, noting erasures and audited objects.
+fn tally_outcomes(
+    seed: u64,
+    outcomes: Vec<Outcome>,
+    erasures: &mut Vec<CanvasOpId>,
+    audited: &mut i64,
+) -> std::collections::HashMap<CanvasOpId, u32> {
+    let mut fresh_per_op = std::collections::HashMap::<CanvasOpId, u32>::new();
+    for (op, outcome) in outcomes {
+        match outcome {
+            Ok(done) if done.fresh && done.affected > 0 => {
+                *fresh_per_op.entry(op).or_default() += 1;
+                if matches!(done.kind.as_str(), "remove" | "clear") {
+                    erasures.push(op);
+                }
+                if matches!(done.kind.as_str(), "remove" | "clear" | "restore") {
+                    *audited += done.touched_ids.len() as i64;
+                }
+            }
+            Ok(_)
+            | Err(
+                SubmitOpError::NotFound
+                | SubmitOpError::NotAuthorized
+                | SubmitOpError::ChannelFull
+                | SubmitOpError::Locked,
+            ) => {}
+            Err(other) => panic!("seed {seed}: a racing op failed with {other:?}"),
+        }
+    }
+    fresh_per_op
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn racing_writers_keep_the_log_the_table_and_the_audit_trail_in_step() {
     for seed in 1..=6u64 {
@@ -197,39 +261,8 @@ async fn racing_writers_keep_the_log_the_table_and_the_audit_trail_in_step() {
                     batch.push((op, request));
                 }
             }
-            let mut tasks = Vec::new();
-            for (op, request) in batch {
-                let store = store.clone();
-                tasks.push(tokio::spawn(async move {
-                    (
-                        op,
-                        store.submit_canvas_op(channel, w0, op, true, request).await,
-                    )
-                }));
-            }
-            let mut fresh_per_op = std::collections::HashMap::<CanvasOpId, u32>::new();
-            for task in tasks {
-                let (op, outcome) = task.await.unwrap();
-                match outcome {
-                    Ok(done) if done.fresh && done.affected > 0 => {
-                        *fresh_per_op.entry(op).or_default() += 1;
-                        if matches!(done.kind.as_str(), "remove" | "clear") {
-                            erasures.push(op);
-                        }
-                        if matches!(done.kind.as_str(), "remove" | "clear" | "restore") {
-                            audited += done.touched_ids.len() as i64;
-                        }
-                    }
-                    Ok(_)
-                    | Err(
-                        SubmitOpError::NotFound
-                        | SubmitOpError::NotAuthorized
-                        | SubmitOpError::ChannelFull
-                        | SubmitOpError::Locked,
-                    ) => {}
-                    Err(other) => panic!("seed {seed}: a racing op failed with {other:?}"),
-                }
-            }
+            let outcomes = race_batch(&store, channel, w0, batch).await;
+            let fresh_per_op = tally_outcomes(seed, outcomes, &mut erasures, &mut audited);
             assert!(
                 fresh_per_op.values().all(|n| *n == 1),
                 "seed {seed}: one op id applied twice: {fresh_per_op:?}"

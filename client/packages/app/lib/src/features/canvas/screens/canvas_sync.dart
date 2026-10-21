@@ -252,6 +252,14 @@ class CanvasSync {
     _retryTimer = Timer(delay, () => unawaited(catchUp()));
   }
 
+  _PassEnd _finishCatchUp(int latestSeq) {
+    _retries = 0;
+    _retryTimer?.cancel();
+    _commitHead(latestSeq);
+    _drainBuffered();
+    return _PassEnd.done;
+  }
+
   Future<_PassEnd> _catchUpPages() async {
     final epoch = _epoch;
     for (var page = 0; page < maxCatchUpPages; page++) {
@@ -268,13 +276,7 @@ class CanvasSync {
         await _hardReset();
         return _PassEnd.restarted;
       }
-      if (!result.hasMore) {
-        _retries = 0;
-        _retryTimer?.cancel();
-        _commitHead(result.latestSeq);
-        _drainBuffered();
-        return _PassEnd.done;
-      }
+      if (!result.hasMore) return _finishCatchUp(result.latestSeq);
       // A page that claims more and carries nothing cannot be paged past.
       if (result.ops.isEmpty) break;
     }

@@ -31,6 +31,26 @@ def load_manifest(path=MANIFEST):
         return json.load(fh)
 
 
+def _field_problems(name, clip):
+    problems = []
+    if clip.get("licence") not in ALLOWED_LICENCES:
+        problems.append(f"{name}: licence {clip.get('licence')!r} is not allowed")
+    if clip.get("category") not in CATEGORIES:
+        problems.append(f"{name}: unknown category {clip.get('category')!r}")
+    if clip.get("reel") not in ("A", "B"):
+        problems.append(f"{name}: reel must be A or B")
+    return problems
+
+
+def _part_problems(name, part):
+    problems = []
+    if len(part.get("sha256", "")) != 64:
+        problems.append(f"{name}: a part has no sha256")
+    if not part.get("url"):
+        problems.append(f"{name}: a part has no url")
+    return problems
+
+
 def validate(manifest):
     """Human-readable problems with a manifest; empty when it is usable."""
     problems, seen = [], set()
@@ -40,18 +60,10 @@ def validate(manifest):
         if name in seen:
             problems.append(f"{name}: duplicate id")
         seen.add(name)
-        if clip.get("licence") not in ALLOWED_LICENCES:
-            problems.append(f"{name}: licence {clip.get('licence')!r} is not allowed")
-        if clip.get("category") not in CATEGORIES:
-            problems.append(f"{name}: unknown category {clip.get('category')!r}")
-        if clip.get("reel") not in ("A", "B"):
-            problems.append(f"{name}: reel must be A or B")
+        problems += _field_problems(name, clip)
         for layer in clip.get("layers", []):
             for part in layer.get("parts", []):
-                if len(part.get("sha256", "")) != 64:
-                    problems.append(f"{name}: a part has no sha256")
-                if not part.get("url"):
-                    problems.append(f"{name}: a part has no url")
+                problems += _part_problems(name, part)
     covered = {c.get("category") for c in manifest.get("clips", [])}
     problems += [f"no clip for category {c}" for c in CATEGORIES if c not in covered]
     return problems

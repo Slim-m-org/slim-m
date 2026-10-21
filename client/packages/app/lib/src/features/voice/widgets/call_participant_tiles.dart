@@ -150,6 +150,71 @@ class CallParticipantTile extends StatelessWidget {
   /// a camera turned off would otherwise still render.
   bool get _showsCamera => cameraView != null && participant.isCameraOn;
 
+  // The name gives way before "(you)" does, so a long name still says whose tile it is.
+  Widget _label(Color colour) {
+    final nameStyle = AppText.ui.copyWith(color: colour);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(
+          child: Text(
+            participant.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: nameStyle,
+          ),
+        ),
+        if (participant.isLocal) Text(' (you)', style: nameStyle),
+      ],
+    );
+  }
+
+  Widget _face(Color onFace, double avatarSize) => Stack(
+    children: [
+      if (_showsCamera)
+        Positioned.fill(child: cameraView!)
+      else
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: _kCallTileLabelBand,
+          child: Center(
+            child: UserAvatar(
+              name: participant.name,
+              userId: participant.identity,
+              size: avatarSize,
+              speaking: participant.isSpeaking,
+            ),
+          ),
+        ),
+      Positioned(
+        left: AppSpacing.s8,
+        right: AppSpacing.s8,
+        bottom: AppSpacing.s12,
+        child: _label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
+      ),
+      if (poorConnection)
+        Positioned(
+          left: AppSpacing.s8,
+          top: AppSpacing.s8,
+          child: _PoorConnectionBadge(participant: participant),
+        ),
+      // Top corner, so the name keeps the tile's whole width and its "(you)".
+      Positioned(
+        right: AppSpacing.s8,
+        top: AppSpacing.s8,
+        child: _StateBadge(
+          participant: participant,
+          stacked:
+              !_showsCamera &&
+              _badgesReachAvatar(width, avatarSize, participant),
+        ),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -159,70 +224,6 @@ class CallParticipantTile extends StatelessWidget {
     );
     // This build's own context, so a popover anchors to this tile - see [onTap]'s doc.
     final onTapHere = onTap == null ? null : () => onTap!(context);
-    // The name gives way before "(you)" does, so a long name still says whose tile it is.
-    Widget label(Color colour) {
-      final nameStyle = AppText.ui.copyWith(color: colour);
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Flexible(
-            child: Text(
-              participant.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: nameStyle,
-            ),
-          ),
-          if (participant.isLocal) Text(' (you)', style: nameStyle),
-        ],
-      );
-    }
-
-    Widget face(Color onFace) => Stack(
-      children: [
-        if (_showsCamera)
-          Positioned.fill(child: cameraView!)
-        else
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: _kCallTileLabelBand,
-            child: Center(
-              child: UserAvatar(
-                name: participant.name,
-                userId: participant.identity,
-                size: avatarSize,
-                speaking: participant.isSpeaking,
-              ),
-            ),
-          ),
-        Positioned(
-          left: AppSpacing.s8,
-          right: AppSpacing.s8,
-          bottom: AppSpacing.s12,
-          child: label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
-        ),
-        if (poorConnection)
-          Positioned(
-            left: AppSpacing.s8,
-            top: AppSpacing.s8,
-            child: _PoorConnectionBadge(participant: participant),
-          ),
-        // Top corner, so the name keeps the tile's whole width and its "(you)".
-        Positioned(
-          right: AppSpacing.s8,
-          top: AppSpacing.s8,
-          child: _StateBadge(
-            participant: participant,
-            stacked:
-                !_showsCamera &&
-                _badgesReachAvatar(width, avatarSize, participant),
-          ),
-        ),
-      ],
-    );
     // A camera hides the avatar that carries the speaking ring, so the tile takes it.
     final ringsTile = _showsCamera && participant.isSpeaking;
     Widget tile = Stack(
@@ -254,10 +255,10 @@ class CallParticipantTile extends StatelessWidget {
                       width: width,
                       height: height,
                       child: _showsCamera
-                          ? face(tokens.textPrimary)
+                          ? _face(tokens.textPrimary, avatarSize)
                           : CallTileBackdrop(
                               identity: participant.identity,
-                              builder: (_, onFace) => face(onFace),
+                              builder: (_, onFace) => _face(onFace, avatarSize),
                             ),
                     ),
                   ),

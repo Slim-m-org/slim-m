@@ -15,7 +15,7 @@ out="${CANVAS_PERF_OUT:-$work/out}"
 socket="canvas-perf-$$"
 mkdir -p "$work" "$out"
 
-if [ ! -d "$work/app" ]; then
+if [[ ! -d "$work/app" ]]; then
   (cd "$work" && flutter create --platforms=linux --project-name canvas_perf app >/dev/null)
   sed -i 's/1280, 720/1600, 900/' "$work/app/linux/runner/my_application.cc"
   printf '  slimm_voice_canvas:\n    path: %s\n' "$pkg" >"$work/dep.txt"

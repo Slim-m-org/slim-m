@@ -136,12 +136,12 @@ ResizeCorner? hitTestResizeHandle(
   final left = pointerWorld.dx <= anchor.dx;
   final top = pointerWorld.dy <= anchor.dy;
   // Growth stops at the board edge instead of letting the anchor slide.
-  final roomW = within == null
-      ? double.infinity
-      : (left ? anchor.dx - within.left : within.right - anchor.dx);
-  final roomH = within == null
-      ? double.infinity
-      : (top ? anchor.dy - within.top : within.bottom - anchor.dy);
+  var roomW = double.infinity;
+  var roomH = double.infinity;
+  if (within != null) {
+    roomW = left ? anchor.dx - within.left : within.right - anchor.dx;
+    roomH = top ? anchor.dy - within.top : within.bottom - anchor.dy;
+  }
 
   var w = _clamped((pointerWorld.dx - anchor.dx).abs());
   var h = _clamped((pointerWorld.dy - anchor.dy).abs());

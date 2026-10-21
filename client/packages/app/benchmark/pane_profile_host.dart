@@ -29,11 +29,10 @@ const tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
-http.Response jsonResponse(Object body) => http.Response(
-  jsonEncode(body),
-  200,
-  headers: {'content-type': 'application/json'},
-);
+const _jsonHeaders = {'content-type': 'application/json'};
+
+http.Response jsonResponse(Object body) =>
+    http.Response(jsonEncode(body), 200, headers: _jsonHeaders);
 
 Future<http.Response> answer(http.Request request) async {
   final path = request.url.path;
@@ -63,7 +62,7 @@ Future<http.Response> answer(http.Request request) async {
         'fresh': true,
       }),
       201,
-      headers: {'content-type': 'application/json'},
+      headers: _jsonHeaders,
     );
   }
   if (path.endsWith('/canvas/ops')) {
@@ -97,7 +96,7 @@ Future<http.Response> answer(http.Request request) async {
         'created_at': 0,
       }),
       201,
-      headers: {'content-type': 'application/json'},
+      headers: _jsonHeaders,
     );
   }
   if (path.endsWith('/canvas/objects')) {

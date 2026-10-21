@@ -337,6 +337,35 @@ class _BotRowState extends ConsumerState<_BotRow>
     widget.onReissued(issued!);
   }
 
+  Widget _actions(BuildContext context, api.Bot bot) {
+    return Wrap(
+      spacing: AppSpacing.s8,
+      runSpacing: AppSpacing.s8,
+      children: [
+        if (!bot.isRevoked)
+          AppButton(
+            label: 'Permissions',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            onPressed: () => showBotPermissionsSheet(context, bot),
+          ),
+        AppButton(
+          label: 'Re-issue token',
+          variant: AppButtonVariant.secondary,
+          size: AppButtonSize.sm,
+          onPressed: _busy || !widget.canReissue ? null : _reissue,
+        ),
+        if (!bot.isRevoked)
+          AppButton(
+            label: 'Revoke',
+            variant: AppButtonVariant.danger,
+            size: AppButtonSize.sm,
+            onPressed: _busy ? null : _revoke,
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bot = widget.bot;
@@ -349,50 +378,30 @@ class _BotRowState extends ConsumerState<_BotRow>
       title: bot.displayName,
       meta: '@${bot.username}',
       badge: bot.isRevoked ? null : BotStatusBadge(online: bot.online),
-      detail: bot.isRevoked
-          ? 'Revoked. Re-issue a token to bring it back.'
-          : [
-              if (bot.prefix case final prefix?) 'Prefix $prefix.',
-              if (!bot.online) _lastSeen(bot.tokenLastUsedAt),
-              count == 0
-                  ? 'No permissions granted yet'
-                  : count == 1
-                  ? '1 permission granted'
-                  : '$count permissions granted',
-            ].join(' '),
+      detail: _detail(bot, count),
       dimmed: bot.isRevoked,
       stackTrailingWhenNarrow: true,
-      trailing: Wrap(
-        spacing: AppSpacing.s8,
-        runSpacing: AppSpacing.s8,
-        children: [
-          if (!bot.isRevoked)
-            AppButton(
-              label: 'Permissions',
-              variant: AppButtonVariant.secondary,
-              size: AppButtonSize.sm,
-              onPressed: () => showBotPermissionsSheet(context, bot),
-            ),
-          AppButton(
-            label: 'Re-issue token',
-            variant: AppButtonVariant.secondary,
-            size: AppButtonSize.sm,
-            onPressed: _busy || !widget.canReissue ? null : _reissue,
-          ),
-          if (!bot.isRevoked)
-            AppButton(
-              label: 'Revoke',
-              variant: AppButtonVariant.danger,
-              size: AppButtonSize.sm,
-              onPressed: _busy ? null : _revoke,
-            ),
-        ],
-      ),
+      trailing: _actions(context, bot),
       error: actionError,
       onErrorDismiss: clearActionError,
     );
   }
 }
+
+String _detail(api.Bot bot, int count) {
+  if (bot.isRevoked) return 'Revoked. Re-issue a token to bring it back.';
+  return [
+    if (bot.prefix case final prefix?) 'Prefix $prefix.',
+    if (!bot.online) _lastSeen(bot.tokenLastUsedAt),
+    _permissionsGranted(count),
+  ].join(' ');
+}
+
+String _permissionsGranted(int count) => switch (count) {
+  0 => 'No permissions granted yet',
+  1 => '1 permission granted',
+  _ => '$count permissions granted',
+};
 
 String _lastSeen(int? lastUsedMs) => lastUsedMs == null
     ? 'Never connected.'

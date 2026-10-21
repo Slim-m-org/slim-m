@@ -39,14 +39,18 @@ Future<T> retryCanvasRequest<T>(
       final exhausted = maxAttempts != null && attempt >= maxAttempts;
       if (!isTransientCanvasFailure(error) || exhausted) rethrow;
       if (giveUp?.call() ?? false) rethrow;
-      final wait = error is api.RateLimitedException && error.retryAfter != null
-          ? _atMost(_atLeast(error.retryAfter!, delay), _maxRetryAfter)
-          : delay;
-      await Future<void>.delayed(wait);
+      await Future<void>.delayed(_waitBefore(error, delay));
       if (giveUp?.call() ?? false) rethrow;
       delay = _atMost(delay * 2, _maxDelay);
     }
   }
+}
+
+Duration _waitBefore(api.ApiException error, Duration delay) {
+  final after = error is api.RateLimitedException ? error.retryAfter : null;
+  return after == null
+      ? delay
+      : _atMost(_atLeast(after, delay), _maxRetryAfter);
 }
 
 Duration _atLeast(Duration a, Duration b) => a > b ? a : b;

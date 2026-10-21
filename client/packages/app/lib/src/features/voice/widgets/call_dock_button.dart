@@ -61,11 +61,6 @@ class CallDockButton extends StatelessWidget {
   ) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final joined = AppControlWithOptions.joinedOf(context);
-    // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
-    final background = _background(tokens);
-    final foreground = _foreground(tokens);
-    final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
-
     // AppIconButton's own split: a fixed chip, invisible tap area growing to AppSizes.rowTouch at touch density.
     final touch = AppTouchTargets.of(context);
     final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
@@ -103,31 +98,12 @@ class CallDockButton extends StatelessWidget {
                 height: outerSize,
                 child: Align(
                   alignment: joined ? Alignment.centerRight : Alignment.center,
-                  child: Container(
-                    width: visualSize,
-                    height: visualSize,
-                    foregroundDecoration: joined
-                        ? appInsetFocusDecoration(
-                            context,
-                            focused: focused,
-                            borderRadius: radius,
-                          )
-                        : null,
-                    decoration: BoxDecoration(
-                      color: background,
-                      borderRadius: radius,
-                      border: _border(border, joined: joined),
-                    ),
-                    child: pending
-                        ? _spinner(tokens)
-                        : _withLevel(
-                            Icon(
-                              icon,
-                              size: AppSizes.icon16,
-                              color: foreground,
-                            ),
-                            tokens,
-                          ),
+                  child: _face(
+                    context,
+                    tokens,
+                    joined: joined,
+                    radius: radius,
+                    focused: focused,
                   ),
                 ),
               ),
@@ -135,6 +111,39 @@ class CallDockButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _face(
+    BuildContext context,
+    AppTokens tokens, {
+    required bool joined,
+    required BorderRadius radius,
+    required bool focused,
+  }) {
+    // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
+    final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
+    return Container(
+      width: AppSizes.controlMd,
+      height: AppSizes.controlMd,
+      foregroundDecoration: joined
+          ? appInsetFocusDecoration(
+              context,
+              focused: focused,
+              borderRadius: radius,
+            )
+          : null,
+      decoration: BoxDecoration(
+        color: _background(tokens),
+        borderRadius: radius,
+        border: _border(border, joined: joined),
+      ),
+      child: pending
+          ? _spinner(tokens)
+          : _withLevel(
+              Icon(icon, size: AppSizes.icon16, color: _foreground(tokens)),
+              tokens,
+            ),
     );
   }
 

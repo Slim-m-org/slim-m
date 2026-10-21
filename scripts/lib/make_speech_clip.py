@@ -8,6 +8,7 @@ usage: make_speech_clip.py speech|latency|pulse out.wav [A|B]
 """
 import math
 import os
+import re
 import subprocess
 import sys
 
@@ -15,6 +16,7 @@ import voice_quality_dsp as dsp
 
 RATE = 48_000
 PEAK = 0.5
+VOICE_NAME = re.compile(r"[A-Za-z0-9]+(?:[_-][A-Za-z0-9]+)*")
 VOICES = {"A": "en_US-lessac-medium", "B": "en_US-ryan-medium"}
 SENTENCES = {
     "A": ("Good morning, can everyone hear me alright?",
@@ -56,6 +58,8 @@ def chirp(rate=RATE):
 
 def _piper(text, voice):
     """Samples at RATE for `text`, said by the piper voice named `voice`."""
+    if not VOICE_NAME.fullmatch(voice) or not isinstance(text, str):
+        raise ValueError(f"not a piper voice name: {voice!r}")
     exe = os.environ.get("SLIMM_PIPER") or os.path.expanduser(
         "~/.slimm-scratch/piper-venv/bin/piper")
     folder = os.environ.get("SLIMM_PIPER_VOICES") or os.path.expanduser(
@@ -75,7 +79,7 @@ def _piper(text, voice):
 def _voice_rate(path):
     import json
     with open(path) as fh:
-        return json.load(fh)["audio"]["sample_rate"]
+        return int(json.load(fh)["audio"]["sample_rate"])
 
 
 def _normalise(samples):

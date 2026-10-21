@@ -147,19 +147,21 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
         carry != null && carry.isCategory && carry.id == category?.id;
     return [
       _item(
-        id: 'h:${category?.id}',
-        dimmed: foldedAway,
-        liftable: category != null,
-        isCategory: true,
-        liftId: category?.id ?? '',
-        actions: category == null
-            ? const {}
-            : categoryMoveActions(
-                _categoryIds,
-                category.id,
-                widget.onReorderCategories,
-              ),
-        child: widget.headerBuilder(category),
+        _RailItem(
+          id: 'h:${category?.id}',
+          dimmed: foldedAway,
+          liftable: category != null,
+          isCategory: true,
+          liftId: category?.id ?? '',
+          actions: category == null
+              ? const {}
+              : categoryMoveActions(
+                  _categoryIds,
+                  category.id,
+                  widget.onReorderCategories,
+                ),
+          child: widget.headerBuilder(category),
+        ),
       ),
       for (final channel in channels)
         foldedAway
@@ -168,47 +170,40 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
                 child: const SizedBox.shrink(),
               )
             : _item(
-                id: 'c:${channel.id}',
-                dimmed: carry?.id == channel.id && !carry!.isCategory,
-                liftable: true,
-                isCategory: false,
-                liftId: channel.id,
-                actions: channelMoveActions(
-                  WidgetsLocalizations.of(context),
-                  widget.sections,
-                  widget.collapsed,
-                  channel.id,
-                  widget.onReorder,
+                _RailItem(
+                  id: 'c:${channel.id}',
+                  dimmed: carry?.id == channel.id && !carry!.isCategory,
+                  liftable: true,
+                  isCategory: false,
+                  liftId: channel.id,
+                  actions: channelMoveActions(
+                    WidgetsLocalizations.of(context),
+                    widget.sections,
+                    widget.collapsed,
+                    channel.id,
+                    widget.onReorder,
+                  ),
+                  shortcuts: channelMoveShortcuts(
+                    widget.sections,
+                    widget.collapsed,
+                    channel.id,
+                    widget.onReorder,
+                  ),
+                  child: widget.rowBuilder(channel, true),
                 ),
-                shortcuts: channelMoveShortcuts(
-                  widget.sections,
-                  widget.collapsed,
-                  channel.id,
-                  widget.onReorder,
-                ),
-                child: widget.rowBuilder(channel, true),
               ),
     ];
   }
 
-  Widget _item({
-    required String id,
-    required bool dimmed,
-    required bool liftable,
-    required bool isCategory,
-    required String liftId,
-    required Map<CustomSemanticsAction, VoidCallback> actions,
-    Map<ShortcutActivator, VoidCallback> shortcuts = const {},
-    required Widget child,
-  }) {
+  Widget _item(_RailItem entry) {
     Widget item = Semantics(
-      customSemanticsActions: actions,
-      child: dimmed ? _slotFor(isCategory) : child,
+      customSemanticsActions: entry.actions,
+      child: entry.dimmed ? _slotFor(entry.isCategory) : entry.child,
     );
-    if (shortcuts.isNotEmpty) {
-      item = CallbackShortcuts(bindings: shortcuts, child: item);
+    if (entry.shortcuts.isNotEmpty) {
+      item = CallbackShortcuts(bindings: entry.shortcuts, child: item);
     }
-    if (liftable) {
+    if (entry.liftable) {
       item = RawGestureDetector(
         behavior: HitTestBehavior.translucent,
         gestures: {
@@ -216,8 +211,12 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
               GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
                 () => LongPressGestureRecognizer(duration: _holdDelay),
                 (r) => r
-                  ..onLongPressStart = ((d) =>
-                      _liftItem(id, liftId, isCategory, d.globalPosition))
+                  ..onLongPressStart = ((d) => _liftItem(
+                    entry.id,
+                    entry.liftId,
+                    entry.isCategory,
+                    d.globalPosition,
+                  ))
                   ..onLongPressMoveUpdate = ((d) => _move(d.globalPosition))
                   ..onLongPressEnd = ((d) => _drop(d.globalPosition))
                   ..onLongPressCancel = _cancel,
@@ -226,7 +225,7 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
         child: item,
       );
     }
-    return KeyedSubtree(key: _keyFor(id), child: item);
+    return KeyedSubtree(key: _keyFor(entry.id), child: item);
   }
 
   Widget _slotFor(bool isCategory) => RailCarrySlot(
@@ -407,4 +406,27 @@ class _DesktopRailReorderState extends State<DesktopRailReorder>
       ..remove()
       ..dispose();
   }
+}
+
+/// What one rail row needs to be lifted, moved and announced.
+class _RailItem {
+  const _RailItem({
+    required this.id,
+    required this.dimmed,
+    required this.liftable,
+    required this.isCategory,
+    required this.liftId,
+    required this.actions,
+    this.shortcuts = const {},
+    required this.child,
+  });
+
+  final String id;
+  final bool dimmed;
+  final bool liftable;
+  final bool isCategory;
+  final String liftId;
+  final Map<CustomSemanticsAction, VoidCallback> actions;
+  final Map<ShortcutActivator, VoidCallback> shortcuts;
+  final Widget child;
 }

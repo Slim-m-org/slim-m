@@ -7,6 +7,9 @@ One table per directory: a row per profile, both directions summed.
 import json
 import os
 import sys
+from pathlib import Path
+
+from work_roots import ROOTS
 
 CLASSES = ("dropout", "click", "static", "tone", "clipping", "level_burst")
 
@@ -34,6 +37,10 @@ def row(profile, sides):
 
 
 def table(directory):
+    directory = Path(directory).resolve()
+    if not any(directory.is_relative_to(root) for root in ROOTS):
+        raise SystemExit(f"{directory}: outside the work directories")
+    directory = str(directory)
     with open(os.path.join(directory, "results.json")) as fh:
         results = json.load(fh)
     head = ["profile", "min similarity", "ViSQOL MOS", "DNSMOS", "DNSMOS of the sent speech", *CLASSES, "concealed samples",

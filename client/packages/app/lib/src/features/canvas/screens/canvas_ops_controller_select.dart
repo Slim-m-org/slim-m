@@ -318,14 +318,15 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final drag = _drag;
     _resize = null;
     _drag = null;
-    final restored = resize != null
-        ? (id: resize.objectId, box: resize.fromBounds)
-        : drag == null
-        ? null
-        : (
-            id: drag.objectId,
-            box: (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
-          );
+    ({String id, ({double x, double y, double w, double h}) box})? restored;
+    if (resize != null) {
+      restored = (id: resize.objectId, box: resize.fromBounds);
+    } else if (drag != null) {
+      restored = (
+        id: drag.objectId,
+        box: (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
+      );
+    }
     if (restored == null) return null;
     final box = restored.box;
     document.moveObject(restored.id, box.x, box.y, box.w, box.h);

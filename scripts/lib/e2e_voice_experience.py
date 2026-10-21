@@ -52,7 +52,7 @@ def joins(a, b):
     return rows
 
 
-def the_cut(a, b):
+def the_cut(b):
     """A 10 s outage of what the SFU sends; how and when `b` heard `a` again."""
     xp.start_tap(b, "remote", remote=True)
     b.ev("window.__xp.seen = {};")
@@ -75,7 +75,7 @@ def the_cut(a, b):
     return row
 
 
-def speaking(a, b, profile):
+def speaking(a, b):
     """Delay from `a` starting a phrase to `b`'s ring for her lighting up."""
     b.ev(f"window.__xp.watchLabels([{json.dumps('Vqa' + L.SPEAKING)}]);")
     mark = b.ev("window.__xp.events.length")
@@ -100,7 +100,7 @@ def problems(results):
     return found
 
 
-def a_timed_experience(server, secret, admin_api, sign_in, room_id):
+def a_timed_experience(server, secret, admin_api, sign_in):
     e2e_netem.ensure_image()
     directory = xp.out_dir("experience")
     results = {}
@@ -108,7 +108,7 @@ def a_timed_experience(server, secret, admin_api, sign_in, room_id):
     with xp.two_browsers(server, secret, admin_api, sign_in, speech_clips) as (a, b):
         results["joins"] = joins(a, b)
         try:
-            results["cut"] = the_cut(a, b)
+            results["cut"] = the_cut(b)
             print(f"  cut: {results['cut']}")
         finally:
             e2e_netem.clear()
@@ -124,7 +124,7 @@ def a_timed_experience(server, secret, admin_api, sign_in, room_id):
             for profile in profiles:
                 e2e_netem.apply(profile)
                 time.sleep(4)
-                results["speaking"][profile] = speaking(a, b, profile)
+                results["speaking"][profile] = speaking(a, b)
                 print(f"  speaking {profile}: {results['speaking'][profile]}")
         finally:
             e2e_netem.clear()
@@ -134,8 +134,8 @@ def a_timed_experience(server, secret, admin_api, sign_in, room_id):
     assert not found, "; ".join(found)
 
 
-def run_if_selected(server, secret, admin_api, sign_in, room_id):
+def run_if_selected(server, secret, admin_api, sign_in):
     if "voice experience" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice experience' to run it")
         return
-    a_timed_experience(server, secret, admin_api, sign_in, room_id)
+    a_timed_experience(server, secret, admin_api, sign_in)

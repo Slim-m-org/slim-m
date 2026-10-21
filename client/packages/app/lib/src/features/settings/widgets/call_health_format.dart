@@ -4,12 +4,14 @@ library;
 
 import 'package:slimm_rtc/rtc.dart';
 
+const _noData = 'no data';
+
 String _pct(double? v) =>
-    v == null ? 'no data' : '${(v * 100).toStringAsFixed(1)}%';
-String _ms(double? v) => v == null ? 'no data' : '${v.round()} ms';
+    v == null ? _noData : '${(v * 100).toStringAsFixed(1)}%';
+String _ms(double? v) => v == null ? _noData : '${v.round()} ms';
 
 String _pair(double? p50, double? p95, String Function(double?) f) =>
-    p50 == null ? 'no data' : '${f(p50)} median, ${f(p95)} worst';
+    p50 == null ? _noData : '${f(p50)} median, ${f(p95)} worst';
 
 /// One line per measure, for what others sounded like.
 List<String> describeCallHealth(HealthStats remote) => [

@@ -339,19 +339,19 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice quality: known clips played both ways are scored per network "
          "profile (opt in with E2E_ONLY)",
          lambda: e2e_voice_quality.run_if_selected(
-             server, secret, admin, sign_in, room_id)),
+             server, secret, admin, sign_in)),
         ("voice latency: chirps through the call give the mouth-to-ear delay per "
          "network profile (opt in with E2E_ONLY)",
          lambda: e2e_voice_latency.run_if_selected(
-             server, secret, admin, sign_in, room_id)),
+             server, secret, admin, sign_in)),
         ("voice experience: join time, the speaking ring and a 10 s network cut "
          "(opt in with E2E_ONLY)",
          lambda: e2e_voice_experience.run_if_selected(
-             server, secret, admin, sign_in, room_id)),
+             server, secret, admin, sign_in)),
         ("voice desktop: the real Linux client against noise, Strong and the gate "
          "(opt in with E2E_ONLY)",
          lambda: e2e_voice_desktop.run_if_selected(
-             server, secret, admin, sign_in, room_id)),
+             server, secret, admin, sign_in)),
         # Last, because it wipes bob's browser storage and signs him in again.
         ("account: usernames ignore case, registering and signing in",
          lambda: e2e_accounts.usernames_ignore_case(

@@ -174,7 +174,7 @@ def _arm(name, ctx):
     return rows
 
 
-def a_noisy_desktop(server, secret, admin_api, sign_in, room_id):
+def a_noisy_desktop(server, secret, admin_api, sign_in):
     e2e_netem.ensure_image()
     bundle = os.path.abspath(os.environ.get("E2E_DESKTOP_BUNDLE") or BUNDLE)
     assert os.path.exists(os.path.join(bundle, "slimm_app")), f"no desktop build at {bundle}"
@@ -222,8 +222,8 @@ def _arm_with_retry(name, ctx):
         return _arm(name, ctx)
 
 
-def run_if_selected(server, secret, admin_api, sign_in, room_id):
+def run_if_selected(server, secret, admin_api, sign_in):
     if "voice desktop" not in os.environ.get("E2E_ONLY", ""):
         print("  skipped: set E2E_ONLY='voice desktop' to run it")
         return
-    a_noisy_desktop(server, secret, admin_api, sign_in, room_id)
+    a_noisy_desktop(server, secret, admin_api, sign_in)

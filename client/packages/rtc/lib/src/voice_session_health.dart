@@ -32,18 +32,22 @@ mixin VoiceSessionHealth {
         final track = pub.track;
         if (track is lk.RemoteAudioTrack &&
             pub.source == lk.TrackSource.microphone) {
-          out[p.identity] = () async {
-            if (pub.muted) return null;
-            final reports = await track.receiver?.getStats();
-            return reports == null
-                ? null
-                : parseAudioReceive(_entries(reports));
-          };
+          out[p.identity] = _receiveStats(pub, track);
         }
       }
     }
     return out;
   }
+
+  AudioStatsSource _receiveStats(
+    lk.TrackPublication pub,
+    lk.RemoteAudioTrack track,
+  ) =>
+      () async {
+        if (pub.muted) return null;
+        final reports = await track.receiver?.getStats();
+        return reports == null ? null : parseAudioReceive(_entries(reports));
+      };
 
   Future<AudioSendSample?> _localVoiceStats() async {
     final pub = _room?.localParticipant?.audioTrackPublications

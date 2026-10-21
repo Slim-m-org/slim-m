@@ -191,26 +191,38 @@ class CanvasDocument extends ChangeNotifier {
       return null;
     }
     if (known != null) {
-      final existing = _strokes[known];
-      // A duplicate naming a slot this document has since freed is refused.
-      if (existing == null) return null;
-      // A stroke given up as failed whose commit did land comes back.
-      if (!existing.alive) {
-        existing.alive = true;
-        objectCount.value = objectCount.value + 1;
-        _trackOutside(existing);
-      }
-      // A repeated placement reply must not undo a reorder that landed after the original.
-      if (overwrite || input.seq == 0 || input.seq > existing.seq) {
-        existing
-          ..zIndex = input.zIndex
-          ..seq = input.seq;
-      }
-      if (overwrite) _overwriteFrom(existing, input);
-      _paintOrder.markDirty();
-      _changed();
-      return known;
+      return _refreshKnown(known, input, overwrite: overwrite);
     }
+    return _addStroke(input);
+  }
+
+  int? _refreshKnown(
+    int known,
+    CanvasStrokeInput input, {
+    required bool overwrite,
+  }) {
+    final existing = _strokes[known];
+    // A duplicate naming a slot this document has since freed is refused.
+    if (existing == null) return null;
+    // A stroke given up as failed whose commit did land comes back.
+    if (!existing.alive) {
+      existing.alive = true;
+      objectCount.value = objectCount.value + 1;
+      _trackOutside(existing);
+    }
+    // A repeated placement reply must not undo a reorder that landed after the original.
+    if (overwrite || input.seq == 0 || input.seq > existing.seq) {
+      existing
+        ..zIndex = input.zIndex
+        ..seq = input.seq;
+    }
+    if (overwrite) _overwriteFrom(existing, input);
+    _paintOrder.markDirty();
+    _changed();
+    return known;
+  }
+
+  int _addStroke(CanvasStrokeInput input) {
     final path = smoothPolyline(input.points);
     final points = Float32List(input.points.length);
     for (var i = 0; i + 1 < input.points.length; i += 2) {

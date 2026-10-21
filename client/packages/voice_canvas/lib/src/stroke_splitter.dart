@@ -120,19 +120,12 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
     final newMinY = math.min(minY, p.dy);
     final newMaxX = math.max(maxX, p.dx);
     final newMaxY = math.max(maxY, p.dy);
-    if (newMaxX - newMinX > maxObjectExtent ||
-        newMaxY - newMinY > maxObjectExtent) {
-      break;
-    }
+    if (_overExtent(newMaxX - newMinX, newMaxY - newMinY)) break;
 
     final newOriginX = _quantise(newMinX);
     final newOriginY = _quantise(newMinY);
     final newCount = count + 2;
-    final points2 = newCount ~/ 2;
-    final bound = 2 +
-        points2 *
-            (_maxNumLen(newMaxX - newMinX) + _maxNumLen(newMaxY - newMinY)) +
-        (newCount - 1);
+    final bound = _encodedBound(newCount, newMaxX - newMinX, newMaxY - newMinY);
     // A bound that fits proves the exact length fits, so the O(L) re-encode on an origin move only runs near the ceiling.
     var newSumNumLen = sumNumLen;
     var newExact = false;
@@ -141,12 +134,13 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
         newSumNumLen =
             sumNumLen + _numLen(p.dx - originX) + _numLen(p.dy - originY);
       } else {
-        var sum = 0;
-        for (var i = start; i <= candidate; i++) {
-          sum += _numLen(points[i].dx - newOriginX);
-          sum += _numLen(points[i].dy - newOriginY);
-        }
-        newSumNumLen = sum;
+        newSumNumLen = _exactNumLen(
+          points,
+          start,
+          candidate,
+          newOriginX,
+          newOriginY,
+        );
       }
       newExact = true;
       // jsonEncode of a list is "[" + numbers joined by "," + "]".
@@ -167,6 +161,29 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
   return candidate;
 }
 
+bool _overExtent(double width, double height) =>
+    width > maxObjectExtent || height > maxObjectExtent;
+
+/// The most bytes `count` coordinates of a box this size can encode to.
+int _encodedBound(int count, double width, double height) =>
+    2 + (count ~/ 2) * (_maxNumLen(width) + _maxNumLen(height)) + (count - 1);
+
+/// Re-encodes points `start..last` against a new origin, the O(L) path.
+int _exactNumLen(
+  List<Offset> points,
+  int start,
+  int last,
+  double originX,
+  double originY,
+) {
+  var sum = 0;
+  for (var i = start; i <= last; i++) {
+    sum += _numLen(points[i].dx - originX);
+    sum += _numLen(points[i].dy - originY);
+  }
+  return sum;
+}
+
 /// The longest a coordinate in `[0, extent]` can encode: all its whole digits, a point and two decimals.
 int _maxNumLen(double extent) => _digits(extent.ceil() + 1) + 3;
 
@@ -179,7 +196,7 @@ int _numLen(double relative) {
   final cents = (q.abs() * 100).round();
   final whole = cents ~/ 100;
   final fraction = cents % 100;
-  final fractionDigits = fraction == 0 ? 1 : (fraction % 10 == 0 ? 1 : 2);
+  final fractionDigits = fraction % 10 == 0 ? 1 : 2;
   return (q.isNegative ? 1 : 0) + _digits(whole) + 1 + fractionDigits;
 }
 

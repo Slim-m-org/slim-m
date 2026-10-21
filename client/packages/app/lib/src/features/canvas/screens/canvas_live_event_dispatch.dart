@@ -22,6 +22,29 @@ import 'canvas_view_relay.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
 
+void _settleLandedStroke(api.CanvasObject object, RemoteStrokeDrafts? drafts) {
+  if (object.kind != 'stroke') return;
+  drafts?.settleAuthor(
+    object.authorId,
+    landed: Rect.fromLTWH(object.x, object.y, object.w, object.h),
+  );
+}
+
+/// The frame could not name every object it spared, so the read says which.
+void _readSparedObjects(CanvasSync sync, VoidCallback forgetFetchedRegion) {
+  forgetFetchedRegion();
+  unawaited(sync.coldFetch());
+}
+
+void _applyEditedText(
+  CanvasDocument document,
+  String objectId,
+  Map<String, dynamic> props,
+) {
+  final text = props['text'];
+  if (text is String) document.setNoteText(objectId, text);
+}
+
 /// Applies one server event to [document] if it names [paneChannelId], the
 /// exact switch `CanvasPane._onEvent` used to carry directly.
 ///
@@ -55,12 +78,7 @@ void dispatchCanvasLiveEvent(
         when channelId == paneChannelId:
       sync.applyLive(event.seq, () {
         applyPlacedObject(object);
-        if (object.kind == 'stroke') {
-          strokeDrafts?.settleAuthor(
-            object.authorId,
-            landed: Rect.fromLTWH(object.x, object.y, object.w, object.h),
-          );
-        }
+        _settleLandedStroke(object, strokeDrafts);
         activityLog?.recordPlacedLive(object);
       });
     case api.CanvasObjectsRemoved(
@@ -110,9 +128,7 @@ void dispatchCanvasLiveEvent(
           document.refresh();
           activityLog?.recordClearedLive(opId, scope: scope);
           if (sparedCount > sparedIds.length) {
-            // The frame could not name every object it spared, so the read says which.
-            forgetFetchedRegion();
-            unawaited(sync.coldFetch());
+            _readSparedObjects(sync, forgetFetchedRegion);
           }
         },
         replay: api.CanvasClearOp(
@@ -301,8 +317,7 @@ void dispatchCanvasLiveEvent(
       sync.applyLive(
         seq,
         () {
-          final text = props['text'];
-          if (text is String) document.setNoteText(objectId, text);
+          _applyEditedText(document, objectId, props);
           document.refresh();
           activityLog?.recordEditedLive(opId);
         },

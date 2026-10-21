@@ -342,7 +342,13 @@ ServerEvent? _voiceFrame(Map<String, dynamic> decoded) {
 }
 
 /// Voice Canvas frames.
-ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
+ServerEvent? _canvasFrame(Map<String, dynamic> decoded) =>
+    _canvasObjectFrame(decoded) ??
+    _canvasLiveFrame(decoded) ??
+    _canvasEditFrame(decoded);
+
+/// Canvas frames that place, remove, clear and restore objects.
+ServerEvent? _canvasObjectFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'canvas.object.placed'
         when decoded['channel_id'] is String &&
@@ -403,6 +409,13 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         opId: decoded['op_id'] as String,
         objectIds: List<String>.from(decoded['object_ids'] as List<dynamic>),
       ),
+    _ => null,
+  };
+}
+
+/// Canvas frames for cursors and live previews.
+ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
+  return switch (decoded['type']) {
     'canvas.cursor.moved'
         when decoded['channel_id'] is String &&
             decoded['user_id'] is String &&
@@ -470,6 +483,13 @@ ServerEvent? _canvasFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         summon: decoded['summon'] as bool,
       ),
+    _ => null,
+  };
+}
+
+/// Canvas frames that change an object that is already there.
+ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
+  return switch (decoded['type']) {
     'canvas.object.moved'
         when decoded['channel_id'] is String &&
             decoded['seq'] is int &&

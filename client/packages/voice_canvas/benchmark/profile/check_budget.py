@@ -11,14 +11,26 @@ under Impeller fails here even though no unit test can rasterise.
 import json
 import os
 import sys
+import tempfile
+from pathlib import Path
 
 MEDIAN_MS = float(os.environ.get("PROFILE_RASTER_MEDIAN_MS", "8"))
 P99_MS = float(os.environ.get("PROFILE_RASTER_P99_MS", "16.7"))
+ROOTS = tuple(
+    Path(root).resolve()
+    for root in (os.environ.get("CANVAS_PERF_OUT"), os.environ.get("TMPDIR"),
+                 tempfile.gettempdir(), Path.home(), Path.cwd())
+    if root
+)
 
 
 def main(paths):
     failures = []
-    for path in paths:
+    for arg in paths:
+        path = Path(arg).resolve()
+        if path.suffix != ".json" or not any(path.is_relative_to(root) for root in ROOTS):
+            print(f"{arg}: not a results file under the work directories")
+            return 2
         with open(path, encoding="utf-8") as handle:
             rows = json.load(handle)["rows"]
         for row in rows:

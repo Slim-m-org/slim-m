@@ -8,6 +8,7 @@ usage: voice_corpus_score.py <variant-dir>   (reads <profile>/<who>-rx.wav and c
 import json
 import os
 import sys
+from pathlib import Path
 
 import voice_burst_abs as burst_abs
 import voice_corpus as corpus
@@ -15,6 +16,7 @@ import voice_quality as quality
 import voice_quality_align as align
 import voice_quality_dsp as dsp
 import voice_quality_mos as mos
+from work_roots import ROOTS
 
 SENDER = {"vqa": "B", "vqb": "A"}
 RATE = dsp.ANALYSIS_RATE
@@ -81,6 +83,10 @@ def score_side(ref, ref_rate, spans, rec, rec_rate, with_visqol=True):
 
 def score_directory(directory):
     """Writes `corpus.json` with every profile and direction scored per clip."""
+    directory = Path(directory).resolve()
+    if not any(directory.is_relative_to(root) for root in ROOTS):
+        raise SystemExit(f"{directory}: outside the work directories")
+    directory = str(directory)
     refs, spans = {}, {}
     for who in "AB":
         refs[who] = dsp.read_wav(os.path.join(directory, f"clip-{who}.wav"))

@@ -13,6 +13,7 @@ import sys
 from voice_harness_tables import _md
 
 SIDES = ("before", "after")
+EXPERIENCE_FILE = "experience.json"
 CLASSES = ("dropout", "click", "static", "tone", "clipping", "level_burst")
 
 
@@ -95,26 +96,41 @@ def latency(root):
                 "after mouth-to-ear ms", "after jitter buffer ms"], rows)
 
 
+def _cold_cell(cold, warm, failed):
+    if cold:
+        return _f(cold[0])
+    return "failed" if failed and not warm else "n/a"
+
+
+def _warm_cell(warm, failed):
+    if warm:
+        return _spread(warm) + (f", failed {failed}" if failed else "")
+    return f"failed {failed}" if failed else "n/a"
+
+
+def _join_cells(joined, key):
+    """The cold and warm cells for one click-to measure on one side."""
+    warm = [j[key] for j in joined if not j["cold"] and j[key] is not None]
+    cold = [j[key] for j in joined if j["cold"] and j[key] is not None]
+    failed = sum(1 for j in joined if j[key] is None)
+    return [_cold_cell(cold, warm, failed), _warm_cell(warm, failed)]
+
+
 def joins(root):
     rows = []
-    data = {s: (_json(root, s, "experience", "experience.json") or {}).get("joins", []) for s in SIDES}
+    data = {s: (_json(root, s, "experience", EXPERIENCE_FILE) or {}).get("joins", []) for s in SIDES}
     for key, label in (("in_call_ms", "'in call' shown"), ("first_packet_ms", "first remote packet"),
                        ("first_energy_ms", "first audible audio")):
         row = [label]
         for side in SIDES:
-            warm = [j[key] for j in data[side] if not j["cold"] and j[key] is not None]
-            cold = [j[key] for j in data[side] if j["cold"] and j[key] is not None]
-            failed = sum(1 for j in data[side] if j[key] is None)
-            note = f", failed {failed}" if failed else ""
-            row += [_f(cold[0]) if cold else ("failed" if failed and not warm else "n/a"),
-                    _spread(warm) + note if warm else ("failed " + str(failed) if failed else "n/a")]
+            row += _join_cells(data[side], key)
         rows.append(row)
     return _md(["click to", "before cold ms", "before warm ms", "after cold ms", "after warm ms"], rows)
 
 
 def speaking(root):
     rows = []
-    data = {s: (_json(root, s, "experience", "experience.json") or {}).get("speaking", {}) for s in SIDES}
+    data = {s: (_json(root, s, "experience", EXPERIENCE_FILE) or {}).get("speaking", {}) for s in SIDES}
     for profile in sorted(set(data["before"]) | set(data["after"])):
         row = [profile]
         for side in SIDES:
@@ -131,7 +147,7 @@ def speaking(root):
 
 
 def cut(root):
-    data = {s: (_json(root, s, "experience", "experience.json") or {}).get("cut") for s in SIDES}
+    data = {s: (_json(root, s, "experience", EXPERIENCE_FILE) or {}).get("cut") for s in SIDES}
     rows = []
     for key, label in (("time_to_packets_ms", "first packet after link back ms"),
                        ("time_to_audio_ms", "first audio after link back ms"),

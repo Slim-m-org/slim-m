@@ -50,7 +50,7 @@ class Probes(unittest.TestCase):
                          {"readings": 40, "open": 0.25, "strong": 1.0})
 
     def test_gate_summary_without_lines(self):
-        self.assertEqual(da.gate_summary([])["open"], None)
+        self.assertIsNone(da.gate_summary([])["open"])
 
 class _Running:
     returncode = None
