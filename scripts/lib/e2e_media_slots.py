@@ -19,20 +19,11 @@ themselves joined the call in (canvas_pane_gestures.dart's own
 `_callParticipants` doc says why), so `b` has to open the same channel's
 canvas from the voice header too before any of this is visible to them.
 
-Drags the tile while the camera stays off, deliberately: `presenceTileKeys`
-(canvas_presence_geometry.dart) gives every call participant a `camera:<id>`
-tile the instant they are on the call, camera on or off, rendered as a
-plain avatar bubble - real `CustomPaint`/`Text` content Flutter's own canvas
-hit-tests normally. A live camera track renders through flutter_webrtc's web
-`RTCVideoView`, an `HtmlElementView` platform view - a genuine interactive
-DOM `<video>` element layered over Flutter's own canvas, which absorbs a
-raw CDP-dispatched mouse event before it ever reaches Flutter's gesture
-arena. Confirmed directly: dragging the tile with the camera on left it at
-the exact pixel it started, screenshot and all, while the identical drag
-against the same tile with the camera off moves it. The feature under test
-- shared, persistent position, size, lock and depth - has nothing to do
-with what the tile currently shows, so there is nothing lost by never
-turning the camera on here.
+Only a live camera or share has a tile (decision 0086), so alice turns her
+camera on first. A live camera renders through flutter_webrtc's web
+`RTCVideoView`, an `HtmlElementView` platform view: a DOM `<video>` layered
+over Flutter's canvas that absorbs a raw CDP mouse event, so gesture mode
+(`e2e_js.set_gestures`) switches pointer events off on it as well.
 
 The second drag's own commit is checked for real movement in the right
 direction, never for landing on the exact pixel requested. A canvas
@@ -51,9 +42,10 @@ import e2e_board_frame
 import e2e_labels as L
 from e2e_voice import _click_channel_row, participants_with_mics
 
-# canvas_presence_layer.dart's own `_tile` builds these, on or off camera.
-ALICE_SELF_LABEL = "Alice, you, on this call's canvas"
-ALICE_REMOTE_LABEL = "Alice, on this call's canvas"
+# canvas_presence_layer.dart's own `_semanticLabel`; only a live camera or share has a tile (decision 0086).
+ALICE_SELF_LABEL = "Your camera, on this call's canvas"
+ALICE_REMOTE_LABEL = "Alice's camera, on this call's canvas"
+CAMERA_ON = "Turn on camera"
 
 # Different deltas, so a second commit is told apart from a stale first one.
 _DRAG_ONE = (70, 50)
@@ -107,10 +99,10 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     b.wait_for("Canvas,")
     print("  b opened the same channel's canvas from the voice header")
 
+    a.click(CAMERA_ON, settle=3)
     a.wait_for(ALICE_SELF_LABEL)
     b.wait_for(ALICE_REMOTE_LABEL)
-    print("  alice's own tile is already there for both, camera off - "
-          "every call participant gets one on the canvas unconditionally")
+    print("  alice's camera tile appears for both once her camera is on")
 
     # The pen is armed on open and a drag over a tile draws with it now; moving is the Move tool's job.
     a.click(L.PAN_TOOL)
@@ -162,6 +154,7 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     for c in (a, b):
         c.click(L.OPEN_CANVAS)
         c.wait_for("Canvas,")
+    a.click(CAMERA_ON, settle=3)
     a.wait_for(ALICE_SELF_LABEL, timeout=30)
     b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
     print("  the tile reappeared for both after leaving and rejoining "

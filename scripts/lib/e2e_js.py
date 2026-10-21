@@ -171,7 +171,7 @@ def set_gestures(value_json):
             "if(!s){s=document.createElement('style');s.id='e2e-gestures';"
             "document.head.appendChild(s);}"
             "s.textContent=(%s==='none')?"
-            "'flt-semantics-host *{pointer-events:none !important}':'';"
+            "'flt-semantics-host *,flt-platform-view,flt-platform-view *{pointer-events:none !important}':'';"
             "})()" % (value_json, value_json))
 
 

@@ -16,6 +16,7 @@ real tap: press and release at the same spot.
 """
 import e2e_labels as L
 from e2e_api import wait_until
+from e2e_board_frame import board_frame
 from e2e_canvas import (
     STROKE_MID,
     at,
@@ -143,8 +144,11 @@ def place_then_move_without_switching_tools(a, admin_api, channel_id):
     placed = newest_of_kind(admin_api, channel_id, "shape")
     print("  placing a shape reached the server")
 
+    # A shape is hit on its outline only, so the grab is the top edge's middle.
+    left, top, _ = board_frame(a)
+    grab = (left + placed["x"] + placed["w"] / 2, top + placed["y"])
     a.gestures(True)
-    a.drag([point, (point[0] + 40, point[1] + 30)])
+    a.drag([grab, (grab[0] + 40, grab[1] + 30)])
     a.gestures(False)
 
     moved = wait_until(
