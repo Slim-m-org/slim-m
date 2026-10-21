@@ -19,5 +19,14 @@ const canvasPresenceTileMaxSize = Size(720, 540);
 /// pointer actually leaves, so this only ever governs touch.
 const canvasPresenceTileTouchRevealDuration = Duration(seconds: 3);
 
-/// The shortest on-screen side a tile needs before its hover buttons appear.
-const canvasPresenceTileControlsMinSide = AppSizes.controlSm * 2;
+/// The tile-edge gap [CanvasPresenceManipulableTile] leaves around its control row.
+const canvasPresenceTileControlsInset = 2.0;
+
+/// How many of a tile's hover buttons fit a [screen] box at [touch] density; the row never overflows the tile nor meets the resize grip.
+int canvasPresenceTileControlCapacity(Size screen, {required bool touch}) {
+  final slot = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
+  final grip = touch ? AppSizes.rowTouch : AppSizes.controlSm;
+  if (screen.height < slot + grip + canvasPresenceTileControlsInset) return 0;
+  final room = screen.width - 2 * canvasPresenceTileControlsInset;
+  return (room / slot).floor().clamp(0, 3);
+}

@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart' show videoSubscriptionKey;
 
 import '../providers/video_pause.dart';
 import 'video_state_card.dart';
@@ -29,6 +30,10 @@ class LocalPreviewGate extends ConsumerWidget {
       title: "Preview paused while you're in another window",
       identity: identity,
       name: name,
+      blurredFrameOf: videoSubscriptionKey(
+        identity: identity,
+        screenShare: screenShare,
+      ),
       actionLabel: 'Resume',
       onAction: () =>
           ref.read(localPreviewResumedProvider.notifier).state = true,

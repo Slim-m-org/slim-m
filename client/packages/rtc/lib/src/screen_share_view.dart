@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'first_frame_gate.dart';
+import 'last_frame.dart';
+import 'video_subscription_culler.dart' show videoSubscriptionKey;
 import 'video_quality.dart';
 import 'screen_share_status.dart';
 import 'track_tile_state.dart';
@@ -170,16 +172,23 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
     return FirstFrameReveal(
       tracker: owned.tracker,
       placeholder: loading,
-      child: OwnedRendererView(
-        owned: owned,
-        builder: (renderer) => withReceiveDensity(
-          widget.density,
-          (density) => lk.VideoTrackRenderer(
-            track,
-            fit: lk.VideoViewFit.contain,
-            cachedRenderer: renderer,
-            autoDisposeRenderer: false,
-            adaptiveStreamPixelDensity: density,
+      child: RememberLastFrame(
+        tileKey: videoSubscriptionKey(
+          identity: widget.identity,
+          screenShare: true,
+        ),
+        tracker: owned.tracker,
+        child: OwnedRendererView(
+          owned: owned,
+          builder: (renderer) => withReceiveDensity(
+            widget.density,
+            (density) => lk.VideoTrackRenderer(
+              track,
+              fit: lk.VideoViewFit.contain,
+              cachedRenderer: renderer,
+              autoDisposeRenderer: false,
+              adaptiveStreamPixelDensity: density,
+            ),
           ),
         ),
       ),

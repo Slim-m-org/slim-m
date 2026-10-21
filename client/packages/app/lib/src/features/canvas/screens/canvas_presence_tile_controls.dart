@@ -113,9 +113,13 @@ class TileControls extends StatelessWidget {
     this.onToggleLocked,
     required this.onHide,
     this.onExpand,
+    this.maxButtons = 3,
   });
 
   final bool locked;
+
+  /// How many buttons fit the tile, kept in priority order: full screen, lock, then hide; the tile's own menu still carries every action.
+  final int maxButtons;
   final VoidCallback? onToggleLocked;
   final VoidCallback onHide;
 
@@ -166,7 +170,7 @@ class TileControls extends StatelessWidget {
             size: AppIconButtonSize.sm,
             onPressed: onHide,
           ),
-        ],
+        ].take(maxButtons).toList(),
       ),
     );
   }
