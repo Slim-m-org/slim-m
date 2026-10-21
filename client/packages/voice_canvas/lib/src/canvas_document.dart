@@ -29,6 +29,8 @@ import 'spatial_grid.dart' show CullResult;
 export 'canvas_stroke.dart';
 
 part 'canvas_document_board.dart';
+part 'canvas_document_camera.dart';
+part 'canvas_document_geometry.dart';
 part 'canvas_document_queries.dart';
 part 'canvas_document_selection.dart';
 
@@ -263,73 +265,6 @@ class CanvasDocument extends ChangeNotifier {
     return slot;
   }
 
-  /// Every live object drawn as one mark with [id] - [id] itself when it
-  /// was never split - in no particular order.
-  List<String> groupOf(String id) {
-    final slot = _slotById[id];
-    final group = slot == null ? null : _strokes[slot]?.groupId;
-    if (group == null) return [id];
-    return [
-      for (final member in _slotsByGroup[group] ?? const <int>[])
-        if (_strokes[member] case final stroke? when stroke.alive) stroke.id,
-    ];
-  }
-
-  /// The bounds a live object currently occupies, or null if [id] is unknown
-  /// or has been removed. What [moveObject]'s caller needs to compute a drag
-  /// delta, and what an undo needs to restore a move's own original box.
-  ({double x, double y, double w, double h})? objectBounds(String id) {
-    final slot = _slotById[id];
-    final stroke = slot == null ? null : _strokes[slot];
-    if (stroke == null || !stroke.alive) return null;
-    return (x: stroke.x, y: stroke.y, w: stroke.w, h: stroke.h);
-  }
-
-  /// Repositions a live object to a new box, in place - a stroke's own points
-  /// move with it, so a moved stroke still hit-tests against its drawn shape
-  /// rather than its old one. Returns false if [id] is unknown or has been
-  /// removed.
-  ///
-  /// **Called once per pointer event for the whole of a drag or a resize**,
-  /// which is what every choice here is about. It used to free the grid slot
-  /// and insert a fresh one, allocating a replacement [CanvasStroke], a fresh
-  /// `Float32List` of every point, and a shifted [Path] each time. The grid
-  /// never renumbers or reuses a parked slot, so the remove-then-add also
-  /// leaked one slot per pointer event, for the session: a single drag across
-  /// a screen leaked a few hundred, and every later linear cull walked all of
-  /// them.
-  ///
-  /// Now [UniformGrid.move] keeps the slot, the points are shifted in place,
-  /// and the object keeps its identity. The object-local [path] never moves:
-  /// the painter translates it by the stroke's own origin.
-  ///
-  /// Applies the box exactly as given: a gesture holds it to the board with
-  /// [boxOnBoard] first, so an undo, a rollback or a remote move can put an
-  /// object where the server has it.
-  bool moveObject(String id, double x, double y, double w, double h) {
-    final slot = _slotById[id];
-    if (slot == null) return false;
-    final stroke = _strokes[slot];
-    if (stroke == null || !stroke.alive) return false;
-    final dx = x - stroke.x;
-    final dy = y - stroke.y;
-    if (dx == 0 && dy == 0 && w == stroke.w && h == stroke.h) return true;
-    final points = stroke.points;
-    for (var i = 0; i < points.length; i++) {
-      points[i] += i.isEven ? dx : dy;
-    }
-    scene.move(slot, x, y, x + w, y + h);
-    stroke
-      ..x = x
-      ..y = y
-      ..w = w
-      ..h = h;
-    if (_board != null) _trackOutside(stroke);
-    // The dragged object paints live above the cached ink, so its own moves leave the cache valid.
-    if (elevatedObjectId.value != id) _changed();
-    return true;
-  }
-
   /// Attaches a decoded bitmap to a live [CanvasObjectKind.image] object.
   ///
   /// [image] is disposed immediately, rather than attached, if [id] is no
@@ -533,65 +468,6 @@ class CanvasDocument extends ChangeNotifier {
   /// costs one cull and one repaint rather than one of each per object, the
   /// same reason [CanvasScene.add] does not notify.
   void refresh() => _reculled();
-
-  /// Moves the camera, clamped so the view stays inside the bounded world and
-  /// the zoom inside the range a viewport read is sized for.
-  ///
-  /// Silent when the clamp lands on the camera already held, the same guard
-  /// [setViewport] keeps and for a sharper reason. This is called once per
-  /// pointer event for the whole of a pan or a pinch, and a gesture that runs
-  /// into a world edge or a zoom stop keeps resolving to the held camera for
-  /// as long as the finger stays down. Every notification from here rebuilds
-  /// both presence layers, so those are whole rebuilds of a frame that has
-  /// not changed.
-  void setCamera(Camera next) {
-    final clamped = _clamp(next);
-    final board = _board;
-    worldEdgeHit.value =
-        board == null && (clamped.x != next.x || clamped.y != next.y);
-    if (board != null && !_viewport.isEmpty) {
-      _atFit = clamped.zoom <= boardFitZoom(board, _fitView) + 1e-9;
-    }
-    if (clamped == _camera) return;
-    _camera = clamped;
-    _reculled();
-  }
-
-  void setViewport(Size size) {
-    if (size == _viewport) return;
-    _viewport = size;
-    final board = _board;
-    _camera = board != null && _atFit
-        ? boardFitCamera(board, _fitView)
-        : _clamp(_camera);
-    if (board != null && !size.isEmpty) {
-      _atFit = _camera.zoom <= boardFitZoom(board, _fitView) + 1e-9;
-    }
-    _reculled();
-  }
-
-  /// The world rectangle currently on screen.
-  Rect get worldView => Rect.fromLTWH(
-        _camera.x,
-        _camera.y,
-        _viewport.width / _camera.zoom,
-        _viewport.height / _camera.zoom,
-      );
-
-  Camera _clamp(Camera next) {
-    final board = _board;
-    if (board != null) return clampCameraToBoard(next, board, _fitView);
-    final zoom = next.zoom.clamp(minZoom, maxZoom);
-    final w = _viewport.width / zoom;
-    final h = _viewport.height / zoom;
-    final maxX = math.max(-worldLimit, worldLimit - w);
-    final maxY = math.max(-worldLimit, worldLimit - h);
-    return Camera(
-      x: next.x.clamp(-worldLimit, maxX),
-      y: next.y.clamp(-worldLimit, maxY),
-      zoom: zoom,
-    );
-  }
 
   void _reculled() {
     final board = _board;

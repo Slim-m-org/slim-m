@@ -41,6 +41,8 @@ import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
 import 'canvas_truncated_notice.dart';
 
+part 'canvas_pane_body_builders.dart';
+
 class CanvasPaneBody extends StatefulWidget {
   const CanvasPaneBody({
     super.key,
@@ -465,125 +467,8 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     );
   }
 
-  CanvasDockData _dockData() => CanvasDockData(
-    tool: widget.tool,
-    onToolChanged: widget.onToolChanged,
-    // A banner already says a place would fail; pen/note/shape must not stay selectable underneath it.
-    canDraw: !canvasErrorBlocksDrawing(widget.error),
-    canUndo: widget.canUndo,
-    onUndo: widget.onUndo,
-    canRedo: widget.canRedo,
-    onRedo: widget.onRedo,
-    canManage: widget.canManage,
-    onClear: widget.onClear,
-    scopedClear: widget.scopedClear,
-    onPasteImage: widget.onPasteImage,
-    onAddImageFile: widget.onAddImageFile,
-    selection: widget.document.selectedObjectId,
-    onBringToFront: widget.onBringToFront,
-    onSendToBack: widget.onSendToBack,
-    onDeleteSelected: widget.onDeleteSelected,
-    activityLogOpen: _activityLogOpen,
-    onToggleActivityLog: () {
-      setState(() => _activityLogOpen = !_activityLogOpen);
-      widget.onActivityLogOpenChanged?.call(_activityLogOpen);
-    },
-    shapeKind: widget.shapeKind,
-    onShapeKindChanged: widget.onShapeKindChanged,
-    pen: widget.pen,
-    onPenChanged: widget.onPenChanged,
-    onClose: widget.onClose,
-    hasSelfBubble: _hasSelfBubble,
-    selfBubbleHidden: widget.selfBubbleHidden,
-    onToggleSelfBubbleHidden: widget.onToggleSelfBubbleHidden,
-    hiddenTiles: hiddenCanvasTiles(
-      participants: widget.callParticipants,
-      overrides: widget.tileOverrides,
-    ),
-    onShowTile: (key) => widget.tileOverrides.setHidden(key, false),
-    fullscreen: widget.fullscreen,
-    onToggleFullscreen: widget.onToggleFullscreen,
-  );
-
-  /// `document.objectCount` is the same trigger `_surface` already listens
-  /// to, since a placed or removed object is exactly what changes
-  /// `liveCountsByKind` too - without this, the summary would freeze at
-  /// whatever it read when the panel was last opened, since nothing else
-  /// rebuilds this widget on a live document change by design.
-  Widget _panel() => ValueListenableBuilder<int>(
-    valueListenable: widget.document.objectCount,
-    builder: (context, count, child) => CanvasActivityPanel(
-      activityLog: widget.activityLog,
-      summary: canvasSummary(widget.document),
-      objectCount: count,
-    ),
-  );
-
-  Widget _surface(AppTokens tokens) => CanvasSurfaceStatus(
-    document: widget.document,
-    tokens: tokens,
-    loading: widget.loading,
-    hasError: widget.error != null,
-    hasCallParticipants: widget.callParticipants.isNotEmpty,
-    onAddNote: canvasErrorBlocksDrawing(widget.error)
-        ? null
-        : () => widget.onNotePlace(widget.document.worldView.center),
-    onAddShape: canvasErrorBlocksDrawing(widget.error)
-        ? null
-        : () => widget.onShapePlace(widget.document.worldView.center, null),
-    child: CanvasPaneSurface(
-      actions: CanvasPaneSurfaceActions(
-        onDraftEnded: widget.onDraftEnded,
-        onDraftPoint: widget.onDraftPoint,
-        onPointerLeft: widget.onPointerLeft,
-        onPointerMoved: widget.onPointerMoved,
-        onShapePlace: widget.onShapePlace,
-        onNotePlace: widget.onNotePlace,
-        onSelectTap: widget.onSelectTap,
-        onSelectEnd: widget.onSelectEnd,
-        onSelectDrag: widget.onSelectDrag,
-        onSelectStart: widget.onSelectStart,
-        onEraseEnd: widget.onEraseEnd,
-        onEraseCancel: widget.onEraseCancel,
-        onSelectCancel: widget.onSelectCancel,
-        onErase: widget.onErase,
-        onStroke: widget.onStroke,
-        onCommitTile: widget.onCommitTile,
-        onVideoInterest: widget.onVideoInterest,
-        onBringToFront: widget.onBringToFront,
-        onSendToBack: widget.onSendToBack,
-        onDeleteSelected: widget.onDeleteSelected,
-        onPurge: widget.onPurge,
-        onPasteImageAt: widget.onPasteImageAt,
-        onEditNote: widget.onEditNote,
-        onRecenter: widget.onRecenter,
-        onBringIntoBoard: widget.onBringIntoBoard,
-        onFocusTile: widget.onFocusTile,
-        participantMenuItemsBuilder: widget.participantMenuItemsBuilder,
-        cameraViewFor: widget.cameraViewFor,
-        screenShareViewFor: widget.screenShareViewFor,
-      ),
-      callParticipants: widget.callParticipants,
-      canManage: widget.canManage,
-      cursorColors: widget.cursorColors,
-      cursors: widget.cursors,
-      document: widget.document,
-      error: widget.error,
-      noteEditor: widget.noteEditor,
-      noteSpans: widget.noteSpans,
-      noteSpansRevision: widget.noteSpansRevision,
-      pen: widget.pen,
-      remoteDrafts: widget.remoteDrafts,
-      selfBubbleHidden: widget.selfBubbleHidden,
-      selfId: widget.selfId,
-      shapeKind: widget.shapeKind,
-      tileOverrides: widget.tileOverrides,
-      viewMode: widget.viewMode,
-      tool: widget.tool,
-      tokens: tokens,
-      menuRequests: _menuRequests,
-      presenceFrames: _presenceFrames,
-      focusedTileKey: widget.focusedTileKey,
-    ),
-  );
+  void _toggleActivityLog() {
+    setState(() => _activityLogOpen = !_activityLogOpen);
+    widget.onActivityLogOpenChanged?.call(_activityLogOpen);
+  }
 }
