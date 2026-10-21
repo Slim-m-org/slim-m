@@ -46,7 +46,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    this.onPurge,
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
@@ -76,9 +75,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
-
-  /// Deletes an object for good, locked or not; offered to canvas moderators.
-  final ValueChanged<String>? onPurge;
 
   /// The empty-space menu's "Paste image" item - `CanvasImagePaste.pasteAt`,
   /// the same clipboard-image pipeline the overflow menu's "Paste image"
@@ -295,12 +291,6 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) widget.onDeleteSelected(id);
   }
 
-  void _purge() {
-    final id = _target;
-    _close();
-    if (id != null) widget.onPurge?.call(id);
-  }
-
   void _pasteImage() {
     final world = _emptySpaceWorld;
     _close();
@@ -423,16 +413,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
           label: 'Delete',
           leading: AppIcons.delete,
           tone: AppMenuItemTone.danger,
-          onTap: locked ? null : _delete,
+          // A moderator's delete outranks a lock; an author unlocks their own first.
+          onTap: locked && !widget.canManage ? null : _delete,
         ),
-        // Locked or not: a moderator removing abusive content should not have to unlock it first.
-        if (widget.canManage && widget.onPurge != null)
-          AppMenuItem(
-            label: 'Delete for good',
-            leading: AppIcons.delete,
-            tone: AppMenuItemTone.danger,
-            onTap: _purge,
-          ),
       ],
     );
   }

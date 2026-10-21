@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_text_focus.dart';
+
 /// The share of the view one arrow press pans.
 const double _panStep = 0.15;
 
@@ -53,9 +55,28 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   final FocusNode _node = FocusNode(debugLabel: 'canvas board');
 
   @override
+  void initState() {
+    super.initState();
+    _node.addListener(_onFocusChanged);
+  }
+
+  @override
   void dispose() {
+    _node.removeListener(_onFocusChanged);
     _node.dispose();
     super.dispose();
+  }
+
+  // Primary focus only: focus inside a field below the board is not the board's stop.
+  void _onFocusChanged() {
+    final focused = _node.hasPrimaryFocus;
+    if (focused == _focused) return;
+    setState(() {
+      _focused = focused;
+      // A Tab or arrow that moved focus here is still down when this runs.
+      _ring =
+          focused && HardwareKeyboard.instance.logicalKeysPressed.isNotEmpty;
+    });
   }
 
   CanvasDocument get _document => widget.document;
@@ -64,6 +85,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (textInputHasFocus()) return KeyEventResult.ignored;
     final keys = HardwareKeyboard.instance;
     if (keys.isControlPressed || keys.isMetaPressed || keys.isAltPressed) {
       return KeyEventResult.ignored;
@@ -169,12 +191,6 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       // The pane's own keys bubble up from here, so the board holds focus from the start.
       autofocus: true,
       onKeyEvent: _onKey,
-      onFocusChange: (focused) => setState(() {
-        _focused = focused;
-        // A Tab or arrow that moved focus here is still down when this runs.
-        _ring =
-            focused && HardwareKeyboard.instance.logicalKeysPressed.isNotEmpty;
-      }),
       includeSemantics: false,
       // Its own node with every child kept apart: merged, the board's label swallowed drags on web.
       child: Semantics(

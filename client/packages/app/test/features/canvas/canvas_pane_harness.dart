@@ -210,6 +210,9 @@ class CanvasPaneFixture {
 
   /// Every `POST .../canvas/ops` (remove, clear, restore) the pane sent.
   final List<Map<String, dynamic>> postedOps = [];
+
+  /// Every `DELETE .../canvas/objects/{id}` (a Delete, always for good) the pane sent.
+  final List<String> deletedObjects = [];
   var _opSeq = 0;
 
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
@@ -235,6 +238,12 @@ class CanvasPaneFixture {
         }
         if (request.url.path.endsWith('/permissions')) {
           return jsonResponse({'permissions': channelPermissions});
+        }
+        if (request.method == 'DELETE' &&
+            request.url.path.contains('/canvas/objects/')) {
+          final id = request.url.pathSegments.last;
+          deletedObjects.add(id);
+          return jsonResponse(canvasObjectJson(id));
         }
         if (request.url.path.endsWith('/canvas/ops') &&
             request.method == 'POST') {

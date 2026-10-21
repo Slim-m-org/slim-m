@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import '../../support/canvas_ops_rig.dart';
+import '../../support/canvas_purge_fake.dart';
 
 CanvasStrokeInput _object(
   String id, {
@@ -38,12 +39,30 @@ class _Harness {
   _Harness() {
     final api.SlimmApi client = testApi(
       (request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        opRequests.add(body);
         if (failNext) {
           failNext = false;
           return http.Response('{}', 500);
         }
+        if (isPurge(request)) {
+          purged.add(request.url.pathSegments.last);
+          return fakePurge(request, {request.url.pathSegments.last});
+        }
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        if (request.url.path.endsWith('/canvas/objects')) {
+          placed.add(body);
+          return http.Response(
+            jsonEncode({
+              ...body,
+              'z_index': 2,
+              'author_id': 'me',
+              'seq': 20 + placed.length,
+              'created_at': 0,
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        opRequests.add(body);
         _opSeq++;
         return http.Response(
           jsonEncode({
@@ -83,6 +102,8 @@ class _Harness {
   late final CanvasOpsController ops;
   final List<Map<String, dynamic>> opRequests = [];
   final List<String> errors = [];
+  final List<String> purged = [];
+  final List<Map<String, dynamic>> placed = [];
   bool failNext = false;
   var _opSeq = 0;
 
@@ -153,23 +174,29 @@ void main() {
     expect(last['object_ids'], ['a']);
   });
 
-  test('redoing an undone erase removes the same objects again', () async {
-    final harness = _Harness()..place('a', kind: CanvasObjectKind.stroke);
-    await harness.ops.deleteSelected('a');
+  test(
+    'undoing a delete places the object again and redo deletes it',
+    () async {
+      final harness = _Harness()..place('a', kind: CanvasObjectKind.stroke);
+      await harness.ops.deleteSelected('a');
+      expect(harness.purged, ['a']);
+      expect(harness.document.isAlive('a'), isFalse);
 
-    await harness.ops.undo();
-    expect(harness.opRequests.last['kind'], 'restore');
-    harness.restoreLocally('a', kind: CanvasObjectKind.stroke);
-    expect(harness.document.isAlive('a'), isTrue);
+      await harness.ops.undo();
 
-    await harness.ops.redo();
+      final again = harness.placed.single;
+      expect(again['kind'], 'stroke');
+      expect((again['x'], again['y']), (100.0, 100.0));
+      expect(harness.document.isAlive(again['id'] as String), isTrue);
+      expect(harness.ops.canRedo, isTrue);
 
-    final redo = harness.opRequests.last;
-    expect(redo['kind'], 'remove');
-    expect(redo['object_ids'], ['a']);
-    expect(harness.document.isAlive('a'), isFalse);
-    expect(harness.ops.canUndo, isTrue);
-  });
+      await harness.ops.redo();
+
+      expect(harness.purged.last, again['id']);
+      expect(harness.document.isAlive(again['id'] as String), isFalse);
+      expect(harness.ops.canUndo, isTrue);
+    },
+  );
 
   test('a fresh edit after an undo drops the redo', () async {
     final harness = _Harness()
@@ -229,7 +256,7 @@ void main() {
     expect(harness.ops.canRedo, isTrue);
   });
 
-  test('a failed undo of an erase keeps the entry so Undo can retry', () async {
+  test('a failed undo of a delete keeps the entry so Undo can retry', () async {
     final harness = _Harness()..place('a', kind: CanvasObjectKind.stroke);
     await harness.ops.deleteSelected('a');
     harness.failNext = true;
@@ -240,9 +267,9 @@ void main() {
     expect(
       harness.ops.canUndo,
       isTrue,
-      reason: 'the remove op id lives only in the entry; losing it strands a',
+      reason: 'the deleted row lives only in the entry; losing it strands a',
     );
     await harness.ops.undo();
-    expect(harness.opRequests.last['kind'], 'restore');
+    expect(harness.placed, hasLength(1));
   });
 }

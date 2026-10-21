@@ -42,16 +42,23 @@ String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 /// out-of-band admin to compare the code with. A key that later changes is
 /// never silent, with or without this flag: that is the one case
 /// trust-on-first-use exists to make visible.
+///
+/// [requireSlimServer] makes an address that answers without a slim-m
+/// `/version` throw [api.NotASlimServerException] instead of counting as unknown.
 Future<bool> confirmServerIdentity(
   BuildContext context,
   WidgetRef ref,
   Uri server, {
   bool silentFirstConnect = false,
+  bool requireSlimServer = false,
 }) async {
   final client = ref.read(probeApiProvider)(server);
   api.ServerIdentity? identity;
   try {
     identity = (await client.version()).identity;
+  } on api.NotASlimServerException {
+    if (requireSlimServer) rethrow;
+    return true;
   } catch (error, stack) {
     api.reportFailure(
       api.LogTag.auth,

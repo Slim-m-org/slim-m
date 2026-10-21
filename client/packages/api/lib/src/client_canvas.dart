@@ -214,7 +214,14 @@ extension SlimmApiCanvas on SlimmApi {
   Future<void> unlockCanvasObject(String channelId, String objectId) =>
       _send('DELETE', '/channels/$channelId/canvas/objects/$objectId/lock');
 
-  /// Removes [objectId] for good, locked or not; a canvas moderator only.
-  Future<void> purgeCanvasObject(String channelId, String objectId) =>
-      _send('DELETE', '/channels/$channelId/canvas/objects/$objectId');
+  /// Deletes [objectId] for good: its author or a canvas moderator may.
+  /// Answers the row as it was, so the caller can place it again to undo.
+  Future<CanvasObject> purgeCanvasObject(
+    String channelId,
+    String objectId,
+  ) async {
+    final path = '/channels/$channelId/canvas/objects/$objectId';
+    final json = await _send('DELETE', path);
+    return _decodeShape(json, 'DELETE $path', CanvasObject.fromJson);
+  }
 }

@@ -29,6 +29,7 @@ class FuzzServerModel {
   var valid = true;
 
   var _opsSeen = 0;
+  var _deletesSeen = 0;
   var _placedSeen = 0;
 
   static Rect _rect(Map<String, dynamic> o) => Rect.fromLTWH(
@@ -77,6 +78,12 @@ class FuzzServerModel {
         case 'restore' || 'clear' || 'clear_scoped':
           valid = false;
       }
+    }
+    final deleted = rig.fixture.deletedObjects;
+    for (; _deletesSeen < deleted.length; _deletesSeen++) {
+      final id = deleted[_deletesSeen];
+      removed.add(id);
+      if (hiddenIds.contains(id)) touchedHidden.add(id);
     }
     final placed = rig.fixture.posted;
     for (; _placedSeen < placed.length; _placedSeen++) {

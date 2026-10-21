@@ -188,7 +188,9 @@ void main() {
       expect(find.text('Add note'), findsOneWidget);
     });
 
-    testWidgets('Delete removes the note on the server', (tester) async {
+    testWidgets('Delete removes the note for good on the server', (
+      tester,
+    ) async {
       final fixture = await _open(
         tester,
         objects: [canvasNoteJson('n', authorId: 'me')],
@@ -198,8 +200,8 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      expect(fixture.postedOps.single['kind'], 'remove');
-      expect(fixture.postedOps.single['object_ids'], ['n']);
+      expect(fixture.deletedObjects, ['n']);
+      expect(fixture.postedOps, isEmpty);
     });
   });
 
