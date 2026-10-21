@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/recording_sync.dart';
 import 'canvas_pane_harness.dart';

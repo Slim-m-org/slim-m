@@ -6,6 +6,7 @@ library;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_gesture_fuzz_rig.dart';
 

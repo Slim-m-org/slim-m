@@ -27,6 +27,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/testing.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_fuzz_server.dart';
 import 'fake_api.dart';

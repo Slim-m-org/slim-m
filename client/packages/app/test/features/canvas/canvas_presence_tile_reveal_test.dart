@@ -70,6 +70,14 @@ void _focusLockButton(WidgetTester tester) {
   Focus.of(tester.element(icon)).requestFocus();
 }
 
+/// The lock icon found in the widget tree, for a tile whose controls publish no semantics node.
+Finder _lockIconByWidget() => find
+    .descendant(
+      of: find.byType(TileControls),
+      matching: find.byIcon(AppIcons.tileUnlocked),
+    )
+    .first;
+
 /// The counterpart to [_focusLockButton]: reads the same node back out to
 /// drop focus from it, rather than guessing at an ancestor scope.
 void _unfocusLockButton(WidgetTester tester) {
@@ -326,16 +334,10 @@ void main() {
     ) async {
       await pumpSmall(tester);
 
-      _focusLockButton(tester);
+      Focus.of(tester.element(_lockIconByWidget())).requestFocus();
       await tester.pump(AppMotion.fast);
 
-      final icon = find
-          .descendant(
-            of: find.bySemanticsLabel(_lockLabel),
-            matching: find.byWidgetPredicate((w) => w is Icon),
-          )
-          .first;
-      expect(Focus.of(tester.element(icon)).hasFocus, isFalse);
+      expect(Focus.of(tester.element(_lockIconByWidget())).hasFocus, isFalse);
     });
 
     testWidgets('still shows the resize grip once touched', (tester) async {
