@@ -6,20 +6,17 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
 use slimm_server::ids::{DeviceId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
 use slimm_server::store::{NewMessage, Store};
 use slimm_server::viewing::ACTIVE_WINDOW;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve};
 
 async fn seed_everyone(store: &Store) {
     store
@@ -42,15 +39,6 @@ async fn account(store: &Store, name: &str) -> (UserId, String) {
         .unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
     (user.id, ticket)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {

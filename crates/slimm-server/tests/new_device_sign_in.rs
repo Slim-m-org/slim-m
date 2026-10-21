@@ -15,15 +15,13 @@ use slimm_server::http::{self, AppState};
 use slimm_server::hub::Event;
 use slimm_server::ids::{DeviceId, UserId};
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve};
 
 const PASSWORD: &str = "correct horse battery";
 
@@ -91,15 +89,6 @@ async fn login_as_device(
         ctx.user_id,
         ctx.device_id,
     )
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {

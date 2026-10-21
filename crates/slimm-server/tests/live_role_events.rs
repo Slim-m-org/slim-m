@@ -8,87 +8,19 @@
 //! name or bits (the only privileged part of a role), matching the doc
 //! comments on `hub::Event::RoleChanged` and `hub::Event::MemberRoleChanged`.
 
-use std::time::Duration;
-
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
+use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
+use support::ws::{connect, read_frame_skipping_presence_timed, serve, user_ticket};
+
 use support::app::json_body;
-
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-/// Creates a user and returns (rest access token, ws connect ticket, user id).
-async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server::ids::UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (tokens.access_token, ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// Reads the next text frame as JSON, skipping `presence.changed`: every
-/// connect in this file publishes one on the same shared hub these tests
-/// assert against, and it is real chatter no test here is checking.
-///
-/// Bounded rather than a bare loop: a missing publish must fail this test
-/// fast with a clear panic, not hang the runner forever waiting for a frame
-/// that will never come.
-async fn read_frame(ws: &mut Client) -> Value {
-    tokio::time::timeout(Duration::from_secs(2), async {
-        loop {
-            match ws.next().await {
-                Some(Ok(WsMessage::Text(text))) => {
-                    let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                    if frame["type"] == "presence.changed" {
-                        continue;
-                    }
-                    return frame;
-                }
-                Some(Ok(_)) => continue,
-                other => panic!("expected a text frame, got {other:?}"),
-            }
-        }
-    })
-    .await
-    .expect("timed out waiting for a frame")
-}
 
 fn req(method: &str, uri: &str, token: &str, body: Option<Value>) -> Request<Body> {
     let mut builder = Request::builder()
@@ -146,7 +78,7 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
 
     // Checked on create, update and delete, each its own publish site.
     for ws in [&mut alice_ws, &mut bob_ws] {
-        let frame = read_frame(ws).await;
+        let frame = read_frame_skipping_presence_timed(ws).await;
         assert_eq!(frame["type"], "role.changed");
         assert!(frame["role_id"].is_string());
         assert!(
@@ -167,7 +99,10 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
         .unwrap();
     assert_eq!(update.status(), StatusCode::OK);
     for ws in [&mut alice_ws, &mut bob_ws] {
-        assert_eq!(read_frame(ws).await["type"], "role.changed");
+        assert_eq!(
+            read_frame_skipping_presence_timed(ws).await["type"],
+            "role.changed"
+        );
     }
 
     let delete = http::router(state.clone())
@@ -181,7 +116,10 @@ async fn role_changed_reaches_everyone_without_leaking_bits_or_name() {
         .unwrap();
     assert_eq!(delete.status(), StatusCode::NO_CONTENT);
     for ws in [&mut alice_ws, &mut bob_ws] {
-        assert_eq!(read_frame(ws).await["type"], "role.changed");
+        assert_eq!(
+            read_frame_skipping_presence_timed(ws).await["type"],
+            "role.changed"
+        );
     }
 }
 
@@ -217,7 +155,7 @@ async fn member_role_changed_reaches_everyone() {
 
     // Checked on both assign and unassign: each is its own publish site.
     for ws in [&mut alice_ws, &mut carol_ws] {
-        let frame = read_frame(ws).await;
+        let frame = read_frame_skipping_presence_timed(ws).await;
         assert_eq!(frame["type"], "member.role_changed");
         assert_eq!(frame["user_id"], bob.to_string());
         assert_eq!(frame["role_id"], perk_role.to_string());
@@ -229,6 +167,9 @@ async fn member_role_changed_reaches_everyone() {
         .unwrap();
     assert_eq!(unassign.status(), StatusCode::NO_CONTENT);
     for ws in [&mut alice_ws, &mut carol_ws] {
-        assert_eq!(read_frame(ws).await["type"], "member.role_changed");
+        assert_eq!(
+            read_frame_skipping_presence_timed(ws).await["type"],
+            "member.role_changed"
+        );
     }
 }

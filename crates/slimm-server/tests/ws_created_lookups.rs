@@ -9,8 +9,8 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use futures_util::{SinkExt, StreamExt};
-use serde_json::{Value, json};
+use futures_util::SinkExt;
+use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self};
@@ -26,10 +26,9 @@ use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
 
 mod support;
 
-const SUBSCRIBERS: usize = 6;
+use support::ws::{Client, read_frame_skipping_presence};
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+const SUBSCRIBERS: usize = 6;
 
 #[derive(Default)]
 struct Counts {
@@ -73,24 +72,8 @@ async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
     ))
     .await
     .unwrap();
-    assert_eq!(read_frame(&mut ws).await["type"], "hello");
+    assert_eq!(read_frame_skipping_presence(&mut ws).await["type"], "hello");
     ws
-}
-
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] == "presence.changed" {
-                    continue;
-                }
-                return frame;
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
 }
 
 #[tokio::test]
@@ -163,7 +146,7 @@ async fn mentions_and_the_webhook_label_are_read_once_for_every_subscriber() {
     );
 
     for (n, ws) in watchers.iter_mut().enumerate() {
-        let frame = read_frame(ws).await;
+        let frame = read_frame_skipping_presence(ws).await;
         assert_eq!(frame["type"], "message.created");
         assert_eq!(
             frame["message"]["mentions_me"],

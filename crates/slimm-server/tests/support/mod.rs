@@ -15,6 +15,14 @@ use slimm_server::store::Store;
 /// The shared app/state builder, request helpers and account fixtures.
 pub mod app;
 
+/// A real listener, a ticketed `/ws` connection and frame reads.
+#[allow(dead_code)]
+pub mod ws;
+
+/// A LiveKit webhook delivery signed the way its server SDKs sign one.
+#[allow(dead_code)]
+pub mod livekit_webhook;
+
 /// Bounded polling for an effect that lands asynchronously.
 #[allow(dead_code)]
 pub mod wait;

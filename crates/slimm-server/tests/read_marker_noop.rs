@@ -15,7 +15,6 @@ use slimm_server::hub::Event;
 use slimm_server::ids::{ChannelId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{NewMessage, Store};
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
@@ -23,8 +22,7 @@ use uuid::Uuid;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve};
 
 struct Fixture {
     state: AppState,
@@ -105,15 +103,6 @@ impl Fixture {
         let body = json!({ "id": Uuid::now_v7().to_string(), "content": "hi" });
         assert_eq!(self.call("POST", &uri, body).await, StatusCode::OK);
     }
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {

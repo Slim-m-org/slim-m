@@ -15,15 +15,13 @@ use slimm_server::db;
 use slimm_server::http::{self, AppState};
 use slimm_server::ids::DeviceId;
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve};
 
 const PASSWORD: &str = "correct horse battery";
 
@@ -43,15 +41,6 @@ async fn setup() -> (AppState, support::TestDbGuard) {
 async fn account(state: &AppState, name: &str) {
     let hash = state.auth.hash_password(PASSWORD.to_owned()).await.unwrap();
     state.store.create_account(name, name, &hash).await.unwrap();
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {

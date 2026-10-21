@@ -5,23 +5,19 @@
 
 use std::time::Duration;
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::http::{self, AppState};
 use slimm_server::hub::Hub;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use sqlx::SqlitePool;
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
 
 /// Like [`new_store`], but also hands back the raw pool so a test can reach
 /// past the `Store` seam and break a single query for real, rather than the
@@ -36,51 +32,6 @@ async fn new_store_with_pool() -> (Store, SqlitePool, support::TestDbGuard) {
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
     (Store::new(pool.clone()), pool, guard)
-}
-
-async fn user_ticket(store: &Store, name: &str) -> (String, slimm_server::ids::UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                return serde_json::from_str(text.as_str()).unwrap();
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
 }
 
 /// Reads frames until one is `frame_type` for `channel_id`, ignoring anything
@@ -134,8 +85,8 @@ async fn typing_reaches_a_viewer() {
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
@@ -163,8 +114,8 @@ async fn typing_does_not_reach_a_non_viewer() {
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
-    let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, _alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, bob_id) = user_ticket_and_id(&store, "bob").await;
 
     // Deny bob the view of this channel specifically, the same setup
     // `fan_out_respects_view_permission` in tests/ws.rs uses for messages.
@@ -207,8 +158,8 @@ async fn typing_lapses_without_a_refresh() {
         .hub(Hub::with_typing_ttl(Duration::from_millis(150)))
         .build();
 
-    let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, _alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
@@ -255,8 +206,8 @@ async fn a_refresh_within_the_ttl_does_not_lapse_or_repeat() {
         .hub(Hub::with_typing_ttl(ttl))
         .build();
 
-    let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, _alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
@@ -297,8 +248,8 @@ async fn typing_is_rate_limited() {
         .unwrap();
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
-    let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, _alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
     let mut alice_ws = connect(addr, &alice_ticket).await;
@@ -363,8 +314,8 @@ async fn a_hidden_user_typing_is_not_announced() {
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
-    let (alice_ticket, alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
     store
         .set_presence_visibility(alice_id, Visibility::Hidden)
         .await
@@ -404,8 +355,8 @@ async fn a_store_error_resolving_presence_withholds_typing() {
     let channel = store.create_channel("general", "text").await.unwrap();
     let state = support::app::builder(store.clone()).hub(Hub::new()).build();
 
-    let (alice_ticket, _alice_id) = user_ticket(&store, "alice").await;
-    let (bob_ticket, _bob_id) = user_ticket(&store, "bob").await;
+    let (alice_ticket, _alice_id) = user_ticket_and_id(&store, "alice").await;
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
 
     let addr = serve(state.clone()).await;
 
