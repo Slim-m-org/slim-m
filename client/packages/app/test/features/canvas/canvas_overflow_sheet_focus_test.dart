@@ -55,6 +55,7 @@ const _bobTalking = VoiceParticipant(
 );
 
 final paneKeys = <String>[];
+const _paneFocus = ValueKey('pane focus');
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -88,6 +89,7 @@ Future<void> _pump(
                 paneKeys.add('e'),
           },
           child: Focus(
+            key: _paneFocus,
             autofocus: true,
             child: Scaffold(
               body: Align(
@@ -138,16 +140,18 @@ void main() {
     expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
 
     final focusContext = FocusManager.instance.primaryFocus?.context;
-    final inSheet =
-        focusContext != null &&
+    // The sheet's route holds focus; anything at or under the pane behind it would hear the hotkeys.
+    final behind =
+        focusContext == null ||
         find
             .descendant(
-              of: find.byType(CanvasParticipantsSheet),
+              of: find.byKey(_paneFocus),
               matching: find.byElementPredicate((e) => e == focusContext),
             )
             .evaluate()
-            .isNotEmpty;
-    expect(inSheet, isTrue, reason: 'focus is on ${focusContext?.widget}');
+            .isNotEmpty ||
+        find.byKey(_paneFocus).evaluate().contains(focusContext);
+    expect(behind, isFalse, reason: 'focus is on ${focusContext?.widget}');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
     expect(paneKeys, isEmpty, reason: 'pane hotkey fired behind the sheet');

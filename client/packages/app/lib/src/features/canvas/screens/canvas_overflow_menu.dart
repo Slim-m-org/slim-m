@@ -155,15 +155,19 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     widget.onToggleSelfBubbleHidden();
   }
 
-  void _openParticipants() {
+  /// Opens a modal once the menu is gone: its closing focus scope would otherwise take focus back from the new route.
+  void _openAfterClose(Future<void> Function() open) {
     _controller.hide();
-    unawaited(showCanvasParticipantsSheet(context));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(open());
+    });
   }
 
-  void _requestScopedClear(CanvasScopedClear control) {
-    _controller.hide();
-    unawaited(requestScopedCanvasClear(context, control));
-  }
+  void _openParticipants() =>
+      _openAfterClose(() => showCanvasParticipantsSheet(context));
+
+  void _requestScopedClear(CanvasScopedClear control) =>
+      _openAfterClose(() => requestScopedCanvasClear(context, control));
 
   void _showTile(String key) {
     _controller.hide();
@@ -176,8 +180,9 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   /// `deleted_at` fence), and the audience who sees this dialog is the same
   /// audience whose own dock carries the Undo control that would
   /// immediately falsify a "cannot be undone" claim.
-  Future<void> _requestClear() async {
-    _controller.hide();
+  void _requestClear() => _openAfterClose(_confirmClear);
+
+  Future<void> _confirmClear() async {
     const message =
         'This removes everything on this canvas, including objects outside '
         'your current view, for everyone in this channel.';
@@ -402,7 +407,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         label: 'Clear canvas',
         leading: AppIcons.delete,
         tone: AppMenuItemTone.danger,
-        onTap: () => unawaited(_requestClear()),
+        onTap: _requestClear,
       ),
       if (widget.scopedClear case final control?)
         AppMenuItem(
