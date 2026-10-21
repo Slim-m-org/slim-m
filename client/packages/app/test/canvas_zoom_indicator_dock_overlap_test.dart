@@ -6,6 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/modules/widgets/dock_height_reporter.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_zoom_indicator.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
@@ -70,7 +71,11 @@ void main() {
                         onFit: () {},
                         onBringIn: () {},
                       ),
-                      Align(alignment: Alignment.bottomCenter, child: dock),
+                      // Measured and published as the real dock overlay does.
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: DockHeightReporter(child: dock),
+                      ),
                     ],
                   ),
                 ),

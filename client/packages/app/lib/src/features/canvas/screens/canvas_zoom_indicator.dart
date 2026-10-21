@@ -30,12 +30,9 @@ import '../../modules/providers/dock_reservation.dart';
 import 'canvas_outside_board_notice.dart';
 import 'canvas_view_mode_controls.dart';
 
-/// The widest pane where the centred dock can still reach this corner.
-const _beside = 900.0;
-
 /// At phone width the dock's cards reach into this corner, so the readout
 /// rides above them by the dock's measured height instead of sitting under it.
-/// So does a pane too narrow for the one-row dock to leave room beside it.
+/// Wider, it lifts only when its own row would reach the centred dock.
 class CanvasZoomIndicator extends ConsumerWidget {
   const CanvasZoomIndicator({
     super.key,
@@ -64,6 +61,7 @@ class CanvasZoomIndicator extends ConsumerWidget {
     return CustomSingleChildLayout(
       delegate: _CornerDelegate(
         lift: ref.watch(bottomDockReservationProvider) + AppSpacing.s12,
+        dockWidth: ref.watch(bottomDockWidthProvider),
         alwaysLifted: phone,
       ),
       child: _readout(),
@@ -159,18 +157,27 @@ class CanvasZoomIndicator extends ConsumerWidget {
 /// document, and mounting it during layout kept a frame callback alive under
 /// reduce motion.
 class _CornerDelegate extends SingleChildLayoutDelegate {
-  const _CornerDelegate({required this.lift, required this.alwaysLifted});
+  const _CornerDelegate({
+    required this.lift,
+    required this.dockWidth,
+    required this.alwaysLifted,
+  });
 
   final double lift;
+  final double dockWidth;
   final bool alwaysLifted;
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    final lifted = alwaysLifted || size.width < _beside;
+    final dockLeft = (size.width - dockWidth) / 2;
+    final reachesDock = dockWidth > 0 && childSize.width > dockLeft;
+    final lifted = alwaysLifted || reachesDock;
     return Offset(0, size.height - childSize.height - (lifted ? lift : 0));
   }
 
   @override
   bool shouldRelayout(_CornerDelegate old) =>
-      old.lift != lift || old.alwaysLifted != alwaysLifted;
+      old.lift != lift ||
+      old.dockWidth != dockWidth ||
+      old.alwaysLifted != alwaysLifted;
 }

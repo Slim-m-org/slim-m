@@ -120,7 +120,11 @@ void main() {
       addTearDown(document.dispose);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [bottomDockReservationProvider.overrideWith((ref) => 52)],
+          // A one-row call dock: about 720 wide and 52 tall, centred in the pane.
+          overrides: [
+            bottomDockReservationProvider.overrideWith((ref) => 52),
+            bottomDockWidthProvider.overrideWith((ref) => 720),
+          ],
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),
             home: Scaffold(
