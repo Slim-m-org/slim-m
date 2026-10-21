@@ -46,7 +46,10 @@ class MemberProfileAbout extends StatelessWidget {
   }
 }
 
-/// Role badges on the left, the join date on the right.
+/// Role badges on the left, the join date on the right, one line each.
+///
+/// The invite code a moderator can see rides in the date's tooltip rather than
+/// a second line that pushes the card around.
 class MemberProfileRolesAndJoin extends StatelessWidget {
   const MemberProfileRolesAndJoin({
     super.key,
@@ -64,6 +67,12 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final joined = Text(
+      formatJoinDate(createdAt),
+      maxLines: 1,
+      softWrap: false,
+      style: AppText.caption.copyWith(color: tokens.textSecondary),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -85,24 +94,10 @@ class MemberProfileRolesAndJoin extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.s8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatJoinDate(createdAt),
-                maxLines: 1,
-                softWrap: false,
-                style: AppText.caption.copyWith(color: tokens.textSecondary),
-              ),
-              if (inviteCode case final code?)
-                Text(
-                  'with invite $code',
-                  maxLines: 1,
-                  softWrap: false,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-            ],
-          ),
+          if (inviteCode case final code?)
+            Tooltip(message: 'Joined with invite $code', child: joined)
+          else
+            joined,
         ],
       ),
     );
