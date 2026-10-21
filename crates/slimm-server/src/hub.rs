@@ -43,6 +43,7 @@ use crate::typing::TypingTracker;
 
 mod created_lookups;
 mod event;
+mod event_util;
 mod memory_guard;
 mod moderation_seq;
 pub use created_lookups::{CreatedFacts, CreatedLookups};

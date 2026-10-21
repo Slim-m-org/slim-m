@@ -20,8 +20,7 @@ use crate::store::{
 };
 use crate::voice::CallRingOutcome;
 
-/// Each emoji with who reacted and when, as `ReactionsChanged` carries it.
-pub type Reactors = Vec<(String, Vec<(UserId, i64)>)>;
+use super::event_util::Reactors;
 
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
@@ -798,14 +797,4 @@ pub enum Event {
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },
-}
-
-impl Event {
-    /// The event without any moderation stamp.
-    pub fn into_inner(self) -> Event {
-        match self {
-            Event::Stamped { event, .. } => *event,
-            other => other,
-        }
-    }
 }
