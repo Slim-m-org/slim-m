@@ -4,10 +4,9 @@
 /// A stroke is nearest-segment-within-tolerance against its own points,
 /// never its bounding box: a long diagonal stroke's box covers area its ink
 /// never touches, so testing the box would let an eraser take out a
-/// neighbour the drawn line never crossed. An image, a note and a shape all
-/// have nothing thinner inside their own box to miss - a note's text and a
-/// shape's outline both live inside the box they were placed with, never
-/// outside it - so [hitTestBoxAt] tests the box directly for all three.
+/// neighbour the drawn line never crossed. An image and a note are their
+/// whole box; a shape answers only on its outline, so the empty inside of a
+/// frame lets a press through to whatever lies beneath.
 library;
 
 import 'dart:math' as math;
@@ -23,6 +22,10 @@ import 'spatial_grid.dart';
 /// still reach through this margin. Generous on purpose: there is no ceiling
 /// on pen width small enough to make a tighter pad safe.
 const double _cullPad = 64;
+
+/// How far past its box the widest ink on the board still hits, never less than [_cullPad].
+double _reach(CanvasDocument document) =>
+    math.max(_cullPad, document.maxInkReach);
 
 /// How far from a mark a pointer still hits it, in screen pixels, so the reach
 /// is the same at any zoom.
@@ -51,7 +54,7 @@ String? hitTestStroke(
   // The board's clip hides everything past its edge, so nothing there can be hit.
   if (!document.acceptsPlacementAt(world)) return null;
   final out = scratch ?? CullResult();
-  final pad = _cullPad + slopPx / document.camera.zoom;
+  final pad = _reach(document) + slopPx / document.camera.zoom;
   document.scene.queryRect(
     world.dx - pad,
     world.dy - pad,
@@ -133,7 +136,7 @@ String? _topmost(
   if (!document.acceptsPlacementAt(world)) return null;
   final out = scratch ?? CullResult();
   final zoom = document.camera.zoom;
-  final pad = _cullPad + math.max(strokeSlopPx, boxSlopPx) / zoom;
+  final pad = _reach(document) + math.max(strokeSlopPx, boxSlopPx) / zoom;
   document.scene.queryRect(
     world.dx - pad,
     world.dy - pad,

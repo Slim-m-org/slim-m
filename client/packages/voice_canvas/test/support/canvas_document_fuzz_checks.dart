@@ -87,7 +87,7 @@ extension DocumentFuzzChecks on DocumentFuzzRun {
       o.y + o.h >= view.top;
 
   void _checkPaintOrder(List<ModelObject> alive) {
-    final view = _view();
+    final view = _view().inflate(model.cullPad);
     final slots = document.paintOrder.toList();
     final ids = <String>[];
     for (final slot in slots) {
@@ -154,13 +154,13 @@ extension DocumentFuzzChecks on DocumentFuzzRun {
   void _checkHitTests(List<ModelObject> alive) {
     final zoom = document.camera.zoom;
     for (final o in alive) {
-      final probe = o.kind == CanvasObjectKind.stroke
-          ? (o.absolutePoints.isEmpty ? null : o.absolutePoints.first)
-          : o.box.center;
-      if (probe == null) continue;
+      if (o.kind == CanvasObjectKind.stroke && o.rel.isEmpty) continue;
+      final probe = o.hitProbe;
       final hitId = o.kind == CanvasObjectKind.stroke
           ? hitTestStroke(document, probe)
           : hitTestBoxAt(document, probe);
+      // The board's clip hides everything past its edge, so nothing there is hit.
+      if (hitId == null && !(document.board?.contains(probe) ?? true)) continue;
       if (hitId == null) {
         violate('hit test misses a live object',
             'nothing hit at the ${o.kind.name} ${o.id} itself');
@@ -185,9 +185,7 @@ extension DocumentFuzzChecks on DocumentFuzzRun {
       }
     }
     for (final o in alive) {
-      _graveyard[o.id] = o.kind == CanvasObjectKind.stroke
-          ? (o.absolutePoints.isEmpty ? o.box.center : o.absolutePoints.first)
-          : o.box.center;
+      _graveyard[o.id] = o.hitProbe;
     }
   }
 
@@ -200,6 +198,7 @@ extension DocumentFuzzChecks on DocumentFuzzRun {
           ? c.kind == CanvasObjectKind.stroke &&
               _distance(probe, c.absolutePoints) <= c.width / 2 + 4 / zoom - 1
           : c.kind != CanvasObjectKind.stroke &&
+              c.kind != CanvasObjectKind.shape &&
               c.box.contains(probe) &&
               probe.dx > c.x &&
               probe.dx < c.x + c.w &&

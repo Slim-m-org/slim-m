@@ -16,6 +16,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_quick_placement.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_clear_scope.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -260,6 +261,8 @@ extension FuzzActions on FuzzWorld {
       channelId: fuzzChannel,
       document: engine.document,
       timedOutUntil: () => null,
+      authorId: () => client.userId,
+      clearedSincePlacement: engine.sync.clearedSincePlacement,
     );
     final at = _point();
     if (rng.nextBool()) {

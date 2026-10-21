@@ -151,9 +151,7 @@ void main() {
     expect(document.outsideBoardCount.value, 1);
   });
 
-  // The hit-test pad lives in canvas_hit_test.dart, which the gesture batch owns.
-  test('a wide stroke can be hit anywhere on its ink', skip: 'gesture batch',
-      () {
+  test('a wide stroke can be hit anywhere on its ink', () {
     // Other clients choose the stored width; only this client's own pen is capped.
     final document = _document();
     document.applyPlaced(
@@ -173,11 +171,7 @@ void main() {
 
     final edge = hitTestStroke(document, const Offset(500 + 5, 500 + 140));
 
-    expect(
-      edge,
-      'wide',
-      reason: 'the point is 140 from the line and the ink reaches 150, but the '
-          'hit test only looks 64 world units past the stroke\'s own box',
-    );
+    expect(edge, 'wide',
+        reason: 'the point is 140 from the line and the ink reaches 150');
   });
 }
