@@ -29,10 +29,16 @@ class _Source implements MicPreviewSource {
   Future<void> close() async => events.add('close');
 }
 
-MicPreview _preview(_Source source, {int maxMisses = 3}) => MicPreview(
+MicPreview _preview(
+  _Source source, {
+  int maxMisses = 3,
+  Duration openTimeout = const Duration(seconds: 10),
+}) =>
+    MicPreview(
       source: source,
       interval: const Duration(milliseconds: 5),
       maxMisses: maxMisses,
+      openTimeout: openTimeout,
     );
 
 Future<void> _until(bool Function() done) async {
@@ -113,6 +119,20 @@ void main() {
       () => preview.current.status == MicPreviewStatus.unavailable,
     );
 
+    expect(source.events.last, 'close');
+  });
+
+  test('a capture that never finishes opening becomes unavailable', () async {
+    final source = _Source()..openDelay = const Duration(seconds: 5);
+    final preview = _preview(
+      source,
+      openTimeout: const Duration(milliseconds: 30),
+    );
+    addTearDown(preview.dispose);
+
+    await preview.start(null);
+
+    expect(preview.current.status, MicPreviewStatus.unavailable);
     expect(source.events.last, 'close');
   });
 }

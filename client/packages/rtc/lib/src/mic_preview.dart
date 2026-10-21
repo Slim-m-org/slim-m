@@ -51,12 +51,16 @@ class MicPreview {
     required MicPreviewSource source,
     this.interval = const Duration(milliseconds: 50),
     this.maxMisses = 40,
+    this.openTimeout = const Duration(seconds: 10),
   }) : _source = source;
 
   final Duration interval;
 
   /// Consecutive empty reads before the preview calls itself unavailable.
   final int maxMisses;
+
+  /// A capture that never finishes opening reads as unavailable, not as opening forever.
+  final Duration openTimeout;
   final MicPreviewSource _source;
   Future<void> _queue = Future<void>.value();
   final _readings = StreamController<MicPreviewReading>.broadcast();
@@ -79,7 +83,7 @@ class MicPreview {
       await _source.close();
       if (mine != _generation) return;
       try {
-        await _source.open(deviceId);
+        await _source.open(deviceId).timeout(openTimeout);
       } on Object {
         if (mine == _generation) {
           _emit(const MicPreviewReading(MicPreviewStatus.unavailable));

@@ -31,6 +31,9 @@ mixin VoiceSessionMicRecovery {
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
   Timer? _deviceDebounce;
+  bool _followingDeviceChange = false;
+  bool _deviceChangedMeanwhile = false;
+  String? _lastDeviceChangeLine;
   Timer? _senderPoll;
   String? _inputSignature;
 
@@ -226,8 +229,26 @@ mixin VoiceSessionMicRecovery {
     _deviceDebounce?.cancel();
     _deviceDebounce = Timer(_micTiming.deviceDebounce, () {
       _deviceDebounce = null;
-      unawaited(_followDeviceChange());
+      unawaited(_followDeviceChangeOnce());
     });
+  }
+
+  /// A burst that lands while a re-check runs earns one more re-check, not one each.
+  Future<void> _followDeviceChangeOnce() async {
+    if (_followingDeviceChange) {
+      _deviceChangedMeanwhile = true;
+      return;
+    }
+    _followingDeviceChange = true;
+    try {
+      do {
+        _deviceChangedMeanwhile = false;
+        await _followDeviceChange();
+      } while (
+          _deviceChangedMeanwhile && _state == VoiceSessionState.connected);
+    } finally {
+      _followingDeviceChange = false;
+    }
   }
 
   Future<void> _followDeviceChange() async {
@@ -252,11 +273,11 @@ mixin VoiceSessionMicRecovery {
       );
     }
     final defaultMoved = await _defaultInputMoved();
-    _logMic(
-      'Audio devices changed; the chosen microphone is '
-      '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
-      '${defaultMoved ? ', and the system default moved' : ''}',
-    );
+    final line = 'Audio devices changed; the chosen microphone is '
+        '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
+        '${defaultMoved ? ', and the system default moved' : ''}';
+    if (line != _lastDeviceChangeLine) _logMic(line);
+    _lastDeviceChangeLine = line;
     if (!_micWanted) return;
     if (inputChanged ||
         defaultMoved ||

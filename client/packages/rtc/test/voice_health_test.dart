@@ -250,6 +250,35 @@ void main() {
       expect(health.takeMinuteLine(), isNull);
     });
 
+    test('a call with no remote audio sampled has no remote summary line', () {
+      final health = VoiceHealth();
+      AudioSendSample at(int s) =>
+          AudioSendSample(timestampMs: s * 1000, packetsSent: s * 50, rttMs: 1);
+      health.observeLocal('me', at(0));
+      health.observeLocal('me', at(5));
+      final lines = health.finish();
+      expect(lines, hasLength(1));
+      expect(lines.single, contains('call summary you:'));
+    });
+
+    test('our level is the interval RMS, not one instant read in a pause', () {
+      var now = DateTime(2026);
+      final health = VoiceHealth(clock: () => now);
+      AudioSendSample at(int s, double energy) => AudioSendSample(
+            timestampMs: s * 1000,
+            packetsSent: s * 50,
+            bytesSent: s * 6000,
+            audioLevel: 0,
+            totalAudioEnergy: energy,
+            totalSamplesDuration: s.toDouble(),
+          );
+      health.observeLocal('me', at(0, 0));
+      health.observeLocal('me', at(5, 0.5));
+      health.takeMinuteLine();
+      now = now.add(const Duration(seconds: 61));
+      expect(health.takeMinuteLine(), contains('level=-10dB'));
+    });
+
     test('the summary has p50 and p95 for the call and each person', () {
       final health = VoiceHealth();
       _feed(health, [0.0, 0.0, 0.0, 0.1]);

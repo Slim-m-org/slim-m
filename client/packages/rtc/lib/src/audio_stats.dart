@@ -61,6 +61,8 @@ class AudioSendSample {
     this.packetsSent,
     this.bytesSent,
     this.audioLevel,
+    this.totalAudioEnergy,
+    this.totalSamplesDuration,
     this.rttMs,
     this.packetsLost,
     this.jitterSeconds,
@@ -72,6 +74,10 @@ class AudioSendSample {
 
   /// What the capture reported, 0 to 1, linear.
   final num? audioLevel;
+
+  /// The capture's running energy and duration, whose change gives the level over a whole interval.
+  final num? totalAudioEnergy;
+  final num? totalSamplesDuration;
   final double? rttMs;
 
   /// Packets the far end reports missing from what we sent.
@@ -137,6 +143,8 @@ AudioSendSample? parseAudioSend(List<StatsEntry> entries) {
     packetsSent: outbound.number('packetsSent'),
     bytesSent: outbound.number('bytesSent'),
     audioLevel: source?.number('audioLevel'),
+    totalAudioEnergy: source?.number('totalAudioEnergy'),
+    totalSamplesDuration: source?.number('totalSamplesDuration'),
     rttMs: remoteRtt == null ? _pairRttMs(entries) : remoteRtt * 1000,
     packetsLost: remote?.number('packetsLost'),
     jitterSeconds: remote?.number('jitter'),
