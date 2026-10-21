@@ -36,12 +36,14 @@ TRIES = 6
 ALLOWED_HOSTS = ("archive.org", "datashare.ed.ac.uk", "upload.wikimedia.org")
 
 
-ALLOWED_PREFIXES = tuple(f"https://{host}/" for host in ALLOWED_HOSTS)
+SAFE_URL = re.compile(
+    r"https://(?:archive\.org|datashare\.ed\.ac\.uk|upload\.wikimedia\.org)"
+    r"/[A-Za-z0-9._~%+/-]+(?:\?[A-Za-z0-9._~%+=&-]*)?")
 
 
 def checked_url(url):
-    """The URL itself when it starts with an allowed https origin; anything else is an error."""
-    if not url.startswith(ALLOWED_PREFIXES):
+    """The URL itself when it is a plain https path on an allowed host; anything else is an error."""
+    if not SAFE_URL.fullmatch(url) or "/../" in url or url.endswith("/.."):
         raise ValueError(f"{url}: only https downloads from {', '.join(ALLOWED_HOSTS)} are allowed")
     return url
 

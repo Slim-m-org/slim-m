@@ -79,7 +79,7 @@ class Cache(unittest.TestCase):
 class Confinement(unittest.TestCase):
     def test_only_https_on_a_manifest_host_is_fetched(self):
         for url in ("http://archive.org/a.wav", "https://evil.test/a.wav",
-                    "https://archive.org.evil.test/a.wav", "https://archive.org@evil.test/a.wav",
+                    "https://archive.org.evil.test/a.wav", "https://archive.org@evil.test/a.wav", "https://archive.org/a/../../x",
                     "file:///etc/passwd"):
             with self.assertRaises(ValueError):
                 fetch.checked_url(url)

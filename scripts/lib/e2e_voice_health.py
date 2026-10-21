@@ -32,10 +32,12 @@ def _wait_for_minute_line(client, timeout):
 
 
 def _netem(command):
-    subprocess.run(
+    done = subprocess.run(
         ["docker", "run", "--rm", "--cap-add", "NET_ADMIN", "--network",
          f"container:{LIVEKIT_CONTAINER}", IMAGE, "sh", "-c", command],
-        check=True, capture_output=True, text=True)
+        capture_output=True, text=True)
+    if done.returncode:
+        raise AssertionError(f"netem failed ({done.returncode}): {done.stderr.strip()[-400:]}")
 
 
 def minute_line_has_real_numbers(a, b, timeout=240):
