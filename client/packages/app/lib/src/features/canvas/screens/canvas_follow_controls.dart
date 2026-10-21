@@ -35,6 +35,11 @@ List<CanvasFollowTarget> canvasFollowTargets({
   return byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
 }
 
+/// Clears the top-left corner's rows: two rows of 44 at touch size, two of 28 otherwise.
+double _topInset(BuildContext context) => AppTouchTargets.of(context)
+    ? AppSpacing.s12 + 2 * AppSizes.rowTouch + 2 * AppSpacing.s8
+    : AppSpacing.s64;
+
 class CanvasFollowControls extends StatefulWidget {
   const CanvasFollowControls({
     super.key,
@@ -148,9 +153,9 @@ class _CanvasFollowControlsState extends State<CanvasFollowControls> {
     return Align(
       alignment: Alignment.topRight,
       child: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
+        minimum: EdgeInsets.fromLTRB(
           AppSpacing.s12,
-          AppSpacing.s48,
+          _topInset(context),
           AppSpacing.s12,
           AppSpacing.s12,
         ),

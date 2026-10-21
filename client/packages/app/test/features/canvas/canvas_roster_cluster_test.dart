@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_roster_avatar.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_roster_cluster.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
@@ -156,17 +157,17 @@ void main() {
     expect(find.text('Mute for me'), findsOneWidget);
   });
 
-  testWidgets('a long press on a row opens it on a phone', (tester) async {
+  testWidgets('on a phone the pill opens the participants sheet', (
+    tester,
+  ) async {
     await _pump(tester, [
       _person('me', local: true),
       _person('bob'),
     ], width: 390);
     await _openList(tester);
 
-    await tester.longPress(_row('BOB'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Mute for me'), findsOneWidget);
+    expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
+    expect(_row('BOB'), findsOneWidget);
   });
 
   testWidgets('a poor connection marks that person, and only them', (

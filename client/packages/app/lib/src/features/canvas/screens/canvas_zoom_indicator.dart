@@ -20,9 +20,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../voice/providers/call_solo.dart';
 import '../widgets/canvas_pill_surface.dart';
 import '../widgets/canvas_roster_cluster.dart';
 
@@ -62,21 +64,24 @@ class CanvasZoomIndicator extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const CanvasRosterCluster(),
-            if (viewMode case final mode?)
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.s8),
-                  child: CanvasViewModeControls(mode: mode, tokens: tokens),
-                ),
+        Consumer(
+          builder: (context, ref, _) {
+            final people = ref.watch(callHasOthersProvider);
+            if (!people && viewMode == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+              child: Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s8,
+                children: [
+                  if (people) const CanvasRosterCluster(),
+                  if (viewMode case final mode?)
+                    CanvasViewModeControls(mode: mode, tokens: tokens),
+                ],
               ),
-          ],
+            );
+          },
         ),
-        const SizedBox(height: AppSpacing.s8),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [

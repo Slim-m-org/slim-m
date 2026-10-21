@@ -104,6 +104,9 @@ class CanvasParticipantRow extends StatelessWidget {
         return AppListRow(
           label: participant.name,
           meta: state.isEmpty ? null : state.join(', '),
+          stateDescription: state.isEmpty
+              ? null
+              : state.join(', ').toLowerCase(),
           leading: CanvasRosterAvatar(participant: participant),
           // This device's own row has nothing to open unless it is sharing or has a camera on.
           trailing: open == null

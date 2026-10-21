@@ -23,9 +23,8 @@ const _phones = {'390x844': Size(390, 844), '360x640': Size(360, 640)};
 /// Of the viewport height, all the dock's cards together.
 const _maxDockFraction = 0.21;
 
-/// The canvas dock lists the others in the call as one more row (decision 0086).
-/// Its pill, roster and Follow rows each take real layout room to reach 44 px.
-const _maxCanvasDockFraction = 0.27;
+/// The canvas dock is tools plus call controls; the roster moved to the canvas corner (decision 0086).
+const _maxCanvasDockFraction = 0.20;
 
 const _canvasControls = [
   'Pan',

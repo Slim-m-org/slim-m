@@ -3,6 +3,8 @@
 /// Each row opens the same menu a call tile has.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -43,7 +45,12 @@ class _CanvasRosterClusterState extends ConsumerState<CanvasRosterCluster> {
     _open.value = false;
   }
 
+  // Desktop-vs-mobile rule 3: an anchored popover on a wide pane, a bottom sheet below kCompactWidth.
   void _toggle() {
+    if (MediaQuery.sizeOf(context).width < kCompactWidth) {
+      unawaited(showCanvasParticipantsSheet(context));
+      return;
+    }
     _portal.toggle();
     _open.value = _portal.isShowing;
   }

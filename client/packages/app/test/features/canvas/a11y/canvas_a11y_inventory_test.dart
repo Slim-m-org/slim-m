@@ -172,7 +172,9 @@ void main() {
       tester,
     ) async {
       await pumpA11yCanvas(tester);
-      // Mute state is told in the dock roster, where everyone in the call is listed (decision 0086).
+      // Mute state is told in the call list the corner cluster opens (decision 0086).
+      await tester.tap(find.byTooltip('People in this call'));
+      await tester.pump(const Duration(milliseconds: 400));
       final sam = semanticsRows(tester).where((r) => r.label.startsWith('Sam'));
 
       expect(
@@ -205,12 +207,12 @@ void main() {
       await pumpA11yCanvas(
         tester,
         call: false,
-        objects: [canvasNoteJson('n1', x: 100, text: 'hello world')],
+        objects: [canvasNoteJson('n1', x: 400, text: 'hello world')],
       );
       useFreeCamera(tester);
       await tester.pump();
       await tester.tapAt(
-        screenFor(tester, const Offset(110, 20)),
+        screenFor(tester, const Offset(410, 20)),
         kind: PointerDeviceKind.mouse,
       );
       await tester.pump(const Duration(milliseconds: 100));
@@ -265,14 +267,14 @@ void main() {
       await pumpA11yCanvas(
         tester,
         call: false,
-        objects: [canvasNoteJson('n1', x: 100, text: 'hello world')],
+        objects: [canvasNoteJson('n1', x: 400, text: 'hello world')],
       );
       useFreeCamera(tester);
       await tester.pump();
       // A finger's first tap selects the note; a tap on the selected note opens its editor.
-      await tester.tapAt(screenFor(tester, const Offset(110, 20)));
+      await tester.tapAt(screenFor(tester, const Offset(410, 20)));
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.tapAt(screenFor(tester, const Offset(110, 20)));
+      await tester.tapAt(screenFor(tester, const Offset(410, 20)));
       await tester.pump(const Duration(milliseconds: 100));
       final rows = semanticsRows(tester);
       final field = rows.where((r) => r.flags.isTextField);
