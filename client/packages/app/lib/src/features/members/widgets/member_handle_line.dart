@@ -64,6 +64,8 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
             onFocusChange: (focused) => setState(() => _focused = focused),
             child: Opacity(
               opacity: visible ? 1 : 0,
+              // A hidden icon is still the way a screen reader copies the handle.
+              alwaysIncludeSemantics: true,
               child: AppIconButton(
                 icon: AppIcons.copy,
                 semanticLabel: 'Copy username',
