@@ -166,7 +166,7 @@ async fn a_cursor_inside_purged_history_resets_but_a_fresh_one_does_not() {
 }
 
 #[tokio::test]
-async fn a_moderator_purges_a_live_locked_object_and_a_member_cannot() {
+async fn a_moderator_purges_a_live_locked_object_and_its_author_must_unlock_first() {
     let (store, pool, _guard) = new_store_and_pool().await;
     let (admin, actor) = register(&store, "root").await;
     let (member_token, member_id) = member(&store, "bob").await;
@@ -181,11 +181,11 @@ async fn a_moderator_purges_a_live_locked_object_and_a_member_cannot() {
 
     assert_eq!(
         delete(&router, &uri, &member_token).await,
-        StatusCode::FORBIDDEN
+        StatusCode::CONFLICT
     );
     assert_eq!(count(&pool, "canvas_objects").await, 1);
 
-    assert_eq!(delete(&router, &uri, &admin).await, StatusCode::NO_CONTENT);
+    assert_eq!(delete(&router, &uri, &admin).await, StatusCode::OK);
     assert_eq!(count(&pool, "canvas_objects").await, 0);
     assert_eq!(delete(&router, &uri, &admin).await, StatusCode::NOT_FOUND);
 }
@@ -200,6 +200,63 @@ async fn a_purge_of_an_object_erased_earlier_removes_it_for_good() {
     erase(&store, channel, actor, object).await;
 
     let uri = format!("/channels/{channel}/canvas/objects/{object}");
-    assert_eq!(delete(&router, &uri, &admin).await, StatusCode::NO_CONTENT);
+    assert_eq!(delete(&router, &uri, &admin).await, StatusCode::OK);
     assert_eq!(count(&pool, "canvas_objects").await, 0);
+}
+
+#[tokio::test]
+async fn a_member_deletes_their_own_object_for_good_and_gets_its_row_back() {
+    let (store, pool, _guard) = new_store_and_pool().await;
+    register(&store, "root").await;
+    let (token, member_id) = member(&store, "bob").await;
+    let channel = general(&store).await;
+    let router = app(store.clone());
+    let mine = place(&store, channel, member_id, "note").await;
+    let uri = format!("/channels/{channel}/canvas/objects/{mine}");
+
+    let request = Request::builder()
+        .method("DELETE")
+        .uri(&uri)
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["id"], mine.to_string());
+    assert_eq!(json["kind"], "note");
+    assert_eq!(count(&pool, "canvas_objects").await, 0);
+    assert_eq!(delete(&router, &uri, &token).await, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_member_cannot_delete_another_members_object_or_their_own_locked_one() {
+    let (store, pool, _guard) = new_store_and_pool().await;
+    let (_, actor) = register(&store, "root").await;
+    let (token, member_id) = member(&store, "bob").await;
+    let channel = general(&store).await;
+    let router = app(store.clone());
+    let others = place(&store, channel, actor, "note").await;
+    let locked = place(&store, channel, member_id, "note").await;
+    store
+        .set_canvas_object_lock(channel, locked, member_id, false, true)
+        .await
+        .unwrap();
+
+    let others_uri = format!("/channels/{channel}/canvas/objects/{others}");
+    let locked_uri = format!("/channels/{channel}/canvas/objects/{locked}");
+
+    assert_eq!(
+        delete(&router, &others_uri, &token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        delete(&router, &locked_uri, &token).await,
+        StatusCode::CONFLICT
+    );
+    assert_eq!(count(&pool, "canvas_objects").await, 2);
 }

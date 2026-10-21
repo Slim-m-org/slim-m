@@ -84,7 +84,6 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onBringToFront: widget.onBringToFront,
         onSendToBack: widget.onSendToBack,
         onDeleteSelected: widget.onDeleteSelected,
-        onPurge: widget.onPurge,
         onPasteImageAt: widget.onPasteImageAt,
         onEditNote: widget.onEditNote,
         onRecenter: widget.onRecenter,

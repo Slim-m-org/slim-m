@@ -52,10 +52,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
         keyboard.isAltPressed) {
       return KeyEventResult.ignored;
     }
-    final focus = FocusManager.instance.primaryFocus?.context;
-    if (focus?.findAncestorWidgetOfExactType<EditableText>() != null) {
-      return KeyEventResult.ignored;
-    }
+    if (textInputHasFocus()) return KeyEventResult.ignored;
     for (final tool in canvasToolOrder) {
       if (tool.shortcutKey != event.logicalKey) continue;
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
@@ -151,7 +148,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   /// Undo, redo, paste and delete over the canvas's own selection.
-  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => {
+  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => unlessTyping({
     const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
         unawaited(_onUndo()),
     const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
@@ -179,7 +176,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     },
     const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
     const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
-  };
+  });
 
   /// How soon a second click on a note makes a double click.
   static const _doubleClickWindow = Duration(milliseconds: 400);
@@ -340,7 +337,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onDeleteSelected(String objectId) async {
-    await _ops.deleteSelected(objectId);
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    await _ops.deleteSelected(objectId, manageCanvas: manageCanvas);
     _refresh();
   }
 

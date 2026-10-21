@@ -390,6 +390,30 @@ class FuzzServer {
     return _done(op, 1);
   }
 
+  // --- delete for good ---
+
+  /// `DELETE .../canvas/objects/{id}`: erases a live object, then drops its row for good and answers it.
+  FuzzObject purge(String actor, bool may, String id) {
+    final found = objects[id];
+    if (found == null) {
+      throw const FuzzRefusal(404, 'that id is not in this channel');
+    }
+    if (!may && found.author != actor) {
+      throw const FuzzRefusal(403, 'forbidden');
+    }
+    if (found.live) {
+      if (may) {
+        setLocked(id, false);
+      } else if (locked.contains(id)) {
+        throw const FuzzRefusal(409, 'unlock that object before deleting it');
+      }
+      _remove(actor, may, 'purge-${ops.length + 1}', {
+        'object_ids': [id],
+      });
+    }
+    return objects.remove(id)!;
+  }
+
   // --- locks ---
 
   void setLocked(String objectId, bool value) {

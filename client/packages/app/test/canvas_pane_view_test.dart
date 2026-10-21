@@ -45,9 +45,7 @@ void main() {
   /// The desktop convention every other drawing surface honours: Delete or
   /// Backspace over the current Move-tool selection, not only the overflow
   /// menu's own "Delete" item.
-  testWidgets('Delete removes the current selection and posts one remove op', (
-    tester,
-  ) async {
+  testWidgets('Delete removes the current selection for good', (tester) async {
     final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
     final container = fixture.container();
     addTearDown(container.dispose);
@@ -70,9 +68,8 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.delete);
     await tester.pumpAndSettle();
 
-    expect(fixture.postedOps, hasLength(1));
-    expect(fixture.postedOps.single['kind'], 'remove');
-    expect(fixture.postedOps.single['object_ids'], ['note']);
+    expect(fixture.deletedObjects, ['note']);
+    expect(fixture.postedOps, isEmpty);
     expect(surfaceDocument(tester).objectCount.value, 0);
   });
 
@@ -99,8 +96,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.backspace);
     await tester.pumpAndSettle();
 
-    expect(fixture.postedOps, hasLength(1));
-    expect(fixture.postedOps.single['kind'], 'remove');
+    expect(fixture.deletedObjects, ['note']);
   });
 
   /// Nothing selected must mean nothing happens - no crash reaching into a

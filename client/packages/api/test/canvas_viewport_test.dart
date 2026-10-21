@@ -80,17 +80,35 @@ void main() {
     expect((page.nextCursor, page.totalObjects), (4, 12));
   });
 
-  test('purgeCanvasObject deletes the object itself', () async {
+  test('purgeCanvasObject deletes the object and answers its last row',
+      () async {
     http.Request? seen;
     final api = SlimmApi(
       baseUrl: _base,
       session: SessionStore(tokens: _tokens()),
       httpClient: MockClient((request) async {
         seen = request;
-        return http.Response('', 204);
+        return http.Response(
+          jsonEncode({
+            'id': 'o1',
+            'kind': 'note',
+            'z_index': 3,
+            'x': 1.0,
+            'y': 2.0,
+            'w': 30.0,
+            'h': 40.0,
+            'props': {'text': 'hi'},
+            'author_id': 'u1',
+            'seq': 9,
+            'created_at': 5,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       }),
     );
-    await api.purgeCanvasObject('c1', 'o1');
+    final row = await api.purgeCanvasObject('c1', 'o1');
+    expect((row.id, row.kind, row.props['text']), ('o1', 'note', 'hi'));
     expect(seen!.method, 'DELETE');
     expect(seen!.url.path, '/channels/c1/canvas/objects/o1');
   });

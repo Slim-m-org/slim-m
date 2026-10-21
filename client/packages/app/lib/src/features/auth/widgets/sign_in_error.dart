@@ -57,6 +57,10 @@ const unexpectedSignInError = (
     SignInErrorField.form,
     'The server is busy. Try again shortly.',
   ),
+  NotASlimServerException() => (
+    SignInErrorField.server,
+    'No slim-m server at that address.',
+  ),
   TransportException() => (
     SignInErrorField.server,
     "This Space didn't answer. It may be restarting, or the address may be "

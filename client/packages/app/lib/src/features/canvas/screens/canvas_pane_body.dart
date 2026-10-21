@@ -87,7 +87,6 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    this.onPurge,
     required this.selfId,
     required this.activityLog,
     this.cursors,
@@ -211,9 +210,6 @@ class CanvasPaneBody extends StatefulWidget {
   /// tool's own counterpart to the eraser removing a stroke. Never offered
   /// with nothing selected, the same gating [onBringToFront] already uses.
   final ValueChanged<String> onDeleteSelected;
-
-  /// Deletes an object for good, locked or not; offered to canvas moderators.
-  final ValueChanged<String>? onPurge;
 
   /// This caller's own id, for [CanvasObjectContextMenu]'s ownership check -
   /// the same "own it, or hold MANAGE_CANVAS" gate `beginSelect` already

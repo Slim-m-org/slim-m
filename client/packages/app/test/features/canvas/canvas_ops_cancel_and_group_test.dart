@@ -12,6 +12,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/canvas_ops_rig.dart';
+import '../../support/canvas_purge_fake.dart';
 
 CanvasStrokeInput _piece(String id, double x, {String? group}) =>
     CanvasStrokeInput(
@@ -32,6 +33,10 @@ CanvasStrokeInput _piece(String id, double x, {String? group}) =>
 class _Rig {
   _Rig() {
     final api.SlimmApi client = testApi((request) async {
+      if (isPurge(request)) {
+        final id = request.url.pathSegments.last;
+        return fakePurge(request, {id}, purged: purges);
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       requests.add(body);
       return acceptedOp(
@@ -53,6 +58,7 @@ class _Rig {
 
   final document = CanvasDocument()..setViewport(const Size(800, 600));
   final requests = <Map<String, dynamic>>[];
+  final purges = <String>[];
   late final CanvasOpsController ops;
   int refetches = 0;
 }
@@ -160,7 +166,7 @@ void main() {
     expect(rig.document.isAlive('b'), isTrue);
   });
 
-  test('deleting one piece deletes the whole mark in one op', () async {
+  test('deleting one piece deletes the whole mark for good', () async {
     final rig = _Rig();
     rig.document
       ..applyPlaced(_piece('a', 0, group: 'g'))
@@ -170,7 +176,8 @@ void main() {
     await rig.ops.deleteSelected('a');
 
     expect(rig.document.isAlive('b'), isFalse);
-    expect(rig.requests, hasLength(1));
+    expect(rig.purges, unorderedEquals(['a', 'b']));
+    expect(rig.requests, isEmpty);
     expect(rig.ops.canUndo, isTrue);
   });
 

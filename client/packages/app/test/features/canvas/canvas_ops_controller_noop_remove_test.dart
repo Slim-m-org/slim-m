@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A remove the server answers with `affected: 0` (a locked object, or one
-/// another client already erased) changed nothing, so it must not hide the
-/// object here for good nor push an undo entry whose restore would 404.
+/// A delete of an object the server no longer has (another client deleted it
+/// first) changed nothing here, so it must push no undo entry that would place
+/// a phantom row.
 library;
 
 import 'dart:convert';
@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import '../../support/canvas_ops_rig.dart';
+import '../../support/canvas_purge_fake.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -42,6 +43,7 @@ class _Harness {
   _Harness() {
     final client = testApi(
       (request) async {
+        if (isPurge(request)) return fakePurge(request, serverObjects);
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         removeRequests.add(body);
         if (removeStatus != 200) return _json({'error': 'nope'}, removeStatus);
@@ -92,28 +94,29 @@ class _Harness {
 }
 
 void main() {
-  test('a delete that affected nothing pushes no undo entry', () async {
+  test('a delete of an object already gone pushes no undo entry', () async {
     final h = _Harness();
-    h.serverObjects.add('a');
     h.document
       ..applyPlaced(_image('a'))
       ..refresh();
 
     await h.ops.deleteSelected('a');
 
-    expect(h.ops.canUndo, isFalse, reason: 'undo would restore a phantom op');
+    expect(h.ops.canUndo, isFalse, reason: 'undo would place a phantom row');
   });
 
-  test('a delete that affected nothing brings the object back', () async {
-    final h = _Harness();
-    h.serverObjects.add('a');
-    h.document
-      ..applyPlaced(_image('a'))
-      ..refresh();
+  test(
+    'a delete of an object already gone stays gone without a re-read',
+    () async {
+      final h = _Harness();
+      h.document
+        ..applyPlaced(_image('a'))
+        ..refresh();
 
-    await h.ops.deleteSelected('a');
+      await h.ops.deleteSelected('a');
 
-    expect(h.refetches, 1, reason: 'the pane re-reads the region');
-    expect(h.document.applyPlaced(_image('a')), isNotNull);
-  });
+      expect(h.refetches, 0);
+      expect(h.document.applyPlaced(_image('a')), isNull);
+    },
+  );
 }

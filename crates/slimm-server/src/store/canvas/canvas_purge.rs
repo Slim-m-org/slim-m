@@ -6,6 +6,7 @@ use sqlx::QueryBuilder;
 
 use super::super::{Store, now_ms};
 use super::canvas_ops_sweep::raise_swept_watermark;
+use super::{CanvasObject, fetch_object};
 use crate::ids::{CanvasObjectId, ChannelId};
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
@@ -104,30 +105,28 @@ async fn hard_delete(
 }
 
 impl Store {
-    /// Permanently removes one erased object, for a moderator. The caller erases
-    /// a live object first so every client drops it; this then deletes the rows.
+    /// Permanently removes one erased object and returns the row it held, so
+    /// the deleter can undo. The caller erases a live object first so every
+    /// client drops it; this then deletes the rows.
     pub async fn purge_canvas_object(
         &self,
         channel_id: ChannelId,
         object_id: CanvasObjectId,
-    ) -> Result<(), PurgeError> {
+    ) -> Result<CanvasObject, PurgeError> {
         let mut tx = self.begin_write().await?;
-        let found = sqlx::query_scalar!(
-            r#"SELECT deleted_at IS NOT NULL AS "dead!: bool" FROM canvas_objects
-               WHERE id = ? AND channel_id = ?"#,
-            object_id,
-            channel_id
-        )
-        .fetch_optional(&mut *tx)
-        .await?;
-        match found {
-            None => return Err(PurgeError::NotFound),
-            Some(false) => return Err(PurgeError::StillLive),
-            Some(true) => {}
+        let (object_channel, dead, object) = fetch_object(&mut tx, object_id)
+            .await
+            .map_err(PurgeError::Internal)?
+            .ok_or(PurgeError::NotFound)?;
+        if object_channel != channel_id {
+            return Err(PurgeError::NotFound);
+        }
+        if !dead {
+            return Err(PurgeError::StillLive);
         }
         hard_delete(&mut tx, channel_id, &[object_id]).await?;
         tx.commit().await?;
-        Ok(())
+        Ok(object)
     }
 
     /// Deletes objects erased before the retention window; returns how many.
