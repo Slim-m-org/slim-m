@@ -19,6 +19,9 @@
 /// mocking a channel it has no reason to know about.
 library;
 
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'composer_clipboard_image.dart';
@@ -95,7 +98,11 @@ Future<void> pasteClipboardImage(
   setError(null);
   try {
     final bytes = await readClipboardImage();
-    if (bytes != null) await stage(bytes, 'pasted-image.png');
+    if (bytes == null || bytes.isEmpty) {
+      setError('No image on the clipboard.');
+      return;
+    }
+    await stage(await clipboardImageAsPng(bytes), 'pasted-image.png');
   } on ClipboardImageReadException catch (e, stack) {
     AppLog.swallowed(
       LogTag.ui,
@@ -104,5 +111,49 @@ Future<void> pasteClipboardImage(
       stack,
     );
     setError(e.message);
+  }
+}
+
+const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+/// The widest side a clipboard image may have before it is refused rather than decoded.
+const int maxClipboardImageSide = 8192;
+
+/// [bytes] as PNG, re-encoding another format (a Windows clipboard bitmap) so
+/// what is staged matches the name it is uploaded under.
+@visibleForTesting
+Future<Uint8List> clipboardImageAsPng(Uint8List bytes) async {
+  if (bytes.length >= _pngSignature.length &&
+      Iterable<int>.generate(
+        _pngSignature.length,
+      ).every((i) => bytes[i] == _pngSignature[i])) {
+    return bytes;
+  }
+  ui.Codec? codec;
+  ui.Image? image;
+  try {
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    final descriptor = await ui.ImageDescriptor.encoded(buffer);
+    if (descriptor.width > maxClipboardImageSide ||
+        descriptor.height > maxClipboardImageSide) {
+      descriptor.dispose();
+      throw const ClipboardImageReadException(
+        'That image is too large to paste.',
+      );
+    }
+    codec = await descriptor.instantiateCodec();
+    image = (await codec.getNextFrame()).image;
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (png == null) throw const FormatException('no PNG encoder');
+    return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+  } on ClipboardImageReadException {
+    rethrow;
+  } catch (_) {
+    throw const ClipboardImageReadException(
+      'The clipboard image could not be read.',
+    );
+  } finally {
+    image?.dispose();
+    codec?.dispose();
   }
 }

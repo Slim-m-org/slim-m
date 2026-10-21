@@ -17,16 +17,26 @@ class MainFlutterWindow: NSWindow {
   }
 }
 
-/// Answers the Dart side's `writeImage` call by putting the PNG on the
-/// general pasteboard; the channel name is owned by the Dart seam in
-/// `clipboard_image_writer_io.dart`.
+/// Answers the Dart side's clipboard image calls on the general pasteboard:
+/// `writeImage` copies a PNG, `hasImage` and `readImage` let a paste read one
+/// back as PNG. The channel name is owned by the Dart seam in
+/// `clipboard_image_writer_io.dart` and `composer_clipboard_image_stub.dart`.
 enum ClipboardImageChannel {
   static let name = "top.npcserver.slimm/clipboard_image"
 
   static func register(with messenger: FlutterBinaryMessenger) {
     FlutterMethodChannel(name: name, binaryMessenger: messenger)
       .setMethodCallHandler { call, result in
-        guard call.method == "writeImage" else {
+        switch call.method {
+        case "hasImage":
+          result(NSPasteboard.general.canReadObject(forClasses: [NSImage.self], options: nil))
+          return
+        case "readImage":
+          result(readPng())
+          return
+        case "writeImage":
+          break
+        default:
           result(FlutterMethodNotImplemented)
           return
         }
@@ -41,6 +51,20 @@ enum ClipboardImageChannel {
         result(pasteboard.writeObjects([image]) ? nil : FlutterError(
           code: "write_failed", message: "The image could not be copied.", details: nil))
       }
+  }
+
+  /// The pasteboard's image as PNG, or nil when it holds none.
+  private static func readPng() -> FlutterStandardTypedData? {
+    let pasteboard = NSPasteboard.general
+    if let png = pasteboard.data(forType: .png) {
+      return FlutterStandardTypedData(bytes: png)
+    }
+    guard let image = NSImage(pasteboard: pasteboard),
+      let tiff = image.tiffRepresentation,
+      let bitmap = NSBitmapImageRep(data: tiff),
+      let png = bitmap.representation(using: .png, properties: [:])
+    else { return nil }
+    return FlutterStandardTypedData(bytes: png)
   }
 }
 

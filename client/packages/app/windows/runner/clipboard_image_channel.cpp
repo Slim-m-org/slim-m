@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -116,6 +117,70 @@ bool WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
   return ok;
 }
 
+bool HasClipboardImage() {
+  const UINT png_format = RegisterClipboardFormatW(L"PNG");
+  return (png_format != 0 && IsClipboardFormatAvailable(png_format)) ||
+         IsClipboardFormatAvailable(CF_DIBV5) ||
+         IsClipboardFormatAvailable(CF_DIB);
+}
+
+std::vector<uint8_t> CopyGlobal(HANDLE handle) {
+  std::vector<uint8_t> bytes;
+  if (handle == nullptr) return bytes;
+  const SIZE_T size = GlobalSize(handle);
+  const void* data = GlobalLock(handle);
+  if (data != nullptr && size > 0) {
+    bytes.assign(static_cast<const uint8_t*>(data),
+                 static_cast<const uint8_t*>(data) + size);
+  }
+  if (data != nullptr) GlobalUnlock(handle);
+  return bytes;
+}
+
+// A packed DIB with a BITMAPFILEHEADER in front is a .bmp file, which the
+// Dart side decodes and re-encodes as PNG; that keeps this side free of an
+// encoder.
+std::vector<uint8_t> DibToBmp(const std::vector<uint8_t>& dib) {
+  if (dib.size() < sizeof(BITMAPINFOHEADER)) return {};
+  BITMAPINFOHEADER header;
+  std::memcpy(&header, dib.data(), sizeof(header));
+  DWORD palette = header.biClrUsed;
+  if (palette == 0 && header.biBitCount <= 8) palette = 1u << header.biBitCount;
+  DWORD masks = (header.biSize == sizeof(BITMAPINFOHEADER) &&
+                 header.biCompression == BI_BITFIELDS)
+                    ? 3 * sizeof(DWORD)
+                    : 0;
+  const DWORD offset = sizeof(BITMAPFILEHEADER) + header.biSize + masks +
+                       palette * sizeof(RGBQUAD);
+  BITMAPFILEHEADER file = {};
+  file.bfType = 0x4D42;  // "BM"
+  file.bfSize = static_cast<DWORD>(sizeof(file) + dib.size());
+  file.bfOffBits = offset;
+  std::vector<uint8_t> bmp(sizeof(file));
+  std::memcpy(bmp.data(), &file, sizeof(file));
+  bmp.insert(bmp.end(), dib.begin(), dib.end());
+  return bmp;
+}
+
+// The clipboard image as PNG when an app offered one, else as a .bmp; empty
+// when the clipboard holds no image or could not be opened.
+std::vector<uint8_t> ReadClipboardImage(HWND owner) {
+  std::vector<uint8_t> bytes;
+  if (!OpenClipboard(owner)) return bytes;
+  const UINT png_format = RegisterClipboardFormatW(L"PNG");
+  if (png_format != 0 && IsClipboardFormatAvailable(png_format)) {
+    bytes = CopyGlobal(GetClipboardData(png_format));
+  }
+  if (bytes.empty() && IsClipboardFormatAvailable(CF_DIBV5)) {
+    bytes = DibToBmp(CopyGlobal(GetClipboardData(CF_DIBV5)));
+  }
+  if (bytes.empty() && IsClipboardFormatAvailable(CF_DIB)) {
+    bytes = DibToBmp(CopyGlobal(GetClipboardData(CF_DIB)));
+  }
+  CloseClipboard();
+  return bytes;
+}
+
 }  // namespace
 
 void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
@@ -129,6 +194,19 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
       [owner](const flutter::MethodCall<flutter::EncodableValue>& call,
               std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
                   result) {
+        if (call.method_name() == "hasImage") {
+          result->Success(flutter::EncodableValue(HasClipboardImage()));
+          return;
+        }
+        if (call.method_name() == "readImage") {
+          std::vector<uint8_t> image = ReadClipboardImage(owner);
+          if (image.empty()) {
+            result->Success();
+          } else {
+            result->Success(flutter::EncodableValue(std::move(image)));
+          }
+          return;
+        }
         if (call.method_name() != "writeImage") {
           result->NotImplemented();
           return;

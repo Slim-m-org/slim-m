@@ -84,8 +84,9 @@ void main() {
       _useTouchViewport(tester);
       _mock((call) async {
         if (call.method == 'hasImage') return true;
+        // A PNG signature: anything else is decoded and re-encoded before staging.
         if (call.method == 'readImage') {
-          return Uint8List.fromList([1, 2, 3, 4]);
+          return Uint8List.fromList([0x89, 0x50, 0x4E, 0x47, 13, 10, 26, 10]);
         }
         return null;
       });
