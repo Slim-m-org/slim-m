@@ -170,6 +170,38 @@ class CanvasObjectPreview extends ServerEvent {
   final bool ended;
 }
 
+/// A camera or screen-share tile mid-drag: the box its mover currently holds.
+///
+/// Ephemeral and `seq`-less like [CanvasObjectPreview]; the committed
+/// [CanvasMediaSlotChanged] always settles the final box.
+class CanvasMediaSlotPreview extends ServerEvent {
+  const CanvasMediaSlotPreview({
+    required this.channelId,
+    required this.userId,
+    required this.kind,
+    required this.slotUserId,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.ended,
+  });
+
+  final String channelId;
+
+  /// Who is moving the tile.
+  final String userId;
+  final String kind;
+
+  /// Whose tile it is.
+  final String slotUserId;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+  final bool ended;
+}
+
 /// The part of the shared board a member is looking at, in world units.
 ///
 /// Ephemeral and `seq`-less like [CanvasCursorMoved]. [summon] asks every

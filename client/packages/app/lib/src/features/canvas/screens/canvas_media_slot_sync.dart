@@ -14,11 +14,13 @@
 /// during a disconnect would otherwise never be corrected.
 library;
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_cursor_relay.dart' show cursorSendInterval;
 import 'canvas_retry.dart';
 import 'canvas_presence_geometry.dart'
     show presenceTileIdentity, presenceTileKeyForSlot, presenceTileKind;
@@ -29,7 +31,12 @@ class CanvasMediaSlotSync {
     required this.client,
     required this.overrides,
     this.onError,
-  });
+    this.sendPreview,
+    this.selfId,
+    this.isBlocked,
+  }) {
+    overrides.onSharedRectDragged = (key, rect) => reportDrag(key, rect);
+  }
 
   final String channelId;
   final api.SlimmApi client;
@@ -38,7 +45,66 @@ class CanvasMediaSlotSync {
   /// Told when a tile change could not be saved and was put back.
   final void Function(String message)? onError;
 
+  /// Streams a tile's box mid-drag; null leaves tile drags visible to others only on commit.
+  final void Function(String key, Rect rect, {required bool ended})?
+  sendPreview;
+  final String? Function()? selfId;
+  final bool Function(String userId)? isBlocked;
+
   final Map<String, Future<void>> _tails = {};
+  final Map<String, Timer> _abandon = {};
+  DateTime? _lastPreview;
+
+  /// How long a stream may go quiet without a commit before the drag counts as abandoned.
+  static const _abandonAfter = Duration(seconds: 3);
+
+  /// Call on every shared-view drag step; throttled like the other ephemeral previews.
+  void reportDrag(String key, Rect rect, {DateTime? now}) {
+    final send = sendPreview;
+    if (send == null) return;
+    final at = now ?? DateTime.now();
+    _abandon[key]?.cancel();
+    _abandon[key] = Timer(_abandonAfter, () => _endPreview(key, rect));
+    final last = _lastPreview;
+    if (last != null &&
+        at.isAfter(last) &&
+        at.difference(last) < cursorSendInterval) {
+      return;
+    }
+    _lastPreview = at;
+    send(key, rect, ended: false);
+  }
+
+  void _endPreview(String key, Rect rect) {
+    if (_abandon.remove(key) == null) return;
+    _abandon[key]?.cancel();
+    sendPreview?.call(key, rect, ended: true);
+  }
+
+  /// Drops pending abandon timers; the pane calls this when it goes away.
+  void dispose() {
+    for (final timer in _abandon.values) {
+      timer.cancel();
+    }
+    _abandon.clear();
+    overrides.onSharedRectDragged = null;
+  }
+
+  /// Shows another member's streamed tile drag; a locked tile, a blocked sender and this device's own frames are ignored.
+  void applyRemotePreview(api.CanvasMediaSlotPreview event) {
+    if (event.channelId != channelId) return;
+    if (event.userId == selfId?.call()) return;
+    if (isBlocked?.call(event.userId) ?? false) return;
+    final key = presenceTileKeyForSlot(event.kind, event.slotUserId);
+    if (event.ended) {
+      overrides.revertToServer(key);
+      return;
+    }
+    overrides.showRemoteRect(
+      key,
+      Rect.fromLTWH(event.x, event.y, event.w, event.h),
+    );
+  }
 
   /// Every slot this channel's canvas currently remembers, applied once.
   /// A failure after the retries leaves every tile at its default
@@ -65,6 +131,7 @@ class CanvasMediaSlotSync {
   Future<void> commit(String key, Rect rect) {
     // A personal-view move is this viewer's alone, so nothing is sent.
     if (overrides.personal) return Future.value();
+    _abandon.remove(key)?.cancel();
     final previous = _tails[key] ?? Future<void>.value();
     final next = previous.then((_) => _put(key, rect));
     _tails[key] = next;
@@ -96,6 +163,7 @@ class CanvasMediaSlotSync {
         stack,
       );
       overrides.revertToServer(key);
+      sendPreview?.call(key, overrides.stateFor(key).rect ?? rect, ended: true);
       onError?.call(_explain(error));
     }
   }

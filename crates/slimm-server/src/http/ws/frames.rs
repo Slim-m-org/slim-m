@@ -327,6 +327,18 @@ pub(super) enum ServerFrame {
         h: f64,
         ended: bool,
     },
+    #[serde(rename = "canvas.media_slot_preview.updated")]
+    CanvasMediaSlotPreview {
+        channel_id: String,
+        user_id: String,
+        kind: String,
+        slot_user_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        ended: bool,
+    },
     #[serde(rename = "canvas.view.updated")]
     CanvasView {
         channel_id: String,

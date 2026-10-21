@@ -211,6 +211,29 @@ class EventConnection {
         }),
       );
 
+  /// Relays the box of a camera or screen-share tile this device is dragging.
+  /// Same ephemeral shape as [canvasObjectPreview]; [slotUserId] is whose tile it is.
+  void canvasMediaSlotPreview(
+    String channelId,
+    String kind,
+    String slotUserId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.media_slot_preview',
+          'channel_id': channelId,
+          'kind': kind,
+          'user_id': slotUserId,
+          'x': box.x,
+          'y': box.y,
+          'w': box.w,
+          'h': box.h,
+          'ended': ended,
+        }),
+      );
+
   /// Relays the world rectangle this device is looking at; [summon] brings
   /// everyone to it once. Ephemeral and rate-limited like [canvasCursor].
   void canvasView(

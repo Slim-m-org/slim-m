@@ -434,6 +434,7 @@ async fn channel_frame(
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasMediaSlotPreview { .. }
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }

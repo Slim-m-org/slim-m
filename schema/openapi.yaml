@@ -16377,6 +16377,7 @@ components:
         - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
         - $ref: "#/components/schemas/ClientCanvasObjectPreview"
+        - $ref: "#/components/schemas/ClientCanvasMediaSlotPreview"
         - $ref: "#/components/schemas/ClientCanvasView"
 
     ClientHello:
@@ -16579,6 +16580,46 @@ components:
             Asks every receiver to jump to this rectangle once ("bring
             everyone to me").
 
+    ClientCanvasMediaSlotPreview:
+      type: object
+      required: [type, channel_id, kind, user_id, x, y, w, h]
+      description: >
+        The box of a camera or screen-share tile this client is dragging or
+        resizing, so others see it move before the slot commits. Ephemeral
+        and never persisted; `ended` means the drag was abandoned without a
+        commit, so receivers go back to the saved box. Refused for a
+        timed-out member, without canvas access, or for a locked tile.
+        Rate-limited per connection.
+      properties:
+        type:
+          type: string
+          enum: [canvas.media_slot_preview]
+        channel_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [camera, screen]
+        user_id:
+          type: string
+          format: uuid
+          description: Whose tile is being moved.
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        ended:
+          type: boolean
+          default: false
+
     ClientCanvasObjectPreview:
       type: object
       required: [type, channel_id, object_id, x, y, w, h]
@@ -16660,6 +16701,7 @@ components:
         - $ref: "#/components/schemas/CanvasCursorMoved"
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
         - $ref: "#/components/schemas/CanvasObjectPreviewUpdated"
+        - $ref: "#/components/schemas/CanvasMediaSlotPreviewUpdated"
         - $ref: "#/components/schemas/CanvasViewUpdated"
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
@@ -16923,6 +16965,47 @@ components:
           description: >
             Asks every receiver to jump to this rectangle once ("bring
             everyone to me").
+
+    CanvasMediaSlotPreviewUpdated:
+      type: object
+      required: [type, channel_id, user_id, kind, slot_user_id, x, y, w, h, ended]
+      description: >-
+        A camera or screen-share tile mid-drag on a channel's canvas, gated
+        the same way `canvas.media_slot.changed` is. Carries no `seq`; the
+        committed `canvas.media_slot.changed` always settles the final box.
+        Clients that do not know this frame ignore it.
+      properties:
+        type:
+          type: string
+          enum: [canvas.media_slot_preview.updated]
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          description: Who is moving the tile.
+        kind:
+          type: string
+          enum: [camera, screen]
+        slot_user_id:
+          type: string
+          format: uuid
+          description: Whose tile it is.
+        x:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+        w:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        ended:
+          type: boolean
 
     CanvasObjectPreviewUpdated:
       type: object

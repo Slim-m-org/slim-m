@@ -42,6 +42,8 @@ import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
 import 'canvas_load_retry.dart';
 import 'canvas_media_slot_sync.dart';
+import 'canvas_presence_geometry.dart'
+    show presenceTileIdentity, presenceTileKind;
 import 'canvas_object_locks.dart';
 import 'canvas_object_preview_relay.dart';
 import 'canvas_ops_controller.dart';
@@ -201,6 +203,16 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     client: _client,
     overrides: tileOverrides,
     onError: reportError,
+    sendPreview: (key, rect, {required ended}) =>
+        _ref.read(syncControllerProvider.notifier).notifyCanvasMediaSlotPreview(
+          channelId,
+          presenceTileKind(key),
+          presenceTileIdentity(key),
+          (x: rect.left, y: rect.top, w: rect.width, h: rect.height),
+          ended: ended,
+        ),
+    selfId: () => _ref.read(meProvider).valueOrNull?.id,
+    isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.
@@ -519,6 +531,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     viewMode.dispose();
     tileOverrides.dispose();
     objectLocks.dispose();
+    slotSync.dispose();
     super.dispose();
   }
 }

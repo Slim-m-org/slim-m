@@ -241,6 +241,32 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 )
                                 .await;
                             }
+                            Ok(ClientFrame::CanvasMediaSlotPreview {
+                                channel_id,
+                                kind,
+                                user_id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                ended,
+                            }) => {
+                                signals::handle_canvas_media_slot_preview(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals::MediaSlotPreviewFrame {
+                                        channel_id,
+                                        kind,
+                                        slot_user_id: user_id,
+                                        rect: [x, y, w, h],
+                                        ended,
+                                    },
+                                )
+                                .await;
+                            }
                             Ok(ClientFrame::CanvasView {
                                 channel_id,
                                 x,

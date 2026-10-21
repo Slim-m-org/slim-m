@@ -160,6 +160,26 @@ impl Store {
         })
     }
 
+    /// Whether the tile is locked; a tile nobody has placed yet is not.
+    pub async fn canvas_media_slot_locked(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        kind: MediaSlotKind,
+    ) -> anyhow::Result<bool> {
+        let kind_str = kind.as_str();
+        let row = sqlx::query!(
+            r#"SELECT locked AS "locked!: bool" FROM canvas_media_slots
+               WHERE channel_id = ? AND user_id = ? AND kind = ?"#,
+            channel_id,
+            user_id,
+            kind_str,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.is_some_and(|r| r.locked))
+    }
+
     /// Every slot ever touched in this channel - bounded by however many
     /// distinct (participant, kind) pairs anyone has ever arranged, at most
     /// twice the channel's member count, which is small enough on this

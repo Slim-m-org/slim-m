@@ -244,6 +244,22 @@ class SyncController extends StateNotifier<SyncStatus> {
   }) =>
       _connection?.canvasObjectPreview(channelId, objectId, box, ended: ended);
 
+  /// Tells the server the box of the camera or screen-share tile this user is
+  /// dragging; the same no-op-while-down shape.
+  void notifyCanvasMediaSlotPreview(
+    String channelId,
+    String kind,
+    String slotUserId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) => _connection?.canvasMediaSlotPreview(
+    channelId,
+    kind,
+    slotUserId,
+    box,
+    ended: ended,
+  );
+
   /// Tells the server the world rectangle this user is looking at; the same
   /// no-op-while-down shape.
   void notifyCanvasView(

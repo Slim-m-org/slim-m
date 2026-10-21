@@ -334,6 +334,9 @@ void dispatchCanvasLiveEvent(
         when channelId == paneChannelId:
       // Never through sync.applyLive: a slot carries no seq, the same reason a cursor does not.
       mediaSlotSync.applyRemote(event);
+    case api.CanvasMediaSlotPreview(:final channelId)
+        when channelId == paneChannelId:
+      mediaSlotSync.applyRemotePreview(event);
     case api.CanvasObjectLockChanged(:final channelId)
         when channelId == paneChannelId:
       objectLocks.applyRemote(event);
