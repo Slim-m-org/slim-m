@@ -173,24 +173,24 @@ void main() {
       addTearDown(rig.dispose);
       await tester.pumpWidget(_wrap(rig));
 
-      expect(find.text('Reset my layout'), findsNothing);
+      expect(find.byTooltip('Reset my layout'), findsNothing);
 
       rig.mode.showPersonal();
       rig.tiles.setRect('screen:a', _own);
       await tester.pump();
 
-      expect(find.text('Reset my layout'), findsOneWidget);
+      expect(find.byTooltip('Reset my layout'), findsOneWidget);
       expect(
         find.bySemanticsLabel('Reset my layout, return to the shared view'),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Reset my layout'));
+      await tester.tap(find.byTooltip('Reset my layout'));
       await tester.pump();
 
       expect(rig.mode.personal, isFalse);
       expect(rig.tiles.personalPlaces, isEmpty);
-      expect(find.text('Reset my layout'), findsNothing);
+      expect(find.byTooltip('Reset my layout'), findsNothing);
       semantics.dispose();
     },
   );
