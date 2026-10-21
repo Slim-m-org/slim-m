@@ -420,3 +420,13 @@ async fn the_last_person_leaving_removes_the_room_through_the_webhook() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn a_message_can_be_sent_in_a_temporary_room() {
+    let w = world("slimm-rooms-send").await;
+    let room = w.open_room(&w.alice.0).await;
+    let uri = format!("/channels/{}/messages", room["id"].as_str().unwrap());
+    let body = json!({ "id": uuid::Uuid::now_v7().to_string(), "content": "hello room" });
+    let (status, sent) = w.call("POST", &uri, &w.alice.0, body).await;
+    assert_eq!(status, StatusCode::OK, "{sent}");
+}
