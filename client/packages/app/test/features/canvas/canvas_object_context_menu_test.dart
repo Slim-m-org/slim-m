@@ -49,6 +49,8 @@ class _Harness {
   final List<Offset> pastedAt = [];
   final List<Offset> notedAt = [];
   int recentered = 0;
+  final List<CanvasTool> toolChanges = [];
+  CanvasTool tool = CanvasTool.pan;
 
   Widget build() => MaterialApp(
     theme: buildTheme(Brightness.dark, AppTokens.dark),
@@ -61,13 +63,14 @@ class _Harness {
           canManage: canManage,
           selfId: selfId,
           requests: requests,
-          tool: CanvasTool.pan,
+          tool: tool,
           onBringToFront: bringToFront.add,
           onSendToBack: sendToBack.add,
           onDeleteSelected: deleted.add,
           onPasteImageAt: pastedAt.add,
           onAddNoteAt: notedAt.add,
           onRecenter: () => recentered++,
+          onToolChanged: toolChanges.add,
         ),
       ),
     ),
@@ -75,6 +78,7 @@ class _Harness {
 }
 
 void main() {
+  _bareRightClickTests();
   testWidgets(
     'a right-click over an object selects it, switches to Move, and offers '
     'the object actions',
@@ -423,4 +427,45 @@ void main() {
           'second, identical request',
     );
   });
+}
+
+void _bareRightClickTests() {
+  testWidgets(
+    'a right-click on bare canvas under a drawing tool returns to Move',
+    (tester) async {
+      final document = CanvasDocument();
+      addTearDown(document.dispose);
+      final harness = _Harness(
+        document: document,
+        requests: CanvasObjectMenuRequests(),
+      )..tool = CanvasTool.pen;
+      await tester.pumpWidget(harness.build());
+
+      await tester.tapAt(const Offset(300, 300), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(harness.toolChanges, [CanvasTool.pan]);
+      expect(find.text('Recenter view'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a right-click on an object under a drawing tool keeps its menu',
+    (tester) async {
+      final document = CanvasDocument()
+        ..applyPlaced(_shape('a', authorId: 'me'));
+      addTearDown(document.dispose);
+      final harness = _Harness(
+        document: document,
+        requests: CanvasObjectMenuRequests(),
+      )..tool = CanvasTool.eraser;
+      await tester.pumpWidget(harness.build());
+
+      await tester.tapAt(const Offset(120, 120), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(harness.toolChanges, isEmpty);
+      expect(find.text('Send to back'), findsOneWidget);
+    },
+  );
 }

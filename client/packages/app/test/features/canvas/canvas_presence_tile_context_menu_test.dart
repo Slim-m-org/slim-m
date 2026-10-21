@@ -56,6 +56,7 @@ Widget _wrap({
               onPasteImageAt: (_) {},
               onAddNoteAt: (_) {},
               onRecenter: () {},
+              onToolChanged: (_) {},
             ),
             PresenceStack(
               document: document,

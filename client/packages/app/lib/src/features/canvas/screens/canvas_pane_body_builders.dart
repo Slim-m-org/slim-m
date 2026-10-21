@@ -88,6 +88,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
         onPasteImageAt: widget.onPasteImageAt,
         onEditNote: widget.onEditNote,
         onRecenter: widget.onRecenter,
+        onToolChanged: widget.onToolChanged,
         onBringIntoBoard: widget.onBringIntoBoard,
         onFocusTile: widget.onFocusTile,
         participantMenuItemsBuilder: widget.participantMenuItemsBuilder,

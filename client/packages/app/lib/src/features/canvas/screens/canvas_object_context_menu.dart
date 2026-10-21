@@ -50,6 +50,7 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
+    required this.onToolChanged,
     this.onEditNote,
     this.canDraw = true,
   });
@@ -94,6 +95,9 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// The empty-space menu's "Recenter view" item - the pane's own
   /// always-available camera reset, identical to the overflow menu's copy.
   final VoidCallback onRecenter;
+
+  /// A right-click on bare canvas under a drawing tool returns to Move through this.
+  final ValueChanged<CanvasTool> onToolChanged;
 
   /// The object menu's "Edit note" item, shown over a note only: the touch
   /// and keyboard-free route to the editor a double click opens.
@@ -200,6 +204,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final id = _hitTest(world);
     if (id != null) {
       _openFor(id, pointerGlobal: details.globalPosition);
+    } else if (widget.tool != CanvasTool.pan) {
+      widget.onToolChanged(CanvasTool.pan);
     } else {
       _openEmptySpace(world, details.globalPosition);
     }
