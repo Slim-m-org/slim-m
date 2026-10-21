@@ -493,11 +493,15 @@ pub(super) async fn handle_canvas_object_preview(
     };
     let object_id = CanvasObjectId(object_id);
     let may_moderate = granted.contains(Permissions::MANAGE_CANVAS);
-    let movable = store
-        .canvas_object_movable_by(channel_id, object_id, ctx.user_id, may_moderate)
-        .await;
-    if !movable.unwrap_or(false) {
-        return;
+    let now = std::time::Instant::now();
+    if !cache.previewable(channel_id, object_id, now) {
+        let movable = store
+            .canvas_object_movable_by(channel_id, object_id, ctx.user_id, may_moderate)
+            .await;
+        if !movable.unwrap_or(false) {
+            return;
+        }
+        cache.insert_previewable(channel_id, object_id, now);
     }
 
     hub.publish(Event::CanvasObjectPreview {

@@ -74,7 +74,7 @@ impl Client {
             .collect()
     }
 
-    /// Pages the feed from the cursor to the head. A reset is reported, never papered over.
+    /// Pages the feed from the cursor to the head, falling back to a cold fetch on a reset.
     pub async fn catch_up(
         &mut self,
         store: &Store,
@@ -88,7 +88,9 @@ impl Client {
                 .await
                 .map_err(|e| e.to_string())?;
             if feed.reset {
-                return Err(format!("feed answered reset for cursor {}", self.cursor));
+                // A reset is the server saying the log can no longer be replayed from here; a real client refetches.
+                *self = Self::cold(store, channel).await?;
+                return Ok(());
             }
             for op in &feed.ops {
                 self.apply(&op.body);
@@ -149,11 +151,20 @@ impl Client {
                     }
                 }
             }
-            CanvasOpBody::Clear { before_seq, scope } => {
-                for h in self.held.values_mut() {
+            CanvasOpBody::Clear {
+                before_seq,
+                scope,
+                spared,
+            } => {
+                for (id, h) in self.held.iter_mut() {
                     let kind_ok = scope.kinds.is_empty() || scope.kinds.contains(&h.kind);
                     let author_ok = scope.author_id.is_none_or(|a| h.author == Some(a));
-                    if h.alive && h.seq <= *before_seq && kind_ok && author_ok {
+                    if h.alive
+                        && h.seq <= *before_seq
+                        && kind_ok
+                        && author_ok
+                        && !spared.contains(id)
+                    {
                         h.alive = false;
                     }
                 }

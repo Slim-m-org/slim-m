@@ -321,6 +321,13 @@ async fn erased_objects_do_not_accumulate_forever() {
     }
     age_everything(&pool).await;
     store.sweep_canvas_ops().await.unwrap();
+    let kept: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM canvas_objects")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(kept, 200, "nothing is deleted while retention is off");
+    store.set_message_retention_days(30).await.unwrap();
+    store.sweep_canvas_ops().await.unwrap();
 
     let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM canvas_objects")
         .fetch_one(&pool)

@@ -40,8 +40,18 @@
 //! is only ever swept once every object it named is back in the state it
 //! held before that op ran - so a client that pages straight across the gap
 //! arrives at the same answer either way.
+//!
+//! One shape does change a replay: a `clear` between a `remove` and the
+//! `restore` that undoes it. The pair is kept then, or a replay from a swept
+//! log would apply the clear to an object the restore had brought back. A
+//! client whose cursor sits inside a gap this leaves behind cannot be told
+//! from one paging a fresh replay, so the highest swept seq is kept per
+//! channel as a watermark and `list_canvas_ops` resets any cursor behind it.
+//! Past the space's message retention window, erased objects are removed for
+//! good as well; see `canvas_purge`.
 
 use super::super::{Store, now_ms};
+use crate::ids::ChannelId;
 
 /// Roughly the roadmap's own number for the op log; unrelated to
 /// `canvas_audit_log`'s own retention, which this sweep never touches.
@@ -57,12 +67,38 @@ pub struct SweptCanvasOps {
     pub restores: u64,
     pub removes: u64,
     pub clears: u64,
+    /// Erased objects removed for good once past message retention.
+    pub purged: u64,
 }
 
 impl SweptCanvasOps {
     pub fn total(&self) -> u64 {
-        self.restores + self.removes + self.clears
+        self.restores + self.removes + self.clears + self.purged
     }
+}
+
+/// Records that ops up to each channel's highest swept seq are gone, so cursors behind it reset.
+pub(super) async fn raise_swept_watermark(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    swept: &[(ChannelId, i64)],
+) -> Result<(), sqlx::Error> {
+    let mut highest: std::collections::HashMap<ChannelId, i64> = std::collections::HashMap::new();
+    for (channel_id, seq) in swept {
+        let slot = highest.entry(*channel_id).or_insert(*seq);
+        *slot = (*slot).max(*seq);
+    }
+    for (channel_id, seq) in highest {
+        sqlx::query!(
+            "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)
+             VALUES (?, 'canvas_swept', ?)
+             ON CONFLICT (channel_id, stream) DO UPDATE SET next_seq = MAX(next_seq, excluded.next_seq)",
+            channel_id,
+            seq
+        )
+        .execute(&mut **tx)
+        .await?;
+    }
+    Ok(())
 }
 
 impl Store {
@@ -70,18 +106,27 @@ impl Store {
     /// across every channel. See the module doc for the retention rule.
     pub async fn sweep_canvas_ops(&self) -> anyhow::Result<SweptCanvasOps> {
         let cutoff = now_ms() - CANVAS_OP_RETENTION_MS;
+        let mut tx = self.begin_write().await?;
 
-        // Pass 1: restores, gated on age alone; see the module doc for why.
+        // Pass 1: restores, gated on age alone, unless a clear separates them from their remove.
         let restores = sqlx::query!(
-            "DELETE FROM canvas_ops WHERE id IN (
-                 SELECT id FROM canvas_ops WHERE kind = 'restore' AND created_at < ? LIMIT ?
-             )",
+            r#"DELETE FROM canvas_ops WHERE id IN (
+                   SELECT o.id FROM canvas_ops o
+                   WHERE o.kind = 'restore' AND o.created_at < ?1
+                     AND NOT EXISTS (
+                         SELECT 1 FROM canvas_ops t
+                         JOIN canvas_ops c ON c.channel_id = t.channel_id AND c.kind = 'clear'
+                           AND c.seq > t.seq AND c.seq < o.seq
+                         WHERE t.id = o.target_op
+                     )
+                   LIMIT ?2
+               )
+               RETURNING channel_id AS "channel_id!: ChannelId", seq AS "seq!: i64""#,
             cutoff,
             CANVAS_OP_SWEEP_BATCH
         )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        .fetch_all(&mut *tx)
+        .await?;
 
         // Pass 2a: removes, guarded by the same exact-timestamp fence `apply_restore` checks.
         let removes = sqlx::query!(
@@ -101,13 +146,13 @@ impl Store {
                            AND obj.deleted_at = o.created_at
                      )
                    LIMIT ?2
-               )"#,
+               )
+               RETURNING channel_id AS "channel_id!: ChannelId", seq AS "seq!: i64""#,
             cutoff,
             CANVAS_OP_SWEEP_BATCH
         )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        .fetch_all(&mut *tx)
+        .await?;
 
         // Pass 2b: clears, guarded by the exact-timestamp fence restore_candidates uses.
         let clears = sqlx::query!(
@@ -126,18 +171,29 @@ impl Store {
                            AND obj.deleted_at = o.created_at
                      )
                    LIMIT ?2
-               )"#,
+               )
+               RETURNING channel_id AS "channel_id!: ChannelId", seq AS "seq!: i64""#,
             cutoff,
             CANVAS_OP_SWEEP_BATCH
         )
-        .execute(&self.pool)
-        .await?
-        .rows_affected();
+        .fetch_all(&mut *tx)
+        .await?;
 
+        let swept: Vec<(ChannelId, i64)> = restores
+            .iter()
+            .map(|row| (row.channel_id, row.seq))
+            .chain(removes.iter().map(|row| (row.channel_id, row.seq)))
+            .chain(clears.iter().map(|row| (row.channel_id, row.seq)))
+            .collect();
+        raise_swept_watermark(&mut tx, &swept).await?;
+        tx.commit().await?;
+
+        let purged = self.purge_erased_canvas_objects().await?;
         Ok(SweptCanvasOps {
-            restores,
-            removes,
-            clears,
+            restores: restores.len() as u64,
+            removes: removes.len() as u64,
+            clears: clears.len() as u64,
+            purged,
         })
     }
 }

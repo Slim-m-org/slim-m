@@ -495,13 +495,17 @@ pub enum Event {
     /// Carries no ids: a clear can cover a channel's whole live ceiling, and
     /// [`crate::hub::CHANNEL_CAPACITY`] buffers 1024 cloned events, so a
     /// 20,000-id frame is exactly what the props ceiling exists to stop one
-    /// object doing.
+    /// object doing. The locked objects it spared are named up to
+    /// [`crate::store::MAX_REMOVE_IDS_PER_OP`]; `spared_count` is the true total,
+    /// so a receiver seeing fewer ids than the count refetches.
     CanvasCleared {
         channel_id: ChannelId,
         seq: Seq,
         op_id: CanvasOpId,
         before_seq: Seq,
         scope: crate::store::ClearScope,
+        spared_ids: Vec<CanvasObjectId>,
+        spared_count: i64,
     },
     /// A removal or a clear was undone.
     ///

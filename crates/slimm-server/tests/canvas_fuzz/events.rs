@@ -144,13 +144,21 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
                 assert_eq!(ids, object_ids, "remove at {}", op.seq)
             }
             (
-                CanvasOpBody::Clear { before_seq, scope },
+                CanvasOpBody::Clear {
+                    before_seq,
+                    scope,
+                    spared,
+                },
                 Event::CanvasCleared {
                     before_seq: b,
                     scope: s,
+                    spared_count,
                     ..
                 },
-            ) => assert_eq!((*before_seq, scope), (b.0, s), "clear at {}", op.seq),
+            ) => {
+                assert_eq!((*before_seq, scope), (b.0, s), "clear at {}", op.seq);
+                assert_eq!(spared.len() as i64, *spared_count, "spared at {}", op.seq);
+            }
             (
                 CanvasOpBody::Restore { object_ids, .. },
                 Event::CanvasObjectsRestored {

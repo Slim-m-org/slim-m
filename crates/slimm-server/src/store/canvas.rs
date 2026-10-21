@@ -37,6 +37,7 @@ pub use self::canvas_geometry::{
 pub(crate) use self::canvas_geometry::{channel_key, valid_bounds};
 
 pub(super) mod canvas_audit;
+pub(super) mod canvas_clear;
 pub(super) mod canvas_edit;
 pub(super) mod canvas_geometry;
 pub(super) mod canvas_media_slots;
@@ -47,6 +48,7 @@ pub(super) mod canvas_ops;
 pub(super) mod canvas_ops_apply;
 pub(super) mod canvas_ops_sweep;
 pub(super) mod canvas_ops_write;
+pub(super) mod canvas_purge;
 
 /// A placed canvas object.
 #[derive(Debug, Clone)]
@@ -310,6 +312,9 @@ impl Store {
     }
 }
 
+/// The R-tree stores 32-bit floats, which round a coordinate this close to zero down to zero; the exact test after it decides.
+const RTREE_PAD: f64 = 1e-6;
+
 async fn viewport_objects_query<'e, E>(
     executor: E,
     channel_id: ChannelId,
@@ -327,6 +332,8 @@ where
         max_y: 0.0,
     });
     let has_previous = i64::from(query.previous.is_some());
+    let (rt_min_x, rt_max_x) = (view.min_x - RTREE_PAD, view.max_x + RTREE_PAD);
+    let (rt_min_y, rt_max_y) = (view.min_y - RTREE_PAD, view.max_y + RTREE_PAD);
 
     let rows = sqlx::query_as!(
         CanvasObject,
@@ -351,10 +358,10 @@ where
            LIMIT ?"#,
         key,
         key,
-        view.min_x,
-        view.max_x,
-        view.min_y,
-        view.max_y,
+        rt_min_x,
+        rt_max_x,
+        rt_min_y,
+        rt_max_y,
         channel_id,
         view.max_x,
         view.min_x,

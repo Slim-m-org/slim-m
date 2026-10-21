@@ -31,7 +31,7 @@ mod calls;
 mod canvas;
 use canvas::{
     canvas_media_slots, canvas_object_locks, canvas_op_clock, canvas_ops, canvas_ops_sweep,
-    canvas_ops_write,
+    canvas_ops_write, canvas_purge,
 };
 mod categories;
 mod category_overwrites;
@@ -141,6 +141,7 @@ pub use canvas_ops_sweep::{CANVAS_OP_RETENTION_MS, SweptCanvasOps};
 pub use canvas_ops_write::{
     CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
 };
+pub use canvas_purge::PurgeError;
 pub use categories::CreatedCategory;
 pub use channel_create::{ChannelDefaults, CreateChannelError, CreatedChannel};
 pub use channel_notification_prefs::NotificationChoice;

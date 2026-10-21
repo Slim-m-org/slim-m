@@ -284,6 +284,11 @@ pub(super) enum ServerFrame {
         kinds: Vec<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         author_id: Option<String>,
+        /// Locked objects the clear left standing; fewer ids than `spared_count` means refetch.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        spared_ids: Vec<String>,
+        #[serde(skip_serializing_if = "is_zero")]
+        spared_count: i64,
     },
     #[serde(rename = "canvas.objects.restored")]
     CanvasObjectsRestored {
@@ -553,4 +558,8 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         summon: bool,
     },
+}
+
+fn is_zero(n: &i64) -> bool {
+    *n == 0
 }

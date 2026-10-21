@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channel_seq_counters (channel_id, stream, next_seq)\n             VALUES (?, 'canvas_swept', ?)\n             ON CONFLICT (channel_id, stream) DO UPDATE SET next_seq = MAX(next_seq, excluded.next_seq)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a2d4deeec6c61fe48d31c4ff9320a259e9f860e8f219a0d4230b5590857b14f4"
+}

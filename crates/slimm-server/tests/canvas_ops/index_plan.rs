@@ -29,9 +29,14 @@ async fn new_pool(name: &str) -> (SqlitePool, crate::support::TestDbGuard) {
     )
 }
 
+/// The file without its comment lines, so a comment quoting an old query is never the one planned.
 fn read_source(relative: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative);
-    fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {relative}"))
+    let text = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {relative}"));
+    text.lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// A whole string literal's body, given `anchor` - any unique substring
@@ -120,7 +125,7 @@ async fn the_sweeps_three_passes_never_scan_canvas_ops() {
     let (pool, _guard) = new_pool("canvas-sweep-plan").await;
     let source = read_source("src/store/canvas/canvas_ops_sweep.rs");
 
-    let restores = extract_containing(&source, "kind = 'restore' AND created_at", false);
+    let restores = extract_containing(&source, "o.kind = 'restore'", true);
     let removes = extract_containing(&source, "o.kind = 'remove'", true);
     let clears = extract_containing(&source, "o.kind = 'clear'", true);
 

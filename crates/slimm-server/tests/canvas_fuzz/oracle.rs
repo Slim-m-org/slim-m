@@ -318,15 +318,22 @@ impl Oracle {
             Fence::Ahead(n) => self.latest + n,
             Fence::Zero => 0,
         };
-        let mut touched: Vec<u32> = self
-            .objs
-            .iter()
-            .filter(|(_, o)| o.alive && o.seq <= bound)
-            .filter(|(_, o)| kinds.is_empty() || kinds.contains(&o.kind))
-            .filter(|(_, o)| author.is_none_or(|a| o.author == a))
-            .map(|(label, _)| *label)
-            .collect();
-        touched.sort_unstable();
+        let matching = |objs: &HashMap<u32, Obj>, skip_locked: bool| -> Vec<u32> {
+            let mut found: Vec<u32> = objs
+                .iter()
+                .filter(|(_, o)| o.alive && o.seq <= bound && !(skip_locked && o.locked))
+                .filter(|(_, o)| kinds.is_empty() || kinds.contains(&o.kind))
+                .filter(|(_, o)| author.is_none_or(|a| o.author == a))
+                .map(|(label, _)| *label)
+                .collect();
+            found.sort_unstable();
+            found
+        };
+        // Locked objects survive a clear unless nothing else matches (decision 0085).
+        let mut touched = matching(&self.objs, true);
+        if touched.is_empty() {
+            touched = matching(&self.objs, false);
+        }
         for id in &touched {
             let o = self.objs.get_mut(id).expect("collected above");
             o.alive = false;

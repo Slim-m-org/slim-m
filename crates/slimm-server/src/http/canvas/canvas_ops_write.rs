@@ -220,12 +220,15 @@ fn parse_clear(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
         return Err(ApiError::BadRequest("before_seq must not be negative"));
     }
     let scoped = params.kind == "clear_scoped";
-    if scoped && params.kinds.is_none() && params.author_id.is_none() {
+    let names_no_kind = params.kinds.as_ref().is_none_or(Vec::is_empty);
+    if scoped && names_no_kind && params.author_id.is_none() {
         return Err(ApiError::BadRequest(
             "clear_scoped needs kinds or author_id",
         ));
     }
-    let kinds = params.kinds.unwrap_or_default();
+    let mut kinds = params.kinds.unwrap_or_default();
+    let mut seen = std::collections::HashSet::new();
+    kinds.retain(|kind| seen.insert(kind.clone()));
     if kinds.len() > CLEAR_KINDS.len()
         || kinds
             .iter()
@@ -354,6 +357,8 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
             op_id,
             before_seq: Seq(outcome.cleared_before_seq.unwrap_or(0)),
             scope: outcome.cleared_scope.clone().unwrap_or_default(),
+            spared_ids: restorable_ids(&outcome.spared_ids),
+            spared_count: outcome.spared_ids.len() as i64,
         }),
         "restore" => state.hub.publish(Event::CanvasObjectsRestored {
             channel_id,
