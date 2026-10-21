@@ -48,6 +48,29 @@ void main() {
     expect(hitTestBoxAt(document, const Offset(290, 100)), isNull);
   });
 
+  test('a flipped line is hit along the diagonal it was drawn', () {
+    final flipped = CanvasStrokeInput(
+      id: 'f',
+      seq: 1,
+      zIndex: 1,
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 100,
+      points: const [],
+      width: 2,
+      colorKey: 'shape',
+      kind: CanvasObjectKind.shape,
+      shapeKind: CanvasShapeKind.line,
+      flipX: true,
+    );
+    final document = _with([flipped]);
+
+    // Tail at the top right, head at the bottom left.
+    expect(hitTestBoxAt(document, const Offset(290, 105)), 'f');
+    expect(hitTestBoxAt(document, const Offset(110, 105)), isNull);
+  });
+
   test('a rectangle is hit on any of its four sides', () {
     final document = _with([_shape('r', CanvasShapeKind.rectangle)]);
 

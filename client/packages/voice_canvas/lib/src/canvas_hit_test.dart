@@ -188,8 +188,21 @@ double _shapeOutlineDistance(CanvasStroke shape, Offset world) {
   switch (shape.shapeKind) {
     case CanvasShapeKind.line:
     case CanvasShapeKind.arrow:
+      final (tail, head) = shapeSegment(
+        w,
+        h,
+        flipX: shape.flipX,
+        flipY: shape.flipY,
+      );
       return math.sqrt(
-        _distanceSqToSegment(local.dx, local.dy, 0, 0, w, h),
+        _distanceSqToSegment(
+          local.dx,
+          local.dy,
+          tail.dx,
+          tail.dy,
+          head.dx,
+          head.dy,
+        ),
       );
     case CanvasShapeKind.ellipse:
       return _ellipseDistance(local, w / 2, h / 2);
