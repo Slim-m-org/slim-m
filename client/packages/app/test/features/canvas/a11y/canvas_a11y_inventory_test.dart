@@ -165,6 +165,23 @@ void main() {
       );
     });
 
+    a11yTest('a muted participant is announced as muted on their tile', (
+      tester,
+    ) async {
+      await pumpA11yCanvas(tester);
+      final sam = semanticsRows(
+        tester,
+      ).singleWhere((r) => r.label.startsWith('Sam, on this call'));
+
+      expect(
+        sam.label.toLowerCase(),
+        contains('muted'),
+        reason:
+            'the mute badge and the speaking ring are drawn, never labelled: '
+            '${sam.label.replaceAll('\n', ' / ')}',
+      );
+    });
+
     a11yTest('a tile does not advertise a tap it ignores', (tester) async {
       await pumpA11yCanvas(tester);
       final tapping = [
@@ -277,6 +294,20 @@ void main() {
   });
 
   group('sheets and dialogs', () {
+    a11yTest('the Participants sheet says who is muted', (tester) async {
+      await pumpA11yCanvas(tester);
+      await runOverflowItem(tester, 'Participants');
+
+      final sam = rowsNamed(tester, 'Sam');
+      expect(sam, isNotEmpty);
+      expect(
+        sam.first.label.toLowerCase(),
+        contains('muted'),
+        reason:
+            'the row shows a mic-off icon with no label: ${sam.first.label}',
+      );
+    });
+
     for (final entry in {'desktop': desktopSize, 'phone': phoneSize}.entries) {
       a11yTest('the Participants sheet names itself on ${entry.key}', (
         tester,
