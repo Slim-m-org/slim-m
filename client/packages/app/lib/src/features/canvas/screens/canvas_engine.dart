@@ -352,8 +352,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   static const genericLoadError = canvasLoadFailedMessage;
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
-  /// a refused write. A null message clears it, the same as `_refresh(() =>
-  /// _error = null)` used to.
+  /// a refused write; null clears it.
   void reportError(String? message) {
     if (!mounted) return;
     state = state.copyWith(error: message, clearError: message == null);
