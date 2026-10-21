@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Screen radius of the eraser ring: the 4 px hit slop plus a margin to see it.
@@ -74,7 +72,8 @@ class _RingPainter extends CustomPainter {
       ..color = color;
     canvas
       ..drawCircle(center, eraserRingRadius, stroke(const Color(0xCCFFFFFF), 3))
-      ..drawCircle(center, eraserRingRadius, stroke(const Color(0xFF111111), 1.2));
+      ..drawCircle(
+          center, eraserRingRadius, stroke(const Color(0xFF111111), 1.2));
   }
 
   @override
