@@ -202,3 +202,63 @@ async fn a_crowded_region_reports_that_it_held_something_back() {
     assert_eq!(body["has_more"], Value::Bool(true));
     assert_eq!(body["latest_seq"], Value::from(2));
 }
+
+/// A whole-world read must stay under a byte budget, not just a row count.
+#[tokio::test]
+async fn a_whole_world_read_stays_under_a_byte_budget() {
+    const BUDGET_BYTES: usize = 1024 * 1024;
+    let (store, _guard) = new_store().await;
+    store
+        .create_role(
+            "everyone",
+            Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS),
+            true,
+        )
+        .await
+        .unwrap();
+    let app = app(store.clone());
+    let channel = store.create_channel("canvas", "voice").await.unwrap().id;
+    let (token, user) = register(&store, "ann").await;
+
+    let props = format!(r#"{{"d":"{}"}}"#, "x".repeat(4000));
+    for i in 0..2100 {
+        store
+            .place_canvas_object(
+                channel,
+                user,
+                CanvasObjectId::generate(),
+                PlaceRequest {
+                    kind: "stroke",
+                    bounds: (f64::from(i), 0.0, 10.0, 10.0),
+                    props: &props,
+                    attachment: None,
+                },
+            )
+            .await
+            .expect("placed");
+    }
+
+    let uri = format!(
+        "/channels/{channel}/canvas/objects?min_x=-1000000&min_y=-1000000&max_x=1000000&max_y=1000000&limit=2000"
+    );
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(uri)
+                .header("authorization", format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(
+        bytes.len() <= BUDGET_BYTES,
+        "whole-world read returned {} bytes, budget {BUDGET_BYTES}",
+        bytes.len()
+    );
+}
