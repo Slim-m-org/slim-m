@@ -34,3 +34,21 @@ A focused canvas tile no longer opens that route, so a phone cannot rotate to gi
 The shell's portrait layout is width-driven (`keepPortraitShell`), so rotating the canvas needs the pane to read the real window size, which is its own piece of work.
 Until the owner decides whether to build it, rotating to watch a share full screen is the call's own fullscreen route, still reachable from the voice screen.
 
+
+## Addendum 2026-10-21 - full screen moves the camera, not the tile
+
+The owner, testing the first build: the share was blown up to fill the window while the board and the other objects stayed at their camera, so ink drawn over it was stored at board scale and no longer lined up with the share once he left full screen.
+The feed is no longer a separate layer sized to the pane.
+
+- The tile stays a board object at its own world rect and its video paints in the backdrop like any other tile.
+  Full screen fits the camera to that rect: aspect-fit, centred, above the dock, held to the board.
+  The tile, the ink and everything around them scale together, and ink drawn while full screen is stored in world coordinates over the part of the share it was drawn on.
+- It is a local view change.
+  Nothing is sent, the shared or personal view is not switched, and it works from either ([0082](0082-personal-canvas-view.md)).
+  The tile's own rect is read as this viewer sees it, so a personal place is the one that is fitted.
+- The camera is refitted when the tile moves or resizes, the window changes size (a phone rotating included), or the dock's reserved height changes.
+  A pan or zoom the viewer makes in full screen is left alone until one of those happens.
+- Leaving (the dock's exit, Escape, the share ending) puts back the camera that was there before, once the chrome has returned and the viewport is the old size.
+  A camera that was fitted to the board is fitted again rather than copied, so a different window size cannot strand it.
+- The focused tile takes no drag or resize handles, so it cannot be moved from under the camera; its name label still sits over the video.
+- The video is the same view widget at the size it is painted, so a share is subscribed at a resolution fit for the screen.

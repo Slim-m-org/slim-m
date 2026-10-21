@@ -67,7 +67,6 @@ class _PresenceStackState extends State<PresenceStack> {
         hideSelfCamera: widget.hideSelfCamera,
         layout: widget.layout,
         resolver: _resolver,
-        focusedKey: widget.focusedKey,
       ),
       CanvasPresenceLayer(
         document: widget.document,

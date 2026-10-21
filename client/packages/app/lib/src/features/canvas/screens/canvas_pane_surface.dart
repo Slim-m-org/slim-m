@@ -8,7 +8,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import 'canvas_focused_feed.dart';
+import 'canvas_focused_fit.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_board_keys.dart';
 import 'canvas_board_object_semantics.dart';
@@ -90,12 +90,13 @@ class CanvasPaneSurface extends StatelessWidget {
           letterbox: tokens.surfaceSunken,
         ),
         if (focusedTileKey case final key?)
-          CanvasFocusedFeed(
+          CanvasFocusedFit(
             document: document,
             tileKey: key,
             participants: callParticipants,
-            cameraViewFor: actions.cameraViewFor,
-            screenShareViewFor: actions.screenShareViewFor,
+            overrides: tileOverrides,
+            resolver: presenceFrames,
+            hideSelfCamera: selfBubbleHidden,
             onLost: () => actions.onFocusTile?.call(null),
           ),
         // Before CanvasSurface, so every tile's video sits under the ink, drafts and cursors; its controls stay in the layer above.
@@ -107,7 +108,6 @@ class CanvasPaneSurface extends StatelessWidget {
           overrides: tileOverrides,
           hideSelfCamera: selfBubbleHidden,
           resolver: presenceFrames,
-          focusedKey: focusedTileKey,
         ),
         CanvasSurface(
           document: document,

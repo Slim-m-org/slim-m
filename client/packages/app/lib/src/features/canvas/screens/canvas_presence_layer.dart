@@ -4,11 +4,16 @@
 /// Design: docs/decisions/0010-canvas-media-tiles.md, 0081 and 0086.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter/material.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'package:slimm_design_system/design_system.dart';
+
+import '../../messages/widgets/media_label.dart';
 import '../../voice/widgets/call_roster_motion.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
@@ -43,7 +48,7 @@ class CanvasPresenceLayer extends StatefulWidget {
   /// Relays this device's pointer over a tile, which the surface beneath it cannot see.
   final PointerMoved? onPointerMoved;
 
-  /// The tile whose feed `CanvasFocusedFeed` is showing instead, so it is not drawn twice.
+  /// The tile the camera is fitted to; the backdrop shows its video and it takes no controls, so a drag cannot move it.
   final String? focusedKey;
 
   /// Asks the pane to focus a tile's feed; null leaves the tiles without the control.
@@ -221,6 +226,8 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
               if (_tile(key, onCanvas[key]!, camera, byIdentity)
                   case final tile?)
                 tile,
+            if (focused != null && onCanvas[focused] != null)
+              ?_focusedLabel(focused, onCanvas[focused]!, camera, byIdentity),
           ],
         ),
       ),
@@ -268,6 +275,31 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final builder = widget.participantMenuItemsBuilder;
     if (builder == null) return null;
     return (tileContext, close) => builder(tileContext, participant, close);
+  }
+
+  // The tile's own controls are left out while focused, so its name is the one thing laid over the video.
+  Widget? _focusedLabel(
+    String key,
+    Rect rect,
+    Camera camera,
+    Map<String, VoiceParticipant> byIdentity,
+  ) {
+    final participant = byIdentity[presenceTileIdentity(key)];
+    if (participant == null) return null;
+    final isScreen = presenceTileKind(key) == screenTrackKind;
+    final screen = presenceScreenRect(rect, camera);
+    return Positioned(
+      left: math.max(screen.left, 0) + AppSpacing.s12,
+      top: math.max(screen.top, 0) + AppSpacing.s12,
+      child: IgnorePointer(
+        child: MediaLabelChip(
+          icon: isScreen ? AppIcons.screenShare : AppIcons.camera,
+          label: isScreen
+              ? presenceScreenLabel(participant)
+              : (participant.isLocal ? 'Your camera' : participant.name),
+        ),
+      ),
+    );
   }
 
   Widget? _tile(
