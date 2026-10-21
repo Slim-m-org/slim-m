@@ -127,9 +127,9 @@ def visqol_scores(pairs):
 
 def score(ref_samples, ref_rate, rec_samples, rec_rate):
     """ViSQOL and DNSMOS for the received speech, DNSMOS also for the aligned reference."""
-    ref16, rec16 = _resample(ref_samples, ref_rate), _resample(rec_samples, rec_rate)
-    if not len(rec16):
+    if not len(rec_samples):
         raise ValueError("the recording is empty")
+    ref16, rec16 = _resample(ref_samples, ref_rate), _resample(rec_samples, rec_rate)
     spans, expected = aligned_runs(ref16.tolist(), rec16.tolist())
     got, want = _dnsmos_pairs(rec16, expected, spans)
     try:
