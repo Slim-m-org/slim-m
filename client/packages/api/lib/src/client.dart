@@ -256,15 +256,19 @@ class SlimmApi {
       final json = await _send('GET', '/version', authenticated: false);
       return Version.fromJson(json as Map<String, dynamic>);
     } on UnreadableReplyException {
-      throw const NotASlimServerException('that address is not a slim-m server');
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
     } on NotFoundException catch (e) {
       if (!e.unexplained) rethrow;
-      throw const NotASlimServerException('that address is not a slim-m server');
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
     } on ServerException catch (e) {
       if (e.statusCode >= 500) rethrow;
-      throw const NotASlimServerException('that address is not a slim-m server');
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
     } on TypeError {
-      throw const NotASlimServerException('that address is not a slim-m server');
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
     }
   }
 

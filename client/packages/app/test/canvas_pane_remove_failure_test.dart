@@ -12,7 +12,8 @@ void main() {
   testWidgets('a refused delete shows the error and the object returns', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture(opsPostStatus: 403)
+    final fixture = CanvasPaneFixture()
+      ..deleteStatus = 403
       ..objects = [canvasNoteJson('note')];
     final container = fixture.container();
     addTearDown(container.dispose);

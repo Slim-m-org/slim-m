@@ -378,8 +378,8 @@ void main() {
   /// so selecting it and deleting it is the only route to fixing a mistake
   /// short of clearing the whole canvas.
   testWidgets(
-    'selecting a note and choosing Delete removes it in one op, and undo '
-    'restores it',
+    'selecting a note and choosing Delete deletes it for good, and undo '
+    'places it again',
     (tester) async {
       final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
       final container = fixture.container();
@@ -401,9 +401,8 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
-      expect(fixture.postedOps, hasLength(1));
-      expect(fixture.postedOps.single['kind'], 'remove');
-      expect(fixture.postedOps.single['object_ids'], ['note']);
+      expect(fixture.deletedObjects, ['note']);
+      expect(fixture.postedOps, isEmpty);
       expect(surfaceDocument(tester).objectCount.value, 0);
       expect(
         surfaceDocument(tester).selectedObjectId.value,
@@ -414,9 +413,9 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Undo'));
       await tester.pumpAndSettle();
 
-      expect(fixture.postedOps, hasLength(2));
-      expect(fixture.postedOps.last['kind'], 'restore');
-      expect(fixture.postedOps.last['target_op'], 'server-op-1');
+      expect(fixture.posted.single['kind'], 'note');
+      expect(fixture.posted.single['id'], isNot('note'));
+      expect(surfaceDocument(tester).objectCount.value, 1);
     },
   );
 

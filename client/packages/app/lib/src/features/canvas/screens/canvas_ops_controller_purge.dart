@@ -34,8 +34,13 @@ extension CanvasOpsControllerPurge on CanvasOpsController {
               giveUp: () => _disposed,
             ),
           );
-        } on api.NotFoundException {
-          // Gone already: another client deleted it first.
+        } on api.NotFoundException catch (error, stack) {
+          api.AppLog.swallowed(
+            api.LogTag.ui,
+            'Already deleted by another client; nothing to undo',
+            error,
+            stack,
+          );
         }
         unfinished.remove(id);
       }

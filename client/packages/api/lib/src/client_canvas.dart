@@ -220,8 +220,14 @@ extension SlimmApiCanvas on SlimmApi {
     String channelId,
     String objectId,
   ) async {
-    final path = '/channels/$channelId/canvas/objects/$objectId';
-    final json = await _send('DELETE', path);
-    return _decodeShape(json, 'DELETE $path', CanvasObject.fromJson);
+    final json = await _send(
+      'DELETE',
+      '/channels/$channelId/canvas/objects/$objectId',
+    );
+    return _decodeShape(
+      json,
+      'DELETE /channels/$channelId/canvas/objects/$objectId',
+      CanvasObject.fromJson,
+    );
   }
 }

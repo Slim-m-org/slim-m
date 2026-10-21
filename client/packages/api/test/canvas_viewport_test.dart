@@ -80,7 +80,8 @@ void main() {
     expect((page.nextCursor, page.totalObjects), (4, 12));
   });
 
-  test('purgeCanvasObject deletes the object and answers its last row', () async {
+  test('purgeCanvasObject deletes the object and answers its last row',
+      () async {
     http.Request? seen;
     final api = SlimmApi(
       baseUrl: _base,
