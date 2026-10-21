@@ -158,4 +158,28 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.115.0',
+    headline: 'Clearer calls, a calmer canvas, and a new theme',
+    points: [
+      WhatsNewPoint(
+        'Calls hold up better on a bad connection, and a quiet hint shows '
+        'when someone\'s audio is breaking up.',
+      ),
+      WhatsNewPoint(
+        'The mic button has a menu for your device and noise suppression, '
+        'and the speaker button deafens again.',
+      ),
+      WhatsNewPoint(
+        'On the canvas, the people in the call sit in the top left, new '
+        'cameras and screens show up where you\'re looking, and tiles move '
+        'live for everyone.',
+      ),
+      WhatsNewPoint(
+        'Invite a friend in two taps, set a profile colour next to your '
+        'banner, and download your data from Account & devices.',
+      ),
+      WhatsNewPoint('Catppuccin is in Appearance as a fourth theme.'),
+    ],
+  ),
 ];
