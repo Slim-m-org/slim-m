@@ -73,7 +73,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
 from e2e_api import wait_until
-from e2e_board_frame import BOARD_H, board_frame, clear_window, fit_to_board_zoom_one
+from e2e_board_frame import BOARD_H, BOARD_W, board_frame, clear_window, fit_to_board_zoom_one
 
 # Offsets from the canvas's own top-left; the midpoint is the eraser's target.
 STROKE_START = (60, 280)
@@ -92,14 +92,13 @@ def at(point, offset):
     return point[0] + offset[0], point[1] + offset[1]
 
 
-def at_frac(rect, fx, fy):
-    """A point [fx, fy] of the way across the surface's own live size,
-    rather than a fixed pixel offset - see this module's own doc for why a
-    note or a shape needs this and a pen stroke does not.
+def at_frac(client, fx, fy):
+    """A point [fx, fy] of the way across the board as it sits on [client]'s
+    page, rather than a fixed pixel offset - see this module's own doc for
+    why a note or a shape needs this and a pen stroke does not.
     """
-    height = min(rect["height"], BOARD_H)
-    top = rect["y"] + (rect["height"] - height) / 2
-    return rect["x"] + rect["width"] * fx, top + height * fy
+    left, top, zoom = board_frame(client)
+    return left + BOARD_W * zoom * fx, top + BOARD_H * zoom * fy
 
 
 def wait_for_summary(client, needle, timeout=30):

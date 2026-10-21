@@ -14,6 +14,7 @@ import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_health.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -55,12 +56,17 @@ pumpCanvasCallDock(
   List<api.ChannelBotUi> bots = const [],
   bool canFlipCamera = false,
   List<VoiceParticipant>? participants,
+  Set<String> poorConnections = const {},
 }) async {
   final session = withCall ? FakeSession(canFlipCamera: canFlipCamera) : null;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       channelBotUiProvider.overrideWith((ref, _) async => bots),
+      if (poorConnections.isNotEmpty)
+        poorConnectionsProvider.overrideWith(
+          (ref) => ListenableState(ValueNotifier(poorConnections)),
+        ),
       if (participants != null)
         voiceParticipantsProvider.overrideWithValue(participants),
       if (session != null)

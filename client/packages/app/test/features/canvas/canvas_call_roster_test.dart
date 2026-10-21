@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_call_roster.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
 import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -33,6 +34,7 @@ Future<void> _pump(
   WidgetTester tester,
   List<VoiceParticipant> participants, {
   double width = 800,
+  Set<String> poor = const {},
 }) async {
   tester.view.physicalSize = Size(width, 800);
   tester.view.devicePixelRatio = 1;
@@ -43,6 +45,7 @@ Future<void> _pump(
     canvas: buildCanvasDockData(),
     participants: participants,
     width: width,
+    poorConnections: poor,
   );
 }
 
@@ -125,5 +128,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
+  });
+
+  testWidgets('a poor connection marks that person, and only them', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pump(
+      tester,
+      [_person('me', local: true), _person('bob')],
+      poor: {'bob'},
+    );
+
+    expect(find.byKey(poorConnectionBadgeKey), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('BOB.*connection is unstable')),
+      findsOneWidget,
+    );
+    semantics.dispose();
   });
 }

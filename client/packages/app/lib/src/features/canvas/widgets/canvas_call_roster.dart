@@ -14,6 +14,8 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../../voice/providers/voice_flags.dart';
+import '../../voice/providers/voice_health.dart';
+import '../../voice/widgets/call_participant_tiles.dart';
 import 'canvas_participant_menu.dart';
 import 'canvas_participants_sheet.dart';
 
@@ -49,13 +51,14 @@ class CanvasCallRoster extends ConsumerWidget {
   }
 }
 
-class _RosterAvatar extends StatelessWidget {
+class _RosterAvatar extends ConsumerWidget {
   const _RosterAvatar({super.key, required this.participant});
 
   final VoiceParticipant participant;
 
-  String get _label {
+  String _label(bool poor) {
     final state = [
+      if (poor) poorConnectionLabel(participant),
       if (participant.isLocal) 'you',
       if (participant.isSpeaking) 'speaking',
       if (participant.isMuted) 'muted',
@@ -67,8 +70,11 @@ class _RosterAvatar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final poor = ref.watch(
+      poorConnectionsProvider.select((s) => s.contains(participant.identity)),
+    );
     return CanvasParticipantMenu(
       participant: participant,
       opensAbove: true,
@@ -79,7 +85,7 @@ class _RosterAvatar extends StatelessWidget {
         excludeFromSemantics: true,
         child: Semantics(
           button: open != null,
-          label: _label,
+          label: _label(poor),
           onTap: open,
           excludeSemantics: true,
           child: AppTouchHitArea(
@@ -100,6 +106,23 @@ class _RosterAvatar extends StatelessWidget {
                       size: AppAvatarSize.s28,
                       speaking: participant.isSpeaking,
                     ),
+                    if (poor)
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: tokens.surfaceRaised,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            AppIcons.connectionPoor,
+                            key: poorConnectionBadgeKey,
+                            size: AppSizes.icon12,
+                            color: tokens.warnText,
+                          ),
+                        ),
+                      ),
                     if (participant.isMuted || participant.isDeafened)
                       Positioned(
                         right: -2,

@@ -157,9 +157,22 @@ def give_file(payload_json, name_json, mime_json):
 
 
 def set_gestures(value_json):
-    """Let real pointer events through to the canvas, or take them back."""
+    """Let real pointer events through to the canvas, or take them back.
+
+    A tappable node sets `pointer-events: all` on itself, which beats the
+    host's `none`, so the host alone leaves any button-like node (a canvas
+    object's screen-reader node, say) catching the press. A stylesheet rule
+    that outranks the inline value covers every node, including ones the
+    engine adds later.
+    """
     return ("(function(){var h=document.querySelector('flt-semantics-host');"
-            "if(h) h.style.pointerEvents=%s;})()" % value_json)
+            "if(h) h.style.pointerEvents=%s;"
+            "var s=document.getElementById('e2e-gestures');"
+            "if(!s){s=document.createElement('style');s.id='e2e-gestures';"
+            "document.head.appendChild(s);}"
+            "s.textContent=(%s==='none')?"
+            "'flt-semantics-host *{pointer-events:none !important}':'';"
+            "})()" % (value_json, value_json))
 
 
 def canvas_rect():
