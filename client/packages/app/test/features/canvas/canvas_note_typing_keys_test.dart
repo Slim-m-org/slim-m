@@ -12,11 +12,11 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'canvas_pane_harness.dart';
 
-const _onNote = Offset(15, 15);
+const _onNote = Offset(415, 15);
 
 Future<CanvasPaneFixture> _openEditor(WidgetTester tester) async {
   final fixture = CanvasPaneFixture()
-    ..objects = [canvasNoteJson('note', text: 'before')];
+    ..objects = [canvasNoteJson('note', x: 400, text: 'before')];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
