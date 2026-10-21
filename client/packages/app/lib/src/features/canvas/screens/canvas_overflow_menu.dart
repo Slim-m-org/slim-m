@@ -14,6 +14,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -254,6 +255,19 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     );
   }
 
+  /// The height between the trigger and the screen edge the menu opens toward, so a short screen scrolls it instead of cutting rows off.
+  double _roomForMenu() {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return double.infinity;
+    final screen = MediaQuery.sizeOf(context);
+    final insets = MediaQuery.paddingOf(context);
+    final top = box.localToGlobal(Offset.zero).dy;
+    final room = widget.opensBelow
+        ? screen.height - insets.bottom - top - box.size.height
+        : top - insets.top;
+    return math.max(room - AppSpacing.s8, AppSizes.icon28 * 3);
+  }
+
   /// `width: 280` below: 200 truncated this menu's own longest labels
   /// ("Paste image" with its Ctrl+V hint, "Hide my camera bubble") to
   /// "Paste i…"/"Hide my camera bu…" - narrower than `AppMenu`'s own 250
@@ -283,6 +297,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
                 valueListenable: widget.selection,
                 builder: (context, selected, _) => AppMenu(
                   width: 280,
+                  maxHeight: _roomForMenu(),
                   children: _menuItems(context, selected),
                 ),
               ),

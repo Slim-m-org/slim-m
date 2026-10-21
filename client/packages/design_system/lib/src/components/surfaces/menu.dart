@@ -41,7 +41,8 @@ class AppMenu extends StatelessWidget {
       required this.children,
       this.width = 250,
       this.floating = true,
-      this.padding = const EdgeInsets.all(6)});
+      this.padding = const EdgeInsets.all(6),
+      this.maxHeight});
 
   final List<Widget> children;
   final double width;
@@ -49,6 +50,9 @@ class AppMenu extends StatelessWidget {
 
   /// Zero for a card whose sections draw their own insets, like a profile.
   final EdgeInsetsGeometry padding;
+
+  /// Caps the card's height; past it the items scroll inside the card's border.
+  final double? maxHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +76,16 @@ class AppMenu extends StatelessWidget {
         ),
         // The default 6 is literal in the source, not on the --space-* grid.
         padding: const EdgeInsets.all(1).add(padding),
+        constraints:
+            maxHeight == null ? null : BoxConstraints(maxHeight: maxHeight!),
         child: Material(
           type: MaterialType.transparency,
-          child: Column(mainAxisSize: MainAxisSize.min, children: children),
+          child: maxHeight == null
+              ? Column(mainAxisSize: MainAxisSize.min, children: children)
+              : SingleChildScrollView(
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min, children: children),
+                ),
         ),
       ),
     );
