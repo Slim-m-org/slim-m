@@ -20,6 +20,7 @@ void main() {
 
     final changed = await OrientationChannel(
       channel: channel,
+      supported: true,
     ).allowLandscape(true);
 
     expect(changed, isTrue);
@@ -29,8 +30,25 @@ void main() {
 
   test('nothing answering reads as unchanged, never a throw', () async {
     expect(
-      await OrientationChannel(channel: channel).allowLandscape(true),
+      await OrientationChannel(channel: channel, supported: true)
+          .allowLandscape(true),
       isFalse,
     );
+  });
+
+  test('a host with no native half never touches the channel', () async {
+    var calls = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls++;
+      return true;
+    });
+
+    final changed = await OrientationChannel(
+      channel: channel,
+      supported: false,
+    ).allowLandscape(true);
+
+    expect(changed, isFalse);
+    expect(calls, 0);
   });
 }

@@ -81,6 +81,8 @@ class DiskByteCache implements ByteCache {
             ),
       );
       return bytes;
+    } on PathNotFoundException {
+      return null;
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.media,
@@ -88,7 +90,7 @@ class DiskByteCache implements ByteCache {
         error,
         stack,
       );
-      // A miss, an unreadable file or a broken directory all read as never cached.
+      // An unreadable file or a broken directory also reads as never cached.
       return null;
     }
   }

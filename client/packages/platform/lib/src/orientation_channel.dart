@@ -10,19 +10,26 @@ library;
 import 'package:flutter/services.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'host_platform.dart';
+
 const _channelName = 'top.npcserver.slimm/orientation';
 
 /// A no-op wherever nothing answers this channel (desktop, the web, a tablet
 /// that is never locked), so a caller never has to check the platform first.
 class OrientationChannel {
-  OrientationChannel({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(_channelName);
+  /// [supported] says whether this host has a native handler; only the phone
+  /// platforms do.
+  OrientationChannel({MethodChannel? channel, bool? supported})
+      : _channel = channel ?? const MethodChannel(_channelName),
+        _supported = supported ?? (isAndroidHost || isIOSHost);
 
   final MethodChannel _channel;
+  final bool _supported;
 
   /// Whether the native side changed anything: true only on a portrait-locked
   /// phone, so a caller can skip work that only matters once rotation is real.
   Future<bool> allowLandscape(bool allowed) async {
+    if (!_supported) return false;
     try {
       return await _channel.invokeMethod<bool>('allowLandscape', allowed) ??
           false;

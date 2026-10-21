@@ -299,15 +299,18 @@ Future<void> sendOptimistically(
   VoidCallback? onQueued,
 }) async {
   final store = await read(storeProvider.future);
-  await store.addPending(
-    id: id,
-    channelId: channelId,
-    authorId: authorId,
-    content: content,
-    replyToId: replyToId,
-    mentionReply: mentionReply,
-    attachmentIds: attachmentIds,
-    spoilerIds: spoilerIds,
+  await _keepLocally(
+    'queue the message',
+    () => store.addPending(
+      id: id,
+      channelId: channelId,
+      authorId: authorId,
+      content: content,
+      replyToId: replyToId,
+      mentionReply: mentionReply,
+      attachmentIds: attachmentIds,
+      spoilerIds: spoilerIds,
+    ),
   );
   onQueued?.call();
   try {
@@ -321,7 +324,10 @@ Future<void> sendOptimistically(
       mentionReply: mentionReply,
     );
     // Lands on the same row, because it carries the same id.
-    await store.applyMessage(sent);
+    await _keepLocally(
+      'store the sent message',
+      () => store.applyMessage(sent),
+    );
     read(messageExtrasProvider.notifier).applyMessage(sent);
     // The device clock, since the countdown ticks on it; the server's `created_at` can sit minutes off a skewed device and pin the countdown.
     read(
@@ -333,6 +339,30 @@ Future<void> sendOptimistically(
       id,
       reason: describeApiFailure('send the message', e),
     );
+  }
+}
+
+/// Retries a local write that lost a lock race, then logs and goes on: the
+/// server copy is what counts, and sync fills the row in when the write
+/// never lands.
+Future<void> _keepLocally(String what, Future<void> Function() write) async {
+  const attempts = 3;
+  for (var attempt = 1; ; attempt++) {
+    try {
+      return await write();
+    } on Object catch (error, stack) {
+      if (attempt < attempts) {
+        await Future<void>.delayed(Duration(milliseconds: 250 * attempt));
+        continue;
+      }
+      api.AppLog.error(
+        api.LogTag.data,
+        'Could not $what locally',
+        error: error,
+        stack: stack,
+      );
+      return;
+    }
   }
 }
 

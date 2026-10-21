@@ -39,6 +39,25 @@ void applyDatabaseKey(Database db, String key) {
   db.execute('PRAGMA temp_store = MEMORY');
 }
 
+/// How long a writer waits for another connection's lock before SQLITE_BUSY.
+const busyTimeout = Duration(seconds: 5);
+
+const _busyPoll = Duration(milliseconds: 20);
+
+/// Makes a second connection to the file (another process, or the old
+/// connection while an account switch closes it) wait instead of failing.
+///
+/// A handler rather than `PRAGMA busy_timeout`: the bundled SQLite3 Multiple
+/// Ciphers accepts the pragma and still returns SQLITE_BUSY at once. The
+/// journal stays a rollback one: open-time detection of a second running copy
+/// relies on its exclusive lock blocking a probe read.
+void applyConnectionTuning(Database db) {
+  db.busyHandler = (count) {
+    sleep(_busyPoll);
+    return _busyPoll * (count + 1) < busyTimeout;
+  };
+}
+
 void _selectCipher(Database db) {
   db.execute("PRAGMA cipher = 'sqlcipher'");
   db.execute('PRAGMA legacy = 4');

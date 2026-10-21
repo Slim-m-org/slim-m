@@ -24,7 +24,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart' show AppPresence;
-import 'package:slimm_platform/platform.dart' show isWindowsHost;
+import 'package:slimm_platform/platform.dart' show isLinuxHost, isWindowsHost;
 import 'package:slimm_rtc/rtc.dart';
 import 'package:tray_manager/tray_manager.dart';
 
@@ -57,9 +57,12 @@ class DesktopTrayController with TrayListener {
     required this.container,
     this.host,
     bool? windows,
-  }) : _windows = windows ?? isWindowsHost;
+    bool? toolTipSupported,
+  }) : _windows = windows ?? isWindowsHost,
+       _toolTipSupported = toolTipSupported ?? !isLinuxHost;
 
   final bool _windows;
+  final bool _toolTipSupported;
 
   final DesktopWindowPort port;
 
@@ -170,13 +173,14 @@ class DesktopTrayController with TrayListener {
 
   /// `tray_manager`'s Linux backend (`tray_manager_plugin.cc`) never handles
   /// the `setToolTip` platform channel call - only `setTitle`, which draws a
-  /// persistent label in the panel rather than a hover tip - so this threw a
-  /// `MissingPluginException` on every Linux launch. Unguarded, that
+  /// persistent label in the panel rather than a hover tip - so Linux skips it
+  /// instead of logging a `MissingPluginException` on every launch. Unguarded, that
   /// exception aborted [start] before [_rebuildMenu] ever ran, leaving the
   /// tray icon bound to the empty placeholder menu the plugin's own `setIcon`
   /// handler creates: an icon with no options, for the rest of the session.
   /// A missing hover tip is a fair trade for a menu that actually works.
   Future<void> _setToolTip() async {
+    if (!_toolTipSupported) return;
     try {
       await TrayManager.instance.setToolTip('slim-m');
     } catch (error, stack) {
