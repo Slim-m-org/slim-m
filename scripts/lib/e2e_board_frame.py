@@ -50,8 +50,7 @@ def clear_window(client):
     time.sleep(0.8)
 
 
-# The zoom pill rides above the dock: its bottom edge sits this far above the
-# dock's top (a 12 lift and the safe area's own 12 minimum).
+# The zoom pill's gap above the dock: a 12 lift plus the safe area's 12 minimum.
 _PILL_GAP_ABOVE_DOCK = 24
 _PILL_HEIGHT = 28
 
