@@ -357,7 +357,7 @@ classes! {
     DiagnosticPing,
     /// The connection test's speed transfers (`/diagnostics/download` and `/upload`).
     ///
-    /// Each moves up to 25 MiB, so this is far tighter than the ping class.
+    /// Each moves up to 64 MiB, so this is far tighter than the ping class.
     /// A full run over two routes makes eight, and the burst of twelve leaves
     /// room for a retry while a sustained refill stays at twelve a minute.
     DiagnosticTransfer,

@@ -1802,7 +1802,8 @@ paths:
       description: >
         Without CREATE_INVITE, while the space lets members invite, the
         invite defaults to one use and 24 hours, may not exceed 10 uses or
-        7 days, and may not grant a role.
+        7 days, and may not grant a role. With `reuse`, the caller's live invite
+        of the same limits and no role is returned instead of a new one.
       requestBody:
         required: true
         content:
@@ -5911,7 +5912,7 @@ paths:
       summary: Send throwaway bytes, for the connection test's download speed.
       description: >
         Streams `bytes` of incompressible filler as `application/octet-stream`
-        with `Cache-Control: no-store`. `bytes` is 1 to 26214400 (25 MiB) and
+        with `Cache-Control: no-store`. `bytes` is 1 to 67108864 (64 MiB) and
         defaults to 1 MiB; a value outside that range is refused with 400, never
         trimmed. Touches neither disk nor database. Rate limited per account,
         far tighter than ordinary reads.
@@ -5944,11 +5945,13 @@ paths:
       summary: Take and discard bytes, for the connection test's upload speed.
       description: >
         Reads the body to the end and throws it away. The body may be at most
-        26214400 bytes (25 MiB): a larger declared `Content-Length` is refused
+        67108864 bytes (64 MiB): a larger declared `Content-Length` is refused
         with 413 before any of it is read, and an undeclared body is cut off with
         413 once it passes the cap. `duration_ms` is how long the server spent
         reading, which a proxy that buffers the whole request first will make
-        look shorter than the sender's own timing. Rate limited per account,
+        look shorter than the sender's own timing. `duration_us` and `timed_bytes`
+        time the body from its first chunk to its last, leaving the first chunk
+        out, so buffered bytes do not inflate the speed. Rate limited per account,
         far tighter than ordinary writes.
       requestBody:
         required: true
@@ -12749,6 +12752,11 @@ components:
             and the role's permissions must already be held by the caller:
             an invite that grants a role is role assignment with a delay, so
             it is gated exactly as assigning one directly is.
+        reuse:
+          type: boolean
+          description: >
+            Return the caller's live invite with the same limits and no role
+            instead of minting another. Defaults to false.
 
     CheckInviteResponse:
       type: object
@@ -15903,7 +15911,7 @@ components:
 
     DiagnosticsUpload:
       type: object
-      required: [bytes, duration_ms]
+      required: [bytes, duration_ms, timed_bytes, duration_us]
       properties:
         bytes:
           type: integer
@@ -15913,6 +15921,14 @@ components:
           type: integer
           format: int64
           description: Milliseconds the server spent reading the body.
+        timed_bytes:
+          type: integer
+          format: int64
+          description: Bytes that arrived after the first chunk.
+        duration_us:
+          type: integer
+          format: int64
+          description: Microseconds from the first chunk to the last.
 
     NotificationScheduleDay:
       type: object

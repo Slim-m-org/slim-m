@@ -78,6 +78,10 @@ struct CreateRequest {
     /// A role every account redeeming this code receives. Null grants none.
     #[serde(default)]
     role_grant: Option<String>,
+    /// Return the caller's live invite with these limits instead of minting
+    /// another; the "invite a friend" button sets it so a repeated click shares one code.
+    #[serde(default)]
+    reuse: bool,
 }
 
 #[derive(Serialize)]
@@ -236,7 +240,20 @@ async fn create(
         Some(raw) => Some(resolve_grant(&state, ctx.user_id, raw).await?),
     };
 
-    let invite = if member_only {
+    let invite = if req.reuse && role_grant.is_none() {
+        let cap = if member_only {
+            MEMBER_LIVE_INVITE_CAP
+        } else {
+            i64::MAX
+        };
+        state
+            .store
+            .live_or_new_invite(ctx.user_id, max_uses, expires_at, cap)
+            .await?
+            .ok_or(ApiError::BadRequest(
+                "revoke an invite before making another",
+            ))?
+    } else if member_only {
         state
             .store
             .create_invite_capped(ctx.user_id, max_uses, expires_at, MEMBER_LIVE_INVITE_CAP)

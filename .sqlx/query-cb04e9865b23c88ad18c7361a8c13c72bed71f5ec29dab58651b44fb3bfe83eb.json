@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT code AS \"code!\", max_uses, uses AS \"uses!\", expires_at,\n                      created_at AS \"created_at!\"\n               FROM invites\n               WHERE created_by = ?1 AND role_grant IS NULL AND revoked_at IS NULL\n                 AND max_uses IS ?2 AND (expires_at IS NOT NULL) = ?3\n                 AND (expires_at IS NULL OR expires_at > ?4)\n                 AND (max_uses IS NULL OR uses < max_uses)\n               ORDER BY created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "code!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "max_uses",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "uses!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "expires_at",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 4,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "cb04e9865b23c88ad18c7361a8c13c72bed71f5ec29dab58651b44fb3bfe83eb"
+}

@@ -134,6 +134,7 @@ void main() {
 
     expect(world.created, hasLength(1));
     expect(world.created.single['max_uses'], 1);
+    expect(world.created.single['reuse'], true);
     expect(
       world.created.single.containsKey('expires_at'),
       isFalse,

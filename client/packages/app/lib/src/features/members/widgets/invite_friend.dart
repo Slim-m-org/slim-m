@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// "Invite a friend": makes a single-use 24 hour invite and hands its link to the share sheet or clipboard, from the Space menu and the member list header.
+/// "Invite a friend": makes a single-use 24 hour invite, or returns the one still live, and hands its link to the share sheet or clipboard, from the Space menu and the member list header.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -70,6 +70,7 @@ Future<void> inviteAFriend(BuildContext context) async {
         .read(apiProvider)
         .createInvite(
           maxUses: 1,
+          reuse: true,
           expiresAt: isMember
               ? null
               : DateTime.now().add(_inviteLifetime).millisecondsSinceEpoch,
