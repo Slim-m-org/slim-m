@@ -124,7 +124,6 @@ const _deviceKeys = <String>{
   'slimm.database.key',
   'slimm.desktop.window_geometry',
   'slimm.first_run.done.',
-  'slimm.first_run.voice_hint.',
   'slimm.layout.rail_width',
   'slimm.performance.desktop_splash_duration',
   'slimm.performance.desktop_splash_enabled',

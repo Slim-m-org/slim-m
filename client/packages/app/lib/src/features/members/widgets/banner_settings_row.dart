@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Identity card's banner row: the image drawn behind your profile card,
-/// instead of your profile colour. A gif goes up as picked; a still is cropped
-/// to the banner shape first.
+/// The Identity card's banner rows: a preview of the band behind your profile
+/// card, the image to put in it or remove, and the profile colour it shows
+/// when there is no image. A gif goes up as picked; a still is cropped to the
+/// banner shape first.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart' as api show Me;
 import 'package:slimm_api/api.dart' show SlimmApiUsers;
 import 'package:slimm_design_system/design_system.dart';
 
@@ -18,7 +20,11 @@ import '../../messages/providers/attachment_preview_bytes.dart'
 import '../../messages/widgets/attachment_picker.dart';
 import '../../messages/widgets/image_downscale.dart';
 import 'avatar_crop_sheet.dart';
+import '../../settings/widgets/settings_section_header.dart';
 import 'identity_row.dart';
+import 'profile_banner.dart';
+import 'profile_colour.dart';
+import 'profile_colour_field.dart';
 
 /// Width over height of the banner on a profile card.
 const double kProfileBannerAspect = 3;
@@ -84,12 +90,15 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
     final me = ref.watch(meProvider).valueOrNull;
     final isSet = me?.bannerUpdatedAt != null;
     final enabled = me != null && !_busy;
+    final inset = SettingsRowMetrics.of(context).inset;
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         IdentityRow(
-          caption: 'Banner',
-          title: isSet ? 'Custom image' : 'Profile colour',
+          leading: me == null ? null : _Preview(me: me),
+          title: 'Banner',
+          caption: isSet ? 'Custom image' : 'Your profile colour',
           trailing: [
             if (isSet)
               AppButton(
@@ -112,6 +121,10 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
             ),
           ],
         ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.s12),
+          child: const ProfileColourField(),
+        ),
         if (actionError != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -126,6 +139,39 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The band as others will see it, at the banner's own proportions.
+class _Preview extends StatelessWidget {
+  const _Preview({required this.me});
+
+  final api.Me me;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    const height = 36.0;
+    return ExcludeSemantics(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: SizedBox(
+          key: const Key('banner-settings-preview'),
+          width: height * kProfileBannerAspect,
+          child: ProfileBanner(
+            userId: me.id,
+            bannerUpdatedAt: me.bannerUpdatedAt,
+            height: height,
+            colour:
+                profileColourOf(
+                  index: me.profileColor,
+                  rgb: me.profileColorRgb,
+                ) ??
+                tokens.surfaceSunken,
+          ),
+        ),
+      ),
     );
   }
 }

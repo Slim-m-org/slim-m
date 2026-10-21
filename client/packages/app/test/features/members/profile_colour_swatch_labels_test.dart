@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
+import 'package:slimm_app/src/features/members/widgets/profile_colour_field.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 void main() {
@@ -24,7 +24,7 @@ void main() {
         child: MaterialApp(
           theme: buildTheme(Brightness.light, AppTokens.light),
           home: const Scaffold(
-            body: SingleChildScrollView(child: ProfileFieldsSection()),
+            body: SingleChildScrollView(child: ProfileColourField()),
           ),
         ),
       ),

@@ -122,7 +122,7 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     final replay = ref.read(firstRunControllerProvider).replay;
     final channels = replay ? <Channel>[] : await controller.channels();
     final landing = pickLandingChannel(channels);
-    await controller.complete(voiceHint: voiceChannelsOf(channels).isNotEmpty);
+    await controller.complete();
     if (landing != null && mounted) context.go(Routes.channel(landing.id));
   }
 

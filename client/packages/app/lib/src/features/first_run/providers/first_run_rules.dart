@@ -8,14 +8,10 @@ import 'package:slimm_data/data.dart' show Channel;
 const firstRunWindow = Duration(days: 1);
 
 const _doneKeyPrefix = 'slimm.first_run.done.';
-const _voiceHintKeyPrefix = 'slimm.first_run.voice_hint.';
 
 /// One flag per account per Space, so a second Space on the device starts clean.
 String firstRunDoneKey(String space, String accountId) =>
     '$_doneKeyPrefix$space|$accountId';
-
-String firstRunVoiceHintKey(String space, String accountId) =>
-    '$_voiceHintKeyPrefix$space|$accountId';
 
 bool firstRunDue({
   required bool done,
@@ -43,9 +39,3 @@ Channel? pickLandingChannel(List<Channel> channels) {
   }
   return best;
 }
-
-/// Voice channels in rail order, for the hint that names where to join.
-List<Channel> voiceChannelsOf(List<Channel> channels) => [
-  for (final channel in channels)
-    if (channel.kind == 'voice') channel,
-];
