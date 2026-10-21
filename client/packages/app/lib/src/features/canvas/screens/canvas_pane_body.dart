@@ -310,8 +310,21 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// bubble" means anything to offer.
   bool get _hasSelfBubble => widget.callParticipants.any((p) => p.isLocal);
 
+  /// Which tiles are hidden, for the phone header's Show rows; it notifies only when that set changes.
+  late HiddenTileKeys _hiddenTiles = HiddenTileKeys(widget.tileOverrides);
+
+  @override
+  void didUpdateWidget(covariant CanvasPaneBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tileOverrides != widget.tileOverrides) {
+      _hiddenTiles.dispose();
+      _hiddenTiles = HiddenTileKeys(widget.tileOverrides);
+    }
+  }
+
   @override
   void dispose() {
+    _hiddenTiles.dispose();
     _menuRequests.dispose();
     super.dispose();
   }
@@ -331,8 +344,13 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
             if (!widget.fullscreen)
               CanvasBar(
                 channelId: widget.channelId,
+                // Rebuilt when the hidden set changes, so a tile hidden later gets its Show row here too.
                 trailing: compact
-                    ? CanvasCompactEditGroup(canvas: _dockData())
+                    ? ListenableBuilder(
+                        listenable: _hiddenTiles,
+                        builder: (context, _) =>
+                            CanvasCompactEditGroup(canvas: _dockData()),
+                      )
                     : null,
               ),
             if (widget.callError != null)
