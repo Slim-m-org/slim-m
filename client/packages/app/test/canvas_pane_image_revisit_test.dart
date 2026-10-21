@@ -43,6 +43,10 @@ void main() {
     );
 
     expect(fixture.viewportGets, viewportGets, reason: 'no region refetch');
-    expect(fixture.attachmentFetches, fetches + 1);
+    expect(
+      fixture.attachmentFetches,
+      fetches,
+      reason: 'the evicted bitmap decodes again from the cached preview bytes',
+    );
   });
 }

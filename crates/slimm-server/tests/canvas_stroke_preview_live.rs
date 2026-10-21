@@ -397,8 +397,8 @@ async fn a_preview_carries_the_pen_colour_and_width_and_drops_bad_ones() {
             assert_eq!(frame["color"], "annotation");
             assert_eq!(frame["width"], 6.5);
         } else {
-            assert!(frame.get("color").is_none(), "forged colour was relayed");
-            assert!(frame.get("width").is_none(), "forged width was relayed");
+            assert!(frame["color"].is_null(), "forged colour was relayed");
+            assert!(frame["width"].is_null(), "forged width was relayed");
         }
     }
 }

@@ -16785,10 +16785,12 @@ components:
           type: boolean
         color:
           type: string
+          nullable: true
           description: The drawer's pen colour key, when they sent a valid one.
         width:
           type: number
           format: double
+          nullable: true
           description: The drawer's pen width in world units, when valid.
 
     CanvasViewUpdated:

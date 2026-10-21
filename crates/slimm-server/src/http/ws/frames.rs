@@ -308,9 +308,7 @@ pub(super) enum ServerFrame {
         object_id: String,
         points: Vec<f64>,
         ended: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
         color: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
         width: Option<f64>,
     },
     #[serde(rename = "canvas.object_preview.updated")]
@@ -529,11 +527,7 @@ pub(super) enum ClientFrame {
         points: Vec<f64>,
         #[serde(default)]
         ended: bool,
-        /// The drawer's pen colour key, so peers see the real ink in flight.
-        #[serde(default)]
         color: Option<String>,
-        /// The drawer's pen width in world units.
-        #[serde(default)]
         width: Option<f64>,
     },
     /// The box of an object this client is dragging or resizing, so others
