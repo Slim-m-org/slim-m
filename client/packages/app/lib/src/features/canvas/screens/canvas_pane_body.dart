@@ -56,6 +56,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onClear,
     this.scopedClear,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.onPasteImageAt,
     required this.onRecenter,
     required this.onBringIntoBoard,
@@ -138,6 +139,9 @@ class CanvasPaneBody extends StatefulWidget {
   /// fallback that works on every platform, the same shape the composer's
   /// own "+" sheet row already is.
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
 
   /// The empty-canvas right-click menu's own "Paste image" item - the same
   /// pipeline as [onPasteImage], aimed at the clicked world point instead of
@@ -418,6 +422,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     onClear: widget.onClear,
     scopedClear: widget.scopedClear,
     onPasteImage: widget.onPasteImage,
+    onAddImageFile: widget.onAddImageFile,
     selection: widget.document.selectedObjectId,
     onBringToFront: widget.onBringToFront,
     onSendToBack: widget.onSendToBack,

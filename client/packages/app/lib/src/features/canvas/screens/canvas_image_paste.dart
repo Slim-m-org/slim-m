@@ -97,6 +97,10 @@ class CanvasImagePaste {
     onError,
   );
 
+  /// Places a picked or dropped image file, the same way a paste lands.
+  Future<void> placeFile(Uint8List bytes, String filename, {ui.Offset? at}) =>
+      _stage(bytes, filename, at: at);
+
   void _handleNativePaste(Uint8List bytes, String filename) =>
       unawaited(_stage(bytes, filename));
 
@@ -107,7 +111,7 @@ class CanvasImagePaste {
     if (_staging) return;
     _staging = true;
     try {
-      final placed = await _place(bytes, at: at);
+      final placed = await _place(bytes, filename, at: at);
       if (placed != null && !_stopped) onPlaced(placed.id);
     } finally {
       _staging = false;
@@ -118,7 +122,11 @@ class CanvasImagePaste {
   /// [at], or on the document's current view when [at] is null. On success,
   /// applies the placed object and hands it the already-decoded bitmap
   /// directly - no second fetch and decode of what this call already holds.
-  Future<api.CanvasObject?> _place(Uint8List bytes, {ui.Offset? at}) async {
+  Future<api.CanvasObject?> _place(
+    Uint8List bytes,
+    String filename, {
+    ui.Offset? at,
+  }) async {
     onError(null);
     final decoded = await _decode(bytes);
     if (decoded == null) return null;
@@ -127,7 +135,7 @@ class CanvasImagePaste {
       return null;
     }
 
-    final attachment = await _upload(bytes, decoded);
+    final attachment = await _upload(bytes, filename, decoded);
     if (attachment == null) return null;
     if (_stopped) {
       decoded.dispose();
@@ -166,9 +174,13 @@ class CanvasImagePaste {
     }
   }
 
-  Future<api.Attachment?> _upload(Uint8List bytes, ui.Image decoded) async {
+  Future<api.Attachment?> _upload(
+    Uint8List bytes,
+    String filename,
+    ui.Image decoded,
+  ) async {
     try {
-      return await client.uploadAttachment(bytes, filename: 'pasted-image.png');
+      return await client.uploadAttachment(bytes, filename: filename);
     } on api.ApiException catch (e) {
       decoded.dispose();
       if (!_stopped) {

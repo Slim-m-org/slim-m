@@ -58,6 +58,7 @@ class CanvasToolsRow extends StatefulWidget {
     required this.onClear,
     this.scopedClear,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.selection,
     required this.onBringToFront,
     required this.onSendToBack,
@@ -123,6 +124,9 @@ class CanvasToolsRow extends StatefulWidget {
   final Future<void> Function() onClear;
   final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
 
   /// The one object currently selected for a resize or reorder, or null.
   final ValueListenable<String?> selection;
@@ -236,6 +240,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
         const SizedBox(width: AppSpacing.s4),
         CanvasOverflowMenu(
           onPasteImage: widget.onPasteImage,
+          onAddImageFile: widget.onAddImageFile,
           canDraw: widget.canDraw,
           canManage: widget.canManage,
           onClear: widget.onClear,

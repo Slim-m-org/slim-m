@@ -45,6 +45,7 @@ class CanvasOverflowMenu extends StatefulWidget {
   const CanvasOverflowMenu({
     super.key,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.canDraw,
     required this.canManage,
     required this.onClear,
@@ -75,6 +76,9 @@ class CanvasOverflowMenu extends StatefulWidget {
   final bool opensBelow;
 
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
 
   /// False while the pane's own error banner is up - see
   /// `canvas_tools_row.dart`'s `canDraw` for the full reasoning; this is the
@@ -319,6 +323,14 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             : _shortcutHint(context),
         onTap: widget.canDraw ? _paste : null,
       ),
+      if (widget.onAddImageFile case final addImage?)
+        AppMenuItem(
+          label: 'Add image from file',
+          leading: AppIcons.image,
+          onTap: widget.canDraw
+              ? () => _openAfterClose(() async => addImage())
+              : null,
+        ),
       AppMenuItem(
         label: widget.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen',
         leading: AppIcons.expand,

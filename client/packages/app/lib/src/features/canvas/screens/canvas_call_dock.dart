@@ -93,6 +93,7 @@ class CanvasDockData {
     required this.onClear,
     this.scopedClear,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.selection,
     required this.onBringToFront,
     required this.onSendToBack,
@@ -128,6 +129,9 @@ class CanvasDockData {
   final Future<void> Function() onClear;
   final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
   final ValueListenable<String?> selection;
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;

@@ -36,6 +36,32 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
   );
 
+  /// Picks one still image and places it at the view's centre.
+  Future<void> _pickImageFile() async {
+    final PlatformFile? file;
+    try {
+      file = await ref.read(
+        attachmentPickerProvider(AttachmentSource.stillImageFiles),
+      )();
+    } catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'pick an image for the canvas', e, stack);
+      _engine.reportError('The file picker could not open.');
+      return;
+    }
+    if (file == null || !_mounted) return;
+    await _imagePaste.placeFile(await file.readAsBytes(), file.name);
+  }
+
+  /// Places an image dropped onto the board, or says why it was refused.
+  Future<void> _dropImage(List<DropItem> items) async {
+    switch (await readDroppedImage(items)) {
+      case DroppedImage(:final bytes, :final name):
+        if (_mounted) await _imagePaste.placeFile(bytes, name);
+      case RefusedDrop(:final message):
+        if (_mounted) _engine.reportError(message);
+    }
+  }
+
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
         client: ref.read(apiProvider),
