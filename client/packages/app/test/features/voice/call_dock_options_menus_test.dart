@@ -10,7 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/noise_suppression.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
-import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/widgets/floating_dock_card.dart';
 import 'package:slimm_design_system/design_system.dart';

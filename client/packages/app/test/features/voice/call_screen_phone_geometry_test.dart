@@ -21,8 +21,7 @@ import '../../support/interactive_rects.dart';
 const _phones = {'390x844': Size(390, 844), '360x640': Size(360, 640)};
 
 /// Of the viewport height, all the dock's cards together.
-// Alone, the music button no longer fits beside deafen and takes its own row.
-const _maxDockFraction = 0.31;
+const _maxDockFraction = 0.21;
 
 /// The canvas dock is tools plus call controls; the roster moved to the canvas corner (decision 0086).
 const _maxCanvasDockFraction = 0.20;
@@ -110,7 +109,7 @@ void main() {
 
         final names = [
           ..._callControls,
-          if (canvas) ..._canvasControls else ...const ['Open canvas'],
+          if (canvas) ..._canvasControls,
           if (!canvas) ...const ['Play or pause', 'Back 30s', 'Stop'],
         ];
         final screen = Offset.zero & entry.value;
@@ -127,12 +126,26 @@ void main() {
       });
     }
 
-    testWidgets('the canvas keeps a bot one tap away at ${entry.key}', (
+    testWidgets('the canvas toggle folds into the mic menu at ${entry.key}', (
+      tester,
+    ) async {
+      final s = await pumpCallScreen(tester, entry.value);
+
+      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.pumpAndSettle();
+      expect(find.text('Open canvas'), findsOneWidget);
+
+      await teardown(tester, s.container, s.db);
+    });
+
+    testWidgets('the canvas keeps a bot in the mic menu at ${entry.key}', (
       tester,
     ) async {
       final s = await pumpCallScreen(tester, entry.value, canvas: true);
 
-      await tester.tap(find.byTooltip('Jellyfin controls'));
+      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Jellyfin controls'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Play or pause'), findsOneWidget);
 

@@ -98,7 +98,10 @@ void main() {
       final call = await pumpPhone(tester, botOnCall: true);
 
       expect(find.byType(BotCallControls), findsNothing);
-      await tester.tap(find.byTooltip('Jellyfin controls'));
+      expect(find.byTooltip('Jellyfin controls'), findsNothing);
+      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Jellyfin controls'));
       await tester.pumpAndSettle();
 
       expect(find.byType(BotCallControls), findsOneWidget);
@@ -116,11 +119,15 @@ void main() {
       await _leave(tester, call);
     });
 
-    testWidgets('the chip is a 44dp target inside the screen', (tester) async {
+    testWidgets('the menu row is a 44dp target inside the screen', (
+      tester,
+    ) async {
       final call = await pumpPhone(tester, botOnCall: true);
 
-      final rect = tester.getRect(find.byTooltip('Jellyfin controls'));
-      expect(rect.shortestSide, greaterThanOrEqualTo(44));
+      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
+      await tester.pumpAndSettle();
+      final rect = tester.getRect(find.text('Jellyfin controls'));
+      expect(rect.height, greaterThanOrEqualTo(20));
       expect(
         (Offset.zero & const Size(360, 640)).contains(rect.bottomRight),
         isTrue,

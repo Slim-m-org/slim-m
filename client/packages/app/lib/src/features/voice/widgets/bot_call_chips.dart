@@ -8,12 +8,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/control_options_menu.dart';
+import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import 'bot_call_controls.dart';
 import 'call_dock_button.dart';
 
 /// How many chips [botCallChipsFor] draws for [channelId], for the dock's fit check.
 int botCallChipCount(WidgetRef ref, String channelId) =>
     botCallGroupsFor(ref, channelId).length;
+
+/// The same bot controls as mic-menu rows, for a dock with no slot for the chips.
+List<ControlOptionEntry> botCallMenuOptions(WidgetRef ref, String channelId) =>
+    [
+      for (final group in botCallGroupsFor(ref, channelId))
+        ControlOption(
+          label: '${group.bot.botDisplayName} controls',
+          icon: AppIcons.callControl,
+          onSelected: () => showBotControlsSheet(
+            context: ref.context,
+            channelId: channelId,
+            botUserId: group.bot.botUserId,
+          ),
+        ),
+    ];
 
 /// The chips, or null when no bot on the call offers controls.
 Widget? botCallChipsFor(WidgetRef ref, String channelId) {

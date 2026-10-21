@@ -50,7 +50,7 @@ void main() {
       expect(mute, inInclusiveRange(0, 11), reason: 'Mute is stop ${mute + 1}');
       expect(
         leave,
-        inInclusiveRange(0, 15),
+        inInclusiveRange(0, 16),
         reason: 'Leave call is stop ${leave + 1}',
       );
     });

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/camera_switch.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -41,7 +42,8 @@ Widget? dockExtras({required bool alone, Widget? toggle}) {
 }
 
 /// The card rows for a call: the call row with [toggle] and the music button
-/// inline when [width] allows, otherwise those extras in a row of their own.
+/// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
+/// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
 List<Widget> callRowsWithExtras(
   BuildContext context,
   WidgetRef ref, {
@@ -50,19 +52,20 @@ List<Widget> callRowsWithExtras(
   required VoiceFlags voice,
   Widget? toggle,
   int toggleSlots = 1,
+  List<ControlOptionEntry> toggleMenu = const [],
 }) {
   final alone = ref.watch(callAloneProvider);
   final extras = dockExtras(alone: alone, toggle: toggle);
   Widget callRow(
     Widget? extra, {
     bool tight = false,
-    bool musicInMenu = false,
+    List<ControlOptionEntry> menuExtras = const [],
   }) => CallControls(
     controller: controller,
     voice: voice,
     extraControl: extra,
     tight: tight,
-    musicInMenu: musicInMenu,
+    menuExtras: menuExtras,
   );
   final switchCameraShown =
       voice.cameraEnabled && canSwitchCamera(ref, controller);
@@ -77,11 +80,22 @@ List<Widget> callRowsWithExtras(
   if (extras == null) return [callRow(null)];
   final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
   if (fits) return [callRow(extras)];
-  // The one rule of desktop-vs-mobile.md: width decides, so music folds into the mic menu.
-  if (alone && fitsWith(toggle != null ? toggleSlots : 0)) {
-    return [callRow(toggle, musicInMenu: true)];
+  // The one rule of desktop-vs-mobile.md: width decides, so extras fold into the mic menu.
+  final music = alone
+      ? holdMusicMenuOptions(ref)
+      : const <ControlOptionEntry>[];
+  if (toggleMenu.isNotEmpty) {
+    return [
+      callRow(null, menuExtras: [...music, ...toggleMenu]),
+    ];
   }
-  return [Center(child: extras), callRow(null, musicInMenu: alone)];
+  if (alone && fitsWith(toggle != null ? toggleSlots : 0)) {
+    return [callRow(toggle, menuExtras: music)];
+  }
+  return [
+    ?toggle == null ? null : Center(child: toggle),
+    callRow(null, menuExtras: music),
+  ];
 }
 
 /// Whether the call row plus [extraCount] extra buttons fit one line at [width],

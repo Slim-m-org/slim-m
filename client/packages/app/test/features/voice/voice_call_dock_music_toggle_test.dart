@@ -165,8 +165,8 @@ void main() {
       await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
 
       expect(tester.takeException(), isNull);
-      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
       await _expectMusicReachable(tester);
+      expect(find.text('Open canvas'), findsOneWidget);
     });
   }
 

@@ -110,12 +110,12 @@ void main() {
 
     expect(
       tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-      hasLength(2),
+      hasLength(1),
       reason:
           'mic, deafen, camera, switch camera, share, leave and the toggle no '
-          'longer fit one line at 380, so the toggle must fold rather '
-          'than overflow',
+          'longer fit one line at 380, so the toggle moves into the mic menu',
     );
+    expect(find.bySemanticsLabel('Open canvas'), findsNothing);
     expect(
       tester.takeException(),
       isNull,
@@ -125,8 +125,9 @@ void main() {
     // Folding the toggle must not have clipped or stolen a neighbor's hit area.
     await tester.tap(find.bySemanticsLabel(RegExp(r'^Mute')));
     await tester.tap(find.bySemanticsLabel('Switch camera'));
-    await tester.tap(find.bySemanticsLabel('Open canvas'));
-    await tester.pump();
+    await tester.longPress(find.bySemanticsLabel(RegExp(r'^Mute')));
+    await tester.pumpAndSettle();
+    expect(find.text('Open canvas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -147,6 +148,7 @@ void main() {
         tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
         hasLength(1),
       );
+      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
 
       await pumpVoiceCallDock(
         tester,
@@ -157,8 +159,9 @@ void main() {
       );
       expect(
         tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(2),
+        hasLength(1),
       );
+      expect(find.bySemanticsLabel('Open canvas'), findsNothing);
     },
   );
 }

@@ -81,6 +81,7 @@ class CanvasCompactDock extends StatelessWidget {
                     voice: call.voice,
                     toggle: botCallChipsFor(ref, call.channelId),
                     toggleSlots: botCallChipCount(ref, call.channelId),
+                    toggleMenu: botCallMenuOptions(ref, call.channelId),
                   ),
                 ],
               ),
