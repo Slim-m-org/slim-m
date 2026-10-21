@@ -123,7 +123,8 @@ String _windowPart(NamedWindow w) {
 
 /// The lines logged when a call ends: everyone pooled, then each person.
 List<String> summaryLines(CallHealthSummary summary) => [
-      '[voice-health] call summary ${_stats(summary.remote)}',
+      if (summary.peers.isNotEmpty)
+        '[voice-health] call summary ${_stats(summary.remote)}',
       for (final e in summary.peers.entries)
         '[voice-health] call summary ${e.key}: ${_stats(e.value)}',
       if (summary.local case final local?)

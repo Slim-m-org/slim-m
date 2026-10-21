@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -14,6 +15,22 @@ import 'audio_devices.dart';
 import 'input_gate.dart' show kInputFloorDb, supportsInputGate;
 import 'mic_preview.dart';
 import 'mic_recovery.dart' show senderLevelToDb;
+
+/// The far end must never reach the speakers.
+///
+/// Natively both ends of the loopback share one track id, so disabling the
+/// received track would also stop the capture the meter reads.
+Future<void> silenceLoopbackTrack(rtc.MediaStreamTrack track) async {
+  if (kIsWeb) {
+    track.enabled = false;
+    return;
+  }
+  try {
+    await rtc.Helper.setVolume(0, track);
+  } on Object catch (error, stack) {
+    AppLog.swallowed(LogTag.voice, 'Could not mute the loopback', error, stack);
+  }
+}
 
 class LoopbackMicSource implements MicPreviewSource {
   LoopbackMicSource(this._switching);
@@ -53,7 +70,7 @@ class LoopbackMicSource implements MicPreviewSource {
     final receiver = _receiver = await rtc.createPeerConnection({});
     sender.onIceCandidate = (c) => unawaited(receiver.addCandidate(c));
     receiver.onIceCandidate = (c) => unawaited(sender.addCandidate(c));
-    receiver.onTrack = (event) => unawaited(_silence(event.track));
+    receiver.onTrack = (event) => unawaited(silenceLoopbackTrack(event.track));
     for (final track in stream.getAudioTracks()) {
       await sender.addTrack(track, stream);
     }
@@ -74,18 +91,6 @@ class LoopbackMicSource implements MicPreviewSource {
       await Future<void>.delayed(wait);
       if (!_opened) return;
       await _switching.routePreviewInput(id);
-    }
-  }
-
-  /// The far end must never reach the speakers.
-  Future<void> _silence(rtc.MediaStreamTrack track) async {
-    track.enabled = false;
-    try {
-      await rtc.Helper.setVolume(0, track);
-    } on Object catch (error, stack) {
-      // The web has no playout without an element, and a disabled track is silent already.
-      AppLog.swallowed(
-          LogTag.voice, 'Could not mute the loopback', error, stack);
     }
   }
 

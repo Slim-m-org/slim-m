@@ -4,6 +4,8 @@
 /// Thresholds and their basis are in `docs/voice-health.md`.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'audio_stats.dart';
@@ -327,7 +329,21 @@ HealthInterval? _sendInterval(AudioSendSample before, AudioSendSample now) {
     lostPackets: delta(before.packetsLost, now.packetsLost).clamp(0, 1e12),
     kbps: delta(before.bytesSent, now.bytesSent) * 8 / seconds / 1000,
     jitterMs: jitter == null ? null : jitter * 1000,
-    audioLevel: now.audioLevel?.toDouble(),
+    audioLevel: _sentLevel(before, now),
     rttMs: now.rttMs,
   );
+}
+
+/// The capture's RMS level over the interval; one instant read every few
+/// seconds lands in a pause between words and reads as silence.
+double? _sentLevel(AudioSendSample before, AudioSendSample now) {
+  final energy = (now.totalAudioEnergy ?? 0) - (before.totalAudioEnergy ?? 0);
+  final seconds =
+      (now.totalSamplesDuration ?? 0) - (before.totalSamplesDuration ?? 0);
+  if (now.totalAudioEnergy == null ||
+      before.totalAudioEnergy == null ||
+      seconds <= 0) {
+    return now.audioLevel?.toDouble();
+  }
+  return math.sqrt((energy / seconds).clamp(0.0, 1.0));
 }
