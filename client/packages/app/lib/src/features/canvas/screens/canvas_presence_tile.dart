@@ -403,12 +403,16 @@ class _CanvasPresenceManipulableTileState
         // A control with no room never shows, so keyboard focus must not land on it unseen.
         child: ExcludeFocus(
           excluding: !room,
-          child: Focus(
-            canRequestFocus: false,
-            skipTraversal: true,
-            onFocusChange: (hasFocus) =>
-                setState(() => _focusedWithin = hasFocus),
-            child: child,
+          // The tile's own menu carries these actions, so a no-room control publishes no node over the tile.
+          child: ExcludeSemantics(
+            excluding: !room,
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onFocusChange: (hasFocus) =>
+                  setState(() => _focusedWithin = hasFocus),
+              child: child,
+            ),
           ),
         ),
       ),

@@ -79,14 +79,27 @@ class CallHeaderLine extends ConsumerWidget {
         children: [
           ?leading,
           Expanded(
-            // Scales down rather than overflowing the bar at large text sizes.
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [titleText, if (live) factsRow],
+            // Scales down in height at large text; the title ellipsizes at the width, never shrinks.
+            child: LayoutBuilder(
+              builder: (context, box) => FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: box.maxWidth),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      titleText,
+                      if (live)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: factsRow,
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
