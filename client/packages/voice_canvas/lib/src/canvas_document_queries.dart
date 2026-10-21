@@ -134,4 +134,47 @@ extension CanvasDocumentQueries on CanvasDocument {
     }
     return bounds;
   }
+
+  /// A snapshot taken at or after an id's removal that still lists the id
+  /// says the object was restored since.
+  bool _restoredBefore(String id, int? snapshotSeq) {
+    final removedAt = _removed.seqOf(id);
+    return snapshotSeq != null && removedAt != null && snapshotSeq >= removedAt;
+  }
+
+  bool _alreadyReflected(int seq) {
+    final reflected = reflectedSeq;
+    return reflected != null && seq > 0 && seq <= reflected;
+  }
+
+  void _overwriteFrom(CanvasStroke existing, CanvasStrokeInput input) {
+    if (elevatedObjectId.value != existing.id) {
+      moveObject(existing.id, input.x, input.y, input.w, input.h);
+    }
+    if (existing.kind == CanvasObjectKind.note && input.text != null) {
+      existing.text = input.text;
+    }
+  }
+
+  /// Frees objects without tombstoning them: a snapshot that lacks an object
+  /// this document still shows says the document drifted, not that a later
+  /// read must refuse the id.
+  void dropObjects(Iterable<String> ids) {
+    for (final id in ids) {
+      final slot = _slotById.remove(id);
+      if (slot != null) _freeSlot(slot);
+    }
+  }
+
+  /// Every live object's id, box and seq, for reconciling against a snapshot.
+  Iterable<({String id, int seq, ui.Rect box})> liveObjects() sync* {
+    for (final stroke in _strokes) {
+      if (stroke == null || !stroke.alive) continue;
+      yield (
+        id: stroke.id,
+        seq: stroke.seq,
+        box: ui.Rect.fromLTWH(stroke.x, stroke.y, stroke.w, stroke.h),
+      );
+    }
+  }
 }

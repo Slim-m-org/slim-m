@@ -42,13 +42,15 @@ api.SlimmApi inertCanvasApi() => testApi(
 /// A `CanvasSync` whose `applyLive` always runs the callback immediately,
 /// since these tests only exercise the dispatch switch itself and its own
 /// cursor bookkeeping is `canvas_sync_test.dart`'s job, not this file's.
-CanvasSync inertCanvasSync(CanvasDocument document) => CanvasSync(
-  channelId: 'c1',
-  client: inertCanvasApi(),
-  document: document,
-  coldFetch: () async {},
-  forgetFetchedRegion: () {},
-);
+/// A sync already seeded at [seededAt], since a sequenced frame before the first read is ignored.
+CanvasSync inertCanvasSync(CanvasDocument document, {int seededAt = 0}) =>
+    CanvasSync(
+      channelId: 'c1',
+      client: inertCanvasApi(),
+      document: document,
+      coldFetch: () async {},
+      forgetFetchedRegion: () {},
+    )..seedFromViewport(seededAt);
 
 CanvasObjectPreviewRelay quietPreviewRelay(CanvasDocument document) =>
     CanvasObjectPreviewRelay(

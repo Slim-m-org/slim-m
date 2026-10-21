@@ -19,7 +19,7 @@ void main() {
     final document = CanvasDocument()..setViewport(const Size(200, 200));
     addTearDown(document.dispose);
     placeCanvasImage(document);
-    final sync = inertCanvasSync(document)..seedFromViewport(5);
+    final sync = inertCanvasSync(document, seededAt: 5);
     final relay = quietPreviewRelay(document);
     addTearDown(relay.dispose);
 

@@ -36,7 +36,7 @@ import '../../support/canvas_fuzz_world.dart';
 int _env(String name, int fallback) =>
     int.tryParse(Platform.environment[name] ?? '') ?? fallback;
 
-final int _seeds = _env('CANVAS_FUZZ_SEEDS', 24);
+final int _seeds = _env('CANVAS_FUZZ_SEEDS', 200);
 final int _first = _env('CANVAS_FUZZ_FIRST', 0);
 final int _ticks = _env('CANVAS_FUZZ_TICKS', 520);
 
@@ -109,7 +109,7 @@ void _replayFresh(FuzzWorld world, FuzzReport report) {
     );
     for (final object in page.objects) {
       final input = canvasStrokeInputFrom(object);
-      if (input != null) document.applyPlaced(input);
+      if (input != null) document.applyPlaced(input, overwrite: true);
     }
     document.refresh();
   }

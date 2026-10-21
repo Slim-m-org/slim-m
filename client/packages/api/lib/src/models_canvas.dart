@@ -21,7 +21,7 @@ class CanvasObject {
 
   final String id;
 
-  /// `stroke` today; `image` and `gif` are planned. Deliberately a String: a
+  /// `stroke`, `image`, `note` or `shape`. Deliberately a String: a
   /// client too old to know a kind should skip that object, not fail to parse
   /// the region. There is no `window` kind and there will not be one - a
   /// window is a behaviour of an object, not an object (decision 0004).
@@ -64,9 +64,14 @@ class CanvasViewport {
     required this.objects,
     required this.hasMore,
     required this.latestSeq,
+    this.totalObjects,
   });
 
   final List<CanvasObject> objects;
+
+  /// How many live objects the whole channel holds, when the server says; null
+  /// from a server that does not, and then no total is shown while paging.
+  final int? totalObjects;
 
   /// More objects intersect the region than the limit allowed. There is no
   /// stable cursor across a region query, so the answer is a smaller region
@@ -83,6 +88,7 @@ class CanvasViewport {
             .toList(),
         hasMore: json['has_more'] as bool,
         latestSeq: json['latest_seq'] as int,
+        totalObjects: json['total_objects'] as int?,
       );
 }
 

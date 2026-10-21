@@ -91,6 +91,7 @@ class CanvasOpsController {
     required this.onError,
     this.onRemoveFailed,
     this.isLocked = _nothingLocked,
+    this.applyOwn,
   });
 
   static bool _nothingLocked(String objectId) => false;
@@ -109,6 +110,11 @@ class CanvasOpsController {
   /// Reads the region again after a remove the server refused, so the
   /// objects hidden for it come back from the server, the way a restore does.
   final Future<void> Function()? onRemoveFailed;
+
+  /// Runs a write's local effect through the op stream by its [seq], so a
+  /// reply that arrives after a newer op was applied cannot undo it.
+  final void Function(int seq, void Function() apply, {api.CanvasOp? replay})?
+  applyOwn;
 
   final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
   final Queue<_RedoEntry> _redoStack = Queue<_RedoEntry>();
@@ -337,8 +343,28 @@ class CanvasOpsController {
         clearScope: scope,
       );
       if (result.op.affected > 0) {
-        clearDocumentScope(document, beforeSeq, scope);
-        document.refresh();
+        void clearLocally() {
+          clearDocumentScope(document, beforeSeq, scope, opSeq: result.op.seq);
+          document.refresh();
+        }
+
+        final own = applyOwn;
+        if (own == null) {
+          clearLocally();
+        } else {
+          own(
+            result.op.seq,
+            clearLocally,
+            replay: api.CanvasClearOp(
+              seq: result.op.seq,
+              id: result.op.id,
+              actorId: null,
+              createdAt: result.op.createdAt,
+              beforeSeq: beforeSeq,
+              scope: scope,
+            ),
+          );
+        }
         _pushUndo(_EraseEntry(result.op.id));
       }
       return true;
@@ -359,6 +385,12 @@ class CanvasOpsController {
         kind: 'remove',
         objectIds: ids,
       );
+      document.confirmRemoved(ids, result.op.seq);
+      if (result.op.affected < ids.length) {
+        // The server leaves locked objects alone, so what was hidden for them has to come back.
+        document.forgetRemoved(ids);
+        unawaited(onRemoveFailed?.call());
+      }
       return result.op.id;
     } on api.ApiException {
       onError(errorMessage);

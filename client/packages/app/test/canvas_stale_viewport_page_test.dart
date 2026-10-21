@@ -29,14 +29,21 @@ void main() {
       reason: 'first page applied',
     );
 
-    // A second region holds ink the document has never seen, so a clear cannot tombstone it.
     final engine = container.read(canvasEngineProvider('c1').notifier);
+    await waitUntil(
+      tester,
+      () => container.read(canvasEngineProvider('c1')).paging == null,
+      reason: 'the rest of the board is in',
+    );
+
+    // A second region holds ink the document has never seen, so a clear cannot tombstone it.
     fixture.objects = [canvasObjectJson('b', x: 5000)];
     fixture.viewportGate = Completer<void>();
+    final readsBefore = fixture.viewportGets;
     final inFlight = engine.fetch();
     await waitUntil(
       tester,
-      () => fixture.viewportGets == 2,
+      () => fixture.viewportGets == readsBefore + 1,
       reason: 'fetch sent',
     );
 

@@ -8,7 +8,6 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_live_event_dispatch.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_cursor_relay.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_media_slot_sync.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_locks.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';

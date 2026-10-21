@@ -66,10 +66,13 @@ class DocumentModel {
     if (tombstones.contains(input.id)) return false;
     final existing = known[input.id];
     if (existing != null) {
-      existing
-        ..alive = true
-        ..z = input.zIndex
-        ..seq = input.seq;
+      existing.alive = true;
+      // A repeated reply must not undo a reorder that landed after the original.
+      if (input.seq == 0 || input.seq > existing.seq) {
+        existing
+          ..z = input.zIndex
+          ..seq = input.seq;
+      }
       return true;
     }
     known[input.id] = ModelObject(

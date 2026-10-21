@@ -25,7 +25,8 @@ extension SlimmApiCanvas on SlimmApi {
       '/channels/$channelId/canvas/objects',
       query: query,
     );
-    return CanvasViewport.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(json, 'GET /channels/$channelId/canvas/objects',
+        CanvasViewport.fromJson);
   }
 
   /// Places one object, idempotent by [id].
@@ -61,15 +62,17 @@ extension SlimmApiCanvas on SlimmApi {
         'props': props,
       },
     );
-    return CanvasObject.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(json, 'POST /channels/$channelId/canvas/objects',
+        CanvasObject.fromJson);
   }
 
-  /// Submits a canvas mutation - `remove`, `clear`, `restore`, `move`,
-  /// `reorder`, or `edit` - idempotent by [id] exactly as [placeCanvasObject] is: a
+  /// Submits a canvas mutation - `remove`, `clear`, `clear_scoped`, `restore`,
+  /// `move`, `reorder`, or `edit` - idempotent by [id] exactly as [placeCanvasObject] is: a
   /// replay answers with the stored op, `fresh: false`, and publishes
   /// nothing.
   ///
-  /// Exactly one of [objectIds] (`remove`), [beforeSeq] (`clear`),
+  /// Exactly one of [objectIds] (`remove`), [beforeSeq] (`clear`, plus
+  /// [clearScope] for `clear_scoped`),
   /// [targetOp] (`restore`), [objectId] plus [x]/[y]/[w]/[h] (`move`),
   /// [objectId] plus [zIndex] (`reorder`), or [objectId] plus [props]
   /// (`edit`) is meaningful for a given [kind]; the server rejects any other combination with a 400.
@@ -110,7 +113,8 @@ extension SlimmApiCanvas on SlimmApi {
         if (props != null) 'props': props,
       },
     );
-    return CanvasOpResult.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(
+        json, 'POST /channels/$channelId/canvas/ops', CanvasOpResult.fromJson);
   }
 
   /// Pages the canvas op stream from [afterSeq] (exclusive): the catch-up
@@ -130,7 +134,8 @@ extension SlimmApiCanvas on SlimmApi {
       '/channels/$channelId/canvas/ops',
       query: query,
     );
-    return CanvasOpsPage.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(
+        json, 'GET /channels/$channelId/canvas/ops', CanvasOpsPage.fromJson);
   }
 
   /// Every media slot this channel's canvas currently remembers - a cold
@@ -138,7 +143,8 @@ extension SlimmApiCanvas on SlimmApi {
   /// `canvas.media_slot.changed` frames keep the picture current.
   Future<CanvasMediaSlotPage> canvasMediaSlots(String channelId) async {
     final json = await _send('GET', '/channels/$channelId/canvas/media-slots');
-    return CanvasMediaSlotPage.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(json, 'GET /channels/$channelId/canvas/media-slots',
+        CanvasMediaSlotPage.fromJson);
   }
 
   /// Moves, resizes, locks or restacks one participant's camera or
@@ -170,15 +176,20 @@ extension SlimmApiCanvas on SlimmApi {
         'sent_to_back': sentToBack,
       },
     );
-    return CanvasMediaSlot.fromJson(json as Map<String, dynamic>);
+    return _decodeShape(
+        json,
+        'PUT /channels/$channelId/canvas/media-slots/$kind/$userId',
+        CanvasMediaSlot.fromJson);
   }
 
   /// The ids of this channel's live objects locked in place.
   Future<Set<String>> canvasObjectLocks(String channelId) async {
     final json = await _send('GET', '/channels/$channelId/canvas/object-locks');
-    return ((json as Map<String, dynamic>)['object_ids'] as List<dynamic>)
-        .cast<String>()
-        .toSet();
+    return _decodeShape(
+      json,
+      'GET /channels/$channelId/canvas/object-locks',
+      (map) => (map['object_ids'] as List<dynamic>).cast<String>().toSet(),
+    );
   }
 
   /// Locks [objectId] in place: nobody moves, restacks or erases it until it

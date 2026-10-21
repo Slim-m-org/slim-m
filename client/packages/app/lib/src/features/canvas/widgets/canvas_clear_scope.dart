@@ -17,11 +17,17 @@ Set<CanvasObjectKind> canvasKindsOf(api.CanvasClearScope scope) => {
 void clearDocumentScope(
   CanvasDocument document,
   int beforeSeq,
-  api.CanvasClearScope scope,
-) {
+  api.CanvasClearScope scope, {
+  int? opSeq,
+}) {
   final kinds = canvasKindsOf(scope);
   if (scope.kinds.isNotEmpty && kinds.isEmpty) return;
-  document.clearBelow(beforeSeq, kinds: kinds, authorId: scope.authorId);
+  document.clearBelow(
+    beforeSeq,
+    kinds: kinds,
+    authorId: scope.authorId,
+    opSeq: opSeq,
+  );
 }
 
 /// A kind-based clear the sheet offers.

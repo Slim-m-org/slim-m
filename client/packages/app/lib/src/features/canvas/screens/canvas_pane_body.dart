@@ -36,6 +36,8 @@ import 'canvas_pane_surface_actions.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_summary.dart';
+import 'canvas_board_pager.dart' show CanvasPaging;
+import 'canvas_paging_indicator.dart';
 import 'canvas_truncated_notice.dart';
 
 class CanvasPaneBody extends StatefulWidget {
@@ -61,6 +63,7 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onDismissError,
     this.onRetryError,
     required this.truncated,
+    this.paging,
     required this.loading,
     required this.onStroke,
     required this.onErase,
@@ -152,6 +155,9 @@ class CanvasPaneBody extends StatefulWidget {
   /// which would just fail the identical way again.
   final VoidCallback? onRetryError;
   final bool truncated;
+
+  /// Set while the rest of a big board is still arriving.
+  final CanvasPaging? paging;
   final bool loading;
   final StrokeCommitted onStroke;
   final ValueChanged<Offset> onErase;
@@ -344,6 +350,8 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                         relay: widget.viewRelay,
                         selfId: widget.selfId,
                       ),
+                    if (widget.paging case final paging?)
+                      CanvasPagingIndicator(paging: paging),
                     CanvasDockOverlay(
                       call: widget.callDock,
                       canvas: _dockData,

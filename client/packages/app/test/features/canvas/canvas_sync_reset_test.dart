@@ -94,12 +94,14 @@ void main() {
       );
 
       // A second trigger arrives immediately - inside the five-second floor.
-      sync.catchUp();
+      sync
+        ..seedFromViewport(0)
+        ..catchUp();
       async.flushMicrotasks();
       expect(coldFetches, 1);
 
+      // Postponed, not dropped: the stale client is reset once the floor ends.
       async.elapse(const Duration(seconds: 6));
-      sync.catchUp();
       async.flushMicrotasks();
       expect(coldFetches, 2);
     });

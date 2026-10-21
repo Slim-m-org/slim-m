@@ -44,6 +44,11 @@ class CanvasDocument extends ChangeNotifier {
   final PaintOrderCache _paintOrder = PaintOrderCache();
   final RemovedIds _removed = RemovedIds();
 
+  /// The highest op the owner of this document has applied, or null before it
+  /// follows an op stream. A placement at or below it that this document does
+  /// not hold was removed since, so it must not come back from a late reply.
+  int? reflectedSeq;
+
   Camera _camera = const Camera();
   Size _viewport = Size.zero;
   ui.Rect? _board;
@@ -111,9 +116,23 @@ class CanvasDocument extends ChangeNotifier {
   /// removed-ids check (`RemovedIds`) is what stops a viewport read that was already in
   /// flight when a removal landed from resurrecting it, permanently, with
   /// nothing later re-delivering the erase.
-  int? applyPlaced(CanvasStrokeInput input) {
-    if (_removed.contains(input.id)) return null;
+  ///
+  /// [overwrite] is for a snapshot read, which is authoritative for the box
+  /// and text of an object it names; a live echo or a placement reply never
+  /// sets it, since either can arrive after a newer move.
+  int? applyPlaced(
+    CanvasStrokeInput input, {
+    bool overwrite = false,
+    int? snapshotSeq,
+  }) {
+    if (_removed.contains(input.id)) {
+      if (!_restoredBefore(input.id, snapshotSeq)) return null;
+      forgetRemoved([input.id]);
+    }
     final known = _slotById[input.id];
+    if (!overwrite && known == null && _alreadyReflected(input.seq)) {
+      return null;
+    }
     if (known != null) {
       final existing = _strokes[known];
       // A duplicate naming a slot this document has since freed is refused.
@@ -122,10 +141,15 @@ class CanvasDocument extends ChangeNotifier {
       if (!existing.alive) {
         existing.alive = true;
         objectCount.value = objectCount.value + 1;
+        _trackOutside(existing);
       }
-      existing
-        ..zIndex = input.zIndex
-        ..seq = input.seq;
+      // A repeated placement reply must not undo a reorder that landed after the original.
+      if (overwrite || input.seq == 0 || input.seq > existing.seq) {
+        existing
+          ..zIndex = input.zIndex
+          ..seq = input.seq;
+      }
+      if (overwrite) _overwriteFrom(existing, input);
       _paintOrder.markDirty();
       return known;
     }
@@ -246,6 +270,8 @@ class CanvasDocument extends ChangeNotifier {
       image.dispose();
       return;
     }
+    final previous = stroke.image;
+    if (previous != null && !identical(previous, image)) previous.dispose();
     stroke.image = image;
     stroke.imageLoadFailed = false;
     notifyListeners();
@@ -293,9 +319,16 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive) return;
     stroke.alive = false;
+    _releaseSelection(id);
     _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
     _paintOrder.markDirty();
+  }
+
+  /// A dying object must not stay offered a resize, reorder or delete.
+  void _releaseSelection(String id) {
+    if (selectedObjectId.value == id) selectedObjectId.value = null;
+    if (elevatedObjectId.value == id) elevatedObjectId.value = null;
   }
 
   /// Removes a placed object by id, or records the id as removed even if
@@ -305,8 +338,8 @@ class CanvasDocument extends ChangeNotifier {
   /// A no-op on an id already removed or never placed at all, so a batched
   /// remove op replaying an id twice, or naming one this pane never
   /// fetched, costs nothing.
-  void removeObject(String id) {
-    _removed.add(id);
+  void removeObject(String id, {int? seq}) {
+    _removed.add(id, seq: seq);
     final slot = _slotById[id];
     if (slot != null) _freeSlot(slot);
   }
@@ -318,18 +351,19 @@ class CanvasDocument extends ChangeNotifier {
   /// erase ink as it is drawn, before its own placement is even known.
   ///
   /// [kinds] and [authorId] narrow it the way a scoped clear does; empty and
-  /// null match everything.
+  /// null match everything. [opSeq] is the clear's own seq, when known.
   void clearBelow(
     int beforeSeq, {
     Set<CanvasObjectKind> kinds = const {},
     String? authorId,
+    int? opSeq,
   }) {
     for (var slot = 0; slot < _strokes.length; slot++) {
       final stroke = _strokes[slot];
       if (stroke == null || stroke.seq <= 0 || stroke.seq > beforeSeq) continue;
       if (kinds.isNotEmpty && !kinds.contains(stroke.kind)) continue;
       if (authorId != null && stroke.authorId != authorId) continue;
-      _removed.add(stroke.id);
+      _removed.add(stroke.id, seq: opSeq);
       _freeSlot(slot);
     }
   }
@@ -340,6 +374,10 @@ class CanvasDocument extends ChangeNotifier {
           if (stroke != null && stroke.alive && stroke.authorId != null)
             stroke.authorId!,
       };
+
+  /// Records that the server numbered the removal of [ids] as [seq].
+  void confirmRemoved(Iterable<String> ids, int seq) =>
+      _removed.confirm(ids, seq);
 
   /// Drops ids from the removed-id tombstone set: a restore, which never
   /// re-materializes a stroke locally since its payload was freed on
@@ -354,7 +392,10 @@ class CanvasDocument extends ChangeNotifier {
     final restored = ids.toSet();
     if (restored.isEmpty) return;
     _removed.removeAll(restored);
-    _slotById.removeWhere((id, _) => restored.contains(id));
+    // A live or killed stroke keeps its address, or the next read would add a second copy.
+    _slotById.removeWhere(
+      (id, slot) => restored.contains(id) && _strokes[slot] == null,
+    );
   }
 
   /// Empties this document entirely: every stroke, the removed-id
@@ -372,21 +413,23 @@ class CanvasDocument extends ChangeNotifier {
     _outsideIds.clear();
     outsideBoardCount.value = 0;
     objectCount.value = 0;
+    selectedObjectId.value = null;
+    elevatedObjectId.value = null;
+    notifyListeners();
   }
 
   void _freeSlot(int slot) {
     final stroke = _strokes[slot];
     if (stroke == null) return;
-    // A dying selection must not stay offered a resize or reorder action.
-    if (selectedObjectId.value == stroke.id) selectedObjectId.value = null;
-    if (elevatedObjectId.value == stroke.id) elevatedObjectId.value = null;
+    _releaseSelection(stroke.id);
     scene.remove(slot);
     if (_outsideIds.remove(stroke.id)) {
       outsideBoardCount.value = _outsideIds.length;
     }
     stroke.image?.dispose();
     _strokes[slot] = null;
-    objectCount.value = objectCount.value - 1;
+    // A killed stroke was already counted out.
+    if (stroke.alive) objectCount.value = objectCount.value - 1;
     _paintOrder.markDirty();
   }
 

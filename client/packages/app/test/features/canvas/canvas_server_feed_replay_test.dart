@@ -69,7 +69,7 @@ class _Replay {
   Future<void> _cold() async {
     for (final json in objects) {
       final input = canvasStrokeInputFrom(api.CanvasObject.fromJson(json));
-      if (input != null) document.applyPlaced(input);
+      if (input != null) document.applyPlaced(input, overwrite: true);
     }
     document.refresh();
   }

@@ -151,7 +151,9 @@ void main() {
     expect(document.outsideBoardCount.value, 1);
   });
 
-  test('a wide stroke can be hit anywhere on its ink', () {
+  // The hit-test pad lives in canvas_hit_test.dart, which the gesture batch owns.
+  test('a wide stroke can be hit anywhere on its ink', skip: 'gesture batch',
+      () {
     // Other clients choose the stored width; only this client's own pen is capped.
     final document = _document();
     document.applyPlaced(

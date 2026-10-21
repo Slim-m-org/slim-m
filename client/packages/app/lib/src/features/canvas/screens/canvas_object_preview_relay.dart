@@ -49,7 +49,12 @@ class CanvasObjectPreviewRelay {
     final at = now ?? clock.now();
     _activeObjectId = objectId;
     final last = _lastSent;
-    if (last != null && at.difference(last) < cursorSendInterval) return;
+    // A clock stepped back makes the gap negative, which must not mute the relay.
+    final recent =
+        last != null &&
+        !at.isBefore(last) &&
+        at.difference(last) < cursorSendInterval;
+    if (recent) return;
     _lastSent = at;
     send(objectId, box, false);
   }
@@ -78,7 +83,7 @@ class CanvasObjectPreviewRelay {
   }
 
   /// The committed move arrived: it is the exact final box.
-  void settle(String objectId) => previews.settle(objectId);
+  void settle(String objectId) => previews.settle(objectId, now: clock.now());
 
   /// A frame callback rather than a periodic timer: it fires in step with
   /// paint, and none arrive while the app is hidden.

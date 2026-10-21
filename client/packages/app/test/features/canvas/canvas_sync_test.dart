@@ -384,7 +384,7 @@ void main() {
       async.flushMicrotasks();
 
       // 'a' was placed, removed at seq 3, then restored at seq 5: tombstone gone, but restore never re-materializes locally.
-      expect(document.applyPlaced(stroke('a')), isNotNull);
+      expect(document.applyPlaced(stroke('a'), overwrite: true), isNotNull);
       // 'b' was placed at seq 2 and cleared at or below seq 2: still tombstoned, so a replay is refused.
       expect(document.applyPlaced(stroke('b', seq: 2)), isNull);
       expect(sync.asOfSeq, 5);
