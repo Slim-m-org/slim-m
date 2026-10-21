@@ -268,7 +268,8 @@ class CanvasPaneFixture {
                 'id': 'server-op-$_opSeq',
                 'seq': seq,
                 'kind': body['kind'],
-                'affected': 1,
+                // A remove takes every id it names, as the server does for live unlocked ones.
+                'affected': (body['object_ids'] as List?)?.length ?? 1,
                 'created_at': 0,
               },
               'fresh': true,

@@ -292,12 +292,13 @@ void main() {
   test('a refused move does not overwrite a newer remote position', () async {
     final rig = _Rig(reply: (body, n) => _status(403))
       ..place('a', kind: CanvasObjectKind.shape);
+    // A shape answers only on its outline, so the press lands on the top edge.
     rig.ops.beginSelect(
-      const Offset(150, 150),
+      const Offset(250, 100),
       manageCanvas: false,
       selfId: 'me',
     );
-    rig.ops.dragSelect(const Offset(250, 250), lockAspect: true);
+    rig.ops.dragSelect(const Offset(350, 200), lockAspect: true);
     rig.document
       ..moveObject('a', 500, 500, 300, 200)
       ..refresh();

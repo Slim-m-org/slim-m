@@ -67,7 +67,7 @@ class FuzzConfig {
     this.flap = true,
     this.camera = false,
     this.resetGap = 2000,
-    this.avoid = const {'lostPlacementReplies'},
+    this.avoid = const {},
   });
 
   /// A request lost on the way to the server.
@@ -91,8 +91,7 @@ class FuzzConfig {
   /// Behaviours the generator leaves out, so a known failure does not hide
   /// the next one: `previews` (remote drags), `deleteLocked` (Delete on a
   /// locked selection), `foreignEdit` (a note edit the UI would not offer), `locks`,
-  /// and `lostPlacementReplies` (the commit queue gives up after three lost
-  /// replies, which the no-lost-work batch owns; on by default until it lands).
+  /// and `lostPlacementReplies` (a placement whose reply is lost).
   final Set<String> avoid;
 
   bool allows(String behaviour) => !avoid.contains(behaviour);
@@ -474,8 +473,13 @@ class FuzzWorld {
       'placed ${object.id} seq=${object.seq}',
     api.CanvasObjectsRemoved(:final seq, :final objectIds) =>
       'removed seq=$seq $objectIds',
-    api.CanvasCleared(:final seq, :final beforeSeq, :final scope) =>
-      'cleared seq=$seq <=$beforeSeq kinds=${scope.kinds} author=${scope.authorId}',
+    api.CanvasCleared(
+      :final seq,
+      :final beforeSeq,
+      :final scope,
+      :final sparedIds,
+    ) =>
+      'cleared seq=$seq <=$beforeSeq kinds=${scope.kinds} author=${scope.authorId} spared=$sparedIds',
     api.CanvasObjectsRestored(:final seq, :final objectIds) =>
       'restored seq=$seq $objectIds',
     api.CanvasObjectMoved(:final seq, :final objectId) =>
