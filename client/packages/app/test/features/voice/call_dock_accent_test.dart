@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Decision 0047, point 3: accent marks only a tool or an open mode. A live
 /// mic is plain with a level bar, a muted mic is the slashed icon in a danger
-/// outline, a camera that is on stays plain, and sharing keeps the accent.
+/// outline, a camera that is on and sharing take the accent.
 library;
 
 import 'package:flutter/material.dart';
@@ -64,12 +64,14 @@ void main() {
     expect(find.byKey(const ValueKey('call-dock-level')), findsNothing);
   });
 
-  testWidgets('a camera that is on is not accented', (tester) async {
+  testWidgets('a camera that is on takes the accent like a live share', (
+    tester,
+  ) async {
     await pumpControls(
       tester,
       const VoiceFlags(state: VoiceSessionState.connected, cameraEnabled: true),
     );
-    expect(_chip(tester, AppIcons.camera).color, tokens.surfaceRaised);
+    expect(_chip(tester, AppIcons.camera).color, tokens.accentSoft);
   });
 
   testWidgets('a live share keeps the accent, since sharing is an open mode', (

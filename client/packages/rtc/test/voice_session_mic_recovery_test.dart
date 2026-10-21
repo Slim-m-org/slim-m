@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
 
 class _EmptyRoom extends lk.Room {
@@ -133,6 +134,7 @@ class _Rig {
       micPort: mic,
       audioDevices: devices,
       micRecoveryTiming: _timing,
+      audioLog: (message, {level = LogLevel.info}) => logs.add(message),
       captureRestartDebounce: const Duration(milliseconds: 10),
       inputGate: InputGateMonitor(
         interval: const Duration(milliseconds: 5),
@@ -159,6 +161,7 @@ class _Rig {
   final double levelDb;
   final bool strongActive;
   final statuses = <MicStatus>[];
+  final logs = <String>[];
   late final VoiceSession session;
 
   Future<void> join({bool micOn = true}) => session.join(
@@ -300,6 +303,20 @@ void main() {
     rig.devices.changes.add(null);
     await _until(() => rig.mic.restartDevices.length == 2);
     expect(rig.mic.restartDevices.last, 'bt');
+  });
+
+  test('repeated device changes that settle the same log one line', () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    await rig.join();
+
+    for (var i = 0; i < 4; i++) {
+      rig.devices.changes.add(null);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+
+    final lines = rig.logs.where((l) => l.startsWith('Audio devices changed'));
+    expect(lines, hasLength(1));
   });
 
   test('a device change with a healthy capture restarts nothing', () async {

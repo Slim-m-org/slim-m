@@ -146,6 +146,7 @@ def follow_and_bring_everyone(a, b):
     _wait_zoom(b, lambda z: z == 100, "b could not fit")
     _ctrl_wheel(a, -100, notches=2)
     a.click(L.BRING_EVERYONE)
+    a.click(L.BRING_EVERYONE_CONFIRM, settle=2)  # the confirm dialog's own button
     _wait_zoom(b, lambda z: z > 100, "was not brought to a")
     print("  bring everyone to me jumped b to a's view")
 

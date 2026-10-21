@@ -44,6 +44,7 @@ class _HoverRevealState extends State<HoverReveal> {
   bool _pinned = false;
   bool _menuOpen = false;
   bool _focusWithin = false;
+  bool _overlayHovered = false;
 
   void _onFocusChange(bool focused) {
     final visible =
@@ -53,11 +54,16 @@ class _HoverRevealState extends State<HoverReveal> {
   }
 
   void _pin(bool pinned) {
-    if (_pinned != pinned) setState(() => _pinned = pinned);
+    if (mounted && _pinned != pinned) setState(() => _pinned = pinned);
+  }
+
+  void _reportOverlayHover(bool hovered) {
+    if (!mounted || _overlayHovered == hovered) return;
+    setState(() => _overlayHovered = hovered);
   }
 
   void _reportMenuOpen(bool open) {
-    if (_menuOpen != open) setState(() => _menuOpen = open);
+    if (mounted && _menuOpen != open) setState(() => _menuOpen = open);
   }
 
   @override
@@ -68,13 +74,14 @@ class _HoverRevealState extends State<HoverReveal> {
       child: HoverRevealScope(
         pin: _pin,
         reportMenuOpen: _reportMenuOpen,
+        reportOverlayHover: _reportOverlayHover,
         child: Focus(
           canRequestFocus: false,
           skipTraversal: true,
           onFocusChange: _onFocusChange,
           child: widget.builder(
             context,
-            _hovered || _pinned,
+            _hovered || _pinned || _overlayHovered,
             _menuOpen,
             _focusWithin,
           ),
@@ -94,6 +101,7 @@ class HoverRevealScope extends InheritedWidget {
     super.key,
     required this.pin,
     required this.reportMenuOpen,
+    required this.reportOverlayHover,
     required super.child,
   });
 
@@ -104,11 +112,17 @@ class HoverRevealScope extends InheritedWidget {
   /// own doc for why this is not the same question [pin] answers.
   final ValueChanged<bool> reportMenuOpen;
 
+  /// A control this row floats outside its own bounds reports the pointer over
+  /// it, so reaching it does not read as leaving the row.
+  final ValueChanged<bool> reportOverlayHover;
+
   /// Null outside a hover-revealed subtree, where nothing needs pinning.
   static HoverRevealScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<HoverRevealScope>();
 
   @override
   bool updateShouldNotify(HoverRevealScope oldWidget) =>
-      pin != oldWidget.pin || reportMenuOpen != oldWidget.reportMenuOpen;
+      pin != oldWidget.pin ||
+      reportMenuOpen != oldWidget.reportMenuOpen ||
+      reportOverlayHover != oldWidget.reportOverlayHover;
 }

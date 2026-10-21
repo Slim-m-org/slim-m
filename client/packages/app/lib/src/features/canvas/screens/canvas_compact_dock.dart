@@ -48,6 +48,21 @@ class CanvasCompactDock extends StatelessWidget {
                   canvas: canvas,
                   part: CanvasToolsRowPart.toolsOnly,
                 ),
+                // The header that holds undo, the overflow and the way out is gone in fullscreen, so they move here.
+                if (canvas.fullscreen)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CanvasDockToolsRow(
+                        canvas: canvas,
+                        part: CanvasToolsRowPart.editOnly,
+                      ),
+                      const SizedBox(width: AppSpacing.s8),
+                      CanvasDockExitFullscreen(
+                        onPressed: canvas.onToggleFullscreen,
+                      ),
+                    ],
+                  ),
               ],
             ),
           if (showTools && call != null) const SizedBox(height: AppSpacing.s8),
@@ -55,16 +70,20 @@ class CanvasCompactDock extends StatelessWidget {
             Consumer(
               builder: (context, ref, _) => FloatingDockCard(
                 trailing: CallLeaveButton(controller: call.controller),
-                rows: callRowsWithExtras(
-                  context,
-                  ref,
-                  // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
-                  width: MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
-                  controller: call.controller,
-                  voice: call.voice,
-                  toggle: botCallChipsFor(ref, call.channelId),
-                  toggleSlots: botCallChipCount(ref, call.channelId),
-                ),
+                rows: [
+                  ...callRowsWithExtras(
+                    context,
+                    ref,
+                    // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
+                    width:
+                        MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
+                    controller: call.controller,
+                    voice: call.voice,
+                    toggle: botCallChipsFor(ref, call.channelId),
+                    toggleSlots: botCallChipCount(ref, call.channelId),
+                    toggleMenu: botCallMenuOptions(ref, call.channelId),
+                  ),
+                ],
               ),
             ),
         ],

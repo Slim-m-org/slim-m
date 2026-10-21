@@ -20,6 +20,8 @@
 /// `context_menu_region_reachability_test.dart`.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -62,6 +64,7 @@ class ContextMenuRegion extends StatefulWidget {
     this.opensAbove = false,
     this.focusNode,
     this.menuWidth = 200,
+    this.tapRegionGroupId,
   });
 
   /// Builds the menu's items given a callback that closes it. Called fresh
@@ -123,6 +126,9 @@ class ContextMenuRegion extends StatefulWidget {
   /// Wider for a menu that carries a slider.
   final double menuWidth;
 
+  /// Taps inside a [TapRegion] of this group do not count as outside the menu, so a trigger can toggle it.
+  final Object? tapRegionGroupId;
+
   @override
   State<ContextMenuRegion> createState() => ContextMenuRegionState();
 }
@@ -143,9 +149,21 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// carried away from the row it was anchored to.
   ScrollPosition? _watched;
 
+  /// Whether the parent was last told this region is open.
+  bool _toldOpen = false;
+
   @override
   void dispose() {
     _watched?.removeListener(_closeOnScroll);
+    // A region unmounted while open never gets another chance to say it closed, which left a parent pinned open for good.
+    if (_toldOpen) {
+      final onOpenChanged = widget.onOpenChanged;
+      final onVisibilityChanged = widget.onVisibilityChanged;
+      scheduleMicrotask(() {
+        onVisibilityChanged?.call(false);
+        onOpenChanged?.call(false);
+      });
+    }
     super.dispose();
   }
 
@@ -156,6 +174,12 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// [at], a global position, anchors the menu beside the control that asked
   /// instead of at the region's corner.
   void open({Offset? at}) => _setOpen(true, pointerGlobal: at);
+
+  /// Closes the menu or sheet if one is open.
+  void close() => _setOpen(false);
+
+  /// Closes the menu when it is open and opens it otherwise, for a trigger that owns both.
+  void toggle() => _controller.isShowing || _sheetOpen ? close() : open();
 
   /// [pinRow] mirrors [onOpenChanged]'s own doc: true (the default) for a
   /// right-click and every close, false for a long press, which has nothing
@@ -179,6 +203,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     }
     if (!open && !_controller.isShowing) return;
     widget.onVisibilityChanged?.call(open);
+    _toldOpen = open;
     if (pinRow || !open) widget.onOpenChanged?.call(open);
     if (open && !_controller.isShowing) _anchor = _anchorOffset(pointerGlobal);
     _watchScroll(open);
@@ -195,6 +220,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     if (_sheetOpen) return;
     _sheetOpen = true;
     widget.onVisibilityChanged?.call(true);
+    _toldOpen = true;
     if (pinRow) widget.onOpenChanged?.call(true);
     showAppSheet<void>(
       context,
@@ -214,6 +240,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   void _onSheetClosed() {
     _sheetOpen = false;
     if (!mounted) return;
+    _toldOpen = false;
     widget.onVisibilityChanged?.call(false);
     widget.onOpenChanged?.call(false);
   }
@@ -271,6 +298,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
           child: AnimatedMenuSurface(
             controller: _controller,
             child: TapRegion(
+              groupId: widget.tapRegionGroupId,
               onTapOutside: (_) => _setOpen(false),
               child: ContextMenuKeyboardScope(
                 onDismiss: () => _setOpen(false),

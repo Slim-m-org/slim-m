@@ -168,9 +168,15 @@ class _ContextMenuKeyboardScopeState extends State<ContextMenuKeyboardScope> {
           },
         ),
       },
-      child: FocusScope(
-        node: _node,
-        child: FocusTraversalGroup(child: widget.child),
+      // Bound here, not left to the app default: an OverlayPortal menu sits under its opener's own Escape bindings.
+      child: Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+        },
+        child: FocusScope(
+          node: _node,
+          child: FocusTraversalGroup(child: widget.child),
+        ),
       ),
     );
   }

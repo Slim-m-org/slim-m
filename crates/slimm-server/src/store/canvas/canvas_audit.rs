@@ -14,6 +14,9 @@
 
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
+/// Rows per `INSERT`: five bound values each stay far under SQLite's variable limit.
+const AUDIT_ROWS_PER_INSERT: usize = 500;
+
 /// Records one audit row per id in `object_ids`, for a `kind` of `"remove"`,
 /// `"clear"` or `"restore"` only - the moderation acts, the same set
 /// `http::canvas_ops`'s own actor-withholding check already singles out.
@@ -30,18 +33,18 @@ pub(in crate::store) async fn record_canvas_audit(
     if !matches!(kind, "remove" | "clear" | "restore") {
         return Ok(());
     }
-    for object_id in object_ids {
-        sqlx::query!(
-            r#"INSERT INTO canvas_audit_log (channel_id, object_id, actor_id, action, created_at)
-               VALUES (?, ?, ?, ?, ?)"#,
-            channel_id,
-            object_id,
-            actor_id,
-            kind,
-            created_at
-        )
-        .execute(&mut **tx)
-        .await?;
+    for chunk in object_ids.chunks(AUDIT_ROWS_PER_INSERT) {
+        let mut builder = sqlx::QueryBuilder::new(
+            "INSERT INTO canvas_audit_log (channel_id, object_id, actor_id, action, created_at) ",
+        );
+        builder.push_values(chunk, |mut row, object_id| {
+            row.push_bind(channel_id)
+                .push_bind(*object_id)
+                .push_bind(actor_id)
+                .push_bind(kind)
+                .push_bind(created_at);
+        });
+        builder.build().execute(&mut **tx).await?;
     }
     Ok(())
 }

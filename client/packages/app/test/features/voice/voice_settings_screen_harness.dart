@@ -18,9 +18,10 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/voice/providers/mic_preview.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/video_quality_recorder.dart';
@@ -268,6 +269,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     askedForCameraOnJoin = cameraEnabled;
     _state = VoiceSessionState.connected;
@@ -325,6 +327,7 @@ Widget wrap(Widget child, {List<Override> overrides = const []}) {
     container: ProviderContainer(
       overrides: [
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        micPreviewFactoryProvider.overrideWithValue(_quietMicPreview),
         ...overrides,
       ],
     )..read(preferencesProvider),
@@ -334,4 +337,19 @@ Widget wrap(Widget child, {List<Override> overrides = const []}) {
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
   );
+}
+
+/// No native audio in a widget test: the capture never opens, and nothing waits on a timer for it.
+MicPreview _quietMicPreview() =>
+    MicPreview(source: _NeverOpens(), openTimeout: null);
+
+class _NeverOpens implements MicPreviewSource {
+  @override
+  Future<void> open(String? deviceId) => Completer<void>().future;
+
+  @override
+  Future<({double levelDb, bool voice})?> read() async => null;
+
+  @override
+  Future<void> close() async {}
 }

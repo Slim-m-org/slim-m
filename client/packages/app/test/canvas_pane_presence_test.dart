@@ -21,6 +21,7 @@ const _here = VoiceParticipant(
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 const _blockedParticipant = VoiceParticipant(
@@ -30,6 +31,7 @@ const _blockedParticipant = VoiceParticipant(
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 const _local = VoiceParticipant(
@@ -39,6 +41,7 @@ const _local = VoiceParticipant(
   isMuted: false,
   isLocal: true,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 void main() {
@@ -92,7 +95,7 @@ void main() {
       expect(find.byType(CanvasPresenceBubble), findsNWidgets(2));
       expect(
         find.descendant(
-          of: find.byType(CanvasPresenceLayer),
+          of: find.byType(CanvasPresenceBackdrop),
           matching: find.byType(CanvasPresenceBubble),
         ),
         findsNWidgets(2),

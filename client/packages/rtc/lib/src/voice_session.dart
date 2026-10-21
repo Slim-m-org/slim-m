@@ -21,10 +21,12 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
+import 'audio_stats.dart';
 import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'mic_release.dart';
 import 'input_gate.dart';
+import 'join_timings.dart';
 import 'mic_failure.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
@@ -50,6 +52,7 @@ import 'voice_disconnect_reason.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
+import 'voice_health.dart';
 import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
@@ -57,7 +60,9 @@ import 'package:slimm_api/api.dart'
     show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
 
 part 'voice_session_audio_devices.dart';
+part 'voice_session_health.dart';
 part 'voice_session_input_gate.dart';
+part 'voice_session_join.dart';
 part 'voice_session_listener_audio.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
@@ -78,6 +83,7 @@ typedef RoomFactory = lk.Room Function();
 class VoiceSession
     with
         VoiceSessionAudioDevices,
+        VoiceSessionHealth,
         VoiceSessionInputGate,
         VoiceSessionMicRecovery,
         VoiceSessionMicRelease,
@@ -97,7 +103,9 @@ class VoiceSession
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
-  })  : _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
+    JoinTimings? joinTimings,
+  })  : _joinTimings = joinTimings ?? JoinTimings(),
+        _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
@@ -140,6 +148,8 @@ class VoiceSession
       );
 
   late final RoomFactory _roomFactory;
+  @override
+  final JoinTimings _joinTimings;
   final BroadcastBridge _broadcast;
   final DesktopSources _desktopSources;
   final CameraSwitching _cameraSwitching;
@@ -178,8 +188,7 @@ class VoiceSession
   VoiceDisconnect? _lastDisconnect;
   bool _disposed = false;
 
-  /// See [setSpeakingSensitivity]; 1.0 matches this session's behaviour
-  /// before that setting existed.
+  /// See [setSpeakingSensitivity]; 1.0 is the behaviour before the setting.
   double _speakingSensitivity = 1.0;
 
   ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
@@ -205,9 +214,7 @@ class VoiceSession
   /// How readily [VoiceParticipant.isSpeaking] reports true; see
   /// [passesActivationThreshold] for what this can and cannot do.
   ///
-  /// Safe before a room exists (only stored, for the first [_refreshParticipants]
-  /// to pick up) and live mid-call: it re-evaluates the current roster
-  /// immediately, the same shape [setLocallyMuted] already uses.
+  /// Safe before a room exists, and live mid-call: it re-evaluates the roster.
   void setSpeakingSensitivity(double sensitivity) {
     _speakingSensitivity = sensitivity.clamp(0.0, 1.0);
     _refreshParticipants();
@@ -238,24 +245,14 @@ class VoiceSession
   /// tell that a newer call has taken this session over; see [leave].
   int _generation = 0;
 
-  /// Joins a room with a token minted by the server.
-  ///
-  /// The token decides what this connection may do: a member without SPEAK gets
-  /// one that cannot publish, and the SFU enforces that, so nothing here needs
-  /// to know about permissions. Rejoining an already-connected session leaves
-  /// the old one first rather than stacking two connections.
-  ///
-  /// Overlapping calls serialize rather than race: both would otherwise pass
-  /// the `_room != null` check before either assigns it, and two rooms then
-  /// fight over one session's state, stranding the UI on connecting. A second
-  /// tap of Join, or a channel switch mid-connect, now waits for the first
-  /// attempt to settle and then runs, which ends in the state the *last*
-  /// caller asked for.
+  /// Joins a room with a server-minted token; [canPublish] only stops a listen-only join from opening the microphone, and rejoining leaves the old connection first.
+  /// Overlapping calls serialize, so a second tap or a channel switch mid-connect waits and the state ends as the last caller asked.
   Future<void> join({
     required String url,
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) {
     final previous = _joining ?? Future<void>.value();
     final current = previous
@@ -267,56 +264,13 @@ class VoiceSession
             token: token,
             microphoneEnabled: microphoneEnabled,
             cameraEnabled: cameraEnabled,
+            canPublish: canPublish,
           ),
         );
     _joining = current.whenComplete(() {
       if (identical(_joining, current)) _joining = null;
     });
     return current;
-  }
-
-  Future<void> _join({
-    required String url,
-    required String token,
-    required bool microphoneEnabled,
-    required bool cameraEnabled,
-  }) async {
-    if (_disposed) return;
-    if (_room != null) await leave();
-    // Claims the session past the leave above, whose own guard has run by now.
-    _generation++;
-
-    _lastDisconnect = null;
-    _setState(VoiceSessionState.connecting);
-    final generation = _generation;
-    await _forgetUnpluggedDevices();
-    if (_disposed || generation != _generation) return;
-    final room = _roomFactory();
-    _room = room;
-    _listen(room);
-    try {
-      await room.connect(url, token);
-      // A leave (or a newer join) may already have taken this room while
-      // connect was in flight; whoever superseded us already tore it down,
-      // so there is nothing left here to publish to or report on.
-      if (!identical(_room, room)) return;
-      // Publishing is separate from connecting on purpose: a join preview
-      // can arrive muted, and a token without SPEAK must not fail the join.
-      final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
-      if (cameraEnabled) {
-        await _trySetCamera(true);
-      }
-      if (!identical(_room, room)) return;
-      _refreshParticipants();
-      _setState(VoiceSessionState.connected);
-      if (micFailed) _retryMicAfterJoin();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'join the call', e, stack);
-      if (!identical(_room, room)) return;
-      _lastError = e;
-      await _teardown();
-      _setState(VoiceSessionState.failed);
-    }
   }
 
   /// Leaves the call. Safe to call when not in one.
@@ -326,12 +280,9 @@ class VoiceSession
   /// silently deafen the next call before anyone asked for that, with
   /// nothing in [VoiceState] (which does reset) around to say so.
   ///
-  /// None of that happens for a leave a newer join has already superseded.
-  /// [_teardown] clears `_room` before it awaits anything, so a join
-  /// starting while a disconnect is still in flight builds its room
-  /// unobstructed - and would then have this call's trailing reset land on
-  /// top of it, reporting a connecting or connected call as idle and
-  /// clearing the audio state it had just been given.
+  /// None of that happens for a leave a newer join has already superseded:
+  /// [_teardown] clears `_room` before it awaits, so a join starting mid-leave
+  /// would otherwise have this trailing reset land on top of its new call.
   Future<void> leave() async {
     final generation = ++_generation;
     await _teardown();
@@ -362,23 +313,13 @@ class VoiceSession
   ///
   /// Calling this is what makes a later [setScreenShareEnabled] able to find
   /// anything at all: see [DesktopSources].
-  Future<List<ScreenShareSource>> screenShareSources() async {
-    try {
-      return await _desktopSources.list();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice,
-          'list the screens and windows that can be shared', e, stack);
-      _lastError = e;
-      return const [];
-    }
-  }
+  Future<List<ScreenShareSource>> screenShareSources() => _reported(
+        'list the screens and windows that can be shared',
+        const [],
+        _desktopSources.list,
+      );
 
-  /// Mutes or unmutes the local microphone.
-  ///
-  /// Returns whether the microphone ended up in the requested state, which is
-  /// not the same as whether the call asked for it: a token without SPEAK, or a
-  /// denied OS permission, both mean no. The UI needs to reflect what happened
-  /// rather than what was requested, or the button lies.
+  /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
   Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
 
   /// Enables or disables the local camera live, mid-call. The [join]-time
@@ -498,40 +439,41 @@ class VoiceSession
   /// The cameras this desktop (or browser) offers, for the picker. Calling
   /// this is what makes a later [selectCameraDevice] able to find anything,
   /// the same reason [screenShareSources] has to run first.
-  Future<List<CameraDevice>> cameraDevices() async {
-    try {
-      return await _cameraSwitching.devices();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'list cameras', e, stack);
-      _lastError = e;
-      return const [];
-    }
-  }
+  Future<List<CameraDevice>> cameraDevices() =>
+      _reported('list cameras', const [], _cameraSwitching.devices);
 
   /// Flips the published camera between front and back, mobile only.
-  Future<bool> flipCamera() async {
-    try {
-      return await _cameraSwitching.flip(_room?.localParticipant);
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, 'switch the camera', e, stack);
-      _lastError = e;
-      return false;
-    }
-  }
+  Future<bool> flipCamera() => _reported(
+        'switch the camera',
+        false,
+        () => _cameraSwitching.flip(_room?.localParticipant),
+      );
 
   /// Switches the published camera to [device], desktop's answer to
   /// [flipCamera] where more than one webcam can exist.
   Future<bool> selectCameraDevice(CameraDevice device) async {
     final room = _room;
     if (room == null) return false;
-    try {
+    return _reported('choose the camera', false, () async {
       await _cameraSwitching.select(room, device);
       _refreshParticipants();
       return true;
+    });
+  }
+
+  /// Runs [run]; a failure is reported, kept as [lastError], and answered
+  /// with [fallback] so a picker or toggle never throws into the UI.
+  Future<T> _reported<T>(
+    String action,
+    T fallback,
+    Future<T> Function() run,
+  ) async {
+    try {
+      return await run();
     } catch (e, stack) {
-      reportFailure(LogTag.voice, 'choose the camera', e, stack);
+      reportFailure(LogTag.voice, action, e, stack);
       _lastError = e;
-      return false;
+      return fallback;
     }
   }
 
@@ -546,6 +488,8 @@ class VoiceSession
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();
+    health.dispose();
+    _joinTimings.finish();
     // After `_teardown`, or its own `resetFacing()` writes past disposal.
     await _teardown();
     _cameraSwitching.dispose();

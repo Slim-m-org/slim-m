@@ -1,6 +1,6 @@
 # 0007 - Extensions, and why untrusted execution can only ever live behind one
 
-Status: proposed, 2026-08-03.
+Status: superseded by [0021](0021-modules-and-the-dock.md), 2026-08-03.
 Raised by the owner in the `backlog` channel: first as "is it possible to let people run code, like how jupyter notebooks function", declined as a built-in, then as "perhaps we can backlog a plan for it, like a plugins marketplace and they could choose to configure code execution blocks etc".
 
 ## Why the direct version was declined
@@ -79,3 +79,4 @@ None of that is worth settling until something is actually being built against i
 
 Declined as a built-in and marked as such in the `backlog` channel.
 Recorded here as the shape it would take if it is ever picked up, so the decline is a design position rather than a shrug.
+It was picked up as the Dock, a module system an admin opts into per install, which is decision 0021; the broker shape described here is not what shipped.

@@ -56,10 +56,11 @@ Rect visibleBoardPart(Rect worldView, Rect board) {
 /// own aspect, so a follower on another shape sees extra board around it.
 Camera cameraForBoardView(Rect view, Rect board, Size viewport) {
   if (viewport.isEmpty || view.isEmpty) return boardFitCamera(board, viewport);
-  final zoom = math.min(
-    viewport.width / view.width,
-    viewport.height / view.height,
-  );
+  final fit = boardFitZoom(board, viewport);
+  final zoom = math
+      .min(viewport.width / view.width, viewport.height / view.height)
+      .clamp(fit, math.max(fit, maxZoom))
+      .toDouble();
   return clampCameraToBoard(
     Camera(
       x: view.center.dx - viewport.width / (2 * zoom),
@@ -70,3 +71,31 @@ Camera cameraForBoardView(Rect view, Rect board, Size viewport) {
     viewport,
   );
 }
+
+/// [box] moved inside [board], and shrunk to fit it when [shrink] and it is
+/// larger. Without [shrink] a box too large for an axis keeps its size and
+/// sits on the board's near edge, as a stroke's fixed geometry must.
+Rect fitBoxIntoBoard(Rect box, Rect board, {bool shrink = true}) {
+  var width = box.width;
+  var height = box.height;
+  if (shrink && (width > board.width || height > board.height)) {
+    final scale = math.min(board.width / width, board.height / height);
+    width *= scale;
+    height *= scale;
+  }
+  double place(double start, double extent, double lo, double hi) =>
+      extent >= hi - lo ? lo : start.clamp(lo, hi - extent).toDouble();
+  return Rect.fromLTWH(
+    place(box.left, width, board.left, board.right),
+    place(box.top, height, board.top, board.bottom),
+    width,
+    height,
+  );
+}
+
+/// Whether [box] lies wholly inside [board].
+bool boardHoldsBox(Rect board, Rect box) =>
+    box.left >= board.left &&
+    box.top >= board.top &&
+    box.right <= board.right &&
+    box.bottom <= board.bottom;

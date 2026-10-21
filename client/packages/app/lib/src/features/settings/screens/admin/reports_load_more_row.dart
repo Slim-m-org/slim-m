@@ -36,7 +36,7 @@ class ReportsLoadMoreRow extends StatelessWidget {
       return const Center(
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
-          child: CircularProgressIndicator(),
+          child: AppSpinner(size: AppSpinnerSize.lg),
         ),
       );
     }

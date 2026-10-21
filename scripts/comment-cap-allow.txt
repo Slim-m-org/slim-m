@@ -148,7 +148,7 @@ client/packages/platform/test/local_notifications_test.dart 1
 client/packages/platform/test/persistent_key_store_test.dart 3
 client/packages/platform/test/platform_test.dart 4
 client/packages/rtc/lib/src/media_capabilities.dart 1
-client/packages/rtc/lib/src/voice_session.dart 3
+client/packages/rtc/lib/src/voice_session.dart 1
 client/packages/rtc/test/broadcast_bridge_test.dart 2
 client/packages/rtc/test/media_capabilities_test.dart 2
 client/packages/rtc/test/voice_session_test.dart 9
@@ -174,7 +174,8 @@ crates/slimm-server/src/http/roles.rs 1
 crates/slimm-server/src/http/safety.rs 4
 crates/slimm-server/src/http/sync.rs 3
 crates/slimm-server/src/http/ws.rs 5
-crates/slimm-server/src/http/ws/frames.rs 2
+crates/slimm-server/src/http/ws/client_frames.rs 1
+crates/slimm-server/src/http/ws/frames.rs 1
 crates/slimm-server/src/http/ws/signals.rs 1
 crates/slimm-server/src/identity.rs 1
 crates/slimm-server/src/ids.rs 2
@@ -217,7 +218,7 @@ crates/slimm-server/tests/me.rs 2
 crates/slimm-server/tests/member_roles.rs 1
 crates/slimm-server/tests/message_endpoints.rs 2
 crates/slimm-server/tests/permissions.rs 2
-crates/slimm-server/tests/presence.rs 5
+crates/slimm-server/tests/presence.rs 4
 crates/slimm-server/tests/push_relay_contract_fixture.rs 3
 crates/slimm-server/tests/push_store.rs 5
 crates/slimm-server/tests/reactions.rs 1

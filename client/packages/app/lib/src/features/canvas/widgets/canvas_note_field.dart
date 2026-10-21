@@ -56,6 +56,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   final _listKeys = ComposerListKeys();
   AutocompleteQuery? _query;
   int _selected = 0;
+  bool _full = false;
 
   @override
   void initState() {
@@ -86,6 +87,7 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
   }
 
   void _onChange() {
+    if (_full && _fits(widget.controller.text)) setState(() => _full = false);
     final query = _supportedQuery(
       autocompleteQueryAt(
         widget.controller.text,
@@ -124,13 +126,30 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
     final query = _query;
     if (query == null) return;
     final text = widget.controller.text;
-    widget.controller.value = TextEditingValue(
-      text: text.replaceRange(query.start, query.end, suggestion.insert),
-      selection: TextSelection.collapsed(
-        offset: query.start + suggestion.insert.length,
+    _setIfFits(
+      TextEditingValue(
+        text: text.replaceRange(query.start, query.end, suggestion.insert),
+        selection: TextSelection.collapsed(
+          offset: query.start + suggestion.insert.length,
+        ),
       ),
     );
     widget.focusNode.requestFocus();
+  }
+
+  bool _fits(String text) => noteWireBytes(text) <= maxNoteTextBytes;
+
+  /// Programmatic edits bypass the field's formatter, so they meet the same limit here.
+  void _setIfFits(TextEditingValue value) {
+    if (_fits(value.text)) {
+      widget.controller.value = value;
+    } else {
+      _markFull();
+    }
+  }
+
+  void _markFull() {
+    if (!_full) setState(() => _full = true);
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -139,8 +158,12 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
       final handled = _onAutocompleteKey(event, suggestions);
       if (handled != KeyEventResult.ignored) return handled;
     }
+    // An open IME composition owns Enter: it confirms the candidate.
+    if (widget.controller.value.composing.isValid) {
+      return KeyEventResult.ignored;
+    }
     if (_isPlainEnter(event)) {
-      widget.controller.value = applyListAwareEnter(widget.controller.value);
+      _setIfFits(applyListAwareEnter(widget.controller.value));
       return KeyEventResult.handled;
     }
     return _listKeys.handle(event, widget.controller);
@@ -193,7 +216,12 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
       context,
       onSelect: (emoji) {
         widget.focusNode.requestFocus();
+        final before = widget.controller.value;
         insertAtSelection(widget.controller, emoji);
+        if (!_fits(widget.controller.text)) {
+          widget.controller.value = before;
+          _markFull();
+        }
       },
     ),
   );
@@ -231,23 +259,29 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: widget.focusNode,
-                    minLines: widget.minLines,
-                    maxLines: widget.maxLines,
-                    keyboardType: TextInputType.multiline,
-                    inputFormatters: const [NoteByteLimitFormatter()],
-                    style: AppText.body.copyWith(color: tokens.textPrimary),
-                    cursorColor: tokens.accent,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      hintText: widget.hintText,
+                  // Named outside the field too: its hint leaves the accessible name once there is text.
+                  child: Semantics(
+                    label: widget.hintText,
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: widget.focusNode,
+                      minLines: widget.minLines,
+                      maxLines: widget.maxLines,
+                      keyboardType: TextInputType.multiline,
+                      inputFormatters: [
+                        NoteByteLimitFormatter(onRefused: _markFull),
+                      ],
+                      style: AppText.body.copyWith(color: tokens.textPrimary),
+                      cursorColor: tokens.accent,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: widget.hintText,
+                      ),
                     ),
                   ),
                 ),
@@ -261,6 +295,11 @@ class _CanvasNoteFieldState extends ConsumerState<CanvasNoteField> {
             ),
           ),
         ),
+        if (_full)
+          Text(
+            'This note is full.',
+            style: AppText.caption.copyWith(color: tokens.dangerText),
+          ),
       ],
     );
   }

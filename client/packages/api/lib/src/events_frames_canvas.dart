@@ -50,12 +50,22 @@ class CanvasCleared extends ServerEvent {
     required this.seq,
     required this.opId,
     required this.beforeSeq,
+    this.scope = CanvasClearScope.everything,
+    this.sparedIds = const [],
+    this.sparedCount = 0,
   });
 
   final String channelId;
   final int seq;
   final String opId;
   final int beforeSeq;
+  final CanvasClearScope scope;
+
+  /// The locked objects the clear left standing, up to a bound.
+  final List<String> sparedIds;
+
+  /// How many it spared in all; more than [sparedIds] holds means refetch.
+  final int sparedCount;
 }
 
 /// A removal or a clear was undone.
@@ -118,6 +128,8 @@ class CanvasStrokePreview extends ServerEvent {
     required this.objectId,
     required this.points,
     required this.ended,
+    this.color,
+    this.width,
   });
 
   final String channelId;
@@ -125,6 +137,10 @@ class CanvasStrokePreview extends ServerEvent {
   final String objectId;
   final List<double> points;
   final bool ended;
+
+  /// The drawer's pen colour key and world width, when they sent them.
+  final String? color;
+  final double? width;
 }
 
 /// An object mid-drag or mid-resize: the box its mover currently holds.
@@ -147,6 +163,38 @@ class CanvasObjectPreview extends ServerEvent {
   final String channelId;
   final String userId;
   final String objectId;
+  final double x;
+  final double y;
+  final double w;
+  final double h;
+  final bool ended;
+}
+
+/// A camera or screen-share tile mid-drag: the box its mover currently holds.
+///
+/// Ephemeral and `seq`-less like [CanvasObjectPreview]; the committed
+/// [CanvasMediaSlotChanged] always settles the final box.
+class CanvasMediaSlotPreview extends ServerEvent {
+  const CanvasMediaSlotPreview({
+    required this.channelId,
+    required this.userId,
+    required this.kind,
+    required this.slotUserId,
+    required this.x,
+    required this.y,
+    required this.w,
+    required this.h,
+    required this.ended,
+  });
+
+  final String channelId;
+
+  /// Who is moving the tile.
+  final String userId;
+  final String kind;
+
+  /// Whose tile it is.
+  final String slotUserId;
   final double x;
   final double y;
   final double w;

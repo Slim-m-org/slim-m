@@ -26,7 +26,10 @@ library;
 import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
+import 'package:slimm_api/api.dart' as api;
 import 'package:clock/clock.dart';
+import 'package:desktop_drop/desktop_drop.dart' show DropItem;
+import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,17 +37,30 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
+import '../../../widgets/app_drop_zone.dart';
+import '../../modules/providers/dock_reservation.dart';
+import '../../messages/widgets/attachment_picker.dart'
+    show AttachmentSource, attachmentPickerProvider;
+import '../../messages/widgets/image_drop_zone.dart'
+    show DroppedImage, RefusedDrop, readDroppedImage;
+import '../../../providers/phone_landscape.dart';
 import '../../../permissions.dart';
-import '../../members/widgets/member_pane.dart' show memberPaneVisibleProvider;
+import '../../members/widgets/member_pane.dart'
+    show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../providers/canvas_self_presence.dart';
+import '../../composer/widgets/composer_clipboard_image.dart'
+    show pasteKeystrokeReadsClipboardImage;
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
+import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/video_interest_relay.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -54,6 +70,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_object_preview_relay.dart';
+import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
@@ -63,11 +80,13 @@ import 'canvas_media_slot_sync.dart';
 import 'canvas_note_sheet.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_pane_body.dart';
+import 'canvas_real_window.dart';
 import 'canvas_pen_style.dart';
 import 'canvas_quick_placement.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_sync.dart';
+import 'canvas_drag_pan.dart';
 
 part 'canvas_pane_fullscreen.dart';
 part 'canvas_pane_gestures.dart';
@@ -100,6 +119,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// hands back the tool the person was actually using rather than the
   /// [CanvasTool.pan] the mode itself forced.
   CanvasTool? _toolBeforeFullscreen;
+
+  bool _activityLogOpen = false;
+  late final WindowFullscreenHold _windowHold;
+  late final PhoneLandscapeHold _landscapeHold;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
   /// The note whose in-place editor is open, if any.
@@ -107,7 +130,15 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
+
+  /// What was selected when the current select press began, so a tap edits a note only on its second tap.
+  String? _selectedBeforeDown;
+  final _focusNode = FocusNode(debugLabel: 'canvas pane');
+
+  /// How many pointers are down inside the pane right now.
+  int _pointersDown = 0;
   CanvasPenStyle _pen = const CanvasPenStyle();
+  final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
 
@@ -133,9 +164,18 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void initState() {
     super.initState();
-    _engine; // touching the late field is what forces its ref.read now
+    // Built here: dispose cannot read ref, and releasing the window must still work then.
+    _windowHold = WindowFullscreenHold(
+      ref.read(fullscreenVideoActiveProvider.notifier),
+    );
+    _landscapeHold = PhoneLandscapeHold(
+      ref.read(orientationChannelProvider),
+      ref.read(portraitLockedPhoneProvider.notifier),
+    );
+    _engine.attachPane(); // also forces the late field's ref.read now
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
+    _document.setBottomInset(ref.read(bottomDockReservationProvider));
   }
 
   @override
@@ -147,25 +187,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _disarmIfAlreadyFullscreen();
   }
 
-  /// Disposes the engine directly, synchronously, rather than trusting
-  /// `canvasEngineProvider`'s own `.autoDispose` scheduling to get there:
-  /// that scheduling only runs on the next rebuild after the last listener
-  /// goes, which is soon but not now, and the engine's cursor and
-  /// stroke-preview relays each hold a real, periodic `Timer` for that long.
-  /// A closed canvas is closed the instant this method returns, not a frame
-  /// later - [CanvasEngine.dispose]'s own doc covers the double-call this
-  /// makes safe once `.autoDispose` gets to it too.
-  ///
-  /// [_engine] is used here rather than `ref.read`: by the time `dispose()`
-  /// runs, Flutter has already marked this element defunct (`Element.unmount`
-  /// calls `super.unmount()`, which does that, before calling `state.dispose()`
-  /// at all), and riverpod's `ref.read`/`ref.watch` both throw once that has
-  /// happened - `_engine`'s own field is what makes this reachable without
-  /// touching `ref` at all.
+  /// The engine closes when the last pane for its channel leaves, counted
+  /// through [CanvasEngine.attachPane], so a departing pane cannot tear down
+  /// the engine a second pane for the same channel is still using.
   @override
   void dispose() {
     _imagePasteHelper?.stop();
-    _engine.dispose();
+    _focusNode.dispose();
+    _windowHold.release();
+    _landscapeHold.release();
+    _engine.detachPane();
     super.dispose();
   }
 
@@ -199,118 +230,182 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       objectPreviewGlideDuration,
     );
     ref.listen(voiceFlagsProvider, _closeWhenCallEnds);
+    // The fitted board sits above the floating dock, so its foot is never hidden at fit.
+    ref.listen(
+      bottomDockReservationProvider,
+      (_, height) => _document.setBottomInset(height),
+    );
     final noteSpanStyle = _noteSpanStyle(context);
     final editingNote = _editingNoteId != null;
-    return CanvasObjectLocksScope(
-      locks: _engine.objectLocks,
-      child: CallbackShortcuts(
-        bindings: {
-          // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
-          if (editingNote)
-            const SingleActivator(LogicalKeyboardKey.escape): _onNoteEditCancel
-          else if (fullscreen)
-            const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen
-          else if (_memberPaneDocked)
-            const SingleActivator(LogicalKeyboardKey.escape): _closeMemberPane,
-          // None of these while a note is being typed in: Backspace and Ctrl+Z belong to its field.
-          if (!editingNote) ..._canvasEditShortcuts(),
-        },
-        child: Focus(
-          autofocus: true,
-          onKeyEvent: (_, event) => _onToolKey(
-            event,
-            canDraw: !canvasErrorBlocksDrawing(engineState.error),
-            fullscreen: fullscreen,
-          ),
-          child: CanvasPaneBody(
-            channelId: widget.channelId,
-            onClose: _closeCanvas,
-            fullscreen: fullscreen,
-            onToggleFullscreen: _toggleFullscreen,
-            tool: _tool,
-            onToolChanged: _onToolChanged,
-            canUndo: _ops.canUndo,
-            onUndo: () => unawaited(_onUndo()),
-            canRedo: _ops.canRedo,
-            onRedo: () => unawaited(_onRedo()),
-            canManage: manageCanvas,
-            document: _document,
-            onClear: _onClear,
-            onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
-            onPasteImageAt: (world) => unawaited(_imagePaste.pasteAt(world)),
-            onRecenter: _onRecenter,
-            error: engineState.error,
-            onDismissError: () => _engine.reportError(null),
-            onRetryError: engineState.error == CanvasEngine.genericLoadError
-                ? () => unawaited(_engine.fetch())
-                : null,
-            truncated: engineState.truncated,
-            loading: engineState.loading,
-            onStroke: _onStroke,
-            onErase: _onErase,
-            onEraseEnd: () => unawaited(_onEraseEnd()),
-            onSelectStart: _onSelectStart,
-            onSelectDrag: _onSelectDrag,
-            onSelectEnd: () => unawaited(_onSelectEnd()),
-            onSelectTap: _onSelectTap,
-            onEditNote: _onEditNote,
-            noteSpans: (text, base) =>
-                buildNoteSpans(text, base, noteSpanStyle),
-            noteSpansRevision: noteSpanStyle.revision,
-            noteEditor: _editingNoteId == null
-                ? null
-                : CanvasNoteEditor(
-                    key: ValueKey(_editingNoteId),
-                    document: _document,
-                    objectId: _editingNoteId!,
-                    onSave: (text) =>
-                        unawaited(_onNoteEditSave(_editingNoteId!, text)),
-                    onCancel: _onNoteEditCancel,
+    final focusedTile = _focusedTileKey;
+    final voiceFlags = ref.watch(voiceFlagsProvider);
+    // Held here: the layer reports its release from dispose, when ref can no longer be read.
+    final interest = ref.read(videoInterestRelayProvider);
+    return CanvasRealWindowScope(
+      active: ref.watch(portraitLockedPhoneProvider) && focusedTile != null,
+      child: CanvasObjectLocksScope(
+        locks: _engine.objectLocks,
+        child: CallbackShortcuts(
+          bindings: {
+            // Only bound while there is something to escape from, so Escape keeps reaching whatever else would have handled it.
+            if (editingNote)
+              const SingleActivator(LogicalKeyboardKey.escape):
+                  _onNoteEditCancel
+            else if (fullscreen)
+              const SingleActivator(LogicalKeyboardKey.escape):
+                  _toggleFullscreen
+            else if (_memberPaneDocked)
+              const SingleActivator(LogicalKeyboardKey.escape):
+                  _closeMemberPane,
+            // None of these while a note is being typed in (its field owns them) or while the log hides the board.
+            if (!editingNote && !_activityLogOpen) ..._canvasEditShortcuts(),
+          },
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _onPanePointerDown,
+            onPointerUp: _onPanePointerUp,
+            onPointerCancel: _onPanePointerUp,
+            // Not a Tab stop of its own: the board is the labelled stop and holds focus; this hears what bubbles up.
+            child: Focus(
+              skipTraversal: true,
+              focusNode: _focusNode,
+              onKeyEvent: (_, event) => _onToolKey(
+                event,
+                canDraw: !canvasErrorBlocksDrawing(engineState.error),
+              ),
+              child: AppDropZone(
+                enabled: !canvasErrorBlocksDrawing(engineState.error),
+                label: 'Drop an image to place it',
+                icon: AppIcons.image,
+                onDrop: (items) => unawaited(_dropImage(items)),
+                child: CanvasPaneBody(
+                  channelId: widget.channelId,
+                  onClose: _closeCanvas,
+                  onActivityLogOpenChanged: (open) =>
+                      setState(() => _activityLogOpen = open),
+                  fullscreen: fullscreen,
+                  onToggleFullscreen: _toggleFullscreen,
+                  focusedTileKey: focusedTile,
+                  onFocusTile: _focusTile,
+                  tool: _tool,
+                  onToolChanged: _onToolChanged,
+                  canUndo: _ops.canUndo,
+                  onUndo: () => unawaited(_onUndo()),
+                  canRedo: _ops.canRedo,
+                  onRedo: () => unawaited(_onRedo()),
+                  canManage: manageCanvas,
+                  document: _document,
+                  onClear: _onClear,
+                  scopedClear: _scopedClear,
+                  onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
+                  onAddImageFile: () => unawaited(_pickImageFile()),
+                  onPasteImageAt: (world) =>
+                      unawaited(_imagePaste.pasteAt(world)),
+                  onRecenter: _onRecenter,
+                  onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
+                  error: engineState.error,
+                  onDismissError: () => _engine.reportError(null),
+                  onRetryError:
+                      engineState.error == CanvasEngine.genericLoadError
+                      ? () => unawaited(_engine.fetch())
+                      : null,
+                  truncated: engineState.truncated,
+                  paging: engineState.paging,
+                  loading: engineState.loading,
+                  onStroke: _onStroke,
+                  onErase: _onErase,
+                  onEraseEnd: () => unawaited(_onEraseEnd()),
+                  onEraseCancel: () => unawaited(_onEraseCancel()),
+                  onSelectCancel: () => unawaited(_onSelectCancel()),
+                  onSelectStart: _onSelectStart,
+                  onSelectDrag: _onSelectDrag,
+                  onSelectEnd: () => unawaited(_onSelectEnd()),
+                  onSelectTap: _onSelectTap,
+                  onEditNote: _onEditNote,
+                  noteSpans: (text, base) =>
+                      buildNoteSpans(text, base, noteSpanStyle),
+                  noteSpansRevision: noteSpanStyle.revision,
+                  noteEditor: _editingNoteId == null
+                      ? null
+                      : CanvasNoteEditor(
+                          key: ValueKey(_editingNoteId),
+                          document: _document,
+                          objectId: _editingNoteId!,
+                          onSave: (text) =>
+                              unawaited(_onNoteEditSave(_editingNoteId!, text)),
+                          onCancel: _onNoteEditCancel,
+                        ),
+                  onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onShapePlace: (world, size, {flipX = false, flipY = false}) =>
+                      unawaited(
+                        _onShapePlace(world, size, flipX: flipX, flipY: flipY),
+                      ),
+                  shapeKind: _shapeKind,
+                  onShapeKindChanged: (kind) =>
+                      setState(() => _shapeKind = kind),
+                  pen: _pen,
+                  onPenChanged: (pen) => setState(() => _pen = pen),
+                  onBringToFront: (id) => unawaited(_onBringToFront(id)),
+                  onSendToBack: (id) => unawaited(_onSendToBack(id)),
+                  onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
+                  selfId: me?.id,
+                  viewRelay: _engine.viewRelay,
+                  cursors: _cursors,
+                  cursorColors: AppCanvasColors.cursors,
+                  onPointerMoved: _onPointerMoved,
+                  onPointerLeft: () => _relay.reportLocalPointerLeft(),
+                  remoteDrafts: _remoteDrafts,
+                  onDraftPoint: (world) => _strokePreview.reportLocalDraftPoint(
+                    world,
+                    pen: (
+                      colorKey: _pen.colorKey,
+                      width: canvasPenWorldWidth(
+                        _pen.width,
+                        _document.camera.zoom,
+                      ),
+                    ),
                   ),
-            onNotePlace: (world) => unawaited(_onNotePlace(world)),
-            onShapePlace: (world, size) =>
-                unawaited(_onShapePlace(world, size)),
-            shapeKind: _shapeKind,
-            onShapeKindChanged: (kind) => setState(() => _shapeKind = kind),
-            pen: _pen,
-            onPenChanged: (pen) => setState(() => _pen = pen),
-            onBringToFront: (id) => unawaited(_onBringToFront(id)),
-            onSendToBack: (id) => unawaited(_onSendToBack(id)),
-            onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
-            selfId: me?.id,
-            viewRelay: _engine.viewRelay,
-            cursors: _cursors,
-            cursorColors: AppCanvasColors.cursors,
-            onPointerMoved: _onPointerMoved,
-            onPointerLeft: () => _relay.reportLocalPointerLeft(),
-            remoteDrafts: _remoteDrafts,
-            onDraftPoint: _strokePreview.reportLocalDraftPoint,
-            onDraftEnded: _strokePreview.endLocalDraft,
-            callParticipants: _callParticipants(),
-            cameraViewFor: (identity) => ref
-                .read(voiceControllerProvider.notifier)
-                .cameraViewFor(identity, declaresInterest: false),
-            screenShareViewFor: (identity) => ref
-                .read(voiceControllerProvider.notifier)
-                .screenShareViewFor(identity, declaresInterest: false),
-            tileOverrides: _tileOverrides,
-            onCommitTile: (key, rect) => unawaited(_slotSync.commit(key, rect)),
-            onVideoInterest: ref.read(videoInterestRelayProvider).declare,
-            activityLog: _activityLog,
-            selfBubbleHidden: selfPresence.hidden,
-            onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
-            callDock: callDockDataFor(
-              ref.watch(voiceFlagsProvider),
-              ref.read(voiceControllerProvider.notifier),
-              widget.channelId,
-            ),
-            participantMenuItemsBuilder: (context, participant, close) =>
-                participantCallMenuItems(
-                  context,
-                  ref,
-                  participant: participant,
-                  close: close,
+                  onDraftEnded: _strokePreview.endLocalDraft,
+                  callParticipants: _callParticipants(),
+                  cameraViewFor: (identity) => ref
+                      .read(voiceControllerProvider.notifier)
+                      .cameraViewFor(identity, declaresInterest: false),
+                  screenShareViewFor: (identity) => ref
+                      .read(voiceControllerProvider.notifier)
+                      .screenShareViewFor(identity, declaresInterest: false),
+                  tileOverrides: _tileOverrides,
+                  viewMode: _engine.viewMode,
+                  onCommitTile: (key, rect) =>
+                      unawaited(_slotSync.commit(key, rect)),
+                  onVideoInterest: (keys) =>
+                      interest.declare(keys, owner: this),
+                  activityLog: _activityLog,
+                  selfBubbleHidden: selfPresence.hidden,
+                  onToggleSelfBubbleHidden: _onToggleSelfBubbleHidden,
+                  callError: _callFailure(voiceFlags),
+                  onRetryCall: voiceFlags.retryable
+                      ? () => unawaited(
+                          ref
+                              .read(voiceControllerProvider.notifier)
+                              .join(widget.channelId),
+                        )
+                      : null,
+                  callDock: callDockDataFor(
+                    ref.watch(voiceFlagsProvider),
+                    ref.read(voiceControllerProvider.notifier),
+                    widget.channelId,
+                  ),
+                  participantMenuItemsBuilder: (context, participant, close) =>
+                      participantCallMenuItems(
+                        context,
+                        ref,
+                        participant: participant,
+                        close: close,
+                        withFullscreen: false,
+                      ),
                 ),
+              ),
+            ),
           ),
         ),
       ),

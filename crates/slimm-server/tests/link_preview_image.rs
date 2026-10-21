@@ -121,13 +121,10 @@ async fn image_token(app: &Router, token: &str, page: String) -> String {
 }
 
 async fn wait_for(hits: &AtomicUsize, expected: usize) {
-    for _ in 0..100 {
-        if hits.load(Ordering::SeqCst) >= expected {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    panic!("the upstream was never asked");
+    support::wait::wait_until("the upstream to be asked", || {
+        hits.load(Ordering::SeqCst) >= expected
+    })
+    .await;
 }
 
 #[tokio::test]
@@ -156,6 +153,7 @@ async fn a_fresh_preview_fetches_its_image_before_anyone_asks() {
     let up = upstream().await;
     let image = image_token(&app, &token, format!("http://{}/page", up.host)).await;
     wait_for(&up.image_hits, 1).await;
+    // The cache fill after the upstream hit has no signal to wait on.
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     let started = std::time::Instant::now();
@@ -176,6 +174,7 @@ async fn a_dead_image_is_fetched_once_for_many_readers() {
     let up = upstream().await;
     let image = image_token(&app, &token, format!("http://{}/dead-page", up.host)).await;
     wait_for(&up.dead_hits, 1).await;
+    // Lets the failed fetch be recorded; nothing observable marks it.
     tokio::time::sleep(Duration::from_millis(100)).await;
     for _ in 0..3 {
         let (status, _) = get_path(&app, &token, format!("/link-preview/image/{image}")).await;

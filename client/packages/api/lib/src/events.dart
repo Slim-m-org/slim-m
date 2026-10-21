@@ -18,6 +18,7 @@ part 'events_frames_bots.dart';
 part 'events_frames_canvas.dart';
 part 'events_frames_watch.dart';
 part 'events_parse.dart';
+part 'events_parse_canvas.dart';
 
 /// The envelope version this client speaks. The server refuses a mismatch, so a
 /// client that is too old fails at connect rather than misreading frames.

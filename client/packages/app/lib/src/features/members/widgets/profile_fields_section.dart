@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Settings > Profile's own pronouns, about and colour fields: `PATCH /me`
+/// Settings > Profile's own pronouns and about fields: `PATCH /me`
 /// (`SlimmApi.updateMe`), the same route the display name and status text
-/// already ride. Pronouns and about save on blur, the same convention
-/// `MemberProfileNoteField` uses; a colour swatch saves the moment it is
-/// tapped, since there is nothing to type; the Custom swatch saves once the picker does.
+/// already ride. Both save on blur, the same convention
+/// `MemberProfileNoteField` uses.
 library;
 
 import 'dart:async';
@@ -14,13 +13,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/profile_draft.dart';
-import 'profile_colour.dart';
 import '../../../providers/providers.dart';
-import '../../../widgets/color_swatch_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
-
-/// Spoken names for [AppCanvasColors.cursors], in the same order.
-const _colourNames = ['Pink', 'Purple', 'Blue', 'Orange', 'Green', 'Magenta'];
 
 class ProfileFieldsSection extends ConsumerStatefulWidget {
   const ProfileFieldsSection({super.key});
@@ -61,7 +55,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
   /// text changes; a refusal used to vanish and leave the text silently unsaved.
   String? _pronounsError;
   String? _aboutError;
-  String? _colourError;
 
   void _seed(api.Me me) {
     if (_seeded) return;
@@ -104,41 +97,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     }
   }
 
-  /// A preset sends only the index, which clears any custom colour server-side.
-  Future<void> _setColor(int index) =>
-      _saveColour(() => ref.read(apiProvider).updateMe(profileColor: index));
-
-  /// The nearest preset rides along so older clients still draw something close.
-  Future<void> _setCustomColour(Color colour) => _saveColour(
-    () => ref
-        .read(apiProvider)
-        .updateMe(
-          profileColor: nearestColourIndex(colour, AppCanvasColors.cursors),
-          profileColorRgb: rgbOf(colour),
-        ),
-  );
-
-  Future<void> _pickCustomColour(api.Me me) async {
-    final colour = await showAppColourPicker(
-      context,
-      initial:
-          profileColourOf(index: me.profileColor, rgb: me.profileColorRgb) ??
-          AppCanvasColors.cursors.first,
-    );
-    if (colour != null) await _setCustomColour(colour);
-  }
-
-  Future<void> _saveColour(Future<Object?> Function() save) async {
-    setState(() => _colourError = null);
-    try {
-      await save();
-      ref.invalidate(meProvider);
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'save the profile colour', e, stack);
-      if (mounted) setState(() => _colourError = 'Not saved: ${e.message}');
-    }
-  }
-
   void _publishDraft() {
     ref.read(profileDraftProvider.notifier).state = (
       pronouns: _pronouns.text,
@@ -169,36 +127,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
         onSubmitted: (_) => _pronounsFocus.unfocus(),
       ),
     );
-    final colourField = _Labelled(
-      label: 'Profile colour',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ColorSwatchRow(
-            label: 'Profile colour',
-            colors: AppCanvasColors.cursors,
-            names: _colourNames,
-            selected: me?.profileColorRgb == null ? me?.profileColor : null,
-            onSelect: me == null ? null : _setColor,
-            custom: CustomSwatch(
-              label: 'Custom',
-              colour: me?.profileColorRgb == null
-                  ? null
-                  : profileColourOf(rgb: me!.profileColorRgb),
-              onTap: me == null ? null : () => _pickCustomColour(me),
-            ),
-          ),
-          if (_colourError != null) ...[
-            const SizedBox(height: AppSpacing.s8),
-            AppErrorState(
-              message: _colourError!,
-              onDismiss: () => setState(() => _colourError = null),
-            ),
-          ],
-        ],
-      ),
-    );
-
     return SettingsSectionCard(
       title: 'About you',
       topGap: kDenseSectionTopGap,
@@ -206,7 +134,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
         SettingsCardBlock(
           gap: 12,
           children: [
-            ProfileFieldPair(first: pronounsField, second: colourField),
+            pronounsField,
             _Labelled(
               label: 'About',
               trailing: ValueListenableBuilder(
@@ -240,42 +168,6 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
       ],
     );
   }
-}
-
-/// Two fields side by side where there is room, stacked below [kPairMinWidth].
-class ProfileFieldPair extends StatelessWidget {
-  const ProfileFieldPair({
-    super.key,
-    required this.first,
-    required this.second,
-  });
-
-  /// Wide enough that each half fits seven 36px colour swatches on one row.
-  static const double kPairMinWidth = 560;
-
-  final Widget first;
-  final Widget second;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      if (constraints.maxWidth < kPairMinWidth) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: [first, second],
-        );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: AppSpacing.s16,
-        children: [
-          Expanded(child: first),
-          Expanded(child: second),
-        ],
-      );
-    },
-  );
 }
 
 class _Labelled extends StatelessWidget {

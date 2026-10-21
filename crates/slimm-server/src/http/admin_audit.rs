@@ -87,6 +87,7 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
     route(Method::DELETE, "/space/icon", "space.icon_clear", None),
     route(Method::POST, "/space/banner", "space.banner_set", None),
     route(Method::DELETE, "/space/banner", "space.banner_clear", None),
+    route(Method::POST, "/exports/space", "space.export", None),
     route(Method::POST, "/roles", "role.create", None),
     route(Method::PATCH, "/roles/reorder", "role.reorder", None),
     route(Method::PATCH, "/roles/{role_id}", "role.update", ROLE),
@@ -400,13 +401,26 @@ struct AdminChangeDto {
     created_at: i64,
 }
 
+const INVITE_CODE_PREFIX_CHARS: usize = 4;
+
+/// A live invite code is a bearer credential and this log needs only MANAGE_SERVER.
+fn redact_invite_code(action: &str, target: Option<String>) -> Option<String> {
+    if !action.starts_with("invite.") {
+        return target;
+    }
+    target.map(|code| {
+        let prefix: String = code.chars().take(INVITE_CODE_PREFIX_CHARS).collect();
+        format!("{prefix}...")
+    })
+}
+
 impl From<AdminAuditEntry> for AdminChangeDto {
     fn from(entry: AdminAuditEntry) -> Self {
         Self {
             id: entry.id,
             actor_id: entry.actor_id.map(|id| id.to_string()),
+            target_id: redact_invite_code(&entry.action, entry.target_id),
             action: entry.action,
-            target_id: entry.target_id,
             detail: serde_json::from_str(&entry.detail)
                 .unwrap_or_else(|_| Value::Object(Map::new())),
             created_at: entry.created_at,

@@ -34,6 +34,7 @@ import 'admin/bots_screen.dart';
 import 'admin/channel_permissions_screen.dart';
 import 'admin/dock_screen.dart';
 import 'admin/emoji_screen.dart';
+import 'admin/export_screen.dart';
 import 'admin/invites_screen.dart';
 import 'admin/customize_screen.dart';
 import 'admin/performance_screen.dart';
@@ -247,6 +248,15 @@ SettingsPaneGroup _operationsGroup(_SpaceAccess access) {
           icon: AppIcons.storage,
           compactRoute: Routes.adminStorage,
           builder: (_) => const StoragePane(),
+        ),
+      // ADMINISTRATOR, matching the route it opens; see ExportPane.
+      if (access.canIssueResetCodes)
+        SettingsPane(
+          id: 'export',
+          label: 'Export',
+          icon: AppIcons.download,
+          compactRoute: Routes.adminExport,
+          builder: (_) => const ExportPane(),
         ),
       if (access.canManageServer)
         SettingsPane(

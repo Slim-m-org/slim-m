@@ -61,11 +61,6 @@ class CallDockButton extends StatelessWidget {
   ) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final joined = AppControlWithOptions.joinedOf(context);
-    // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
-    final background = _background(tokens);
-    final foreground = _foreground(tokens);
-    final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
-
     // AppIconButton's own split: a fixed chip, invisible tap area growing to AppSizes.rowTouch at touch density.
     final touch = AppTouchTargets.of(context);
     final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
@@ -76,57 +71,79 @@ class CallDockButton extends StatelessWidget {
         ? const BorderRadius.horizontal(left: Radius.circular(AppRadii.control))
         : BorderRadius.circular(AppRadii.control);
 
-    return Tooltip(
-      key: tooltipKey,
-      message: tooltip,
-      // A held press belongs to the options; hover still shows the tooltip.
-      triggerMode: joined || holdOpensOptions
-          ? TooltipTriggerMode.manual
-          : TooltipTriggerMode.longPress,
-      child: Semantics(
-        button: true,
-        enabled: !unavailable,
-        label: tooltip,
-        child: _chipFocus(
-          joined: joined,
-          builder: (context, onFocusChange, focused) => InkWell(
-            onTap: onTap,
-            // The ring is drawn by the chip itself; see AppInsetFocus and AppFocusRing.
-            focusColor: Colors.transparent,
-            onFocusChange: onFocusChange,
-            borderRadius: radius,
-            child: SizedBox(
-              width: outerSize,
-              height: outerSize,
-              child: Align(
-                alignment: joined ? Alignment.centerRight : Alignment.center,
-                child: Container(
-                  width: visualSize,
-                  height: visualSize,
-                  foregroundDecoration: joined
-                      ? appInsetFocusDecoration(
-                          context,
-                          focused: focused,
-                          borderRadius: radius,
-                        )
-                      : null,
-                  decoration: BoxDecoration(
-                    color: background,
-                    borderRadius: radius,
-                    border: _border(border, joined: joined),
+    return _TooltipOnFocus(
+      tooltipKey: tooltipKey,
+      builder: (key) => Tooltip(
+        key: key,
+        message: tooltip,
+        showDuration: const Duration(seconds: 3),
+        // A held press belongs to the options; hover still shows the tooltip.
+        triggerMode: joined || holdOpensOptions
+            ? TooltipTriggerMode.manual
+            : TooltipTriggerMode.longPress,
+        child: Semantics(
+          button: true,
+          enabled: !unavailable,
+          label: tooltip,
+          child: _chipFocus(
+            joined: joined,
+            builder: (context, onFocusChange, focused) => InkWell(
+              onTap: onTap,
+              // The ring is drawn by the chip itself; see AppInsetFocus and AppFocusRing.
+              focusColor: Colors.transparent,
+              onFocusChange: onFocusChange,
+              borderRadius: radius,
+              child: SizedBox(
+                width: outerSize,
+                height: outerSize,
+                child: Align(
+                  alignment: joined ? Alignment.centerRight : Alignment.center,
+                  child: _face(
+                    context,
+                    tokens,
+                    joined: joined,
+                    radius: radius,
+                    focused: focused,
                   ),
-                  child: pending
-                      ? _spinner(tokens)
-                      : _withLevel(
-                          Icon(icon, size: AppSizes.icon16, color: foreground),
-                          tokens,
-                        ),
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _face(
+    BuildContext context,
+    AppTokens tokens, {
+    required bool joined,
+    required BorderRadius radius,
+    required bool focused,
+  }) {
+    // Danger is outlined, never filled: unmistakable without being the brightest thing on screen.
+    final border = destructive ? tokens.dangerBorder : tokens.borderSubtle;
+    return Container(
+      width: AppSizes.controlMd,
+      height: AppSizes.controlMd,
+      foregroundDecoration: joined
+          ? appInsetFocusDecoration(
+              context,
+              focused: focused,
+              borderRadius: radius,
+            )
+          : null,
+      decoration: BoxDecoration(
+        color: _background(tokens),
+        borderRadius: radius,
+        border: _border(border, joined: joined),
+      ),
+      child: pending
+          ? _spinner(tokens)
+          : _withLevel(
+              Icon(icon, size: AppSizes.icon16, color: _foreground(tokens)),
+              tokens,
+            ),
     );
   }
 
@@ -152,14 +169,7 @@ class CallDockButton extends StatelessWidget {
   }
 
   Widget _spinner(AppTokens tokens) => Center(
-    child: SizedBox(
-      width: AppSizes.icon16,
-      height: AppSizes.icon16,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: tokens.textSecondary,
-      ),
-    ),
+    child: AppSpinner(size: AppSpinnerSize.sm, color: tokens.textSecondary),
   );
 
   Widget _withLevel(Widget icon, AppTokens tokens) {
@@ -221,5 +231,41 @@ class _ExplainOnTapState extends State<_ExplainOnTap> {
     context,
     _key,
     () => _key.currentState?.ensureTooltipVisible(),
+  );
+}
+
+/// Shows the chip's tooltip while keyboard focus is on it: a keyboard user has no hover to bring the name up.
+class _TooltipOnFocus extends StatefulWidget {
+  const _TooltipOnFocus({required this.tooltipKey, required this.builder});
+
+  final GlobalKey<TooltipState>? tooltipKey;
+  final Widget Function(GlobalKey<TooltipState> key) builder;
+
+  @override
+  State<_TooltipOnFocus> createState() => _TooltipOnFocusState();
+}
+
+class _TooltipOnFocusState extends State<_TooltipOnFocus> {
+  late final GlobalKey<TooltipState> _key =
+      widget.tooltipKey ?? GlobalKey<TooltipState>();
+
+  void _onFocusChange(bool focused) {
+    if (focused &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional) {
+      // After the frame: the chip focus left dismisses every tooltip as it goes.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _key.currentState?.ensureTooltipVisible();
+      });
+    } else if (!focused) {
+      Tooltip.dismissAllToolTips();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Focus(
+    canRequestFocus: false,
+    skipTraversal: true,
+    onFocusChange: _onFocusChange,
+    child: widget.builder(_key),
   );
 }

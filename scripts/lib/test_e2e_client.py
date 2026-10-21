@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -60,6 +61,57 @@ class EvTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             c.click("Send", settle=0)
         self.assertEqual(c.taps, [])
+
+
+class FakeTime:
+    """A clock that only moves when the code under test sleeps."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def time(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+class BootClient(e2e_client.Client):
+    def __init__(self, boots_after_reload):
+        super().__init__("t", 0)
+        self.boots_after_reload = boots_after_reload
+        self.reloaded = False
+        self.shots = []
+
+    def send(self, method, params=None):
+        if method == "Page.reload":
+            self.reloaded = True
+        return {}
+
+    def ev(self, expr):
+        return self.reloaded and self.boots_after_reload
+
+    def shot(self, tag):
+        self.shots.append(tag)
+
+
+class WaitForBootTest(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(e2e_client, "time", FakeTime())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_a_page_that_never_booted_is_reloaded_once_and_then_boots(self):
+        client = BootClient(boots_after_reload=True)
+        client._wait_for_boot(timeout=8)
+        self.assertTrue(client.reloaded)
+        self.assertEqual(client.shots, [])
+
+    def test_a_page_that_still_does_not_boot_leaves_a_shot_and_fails(self):
+        client = BootClient(boots_after_reload=False)
+        with self.assertRaisesRegex(AssertionError, "never booted"):
+            client._wait_for_boot(timeout=2)
+        self.assertEqual(client.shots, ["app-never-booted"])
 
 
 if __name__ == "__main__":

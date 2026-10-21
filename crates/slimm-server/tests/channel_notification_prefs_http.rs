@@ -112,16 +112,42 @@ async fn set_list_and_clear_round_trip() {
     );
 }
 
-/// `everything` is refused: having no row already means that, so writing it
-/// would be a second spelling of the same answer.
+/// `everything` is stored, listed, and beats the mentions default a bot post gets.
 #[tokio::test]
-async fn setting_everything_is_refused() {
-    let (store, _guard) = new_store("slimm-chan-notif-http-refuses-everything").await;
+async fn everything_is_stored_and_beats_the_bot_default() {
+    let (store, _guard) = new_store("slimm-chan-notif-http-stores-everything").await;
     let app = app(store.clone());
-    let (_id, token) = register(&store, "alice").await;
+    let (alice, token) = register(&store, "alice").await;
     let channel = general_channel_id(&store).await;
+    let session = store.open_session(alice, "phone").await.unwrap();
+    store
+        .register_push(
+            alice,
+            session.device_id,
+            slimm_server::store::PushRegistration {
+                platform: "ios",
+                push_token: "alice",
+                voip_push_token: None,
+                push_public_key: &[7u8; 32],
+                include_content: Some(false),
+                include_content_chosen: true,
+            },
+        )
+        .await
+        .unwrap();
+    let Ok(created) = store
+        .create_bot("feedbot", "Feed", Permissions::NONE, alice)
+        .await
+    else {
+        panic!("could not create the bot");
+    };
+    let bot = created.bot.user_id;
+    let before = support::wake_recipients(&store, channel, bot, "new article")
+        .await
+        .unwrap();
 
-    let response = app
+    let set = app
+        .clone()
         .oneshot(request(
             "PUT",
             &format!("/notification-preferences/channels/{channel}"),
@@ -130,7 +156,27 @@ async fn setting_everything_is_refused() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(set.status(), StatusCode::OK);
+    assert_eq!(json_body(set).await["preference"], "everything");
+
+    let listed = app
+        .oneshot(request(
+            "GET",
+            "/notification-preferences/channels",
+            &token,
+            None,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(json_body(listed).await[0]["preference"], "everything");
+    let after = support::wake_recipients(&store, channel, bot, "new article")
+        .await
+        .unwrap();
+    assert!(
+        !before.contains(&alice),
+        "default is mentions, got {before:?}"
+    );
+    assert!(after.contains(&alice), "everything wins, got {after:?}");
 }
 
 /// A nonsense preference string is refused the same way.

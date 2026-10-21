@@ -288,13 +288,7 @@ class _ForwardTargetSheetState extends ConsumerState<_ForwardTargetSheet>
     return AppListRow(
       leading: _leadingFor(target, tokens),
       label: target.label,
-      trailing: sendingHere
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : null,
+      trailing: sendingHere ? const AppSpinner(size: AppSpinnerSize.sm) : null,
       onTap: busy ? null : () => unawaited(_send(target)),
     );
   }

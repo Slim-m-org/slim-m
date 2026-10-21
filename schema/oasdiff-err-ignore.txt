@@ -1,0 +1,8 @@
+GET /channels/{channelId}/canvas/ops added the new `clear_scoped` enum value to the `ops/items/kind` response property for the response status `200`
+POST /channels/{channelId}/canvas/ops added the new `edit` enum value to the `op/kind` response property for the response status `201`
+GET /notification-preferences/channels added the new `everything` enum value to the `items/preference` response property for the response status `200`
+PUT /notification-preferences/channels/{channelId} added the new `everything` enum value to the `preference` response property for the response status `200`
+DELETE /push/quiet-hours api path removed without deprecation
+GET /push/quiet-hours api path removed without deprecation
+PUT /push/quiet-hours api path removed without deprecation
+GET /reports/history added the new `bot_token_reissue` enum value to the `items/oneOf[#/components/schemas/AuditLogHistoryEntry]/action` response property for the response status `200`

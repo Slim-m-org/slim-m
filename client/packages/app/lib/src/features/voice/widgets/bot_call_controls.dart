@@ -22,6 +22,7 @@ import '../../members/providers/bot_ui_uses.dart';
 import '../providers/voice_controller.dart';
 import 'call_dock_button.dart';
 import '../../../widgets/context_menu_region.dart';
+import '../../../widgets/hover_reveal.dart';
 
 /// One bot's controls for the call.
 class BotCallGroup {
@@ -44,12 +45,15 @@ List<BotCallGroup> botCallGroups(
 
 /// The bots on [channelId]'s call that offer controls, live.
 List<BotCallGroup> botCallGroupsFor(WidgetRef ref, String channelId) {
-  final participants = ref.watch(
-    voiceControllerProvider.select((voice) => voice.participants),
+  // Joined into one string so a mic level or speaking flip, which changes no identity, never rebuilds the dock.
+  final present = ref.watch(
+    voiceControllerProvider.select(
+      (voice) => voice.participants.map((p) => p.identity).join('|'),
+    ),
   );
   return botCallGroups(
     ref.watch(channelBotUiProvider(channelId)).valueOrNull ?? const [],
-    {for (final p in participants) p.identity},
+    present.isEmpty ? <String>{} : present.split('|').toSet(),
   );
 }
 
@@ -179,6 +183,7 @@ class _Group extends StatelessWidget {
             name: name,
             controls: group.controls,
             uses: uses,
+            offline: group.bot.offline,
             onUse: onUse,
           ),
           if (failed != null)
@@ -204,12 +209,14 @@ class _CompactRow extends StatelessWidget {
     required this.name,
     required this.controls,
     required this.uses,
+    required this.offline,
     required this.onUse,
   });
 
   final Widget name;
   final List<api.BotUiEntry> controls;
   final Map<String, BotUiUse?> uses;
+  final bool offline;
   final _OnUse onUse;
 
   @override
@@ -229,6 +236,7 @@ class _CompactRow extends StatelessWidget {
               _ControlChip(
                 control: control,
                 pending: uses[control.id]?.pending ?? false,
+                offline: offline,
                 onUse: onUse,
               ),
           ],
@@ -244,11 +252,13 @@ class _ControlChip extends StatefulWidget {
   const _ControlChip({
     required this.control,
     required this.pending,
+    required this.offline,
     required this.onUse,
   });
 
   final api.BotUiEntry control;
   final bool pending;
+  final bool offline;
   final _OnUse onUse;
 
   @override
@@ -261,22 +271,29 @@ class _ControlChipState extends State<_ControlChip> {
   @override
   Widget build(BuildContext context) {
     final control = widget.control;
+    final reveal = HoverRevealScope.maybeOf(context);
     final chip = CallDockButton(
       icon: _iconFor(control.icon),
-      tooltip: control.label,
+      tooltip: widget.offline
+          ? '${control.label} - bot offline'
+          : control.label,
       active: false,
       pending: widget.pending,
+      unavailable: widget.offline,
       onPressed: control.options.isEmpty
           ? () => widget.onUse(control, null)
           : () => _menu.currentState?.open(),
     );
-    if (control.options.isEmpty) return chip;
+    // An offline bot would answer 409, so it gets no menu to pick from.
+    if (control.options.isEmpty || widget.offline) return chip;
     return ContextMenuRegion(
       key: _menu,
       // The chip is already a tab stop and owns its press.
       ownsFocusNode: false,
       enableLongPress: false,
       opensAbove: true,
+      // A fullscreen dock folds away under an open menu unless told to stay.
+      onOpenChanged: (open) => reveal?.pin(open),
       itemsBuilder: (context, close) => [
         AppMenuLabel(control.label),
         for (final option in control.options)

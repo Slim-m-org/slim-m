@@ -39,19 +39,32 @@ class CanvasSelectionSemantics extends StatelessWidget {
   final ValueChanged<String>? onOpenActions;
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
-    valueListenable: document.selectedObjectId,
-    builder: (context, selectedId, _) {
+  Widget build(BuildContext context) => ListenableBuilder(
+    // The document notifies on camera moves too, which move the node with its object.
+    listenable: Listenable.merge([document.selectedObjectId, document]),
+    builder: (context, _) {
+      final selectedId = document.selectedObjectId.value;
       // No node at all with nothing selected - not one with an empty label, which would still be a stop a screen reader's swipe navigation has to pass through for no reason.
       final label = selectedId == null ? null : _labelFor(selectedId);
-      if (label == null) return const SizedBox.shrink();
-      return Semantics(
-        container: true,
-        label: label,
-        onLongPress: onOpenActions == null
-            ? null
-            : () => onOpenActions!(selectedId!),
-        child: const SizedBox.shrink(),
+      final bounds = selectedId == null
+          ? null
+          : document.objectBounds(selectedId);
+      if (label == null || bounds == null) return const SizedBox.shrink();
+      final camera = document.camera;
+      // Sized to the object on screen: a zero-size node is dropped from the semantics tree.
+      return Positioned(
+        left: (bounds.x - camera.x) * camera.zoom,
+        top: (bounds.y - camera.y) * camera.zoom,
+        width: (bounds.w * camera.zoom).clamp(1, double.infinity),
+        height: (bounds.h * camera.zoom).clamp(1, double.infinity),
+        child: Semantics(
+          container: true,
+          label: label,
+          onLongPress: onOpenActions == null
+              ? null
+              : () => onOpenActions!(selectedId!),
+          child: const SizedBox.expand(),
+        ),
       );
     },
   );

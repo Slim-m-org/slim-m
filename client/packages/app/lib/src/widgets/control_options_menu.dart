@@ -9,6 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'context_menu_region.dart';
 import 'control_swatch_row.dart';
+import 'hover_reveal.dart';
 
 /// One row of a control's options menu.
 class ControlOption extends ControlOptionEntry {
@@ -49,8 +50,9 @@ class ControlOptionsMenu extends StatefulWidget {
     required this.optionsLabel,
     this.active = false,
     this.caretHeight = AppSizes.controlMd,
-    this.opensAbove = false,
+    this.opensAbove = true,
     this.showCaret = true,
+    this.menuWidth = 200,
   });
 
   /// False opens the options by long press or right-click alone, for a row
@@ -65,7 +67,10 @@ class ControlOptionsMenu extends StatefulWidget {
   /// The caret's drawn height, matching a primary shorter than a full chip.
   final double caretHeight;
 
-  /// Opens the menu above the control, for one docked at the bottom edge.
+  /// Wider for options with long labels, such as device names.
+  final double menuWidth;
+
+  /// Opens the menu above the control; every caller lives in the bottom dock, which a menu must not cover.
   final bool opensAbove;
 
   @override
@@ -79,9 +84,18 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
   /// the share button does on starting a share with the keyboard.
   final _childKey = GlobalKey();
 
+  /// Lets the caret count as inside the open menu's tap region, so a second press closes it.
+  final _group = Object();
+
   @override
   Widget build(BuildContext context) {
-    final child = KeyedSubtree(key: _childKey, child: widget.child);
+    final child = Listener(
+      // The primary is outside the caret's group, so its own press closes an open menu here.
+      onPointerDown: (_) => _region.currentState?.close(),
+      child: KeyedSubtree(key: _childKey, child: widget.child),
+    );
+    // Looked up now: the menu reports closing from dispose, when this context can no longer be asked.
+    final reveal = HoverRevealScope.maybeOf(context);
     if (widget.options.isEmpty) return child;
     return ContextMenuRegion(
       key: _region,
@@ -89,16 +103,22 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
       ownsFocusNode: false,
       enableLongPress: !widget.showCaret,
       opensAbove: widget.opensAbove,
+      menuWidth: widget.menuWidth,
+      tapRegionGroupId: _group,
+      onOpenChanged: (open) => reveal?.pin(open),
       itemsBuilder: (context, close) => [
         for (final entry in widget.options) ..._rows(context, entry, close),
       ],
       child: widget.showCaret
-          ? AppControlWithOptions(
-              active: widget.active,
-              visualHeight: widget.caretHeight,
-              optionsLabel: widget.optionsLabel,
-              onOpenOptions: () => _region.currentState?.open(),
-              child: child,
+          ? TapRegion(
+              groupId: _group,
+              child: AppControlWithOptions(
+                active: widget.active,
+                visualHeight: widget.caretHeight,
+                optionsLabel: widget.optionsLabel,
+                onOpenOptions: () => _region.currentState?.toggle(),
+                child: child,
+              ),
             )
           : child,
     );

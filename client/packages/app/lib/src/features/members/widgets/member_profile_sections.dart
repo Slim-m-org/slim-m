@@ -16,6 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
 import '../providers/presence_view.dart';
+import 'member_handle_line.dart';
 import 'member_moderation_gates.dart' show timeoutActive;
 import 'presence_indicator.dart';
 import 'user_avatar.dart';
@@ -49,24 +50,15 @@ class MemberProfileHeader extends ConsumerWidget {
     final timedOut = timeoutActive(profile.timedOutUntil);
     final secondary = AppText.caption.copyWith(color: tokens.textSecondary);
     final extras = [
-      // A nickname hides the account's own name everywhere else, so say it here.
+      // A nickname hides the account's own name everywhere else, so show it here.
       if (profile.nickname != null && profile.accountDisplayName != null)
-        'account name ${profile.accountDisplayName}',
+        'account name ${profile.accountDisplayName!}',
       ?profile.pronouns,
     ];
 
-    final handleLine = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: '@${profile.username}',
-            style: AppText.code.copyWith(fontSize: AppText.caption.fontSize),
-          ),
-          if (extras.isNotEmpty) TextSpan(text: ' · ${extras.join(' · ')}'),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+    final handleLine = MemberHandleLine(
+      username: profile.username,
+      extras: extras,
       style: secondary,
     );
 

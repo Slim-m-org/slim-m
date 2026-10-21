@@ -58,3 +58,79 @@ pub(super) async fn object_lock_calls(c: &mut Contract, root: &str, channel: &st
     .await;
     c.bare("unlockCanvasObject", "DELETE", &lock, root).await;
 }
+
+/// An edit, a locked-object clear (served as `clear_scoped`), a paged viewport read and a purge.
+pub(super) async fn canvas_more_calls(c: &mut Contract, root: &str, channel: &str) {
+    let objects = format!("/channels/{channel}/canvas/objects");
+    let ops = format!("/channels/{channel}/canvas/ops");
+    let note = c
+        .json(
+            "placeCanvasObject",
+            "POST",
+            &objects,
+            root,
+            json!({
+                "id": Uuid::now_v7().to_string(),
+                "kind": "note",
+                "x": 500.0, "y": 500.0, "w": 220.0, "h": 140.0,
+                "props": { "text": "before", "color": "annotation" },
+            }),
+        )
+        .await;
+    let note_id = text(&note, "id");
+    c.json(
+        "submitCanvasOp",
+        "POST",
+        &ops,
+        root,
+        json!({
+            "id": Uuid::now_v7().to_string(),
+            "kind": "edit",
+            "object_id": note_id,
+            "props": { "text": "after", "color": "annotation" },
+        }),
+    )
+    .await;
+
+    // The note is pinned, so a clear of notes spares it and a second one takes it.
+    c.bare(
+        "lockCanvasObject",
+        "PUT",
+        &format!("{objects}/{note_id}/lock"),
+        root,
+    )
+    .await;
+    let head = note["seq"].as_i64().unwrap_or(0);
+    let scoped = |kinds: &[&str]| {
+        json!({
+            "id": Uuid::now_v7().to_string(),
+            "kind": "clear_scoped",
+            "before_seq": head,
+            "kinds": kinds,
+        })
+    };
+    c.json(
+        "submitCanvasOp",
+        "POST",
+        &ops,
+        root,
+        scoped(&["note", "shape"]),
+    )
+    .await;
+    c.get("listCanvasOps", &format!("{ops}?after_seq=0"), root)
+        .await;
+
+    c.get(
+        "listCanvasViewport",
+        &format!("{objects}?min_x=-1000&min_y=-1000&max_x=2000&max_y=2000&cursor_seq=0&limit=1"),
+        root,
+    )
+    .await;
+    c.bare(
+        "purgeCanvasObject",
+        "DELETE",
+        &format!("{objects}/{note_id}"),
+        root,
+    )
+    .await;
+}

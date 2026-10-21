@@ -88,6 +88,7 @@ void main() {
       ('light', AppTokens.light),
       ('dark', AppTokens.dark),
       ('true black', AppTokens.trueBlack),
+      ('mocha', AppTokens.mocha),
     ]) {
       test('$name: a live meter is visible and outweighs a silenced one', () {
         final trough = tokens.surfaceSunken;
@@ -183,6 +184,66 @@ void main() {
       expect(await accented(40), ['Default']);
       expect(await accented(50), ['Default']);
       expect(await accented(100), ['Large']);
+    });
+
+    group('value bubble', () {
+      Widget slider() => _wrap(
+            SizedBox(
+              width: 300,
+              child: AppSlider(
+                value: -50,
+                min: -80,
+                max: 0,
+                tall: true,
+                splitTrack: true,
+                valueLabel: (v) => '${v.round()} dB',
+                onChanged: (_) {},
+              ),
+            ),
+          );
+
+      testWidgets('is hidden at rest and shown while dragging the thumb',
+          (tester) async {
+        await tester.pumpWidget(slider());
+        expect(find.text('-50 dB'), findsNothing);
+
+        final thumb = tester.getCenter(find.byType(Slider));
+        final gesture = await tester.startGesture(thumb);
+        await tester.pump();
+        expect(find.text('-50 dB'), findsOneWidget);
+
+        await gesture.up();
+        await tester.pump();
+        expect(find.text('-50 dB'), findsNothing);
+      });
+
+      testWidgets('is shown on keyboard focus', (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            SizedBox(
+              width: 300,
+              child: AppSlider(
+                value: -50,
+                min: -80,
+                max: 0,
+                autofocus: true,
+                valueLabel: (v) => '${v.round()} dB',
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(find.text('-50 dB'), findsOneWidget);
+      });
+
+      testWidgets('keeps the number for screen readers', (tester) async {
+        final handle = tester.ensureSemantics();
+        await tester.pumpWidget(slider());
+        final tree = tester.getSemantics(find.byType(Slider)).toStringDeep();
+        expect(tree, contains('value: "-50 dB"'));
+        handle.dispose();
+      });
     });
   });
 }

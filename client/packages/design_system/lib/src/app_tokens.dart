@@ -257,6 +257,32 @@ class AppTokens extends ThemeExtension<AppTokens> {
     code: AppCodeColors.trueBlack,
   );
 
+  /// Catppuccin Mocha (MIT, see docs/decisions/0088). Surfaces step crust,
+  /// base, surface0 because mantle, base, surface0 fails the ramp gate.
+  static const AppTokens mocha = AppTokens(
+    surfaceSunken: Color(0xFF11111B),
+    surfaceBase: Color(0xFF1E1E2E),
+    surfaceRaised: Color(0xFF313244),
+    borderSubtle: Color(0xFF45475A),
+    borderStrong: Color(0xFF7F849C),
+    textPrimary: Color(0xFFCDD6F4),
+    textSecondary: Color(0xFFA6ADC8),
+    textDisabled: Color(0xFF6C7086),
+    accent: Color(0xFFCBA6F7),
+    accentFill: Color(0xFFCBA6F7),
+    accentOn: Color(0xFF11111B),
+    accentSoft: Color(0xFF38324C),
+    accentRing: Color(0x40CBA6F7),
+    focusRing: Color(0xFFCBA6F7),
+    status: AppStatusColors.mocha,
+    dangerText: Color(0xFFF38BA8),
+    dangerBorder: Color(0xFFEBA0AC),
+    warnText: Color(0xFFF9E2AF),
+    warnSoft: Color(0x1AF9E2AF),
+    stripe: Color(0x12A6ADC8),
+    code: AppCodeColors.mocha,
+  );
+
   @override
   AppTokens copyWith({
     Color? surfaceSunken,
@@ -371,6 +397,13 @@ class AppStatusColors {
     offline: Color(0xFF6C757E),
   );
 
+  static const AppStatusColors mocha = AppStatusColors(
+    online: Color(0xFFA6E3A1),
+    away: Color(0xFFF9E2AF),
+    dnd: Color(0xFFF38BA8),
+    offline: Color(0xFF6C7086),
+  );
+
   List<Color> get all => [online, away, dnd, offline];
 }
 
@@ -423,6 +456,15 @@ class AppCodeColors {
     number: Color(0xFFC9AA84),
     comment: Color(0xFFA8B2BC),
     punctuation: Color(0xFFA8B2BC),
+  );
+
+  /// Comment and punctuation use subtext0: overlay1 and overlay2 fail 4.5:1.
+  static const AppCodeColors mocha = AppCodeColors(
+    keyword: Color(0xFFCBA6F7),
+    string: Color(0xFFA6E3A1),
+    number: Color(0xFFFAB387),
+    comment: Color(0xFFA6ADC8),
+    punctuation: Color(0xFFA6ADC8),
   );
 
   /// Every role, for a contrast gate that must not miss one.

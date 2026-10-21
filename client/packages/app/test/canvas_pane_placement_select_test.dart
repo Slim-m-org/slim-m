@@ -27,7 +27,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Shape'));
       await tester.pump();
 
-      final point = screenFor(tester, const Offset(50, 50));
+      final point = screenFor(tester, const Offset(150, 150));
       final gesture = await tester.startGesture(point);
       await gesture.up();
       await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Shape'));
     await tester.pump();
     var gesture = await tester.startGesture(
-      screenFor(tester, const Offset(50, 50)),
+      screenFor(tester, const Offset(150, 150)),
     );
     await gesture.up();
     await tester.pumpAndSettle();
@@ -91,7 +91,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Note'));
       await tester.pump();
       final gesture = await tester.startGesture(
-        screenFor(tester, const Offset(50, 50)),
+        screenFor(tester, const Offset(150, 150)),
       );
       await gesture.up();
       await tester.pumpAndSettle();
@@ -126,7 +126,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Note'));
     await tester.pump();
     final gesture = await tester.startGesture(
-      screenFor(tester, const Offset(50, 50)),
+      screenFor(tester, const Offset(150, 150)),
     );
     await gesture.up();
     await tester.pumpAndSettle();

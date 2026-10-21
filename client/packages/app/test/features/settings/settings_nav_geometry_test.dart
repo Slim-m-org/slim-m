@@ -12,7 +12,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_hairline.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../support/fake_api.dart';
 

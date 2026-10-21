@@ -51,6 +51,8 @@ struct InviteDto {
     usable: bool,
     /// The role this code grants, or null.
     role_grant: Option<String>,
+    /// Who issued it; null when they are gone, and on a just-created invite.
+    created_by_name: Option<String>,
 }
 
 fn dto(invite: Invite, now: i64) -> InviteDto {
@@ -63,6 +65,7 @@ fn dto(invite: Invite, now: i64) -> InviteDto {
         expires_at: invite.expires_at,
         created_at: invite.created_at,
         revoked: invite.revoked,
+        created_by_name: invite.created_by_name,
     }
 }
 
@@ -75,6 +78,10 @@ struct CreateRequest {
     /// A role every account redeeming this code receives. Null grants none.
     #[serde(default)]
     role_grant: Option<String>,
+    /// Return the caller's live invite with these limits instead of minting
+    /// another; the "invite a friend" button sets it so a repeated click shares one code.
+    #[serde(default)]
+    reuse: bool,
 }
 
 #[derive(Serialize)]
@@ -146,36 +153,120 @@ async fn resolve_grant(
     Ok(role_id)
 }
 
-/// Creates an invite. Requires the permission to manage invites.
+/// How a caller may invite: with the permission, or only as a member while
+/// the space lets every member.
+enum InviteAccess {
+    Permitted,
+    MemberOnly,
+}
+
+async fn invite_access(
+    state: &AppState,
+    user: crate::ids::UserId,
+) -> Result<(InviteAccess, Permissions), ApiError> {
+    let permissions = state.store.base_permissions(user).await?;
+    if permissions.contains(Permissions::CREATE_INVITE) {
+        return Ok((InviteAccess::Permitted, permissions));
+    }
+    let waiting = !matches!(
+        state.store.member_gate(user).await?,
+        crate::store::MemberGate::Member
+    );
+    if waiting {
+        return Err(ApiError::Forbidden);
+    }
+    if state.store.members_can_invite().await? {
+        return Ok((InviteAccess::MemberOnly, permissions));
+    }
+    Err(ApiError::Forbidden)
+}
+
+/// Whose invites a caller sees and revokes: everyone's only with both CREATE_INVITE and MANAGE_ROLES, since another person's code is a credential.
+/// Your own stay manageable whatever the switch says, so turning it off never strands codes you made.
+async fn invite_scope(
+    state: &AppState,
+    user: crate::ids::UserId,
+) -> Result<Option<crate::ids::UserId>, ApiError> {
+    let permissions = state.store.base_permissions(user).await?;
+    let sees_all = permissions.contains(Permissions::CREATE_INVITE)
+        && permissions.contains(Permissions::MANAGE_ROLES);
+    Ok((!sees_all).then_some(user))
+}
+
+/// What a member without CREATE_INVITE gets when the request leaves it open,
+/// and the most they may ask for.
+const MEMBER_DEFAULT_USES: i64 = 1;
+const MEMBER_DEFAULT_TTL_MS: i64 = 24 * 60 * 60 * 1000;
+const MEMBER_MAX_USES: i64 = 10;
+const MEMBER_MAX_TTL_MS: i64 = 7 * MEMBER_DEFAULT_TTL_MS;
+const MEMBER_LIVE_INVITE_CAP: i64 = 20;
+
+/// Creates an invite. Requires CREATE_INVITE, or any membership while the
+/// space allows members to invite, in which case it is single-use and
+/// short-lived unless the request asks for something within the member caps.
 async fn create(
     AuthedLimited(ctx): AuthedLimited<WRITE>,
     State(state): State<AppState>,
     Json(req): Json<CreateRequest>,
 ) -> Result<Json<InviteDto>, ApiError> {
-    if !state
-        .store
-        .base_permissions(ctx.user_id)
-        .await?
-        .contains(Permissions::CREATE_INVITE)
-    {
-        return Err(ApiError::Forbidden);
-    }
+    let (access, _) = invite_access(&state, ctx.user_id).await?;
+    let member_only = matches!(access, InviteAccess::MemberOnly);
     if req.max_uses.is_some_and(|max| max < 1) {
         return Err(ApiError::BadRequest("max_uses must be at least 1"));
     }
-    if req.expires_at.is_some_and(|at| at <= now_ms()) {
+    let now = now_ms();
+    if req.expires_at.is_some_and(|at| at <= now) {
         return Err(ApiError::BadRequest("expires_at must be in the future"));
     }
+    let (max_uses, expires_at) = match access {
+        InviteAccess::Permitted => (req.max_uses, req.expires_at),
+        InviteAccess::MemberOnly => {
+            if req.role_grant.is_some() {
+                return Err(ApiError::Forbidden);
+            }
+            let max_uses = req.max_uses.unwrap_or(MEMBER_DEFAULT_USES);
+            let expires_at = req.expires_at.unwrap_or(now + MEMBER_DEFAULT_TTL_MS);
+            if max_uses > MEMBER_MAX_USES || expires_at > now + MEMBER_MAX_TTL_MS {
+                return Err(ApiError::BadRequest(
+                    "members can make invites of up to 10 uses and 7 days",
+                ));
+            }
+            (Some(max_uses), Some(expires_at))
+        }
+    };
 
     let role_grant = match req.role_grant.as_deref() {
         None => None,
         Some(raw) => Some(resolve_grant(&state, ctx.user_id, raw).await?),
     };
 
-    let invite = state
-        .store
-        .create_invite(ctx.user_id, role_grant, req.max_uses, req.expires_at)
-        .await?;
+    let invite = if req.reuse && role_grant.is_none() {
+        let cap = if member_only {
+            MEMBER_LIVE_INVITE_CAP
+        } else {
+            i64::MAX
+        };
+        state
+            .store
+            .live_or_new_invite(ctx.user_id, max_uses, expires_at, cap)
+            .await?
+            .ok_or(ApiError::BadRequest(
+                "revoke an invite before making another",
+            ))?
+    } else if member_only {
+        state
+            .store
+            .create_invite_capped(ctx.user_id, max_uses, expires_at, MEMBER_LIVE_INVITE_CAP)
+            .await?
+            .ok_or(ApiError::BadRequest(
+                "revoke an invite before making another",
+            ))?
+    } else {
+        state
+            .store
+            .create_invite(ctx.user_id, role_grant, max_uses, expires_at)
+            .await?
+    };
     Ok(Json(dto(invite, now_ms())))
 }
 
@@ -189,11 +280,7 @@ async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<InviteDto>>, ApiError> {
-    let permissions = state.store.base_permissions(ctx.user_id).await?;
-    if !permissions.contains(Permissions::CREATE_INVITE) {
-        return Err(ApiError::Forbidden);
-    }
-    let scope = (!permissions.contains(Permissions::MANAGE_ROLES)).then_some(ctx.user_id);
+    let scope = invite_scope(&state, ctx.user_id).await?;
     let now = now_ms();
     let invites = state.store.list_invites(scope).await?;
     Ok(Json(invites.into_iter().map(|i| dto(i, now)).collect()))
@@ -210,11 +297,7 @@ async fn revoke(
     State(state): State<AppState>,
 ) -> Result<StatusCode, ApiError> {
     let code = invite_code_key(&code);
-    let permissions = state.store.base_permissions(ctx.user_id).await?;
-    if !permissions.contains(Permissions::CREATE_INVITE) {
-        return Err(ApiError::Forbidden);
-    }
-    let scope = (!permissions.contains(Permissions::MANAGE_ROLES)).then_some(ctx.user_id);
+    let scope = invite_scope(&state, ctx.user_id).await?;
     if state.store.revoke_invite(&code, scope).await? {
         return Ok(StatusCode::NO_CONTENT);
     }
@@ -259,6 +342,16 @@ async fn check(
     }
 }
 
+/// A backstop for the sweep done when the switch goes off: a code whose maker
+/// can no longer invite is dead whatever its row says.
+async fn maker_lost_invite_rights(state: &AppState, code: &str) -> Result<bool, ApiError> {
+    let Some(maker) = state.store.invite_creator(code).await? else {
+        return Ok(false);
+    };
+    let rights = state.store.base_permissions(maker).await?;
+    Ok(!rights.contains(Permissions::CREATE_INVITE) && !state.store.members_can_invite().await?)
+}
+
 /// Spends an invite for the signed-in account. A fresh spend publishes
 /// `Event::MemberJoined`; the idempotent already-redeemed retry does not, so a
 /// greeter bot cannot be told the same join twice.
@@ -272,11 +365,11 @@ async fn redeem(
     // transaction, so an unthrottled loop of garbage codes serialised the whole
     // server on the write lock while proving nothing.
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
-    match state
-        .store
-        .redeem_invite(&invite_code_key(&code), ctx.user_id)
-        .await
-    {
+    let code = invite_code_key(&code);
+    if maker_lost_invite_rights(&state, &code).await? {
+        return Err(ApiError::BadRequest("that invite cannot be used"));
+    }
+    match state.store.redeem_invite(&code, ctx.user_id).await {
         Ok(freshly_redeemed) => {
             if freshly_redeemed {
                 state.hub.publish(Event::MemberJoined(ctx.user_id));

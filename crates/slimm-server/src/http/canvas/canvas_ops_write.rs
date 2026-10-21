@@ -29,9 +29,14 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq};
+use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 use crate::permissions::Permissions;
-use crate::store::{CanvasOpRequest, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp};
+use crate::store::{
+    CanvasOpRequest, ClearScope, MAX_REMOVE_IDS_PER_OP, SubmitOpError, SubmittedOp,
+};
+
+/// The object kinds a scoped clear may name; the same set `place` accepts.
+const CLEAR_KINDS: [&str; 4] = ["stroke", "image", "note", "shape"];
 
 /// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
 const Z_INDEX_LIMIT: i64 = 1 << 52;
@@ -54,6 +59,10 @@ pub(in crate::http) struct SubmitOpParams {
     z_index: Option<i64>,
     /// The whole new props an `edit` writes to a note.
     props: Option<serde_json::Value>,
+    /// Narrows a `clear` to these object kinds.
+    kinds: Option<Vec<String>>,
+    /// Narrows a `clear` to one author's objects.
+    author_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -138,6 +147,9 @@ pub(in crate::http) async fn submit_op(
     // No await between the commit and this call; see `ws::permission_cache`.
     if outcome.fresh && outcome.affected > 0 {
         publish(&state, channel_id, op_id, &outcome);
+        if outcome.kind == "restore" {
+            republish_locks(&state, channel_id, &outcome.touched_ids).await;
+        }
     }
 
     Ok((StatusCode::CREATED, Json(CanvasOpResultDto::from(outcome))))
@@ -164,9 +176,15 @@ impl From<SubmittedOp> for CanvasOpResultDto {
 /// the move-specific fields, and `z_index` are each legal on only one of the
 /// five kinds this slice accepts.
 fn parse_request(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
+    let scoped_fields = params.kinds.is_some() || params.author_id.is_some();
+    if !matches!(params.kind.as_str(), "clear_scoped") && scoped_fields {
+        return Err(ApiError::BadRequest(
+            "kinds and author_id are only valid for clear_scoped",
+        ));
+    }
     match params.kind.as_str() {
         "remove" => parse_remove(params),
-        "clear" => parse_clear(params),
+        "clear" | "clear_scoped" => parse_clear(params),
         "restore" => parse_restore(params),
         "move" => parse_move(params),
         "reorder" => parse_reorder(params),
@@ -204,7 +222,31 @@ fn parse_clear(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     if before_seq < 0 {
         return Err(ApiError::BadRequest("before_seq must not be negative"));
     }
-    Ok(CanvasOpRequest::Clear { before_seq })
+    let scoped = params.kind == "clear_scoped";
+    let names_no_kind = params.kinds.as_ref().is_none_or(Vec::is_empty);
+    if scoped && names_no_kind && params.author_id.is_none() {
+        return Err(ApiError::BadRequest(
+            "clear_scoped needs kinds or author_id",
+        ));
+    }
+    let mut kinds = params.kinds.unwrap_or_default();
+    let mut seen = std::collections::HashSet::new();
+    kinds.retain(|kind| seen.insert(kind.clone()));
+    if kinds.len() > CLEAR_KINDS.len()
+        || kinds
+            .iter()
+            .any(|kind| !CLEAR_KINDS.contains(&kind.as_str()))
+    {
+        return Err(ApiError::BadRequest("kinds must name canvas object kinds"));
+    }
+    let author_id = params
+        .author_id
+        .map(|raw| parse_uuid(&raw).map(UserId))
+        .transpose()?;
+    Ok(CanvasOpRequest::Clear {
+        before_seq,
+        scope: ClearScope { kinds, author_id },
+    })
 }
 
 fn parse_restore(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
@@ -304,7 +346,12 @@ fn parse_edit(params: SubmitOpParams) -> Result<CanvasOpRequest, ApiError> {
     Ok(CanvasOpRequest::Edit { object_id, props })
 }
 
-fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: &SubmittedOp) {
+pub(super) fn publish(
+    state: &AppState,
+    channel_id: ChannelId,
+    op_id: CanvasOpId,
+    outcome: &SubmittedOp,
+) {
     match outcome.kind.as_str() {
         "remove" => state.hub.publish(Event::CanvasObjectsRemoved {
             channel_id,
@@ -317,6 +364,9 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
             seq: Seq(outcome.seq),
             op_id,
             before_seq: Seq(outcome.cleared_before_seq.unwrap_or(0)),
+            scope: outcome.cleared_scope.clone().unwrap_or_default(),
+            spared_ids: restorable_ids(&outcome.spared_ids),
+            spared_count: outcome.spared_ids.len() as i64,
         }),
         "restore" => state.hub.publish(Event::CanvasObjectsRestored {
             channel_id,
@@ -370,6 +420,21 @@ fn publish(state: &AppState, channel_id: ChannelId, op_id: CanvasOpId, outcome: 
             }
         }
         _ => {}
+    }
+}
+
+/// Tells viewers which restored objects are locked, since a lock outlives the erase that hid it.
+async fn republish_locks(state: &AppState, channel_id: ChannelId, restored: &[CanvasObjectId]) {
+    let ids = restorable_ids(restored);
+    let Ok(locked) = state.store.locked_canvas_objects(&ids).await else {
+        return;
+    };
+    for object_id in locked {
+        state.hub.publish(Event::CanvasObjectLockChanged {
+            channel_id,
+            object_id,
+            locked: true,
+        });
     }
 }
 

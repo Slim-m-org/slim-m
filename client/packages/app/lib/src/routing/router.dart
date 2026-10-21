@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' show TokenPair;
+import 'package:slimm_design_system/design_system.dart'
+    show AppSpinner, AppSpinnerSize;
 
 import '../invite_pending.dart';
 import '../providers/overlay_cover.dart';
@@ -39,6 +41,7 @@ import '../features/settings/screens/admin/role_detail_screen.dart';
 import '../features/settings/screens/admin/roles_screen.dart';
 import '../features/settings/screens/admin/server_metrics_screen.dart';
 import '../features/settings/screens/admin/audit_log_screen.dart';
+import '../features/settings/screens/admin/export_screen.dart';
 import '../features/settings/screens/admin/storage_screen.dart';
 import '../features/settings/screens/admin/webhooks_screen.dart';
 import '../features/channels/screens/channel_settings_screen.dart';
@@ -161,6 +164,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.adminWebhooks,
         pageBuilder: (context, state) =>
             modalPage(context, const WebhooksScreen()),
+      ),
+      GoRoute(
+        path: Routes.adminExport,
+        pageBuilder: (context, state) =>
+            modalPage(context, const ExportScreen()),
       ),
       GoRoute(
         path: Routes.adminAccountRecovery,
@@ -400,6 +408,7 @@ class _RedirectSpinner extends StatelessWidget {
   const _RedirectSpinner();
 
   @override
-  Widget build(BuildContext context) =>
-      const Scaffold(body: Center(child: CircularProgressIndicator()));
+  Widget build(BuildContext context) => const Scaffold(
+    body: Center(child: AppSpinner(size: AppSpinnerSize.lg)),
+  );
 }

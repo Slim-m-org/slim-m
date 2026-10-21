@@ -36,7 +36,7 @@ void main() {
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
-        child: CanvasSelectionSemantics(document: document),
+        child: Stack(children: [CanvasSelectionSemantics(document: document)]),
       ),
     );
 
@@ -58,7 +58,9 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: CanvasSelectionSemantics(document: document),
+          child: Stack(
+            children: [CanvasSelectionSemantics(document: document)],
+          ),
         ),
       );
       document.selectedObjectId.value = 'note-1';
@@ -81,7 +83,7 @@ void main() {
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
-        child: CanvasSelectionSemantics(document: document),
+        child: Stack(children: [CanvasSelectionSemantics(document: document)]),
       ),
     );
     document.selectedObjectId.value = 'note-1';
@@ -120,7 +122,9 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: CanvasSelectionSemantics(document: document),
+          child: Stack(
+            children: [CanvasSelectionSemantics(document: document)],
+          ),
         ),
       );
       document.selectedObjectId.value = 'shape-1';
@@ -143,9 +147,13 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: CanvasSelectionSemantics(
-            document: document,
-            onOpenActions: opened.add,
+          child: Stack(
+            children: [
+              CanvasSelectionSemantics(
+                document: document,
+                onOpenActions: opened.add,
+              ),
+            ],
           ),
         ),
       );
@@ -184,7 +192,9 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: CanvasSelectionSemantics(document: document),
+          child: Stack(
+            children: [CanvasSelectionSemantics(document: document)],
+          ),
         ),
       );
       document.selectedObjectId.value = 'note-1';

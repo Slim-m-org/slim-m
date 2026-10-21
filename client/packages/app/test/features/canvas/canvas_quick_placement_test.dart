@@ -111,4 +111,116 @@ void main() {
       expect(error, contains('2h'));
     },
   );
+
+  testWidgets(
+    'a shape a clear swept while its reply was in flight is not kept',
+    (tester) async {
+      final client = testApi(
+        (request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'id': body['id'],
+              'kind': 'shape',
+              'z_index': 1,
+              'x': body['x'],
+              'y': body['y'],
+              'w': body['w'],
+              'h': body['h'],
+              'props': body['props'],
+              'author_id': 'me',
+              'seq': 5,
+              'created_at': 0,
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        },
+        session: api.SessionStore(
+          tokens: const api.TokenPair(
+            userId: 'me',
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessExpiresAt: 0,
+          ),
+        ),
+      );
+      final document = CanvasDocument();
+      final placement = CanvasQuickPlacement(
+        client: client,
+        channelId: 'c1',
+        document: document,
+        timedOutUntil: () => null,
+        clearedSincePlacement: (_) => true,
+      );
+
+      final placed = await placement.placeShape(
+        Offset.zero,
+        CanvasShapeKind.rectangle,
+        onError: (_) => fail('must not error'),
+      );
+
+      expect(placed, isNotNull);
+      expect(document.isAlive(placed!.id), isFalse);
+      expect(document.wasRemoved(placed.id), isTrue);
+    },
+  );
+
+  testWidgets('a flipped arrow is placed with the way it points', (
+    tester,
+  ) async {
+    final requests = <Map<String, dynamic>>[];
+    final client = testApi(
+      (request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests.add(body);
+        return http.Response(
+          jsonEncode({
+            'id': body['id'],
+            'kind': 'shape',
+            'z_index': 1,
+            'x': body['x'],
+            'y': body['y'],
+            'w': body['w'],
+            'h': body['h'],
+            'props': body['props'],
+            'author_id': 'me',
+            'seq': 1,
+            'created_at': 0,
+          }),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      },
+      session: api.SessionStore(
+        tokens: const api.TokenPair(
+          userId: 'me',
+          accessToken: 'access',
+          refreshToken: 'refresh',
+          accessExpiresAt: 0,
+        ),
+      ),
+    );
+    final placement = CanvasQuickPlacement(
+      client: client,
+      channelId: 'c1',
+      document: CanvasDocument(),
+      timedOutUntil: () => null,
+    );
+
+    await placement.placeShape(
+      Offset.zero,
+      CanvasShapeKind.arrow,
+      flipX: true,
+      onError: (_) => fail('must not error'),
+    );
+    await placement.placeShape(
+      Offset.zero,
+      CanvasShapeKind.arrow,
+      onError: (_) => fail('must not error'),
+    );
+
+    expect(requests[0]['props'], {'shape': 'arrow', 'flip_x': true});
+    expect(requests[1]['props'], {'shape': 'arrow'});
+  });
 }

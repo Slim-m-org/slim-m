@@ -26,6 +26,7 @@ void main() {
     final sub = container.listen(canvasEngineProvider('c1'), (_, _) {});
     addTearDown(sub.close);
     final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.sync.seedFromViewport(0);
     await container.pump();
 
     fixture.events.add(
@@ -47,6 +48,7 @@ void main() {
     final sub = container.listen(canvasEngineProvider('c1'), (_, _) {});
     addTearDown(sub.close);
     final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.sync.seedFromViewport(0);
     await container.pump();
 
     fixture.events.add(
@@ -74,6 +76,7 @@ void main() {
     addTearDown(fixture.events.close);
     final sub = container.listen(canvasEngineProvider('c1'), (_, _) {});
     final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.sync.seedFromViewport(0);
     await container.pump();
 
     sub.close();
@@ -100,6 +103,7 @@ void main() {
 
     final firstSub = container.listen(canvasEngineProvider('c1'), (_, _) {});
     final first = container.read(canvasEngineProvider('c1').notifier);
+    first.sync.seedFromViewport(0);
     await container.pump();
     fixture.events.add(
       api.CanvasObjectPlaced(
@@ -117,6 +121,7 @@ void main() {
     final secondSub = container.listen(canvasEngineProvider('c1'), (_, _) {});
     addTearDown(secondSub.close);
     final second = container.read(canvasEngineProvider('c1').notifier);
+    second.sync.seedFromViewport(0);
 
     expect(identical(first, second), isFalse);
     expect(second.document.knows('a'), isFalse);
@@ -132,7 +137,9 @@ void main() {
     addTearDown(subA.close);
     addTearDown(subB.close);
     final engineA = container.read(canvasEngineProvider('c1').notifier);
+    engineA.sync.seedFromViewport(0);
     final engineB = container.read(canvasEngineProvider('c2').notifier);
+    engineB.sync.seedFromViewport(0);
     await container.pump();
 
     fixture.events.add(

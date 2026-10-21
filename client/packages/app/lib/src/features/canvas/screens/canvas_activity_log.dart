@@ -28,6 +28,7 @@ import 'dart:collection';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:slimm_api/api.dart' as api;
 
 /// What happened to the canvas. `resynced` is not a wire kind at all - it
@@ -58,6 +59,7 @@ class CanvasActivityEntry {
     this.objectKind,
     this.detail,
     this.count = 1,
+    this.clearScope,
     required this.at,
   });
 
@@ -88,6 +90,9 @@ class CanvasActivityEntry {
   /// `restored`; always 1 for `placed` and `moved`; ignored by the sentence
   /// builder for `cleared` and `resynced`, which carry none on the wire.
   final int count;
+
+  /// What a [CanvasActivityKind.cleared] entry cleared; null or everything reads as the whole canvas.
+  final api.CanvasClearScope? clearScope;
   final DateTime at;
 }
 
@@ -133,8 +138,10 @@ class CanvasActivityLog extends ChangeNotifier {
         _add(
           _entry(op.id, CanvasActivityKind.removed, actorId, objectIds.length),
         );
-      case api.CanvasClearOp(:final actorId):
-        _add(_entry(op.id, CanvasActivityKind.cleared, actorId, 1));
+      case api.CanvasClearOp(:final actorId, :final scope):
+        _add(
+          _entry(op.id, CanvasActivityKind.cleared, actorId, 1, scope: scope),
+        );
       case api.CanvasRestoreOp(:final actorId, :final objectIds):
         _add(
           _entry(op.id, CanvasActivityKind.restored, actorId, objectIds.length),
@@ -161,8 +168,10 @@ class CanvasActivityLog extends ChangeNotifier {
   void recordRemovedLive(String opId, List<String> objectIds) =>
       _add(_entry(opId, CanvasActivityKind.removed, null, objectIds.length));
 
-  void recordClearedLive(String opId) =>
-      _add(_entry(opId, CanvasActivityKind.cleared, null, 1));
+  void recordClearedLive(
+    String opId, {
+    api.CanvasClearScope scope = api.CanvasClearScope.everything,
+  }) => _add(_entry(opId, CanvasActivityKind.cleared, null, 1, scope: scope));
 
   void recordRestoredLive(String opId, int count) =>
       _add(_entry(opId, CanvasActivityKind.restored, null, count));
@@ -213,21 +222,27 @@ class CanvasActivityLog extends ChangeNotifier {
   static String? _noteDetail(api.CanvasObject object) {
     if (object.kind != 'note') return null;
     final text = object.props['text'];
-    if (text is! String || text.isEmpty) return null;
+    if (text is! String) return null;
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (line.isEmpty) return null;
     const limit = 80;
-    return text.length > limit ? '${text.substring(0, limit)}…' : text;
+    // Cut by grapheme so an emoji or accent straddling the limit is never split.
+    final graphemes = line.characters;
+    return graphemes.length > limit ? '${graphemes.take(limit)}…' : line;
   }
 
   CanvasActivityEntry _entry(
     String id,
     CanvasActivityKind kind,
     String? actorId,
-    int count,
-  ) => CanvasActivityEntry(
+    int count, {
+    api.CanvasClearScope? scope,
+  }) => CanvasActivityEntry(
     id: id,
     kind: kind,
     actorId: actorId,
     count: count,
+    clearScope: scope,
     at: _now(),
   );
 
@@ -310,8 +325,7 @@ String describeCanvasActivityEntry(
     CanvasActivityKind.edited =>
       who == null ? 'A note was edited.' : '$who edited a note.',
     CanvasActivityKind.removed => _describeCounted(entry.count, who, 'removed'),
-    CanvasActivityKind.cleared =>
-      who == null ? 'The canvas was cleared.' : '$who cleared the canvas.',
+    CanvasActivityKind.cleared => _describeCleared(entry.clearScope, who),
     CanvasActivityKind.restored => _describeCounted(
       entry.count,
       who,
@@ -319,6 +333,27 @@ String describeCanvasActivityEntry(
     ),
     CanvasActivityKind.resynced => 'The canvas reloaded from the server.',
   };
+}
+
+const _clearedKindNames = {
+  'stroke': 'drawings',
+  'image': 'images',
+  'note': 'notes',
+  'shape': 'shapes',
+};
+
+String _describeCleared(api.CanvasClearScope? scope, String? who) {
+  if (scope == null || scope.isEverything) {
+    return who == null ? 'The canvas was cleared.' : '$who cleared the canvas.';
+  }
+  if (who == null) return 'Part of the canvas was cleared.';
+  final kinds = [
+    for (final kind in scope.kinds) _clearedKindNames[kind] ?? kind,
+  ].join(', ');
+  final what = scope.kinds.isEmpty ? 'content' : kinds;
+  return scope.authorId == null
+      ? '$who cleared the $what.'
+      : "$who cleared one person's $what.";
 }
 
 String _describePlaced(CanvasActivityEntry entry, String? who) {

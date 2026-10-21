@@ -55,35 +55,6 @@ impl NotificationPreference {
 /// value.
 pub const MINUTES_PER_DAY: u16 = 1440;
 
-/// The legacy per-account quiet-hours window, in minutes since midnight UTC.
-///
-/// Only stored and served by `/push/quiet-hours`; push gating reads
-/// `notification_schedule::Schedule` instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct QuietHours {
-    pub start_minute: u16,
-    pub end_minute: u16,
-}
-
-impl QuietHours {
-    /// Builds a window from wire values, refusing anything
-    /// [`Store::set_quiet_hours`](crate::store::Store::set_quiet_hours)
-    /// must not persist: either minute outside `0..MINUTES_PER_DAY`, or the
-    /// two equal - a zero-length window and a full-day window would both
-    /// have to spell the same pair, so neither is accepted and a caller who
-    /// wants "always quiet" sets a 1439-minute window instead.
-    pub fn parse(start_minute: i64, end_minute: i64) -> Option<Self> {
-        let in_range = |m: i64| (0..i64::from(MINUTES_PER_DAY)).contains(&m);
-        if !in_range(start_minute) || !in_range(end_minute) || start_minute == end_minute {
-            return None;
-        }
-        Some(Self {
-            start_minute: start_minute as u16,
-            end_minute: end_minute as u16,
-        })
-    }
-}
-
 /// What an account that never chose gets for push previews. The preview is
 /// sealed to the device's own key, and the OS lock-screen setting still
 /// applies on top; flip this one constant to make previews opt-in again
@@ -119,21 +90,6 @@ mod tests {
         assert_eq!(
             NotificationPreference::default(),
             NotificationPreference::Everything
-        );
-    }
-
-    #[test]
-    fn parse_refuses_an_out_of_range_or_equal_pair() {
-        assert_eq!(QuietHours::parse(-1, 60), None, "negative start");
-        assert_eq!(
-            QuietHours::parse(0, 1440),
-            None,
-            "end at the exclusive bound"
-        );
-        assert_eq!(
-            QuietHours::parse(600, 600),
-            None,
-            "equal start and end is ambiguous between zero-length and all-day"
         );
     }
 }

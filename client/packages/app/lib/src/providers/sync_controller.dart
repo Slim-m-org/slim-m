@@ -188,6 +188,19 @@ class SyncController extends StateNotifier<SyncStatus> {
   void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
       _connection?.viewing(channelIds, active: active);
 
+  /// Whether the person is at this device, asked at each connect; set by the
+  /// presence activity reporter. Unset sends no claim, keeping ping-based presence.
+  bool Function()? activeAtHello;
+
+  /// Tells the server the person used this device recently; a no-op while the
+  /// socket is down, like [notifyTyping], and false then so the caller retries.
+  bool notifyActive() {
+    final connection = _connection;
+    if (connection == null) return false;
+    connection.active();
+    return true;
+  }
+
   /// Tells the server this user's pointer moved on a channel's canvas.
   ///
   /// The same no-op-while-down shape as [notifyTyping]: a cursor position
@@ -210,11 +223,15 @@ class SyncController extends StateNotifier<SyncStatus> {
     String objectId,
     List<double> points, {
     bool ended = false,
+    String? color,
+    double? width,
   }) => _connection?.canvasStrokePreview(
     channelId,
     objectId,
     points,
     ended: ended,
+    color: color,
+    width: width,
   );
 
   /// Tells the server the box of the object this user is dragging or
@@ -226,6 +243,22 @@ class SyncController extends StateNotifier<SyncStatus> {
     bool ended = false,
   }) =>
       _connection?.canvasObjectPreview(channelId, objectId, box, ended: ended);
+
+  /// Tells the server the box of the camera or screen-share tile this user is
+  /// dragging; the same no-op-while-down shape.
+  void notifyCanvasMediaSlotPreview(
+    String channelId,
+    String kind,
+    String slotUserId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) => _connection?.canvasMediaSlotPreview(
+    channelId,
+    kind,
+    slotUserId,
+    box,
+    ended: ended,
+  );
 
   /// Tells the server the world rectangle this user is looking at; the same
   /// no-op-while-down shape.
@@ -332,6 +365,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       url: api.webSocketUrl,
       ticket: ticket.ticket,
       open: api.openWebSocket,
+      active: activeAtHello?.call(),
     );
     if (generation != _generation) {
       await connection.close();

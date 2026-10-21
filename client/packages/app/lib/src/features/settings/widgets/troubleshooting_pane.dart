@@ -18,6 +18,7 @@ import '../../../diagnostics/debug_log.dart';
 import '../../../diagnostics/debug_log_filter.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
+import 'call_health_row.dart';
 import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
@@ -46,6 +47,7 @@ class TroubleshootingPane extends ConsumerWidget {
           child: const MediaCapabilitySection(
             extraRows: [
               ConnectionTestRow(),
+              CallHealthRow(),
               _DebugLogRow(),
               CallStatsRow(),
               RunSetupAgainRow(),
@@ -111,31 +113,38 @@ class TroubleshootingHeading extends ConsumerWidget {
             iconSize: AppSizes.icon16,
             onPressed: back,
           ),
-          Flexible(
-            child: GestureDetector(
-              onTap: back,
-              child: Text(
-                'Troubleshooting',
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-          ),
-          Text(
-            '/',
-            style: AppText.heading.copyWith(color: tokens.textSecondary),
-          ),
           Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(
-                'Debug log',
-                overflow: TextOverflow.ellipsis,
-                style: AppText.heading.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.semi,
+            child: Row(
+              spacing: AppSpacing.s8,
+              children: [
+                Flexible(
+                  child: GestureDetector(
+                    onTap: back,
+                    child: Text(
+                      'Troubleshooting',
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body.copyWith(color: tokens.textSecondary),
+                    ),
+                  ),
                 ),
-              ),
+                Text(
+                  '/',
+                  style: AppText.heading.copyWith(color: tokens.textSecondary),
+                ),
+                Flexible(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'Debug log',
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.heading.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: AppWeights.semi,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           AppIconButton(

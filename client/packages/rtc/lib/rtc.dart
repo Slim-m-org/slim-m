@@ -11,6 +11,8 @@ export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
 export 'src/pulse_audio.dart';
 export 'src/audio_gain.dart';
+export 'src/audio_publish_options.dart';
+export 'src/screen_share_audio_options.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
 export 'src/capture_noise_suppression.dart';
@@ -21,6 +23,7 @@ export 'src/camera_devices.dart';
 export 'src/camera_failure.dart';
 export 'src/camera_switching.dart';
 export 'src/desktop_sources.dart';
+export 'src/join_timings.dart';
 export 'src/input_gate.dart'
     show
         InputGateMonitor,
@@ -48,6 +51,16 @@ export 'src/video_quality.dart';
 export 'src/screen_share_status.dart';
 export 'src/video_stall_watchdog.dart' show VideoTileHealth;
 export 'src/video_subscription_culler.dart';
+export 'src/voice_health.dart'
+    show
+        VoiceHealth,
+        kPoorConcealmentShare,
+        kPoorJitterBufferMs,
+        kPoorRttMs,
+        kPoorSustain,
+        kRecoverSustain;
+export 'src/voice_health_summary.dart' show CallHealthSummary, HealthStats;
+export 'src/voice_health_window.dart' show HealthInterval;
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
     show

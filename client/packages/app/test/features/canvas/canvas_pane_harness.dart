@@ -11,6 +11,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -23,7 +24,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
@@ -123,7 +124,25 @@ class CanvasPaneFixture {
     this.placeStatus = 201,
     this.attachmentFetchStatus = 200,
     this.attachmentUploadStatus = 200,
-  }) : channelPermissions = channelPermissions ?? mePermissions;
+    this.placeDelay = Duration.zero,
+  }) : channelPermissions = channelPermissions ?? mePermissions {
+    // A read answered after a frame names a head at least that high, as the server's would.
+    events.stream.listen((event) {
+      final seq = switch (event) {
+        api.CanvasObjectPlaced(:final seq) => seq,
+        api.CanvasObjectsRemoved(:final seq) => seq,
+        api.CanvasObjectsRestored(:final seq) => seq,
+        api.CanvasCleared(:final seq) => seq,
+        api.CanvasObjectMoved(:final seq) => seq,
+        api.CanvasObjectReordered(:final seq) => seq,
+        api.CanvasObjectEdited(:final seq) => seq,
+        _ => 0,
+      };
+      if (seq > _eventHead) _eventHead = seq;
+    });
+  }
+
+  int _eventHead = 0;
 
   final StreamController<api.ServerEvent> events =
       StreamController<api.ServerEvent>.broadcast();
@@ -141,6 +160,9 @@ class CanvasPaneFixture {
   /// refused draw (403 forbidden, timeout freeze; 409 channel full) without
   /// a real server refusal.
   final int placeStatus;
+
+  /// How long a placement waits before it is answered, so a test can act while the request is in flight.
+  final Duration placeDelay;
 
   /// The status `GET .../attachments/{id}` answers with. 200 serves a real
   /// decodable PNG, so a test can prove an image object placed by anyone
@@ -164,12 +186,19 @@ class CanvasPaneFixture {
   /// value here to make the two genuinely disagree.
   final int channelPermissions;
   final List<Map<String, dynamic>> posted = [];
+
+  /// When set, a placement POST is recorded but its reply waits on this.
+  Completer<void>? placeGate;
   List<Map<String, dynamic>> objects = [];
 
   /// Every `GET .../canvas/objects` the pane sent, in order. A count rather
   /// than a bare int so a test can tell "one, twice as many as needed" from
   /// "the same fetch racing itself and never stopping".
   int viewportGets = 0;
+
+  /// When set, a viewport read answers from the objects as they were when it
+  /// arrived but only after this completes, like a slow response in flight.
+  Completer<void>? viewportGate;
 
   /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
   int? opsHead;
@@ -181,6 +210,12 @@ class CanvasPaneFixture {
 
   /// Every `POST .../canvas/ops` (remove, clear, restore) the pane sent.
   final List<Map<String, dynamic>> postedOps = [];
+
+  /// Every `DELETE .../canvas/objects/{id}` (a Delete, always for good) the pane sent.
+  final List<String> deletedObjects = [];
+
+  /// The status a Delete is answered with; anything but 200 refuses it.
+  int deleteStatus = 200;
   var _opSeq = 0;
 
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
@@ -207,6 +242,24 @@ class CanvasPaneFixture {
         if (request.url.path.endsWith('/permissions')) {
           return jsonResponse({'permissions': channelPermissions});
         }
+        if (request.method == 'DELETE' &&
+            request.url.path.contains('/canvas/objects/')) {
+          if (deleteStatus != 200) {
+            return http.Response(
+              jsonEncode({'error': 'no'}),
+              deleteStatus,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          final id = request.url.pathSegments.last;
+          deletedObjects.add(id);
+          return jsonResponse(
+            objects.firstWhere(
+              (o) => o['id'] == id,
+              orElse: () => canvasObjectJson(id),
+            ),
+          );
+        }
         if (request.url.path.endsWith('/canvas/ops') &&
             request.method == 'POST') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -219,13 +272,28 @@ class CanvasPaneFixture {
           }
           postedOps.add(body);
           _opSeq++;
+          final seq = max(_opSeq, objects.length + postedOps.length);
+          if (body['kind'] == 'clear') {
+            // The server echoes a clear to everyone, its author included.
+            scheduleMicrotask(
+              () => events.add(
+                api.CanvasCleared(
+                  channelId: 'c1',
+                  seq: seq,
+                  opId: 'server-op-$_opSeq',
+                  beforeSeq: body['before_seq'] as int,
+                ),
+              ),
+            );
+          }
           return http.Response(
             jsonEncode({
               'op': {
                 'id': 'server-op-$_opSeq',
-                'seq': _opSeq,
+                'seq': seq,
                 'kind': body['kind'],
-                'affected': 1,
+                // A remove takes every id it names, as the server does for live unlocked ones.
+                'affected': (body['object_ids'] as List?)?.length ?? 1,
                 'created_at': 0,
               },
               'fresh': true,
@@ -300,6 +368,9 @@ class CanvasPaneFixture {
         }
         if (request.method == 'POST') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
+          if (placeDelay > Duration.zero) {
+            await Future<void>.delayed(placeDelay);
+          }
           if (placeStatus != 201) {
             return http.Response(
               jsonEncode({'error': 'no'}),
@@ -308,9 +379,13 @@ class CanvasPaneFixture {
             );
           }
           posted.add(body);
+          await placeGate?.future;
           return http.Response(
             jsonEncode({
-              ...canvasObjectJson(body['id'] as String),
+              ...canvasObjectJson(
+                body['id'] as String,
+                seq: 100 + posted.length,
+              ),
               'kind': body['kind'],
               'x': body['x'],
               'y': body['y'],
@@ -323,6 +398,10 @@ class CanvasPaneFixture {
           );
         }
         viewportGets++;
+        final snapshot = List<Map<String, dynamic>>.of(objects);
+        final head = max(snapshot.length, _eventHead);
+        final gate = viewportGate;
+        if (gate != null) await gate.future;
         if (viewportStatus != 200) {
           return http.Response(
             jsonEncode({'error': 'no'}),
@@ -331,9 +410,9 @@ class CanvasPaneFixture {
           );
         }
         return jsonResponse({
-          'objects': objects,
+          'objects': snapshot,
           'has_more': hasMore,
-          'latest_seq': objects.length,
+          'latest_seq': head,
         });
       }),
       ...extraOverrides,

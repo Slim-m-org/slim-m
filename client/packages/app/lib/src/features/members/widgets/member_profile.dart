@@ -1,28 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A profile first, everything you can do about them second.
-///
-/// Anchored popover on a pointer layout, bottom sheet on a compact one, from
-/// the same content: the member pane, a message author, and the call roster
-/// all open this rather than each growing its own menu. The same body is also
-/// `AvatarSettingsSection`'s own live preview of "what people in this Space
-/// see when they open your card" - see `settings_profile_preview.dart`.
-///
-/// The profile (header, about, activity, roles, join date) composes in a
-/// fixed order and a section you have no content for is *absent*, never
-/// present-and-empty. Someone else's card follows with Message and Add note,
-/// the "In #channel" rows when opened from a channel, then Moderate, Report
-/// and Block; your own ends in Set status, Copy username and Profile settings
-/// (see `member_profile_cards.dart`).
-///
-/// Moderation is one row, not a wall of rows: a "Moderate..." row pushes
-/// [MemberModerateView] into the same popover ([_moderating]), rather than
-/// stacking a second dialog. Members without any moderation right never see
-/// that row at all, so their card is profile + Message + note + Report/Block.
-///
-/// Everything in the call section is local to this listener and never reaches
-/// the room; anything room-visible sits inside Moderate instead, which is why
-/// "Mute for me" is named the way it is and why a timeout chip is not next to
-/// it.
+/// A profile first, everything you can do about them second: a popover on pointer layouts, a bottom sheet on compact ones, from the same content.
+/// A section with no content is absent; Moderation is one "Moderate..." row pushing [MemberModerateView] into the same popover, hidden without a moderation right.
+/// The call section is local to this listener; anything room-visible sits inside Moderate.
 library;
 
 import 'dart:async';

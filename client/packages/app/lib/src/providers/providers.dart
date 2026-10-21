@@ -486,7 +486,7 @@ const themeChoiceKey = 'slimm.appearance.theme';
 /// deliberately resolves to the ordinary dark palette, never to true black:
 /// true black is a choice made for a specific OLED panel, and no OS setting
 /// reports one.
-enum AppThemeChoice { system, light, dark, trueBlack }
+enum AppThemeChoice { system, light, dark, trueBlack, catppuccin }
 
 /// The stored appearance choice.
 ///

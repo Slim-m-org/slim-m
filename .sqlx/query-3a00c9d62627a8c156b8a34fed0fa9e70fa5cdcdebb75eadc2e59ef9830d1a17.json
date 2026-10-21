@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT created_by AS \"created_by: UserId\" FROM invites WHERE code = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_by: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "3a00c9d62627a8c156b8a34fed0fa9e70fa5cdcdebb75eadc2e59ef9830d1a17"
+}

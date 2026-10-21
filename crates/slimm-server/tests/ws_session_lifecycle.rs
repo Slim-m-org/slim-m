@@ -11,17 +11,15 @@ use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::auth::Auth;
-use slimm_server::http::{self, AppState};
+use slimm_server::http::{self};
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, connect, read_frame, serve};
 
 const PASSWORD: &str = "correct-horse-battery";
 
@@ -41,42 +39,6 @@ async fn user_ticket(store: &Store, name: &str) -> (String, String, slimm_server
         .unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
     (tokens.access_token, ticket, user.id)
-}
-
-/// Spawns the real server and returns its address.
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-/// Connects, performs the hello handshake, and returns the live socket.
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// Reads the next text frame as JSON, skipping any control frames.
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                return serde_json::from_str(text.as_str()).unwrap();
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
 }
 
 /// Resolves once the socket has closed (a close frame, end of stream, or error).
@@ -125,6 +87,16 @@ async fn logout_closes_the_live_socket() {
 /// returns the sessions it revoked precisely so this cannot silently regress.
 #[tokio::test]
 async fn revoking_a_bot_closes_its_live_socket() {
+    assert_bot_socket_closes_on("revoke", StatusCode::NO_CONTENT).await;
+}
+
+/// A leaked token is replaced, not only revoked: the old token's socket must go too.
+#[tokio::test]
+async fn reissuing_a_bot_token_closes_the_old_live_socket() {
+    assert_bot_socket_closes_on("token", StatusCode::OK).await;
+}
+
+async fn assert_bot_socket_closes_on(verb: &str, expected: StatusCode) {
     let (store, _guard) = support::new_store("slimm-ws-test").await;
     let state = support::app::state(store.clone());
 
@@ -172,14 +144,14 @@ async fn revoking_a_bot_closes_its_live_socket() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/bots/{bot_id}/revoke"))
+                .uri(format!("/bots/{bot_id}/{verb}"))
                 .header("authorization", format!("Bearer {admin_token}"))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
-    assert_eq!(revoked.status(), StatusCode::NO_CONTENT);
+    assert_eq!(revoked.status(), expected);
 
     let closed = tokio::time::timeout(Duration::from_secs(2), wait_closed(&mut bot_ws)).await;
     assert!(

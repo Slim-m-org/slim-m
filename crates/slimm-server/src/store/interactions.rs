@@ -2,20 +2,24 @@
 //! A button click awaiting the bot's answer. See
 //! `docs/decisions/0039-bot-message-buttons.md`.
 
+use std::collections::BTreeMap;
+
 use sqlx::Row;
 
-use crate::components::INTERACTION_WINDOW_MS;
+use crate::components::{INTERACTION_WINDOW_MS, form::Form};
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 
 use super::{Store, now_ms};
 
-/// What was used: a button on a message, a bot's entry in a message's menu,
-/// or a bot's control in a call.
+/// What was used: a button on a message, a choice from its select menu, a form
+/// submitted, a bot's entry in a message's menu, or a bot's control in a call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InteractionKind {
     Button,
     MessageMenu,
     CallControl,
+    Select,
+    FormSubmit,
 }
 
 impl InteractionKind {
@@ -24,6 +28,8 @@ impl InteractionKind {
             InteractionKind::Button => "button",
             InteractionKind::MessageMenu => "message_menu",
             InteractionKind::CallControl => "call_control",
+            InteractionKind::Select => "select",
+            InteractionKind::FormSubmit => "form_submit",
         }
     }
 
@@ -31,9 +37,33 @@ impl InteractionKind {
         match text {
             "message_menu" => InteractionKind::MessageMenu,
             "call_control" => InteractionKind::CallControl,
+            "select" => InteractionKind::Select,
+            "form_submit" => InteractionKind::FormSubmit,
             _ => InteractionKind::Button,
         }
     }
+}
+
+/// What a member typed or chose, handed to the bot once and never stored.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct InteractionInput {
+    /// The values chosen from a select menu.
+    pub values: Vec<String>,
+    /// A form's answers by field `custom_id`.
+    pub fields: BTreeMap<String, String>,
+    /// The press a form was opened on, so a bot can tell which one it answers.
+    pub origin_id: Option<InteractionId>,
+}
+
+/// Whether a press accepted this submission.
+#[derive(Debug, PartialEq, Eq)]
+pub enum SubmissionClaim {
+    /// The first submission: deliver it.
+    Fresh,
+    /// The same submission again, as a retry of one already accepted.
+    Replay,
+    /// A different submission already won this press.
+    Taken,
 }
 
 #[derive(Debug, Clone)]
@@ -135,6 +165,74 @@ impl Store {
         .await?
         .rows_affected()
             == 1)
+    }
+
+    /// Keeps the form a bot opened for this press. False when one is already
+    /// open, so a press opens at most one.
+    pub async fn set_interaction_form(
+        &self,
+        id: InteractionId,
+        form: &Form,
+    ) -> anyhow::Result<bool> {
+        Ok(
+            sqlx::query("UPDATE interactions SET form = ? WHERE id = ? AND form IS NULL")
+                .bind(serde_json::to_string(form)?)
+                .bind(id)
+                .execute(&self.pool)
+                .await?
+                .rows_affected()
+                == 1,
+        )
+    }
+
+    /// Accepts `submit_id` with `fields` as the one submission this press will
+    /// ever deliver. One conditional write, so racing submissions cannot both win.
+    pub async fn claim_form_submission(
+        &self,
+        press: InteractionId,
+        submit_id: InteractionId,
+        fields: &BTreeMap<String, String>,
+    ) -> anyhow::Result<SubmissionClaim> {
+        let json = serde_json::to_string(fields)?;
+        let claimed = sqlx::query(
+            "UPDATE interactions SET submitted_id = ?, submitted_fields = ?
+             WHERE id = ? AND submitted_id IS NULL",
+        )
+        .bind(submit_id)
+        .bind(&json)
+        .bind(press)
+        .execute(&self.pool)
+        .await?
+        .rows_affected()
+            == 1;
+        if claimed {
+            return Ok(SubmissionClaim::Fresh);
+        }
+        let row: Option<(Option<InteractionId>, Option<String>)> =
+            sqlx::query_as("SELECT submitted_id, submitted_fields FROM interactions WHERE id = ?")
+                .bind(press)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(match row {
+            Some((Some(id), Some(stored))) if id == submit_id && stored == json => {
+                SubmissionClaim::Replay
+            }
+            _ => SubmissionClaim::Taken,
+        })
+    }
+
+    /// The form opened for a press still inside its window.
+    pub async fn interaction_form(&self, id: InteractionId) -> anyhow::Result<Option<Form>> {
+        let json: Option<String> = sqlx::query_scalar::<_, Option<String>>(
+            "SELECT form FROM interactions WHERE id = ? AND created_at > ?",
+        )
+        .bind(id)
+        .bind(now_ms() - INTERACTION_WINDOW_MS)
+        .fetch_optional(&self.pool)
+        .await?
+        .flatten();
+        json.map(|text| serde_json::from_str(&text).map_err(Into::into))
+            .transpose()
     }
 
     /// Deletes clicks past their window; returns how many.

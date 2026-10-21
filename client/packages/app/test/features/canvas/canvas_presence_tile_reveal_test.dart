@@ -16,12 +16,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 /// Camera on: an avatar-only tile has no lock control at all for this suite
 /// to reveal - see `canvas_presence_tile_kind_test.dart`'s own coverage of
@@ -44,7 +44,7 @@ Widget _wrapLayer(Widget child) => ProviderScope(
 );
 
 Widget _layer(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
-    CanvasPresenceLayer(
+    PresenceStack(
       document: document,
       participants: const [_noor],
       cameraViewFor: (_) => const SizedBox(),
@@ -70,6 +70,7 @@ void _focusLockButton(WidgetTester tester) {
   Focus.of(tester.element(icon)).requestFocus();
 }
 
+/// The lock icon found in the widget tree, for a tile whose controls publish no semantics node.
 /// The counterpart to [_focusLockButton]: reads the same node back out to
 /// drop focus from it, rather than guessing at an ancestor scope.
 void _unfocusLockButton(WidgetTester tester) {
@@ -236,18 +237,14 @@ void main() {
 
     final grip = find.byType(TileResizeGrip);
     expect(grip, findsOneWidget);
-    final ignorePointer = find.ancestor(
-      of: grip,
-      matching: find.byType(IgnorePointer),
-    );
-    expect(tester.widget<IgnorePointer>(ignorePointer.first).ignoring, isTrue);
+    expect(_hittable(tester, grip), isFalse);
 
     await tester.tap(find.byKey(_tileKey));
     await tester.pump(AppMotion.fast);
 
     expect(
-      tester.widget<IgnorePointer>(ignorePointer.first).ignoring,
-      isFalse,
+      _hittable(tester, grip),
+      isTrue,
       reason:
           'a reveal must uncover the resize grip exactly as it does '
           'the lock/depth/hide row',
@@ -307,4 +304,82 @@ void main() {
       reason: 'a focus reveal must not outlive the focus that started it',
     );
   });
+
+  group('a tile too small for the control row', () {
+    Future<CanvasPresenceTileOverrides> pumpSmall(WidgetTester tester) async {
+      final document = CanvasDocument()..setViewport(const Size(1000, 800));
+      addTearDown(document.dispose);
+      final overrides = CanvasPresenceTileOverrides();
+      addTearDown(overrides.dispose);
+      overrides.applyServer(
+        'camera:user-noor',
+        rect: const Rect.fromLTWH(100, 100, 40, 30),
+        locked: false,
+        sentToBack: false,
+      );
+      await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
+      await tester.pump();
+      return overrides;
+    }
+
+    testWidgets('has no buttons to reach by keyboard', (tester) async {
+      await pumpSmall(tester);
+
+      expect(find.byType(AppIconButton), findsNothing);
+    });
+
+    testWidgets('still shows the resize grip once touched', (tester) async {
+      await pumpSmall(tester);
+      final grip = find.byType(TileResizeGrip);
+      expect(_hittable(tester, grip), isFalse);
+
+      await tester.tap(find.byKey(_tileKey));
+      await tester.pump(AppMotion.fast);
+
+      expect(_hittable(tester, grip), isTrue);
+    });
+  });
+
+  testWidgets('resizing at the board edge stops at it and never slides the '
+      'tile', (tester) async {
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final document = CanvasDocument()
+      ..setBoard(canvasBoard)
+      ..setViewport(const Size(1000, 800));
+    addTearDown(document.dispose);
+    final overrides = CanvasPresenceTileOverrides()..board = canvasBoard;
+    addTearDown(overrides.dispose);
+    overrides.applyServer(
+      'camera:user-noor',
+      rect: const Rect.fromLTWH(1800, 100, 100, 75),
+      locked: false,
+      sentToBack: false,
+    );
+    await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
+    await tester.pump();
+    await tester.tap(find.byKey(_tileKey));
+    await tester.pump(AppMotion.fast);
+
+    final grip = tester.getCenter(find.byType(TileResizeGrip));
+    final drag = await tester.startGesture(grip);
+    await drag.moveBy(const Offset(200, 0));
+    await tester.pump();
+    await drag.up();
+    await tester.pump();
+
+    final rect = overrides.stateFor('camera:user-noor').rect!;
+    expect(rect.left, 1800);
+    expect(rect.right, lessThanOrEqualTo(canvasBoard.right + 1e-6));
+  });
+}
+
+/// Whether a pointer at [finder]'s centre reaches it, the way a real press would.
+bool _hittable(WidgetTester tester, Finder finder) {
+  final target = tester.renderObject(finder);
+  return tester
+      .hitTestOnBinding(tester.getCenter(finder))
+      .path
+      .any((entry) => entry.target == target);
 }

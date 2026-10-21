@@ -43,6 +43,7 @@ use crate::typing::TypingTracker;
 
 mod created_lookups;
 mod event;
+mod event_util;
 mod memory_guard;
 mod moderation_seq;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
@@ -145,6 +146,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasMediaSlotPreview { .. }
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -173,6 +175,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
@@ -190,8 +193,9 @@ fn moves_permissions(event: &Event) -> bool {
 ///
 /// [`Event::EphemeralMessage`] rides here too, being unnumbered and never
 /// stored, at a rate a bot's write limit keeps far below the cursors'.
-/// Otherwise only [`Event::CanvasCursorMoved`] and [`Event::CanvasStrokePreview`]
-/// qualify: both are rate-limited well above what a human notices, carry no
+/// Otherwise only the live canvas frames qualify - [`Event::CanvasCursorMoved`],
+/// [`Event::CanvasStrokePreview`], [`Event::CanvasObjectPreview`] and
+/// [`Event::CanvasView`] - plus [`Event::WatchTick`]: each is rate-limited well above what a human notices, carry no
 /// `seq`, are never persisted, and have no catch-up path a reconnect could use
 /// anyway (see their own doc comments in `hub/event.rs`). `TypingStarted`/
 /// `TypingStopped` are ephemeral in the same sense but stay durable here: they
@@ -208,11 +212,13 @@ fn is_ephemeral(event: &Event) -> bool {
         Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasMediaSlotPreview { .. }
         | Event::CanvasView { .. }
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
-        | Event::InteractionAnswered { .. } => true,
+        | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. } => true,
         Event::MessageCreated { .. }
         | Event::MessageEdited { .. }
         | Event::MessageDeleted { .. }
@@ -358,6 +364,11 @@ impl Hub {
         } else {
             let _ = self.sender.send(event);
         }
+    }
+
+    /// Events the slowest durable subscriber has not yet taken off the channel.
+    pub fn durable_backlog(&self) -> usize {
+        self.sender.len()
     }
 
     /// The number of the latest moderation event, for the connect `hello`; see
@@ -538,6 +549,8 @@ mod epoch_tests {
             object_id: crate::ids::CanvasObjectId::generate(),
             points: Arc::new(vec![0.0, 0.0]),
             ended: false,
+            color: None,
+            width: None,
         });
         hub.publish(Event::CanvasView {
             channel_id: ChannelId::generate(),

@@ -163,6 +163,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   VoiceSessionState _state = VoiceSessionState.idle;
   bool? askedForMicrophoneOnJoin;
+  bool? joinedAbleToPublish;
   bool? askedForCameraOnJoin;
   int leaveCalls = 0;
 
@@ -314,8 +315,10 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     askedForMicrophoneOnJoin = microphoneEnabled;
+    joinedAbleToPublish = canPublish;
     askedForCameraOnJoin = cameraEnabled;
     _generation++;
     _state = joinOutcome;

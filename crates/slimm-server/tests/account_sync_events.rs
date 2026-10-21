@@ -5,24 +5,19 @@
 use std::time::Duration;
 
 use axum::http::StatusCode;
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
 use slimm_server::ids::{ChannelId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
 
-use support::app::request_json as request;
+use support::ws::{Client, connect, read_frame_skipping_presence, serve};
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::app::request_json as request;
 
 async fn seed_everyone(store: &Store) {
     store
@@ -54,45 +49,10 @@ async fn account(store: &Store, name: &str) -> (UserId, String, String) {
     (user.id, token, ticket)
 }
 
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// The next text frame, skipping `presence.changed` chatter from every connect.
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] != "presence.changed" {
-                    return frame;
-                }
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
-
 async fn frame_within(ws: &mut Client, within: Duration) -> Option<Value> {
-    tokio::time::timeout(within, read_frame(ws)).await.ok()
+    tokio::time::timeout(within, read_frame_skipping_presence(ws))
+        .await
+        .ok()
 }
 
 /// Reads frames until one of `kind` arrives; `None` once the socket goes quiet.

@@ -19,55 +19,15 @@ use std::time::Duration;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use futures_util::{SinkExt, StreamExt};
-use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
-use slimm_server::ids::UserId;
+use serde_json::Value;
+use slimm_server::http::{self};
 use slimm_server::permissions::Permissions;
-use slimm_server::store::{NewMessage, Store};
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
+use slimm_server::store::NewMessage;
 use tower::ServiceExt;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
-
-/// A user, their REST access token, and a WebSocket connect ticket.
-async fn user_ticket(store: &Store, name: &str) -> (String, String, UserId) {
-    let user = store.create_user(name, name).await.unwrap();
-    let tokens = store.open_session(user.id, "device").await.unwrap();
-    let ctx = store
-        .authenticate(&tokens.access_token)
-        .await
-        .unwrap()
-        .unwrap();
-    let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
-    (tokens.access_token, ticket, user.id)
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
+use support::ws::{Client, connect, read_frame, serve, user_ticket};
 
 /// The next frame of `kind`, skipping the presence chatter every connect on the
 /// shared hub publishes and anything else this test is not about.
@@ -79,18 +39,6 @@ async fn next_frame_of(ws: &mut Client, kind: &str) -> Value {
             .unwrap_or_else(|_| panic!("no {kind} frame arrived"));
         if frame["type"] == kind {
             return frame;
-        }
-    }
-}
-
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                return serde_json::from_str(text.as_str()).unwrap();
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
         }
     }
 }
@@ -375,12 +323,14 @@ async fn a_blocked_reactors_early_timestamp_cannot_reorder_an_emoji_for_the_bloc
     react(apple_uri.clone(), pest_access).await;
     next_frame_of(&mut alice_ws, "reactions.changed").await;
     next_frame_of(&mut dana_ws, "reactions.changed").await;
+    // Distinct created_at milliseconds are what order the reactors.
     tokio::time::sleep(Duration::from_millis(15)).await;
 
     // yara reacts banana second.
     react(banana_uri, yara_access).await;
     next_frame_of(&mut alice_ws, "reactions.changed").await;
     next_frame_of(&mut dana_ws, "reactions.changed").await;
+    // Distinct created_at milliseconds are what order the reactors.
     tokio::time::sleep(Duration::from_millis(15)).await;
 
     // zane reacts apple third, the only visible reactor on it for alice.

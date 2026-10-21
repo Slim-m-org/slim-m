@@ -15,8 +15,8 @@ const _cameraOn = VoiceFlags(
   cameraEnabled: true,
 );
 
-// Five 52dp controls, four 8dp gaps, the leave divider, card padding and border.
-const _fiveControls = 319.0;
+// Six 52dp controls (mic, deafen, camera, share, leave, toggle), five 8dp gaps, the leave divider, card padding and border.
+const _sixControls = 379.0;
 
 void main() {
   testWidgets(
@@ -26,7 +26,7 @@ void main() {
         tester,
         _cameraOn,
         canvasChannelId: 'c1',
-        width: _fiveControls,
+        width: _sixControls,
         touch: true,
         session: InertSession()
           ..cameraDeviceList = const [CameraDevice(id: 'a', label: 'Cam A')],
@@ -41,29 +41,31 @@ void main() {
     },
   );
 
-  testWidgets('a second camera shows the switch button and folds the toggle', (
-    tester,
-  ) async {
-    await pumpVoiceCallDock(
-      tester,
-      _cameraOn,
-      canvasChannelId: 'c1',
-      width: _fiveControls,
-      touch: true,
-      session: InertSession()
-        ..cameraDeviceList = const [
-          CameraDevice(id: 'a', label: 'Cam A'),
-          CameraDevice(id: 'b', label: 'Cam B'),
-        ],
-    );
-    await tester.pump();
-    await tester.pump();
+  testWidgets(
+    'a second camera shows the switch button and folds the toggle into the mic menu',
+    (tester) async {
+      await pumpVoiceCallDock(
+        tester,
+        _cameraOn,
+        canvasChannelId: 'c1',
+        width: _sixControls,
+        touch: true,
+        session: InertSession()
+          ..cameraDeviceList = const [
+            CameraDevice(id: 'a', label: 'Cam A'),
+            CameraDevice(id: 'b', label: 'Cam B'),
+          ],
+      );
+      await tester.pump();
+      await tester.pump();
 
-    expect(find.bySemanticsLabel('Switch camera'), findsOneWidget);
-    expect(
-      tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-      hasLength(2),
-    );
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.bySemanticsLabel('Switch camera'), findsOneWidget);
+      expect(
+        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
+        hasLength(1),
+      );
+      expect(find.bySemanticsLabel('Open canvas'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

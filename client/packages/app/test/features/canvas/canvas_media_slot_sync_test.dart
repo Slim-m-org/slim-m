@@ -35,6 +35,7 @@ http.Response _json(Object body) => http.Response(
 );
 
 void main() {
+  _c055();
   test('fetch applies every slot the server answers with', () async {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);
@@ -191,5 +192,42 @@ void main() {
     expect(state.rect, const Rect.fromLTWH(5, 6, 100, 90));
     expect(state.locked, isTrue);
     expect(state.sentToBack, isTrue);
+  });
+}
+
+void _c055() {
+  test('a rejected commit does not leave the tile only this viewer '
+      'sees where it was dropped', () async {
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    const server = Rect.fromLTWH(10, 20, 360, 203);
+    const dropped = Rect.fromLTWH(400, 300, 360, 203);
+    overrides.applyServer(
+      'screen:alice',
+      rect: server,
+      locked: false,
+      sentToBack: false,
+    );
+    final client = _apiWith(
+      (request) async => http.Response(
+        jsonEncode({'error': 'locked'}),
+        403,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    final sync = CanvasMediaSlotSync(
+      channelId: 'c1',
+      client: client,
+      overrides: overrides,
+    );
+
+    overrides.setRect('screen:alice', dropped);
+    await sync.commit('screen:alice', dropped);
+
+    expect(
+      overrides.stateFor('screen:alice').rect,
+      server,
+      reason: 'the server refused the write, so the tile must roll back',
+    );
   });
 }

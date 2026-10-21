@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../app_haptics.dart';
 import '../../app_metrics.dart';
@@ -106,6 +107,34 @@ class _AppIconButtonState extends State<AppIconButton> {
   /// on; a small scale-down that a haptic tick lands alongside.
   bool _pressed = false;
 
+  final _tooltip = GlobalKey<TooltipState>();
+
+  void _onFocusHighlight(bool focused) {
+    setState(() => _focused = focused);
+    // A keyboard user has no hover, so focus is when the name appears.
+    if (focused) {
+      // After the frame: the control focus left dismisses every tooltip as it goes.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _focused) _tooltip.currentState?.ensureTooltipVisible();
+      });
+    } else {
+      Tooltip.dismissAllToolTips();
+    }
+  }
+
+  /// A tap can be cancelled while its recognizers are re-synced mid-build, where setState is not allowed.
+  void _setPressed(bool pressed) {
+    if (_pressed == pressed) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _pressed = pressed);
+      });
+      return;
+    }
+    setState(() => _pressed = pressed);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -135,7 +164,7 @@ class _AppIconButtonState extends State<AppIconButton> {
           focusNode: widget.focusNode,
           mouseCursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
           onShowHoverHighlight: (v) => setState(() => _hovered = v),
-          onShowFocusHighlight: (v) => setState(() => _focused = v),
+          onShowFocusHighlight: _onFocusHighlight,
           actions: _activateActions(enabled),
           child: _gestures(enabled, outerSize, joined, button),
         ),
@@ -145,7 +174,9 @@ class _AppIconButtonState extends State<AppIconButton> {
     if (widget.tooltip != null) {
       // An included Tooltip's message joins the label in the accessible name, so a tooltip that only repeats the label doubled up what assistive tech announced; excluded only in that case, a genuinely different tooltip still reaches it.
       control = Tooltip(
+        key: _tooltip,
         message: widget.tooltip!,
+        showDuration: const Duration(seconds: 3),
         // A held press belongs to the options; hover still shows the tooltip.
         triggerMode:
             joined ? TooltipTriggerMode.manual : TooltipTriggerMode.longPress,
@@ -169,9 +200,9 @@ class _AppIconButtonState extends State<AppIconButton> {
     return GestureDetector(
       // Opaque so the whole hit box responds, not just the visual inside it.
       behavior: HitTestBehavior.opaque,
-      onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+      onTapDown: enabled ? (_) => _setPressed(true) : null,
+      onTapUp: enabled ? (_) => _setPressed(false) : null,
+      onTapCancel: enabled ? () => _setPressed(false) : null,
       onTap: enabled
           ? () {
               AppHaptics.selection();

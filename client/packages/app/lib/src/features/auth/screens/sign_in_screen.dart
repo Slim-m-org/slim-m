@@ -311,6 +311,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         ref,
         reduced,
         silentFirstConnect: isOfficialServer(reduced),
+        requireSlimServer: true,
       )) {
         return;
       }

@@ -13,7 +13,7 @@ import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_sync.dart';
 import '../../support/fake_api.dart';
 

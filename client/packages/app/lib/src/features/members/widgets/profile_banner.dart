@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/animation_gate.dart';
 import '../../messages/widgets/image_decode.dart';
 import '../providers/banner_bytes.dart';
+import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import 'profile_colour.dart';
 
 /// Height of the band; the card's width is whatever it sits in.
@@ -26,6 +27,7 @@ class ProfileBanner extends ConsumerWidget {
     required this.userId,
     required this.bannerUpdatedAt,
     required this.colour,
+    this.height = kProfileBannerHeight,
   });
 
   final String userId;
@@ -35,6 +37,8 @@ class ProfileBanner extends ConsumerWidget {
 
   /// Drawn when there is no image, and under it while it loads.
   final Color? colour;
+
+  final double height;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,7 +53,7 @@ class ProfileBanner extends ConsumerWidget {
               )
               .valueOrNull;
     return SizedBox(
-      height: kProfileBannerHeight,
+      height: height,
       width: double.infinity,
       child: ExcludeSemantics(
         child: bytes == null
@@ -69,18 +73,28 @@ class ProfileBanner extends ConsumerWidget {
 }
 
 /// The band for a member's card, in their profile colour until they set an image.
-class MemberProfileBanner extends StatelessWidget {
+///
+/// Reads the live profile edits first: the roster snapshot a card is opened
+/// from never refetches on a banner or colour change.
+class MemberProfileBanner extends ConsumerWidget {
   const MemberProfileBanner({super.key, required this.profile});
 
   final api.UserProfile profile;
 
   @override
-  Widget build(BuildContext context) => ProfileBanner(
-    userId: profile.id,
-    bannerUpdatedAt: profile.bannerUpdatedAt,
-    colour: profileColourOf(
-      index: profile.profileColor,
-      rgb: profile.profileColorRgb,
-    ),
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final live =
+        ref.watch(
+          memberProfileOverridesProvider.select((m) => m[profile.id]),
+        ) ??
+        profile;
+    return ProfileBanner(
+      userId: live.id,
+      bannerUpdatedAt: live.bannerUpdatedAt,
+      colour: profileColourOf(
+        index: live.profileColor,
+        rgb: live.profileColorRgb,
+      ),
+    );
+  }
 }

@@ -24,12 +24,13 @@ class ThemeChoiceCards extends StatelessWidget {
     AppThemeChoice.dark,
     AppThemeChoice.light,
     AppThemeChoice.trueBlack,
+    AppThemeChoice.catppuccin,
     AppThemeChoice.system,
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Four across wrap "True black" mid-word on a phone, so it goes two by two.
+    // Width decides (desktop-vs-mobile.md, the one rule): five across crowd a phone.
     final narrow = MediaQuery.sizeOf(context).width < kCompactWidth;
     final cards = [
       for (final choice in _order)
@@ -48,7 +49,12 @@ class ThemeChoiceCards extends StatelessWidget {
               spacing: 10,
               children: [
                 Expanded(child: cards[i]),
-                Expanded(child: cards[i + 1]),
+                // An odd last card keeps a column's width, not the full row.
+                Expanded(
+                  child: i + 1 < cards.length
+                      ? cards[i + 1]
+                      : const SizedBox.shrink(),
+                ),
               ],
             ),
         ],
@@ -77,6 +83,7 @@ class _ThemeCard extends StatelessWidget {
     AppThemeChoice.light => 'Light',
     AppThemeChoice.dark => 'Dark',
     AppThemeChoice.trueBlack => 'True black',
+    AppThemeChoice.catppuccin => 'Catppuccin',
   };
 
   @override
@@ -165,8 +172,12 @@ class _Thumbnail extends StatelessWidget {
             : _Window(
                 tokens: switch (choice) {
                   AppThemeChoice.light => AppTokens.light,
+                  AppThemeChoice.dark => AppTokens.dark,
                   AppThemeChoice.trueBlack => AppTokens.trueBlack,
-                  _ => AppTokens.dark,
+                  AppThemeChoice.catppuccin => AppTokens.mocha,
+                  AppThemeChoice.system => throw StateError(
+                    'system is drawn as a split, not a window',
+                  ),
                 },
               ),
       ),

@@ -41,7 +41,6 @@
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use axum::extract::State;
 use axum::routing::post;
@@ -225,17 +224,10 @@ async fn spawn_capturing_relay() -> (std::sync::Arc<Mutex<Option<Value>>>, Strin
 }
 
 async fn wait_for_capture(captured: &Mutex<Option<Value>>) -> Value {
-    let start = std::time::Instant::now();
-    loop {
-        if let Some(body) = captured.lock().await.clone() {
-            return body;
-        }
-        assert!(
-            start.elapsed() < Duration::from_secs(5),
-            "the relay was never called"
-        );
-        tokio::time::sleep(Duration::from_millis(15)).await;
-    }
+    support::wait::wait_for("the relay to be called", || async {
+        captured.lock().await.clone()
+    })
+    .await
 }
 
 /// Finds the one captured message bound for `token`, by value so the caller

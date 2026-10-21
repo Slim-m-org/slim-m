@@ -20,7 +20,7 @@ class VideoInterestRelay {
   VideoInterestRelay(this._apply);
 
   final void Function(Set<String>?) _apply;
-  Set<String>? _canvas;
+  final Map<Object, Set<String>> _canvas = {};
   Set<String>? _held;
   Set<String> _poppedOut = const {};
   bool _seen = true;
@@ -28,11 +28,18 @@ class VideoInterestRelay {
   Set<String>? _sent;
   bool _mountPending = false;
 
-  /// The canvas's own narrowing (its viewport, or one expanded tile); null on unmount.
-  void declare(Set<String>? tileKeys) {
-    _canvas = tileKeys;
+  /// A canvas pane's own narrowing (its viewport or one expanded tile); null on unmount.
+  /// Kept per [owner] so a pane leaving cannot clear another pane's interest in the same channel.
+  void declare(Set<String>? tileKeys, {Object owner = _soleOwner}) {
+    if (tileKeys == null) {
+      _canvas.remove(owner);
+    } else {
+      _canvas[owner] = tileKeys;
+    }
     _reconcile();
   }
+
+  static const Object _soleOwner = Object();
 
   /// Pins interest to exactly [tileKeys] (the floating feed); null releases it.
   void hold(Set<String>? tileKeys) {
@@ -77,7 +84,8 @@ class VideoInterestRelay {
 
   Set<String> get resolved {
     if (!_seen) return _poppedOut;
-    return _held ?? {...?_canvas, ..._mounted.keys};
+    return _held ??
+        {for (final keys in _canvas.values) ...keys, ..._mounted.keys};
   }
 
   // Mounts happen mid-build, where the call's state must not change.

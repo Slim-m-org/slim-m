@@ -22,7 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -125,7 +125,7 @@ Future<void> _openMenu(WidgetTester tester) => tester.tapAt(
 
 void main() {
   testWidgets(
-    'a right-click offers Open, Close DM, Mute, Mentions only, Report user and Block',
+    'a right-click offers Open, Close DM, Notifications, Report user and Block',
     (tester) async {
       final channel = _dm('dm-1', 'Priya', 'user-priya');
       final container = _container();
@@ -138,13 +138,14 @@ void main() {
 
       expect(find.text('Open'), findsOneWidget);
       expect(find.text('Close DM'), findsOneWidget);
-      expect(find.text('Mute'), findsOneWidget);
-      expect(find.text('Mentions only'), findsOneWidget);
+      expect(find.text('Notifications'), findsOneWidget);
+      expect(find.text('Mute'), findsNothing);
       expect(find.text('Report user'), findsOneWidget);
       expect(find.text('Block'), findsOneWidget);
       expect(find.text('Unblock'), findsNothing);
       // Explicit: addTearDown runs after flutter_test's own pending-timer check.
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -183,6 +184,7 @@ void main() {
     expect(hideRequest, '/dms/user-priya');
     expect(await store.channelRow('dm-1'), isNull);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping Mute sets the channel override to nothing', (
@@ -196,6 +198,8 @@ void main() {
 
     await _openMenu(tester);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mute'));
     await tester.pumpAndSettle();
 
@@ -204,6 +208,7 @@ void main() {
       api.NotificationPreference.nothing,
     );
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the already-selected Mute again clears the override', (
@@ -220,6 +225,8 @@ void main() {
 
     await _openMenu(tester);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Notifications'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Mute'));
     await tester.pumpAndSettle();
 
@@ -229,6 +236,7 @@ void main() {
       reason: 'tapping an already-active toggle is this menu\'s undo',
     );
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('an already-blocked peer offers Unblock, not Block again', (
@@ -249,6 +257,7 @@ void main() {
     expect(find.text('Unblock'), findsOneWidget);
     expect(find.text('Block'), findsNothing);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('Open still reaches the channel route from the menu', (
@@ -267,5 +276,6 @@ void main() {
 
     expect(find.text('channel:dm-1'), findsOneWidget);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

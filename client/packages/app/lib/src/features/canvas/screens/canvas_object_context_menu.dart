@@ -15,6 +15,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -42,13 +43,13 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.selfId,
     required this.requests,
     required this.tool,
-    required this.onToolChanged,
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
+    required this.onToolChanged,
     this.onEditNote,
     this.canDraw = true,
   });
@@ -72,11 +73,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// erase or placement the way every other tool's pointer-down does.
   final CanvasTool tool;
 
-  /// Switches the surface to the Move tool once a target resolves, so the
-  /// object a right-click just found is immediately draggable and
-  /// resizable with no separate tool switch - the same closing move
-  /// `canvas_pane_gestures.dart`'s `_selectPlaced` makes after placing one.
-  final ValueChanged<CanvasTool> onToolChanged;
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
@@ -95,6 +91,9 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// The empty-space menu's "Recenter view" item - the pane's own
   /// always-available camera reset, identical to the overflow menu's copy.
   final VoidCallback onRecenter;
+
+  /// A right-click on bare canvas under a drawing tool returns to Move through this.
+  final ValueChanged<CanvasTool> onToolChanged;
 
   /// The object menu's "Edit note" item, shown over a note only: the touch
   /// and keyboard-free route to the editor a double click opens.
@@ -124,8 +123,50 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     widget.requests.removeListener(_onRequest);
     super.dispose();
+  }
+
+  final Set<int> _heldPointers = {};
+  Timer? _holdTimer;
+  int? _holdPointer;
+  Offset _holdLocal = Offset.zero;
+  Offset _holdGlobal = Offset.zero;
+
+  /// A touch or pen held still opens the menu. A timer here rather than a
+  /// long-press recognizer: a recognizer joins the gesture arena, and one
+  /// held finger would then reject the surface's pinch, or fire for a mouse.
+  void _holdDown(PointerDownEvent event) {
+    _heldPointers.add(event.pointer);
+    _cancelHold();
+    final touchLike =
+        event.kind == PointerDeviceKind.touch ||
+        event.kind == PointerDeviceKind.stylus;
+    if (_heldPointers.length != 1 || !touchLike) return;
+    _holdPointer = event.pointer;
+    _holdLocal = event.localPosition;
+    _holdGlobal = event.position;
+    _holdTimer = Timer(kLongPressTimeout, () {
+      _holdTimer = null;
+      _onLongPress(_holdLocal, _holdGlobal);
+    });
+  }
+
+  void _holdMove(PointerMoveEvent event) {
+    if (event.pointer != _holdPointer) return;
+    if ((event.localPosition - _holdLocal).distance > kTouchSlop) _cancelHold();
+  }
+
+  void _holdEnd(PointerEvent event) {
+    _heldPointers.remove(event.pointer);
+    if (event.pointer == _holdPointer) _cancelHold();
+  }
+
+  void _cancelHold() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _holdPointer = null;
   }
 
   void _onRequest() {
@@ -137,13 +178,10 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
       widget.canManage ||
       (stroke.authorId != null && stroke.authorId == widget.selfId);
 
-  /// Box kinds first, a stroke only if no box was hit - the exact precedence
-  /// `beginSelect` already establishes for the select tool's own pointer
-  /// down, so a right-click resolves to the same target a left-click select
-  /// would have.
-  String? _hitTest(Offset world) =>
-      hitTestBoxAt(widget.document, world, allowed: _allowed) ??
-      hitTestStroke(widget.document, world, allowed: _allowed);
+  /// The topmost object, the same one `beginSelect` would pick, so a
+  /// right-click resolves to the target a left-click select would have.
+  String? _hitTest(Offset world, {bool touch = false}) =>
+      hitTestTopmost(widget.document, world, touch: touch, allowed: _allowed);
 
   Offset _toWorld(Offset local) {
     final camera = widget.document.camera;
@@ -162,6 +200,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final id = _hitTest(world);
     if (id != null) {
       _openFor(id, pointerGlobal: details.globalPosition);
+    } else if (widget.tool != CanvasTool.pan) {
+      widget.onToolChanged(CanvasTool.pan);
     } else {
       _openEmptySpace(world, details.globalPosition);
     }
@@ -169,20 +209,21 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
 
   /// The touch equivalent of [_onSecondaryTapUp] (desktop-vs-mobile rule 3),
   /// for the Select tool only.
-  void _onLongPressStart(LongPressStartDetails details) {
+  void _onLongPress(Offset local, Offset global) {
     if (widget.tool != CanvasTool.pan) return;
-    final world = _toWorld(details.localPosition);
-    final id = _hitTest(world);
+    final world = _toWorld(local);
+    final id = _hitTest(world, touch: true);
     if (id != null) {
-      _openFor(id, pointerGlobal: details.globalPosition);
+      _openFor(id, pointerGlobal: global);
     } else {
-      _openEmptySpace(world, details.globalPosition);
+      _openEmptySpace(world, global);
     }
   }
 
   void _openFor(String id, {required Offset? pointerGlobal}) {
-    widget.document.selectedObjectId.value = id;
-    widget.onToolChanged(CanvasTool.pan);
+    if (widget.tool == CanvasTool.pan) {
+      widget.document.selectedObjectId.value = id;
+    }
     setState(() {
       _target = id;
       _emptySpaceWorld = null;
@@ -278,38 +319,56 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     return OverlayPortal(
       controller: _controller,
       overlayChildBuilder: (context) => Positioned.fill(
-        child: CustomSingleChildLayout(
-          delegate: MessageMenuLayout(
-            anchor: _anchor,
-            padding:
-                MediaQuery.paddingOf(context) +
-                const EdgeInsets.all(menuScreenMargin),
-          ),
-          child: TapRegion(
-            onTapOutside: (_) => _close(),
-            child: ContextMenuKeyboardScope(
-              onDismiss: _close,
-              child: _target != null ? _objectMenu() : _emptySpaceMenu(),
+        child: Stack(
+          children: [
+            // Swallows the press that dismisses the menu, or the armed tool would act on it too.
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _close,
+                onSecondaryTap: _close,
+                excludeFromSemantics: true,
+              ),
             ),
-          ),
+            Positioned.fill(
+              child: CustomSingleChildLayout(
+                delegate: MessageMenuLayout(
+                  anchor: _anchor,
+                  padding:
+                      MediaQuery.paddingOf(context) +
+                      const EdgeInsets.all(menuScreenMargin),
+                ),
+                child: ContextMenuKeyboardScope(
+                  onDismiss: _close,
+                  child: _target != null ? _objectMenu() : _emptySpaceMenu(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       // translucent, not the default: a childless SizedBox registers no hit under deferToChild, and opaque would stop every primary-button event reaching CanvasSurface beneath.
       child: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onSecondaryTapUp: _onSecondaryTapUp,
-        onLongPressStart: _onLongPressStart,
         // Load-bearing, not tidiness - see this file's own library doc.
         excludeFromSemantics: true,
-        child: SizedBox.expand(
-          // The badges ride on this full-surface layer; they take no pointer, so the hit catcher above is unchanged.
-          child: switch (CanvasObjectLocksScope.maybeOf(context)) {
-            final locks? => CanvasObjectLockBadges(
-              document: widget.document,
-              locks: locks,
-            ),
-            null => null,
-          },
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _holdDown,
+          onPointerMove: _holdMove,
+          onPointerUp: _holdEnd,
+          onPointerCancel: _holdEnd,
+          child: SizedBox.expand(
+            // The badges ride on this full-surface layer; they take no pointer, so the hit catcher above is unchanged.
+            child: switch (CanvasObjectLocksScope.maybeOf(context)) {
+              final locks? => CanvasObjectLockBadges(
+                document: widget.document,
+                locks: locks,
+              ),
+              null => null,
+            },
+          ),
         ),
       ),
     );
@@ -360,7 +419,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
           label: 'Delete',
           leading: AppIcons.delete,
           tone: AppMenuItemTone.danger,
-          onTap: locked ? null : _delete,
+          // A moderator's delete outranks a lock; an author unlocks their own first.
+          onTap: locked && !widget.canManage ? null : _delete,
         ),
       ],
     );

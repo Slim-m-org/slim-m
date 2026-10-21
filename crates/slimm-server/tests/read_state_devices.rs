@@ -7,25 +7,22 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use axum::http::StatusCode;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::SinkExt;
 use serde_json::{Value, json};
 use slimm_server::http::{self, AppState};
 use slimm_server::ids::{ChannelId, DeviceId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
 use slimm_server::store::{NewMessage, Store};
-use tokio::net::TcpListener;
-use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 mod support;
 
-use support::app::request_json as request;
+use support::ws::{Client, connect, read_frame_skipping_presence, serve};
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::app::request_json as request;
 
 async fn seed_everyone(store: &Store) {
     store
@@ -57,45 +54,10 @@ async fn account(store: &Store, name: &str) -> (UserId, String, String) {
     (user.id, token, ticket)
 }
 
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// The next text frame, skipping `presence.changed` chatter from every connect.
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] != "presence.changed" {
-                    return frame;
-                }
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
-}
-
 async fn frame_within(ws: &mut Client, within: Duration) -> Option<Value> {
-    tokio::time::timeout(within, read_frame(ws)).await.ok()
+    tokio::time::timeout(within, read_frame_skipping_presence(ws))
+        .await
+        .ok()
 }
 
 /// Reads frames until one of `kind` arrives; `None` once the socket goes quiet.
@@ -123,16 +85,6 @@ async fn send(state: &AppState, token: &str, channel: ChannelId) -> Value {
         .await
         .unwrap();
     serde_json::from_slice(&bytes).unwrap()
-}
-
-async fn wait_until(mut condition: impl FnMut() -> bool) {
-    for _ in 0..100 {
-        if condition() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    panic!("condition never held");
 }
 
 #[tokio::test]
@@ -278,17 +230,29 @@ async fn a_viewing_frame_is_recorded_and_forgotten_when_the_socket_closes() {
     let open = json!({ "type": "viewing", "channel_ids": [channel.id.to_string(), "not-a-uuid"] });
 
     ws.send(WsMessage::Text(open.to_string())).await.unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     let close = json!({ "type": "viewing", "channel_ids": [] });
     ws.send(WsMessage::Text(close.to_string())).await.unwrap();
-    wait_until(|| !viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("alice to stop viewing", || {
+        !viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     ws.send(WsMessage::Text(open.to_string())).await.unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
     ws.close(None).await.unwrap();
     drop(ws);
-    wait_until(|| !viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("alice to stop viewing", || {
+        !viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 }
 
 async fn report_lifecycle(state: &AppState, token: &str, label: &str) {
@@ -322,7 +286,10 @@ async fn a_device_that_reports_background_stops_being_counted_as_viewing() {
         .send(WsMessage::Text(open.to_string()))
         .await
         .unwrap();
-    wait_until(|| viewing.is_viewing(alice, channel.id)).await;
+    support::wait::wait_until("the socket to register alice as viewing", || {
+        viewing.is_viewing(alice, channel.id)
+    })
+    .await;
 
     report_lifecycle(&state, &phone_token, "foreground").await;
     assert!(viewing.is_viewing(alice, channel.id));
@@ -357,7 +324,7 @@ async fn a_device_that_reports_background_stops_marking_the_account_active() {
         .send(WsMessage::Text(active.to_string()))
         .await
         .unwrap();
-    wait_until(|| {
+    support::wait::wait_until("both devices to count as active", || {
         viewing
             .active_devices_at(alice, std::time::Instant::now())
             .len()

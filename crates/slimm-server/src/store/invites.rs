@@ -33,6 +33,8 @@ pub struct Invite {
     pub revoked: bool,
     /// A role every account redeeming this code receives.
     pub role_grant: Option<RoleId>,
+    /// Who issued it; only listings fill this in.
+    pub created_by_name: Option<String>,
 }
 
 impl Invite {
@@ -146,7 +148,91 @@ impl Store {
             created_at: now,
             revoked: false,
             role_grant,
+            created_by_name: None,
         })
+    }
+
+    /// Creates a member-made invite unless `created_by` already holds `cap`
+    /// live ones; `None` means the cap was reached. One statement, so two
+    /// racing requests cannot both slip under the cap.
+    pub async fn create_invite_capped(
+        &self,
+        created_by: UserId,
+        max_uses: Option<i64>,
+        expires_at: Option<i64>,
+        cap: i64,
+    ) -> anyhow::Result<Option<Invite>> {
+        let code = generate_code();
+        let now = now_ms();
+        let inserted = sqlx::query!(
+            "INSERT INTO invites (code, created_by, max_uses, expires_at, created_at)
+             SELECT ?1, ?2, ?3, ?4, ?5
+             WHERE (SELECT COUNT(*) FROM invites
+                    WHERE created_by = ?2 AND revoked_at IS NULL
+                      AND (expires_at IS NULL OR expires_at > ?5)
+                      AND (max_uses IS NULL OR uses < max_uses)) < ?6",
+            code,
+            created_by,
+            max_uses,
+            expires_at,
+            now,
+            cap
+        )
+        .execute(&self.pool)
+        .await?;
+        if inserted.rows_affected() == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Invite {
+            code,
+            max_uses,
+            uses: 0,
+            expires_at,
+            created_at: now,
+            revoked: false,
+            role_grant: None,
+            created_by_name: None,
+        }))
+    }
+
+    /// Revokes every unspent invite whose creator no longer holds
+    /// CREATE_INVITE, returning how many. Run when members stop being allowed
+    /// to invite, so the codes they already made do not outlive the switch.
+    pub async fn revoke_invites_without_rights(&self) -> anyhow::Result<u64> {
+        let now = now_ms();
+        let creators = sqlx::query_scalar!(
+            r#"SELECT DISTINCT created_by AS "created_by!: UserId" FROM invites
+               WHERE created_by IS NOT NULL AND revoked_at IS NULL"#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        let mut revoked = 0;
+        for creator in creators {
+            let rights = self.base_permissions(creator).await?;
+            if rights.contains(crate::permissions::Permissions::CREATE_INVITE) {
+                continue;
+            }
+            revoked += sqlx::query!(
+                "UPDATE invites SET revoked_at = ? WHERE created_by = ? AND revoked_at IS NULL",
+                now,
+                creator
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected();
+        }
+        Ok(revoked)
+    }
+
+    /// Who made `code`, if it exists and its maker still has an account.
+    pub async fn invite_creator(&self, code: &str) -> anyhow::Result<Option<UserId>> {
+        Ok(sqlx::query_scalar!(
+            r#"SELECT created_by AS "created_by: UserId" FROM invites WHERE code = ?"#,
+            code
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .flatten())
     }
 
     /// Invites, newest first. [`created_by`] scopes the answer to one
@@ -162,12 +248,14 @@ impl Store {
     /// requires, passes `None`.
     pub async fn list_invites(&self, created_by: Option<UserId>) -> anyhow::Result<Vec<Invite>> {
         let rows = sqlx::query!(
-            r#"SELECT code AS "code!", max_uses, uses AS "uses!", expires_at,
-                      created_at AS "created_at!", revoked_at,
-                      role_grant AS "role_grant: RoleId"
-               FROM invites
-               WHERE ?1 IS NULL OR created_by = ?1
-               ORDER BY created_at DESC"#,
+            r#"SELECT i.code AS "code!", i.max_uses, i.uses AS "uses!", i.expires_at,
+                      i.created_at AS "created_at!", i.revoked_at,
+                      i.role_grant AS "role_grant: RoleId",
+                      u.display_name AS "created_by_name?: String"
+               FROM invites i
+               LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
+               WHERE ?1 IS NULL OR i.created_by = ?1
+               ORDER BY i.created_at DESC"#,
             created_by
         )
         .fetch_all(&self.pool)
@@ -182,6 +270,7 @@ impl Store {
                 created_at: r.created_at,
                 revoked: r.revoked_at.is_some(),
                 role_grant: r.role_grant,
+                created_by_name: r.created_by_name,
             })
             .collect())
     }

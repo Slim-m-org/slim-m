@@ -50,12 +50,33 @@ def clear_window(client):
     time.sleep(0.8)
 
 
+# The zoom pill's gap above the dock: a 12 lift plus the safe area's 12 minimum.
+_PILL_GAP_ABOVE_DOCK = 24
+_PILL_HEIGHT = 28
+
+
+def _dock_inset(client, rect):
+    """How much of the surface's foot the floating dock covers.
+
+    The board is fitted above the dock (`CanvasDocument.setBottomInset`), so
+    the surface's own box is taller than the area the board centres in. The
+    dock's height is not a node of its own; the zoom pill is lifted by exactly
+    that height, so it is read back from there.
+    """
+    pill = client.find("Fit view, zoom")
+    if not pill:
+        return 0
+    pill_bottom = pill["y"] + _PILL_HEIGHT / 2
+    return max(0, rect["y"] + rect["height"] - pill_bottom - _PILL_GAP_ABOVE_DOCK)
+
+
 def board_frame(client):
     """The fitted board on the page: (left, top, zoom)."""
     rect = client.canvas_rect()
-    zoom = min(rect["width"] / BOARD_W, rect["height"] / BOARD_H)
+    height = rect["height"] - _dock_inset(client, rect)
+    zoom = min(rect["width"] / BOARD_W, height / BOARD_H)
     left = rect["x"] + (rect["width"] - BOARD_W * zoom) / 2
-    top = rect["y"] + (rect["height"] - BOARD_H * zoom) / 2
+    top = rect["y"] + (height - BOARD_H * zoom) / 2
     return left, top, zoom
 
 

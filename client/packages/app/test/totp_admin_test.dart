@@ -21,7 +21,7 @@ import 'package:slimm_app/src/features/members/widgets/clear_totp_sheet.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/totp_policy_row.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _tokens = api.TokenPair(
   userId: 'admin-1',

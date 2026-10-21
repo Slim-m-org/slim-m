@@ -47,6 +47,27 @@ impl Store {
         Ok(ids)
     }
 
+    /// Which of `ids` are locked, whatever their live state; a restore uses it to
+    /// tell clients about locked objects it brought back.
+    pub async fn locked_canvas_objects(
+        &self,
+        ids: &[CanvasObjectId],
+    ) -> anyhow::Result<Vec<CanvasObjectId>> {
+        let mut locked = Vec::new();
+        for id in ids {
+            let hit = sqlx::query_scalar!(
+                r#"SELECT EXISTS(SELECT 1 FROM canvas_object_locks WHERE object_id = ?) AS "hit!: bool""#,
+                id
+            )
+            .fetch_one(&self.pool)
+            .await?;
+            if hit {
+                locked.push(*id);
+            }
+        }
+        Ok(locked)
+    }
+
     /// Locks or unlocks `object_id`. Returns whether anything changed, so a
     /// repeat publishes nothing.
     pub async fn set_canvas_object_lock(

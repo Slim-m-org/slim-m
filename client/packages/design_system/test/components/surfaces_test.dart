@@ -476,7 +476,8 @@ void main() {
             of: find.byType(AppMenu),
             matching: find.byType(Container),
           ))
-          .map((c) => (c.decoration as BoxDecoration?)?.border?.top.color)
+          .map((c) =>
+              (c.foregroundDecoration as BoxDecoration?)?.border?.top.color)
           .whereType<Color>();
 
       expect(edge, contains(tokens.borderStrong));

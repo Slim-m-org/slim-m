@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -144,6 +145,27 @@ void main() {
     expect(find.text('Quiet'), findsNothing);
   });
 
+  testWidgets('an offline bot dims its controls and a tap sends nothing', (
+    tester,
+  ) async {
+    final requests = <Map<String, dynamic>>[];
+    const offline = api.ChannelBotUi(
+      botUserId: 'jelly',
+      botUsername: 'jellyfin',
+      botDisplayName: 'Jellyfin',
+      messageMenu: [],
+      callControls: [
+        api.BotUiEntry(id: 'pause', label: 'Pause', icon: 'pause'),
+      ],
+      offline: true,
+    );
+    await _pump(tester, requests, bots: [offline]);
+    expect(find.byTooltip('Pause - bot offline'), findsOneWidget);
+    await tester.tap(find.byTooltip('Pause - bot offline'));
+    await tester.pump();
+    expect(requests, isEmpty);
+  });
+
   testWidgets('a phone width wraps the row instead of overflowing', (
     tester,
   ) async {
@@ -228,6 +250,43 @@ void main() {
       await tester.pump();
       await tester.pump();
     }
+
+    testWidgets('an offline bot opens no options, by click or right-click', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final requests = <Map<String, dynamic>>[];
+      const offlineQuality = api.ChannelBotUi(
+        botUserId: 'jelly',
+        botUsername: 'jellyfin',
+        botDisplayName: 'Jellyfin',
+        messageMenu: [],
+        callControls: [
+          api.BotUiEntry(
+            id: 'quality',
+            label: 'Quality',
+            options: [api.BotUiOption(id: 'low', label: 'Low 480p')],
+          ),
+        ],
+        offline: true,
+      );
+      await _pump(tester, requests, bots: const [offlineQuality]);
+      final chip = find.byTooltip('Quality - bot offline');
+
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(find.text('Low 480p'), findsNothing);
+      await tester.tapAt(
+        tester.getCenter(chip),
+        buttons: kSecondaryButton,
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Low 480p'), findsNothing);
+      expect(requests, isEmpty);
+    });
 
     testWidgets('opens them and sends the one picked', (tester) async {
       tester.view.physicalSize = const Size(1280, 800);

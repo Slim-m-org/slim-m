@@ -43,6 +43,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasMediaSlotPreview { .. }
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -69,6 +70,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return None,

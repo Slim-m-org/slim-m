@@ -34,7 +34,39 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
     onPlaced: _selectPlaced,
     onError: _engine.reportError,
     timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+    onBitmapAttached: _engine.hydrator.adopt,
   );
+
+  /// Picks one still image and places it at the view's centre.
+  Future<void> _pickImageFile() async {
+    final PlatformFile? file;
+    try {
+      file = await ref.read(
+        attachmentPickerProvider(AttachmentSource.stillImageFiles),
+      )();
+    } catch (e, stack) {
+      api.reportFailure(
+        api.LogTag.media,
+        'pick an image for the canvas',
+        e,
+        stack,
+      );
+      _engine.reportError('The file picker could not open.');
+      return;
+    }
+    if (file == null || !_mounted) return;
+    await _imagePaste.placeFile(await file.readAsBytes(), file.name);
+  }
+
+  /// Places an image dropped onto the board, or says why it was refused.
+  Future<void> _dropImage(List<DropItem> items) async {
+    switch (await readDroppedImage(items)) {
+      case DroppedImage(:final bytes, :final name):
+        if (_mounted) await _imagePaste.placeFile(bytes, name);
+      case RefusedDrop(:final message):
+        if (_mounted) _engine.reportError(message);
+    }
+  }
 
   CanvasQuickPlacement get _quickPlacement =>
       _quickPlacementHelper ??= CanvasQuickPlacement(
@@ -42,5 +74,14 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         channelId: widget.channelId,
         document: _document,
         timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+        authorId: () => ref.read(meProvider).valueOrNull?.id,
+        clearedSincePlacement: _engine.sync.clearedSincePlacement,
       );
+
+  /// What the canvas says when this device's call in the channel failed or dropped for good.
+  String? _callFailure(VoiceFlags flags) =>
+      flags.channelId == widget.channelId &&
+          flags.state == VoiceSessionState.failed
+      ? (flags.error ?? 'The call was dropped.')
+      : null;
 }

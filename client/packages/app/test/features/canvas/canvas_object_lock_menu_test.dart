@@ -25,7 +25,8 @@ CanvasStrokeInput _photo({required String authorId}) => CanvasStrokeInput(
   points: const [],
   width: 0,
   colorKey: 'shape',
-  kind: CanvasObjectKind.shape,
+  kind: CanvasObjectKind.note,
+  text: 'note',
   authorId: authorId,
 );
 
@@ -72,13 +73,13 @@ class _Harness {
             selfId: 'me',
             requests: CanvasObjectMenuRequests(),
             tool: CanvasTool.pan,
-            onToolChanged: (_) {},
             onBringToFront: restacked.add,
             onSendToBack: restacked.add,
             onDeleteSelected: deleted.add,
             onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
+            onToolChanged: (_) {},
           ),
         ),
       ),
@@ -151,5 +152,33 @@ void main() {
     await tester.pumpWidget(harness.build());
     await _openMenu(tester);
     expect(find.text('Lock in place'), findsOneWidget);
+  });
+
+  testWidgets('a canvas moderator can delete a locked object', (tester) async {
+    final harness = _Harness(authorId: 'someone-else', canManage: true);
+    addTearDown(harness.document.dispose);
+    await tester.pumpWidget(harness.build());
+    await _openMenu(tester);
+    await tester.tap(find.text('Lock in place'));
+    await tester.pumpAndSettle();
+
+    await _openMenu(tester);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(harness.deleted, ['photo']);
+  });
+
+  testWidgets('the menu has one Delete and no separate delete for good', (
+    tester,
+  ) async {
+    final harness = _Harness(authorId: 'me');
+    addTearDown(harness.document.dispose);
+    await tester.pumpWidget(harness.build());
+
+    await _openMenu(tester);
+
+    expect(find.text('Delete'), findsOneWidget);
+    expect(find.textContaining('for good'), findsNothing);
   });
 }

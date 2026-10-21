@@ -41,10 +41,8 @@ pub mod presence_activity;
 pub mod typing;
 pub mod viewing;
 
-/// How long a connected user with no observed activity (a ping, a typing
-/// refresh, anything inbound) is shown as away rather than online, absent an
-/// explicit away/dnd/hidden preference. Only affects the `Online` preference;
-/// a user who chose Away, Dnd, or Hidden already said what they want shown.
+/// How long a connected user with no observed activity (an `active` frame, typing refresh, or a ping from a client that sends no `active`) shows as away rather than online.
+/// Only affects the `Online` preference; Away, Dnd and Hidden already said what to show.
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 
 /// The status a user has durably chosen, independent of whether they are
@@ -188,21 +186,27 @@ impl PresenceTracker {
     /// [`Self::connect`] with an explicit clock, so a test can drive idle
     /// timing deterministically instead of sleeping.
     pub fn connect_at(&self, user_id: UserId, now: Instant) -> bool {
-        self.connect_kind_at(user_id, DeviceKind::Unknown, now)
+        self.connect_kind_at(user_id, DeviceKind::Unknown, true, now)
     }
 
-    /// [`Self::connect`] naming the client's kind. Returns `true` when the
-    /// user's presence visibly changed: their first socket, or a kind they
-    /// were not yet connected from.
-    pub fn connect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
-        self.connect_kind_at(user_id, kind, Instant::now())
+    /// [`Self::connect`] naming the client's kind; true when presence visibly changed (first socket, or a kind not yet connected).
+    /// `active` is false only for a client that reports activity itself and says nobody is at the device, so a reconnect after sleep is not use.
+    pub fn connect_as(&self, user_id: UserId, kind: DeviceKind, active: bool) -> bool {
+        self.connect_kind_at(user_id, kind, active, Instant::now())
     }
 
-    fn connect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
+    fn connect_kind_at(
+        &self,
+        user_id: UserId,
+        kind: DeviceKind,
+        active: bool,
+        now: Instant,
+    ) -> bool {
         let mut state = lock(&self.state);
+        let arrived_idle = now.checked_sub(IDLE_TIMEOUT).unwrap_or(now);
         let entry = state.entry(user_id).or_insert(Entry {
             connections: 0,
-            last_active: now,
+            last_active: if active { now } else { arrived_idle },
             visibility: None,
             activity: None,
             devices: DeviceCounts::default(),
@@ -210,28 +214,21 @@ impl PresenceTracker {
         let before = entry.devices.signature();
         entry.connections += 1;
         entry.devices.add(kind);
-        entry.last_active = now;
+        if active {
+            entry.last_active = now;
+        }
         entry.connections == 1 || before != entry.devices.signature()
     }
 
     /// Records a connection closing. Returns `true` if that was the user's
     /// last live connection.
     pub fn disconnect(&self, user_id: UserId) -> bool {
-        self.disconnect_at(user_id, Instant::now())
-    }
-
-    /// [`Self::disconnect`] with an explicit clock.
-    pub fn disconnect_at(&self, user_id: UserId, now: Instant) -> bool {
-        self.disconnect_kind_at(user_id, DeviceKind::Unknown, now)
+        self.disconnect_as(user_id, DeviceKind::Unknown)
     }
 
     /// [`Self::disconnect`] naming the closing client's kind. Returns `true`
     /// when presence visibly changed: the last socket, or the last of a kind.
     pub fn disconnect_as(&self, user_id: UserId, kind: DeviceKind) -> bool {
-        self.disconnect_kind_at(user_id, kind, Instant::now())
-    }
-
-    fn disconnect_kind_at(&self, user_id: UserId, kind: DeviceKind, now: Instant) -> bool {
         let mut state = lock(&self.state);
         let Some(entry) = state.get_mut(&user_id) else {
             return false;
@@ -239,7 +236,6 @@ impl PresenceTracker {
         let before = entry.devices.signature();
         entry.connections = entry.connections.saturating_sub(1);
         entry.devices.remove(kind);
-        entry.last_active = now;
         if entry.connections == 0 {
             state.remove(&user_id);
             true
@@ -453,6 +449,18 @@ mod tests {
         // A touch resets the clock even past the old timeout.
         tracker.touch_at(alice, past_timeout);
         assert!(!tracker.is_idle_at(alice, past_timeout));
+    }
+
+    #[test]
+    fn a_closing_socket_does_not_reset_the_idle_clock() {
+        let tracker = PresenceTracker::new();
+        let alice = uid();
+        let long_ago = Instant::now() - IDLE_TIMEOUT - Duration::from_secs(1);
+        tracker.connect_at(alice, long_ago);
+        tracker.connect_at(alice, long_ago);
+
+        tracker.disconnect(alice);
+        assert!(tracker.is_idle(alice));
     }
 
     #[test]

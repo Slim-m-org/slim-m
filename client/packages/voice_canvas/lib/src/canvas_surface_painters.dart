@@ -20,7 +20,7 @@ extension _CanvasSurfacePainters on _CanvasSurfaceState {
         o.placeholderFill != w.placeholderFill ||
         o.placeholderIcon != w.placeholderIcon ||
         o.elevationShadow != w.elevationShadow) {
-      _strokes.disposeNoteLabels();
+      _strokes.dispose();
       _strokes = _buildStrokePainter();
     }
     if (o.shapeColor != w.shapeColor || o.ink != w.ink) {

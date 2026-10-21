@@ -38,7 +38,9 @@ class _DragState {
     this.fromH,
     this.anchor,
   ) : x = fromX,
-      y = fromY;
+      y = fromY,
+      w = fromW,
+      h = fromH;
 
   final String objectId;
   final double fromX;
@@ -52,6 +54,10 @@ class _DragState {
 
   double x;
   double y;
+
+  /// The size the board allows, which differs from the original for an object larger than it.
+  double w;
+  double h;
 }
 
 /// One resize-handle drag in progress: which object and corner, its bounds
@@ -59,11 +65,14 @@ class _DragState {
 /// the anchor [resizeBounds] measures every later point against), and the
 /// bounds it currently previews.
 class _ResizeState {
-  _ResizeState(this.objectId, this.corner, this.fromBounds)
+  _ResizeState(this.objectId, this.corner, this.fromBounds, this.grab)
     : current = fromBounds;
 
   final String objectId;
   final ResizeCorner corner;
+
+  /// From the press to the handle's centre, so the corner does not jump to the pointer.
+  final Offset grab;
   final ({double x, double y, double w, double h}) fromBounds;
   ({double x, double y, double w, double h}) current;
 }
@@ -74,21 +83,9 @@ class _ResizeState {
 /// need `CanvasOpsController`'s own private `_drag`/`_resize` fields and
 /// undo stack.
 extension CanvasOpsControllerSelect on CanvasOpsController {
-  /// Grabs a resize handle on the current selection if [world] lands on
-  /// one, or otherwise picks up the topmost live box object (image, note or
-  /// shape) under [world] the caller may move - their own, or anybody's
-  /// with [manageCanvas] - selecting it and remembering its original bounds
-  /// so [dragSelect] can preview locally and [undo] can reverse whichever
-  /// this turns out to be. Failing that, falls back to a stroke under
-  /// [world]: selectable for reorder (see `CanvasOpsControllerReorder`),
-  /// never for a drag, since a freehand mark has no box a person expects to
-  /// relocate the way a placed box object's is. Deselects, silently, if
-  /// nothing is there: the same "scope at hit-test time" choice
-  /// [onErasePoint] already makes.
-  ///
-  /// A handle only exists on a box kind (see `SelectionPainter`'s own doc
-  /// for why a stroke never grows one), so the resize branch is skipped for
-  /// a stroke without needing its own check here.
+  /// Grabs a resize handle on the selection if [world] lands on one, else picks up the topmost live object
+  /// the caller may move, remembering its bounds for [dragSelect] and [undo]; deselects if nothing is there.
+  /// A stroke is selectable for reorder but never dragged, and only box kinds have a resize handle.
   void beginSelect(
     Offset world, {
     required bool manageCanvas,
@@ -96,18 +93,16 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     bool touch = false,
   }) {
     if (_beginResize(world, manageCanvas, selfId, touch)) return;
+    // Hidden by the board's clip, so a press on the letterbox selects nothing.
+    if (!document.acceptsPlacementAt(world)) {
+      document.selectedObjectId.value = null;
+      return;
+    }
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
-    final id =
-        hitTestBoxAt(
-          document,
-          world,
-          allowed: allowed,
-          slopPx: touch ? touchHitSlopPx : 0,
-        ) ??
-        _hitTestSelectableStroke(world, allowed, touch);
+    final id = hitTestTopmost(document, world, touch: touch, allowed: allowed);
     document.selectedObjectId.value = id;
     if (id == null || document.kindOf(id) == CanvasObjectKind.stroke) return;
     final bounds = document.objectBounds(id);
@@ -139,23 +134,14 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       hitRadius: touch ? touchResizeHandleHitRadius : resizeHandleHitRadius,
     );
     if (corner == null) return false;
-    _resize = _ResizeState(selected, corner, bounds);
+    final grab = resizeHandleCorners(bounds)[corner]! - world;
+    _resize = _ResizeState(selected, corner, bounds, grab);
     document.elevatedObjectId.value = selected;
     return true;
   }
 
-  /// Whether [world] lands in the innermost half of [bounds] - the zone a
-  /// plain move-drag always wins, regardless of how far
-  /// `hitTestResizeHandle`'s own zoom-scaled radius reaches (its own doc:
-  /// "never becomes unhittable zoomed out", a deliberate, unbounded growth
-  /// as zoom shrinks). Without this, a selected object small enough that
-  /// its whole body sits inside that fixed screen-space radius - a
-  /// resized-down or naturally small pasted image is the easy way there,
-  /// with `minObjectSize` (8) well under it at zoom 1 - could never be
-  /// grabbed for a plain move again: every click, including dead centre,
-  /// resolved to a resize. The guard only ever narrows where a resize may
-  /// start; a click anywhere near an edge or corner, or outside the box
-  /// entirely, is untouched.
+  /// Whether [world] lands in the innermost half of [bounds], where a plain move-drag always wins.
+  /// Without it a small selected object sits wholly inside the zoom-scaled resize radius and every click, even dead centre, resolves to a resize.
   bool _isDeepInterior(
     ({double x, double y, double w, double h}) bounds,
     Offset world,
@@ -166,27 +152,6 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         world.dx <= bounds.x + bounds.w - marginX &&
         world.dy >= bounds.y + marginY &&
         world.dy <= bounds.y + bounds.h - marginY;
-  }
-
-  /// A stroke under [world] the caller may reorder, or null. `hitTestStroke`
-  /// tests every kind's own path/tolerance, not only strokes, so a box
-  /// object [beginSelect]'s own box test just missed is excluded here
-  /// rather than re-admitted through a looser one.
-  String? _hitTestSelectableStroke(
-    Offset world,
-    bool Function(CanvasStroke stroke) allowed,
-    bool touch,
-  ) {
-    final id = hitTestStroke(
-      document,
-      world,
-      allowed: allowed,
-      slopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
-    );
-    if (id == null || document.kindOf(id) != CanvasObjectKind.stroke) {
-      return null;
-    }
-    return id;
   }
 
   /// Continues whichever gesture [beginSelect] started: reshapes the
@@ -203,11 +168,19 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       final point = snap
           ? _snapped(resize.objectId, Rect.fromLTWH(world.dx, world.dy, 0, 0))
           : _unsnapped();
-      resize.current = resizeBounds(
+      final raw = resizeBounds(
         corner: resize.corner,
         original: resize.fromBounds,
-        pointerWorld: world + point,
+        pointerWorld: document.clampToBoard(world + resize.grab + point),
         lockAspect: lockAspect,
+        within: document.board,
+      );
+      resize.current = document.boxOnBoard(
+        resize.objectId,
+        raw.x,
+        raw.y,
+        raw.w,
+        raw.h,
       );
       document.moveObject(
         resize.objectId,
@@ -226,9 +199,18 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final shift = snap
         ? _snapped(drag.objectId, Rect.fromLTWH(x, y, drag.fromW, drag.fromH))
         : _unsnapped();
-    drag.x = x + shift.dx;
-    drag.y = y + shift.dy;
-    document.moveObject(drag.objectId, drag.x, drag.y, drag.fromW, drag.fromH);
+    final box = document.boxOnBoard(
+      drag.objectId,
+      x + shift.dx,
+      y + shift.dy,
+      drag.fromW,
+      drag.fromH,
+    );
+    drag.x = box.x;
+    drag.y = box.y;
+    drag.w = box.w;
+    drag.h = box.h;
+    document.moveObject(drag.objectId, drag.x, drag.y, drag.w, drag.h);
     document.refresh();
   }
 
@@ -241,7 +223,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     if (drag == null) return null;
     return (
       id: drag.objectId,
-      box: (x: drag.x, y: drag.y, w: drag.fromW, h: drag.fromH),
+      box: (x: drag.x, y: drag.y, w: drag.w, h: drag.h),
     );
   }
 
@@ -313,39 +295,87 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     final drag = _drag;
     _drag = null;
     if (drag == null) return;
-    if (drag.x == drag.fromX && drag.y == drag.fromY) return;
+    if (drag.x == drag.fromX &&
+        drag.y == drag.fromY &&
+        drag.w == drag.fromW &&
+        drag.h == drag.fromH) {
+      return;
+    }
     await _commitBounds(
       drag.objectId,
       (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
-      (x: drag.x, y: drag.y, w: drag.fromW, h: drag.fromH),
+      (x: drag.x, y: drag.y, w: drag.w, h: drag.h),
       'That could not be moved.',
     );
   }
 
-  Future<void> _commitBounds(
+  /// Puts a cancelled drag or resize back where it began, and returns what
+  /// moved so a relayed preview can be ended on the original box.
+  ({String id, ObjectBox box})? cancelSelect() {
+    document.elevatedObjectId.value = null;
+    document.snapGuides.value = const [];
+    final resize = _resize;
+    final drag = _drag;
+    _resize = null;
+    _drag = null;
+    ({String id, ({double x, double y, double w, double h}) box})? restored;
+    if (resize != null) {
+      restored = (id: resize.objectId, box: resize.fromBounds);
+    } else if (drag != null) {
+      restored = (
+        id: drag.objectId,
+        box: (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
+      );
+    }
+    if (restored == null) return null;
+    final box = restored.box;
+    document.moveObject(restored.id, box.x, box.y, box.w, box.h);
+    document.refresh();
+    return restored;
+  }
+
+  Future<bool> _commitBounds(
     String objectId,
     ({double x, double y, double w, double h}) from,
     ({double x, double y, double w, double h}) to,
-    String errorMessage,
-  ) async {
-    if (to == from) return;
+    String errorMessage, {
+    bool record = true,
+  }) async {
+    if (to == from) return true;
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'move',
-        objectId: objectId,
-        x: to.x,
-        y: to.y,
-        w: to.w,
-        h: to.h,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'move',
+          objectId: objectId,
+          x: to.x,
+          y: to.y,
+          w: to.w,
+          h: to.h,
+        ),
       );
-      _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
+      if (record) {
+        _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
+      }
+      return true;
     } on api.ApiException {
-      document.moveObject(objectId, from.x, from.y, from.w, from.h);
-      document.refresh();
+      _rollBackBounds(objectId, from, to);
       onError(errorMessage);
+      return false;
     }
+  }
+
+  /// Puts the old box back only while the optimistic one is still showing, so
+  /// a remote change that landed meanwhile is not overwritten.
+  void _rollBackBounds(
+    String objectId,
+    ({double x, double y, double w, double h}) from,
+    ({double x, double y, double w, double h}) to,
+  ) {
+    if (document.objectBounds(objectId) != to) return;
+    document.moveObject(objectId, from.x, from.y, from.w, from.h);
+    document.refresh();
   }
 
   Future<_RedoEntry?> _undoMove(
@@ -389,21 +419,22 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     document.moveObject(objectId, x, y, w, h);
     document.refresh();
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'move',
-        objectId: objectId,
-        x: x,
-        y: y,
-        w: w,
-        h: h,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'move',
+          objectId: objectId,
+          x: x,
+          y: y,
+          w: w,
+          h: h,
+        ),
       );
       return before;
     } on api.ApiException {
       if (before != null) {
-        document.moveObject(objectId, before.x, before.y, before.w, before.h);
-        document.refresh();
+        _rollBackBounds(objectId, before, (x: x, y: y, w: w, h: h));
       }
       onError('That could not be $verb.');
       return null;

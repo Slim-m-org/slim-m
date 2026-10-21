@@ -9,31 +9,25 @@
 
 use std::time::Duration;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64STD;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
+use axum::http::StatusCode;
 use futures_util::{SinkExt, StreamExt};
-use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use slimm_server::http::{self, AppState};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use slimm_server::voice::VoiceService;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tower::ServiceExt;
 
 mod support;
 
+use support::livekit_webhook::webhook_request;
+
+use support::ws::{Client, serve};
+
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
-
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 fn enabled_voice() -> VoiceService {
     VoiceService::for_test("wss://livekit.example.com", API_KEY, API_SECRET)
@@ -65,15 +59,6 @@ async fn user_ticket_from_access(store: &Store, access_token: &str) -> String {
     let ctx = store.authenticate(access_token).await.unwrap().unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
     ticket
-}
-
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
 }
 
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
@@ -113,38 +98,6 @@ async fn read_frame_of_type(ws: &mut Client, kind: &str) -> Value {
     wait_for(ws, kind, Duration::from_secs(2))
         .await
         .unwrap_or_else(|| panic!("timed out waiting for a `{kind}` frame"))
-}
-
-/// Signs a webhook body exactly the way LiveKit's own server SDKs do:
-/// HS256 over `header.payload`, with a base64-standard sha256 digest of the
-/// body as a claim rather than the body itself.
-fn sign_webhook(body: &[u8], api_key: &str, api_secret: &str) -> String {
-    let header = BASE64URL.encode(r#"{"alg":"HS256","typ":"JWT"}"#);
-    let sha256 = BASE64STD.encode(Sha256::digest(body));
-    let exp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 300;
-    let claims = json!({ "iss": api_key, "exp": exp, "sha256": sha256 });
-    let payload = BASE64URL.encode(serde_json::to_vec(&claims).unwrap());
-    let signing_input = format!("{header}.{payload}");
-    let mut mac = <Hmac<Sha256>>::new_from_slice(api_secret.as_bytes()).unwrap();
-    mac.update(signing_input.as_bytes());
-    let signature = BASE64URL.encode(mac.finalize().into_bytes());
-    format!("{signing_input}.{signature}")
-}
-
-fn webhook_request(body: Value, api_key: &str, api_secret: &str) -> Request<Body> {
-    let bytes = serde_json::to_vec(&body).unwrap();
-    let token = sign_webhook(&bytes, api_key, api_secret);
-    Request::builder()
-        .method("POST")
-        .uri("/voice/webhook")
-        .header("authorization", token)
-        .header("content-type", "application/webhook+json")
-        .body(Body::from(bytes))
-        .unwrap()
 }
 
 async fn deliver(app: axum::Router, body: Value) -> StatusCode {

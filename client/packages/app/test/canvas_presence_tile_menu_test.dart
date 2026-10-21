@@ -18,13 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_context_menu.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/voice/voice_controller_harness.dart';
+import 'features/canvas/presence_stack.dart';
 
 const _noor = VoiceParticipant(
   identity: 'user-noor',
@@ -60,21 +60,22 @@ Widget _wrap({
                 selfId: 'me',
                 requests: requests,
                 tool: CanvasTool.pan,
-                onToolChanged: (_) {},
                 onBringToFront: (_) {},
                 onSendToBack: (_) {},
                 onDeleteSelected: (_) {},
                 onPasteImageAt: (_) {},
                 onAddNoteAt: (_) {},
                 onRecenter: () {},
+                onToolChanged: (_) {},
               ),
-            CanvasPresenceLayer(
+            PresenceStack(
               document: document,
               participants: const [_noor],
               cameraViewFor: (_) => const SizedBox(),
               screenShareViewFor: (_) => const SizedBox(),
               overrides: overrides,
               onCommit: (_, __) {},
+              onFocus: (_) {},
             ),
           ],
         ),
@@ -105,7 +106,8 @@ void main() {
 
     expect(find.text('Full screen'), findsOneWidget);
     expect(find.text('Lock in place'), findsOneWidget);
-    expect(find.text('Send to back'), findsOneWidget);
+    expect(find.text('Send to back'), findsNothing);
+    expect(find.text('Bring to front'), findsNothing);
     expect(find.text('Hide on your canvas'), findsOneWidget);
   });
 
@@ -132,9 +134,9 @@ void main() {
     },
   );
 
-  testWidgets('tapping Full screen in the menu opens the same route the hover '
-      'control does, and closes the menu', (tester) async {
-    // A real, joined voice session is load-bearing here: `_expand`'s route pops itself the instant the feed is not live, which a bare `ProviderScope` with no session always reports.
+  testWidgets('tapping Full screen in the menu focuses the tile the way the '
+      'hover control does, and closes the menu', (tester) async {
+    final focused = <String>[];
     final harness = VoiceHarness();
     addTearDown(harness.dispose);
     final session = FakeSession();
@@ -153,13 +155,14 @@ void main() {
             body: SizedBox(
               width: 1200,
               height: 800,
-              child: CanvasPresenceLayer(
+              child: PresenceStack(
                 document: document,
                 participants: const [_noor],
                 cameraViewFor: (_) => const SizedBox(),
                 screenShareViewFor: (_) => const SizedBox(),
                 overrides: overrides,
                 onCommit: (_, __) {},
+                onFocus: focused.add,
               ),
             ),
           ),
@@ -176,7 +179,8 @@ void main() {
     await tester.tap(find.text('Full screen'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(FullscreenVideoView), findsOneWidget);
+    expect(focused, ['camera:user-noor']);
+    expect(find.byType(FullscreenVideoView), findsNothing);
     expect(find.text('Hide on your canvas'), findsNothing);
 
     await harness.container.read(voiceControllerProvider.notifier).leave();
@@ -199,25 +203,6 @@ void main() {
     expect(overrides.stateFor('camera:user-noor').locked, isTrue);
     expect(find.text('Full screen'), findsNothing);
   });
-
-  testWidgets(
-    'tapping Send to back sends the tile to the back and closes the menu',
-    (tester) async {
-      final document = CanvasDocument()..setViewport(const Size(1200, 800));
-      addTearDown(document.dispose);
-      final overrides = CanvasPresenceTileOverrides();
-      addTearDown(overrides.dispose);
-      await tester.pumpWidget(_wrap(document: document, overrides: overrides));
-      await tester.pump();
-
-      await _rightClickTile(tester);
-      await tester.tap(find.text('Send to back'));
-      await tester.pump();
-
-      expect(overrides.stateFor('camera:user-noor').sentToBack, isTrue);
-      expect(find.text('Full screen'), findsNothing);
-    },
-  );
 
   testWidgets(
     'tapping Hide on your canvas hides the tile and closes the menu',

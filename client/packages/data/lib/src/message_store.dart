@@ -3,6 +3,7 @@
 library;
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:slimm_api/api.dart' as api;
 
 import 'database.dart';
@@ -352,6 +353,7 @@ class MessageStore {
       await db.delete(db.channelCategories).go();
       // Drafts: the one thing here nobody else has a copy of. See clear's doc.
       await db.delete(db.channelDrafts).go();
+      await db.delete(db.canvasPersonalLayouts).go();
       await db.delete(db.pendingAttachments).go();
     });
   }

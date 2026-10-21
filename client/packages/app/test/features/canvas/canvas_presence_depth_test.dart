@@ -1,24 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Sending a presence tile to the back: its own content moves into
-/// [CanvasPresenceBackdrop], painted before [CanvasSurface] so real ink
-/// lands on top of it, while every control - drag, resize, lock, hide, and
-/// the depth toggle itself - stays reachable exactly where it already was.
-///
-/// The paint-order test below is a structural regression guard for the
-/// hit-testing trap a rendered probe found before this file existed: moving
-/// the whole manipulable tile behind [CanvasSurface] does not merely dim its
-/// controls, it deletes them, since [CanvasSurface] claims every pointer in
-/// its own bounds and Flutter's Stack hit-testing never reaches past the
-/// first claimant. See `canvas_presence_layer.dart`'s own doc for the full
-/// account.
-///
-/// That structural test asserts `Stack.children` order alone, which - the
-/// same `canvas_grid_layer_test.dart` lesson - proves nothing about what
-/// actually paints. `canvas_presence_depth_paint_test.dart` is the
-/// pixel-level companion: it rasterises the real assembled pane and reads
-/// colours back, so a widget correctly ordered but silently painting
-/// nothing, or painting the wrong thing, fails there even when it passes
-/// here.
+/// Where a presence tile's pieces paint (decision 0086): video in [CanvasPresenceBackdrop] before [CanvasSurface], controls in [CanvasPresenceLayer] above it.
+/// Asserts `Stack.children` order; `canvas_presence_depth_paint_test.dart` is the pixel-level companion.
 library;
 
 import 'package:flutter/material.dart';
@@ -31,11 +13,9 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
-/// Camera on: depth is a video-tile verb - an avatar-only tile forces
-/// `sentToBack` to `false` regardless of what overrides says, so this suite
-/// needs a real video tile to exercise the toggle at all. See
-/// `canvas_presence_tile_kind_test.dart` for the avatar side of that.
+/// Camera on: a person without a feed has no tile at all.
 const _noor = VoiceParticipant(
   identity: 'user-noor',
   name: 'Noor',
@@ -54,7 +34,7 @@ Widget _wrapLayer(Widget child) => ProviderScope(
 );
 
 Widget _layer(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
-    CanvasPresenceLayer(
+    PresenceStack(
       document: document,
       participants: const [_noor],
       cameraViewFor: (_) => const SizedBox(),
@@ -102,6 +82,7 @@ Widget _pane(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
               onPasteImage: () {},
               onPasteImageAt: (_) {},
               onRecenter: () {},
+              onBringIntoBoard: () {},
               error: null,
               onDismissError: () {},
               truncated: false,
@@ -113,7 +94,7 @@ Widget _pane(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
               onSelectDrag: (_) {},
               onSelectEnd: () {},
               onNotePlace: (_) {},
-              onShapePlace: (_, __) {},
+              onShapePlace: (_, __, {flipX = false, flipY = false}) {},
               shapeKind: CanvasShapeKind.rectangle,
               onShapeKindChanged: (_) {},
               pen: const CanvasPenStyle(),
@@ -172,8 +153,7 @@ void main() {
         gridIndex,
         lessThan(backdropIndex),
         reason:
-            'the grid must sit under a sent-to-back tile\'s own video, not '
-            'paint over it - report 1 in the backlog channel',
+            'the grid must sit under a tile\'s own video, not paint over it',
       );
       expect(
         backdropIndex,
@@ -191,47 +171,31 @@ void main() {
     },
   );
 
-  testWidgets(
-    'a sent-to-back tile has no bubble in the interactive layer, but its '
-    'manipulable shell is still there',
-    (tester) async {
-      final document = CanvasDocument()..setViewport(const Size(1000, 800));
-      addTearDown(document.dispose);
-      final overrides = CanvasPresenceTileOverrides()
-        ..setSentToBack('camera:user-noor', true);
-      addTearDown(overrides.dispose);
-
-      await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
-      await tester.pump();
-
-      expect(find.byType(CanvasPresenceBubble), findsNothing);
-      expect(
-        find.byKey(const ValueKey('camera:user-noor')),
-        findsOneWidget,
-        reason: 'depth never removes the control shell, only its content',
-      );
-    },
-  );
-
-  testWidgets(
-    'the same sent-to-back tile\'s content renders in the backdrop instead',
-    (tester) async {
-      final document = CanvasDocument()..setViewport(const Size(1000, 800));
-      addTearDown(document.dispose);
-      final overrides = CanvasPresenceTileOverrides()
-        ..setSentToBack('camera:user-noor', true);
-      addTearDown(overrides.dispose);
-
-      await tester.pumpWidget(_wrapLayer(_backdrop(document, overrides)));
-      await tester.pump();
-
-      expect(find.byType(CanvasPresenceBubble), findsOneWidget);
-    },
-  );
-
-  testWidgets('a tile still in front renders nothing in the backdrop', (
+  testWidgets('the interactive layer holds no video, only the control shell', (
     tester,
   ) async {
+    final document = CanvasDocument()..setViewport(const Size(1000, 800));
+    addTearDown(document.dispose);
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+
+    await tester.pumpWidget(
+      _wrapLayer(
+        CanvasPresenceLayer(
+          document: document,
+          participants: const [_noor],
+          overrides: overrides,
+          onCommit: (_, _) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(CanvasPresenceBubble), findsNothing);
+    expect(find.byKey(const ValueKey('camera:user-noor')), findsOneWidget);
+  });
+
+  testWidgets('every tile\'s video renders in the backdrop', (tester) async {
     final document = CanvasDocument()..setViewport(const Size(1000, 800));
     addTearDown(document.dispose);
     final overrides = CanvasPresenceTileOverrides();
@@ -240,14 +204,13 @@ void main() {
     await tester.pumpWidget(_wrapLayer(_backdrop(document, overrides)));
     await tester.pump();
 
-    expect(find.byType(CanvasPresenceBubble), findsNothing);
+    expect(find.byType(CanvasPresenceBubble), findsOneWidget);
   });
 
   testWidgets('the backdrop never intercepts a pointer', (tester) async {
     final document = CanvasDocument()..setViewport(const Size(1000, 800));
     addTearDown(document.dispose);
-    final overrides = CanvasPresenceTileOverrides()
-      ..setSentToBack('camera:user-noor', true);
+    final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);
 
     await tester.pumpWidget(_wrapLayer(_backdrop(document, overrides)));
@@ -259,34 +222,9 @@ void main() {
     expect(ignorePointer.ignoring, isTrue);
   });
 
-  testWidgets(
-    'dragging a sent-to-back tile still writes its new position back to '
-    'the overrides, unchanged from a tile still in front',
-    (tester) async {
-      final document = CanvasDocument()..setViewport(const Size(1000, 800));
-      addTearDown(document.dispose);
-      final overrides = CanvasPresenceTileOverrides()
-        ..setSentToBack('camera:user-noor', true);
-      addTearDown(overrides.dispose);
-
-      await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
-      await tester.pump();
-      expect(overrides.stateFor('camera:user-noor').rect, isNull);
-
-      await tester.drag(
-        find.byKey(const ValueKey('camera:user-noor')),
-        const Offset(50, 30),
-      );
-      await tester.pump();
-
-      final rect = overrides.stateFor('camera:user-noor').rect;
-      expect(rect, isNotNull);
-      expect(rect!.left, greaterThan(0));
-    },
-  );
-
-  testWidgets('the depth control toggles sentToBack, and its icon reflects the '
-      'current state', (tester) async {
+  testWidgets('dragging a tile writes its new position to the overrides', (
+    tester,
+  ) async {
     final document = CanvasDocument()..setViewport(const Size(1000, 800));
     addTearDown(document.dispose);
     final overrides = CanvasPresenceTileOverrides();
@@ -294,46 +232,16 @@ void main() {
 
     await tester.pumpWidget(_wrapLayer(_layer(document, overrides)));
     await tester.pump();
+    expect(overrides.stateFor('camera:user-noor').rect, isNull);
 
-    final tileFinder = find.byKey(const ValueKey('camera:user-noor'));
-    expect(
-      find.descendant(
-        of: tileFinder,
-        matching: find.byIcon(AppIcons.bringToFront),
-      ),
-      findsOneWidget,
-      reason: 'front is the default, so its state glyph shows first',
-    );
-
-    // A first tap reveals the control row - report 3 asked for it gone until asked for.
-    await tester.tap(tileFinder);
-    await tester.pump();
-
-    await tester.tap(
-      find.descendant(
-        of: tileFinder,
-        matching: find.byIcon(AppIcons.bringToFront),
-      ),
+    await tester.drag(
+      find.byKey(const ValueKey('camera:user-noor')),
+      const Offset(50, 30),
     );
     await tester.pump();
 
-    expect(overrides.stateFor('camera:user-noor').sentToBack, isTrue);
-    expect(
-      find.descendant(
-        of: tileFinder,
-        matching: find.byIcon(AppIcons.sendToBack),
-      ),
-      findsOneWidget,
-    );
-
-    await tester.tap(
-      find.descendant(
-        of: tileFinder,
-        matching: find.byIcon(AppIcons.sendToBack),
-      ),
-    );
-    await tester.pump();
-
-    expect(overrides.stateFor('camera:user-noor').sentToBack, isFalse);
+    final rect = overrides.stateFor('camera:user-noor').rect;
+    expect(rect, isNotNull);
+    expect(rect!.left, greaterThan(0));
   });
 }

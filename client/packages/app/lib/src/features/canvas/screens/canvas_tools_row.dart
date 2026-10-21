@@ -14,6 +14,7 @@
 /// its logic, which is why this file is a relocation rather than a rewrite.
 library;
 
+import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -55,7 +56,9 @@ class CanvasToolsRow extends StatefulWidget {
     required this.onRedo,
     required this.canManage,
     required this.onClear,
+    this.scopedClear,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.selection,
     required this.onBringToFront,
     required this.onSendToBack,
@@ -72,6 +75,7 @@ class CanvasToolsRow extends StatefulWidget {
     required this.hiddenTiles,
     required this.onShowTile,
     required this.onToggleFullscreen,
+    this.fullscreen = false,
     this.showTools = true,
     this.part = CanvasToolsRowPart.all,
     this.overflowOpensBelow = false,
@@ -118,7 +122,11 @@ class CanvasToolsRow extends StatefulWidget {
   final bool canManage;
 
   final Future<void> Function() onClear;
+  final CanvasScopedClear? scopedClear;
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
 
   /// The one object currently selected for a resize or reorder, or null.
   final ValueListenable<String?> selection;
@@ -142,10 +150,9 @@ class CanvasToolsRow extends StatefulWidget {
   final List<CanvasHiddenTile> hiddenTiles;
   final ValueChanged<String> onShowTile;
 
-  /// Forwarded to the overflow menu's own "Enter fullscreen" item. This row
-  /// itself is what fullscreen replaces, so it never renders while the mode
-  /// is on and needs no state of its own for it.
+  /// Forwarded to the overflow menu's fullscreen item, which reads [fullscreen].
   final VoidCallback onToggleFullscreen;
+  final bool fullscreen;
 
   /// False while the activity panel has replaced the drawing surface: there
   /// is nothing to draw on, so the five placement/edit tools fold away and
@@ -233,9 +240,11 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
         const SizedBox(width: AppSpacing.s4),
         CanvasOverflowMenu(
           onPasteImage: widget.onPasteImage,
+          onAddImageFile: widget.onAddImageFile,
           canDraw: widget.canDraw,
           canManage: widget.canManage,
           onClear: widget.onClear,
+          scopedClear: widget.scopedClear,
           selection: widget.selection,
           onBringToFront: widget.onBringToFront,
           onSendToBack: widget.onSendToBack,
@@ -251,6 +260,7 @@ class _CanvasToolsRowState extends State<CanvasToolsRow> {
           hiddenTiles: widget.hiddenTiles,
           onShowTile: widget.onShowTile,
           onToggleFullscreen: widget.onToggleFullscreen,
+          fullscreen: widget.fullscreen,
           opensBelow: widget.overflowOpensBelow,
         ),
       ],

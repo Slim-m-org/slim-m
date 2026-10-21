@@ -26,9 +26,9 @@ VoiceParticipant _p(
 
 void main() {
   test(
-    'a participant gets one camera key that round-trips to their identity',
+    'a participant with a camera gets one camera key that round-trips to their identity',
     () {
-      final keys = presenceTileKeys([_p('user-1')]);
+      final keys = presenceTileKeys([_p('user-1', camera: true)]);
       expect(keys, hasLength(1));
       final key = keys.single;
       expect(presenceTileIdentity(key), 'user-1');
@@ -36,25 +36,29 @@ void main() {
     },
   );
 
-  test('a screen sharer also gets a screen key for the same identity', () {
-    final keys = presenceTileKeys([_p('user-1', screen: true)]);
+  test('a screen sharer with a camera also gets a screen key', () {
+    final keys = presenceTileKeys([_p('user-1', screen: true, camera: true)]);
     expect(keys, hasLength(2));
     expect(keys.map(presenceTileKind).toSet(), {'camera', 'screen'});
     expect(keys.map(presenceTileIdentity).toSet(), {'user-1'});
   });
 
-  test('tile size follows the kind, then the camera state', () {
-    final sharerCameraOff = _p('a', screen: true);
-    final cameraOn = _p('b', camera: true);
-    final byIdentity = {'a': sharerCameraOff, 'b': cameraOn};
+  test('tile size follows the kind', () {
+    final screenKey = presenceTileKeys([
+      _p('a', screen: true),
+    ]).firstWhere((k) => presenceTileKind(k) == 'screen');
+    final cameraKey = presenceTileKeys([_p('b', camera: true)]).single;
 
-    final aKeys = presenceTileKeys([sharerCameraOff]);
-    final screenKey = aKeys.firstWhere((k) => presenceTileKind(k) == 'screen');
-    final aCameraKey = aKeys.firstWhere((k) => presenceTileKind(k) == 'camera');
-    final bCameraKey = presenceTileKeys([cameraOn]).single;
+    expect(presenceTileSize(screenKey), presenceScreenShareSize);
+    expect(presenceTileSize(cameraKey), presenceCameraOnSize);
+  });
 
-    expect(presenceTileSize(screenKey, byIdentity), presenceScreenShareSize);
-    expect(presenceTileSize(aCameraKey, byIdentity), presenceCameraOffSize);
-    expect(presenceTileSize(bCameraKey, byIdentity), presenceCameraOnSize);
+  test('a person with neither a camera nor a share has no tile', () {
+    expect(presenceTileKeys([_p('user-1')]), isEmpty);
+  });
+
+  test('a sharer with the camera off has only the screen tile', () {
+    final keys = presenceTileKeys([_p('user-1', screen: true)]);
+    expect(keys.map(presenceTileKind).toSet(), {'screen'});
   });
 }

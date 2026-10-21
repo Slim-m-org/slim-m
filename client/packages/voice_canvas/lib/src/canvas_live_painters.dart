@@ -10,12 +10,16 @@
 /// `canvas_painters.dart` so nothing importing that file has to change.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
-import 'canvas_painters.dart' show arrowheadLength, arrowheadWings;
+import 'canvas_smooth_path.dart';
+import 'canvas_painters.dart'
+    show arrowheadLength, arrowheadWings, minInkScreenPx;
 import 'canvas_stroke_drafts.dart';
 import 'cursor_label_cache.dart';
 
@@ -95,12 +99,12 @@ class DraftPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..strokeWidth = width
       ..isAntiAlias = true;
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    if (points.length == 1) path.lineTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
-    }
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      smoothPolyline([
+        for (final p in points) ...[p.dx, p.dy]
+      ]),
+      paint,
+    );
   }
 
   @override
@@ -133,14 +137,27 @@ class DraftShape extends ChangeNotifier {
     _anchor = point;
     _current = point;
     _kind = kind;
+    _flip = (x: false, y: false);
     notifyListeners();
   }
 
   void update(Offset point) {
-    if (_anchor == null) return;
+    final anchor = _anchor;
+    if (anchor == null) return;
     _current = point;
+    _flip = (x: point.dx < anchor.dx, y: point.dy < anchor.dy);
     notifyListeners();
   }
+
+  /// Where the drag began and where the pointer is now.
+  Offset? get start => _anchor;
+  Offset? get end => _current;
+
+  /// Which way the drag ran: a line or arrow drawn up or to the left is
+  /// flipped. Kept after [take] until the next [begin], so the placement that
+  /// follows the pointer-up can still ask.
+  ({bool x, bool y}) get flip => _flip;
+  ({bool x, bool y}) _flip = (x: false, y: false);
 
   /// The final box, or null if nothing was ever begun - clears the draft
   /// either way, the same one-shot shape [DraftStroke.take] already uses.
@@ -186,16 +203,21 @@ class DraftShapePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = draft.rect;
-    if (rect == null || rect.width == 0 || rect.height == 0) return;
+    final start = draft.start;
+    final end = draft.end;
+    if (rect == null || start == null || end == null) return;
     final paint = _stroke..color = color;
+    final isSegment = draft.kind == CanvasShapeKind.line ||
+        draft.kind == CanvasShapeKind.arrow;
+    if (!isSegment && (rect.width == 0 || rect.height == 0)) return;
     switch (draft.kind) {
       case CanvasShapeKind.ellipse:
         canvas.drawOval(rect, paint);
       case CanvasShapeKind.line:
-        canvas.drawLine(rect.topLeft, rect.bottomRight, paint);
+        canvas.drawLine(start, end, paint);
       case CanvasShapeKind.arrow:
-        canvas.drawLine(rect.topLeft, rect.bottomRight, paint);
-        _paintArrowhead(canvas, rect.topLeft, rect.bottomRight, paint);
+        canvas.drawLine(start, end, paint);
+        _paintArrowhead(canvas, start, end, paint);
       case CanvasShapeKind.rectangle:
         canvas.drawRect(rect, paint);
     }
@@ -230,10 +252,17 @@ class RemoteDraftPainter extends CustomPainter {
     required this.drafts,
     required this.document,
     required this.colors,
+    this.ink,
+    this.inkColors = const {},
   }) : super(repaint: Listenable.merge([drafts, document]));
 
   final RemoteStrokeDrafts drafts;
   final CanvasDocument document;
+
+  /// Pen colours by wire key, and the fallback for a key not in the map; a
+  /// ghost drawn with the drawer's real pen does not change look on landing.
+  final Color? ink;
+  final Map<String, Color> inkColors;
 
   /// The caller's own closed cursor-colour set, indexed by
   /// [CanvasStrokeDraft.colorIndex] - the same palette [CursorPainter]
@@ -249,25 +278,25 @@ class RemoteDraftPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = 3 * camera.zoom
       ..isAntiAlias = true;
     for (final draft in drafts.all) {
       final points = draft.points;
       if (points.length < 4) continue;
-      paint.color =
-          colors[draft.colorIndex % colors.length].withValues(alpha: 0.7);
-      final path = Path()
-        ..moveTo(
-          (points[0] - camera.x) * camera.zoom,
-          (points[1] - camera.y) * camera.zoom,
-        );
-      for (var i = 2; i < points.length; i += 2) {
-        path.lineTo(
+      final pen =
+          inkColors[draft.colorKey] ?? (draft.colorKey == null ? null : ink);
+      paint
+        ..color = pen ??
+            colors[draft.colorIndex % colors.length].withValues(alpha: 0.7)
+        ..strokeWidth = draft.width == null
+            ? 3 * camera.zoom
+            : math.max(draft.width! * camera.zoom, minInkScreenPx);
+      final flat = [
+        for (var i = 0; i + 1 < points.length; i += 2) ...[
           (points[i] - camera.x) * camera.zoom,
           (points[i + 1] - camera.y) * camera.zoom,
-        );
-      }
-      canvas.drawPath(path, paint);
+        ],
+      ];
+      canvas.drawPath(smoothPolyline(flat), paint);
     }
   }
 
@@ -353,7 +382,7 @@ class CursorPainter extends CustomPainter {
       }
       final color = colors[cursor.colorIndex % colors.length];
       _paintGlyph(canvas, at, color);
-      _paintLabel(canvas, at, cursor.id, cursor.label, color);
+      _paintLabel(canvas, size, at, cursor, color);
     }
     // Reconcile every frame, since a size check misses a departed cursor whose slot an off-screen (uncached) one took.
     _labels.retain({for (final c in all) c.id});
@@ -399,16 +428,24 @@ class CursorPainter extends CustomPainter {
     ..strokeWidth = 2;
   static final Paint _glyphFill = Paint();
 
+  static final Paint _speakingGlow = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+  static final Paint _speakingRim = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2
+    ..color = const Color(0xFFFFFFFF);
+
   void _paintLabel(
     Canvas canvas,
+    Size size,
     Offset at,
-    String id,
-    String label,
+    CanvasCursor cursor,
     Color color,
   ) {
+    final label = cursor.label;
     if (label.isEmpty) return;
-    final painter = _labels.painterFor(id, label, color);
-    final origin = Offset(at.dx + 14, at.dy + 12);
+    final painter = _labels.painterFor(cursor.id, label, color);
+    final origin = _labelOrigin(at, size, painter.size);
     final chip = RRect.fromRectAndRadius(
       Rect.fromLTWH(
         origin.dx - 4,
@@ -418,8 +455,29 @@ class CursorPainter extends CustomPainter {
       ),
       const Radius.circular(6),
     );
+    if (cursors.isSpeaking(cursor.id)) {
+      canvas.drawRRect(
+        chip.inflate(3),
+        _speakingGlow..color = color.withValues(alpha: 0.9),
+      );
+      canvas.drawRRect(chip.inflate(1), _speakingRim);
+    }
     canvas.drawRRect(chip, Paint()..color = color);
     painter.paint(canvas, origin);
+  }
+
+  /// Beside the glyph, flipped to its other side when the chip would run off the surface.
+  static Offset _labelOrigin(Offset at, Size surface, Size label) {
+    const edge = 6.0;
+    var x = at.dx + 14;
+    var y = at.dy + 12;
+    if (x + label.width + edge > surface.width) {
+      x = at.dx - 6 - label.width;
+    }
+    if (y + label.height + edge > surface.height) {
+      y = at.dy - 6 - label.height;
+    }
+    return Offset(math.max(x, edge), math.max(y, edge));
   }
 
   @override

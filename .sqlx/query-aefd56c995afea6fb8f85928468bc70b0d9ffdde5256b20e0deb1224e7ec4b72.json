@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: CanvasObjectId\", channel_id AS \"channel_id!: ChannelId\"\n                   FROM canvas_objects WHERE deleted_at IS NOT NULL AND deleted_at < ?\n                   ORDER BY deleted_at LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "aefd56c995afea6fb8f85928468bc70b0d9ffdde5256b20e0deb1224e7ec4b72"
+}

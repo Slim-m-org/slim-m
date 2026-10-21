@@ -5,6 +5,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -28,7 +29,8 @@ abstract interface class MicPort {
   /// can reopen it.
   Future<void> release();
 
-  /// Reopens a released capture and leaves it silent until the next unmute.
+  /// Opens the capture, or reopens a released one, and leaves it silent and
+  /// published as muted until the next unmute.
   Future<void> reopenMuted(lk.AudioCaptureOptions options);
 
   /// Reopens the capture with [options].
@@ -48,6 +50,22 @@ abstract interface class MicPort {
   /// Unpublishes the track without announcing it as a loss, so a fresh one
   /// can take its place.
   Future<void> discard();
+}
+
+/// Publishes [track] so no sound leaves before the mute lands: livekit's `disable()` does nothing until `start()` ran, and publishing starts the track, so the platform track is silenced directly.
+@visibleForTesting
+Future<void> publishAudioTrackMuted(
+  lk.LocalAudioTrack track,
+  Future<Object?> Function(lk.LocalAudioTrack track) publish,
+) async {
+  track.mediaStreamTrack.enabled = false;
+  try {
+    await publish(track);
+  } catch (_) {
+    await track.stop();
+    rethrow;
+  }
+  await track.mute(stopOnMute: false);
 }
 
 class LiveKitMicPort implements MicPort {
@@ -116,9 +134,16 @@ class LiveKitMicPort implements MicPort {
   @override
   Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
     final track = _publication?.track;
-    if (track == null) return;
+    if (track == null) return _publishMuted(options);
     await track.restartTrack(options);
     await track.disable();
+  }
+
+  Future<void> _publishMuted(lk.AudioCaptureOptions options) async {
+    final participant = _room()?.localParticipant;
+    if (participant == null) return;
+    final track = await lk.LocalAudioTrack.create(options);
+    await publishAudioTrackMuted(track, participant.publishAudioTrack);
   }
 
   @override

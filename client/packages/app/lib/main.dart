@@ -40,6 +40,7 @@ import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
 import 'src/diagnostics/debug_log_persistence.dart';
+import 'src/diagnostics/voice_harness.dart';
 import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
@@ -115,6 +116,10 @@ Future<void> main([List<String> args = const []]) async {
   );
 
   runApp(AccountRoot(host: host));
+  final harnessTarget = kVoiceHarness ? harnessChannel(args) : null;
+  if (harnessTarget != null) {
+    unawaited(joinHarnessChannel(() => host.active!.container, harnessTarget));
+  }
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
   await DesktopWindowShell.lockSplashChrome();
@@ -443,11 +448,15 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
 ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.system => ThemeMode.system,
   AppThemeChoice.light => ThemeMode.light,
-  AppThemeChoice.dark || AppThemeChoice.trueBlack => ThemeMode.dark,
+  AppThemeChoice.dark ||
+  AppThemeChoice.trueBlack ||
+  AppThemeChoice.catppuccin => ThemeMode.dark,
 };
 
-/// True black is a third palette rather than a fourth mode: it is the dark
-/// theme built from a different token set, so it needs no second dark slot
-/// that MaterialApp does not have.
-AppTokens _darkTokensFor(AppThemeChoice choice) =>
-    choice == AppThemeChoice.trueBlack ? AppTokens.trueBlack : AppTokens.dark;
+/// The dark-family choices are palettes, not modes: each is the dark theme
+/// built from a different token set, so MaterialApp needs no extra dark slot.
+AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
+  AppThemeChoice.trueBlack => AppTokens.trueBlack,
+  AppThemeChoice.catppuccin => AppTokens.mocha,
+  _ => AppTokens.dark,
+};

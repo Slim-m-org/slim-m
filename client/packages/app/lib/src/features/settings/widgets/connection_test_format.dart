@@ -11,8 +11,11 @@ String routeLabel(RouteMeasurement m) => switch (m.route) {
     m.viaCloudflare ? 'Internet (Cloudflare)' : 'Internet',
 };
 
-/// "480 Mbps", "5.4 Mbps" or "1.2 Gbps".
+/// "480 Mbps", "5.4 Mbps", "1.2 Gbps" or "10+ Gbps" at the reporting cap.
 String formatSpeed(double bitsPerSecond) {
+  if (bitsPerSecond >= kMaxReportedBps) {
+    return '${(kMaxReportedBps / 1e9).round()}+ Gbps';
+  }
   final mbps = bitsPerSecond / 1e6;
   if (mbps >= 1000) return '${(mbps / 1000).toStringAsFixed(1)} Gbps';
   if (mbps >= 10) return '${mbps.round()} Mbps';

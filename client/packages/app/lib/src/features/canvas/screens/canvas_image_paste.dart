@@ -20,9 +20,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../ids.dart';
+import '../../../widgets/bounded_image_decode.dart';
 import '../../composer/widgets/composer_clipboard_image.dart';
 import '../../composer/widgets/composer_clipboard_paste.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_image_hydrator.dart';
 import 'canvas_sync.dart';
 
 /// Longest side, in world units, a pasted image is scaled to fit within.
@@ -42,6 +44,7 @@ class CanvasImagePaste {
     required this.onPlaced,
     required this.onError,
     required this.timedOutUntil,
+    this.onBitmapAttached,
   });
 
   final api.SlimmApi client;
@@ -62,6 +65,9 @@ class CanvasImagePaste {
 
   /// A sentence to show, or null to clear a previously shown one.
   final void Function(String? message) onError;
+
+  /// Told when a decoded paste becomes an object's bitmap, so the image budget counts it.
+  final void Function(String id, ui.Image image)? onBitmapAttached;
 
   /// Registers the event-driven route: call once when this pane mounts.
   void start() => startClipboardImagePaste(_handleNativePaste);
@@ -97,19 +103,36 @@ class CanvasImagePaste {
     onError,
   );
 
+  /// Places a picked or dropped image file, the same way a paste lands.
+  Future<void> placeFile(Uint8List bytes, String filename, {ui.Offset? at}) =>
+      _stage(bytes, filename, at: at);
+
   void _handleNativePaste(Uint8List bytes, String filename) =>
       unawaited(_stage(bytes, filename));
 
+  bool _staging = false;
+
   Future<void> _stage(Uint8List bytes, String filename, {ui.Offset? at}) async {
-    final placed = await _place(bytes, at: at);
-    if (placed != null && !_stopped) onPlaced(placed.id);
+    // A repeated Ctrl+V while one image is still uploading would place it twice.
+    if (_staging) return;
+    _staging = true;
+    try {
+      final placed = await _place(bytes, filename, at: at);
+      if (placed != null && !_stopped) onPlaced(placed.id);
+    } finally {
+      _staging = false;
+    }
   }
 
   /// Decodes [bytes], uploads them, and places an image object centered on
   /// [at], or on the document's current view when [at] is null. On success,
   /// applies the placed object and hands it the already-decoded bitmap
   /// directly - no second fetch and decode of what this call already holds.
-  Future<api.CanvasObject?> _place(Uint8List bytes, {ui.Offset? at}) async {
+  Future<api.CanvasObject?> _place(
+    Uint8List bytes,
+    String filename, {
+    ui.Offset? at,
+  }) async {
     onError(null);
     final decoded = await _decode(bytes);
     if (decoded == null) return null;
@@ -118,7 +141,7 @@ class CanvasImagePaste {
       return null;
     }
 
-    final attachment = await _upload(bytes, decoded);
+    final attachment = await _upload(bytes, filename, decoded);
     if (attachment == null) return null;
     if (_stopped) {
       decoded.dispose();
@@ -142,24 +165,33 @@ class CanvasImagePaste {
       ..applyPlaced(input)
       ..setImageBitmap(placed.id, decoded)
       ..refresh();
+    onBitmapAttached?.call(placed.id, decoded);
     return placed;
   }
 
   Future<ui.Image?> _decode(Uint8List bytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      codec.dispose();
-      return frame.image;
+      return await decodeBoundedImage(
+        bytes,
+        maxSide: maxHydratedImageSide,
+        maxSourcePixels: maxHydratedSourcePixels,
+      );
+    } on ImageTooLargeException {
+      if (!_stopped) onError('That image is too large.');
+      return null;
     } catch (_) {
       if (!_stopped) onError('That image could not be read.');
       return null;
     }
   }
 
-  Future<api.Attachment?> _upload(Uint8List bytes, ui.Image decoded) async {
+  Future<api.Attachment?> _upload(
+    Uint8List bytes,
+    String filename,
+    ui.Image decoded,
+  ) async {
     try {
-      return await client.uploadAttachment(bytes, filename: 'pasted-image.png');
+      return await client.uploadAttachment(bytes, filename: filename);
     } on api.ApiException catch (e) {
       decoded.dispose();
       if (!_stopped) {
@@ -184,15 +216,18 @@ class CanvasImagePaste {
     final w = decoded.width * scale;
     final h = decoded.height * scale;
     final center = at ?? document.worldView.center;
+    final box = document.placeOnBoard(
+      ui.Rect.fromCenter(center: center, width: w, height: h),
+    );
     try {
       return await client.placeCanvasObject(
         channelId,
         id: newCanvasObjectId(),
         kind: 'image',
-        x: center.dx - w / 2,
-        y: center.dy - h / 2,
-        w: w,
-        h: h,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
         props: {
           'attachment': attachment.id,
           'content_type': attachment.contentType,

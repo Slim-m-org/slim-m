@@ -92,6 +92,7 @@ class RevealFade extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedOpacity(
     opacity: revealed ? 1 : 0,
     duration: AppMotion.reduced(context, AppMotion.fast),
+    alwaysIncludeSemantics: true,
     child: child,
   );
 }

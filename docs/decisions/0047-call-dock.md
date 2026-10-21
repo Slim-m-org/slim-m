@@ -96,6 +96,8 @@ The mic carries a live 2px level bar, from the local audio track, in the ok colo
 So "we can hear you" does not depend on colour, and it is visible with a colour-vision deficiency.
 `AppIconButton(active:)` is for tools and modes only.
 
+Amended 2026-10-21 after owner QA: a camera that is on counts as an open mode and takes the accent like sharing, since an unlit camera button read as off while it was on.
+
 Why: one colour with two meanings trains people to ignore it.
 Reserving it for "this is the thing you are using" makes it worth looking at.
 

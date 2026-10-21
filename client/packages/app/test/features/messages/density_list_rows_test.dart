@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/messages/widgets/saved_messages_sheet.dar
 import 'package:slimm_app/src/features/messages/widgets/thread_parent_card.dart';
 import 'package:slimm_app/src/features/messages/widgets/threads_sheet.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 const _message = api.Message(
   id: 'm1',

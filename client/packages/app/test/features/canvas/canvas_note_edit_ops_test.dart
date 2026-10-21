@@ -12,11 +12,12 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/screens/canvas_commit_queue.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_note_sizing.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import '../../support/canvas_ops_rig.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -75,15 +76,7 @@ class _Harness {
       channelId: 'c1',
       client: client,
       document: document,
-      commits: CanvasCommitQueue(
-        client: client,
-        channelId: 'c1',
-        onPlaced: (_) {},
-        onFailed: (_, _) {},
-        onRemoved: (_) {},
-        onEraseOnConfirm: (_) async {},
-        timedOutUntil: () => null,
-      ),
+      commits: plainCommitQueue(client),
       onError: errors.add,
       isLocked: locked.contains,
     );
@@ -102,6 +95,29 @@ class _Harness {
 }
 
 void main() {
+  test('editing a note to much longer text regrows its box', () {
+    fakeAsync((async) {
+      final h = _Harness();
+      final longText = List.generate(8, (i) => 'paragraph $i\n').join();
+      final needed = noteBoxFor(longText).height;
+      expect(needed, greaterThan(80), reason: 'the fixture note is 80 tall');
+
+      unawaited(h.ops.editNote('n', longText));
+      async.flushMicrotasks();
+
+      final grows = h.requests.where(
+        (r) => r['kind'] == 'move' && ((r['h'] as num?) ?? 0) >= needed,
+      );
+      expect(
+        grows,
+        isNotEmpty,
+        reason:
+            'only ${h.requests.map((r) => r['kind'])} were sent, so the '
+            'note keeps its box and clips the longer text',
+      );
+    });
+  });
+
   test('editing shows the text at once and posts one edit op', () {
     fakeAsync((async) {
       final h = _Harness();

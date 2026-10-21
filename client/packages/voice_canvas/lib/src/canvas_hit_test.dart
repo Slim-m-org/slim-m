@@ -1,15 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which stroke, or which box object, a pointer landed on.
-///
-/// A stroke is nearest-segment-within-tolerance against its own points,
-/// never its bounding box: a long diagonal stroke's box covers area its ink
-/// never touches, so testing the box would let an eraser take out a
-/// neighbour the drawn line never crossed. An image, a note and a shape all
-/// have nothing thinner inside their own box to miss - a note's text and a
-/// shape's outline both live inside the box they were placed with, never
-/// outside it - so [hitTestBoxAt] tests the box directly for all three.
+/// Which stroke, or box object, a pointer landed on.
+/// A stroke is nearest-segment-within-tolerance, never its bounding box, so an eraser cannot take a neighbour the line never crossed; images and notes are their whole box and a shape answers only on its outline.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
@@ -22,6 +16,10 @@ import 'spatial_grid.dart';
 /// still reach through this margin. Generous on purpose: there is no ceiling
 /// on pen width small enough to make a tighter pad safe.
 const double _cullPad = 64;
+
+/// How far past its box the widest ink on the board still hits, never less than [_cullPad].
+double _reach(CanvasDocument document) =>
+    math.max(_cullPad, document.maxInkReach);
 
 /// How far from a mark a pointer still hits it, in screen pixels, so the reach
 /// is the same at any zoom.
@@ -47,8 +45,10 @@ String? hitTestStroke(
   CullResult? scratch,
   bool Function(CanvasStroke stroke)? allowed,
 }) {
+  // The board's clip hides everything past its edge, so nothing there can be hit.
+  if (!document.acceptsPlacementAt(world)) return null;
   final out = scratch ?? CullResult();
-  final pad = _cullPad + slopPx / document.camera.zoom;
+  final pad = _reach(document) + slopPx / document.camera.zoom;
   document.scene.queryRect(
     world.dx - pad,
     world.dy - pad,
@@ -74,49 +74,158 @@ String? hitTestStroke(
   return null;
 }
 
-/// Finds the topmost live image, note or shape object whose box contains
-/// [world] and that [allowed] accepts, or null.
-///
-/// Unlike [hitTestStroke], the box itself is the hit target: none of the
-/// three kinds has a thinner shape inside it to miss, so there is no
-/// tolerance to add and no reason to cull wider than the point itself.
+/// Finds the topmost live image, note or shape [world] lands on that [allowed] accepts, or null; a shape is only its outline so presses through its empty inside reach what lies beneath.
 String? hitTestBoxAt(
   CanvasDocument document,
   Offset world, {
   double slopPx = 0,
   CullResult? scratch,
   bool Function(CanvasStroke stroke)? allowed,
+}) =>
+    _topmost(
+      document,
+      world,
+      strokeSlopPx: slopPx,
+      boxSlopPx: slopPx,
+      scratch: scratch,
+      allowed: allowed,
+      accepts: (stroke) => stroke.kind != CanvasObjectKind.stroke,
+    );
+
+/// The topmost live object of any kind [world] lands on that [allowed] accepts, so select, erase and the context menu agree; [touch] widens the reach and [accepts] narrows the kinds.
+String? hitTestTopmost(
+  CanvasDocument document,
+  Offset world, {
+  bool touch = false,
+  CullResult? scratch,
+  bool Function(CanvasStroke stroke)? allowed,
+  bool Function(CanvasStroke stroke)? accepts,
+}) =>
+    _topmost(
+      document,
+      world,
+      strokeSlopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
+      boxSlopPx: touch ? touchHitSlopPx : 0,
+      scratch: scratch,
+      allowed: allowed,
+      accepts: accepts,
+    );
+
+String? _topmost(
+  CanvasDocument document,
+  Offset world, {
+  required double strokeSlopPx,
+  required double boxSlopPx,
+  required CullResult? scratch,
+  required bool Function(CanvasStroke stroke)? allowed,
+  required bool Function(CanvasStroke stroke)? accepts,
 }) {
+  if (!document.acceptsPlacementAt(world)) return null;
   final out = scratch ?? CullResult();
-  final slop = slopPx / document.camera.zoom;
+  final zoom = document.camera.zoom;
+  final pad = _reach(document) + math.max(strokeSlopPx, boxSlopPx) / zoom;
   document.scene.queryRect(
-    world.dx - slop,
-    world.dy - slop,
-    world.dx + slop,
-    world.dy + slop,
+    world.dx - pad,
+    world.dy - pad,
+    world.dx + pad,
+    world.dy + pad,
     out,
   );
 
   final candidates = <int>[];
   for (final slot in out.slots) {
-    final stroke = document.strokeIfAlive(slot);
-    if (stroke != null && stroke.kind != CanvasObjectKind.stroke) {
-      candidates.add(slot);
-    }
+    if (document.strokeIfAlive(slot) != null) candidates.add(slot);
   }
   candidates.sort((a, b) => document.comparePaintOrder(b, a));
 
   for (final slot in candidates) {
     final stroke = document.strokeAt(slot);
+    if (accepts != null && !accepts(stroke)) continue;
     if (allowed != null && !allowed(stroke)) continue;
-    if (world.dx >= stroke.x - slop &&
-        world.dx <= stroke.x + stroke.w + slop &&
-        world.dy >= stroke.y - slop &&
-        world.dy <= stroke.y + stroke.h + slop) {
+    if (_hits(stroke, world, strokeSlopPx / zoom, boxSlopPx / zoom)) {
       return stroke.id;
     }
   }
   return null;
+}
+
+bool _hits(CanvasStroke stroke, Offset world, double lineSlop, double boxSlop) {
+  switch (stroke.kind) {
+    case CanvasObjectKind.stroke:
+      return _withinTolerance(
+        stroke.points,
+        world.dx,
+        world.dy,
+        stroke.width / 2 + lineSlop,
+      );
+    case CanvasObjectKind.shape:
+      return _shapeOutlineDistance(stroke, world) <=
+          math.max(stroke.width, 1) / 2 + lineSlop;
+    case CanvasObjectKind.image:
+    case CanvasObjectKind.note:
+      return world.dx >= stroke.x - boxSlop &&
+          world.dx <= stroke.x + stroke.w + boxSlop &&
+          world.dy >= stroke.y - boxSlop &&
+          world.dy <= stroke.y + stroke.h + boxSlop;
+  }
+}
+
+/// How far [world] is from the drawn outline of a shape, in world units.
+double _shapeOutlineDistance(CanvasStroke shape, Offset world) {
+  final local = world - Offset(shape.x, shape.y);
+  final w = shape.w;
+  final h = shape.h;
+  switch (shape.shapeKind) {
+    case CanvasShapeKind.line:
+    case CanvasShapeKind.arrow:
+      final (tail, head) = shapeSegment(
+        w,
+        h,
+        flipX: shape.flipX,
+        flipY: shape.flipY,
+      );
+      return math.sqrt(
+        _distanceSqToSegment(
+          local.dx,
+          local.dy,
+          tail.dx,
+          tail.dy,
+          head.dx,
+          head.dy,
+        ),
+      );
+    case CanvasShapeKind.ellipse:
+      return _ellipseDistance(local, w / 2, h / 2);
+    case CanvasShapeKind.rectangle:
+    case null:
+      return _rectBorderDistance(local, w, h);
+  }
+}
+
+double _rectBorderDistance(Offset p, double w, double h) {
+  final overX = math.max(math.max(-p.dx, p.dx - w), 0);
+  final overY = math.max(math.max(-p.dy, p.dy - h), 0);
+  if (overX > 0 || overY > 0) return math.sqrt(overX * overX + overY * overY);
+  return math.min(
+    math.min(p.dx, w - p.dx),
+    math.min(p.dy, h - p.dy),
+  );
+}
+
+/// First-order distance to an ellipse of semi-axes [a] and [b]; exact enough
+/// for a few pixels of reach.
+double _ellipseDistance(Offset local, double a, double b) {
+  if (a <= 0 || b <= 0) {
+    return math.sqrt(local.dx * local.dx + local.dy * local.dy);
+  }
+  final x = local.dx - a;
+  final y = local.dy - b;
+  final g = (x * x) / (a * a) + (y * y) / (b * b) - 1;
+  final gx = 2 * x / (a * a);
+  final gy = 2 * y / (b * b);
+  final slope = math.sqrt(gx * gx + gy * gy);
+  if (slope == 0) return math.min(a, b);
+  return g.abs() / slope;
 }
 
 bool _withinTolerance(

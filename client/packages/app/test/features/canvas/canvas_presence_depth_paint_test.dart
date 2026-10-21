@@ -1,17 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Whether the grid, a sent-to-back tile and real ink actually composite in
-/// the order `canvas_presence_depth_test.dart`'s own structural test only
-/// infers from `Stack.children`'s list order.
-///
-/// That is the exact weak-test shape PR #515's canvas-grid fix names
-/// as the reason the grid painted over a sent-to-back tile for weeks with a
-/// green suite the whole time: a widget correctly *positioned* in the tree
-/// can still paint nothing, or paint the wrong thing, and an ordering
-/// assertion cannot see either. This renders the real, assembled
-/// `CanvasPaneBody` to a raster and reads pixels back - the same technique
-/// `presence_desaturation_test.dart` uses for exactly this reason - so the
-/// claim under test is "what a viewer's eye would actually see," not "what
-/// order the widgets were constructed in."
+/// Whether the grid, every call tile and real ink composite in decision 0086's order (grid, tile video, ink), read back from a raster of the assembled `CanvasPaneBody`.
+/// An ordering assertion on `Stack.children` cannot see a widget that is positioned correctly but paints nothing.
 library;
 
 import 'dart:typed_data';
@@ -80,9 +69,8 @@ bool _closeTo(Color a, Color b, {int tolerance = 24}) =>
 
 void main() {
   testWidgets(
-    'the grid sits under a sent-to-back tile, real ink sits over it, and a '
-    'tile still in front sits over the ink - read from the actual pixels, '
-    'not from Stack.children order',
+    'the grid sits under every tile and real ink sits over every tile - read '
+    'from the actual pixels, not from Stack.children order',
     (tester) async {
       tester.view.physicalSize = const Size(1000, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -110,7 +98,6 @@ void main() {
 
       final overrides = CanvasPresenceTileOverrides()
         ..setRect('camera:user-back', _backTile)
-        ..setSentToBack('camera:user-back', true)
         ..setRect('camera:user-front', _frontTile);
       addTearDown(overrides.dispose);
 
@@ -140,6 +127,7 @@ void main() {
                   onPasteImage: () {},
                   onPasteImageAt: (_) {},
                   onRecenter: () {},
+                  onBringIntoBoard: () {},
                   error: null,
                   onDismissError: () {},
                   truncated: false,
@@ -151,7 +139,7 @@ void main() {
                   onSelectDrag: (_) {},
                   onSelectEnd: () {},
                   onNotePlace: (_) {},
-                  onShapePlace: (_, __) {},
+                  onShapePlace: (_, __, {flipX = false, flipY = false}) {},
                   shapeKind: CanvasShapeKind.rectangle,
                   onShapeKindChanged: (_) {},
                   pen: const CanvasPenStyle(),
@@ -209,35 +197,26 @@ void main() {
       expect(
         _closeTo(at(150, 100), _backColor),
         isTrue,
-        reason:
-            'a sent-to-back tile\'s own content must still paint above the '
-            'grid, not vanish behind it',
+        reason: 'a tile paints above the grid, not behind it',
       );
       // x = 128 sits exactly on a grid line here, unlike an off-lattice point.
       expect(
         _closeTo(at(128, 100), _backColor),
         isTrue,
-        reason:
-            'a grid line crossing a sent-to-back tile must still lose to '
-            'the tile\'s own content, not draw over it',
-      );
-      expect(
-        _closeTo(at(150, _inkY), _inkColor),
-        isTrue,
-        reason: 'real ink must composite over a sent-to-back tile\'s content',
+        reason: 'a grid line crossing a tile must lose to its content',
       );
       expect(
         _closeTo(at(600, 100), _frontColor),
         isTrue,
-        reason: 'a tile still in front paints above the grid, trivially',
+        reason: 'the second tile paints above the grid too',
       );
-      expect(
-        _closeTo(at(600, _inkY), _frontColor),
-        isTrue,
-        reason:
-            'a tile still in front must stay above the ink too - depth is '
-            'per-tile, sending one tile back must not affect another',
-      );
+      for (final x in [150.0, 600.0]) {
+        expect(
+          _closeTo(at(x, _inkY), _inkColor),
+          isTrue,
+          reason: 'real ink composites over the tile at $x, never under it',
+        );
+      }
     },
   );
 }

@@ -21,6 +21,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../ids.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_note_sizing.dart';
+import 'canvas_retry.dart';
 import 'canvas_sync.dart';
 
 /// A note's default box: wide enough for a few sentences before wrapping,
@@ -41,7 +42,21 @@ class CanvasQuickPlacement {
     required this.channelId,
     required this.document,
     required this.timedOutUntil,
+    this.authorId = _noAuthor,
+    this.clearedSincePlacement = _neverCleared,
   });
+
+  static bool _neverCleared(api.CanvasObject object) => false;
+
+  static String? _noAuthor() => null;
+
+  /// Who the optimistic copy shows as the author of, until the reply says.
+  final String? Function() authorId;
+
+  /// Whether a clear already applied here swept the object while its reply was in flight.
+  final bool Function(api.CanvasObject object) clearedSincePlacement;
+
+  bool _inFlight = false;
 
   final api.SlimmApi client;
   final String channelId;
@@ -84,13 +99,19 @@ class CanvasQuickPlacement {
     Offset world,
     CanvasShapeKind shapeKind, {
     Size? draggedSize,
+    bool flipX = false,
+    bool flipY = false,
     required void Function(String message) onError,
   }) => _place(
     kind: 'shape',
     world: world,
     w: draggedSize?.width ?? defaultShapeWidth,
     h: draggedSize?.height ?? defaultShapeHeight,
-    props: {'shape': canvasShapeKindToWire(shapeKind)},
+    props: {
+      'shape': canvasShapeKindToWire(shapeKind),
+      if (flipX) 'flip_x': true,
+      if (flipY) 'flip_y': true,
+    },
     onError: onError,
   );
 
@@ -102,30 +123,70 @@ class CanvasQuickPlacement {
     required Map<String, dynamic> props,
     required void Function(String message) onError,
   }) async {
-    final x = world.dx - w / 2;
-    final y = world.dy - h / 2;
+    // A second tap while one is still being saved would place a second copy.
+    if (_inFlight) return null;
+    _inFlight = true;
+    final box = document.placeOnBoard(
+      Rect.fromCenter(center: world, width: w, height: h),
+    );
+    final id = newCanvasObjectId();
+    _show(id, kind, box, props);
     try {
-      final placed = await client.placeCanvasObject(
-        channelId,
-        id: newCanvasObjectId(),
-        kind: kind,
-        x: x,
-        y: y,
-        w: w,
-        h: h,
-        props: props,
+      final placed = await retryCanvasRequest(
+        () => client.placeCanvasObject(
+          channelId,
+          id: id,
+          kind: kind,
+          x: box.left,
+          y: box.top,
+          w: box.width,
+          h: box.height,
+          props: props,
+        ),
       );
       final input = canvasStrokeInputFrom(placed);
-      if (input != null) {
+      if (clearedSincePlacement(placed)) {
+        document
+          ..removeObject(id)
+          ..refresh();
+      } else if (input != null) {
         document
           ..applyPlaced(input)
           ..refresh();
       }
       return placed;
     } on api.ApiException catch (error) {
+      document
+        ..kill(id)
+        ..refresh();
       onError(_explain(error, timedOutUntil()));
       return null;
+    } finally {
+      _inFlight = false;
     }
+  }
+
+  /// Shows the object at once under its final id; the reply then settles its order.
+  void _show(String id, String kind, Rect box, Map<String, dynamic> props) {
+    final input = canvasStrokeInputFrom(
+      api.CanvasObject(
+        id: id,
+        kind: kind,
+        zIndex: provisionalLocalZIndex,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
+        props: props,
+        authorId: authorId(),
+        seq: 0,
+        createdAt: 0,
+      ),
+    );
+    if (input == null) return;
+    document
+      ..applyPlaced(input)
+      ..refresh();
   }
 
   static String _explain(api.ApiException error, int? timedOutUntil) =>

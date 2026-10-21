@@ -20,6 +20,17 @@ class TransportException extends ApiException {
   const TransportException(super.message);
 }
 
+/// The reply arrived but is not JSON, so whatever answered is not a slim-m server.
+class UnreadableReplyException extends TransportException {
+  const UnreadableReplyException(super.message);
+}
+
+/// The address answered, but not as a slim-m server: no valid `/version`.
+/// Distinct from [TransportException], where nothing answered at all.
+class NotASlimServerException extends ApiException {
+  const NotASlimServerException(super.message);
+}
+
 /// Credentials are missing, expired, or revoked. The session should refresh
 /// once and, if that also fails, sign the user out.
 class UnauthorizedException extends ApiException {

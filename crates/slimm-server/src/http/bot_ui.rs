@@ -21,7 +21,7 @@ use crate::hub::Event;
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{Interaction, InteractionKind, VisibleBotUi, now_ms};
+use crate::store::{Interaction, InteractionInput, InteractionKind, VisibleBotUi, now_ms};
 
 const BODY_LIMIT: usize = 16 * 1024;
 const VOICE_CHANNEL_KIND: &str = "voice";
@@ -61,11 +61,14 @@ struct BotUiDto {
     bot_display_name: String,
     message_menu: Vec<UiEntry>,
     call_controls: Vec<UiEntry>,
+    /// The bot has no live socket, so using an entry gets no answer.
+    offline: bool,
 }
 
-impl From<VisibleBotUi> for BotUiDto {
-    fn from(v: VisibleBotUi) -> Self {
+impl BotUiDto {
+    fn new(v: VisibleBotUi, offline: bool) -> Self {
         Self {
+            offline,
             bot_user_id: v.bot_user_id.to_string(),
             bot_username: v.bot_username,
             bot_display_name: v.bot_display_name,
@@ -91,7 +94,15 @@ async fn list_channel_ui(
         return Ok(Json(Vec::new()));
     }
     let bots = state.store.visible_bot_ui(channel_id, caller).await?;
-    Ok(Json(bots.into_iter().map(BotUiDto::from).collect()))
+    let presence = state.hub.presence();
+    Ok(Json(
+        bots.into_iter()
+            .map(|b| {
+                let offline = !presence.is_connected(b.bot_user_id);
+                BotUiDto::new(b, offline)
+            })
+            .collect(),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -172,6 +183,9 @@ async fn use_entry(
         }
     };
     let option_id = chosen_option(&entry, req.option_id)?;
+    if !state.hub.presence().is_connected(bot_id) {
+        return Err(ApiError::Conflict("that bot is offline right now"));
+    }
     let display_name = state
         .store
         .user_profile(ctx.user_id)
@@ -190,7 +204,7 @@ async fn use_entry(
         created_at: now_ms(),
         answered: false,
     };
-    record_and_publish(&state, fresh, display_name).await
+    record_and_publish(&state, fresh, display_name, InteractionInput::default()).await
 }
 
 /// A control that offers options needs one of them, and nothing else takes

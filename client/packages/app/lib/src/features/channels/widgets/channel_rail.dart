@@ -230,7 +230,7 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     required ChannelOrderController orderController,
   }) {
     return storeAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
       error: (e, _) => RailFailureNotice(
         failure: localStoreRailFailure(e),
         onRetry: () => ref.invalidate(storeProvider),
@@ -273,7 +273,9 @@ class _ChannelRailState extends ConsumerState<ChannelRail> {
     // The stale failure under a live Retry reads as the tap doing nothing.
     final retrying = ref.watch(syncControllerProvider) == SyncStatus.connecting;
     if (failure == null) return null;
-    if (retrying) return const Center(child: CircularProgressIndicator());
+    if (retrying) {
+      return const Center(child: AppSpinner(size: AppSpinnerSize.lg));
+    }
     return RailFailureNotice(
       failure: failure,
       onRetry: () =>

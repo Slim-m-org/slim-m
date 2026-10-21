@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/camera_switch.dart';
 import '../../voice/providers/voice_controller.dart';
@@ -41,7 +42,8 @@ Widget? dockExtras({required bool alone, Widget? toggle}) {
 }
 
 /// The card rows for a call: the call row with [toggle] and the music button
-/// inline when [width] allows, otherwise those extras in a row of their own.
+/// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
+/// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
 List<Widget> callRowsWithExtras(
   BuildContext context,
   WidgetRef ref, {
@@ -50,30 +52,50 @@ List<Widget> callRowsWithExtras(
   required VoiceFlags voice,
   Widget? toggle,
   int toggleSlots = 1,
+  List<ControlOptionEntry> toggleMenu = const [],
 }) {
   final alone = ref.watch(callAloneProvider);
   final extras = dockExtras(alone: alone, toggle: toggle);
-  Widget callRow(Widget? extra, {bool tight = false}) => CallControls(
+  Widget callRow(
+    Widget? extra, {
+    bool tight = false,
+    List<ControlOptionEntry> menuExtras = const [],
+  }) => CallControls(
     controller: controller,
     voice: voice,
     extraControl: extra,
     tight: tight,
+    menuExtras: menuExtras,
   );
   final switchCameraShown =
       voice.cameraEnabled && canSwitchCamera(ref, controller);
-  final speakerShown = controller.supportsAudioOutputSelection;
   bool fitsWith(int extraCount) => callRowFits(
     context,
     width,
     switchCameraShown: switchCameraShown,
-    speakerShown: speakerShown,
     extraCount: extraCount,
   );
   // Nothing narrower than the bare row can fold away, so it spills over two lines instead.
   if (!fitsWith(0)) return [callRow(extras, tight: true)];
   if (extras == null) return [callRow(null)];
   final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
-  return fits ? [callRow(extras)] : [Center(child: extras), callRow(null)];
+  if (fits) return [callRow(extras)];
+  // The one rule of desktop-vs-mobile.md: width decides, so extras fold into the mic menu.
+  final music = alone
+      ? holdMusicMenuOptions(ref)
+      : const <ControlOptionEntry>[];
+  if (toggleMenu.isNotEmpty) {
+    return [
+      callRow(null, menuExtras: [...music, ...toggleMenu]),
+    ];
+  }
+  if (alone && fitsWith(toggle != null ? toggleSlots : 0)) {
+    return [callRow(toggle, menuExtras: music)];
+  }
+  return [
+    ?toggle == null ? null : Center(child: toggle),
+    callRow(null, menuExtras: music),
+  ];
 }
 
 /// Whether the call row plus [extraCount] extra buttons fit one line at [width],
@@ -95,23 +117,21 @@ bool callRowFits(
   BuildContext context,
   double width, {
   required bool switchCameraShown,
-  required bool speakerShown,
   required int extraCount,
 }) {
   final touch = AppTouchTargets.of(context);
   final hitTarget = touch ? AppSizes.rowTouch : AppSizes.rowPointer;
   final chip = AppSizes.controlMd > hitTarget ? AppSizes.controlMd : hitTarget;
   final button = chip + 2 * (focusRingGap + focusRingWidth);
-  // mic, [speaker], camera, [switch camera], share, leave, and the extras.
-  final controlCount =
-      (switchCameraShown ? 5 : 4) + (speakerShown ? 1 : 0) + extraCount;
+  // mic, deafen, camera, [switch camera], share, leave, and the extras.
+  final controlCount = (switchCameraShown ? 6 : 5) + extraCount;
   const cardPadding = AppSpacing.s12 * 2 + 2;
   // The divider before leave takes the place of one gap: s4, 1dp, s4.
   const leaveDivider = 1.0;
-  // Measured, not derived: the caret's width less what the share half gives back, at pointer density only.
-  final shareCaret = touch ? 0.0 : AppSpacing.s24;
+  // Measured, not derived: each caret's width less what its primary half gives back, at pointer density only; the mic and share both carry one.
+  final carets = touch ? 0.0 : 2 * AppSpacing.s24;
   final needed =
-      shareCaret +
+      carets +
       controlCount * button +
       (controlCount - 1) * AppSpacing.s8 +
       leaveDivider +

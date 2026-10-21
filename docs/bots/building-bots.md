@@ -16,7 +16,7 @@ Space settings -> Bots, as somebody holding MANAGE_SERVER.
 Give it a username - the same rules a person's follows, so the bot is mentionable the same way - and you get a token starting `slimbot_`.
 
 **The token is shown once.** The server keeps only a hash of it, so it cannot be shown again.
-If you lose it, revoke the bot and make another.
+If you lose it, use Re-issue token on the bot: the old token stops working at once and the bot keeps its messages and role.
 
 A bot cannot create a bot, even one holding MANAGE_SERVER. Provisioning is a human act, so a single compromised credential cannot mint a second one that would survive revoking the first.
 
@@ -215,6 +215,9 @@ Answer within 15 minutes, in any of three ways, and the presser's button stops w
 A member's client shows the button as pending, and shows an error on that message if none of these arrives within about five seconds, so answer quickly and do slow work afterwards.
 Presses are rate limited per member.
 A press is best effort like typing: if you were offline, it is lost.
+
+A submitted form arrives as the same frame with `kind` `form_submit`, the answers in `fields` and the press you opened the form on in `origin_interaction_id`.
+A press accepts one submission, so you hear each form at most once.
 
 See `docs/decisions/0039-bot-message-buttons.md`.
 

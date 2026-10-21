@@ -74,6 +74,17 @@ enum CanvasOpBodyDto {
     Clear {
         before_seq: i64,
     },
+    /// A distinct kind so a client that predates scoped clears treats it as unknown and resyncs rather than clearing everything.
+    #[serde(rename = "clear_scoped")]
+    ClearScoped {
+        before_seq: i64,
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
+        /// The locked objects the clear left standing, so a replay keeps them.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        spared_ids: Vec<String>,
+    },
     Restore {
         target_op: String,
         object_ids: Vec<String>,
@@ -128,7 +139,21 @@ impl CanvasOpDto {
             CanvasOpBody::Remove(object_ids) => CanvasOpBodyDto::Remove {
                 object_ids: ids(object_ids),
             },
-            CanvasOpBody::Clear { before_seq } => CanvasOpBodyDto::Clear { before_seq },
+            CanvasOpBody::Clear {
+                before_seq,
+                scope,
+                spared,
+            } if scope.is_unscoped() && spared.is_empty() => CanvasOpBodyDto::Clear { before_seq },
+            CanvasOpBody::Clear {
+                before_seq,
+                scope,
+                spared,
+            } => CanvasOpBodyDto::ClearScoped {
+                before_seq,
+                kinds: scope.kinds,
+                author_id: scope.author_id.map(|id| id.to_string()),
+                spared_ids: ids(spared),
+            },
             CanvasOpBody::Restore {
                 target_op,
                 object_ids,

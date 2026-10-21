@@ -1,15 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The toolbar a hovered or keyboard-focused message row shows: react, reply,
-/// reply in thread, edit on your own messages, and an overflow that opens the
-/// row's existing context menu.
-///
-/// It stays inside the row's box instead of straddling the row above. A child
-/// laid out past its parent's edge paints but cannot be hit, so a straddling
-/// plate was half dead, and on the first row of a transcript its top half fell
-/// outside the viewport.
-///
-/// For the same reason a non-compact row is never shorter than [height], so a
-/// one-line grouped row cannot leave part of the plate outside its hit region.
+/// The toolbar a hovered or focused message row shows: react, reply, reply in thread, edit your own, and an overflow into the row's context menu.
+/// It hangs from the row's top right in the overlay (`message_toolbar_anchor.dart`) because a control past its parent's edge paints but cannot be hit.
 library;
 
 import 'package:flutter/material.dart';

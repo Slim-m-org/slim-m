@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A per-(caller, channel) override of the account-wide notification
-/// preference (`NotificationPreference`, `models_notification_preference.dart`):
-/// mute one channel, or narrow it to mentions only, while every other
-/// channel keeps following the account default.
-///
-/// Split out of models.dart purely to stay under this repo's line budget.
+/// A per-(caller, channel) override of the account-wide notification preference
+/// (`NotificationPreference`): mute one channel, mentions only, or every message.
 library;
 
 import 'models_notification_preference.dart';
@@ -19,8 +15,6 @@ class ChannelNotificationOverride {
 
   final String channelId;
 
-  /// Never [NotificationPreference.everything] in practice: the server
-  /// refuses to store it, since having no row already means that.
   final NotificationPreference preference;
 
   factory ChannelNotificationOverride.fromJson(Map<String, dynamic> json) =>

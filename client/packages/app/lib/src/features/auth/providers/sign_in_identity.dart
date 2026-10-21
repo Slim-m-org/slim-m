@@ -63,7 +63,15 @@ Future<SignInIdentity> signInIdentity({
 }) async {
   final clientVersion = await appInfo
       .then<String?>((info) => info.version)
-      .catchError((_) => null);
+      .catchError((Object error, StackTrace stack) {
+        AppLog.swallowed(
+          LogTag.platform,
+          'Could not read the app version; signing in without it',
+          error,
+          stack,
+        );
+        return null;
+      });
   return SignInIdentity(
     deviceName: await resolveDeviceName(),
     clientKind: deviceClientKind,

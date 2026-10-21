@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The screen reader's way to move a rail item without a gesture.
+/// The screen reader's and the keyboard's way to move a rail item without a gesture.
 library;
 
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart';
 import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 
 import 'channel_move.dart';
 import 'channel_rail_reorder.dart' show ChannelSection;
 
-/// Move up and Move down for a channel row, each offered only where it lands.
-Map<CustomSemanticsAction, VoidCallback> channelMoveActions(
-  WidgetsLocalizations labels,
+/// The step up and the step down for a channel row, each null where it lands nowhere.
+({VoidCallback? up, VoidCallback? down}) channelMoveSteps(
   List<ChannelSection> sections,
   Set<String> collapsed,
   String channelId,
@@ -27,12 +27,48 @@ Map<CustomSemanticsAction, VoidCallback> channelMoveActions(
     return groups == null ? null : () => onReorder(groups);
   }
 
-  final up = step(-1);
-  final down = step(1);
+  return (up: step(-1), down: step(1));
+}
+
+/// Move up and Move down for a channel row, each offered only where it lands.
+Map<CustomSemanticsAction, VoidCallback> channelMoveActions(
+  WidgetsLocalizations labels,
+  List<ChannelSection> sections,
+  Set<String> collapsed,
+  String channelId,
+  ValueChanged<List<ChannelOrderGroup>> onReorder,
+) {
+  final (:up, :down) = channelMoveSteps(
+    sections,
+    collapsed,
+    channelId,
+    onReorder,
+  );
   return {
     if (up != null) CustomSemanticsAction(label: labels.reorderItemUp): up,
     if (down != null)
       CustomSemanticsAction(label: labels.reorderItemDown): down,
+  };
+}
+
+/// Alt+Up and Alt+Down on a focused channel row, for whoever cannot drag.
+Map<ShortcutActivator, VoidCallback> channelMoveShortcuts(
+  List<ChannelSection> sections,
+  Set<String> collapsed,
+  String channelId,
+  ValueChanged<List<ChannelOrderGroup>> onReorder,
+) {
+  final (:up, :down) = channelMoveSteps(
+    sections,
+    collapsed,
+    channelId,
+    onReorder,
+  );
+  return {
+    if (up != null)
+      const SingleActivator(LogicalKeyboardKey.arrowUp, alt: true): up,
+    if (down != null)
+      const SingleActivator(LogicalKeyboardKey.arrowDown, alt: true): down,
   };
 }
 

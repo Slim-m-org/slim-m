@@ -30,6 +30,8 @@ import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import 'invite_role_grant_picker.dart';
+import 'member_invites_section.dart';
+import '../../../members/widgets/invite_friend.dart' show watchCanInviteFriend;
 import '../../../../action_labels.dart';
 
 const _expiryOptions = <(String, Duration?)>[
@@ -71,8 +73,11 @@ class InvitesPane extends ConsumerWidget {
             title: 'Joining',
             children: [JoinPolicyRow(), TotpPolicyRow()],
           ),
+          MemberInvitesSection(),
         ],
-        if (canInvite) ...const [_CreateInviteCard(), _InviteList()],
+        if (canInvite) const _CreateInviteCard(),
+        // The server lists a member only the invites they made, so they can revoke a leaked link.
+        if (watchCanInviteFriend(ref)) const _InviteList(),
       ],
     );
   }
@@ -398,6 +403,8 @@ class _InviteRowState extends ConsumerState<_InviteRow>
           : AppBadge(variant: badge.$1, label: badge.$2),
       details: [
         SettingsEntityDetail('$usesLabel · $expiryLabel'),
+        if (invite.createdByName != null)
+          SettingsEntityDetail('Made by ${invite.createdByName}'),
         if (roleGrantLabel != null)
           SettingsEntityDetail(roleGrantLabel, tone: tokens.accent),
       ],

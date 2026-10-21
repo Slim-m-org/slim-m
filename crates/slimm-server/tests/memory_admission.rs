@@ -11,19 +11,17 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use axum::http::StatusCode;
-use futures_util::{SinkExt, StreamExt};
-use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
+use futures_util::SinkExt;
+use serde_json::json;
+use slimm_server::http::AppState;
 use slimm_server::hub::{Hub, MemoryReading};
 use slimm_server::store::Store;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{connect, read_frame_skipping_presence, serve};
 
 /// Comfortably above the guard's 64 MiB reserve (see `hub::memory_guard`).
 fn healthy() -> MemoryReading {
@@ -45,15 +43,6 @@ fn state_with(store: &Store, hub: Hub) -> AppState {
     support::app::builder(store.clone()).hub(hub).build()
 }
 
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
 async fn ticket_for(store: &Store, name: &str) -> String {
     let user = store.create_user(name, name).await.unwrap();
     let tokens = store.open_session(user.id, "device").await.unwrap();
@@ -64,38 +53,6 @@ async fn ticket_for(store: &Store, name: &str) -> String {
         .unwrap();
     let (ticket, _expires_at) = store.mint_ws_ticket(&ctx).await.unwrap();
     ticket
-}
-
-async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
-    let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
-    ws.send(WsMessage::Text(
-        json!({ "type": "hello", "ticket": ticket, "protocol": 1 }).to_string(),
-    ))
-    .await
-    .unwrap();
-    let ack = read_frame(&mut ws).await;
-    assert_eq!(ack["type"], "hello");
-    ws
-}
-
-/// Reads the next text frame as JSON, skipping `presence.changed` - this
-/// connection's own connect can publish one on the shared hub before the
-/// caller starts reading, and it is expected chatter rather than something
-/// this test checks (see `tests/ws.rs`'s identical helper).
-async fn read_frame(ws: &mut Client) -> Value {
-    loop {
-        match ws.next().await {
-            Some(Ok(WsMessage::Text(text))) => {
-                let frame: Value = serde_json::from_str(text.as_str()).unwrap();
-                if frame["type"] == "presence.changed" {
-                    continue;
-                }
-                return frame;
-            }
-            Some(Ok(_)) => continue,
-            other => panic!("expected a text frame, got {other:?}"),
-        }
-    }
 }
 
 #[tokio::test]
@@ -130,7 +87,7 @@ async fn an_existing_connection_survives_the_guard_refusing_new_ones() {
         .send(WsMessage::Text(json!({ "type": "ping" }).to_string()))
         .await
         .unwrap();
-    let pong = read_frame(&mut alice).await;
+    let pong = read_frame_skipping_presence(&mut alice).await;
     assert_eq!(pong["type"], "pong");
 }
 
@@ -145,6 +102,6 @@ async fn a_healthy_reading_admits_normally() {
     ws.send(WsMessage::Text(json!({ "type": "ping" }).to_string()))
         .await
         .unwrap();
-    let pong = read_frame(&mut ws).await;
+    let pong = read_frame_skipping_presence(&mut ws).await;
     assert_eq!(pong["type"], "pong");
 }

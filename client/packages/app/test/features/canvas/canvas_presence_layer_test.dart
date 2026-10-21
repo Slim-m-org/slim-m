@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart'
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _cameraOff = VoiceParticipant(
   identity: 'user-noor',
@@ -28,6 +29,7 @@ const _cameraOff = VoiceParticipant(
   isMuted: true,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 /// Lock is a video-tile verb now - an avatar-only tile forces it to `false`
@@ -50,6 +52,7 @@ const _localSharing = VoiceParticipant(
   isMuted: false,
   isLocal: true,
   isScreenSharing: true,
+  isCameraOn: true,
 );
 
 Widget _wrap(Widget child) => ProviderScope(
@@ -66,7 +69,7 @@ Widget _layer(
   CameraViewBuilder cameraViewFor = _noView,
   ScreenShareViewBuilder screenShareViewFor = _noView,
   bool hideSelfCamera = false,
-}) => CanvasPresenceLayer(
+}) => PresenceStack(
   document: document,
   participants: participants,
   cameraViewFor: cameraViewFor,
@@ -186,7 +189,12 @@ void main() {
     IgnorePointer contentIgnorePointer() => tester.widget<IgnorePointer>(
       find
           .ancestor(
-            of: find.byType(CanvasPresenceBubble),
+            of: find
+                .descendant(
+                  of: find.byType(CanvasPresenceManipulableTile),
+                  matching: find.byType(GestureDetector),
+                )
+                .first,
             matching: find.byType(IgnorePointer),
           )
           .first,
@@ -208,6 +216,7 @@ void main() {
       isMuted: false,
       isLocal: false,
       isScreenSharing: false,
+      isCameraOn: true,
     );
     final document = CanvasDocument();
     addTearDown(document.dispose);
@@ -323,10 +332,42 @@ void main() {
     await tester.pump();
     expect(overrides.stateFor('camera:user-noor').hidden, isTrue);
 
-    await tester.pumpWidget(_wrap(_layer(document, const [], overrides)));
+    const avery = VoiceParticipant(
+      identity: 'user-avery',
+      name: 'Avery',
+      isSpeaking: false,
+      isMuted: false,
+      isLocal: false,
+      isScreenSharing: false,
+      isCameraOn: true,
+    );
+    await tester.pumpWidget(_wrap(_layer(document, const [avery], overrides)));
     await tester.pump();
 
     expect(overrides.stateFor('camera:user-noor').hidden, isFalse);
+  });
+
+  testWidgets('an emptied roster is a reconnect, so hidden tiles stay hidden', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    document.setViewport(const Size(1000, 800));
+    final overrides = CanvasPresenceTileOverrides()
+      ..setHidden('camera:user-noor', true);
+
+    await tester.pumpWidget(
+      _wrap(_layer(document, const [_cameraOff], overrides)),
+    );
+    await tester.pump();
+    await tester.pumpWidget(_wrap(_layer(document, const [], overrides)));
+    await tester.pump();
+    await tester.pumpWidget(
+      _wrap(_layer(document, const [_cameraOff], overrides)),
+    );
+    await tester.pump();
+
+    expect(overrides.stateFor('camera:user-noor').hidden, isTrue);
   });
 
   testWidgets('a tile removed mid-drag (its owner left the call) balances '
@@ -372,7 +413,7 @@ void main() {
 
       await tester.pumpWidget(
         _wrap(
-          CanvasPresenceLayer(
+          PresenceStack(
             document: document,
             participants: const [_cameraOff],
             cameraViewFor: _noView,

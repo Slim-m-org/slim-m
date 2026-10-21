@@ -18,6 +18,7 @@ import '../../app_metrics.dart';
 import '../../app_motion.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
+import 'spinner.dart';
 import '../../touch_targets.dart';
 
 enum AppButtonVariant { primary, secondary, ghost, soft, danger }
@@ -268,14 +269,10 @@ class _AppButtonState extends State<AppButton> {
           child: _labelRow(metrics, look),
         ),
         if (widget.busy)
-          SizedBox(
+          AppSpinner(
             key: const ValueKey('busy'),
-            width: AppSizes.icon16,
-            height: AppSizes.icon16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: look.foreground,
-            ),
+            size: AppSpinnerSize.sm,
+            color: look.foreground,
           ),
       ],
     );

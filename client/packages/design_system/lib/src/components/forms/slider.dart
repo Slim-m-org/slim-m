@@ -45,6 +45,8 @@ class AppSlider extends StatefulWidget {
     this.ticks,
     this.semanticLabel,
     this.autofocus = false,
+    this.valueLabel,
+    this.splitTrack = false,
   });
 
   final double value;
@@ -78,6 +80,12 @@ class AppSlider extends StatefulWidget {
   /// Takes focus when it appears, so arrow keys move it at once.
   final bool autofocus;
 
+  /// Formats the value for a bubble over the thumb, shown only while dragging or focused, and for screen readers.
+  final String Function(double value)? valueLabel;
+
+  /// A `tall` trough drawn in two tones either side of the thumb: quiet before it, heard after.
+  final bool splitTrack;
+
   @override
   State<AppSlider> createState() => _AppSliderState();
 }
@@ -85,6 +93,7 @@ class AppSlider extends StatefulWidget {
 class _AppSliderState extends State<AppSlider> {
   final FocusNode _focusNode = FocusNode();
   bool _focused = false;
+  bool _dragging = false;
 
   @override
   void initState() {
@@ -142,6 +151,50 @@ class _AppSliderState extends State<AppSlider> {
     );
   }
 
+  /// Sits above the thumb; the inset is the slider's own overlay radius, where its track starts.
+  Widget _bubble(AppTokens tokens, String text, double value) {
+    final inset = focusRingGap + focusRingWidth + (widget.tall ? 14.0 : 12.0);
+    final span = widget.max - widget.min;
+    final fraction = span <= 0 ? 0.0 : (value - widget.min) / span;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: LayoutBuilder(
+          builder: (context, box) => Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: inset + fraction * (box.maxWidth - 2 * inset),
+                top: -AppSpacing.s4,
+                child: FractionalTranslation(
+                  translation: const Offset(-0.5, -1),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: tokens.textPrimary,
+                      borderRadius: BorderRadius.circular(AppRadii.control),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s8,
+                        vertical: AppSpacing.s4,
+                      ),
+                      child: Text(
+                        text,
+                        style: AppText.caption.copyWith(
+                          fontFamily: AppFonts.mono,
+                          color: tokens.surfaceBase,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -161,6 +214,12 @@ class _AppSliderState extends State<AppSlider> {
       fillColor: fillColor,
       meterColor: _meterColor(tokens),
       meterFraction: meterFraction,
+      quietColor: widget.splitTrack
+          ? tokens.textDisabled.withValues(alpha: 0.25)
+          : null,
+      hearColor: widget.splitTrack
+          ? tokens.status.online.withValues(alpha: 0.35)
+          : null,
     );
     final thumb = TroughThumbShape(
       tall: widget.tall,
@@ -195,7 +254,12 @@ class _AppSliderState extends State<AppSlider> {
         focusNode: _focusNode,
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
-        onChangeEnd: widget.onChangeEnd,
+        onChangeStart: (_) => setState(() => _dragging = true),
+        onChangeEnd: (v) {
+          setState(() => _dragging = false);
+          widget.onChangeEnd?.call(v);
+        },
+        semanticFormatterCallback: widget.valueLabel,
       ),
     );
 
@@ -219,13 +283,26 @@ class _AppSliderState extends State<AppSlider> {
       ),
     );
 
+    final label = widget.valueLabel;
+    final showBubble =
+        label != null && widget.onChanged != null && (_dragging || _focused);
+    final withBubble = label == null
+        ? ring
+        : Stack(
+            clipBehavior: Clip.none,
+            children: [
+              ring,
+              if (showBubble) _bubble(tokens, label(value), value),
+            ],
+          );
+
     return Semantics(
       label: widget.semanticLabel,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ring,
+          withBubble,
           if (widget.ticks != null) ...[
             const SizedBox(height: AppSpacing.s8),
             _tickLabels(tokens),

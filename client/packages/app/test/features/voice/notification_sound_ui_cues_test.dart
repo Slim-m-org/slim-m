@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/dead_voice_session.dart';

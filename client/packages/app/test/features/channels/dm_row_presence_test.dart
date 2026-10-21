@@ -18,7 +18,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/dm_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -101,6 +101,7 @@ void main() {
     final avatar = tester.widget<AppAvatar>(find.byType(AppAvatar));
     expect(avatar.status, AppPresence.online);
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -115,6 +116,7 @@ void main() {
       final avatar = tester.widget<AppAvatar>(find.byType(AppAvatar));
       expect(avatar.status, AppPresence.unknown);
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }

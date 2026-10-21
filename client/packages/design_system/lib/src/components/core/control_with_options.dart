@@ -72,6 +72,8 @@ class AppControlWithOptions extends StatelessWidget {
     if (open == null) return child;
     return _JoinedScope(
       child: GestureDetector(
+        // The caret is the named route to the options for assistive tech; this hold would be an unnamed node over both halves.
+        excludeFromSemantics: true,
         onLongPress: () {
           AppHaptics.selection();
           open();

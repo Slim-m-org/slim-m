@@ -14,6 +14,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,11 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
+import '../widgets/canvas_clear_scope.dart';
+import '../widgets/canvas_clear_sheet.dart';
+import '../widgets/canvas_participants_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
+import 'canvas_dock_collapse.dart' show CanvasDockPopupPin;
 import 'canvas_shape_icons.dart';
 import 'canvas_tools_row.dart' show CanvasHiddenTile;
 
@@ -40,6 +45,7 @@ class CanvasOverflowMenu extends StatefulWidget {
   const CanvasOverflowMenu({
     super.key,
     required this.onPasteImage,
+    this.onAddImageFile,
     required this.canDraw,
     required this.canManage,
     required this.onClear,
@@ -50,6 +56,7 @@ class CanvasOverflowMenu extends StatefulWidget {
     required this.activityLogOpen,
     required this.onToggleActivityLog,
     required this.onToggleFullscreen,
+    this.fullscreen = false,
     required this.tool,
     required this.shapeKind,
     required this.onShapeKindChanged,
@@ -59,12 +66,19 @@ class CanvasOverflowMenu extends StatefulWidget {
     required this.hiddenTiles,
     required this.onShowTile,
     this.opensBelow = false,
+    this.scopedClear,
   });
+
+  /// Null hides "Clear part of the canvas".
+  final CanvasScopedClear? scopedClear;
 
   /// Opens under the button rather than over it, for a trigger in the header.
   final bool opensBelow;
 
   final VoidCallback onPasteImage;
+
+  /// Picks an image file to place; null where the canvas cannot place one.
+  final VoidCallback? onAddImageFile;
 
   /// False while the pane's own error banner is up - see
   /// `canvas_tools_row.dart`'s `canDraw` for the full reasoning; this is the
@@ -101,10 +115,9 @@ class CanvasOverflowMenu extends StatefulWidget {
   final bool activityLogOpen;
   final VoidCallback onToggleActivityLog;
 
-  /// Drops the pane's chrome. Only ever reached from here to *enter*: this
-  /// menu's own button is inside the strip fullscreen folds away, so the way
-  /// back is the dock's own always-visible button, plus Escape.
+  /// Drops the pane's chrome, or restores it while [fullscreen] is on.
   final VoidCallback onToggleFullscreen;
+  final bool fullscreen;
 
   /// Whether the caller has a camera bubble on this canvas at all right now
   /// - see `canvas_bar.dart`'s own doc on why the toggle below is absent
@@ -125,30 +138,67 @@ class CanvasOverflowMenu extends StatefulWidget {
 
 class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   final _controller = OverlayPortalController();
+
+  /// Puts the trigger inside the open menu's tap region, so pressing it again closes the menu.
+  final _tapGroup = Object();
+
+  /// Mirrors the portal's visibility for the trigger's expanded state.
+  final _open = ValueNotifier<bool>(false);
+
+  void _hide() {
+    _controller.hide();
+    _open.value = false;
+  }
+
+  void _toggle() {
+    _controller.toggle();
+    _open.value = _controller.isShowing;
+  }
+
+  @override
+  void dispose() {
+    _open.dispose();
+    super.dispose();
+  }
+
   final _link = LayerLink();
 
   void _paste() {
-    _controller.hide();
+    _hide();
     widget.onPasteImage();
   }
 
   void _toggleActivityLog() {
-    _controller.hide();
+    _hide();
     widget.onToggleActivityLog();
   }
 
   void _enterFullscreen() {
-    _controller.hide();
+    _hide();
     widget.onToggleFullscreen();
   }
 
   void _toggleSelfBubble() {
-    _controller.hide();
+    _hide();
     widget.onToggleSelfBubbleHidden();
   }
 
+  /// Opens a modal once the menu is gone: its closing focus scope would otherwise take focus back from the new route.
+  void _openAfterClose(Future<void> Function() open) {
+    _hide();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(open());
+    });
+  }
+
+  void _openParticipants() =>
+      _openAfterClose(() => showCanvasParticipantsSheet(context));
+
+  void _requestScopedClear(CanvasScopedClear control) =>
+      _openAfterClose(() => requestScopedCanvasClear(context, control));
+
   void _showTile(String key) {
-    _controller.hide();
+    _hide();
     widget.onShowTile(key);
   }
 
@@ -158,8 +208,9 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   /// `deleted_at` fence), and the audience who sees this dialog is the same
   /// audience whose own dock carries the Undo control that would
   /// immediately falsify a "cannot be undone" claim.
-  Future<void> _requestClear() async {
-    _controller.hide();
+  void _requestClear() => _openAfterClose(_confirmClear);
+
+  Future<void> _confirmClear() async {
     const message =
         'This removes everything on this canvas, including objects outside '
         'your current view, for everyone in this channel.';
@@ -182,33 +233,43 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
       child: OverlayPortal(
         controller: _controller,
         overlayChildBuilder: (_) => _buildMenu(),
-        child: AppIconButton(
-          icon: AppIcons.moreVertical,
-          semanticLabel: 'More canvas actions',
-          tooltip: 'More canvas actions',
-          onPressed: _controller.toggle,
+        // Says whether its menu is open, as a disclosure button should.
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _open,
+          builder: (context, open, _) => TapRegion(
+            groupId: _tapGroup,
+            child: Semantics(
+              expanded: open,
+              child: AppIconButton(
+                icon: AppIcons.moreVertical,
+                semanticLabel: 'More canvas actions',
+                tooltip: 'More canvas actions',
+                onPressed: _toggle,
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
   void _bringToFront(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onBringToFront(objectId);
   }
 
   void _sendToBack(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onSendToBack(objectId);
   }
 
   void _delete(String objectId) {
-    _controller.hide();
+    _hide();
     widget.onDeleteSelected(objectId);
   }
 
   void _pickShapeKind(CanvasShapeKind kind) {
-    _controller.hide();
+    _hide();
     widget.onShapeKindChanged(kind);
   }
 
@@ -231,6 +292,19 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
     );
   }
 
+  /// The height between the trigger and the screen edge the menu opens toward, so a short screen scrolls it instead of cutting rows off.
+  double _roomForMenu() {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return double.infinity;
+    final screen = MediaQuery.sizeOf(context);
+    final insets = MediaQuery.paddingOf(context);
+    final top = box.localToGlobal(Offset.zero).dy;
+    final room = widget.opensBelow
+        ? screen.height - insets.bottom - top - box.size.height
+        : top - insets.top;
+    return math.max(room - AppSpacing.s8, AppSizes.icon28 * 3);
+  }
+
   /// `width: 280` below: 200 truncated this menu's own longest labels
   /// ("Paste image" with its Ctrl+V hint, "Hide my camera bubble") to
   /// "Paste i…"/"Hide my camera bu…" - narrower than `AppMenu`'s own 250
@@ -250,15 +324,21 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             ? Alignment.topRight
             : Alignment.bottomRight,
         offset: Offset(0, widget.opensBelow ? 4 : -4),
-        child: TapRegion(
-          onTapOutside: (_) => _controller.hide(),
-          // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
-          child: ContextMenuKeyboardScope(
-            onDismiss: _controller.hide,
-            child: ValueListenableBuilder<String?>(
-              valueListenable: widget.selection,
-              builder: (context, selected, _) =>
-                  AppMenu(width: 280, children: _menuItems(context, selected)),
+        child: CanvasDockPopupPin(
+          child: TapRegion(
+            groupId: _tapGroup,
+            onTapOutside: (_) => _hide(),
+            // The same keyboard route the message context menu already earned: Tab reaches every item once open, and Escape closes it.
+            child: ContextMenuKeyboardScope(
+              onDismiss: _hide,
+              child: ValueListenableBuilder<String?>(
+                valueListenable: widget.selection,
+                builder: (context, selected, _) => AppMenu(
+                  width: 280,
+                  maxHeight: _roomForMenu(),
+                  children: _menuItems(context, selected),
+                ),
+              ),
             ),
           ),
         ),
@@ -277,9 +357,16 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
             : _shortcutHint(context),
         onTap: widget.canDraw ? _paste : null,
       ),
-      // The way in only: the way out is the dock's own button, since this menu is part of the tool strip fullscreen folds away.
+      if (widget.onAddImageFile case final addImage?)
+        AppMenuItem(
+          label: 'Add image from file',
+          leading: AppIcons.image,
+          onTap: widget.canDraw
+              ? () => _openAfterClose(() async => addImage())
+              : null,
+        ),
       AppMenuItem(
-        label: 'Enter fullscreen',
+        label: widget.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen',
         leading: AppIcons.expand,
         onTap: _enterFullscreen,
       ),
@@ -298,12 +385,19 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
               : 'Snap to grid',
           leading: AppIcons.snapToGrid,
           onTap: () {
-            _controller.hide();
+            _hide();
             unawaited(ref.read(canvasGridSnapProvider.notifier).toggle());
           },
         ),
       ),
-      if (widget.hasSelfBubble) _selfBubbleItem(),
+      if (widget.hasSelfBubble) ...[
+        AppMenuItem(
+          label: 'Participants',
+          leading: AppIcons.members,
+          onTap: _openParticipants,
+        ),
+        _selfBubbleItem(),
+      ],
       ..._hiddenTileItems(),
       ..._shapeKindItems(),
       if (selected != null) ..._selectionItems(selected),
@@ -374,8 +468,15 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
         label: 'Clear canvas',
         leading: AppIcons.delete,
         tone: AppMenuItemTone.danger,
-        onTap: () => unawaited(_requestClear()),
+        onTap: _requestClear,
       ),
+      if (widget.scopedClear case final control?)
+        AppMenuItem(
+          label: 'Clear part of the canvas',
+          leading: AppIcons.delete,
+          tone: AppMenuItemTone.danger,
+          onTap: () => _requestScopedClear(control),
+        ),
     ];
   }
 }

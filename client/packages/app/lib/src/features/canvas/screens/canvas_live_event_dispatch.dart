@@ -12,6 +12,7 @@ import 'dart:ui';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
 import 'canvas_activity_log.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_media_slot_sync.dart';
@@ -20,6 +21,29 @@ import 'canvas_object_preview_relay.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_sync.dart';
+
+void _settleLandedStroke(api.CanvasObject object, RemoteStrokeDrafts? drafts) {
+  if (object.kind != 'stroke') return;
+  drafts?.settleAuthor(
+    object.authorId,
+    landed: Rect.fromLTWH(object.x, object.y, object.w, object.h),
+  );
+}
+
+/// The frame could not name every object it spared, so the read says which.
+void _readSparedObjects(CanvasSync sync, VoidCallback forgetFetchedRegion) {
+  forgetFetchedRegion();
+  unawaited(sync.coldFetch());
+}
+
+void _applyEditedText(
+  CanvasDocument document,
+  String objectId,
+  Map<String, dynamic> props,
+) {
+  final text = props['text'];
+  if (text is String) document.setNoteText(objectId, text);
+}
 
 /// Applies one server event to [document] if it names [paneChannelId], the
 /// exact switch `CanvasPane._onEvent` used to carry directly.
@@ -54,7 +78,7 @@ void dispatchCanvasLiveEvent(
         when channelId == paneChannelId:
       sync.applyLive(event.seq, () {
         applyPlacedObject(object);
-        strokeDrafts?.settleAuthor(object.authorId);
+        _settleLandedStroke(object, strokeDrafts);
         activityLog?.recordPlacedLive(object);
       });
     case api.CanvasObjectsRemoved(
@@ -64,25 +88,59 @@ void dispatchCanvasLiveEvent(
           :final objectIds,
         )
         when channelId == paneChannelId:
-      sync.applyLive(seq, () {
-        for (final id in objectIds) {
-          document.removeObject(id);
-        }
-        document.refresh();
-        activityLog?.recordRemovedLive(opId, objectIds);
-      });
+      sync.applyLive(
+        seq,
+        () {
+          for (final id in objectIds) {
+            document.removeObject(id, seq: seq);
+          }
+          document.refresh();
+          activityLog?.recordRemovedLive(opId, objectIds);
+        },
+        replay: api.CanvasRemoveOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          objectIds: objectIds,
+        ),
+      );
     case api.CanvasCleared(
           :final channelId,
           :final seq,
           :final opId,
           :final beforeSeq,
+          :final scope,
+          :final sparedIds,
+          :final sparedCount,
         )
         when channelId == paneChannelId:
-      sync.applyLive(seq, () {
-        document.clearBelow(beforeSeq);
-        document.refresh();
-        activityLog?.recordClearedLive(opId);
-      });
+      sync.applyLive(
+        seq,
+        () {
+          clearDocumentScope(
+            document,
+            beforeSeq,
+            scope,
+            opSeq: seq,
+            spared: sparedIds.toSet(),
+          );
+          document.refresh();
+          activityLog?.recordClearedLive(opId, scope: scope);
+          if (sparedCount > sparedIds.length) {
+            _readSparedObjects(sync, forgetFetchedRegion);
+          }
+        },
+        replay: api.CanvasClearOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          beforeSeq: beforeSeq,
+          scope: scope,
+          sparedIds: sparedIds,
+        ),
+      );
     case api.CanvasObjectsRestored(
           :final channelId,
           :final seq,
@@ -102,13 +160,26 @@ void dispatchCanvasLiveEvent(
         sync.deferToFeed();
         return;
       }
-      sync.applyLive(seq, () {
-        document.forgetRemoved(objectIds);
-        forgetFetchedRegion();
-        activityLog?.recordRestoredLive(opId, objectIds.length);
-      });
-      // A restored object's payload was freed on removal and the camera-move guard only checks on an actual pan, so nothing repaints it without this - see CanvasSync.coldFetch's own doc.
-      unawaited(sync.coldFetch());
+      sync.applyLive(
+        seq,
+        () {
+          document.forgetRemoved(objectIds);
+          forgetFetchedRegion();
+          activityLog?.recordRestoredLive(opId, objectIds.length);
+          // A restored object's payload was freed on removal and the camera-move guard only checks on an actual pan, so nothing repaints it without this - see CanvasSync.coldFetch's own doc.
+          unawaited(sync.coldFetch());
+          // A restore brings back the locks of the locked objects it restores.
+          unawaited(objectLocks.fetch());
+        },
+        replay: api.CanvasRestoreOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          targetOp: '',
+          objectIds: objectIds,
+        ),
+      );
     case api.CanvasCursorMoved(
           :final channelId,
           :final userId,
@@ -125,10 +196,19 @@ void dispatchCanvasLiveEvent(
           :final objectId,
           :final points,
           :final ended,
+          :final color,
+          :final width,
         )
         when channelId == paneChannelId:
       // Never through sync.applyLive, the same reason a cursor is not: no seq.
-      strokePreviewRelay().applyRemote(userId, objectId, points, ended);
+      strokePreviewRelay().applyRemote(
+        userId,
+        objectId,
+        points,
+        ended,
+        color: color,
+        width: width,
+      );
     case api.CanvasObjectPreview(
           :final channelId,
           :final userId,
@@ -176,12 +256,32 @@ void dispatchCanvasLiveEvent(
           :final h,
         )
         when channelId == paneChannelId:
-      sync.applyLive(seq, () {
-        objectPreviewRelay().settle(objectId);
-        document.moveObject(objectId, x, y, w, h);
-        document.refresh();
-        activityLog?.recordMovedLive(opId);
-      });
+      // Whatever the cursor says, a committed move ends this object's drag preview.
+      objectPreviewRelay().settle(objectId);
+      if (!document.knows(objectId)) {
+        // An object moved into a region this client holds is not in the document to move.
+        forgetFetchedRegion();
+        unawaited(sync.coldFetch());
+      }
+      sync.applyLive(
+        seq,
+        () {
+          document.moveObject(objectId, x, y, w, h);
+          document.refresh();
+          activityLog?.recordMovedLive(opId);
+        },
+        replay: api.CanvasMoveOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          objectId: objectId,
+          x: x,
+          y: y,
+          w: w,
+          h: h,
+        ),
+      );
     case api.CanvasObjectReordered(
           :final channelId,
           :final seq,
@@ -190,11 +290,22 @@ void dispatchCanvasLiveEvent(
           :final zIndex,
         )
         when channelId == paneChannelId:
-      sync.applyLive(seq, () {
-        document.setZIndex(objectId, zIndex);
-        document.refresh();
-        activityLog?.recordReorderedLive(opId);
-      });
+      sync.applyLive(
+        seq,
+        () {
+          document.setZIndex(objectId, zIndex);
+          document.refresh();
+          activityLog?.recordReorderedLive(opId);
+        },
+        replay: api.CanvasReorderOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          objectId: objectId,
+          zIndex: zIndex,
+        ),
+      );
     case api.CanvasObjectEdited(
           :final channelId,
           :final seq,
@@ -203,16 +314,29 @@ void dispatchCanvasLiveEvent(
           :final props,
         )
         when channelId == paneChannelId:
-      sync.applyLive(seq, () {
-        final text = props['text'];
-        if (text is String) document.setNoteText(objectId, text);
-        document.refresh();
-        activityLog?.recordEditedLive(opId);
-      });
+      sync.applyLive(
+        seq,
+        () {
+          _applyEditedText(document, objectId, props);
+          document.refresh();
+          activityLog?.recordEditedLive(opId);
+        },
+        replay: api.CanvasEditOp(
+          seq: seq,
+          id: opId,
+          actorId: null,
+          createdAt: 0,
+          objectId: objectId,
+          props: props,
+        ),
+      );
     case api.CanvasMediaSlotChanged(:final channelId)
         when channelId == paneChannelId:
       // Never through sync.applyLive: a slot carries no seq, the same reason a cursor does not.
       mediaSlotSync.applyRemote(event);
+    case api.CanvasMediaSlotPreview(:final channelId)
+        when channelId == paneChannelId:
+      mediaSlotSync.applyRemotePreview(event);
     case api.CanvasObjectLockChanged(:final channelId)
         when channelId == paneChannelId:
       objectLocks.applyRemote(event);

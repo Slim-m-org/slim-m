@@ -144,19 +144,23 @@ ScreenShareFit fitScreenShare(
   );
 }
 
-/// A screen the OS will let this app capture.
-///
-/// Screens only, never windows. Enumerating windows through libwebrtc's
-/// desktop capturer segfaults the process on Fedora Wayland (SIGSEGV, exit
-/// 139, reproduced 2026-07-27), and a native crash is not catchable from Dart.
+/// A screen the OS will let this app capture; on Windows and macOS also a window.
+/// Linux lists screens only: enumerating windows through libwebrtc's capturer segfaults on Fedora Wayland (exit 139), which Dart cannot catch, and the portal picker chooses there.
 class ScreenShareSource {
-  const ScreenShareSource({required this.id, required this.name});
+  const ScreenShareSource({
+    required this.id,
+    required this.name,
+    this.isWindow = false,
+  });
 
   /// Opaque to us, and the only thing `getDisplayMedia` matches on.
   final String id;
 
   /// The capturer's own label, 'Screen 1' and up on Linux.
   final String name;
+
+  /// A single window rather than a whole screen.
+  final bool isWindow;
 }
 
 /// What asking to share a screen actually did.

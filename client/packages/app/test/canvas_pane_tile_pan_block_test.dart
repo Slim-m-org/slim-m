@@ -52,7 +52,7 @@ void main() {
     expect(document.camera.y, 0);
 
     // Noor's default camera-off tile is world (24, 24) 140x140; camera starts at (0, 0) zoom 1, so (60, 60) sits well inside it.
-    final start = screenFor(tester, const Offset(60, 60));
+    final start = screenFor(tester, const Offset(160, 160));
     final pointer = TestPointer(1, PointerDeviceKind.mouse);
     await tester.sendEventToBinding(
       pointer.down(start, buttons: kMiddleMouseButton),

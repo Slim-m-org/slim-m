@@ -19,7 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/invites_screen.dart';
 import 'package:slimm_app/src/widgets/toast_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/src/action_labels.dart';
 import '../../support/fake_api.dart';
 
@@ -435,5 +435,44 @@ void main() {
     expect(find.text('Invite code copied.'), findsOneWidget);
     // Drains the toast's own dismiss timer so it is not still pending once this test tears down.
     await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('a member the Space lets invite sees their own invites, no card', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        myPermissionsProvider.overrideWithValue(0),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+        mockApiOverride((request) async {
+          final json = switch (request.url.path) {
+            '/version' =>
+              '{"name":"slim-m","version":"1.0.0","protocol":1,"members_can_invite":true}',
+            '/invites' => '[${_inviteJson('mine-123')}]',
+            _ => '{}',
+          };
+          return http.Response(
+            json,
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const InvitesScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('mine-123'), findsWidgets);
+    expect(find.text('Uses allowed'), findsNothing);
   });
 }

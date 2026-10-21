@@ -28,6 +28,7 @@ class ButtonPress {
     required this.customId,
     required this.status,
     this.failure,
+    this.values,
   });
 
   final String id;
@@ -38,6 +39,9 @@ class ButtonPress {
 
   /// Plain words for the person, set only when [status] is failed.
   final String? failure;
+
+  /// What was chosen, when the press was a select menu's; kept so a retry sends it again.
+  final List<String>? values;
 
   bool get pending => status == ButtonPressStatus.pending;
 }
@@ -64,13 +68,16 @@ class ButtonPressesController extends PendingInteractions<ButtonPress> {
     customId: current.customId,
     status: ButtonPressStatus.failed,
     failure: failure,
+    values: current.values,
   );
 
   /// Ignored while the same button on the same message is already pending.
+  /// [values] is the choice made on a select menu.
   Future<void> press({
     required String channelId,
     required String messageId,
     required String customId,
+    List<String>? values,
   }) => start(
     _keyOf(messageId, customId),
     pending: (id) => ButtonPress(
@@ -79,6 +86,7 @@ class ButtonPressesController extends PendingInteractions<ButtonPress> {
       messageId: messageId,
       customId: customId,
       status: ButtonPressStatus.pending,
+      values: values,
     ),
     send: (id) => _ref
         .read(apiProvider)
@@ -87,14 +95,18 @@ class ButtonPressesController extends PendingInteractions<ButtonPress> {
           messageId: messageId,
           id: id,
           customId: customId,
+          values: values,
         ),
-    describe: _describe,
+    describe: (e) => _describe(e, select: values != null),
   );
 
-  String _describe(api.ApiException e) => switch (e) {
+  String _describe(api.ApiException e, {required bool select}) => switch (e) {
     api.NotFoundException() =>
-      'That button is no longer available. The bot or its message may be gone.',
-    _ => describeApiFailure('press that button', e),
+      'That is no longer available. The bot or its message may be gone.',
+    _ => describeApiFailure(
+      select ? 'send that choice' : 'press that button',
+      e,
+    ),
   };
 
   /// Clears a failure the person has read or wants to retry past.

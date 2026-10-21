@@ -6,20 +6,17 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use slimm_server::http::{self, AppState};
 use slimm_server::ids::{DeviceId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::presence::PresenceTracker;
 use slimm_server::store::{NewMessage, Store};
 use slimm_server::viewing::ACTIVE_WINDOW;
-use tokio::net::TcpListener;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 mod support;
 
-type Client =
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+use support::ws::{Client, serve};
 
 async fn seed_everyone(store: &Store) {
     store
@@ -44,15 +41,6 @@ async fn account(store: &Store, name: &str) -> (UserId, String) {
     (user.id, ticket)
 }
 
-async fn serve(state: AppState) -> std::net::SocketAddr {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, http::router(state)).await.unwrap();
-    });
-    addr
-}
-
 async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
     let (mut ws, _response) = connect_async(format!("ws://{addr}/ws")).await.unwrap();
     ws.send(WsMessage::Text(
@@ -68,16 +56,6 @@ async fn connect(addr: std::net::SocketAddr, ticket: &str) -> Client {
             }
         }
     }
-}
-
-async fn wait_until(mut done: impl FnMut() -> bool) {
-    for _ in 0..200 {
-        if done() {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-    panic!("condition never held");
 }
 
 #[tokio::test]
@@ -132,6 +110,7 @@ async fn an_active_viewing_frame_counts_even_with_no_channel_open_and_ends_with_
 
     let idle = json!({ "type": "viewing", "channel_ids": [] });
     ws.send(WsMessage::Text(idle.to_string())).await.unwrap();
+    // A frame that changes nothing has no effect to wait for, so give it time to wrongly land.
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(
         !viewing.is_recently_active(alice),
@@ -140,9 +119,15 @@ async fn an_active_viewing_frame_counts_even_with_no_channel_open_and_ends_with_
 
     let active = json!({ "type": "viewing", "channel_ids": [], "active": true });
     ws.send(WsMessage::Text(active.to_string())).await.unwrap();
-    wait_until(|| viewing.is_recently_active(alice)).await;
+    support::wait::wait_until("alice to count as recently active", || {
+        viewing.is_recently_active(alice)
+    })
+    .await;
 
     ws.close(None).await.unwrap();
     drop(ws);
-    wait_until(|| !viewing.is_recently_active(alice)).await;
+    support::wait::wait_until("alice to stop counting as recently active", || {
+        !viewing.is_recently_active(alice)
+    })
+    .await;
 }

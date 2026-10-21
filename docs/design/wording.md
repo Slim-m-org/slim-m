@@ -15,7 +15,7 @@ The copy limits under Settings copy are enforced by `test/settings_copy_gate_tes
 
 - Space is the one word for a deployment inside the app. The sign-in screen's Server field is the address of the thing being connected to and is a separate owner decision.
 - Settings > Media and cache is this device's media and cache options.
-- Settings > General is how the app behaves on this device: start on login, startup splash, message page size.
+- Settings > Desktop is how the app behaves on this device: start on login, startup splash, message page size.
 - Space settings > Operations > Retention and limits is the Space's message retention and canvas cap.
 - The group heading in Space settings is Operations, not Server.
 

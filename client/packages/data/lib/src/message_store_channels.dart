@@ -96,13 +96,16 @@ Future<void> _replaceChannels(
   });
 }
 
-/// A channel's row and everything keyed to it: its messages and its draft,
-/// which would otherwise sit unreachable behind an id nothing lists.
+/// A channel's row and everything keyed to it: its messages, its draft and its
+/// personal canvas layout, which would otherwise sit unreachable behind an id nothing lists.
 Future<void> _deleteChannelRows(SlimmDatabase db, String channelId) async {
   await (db.delete(db.messages)..where((m) => m.channelId.equals(channelId)))
       .go();
   await (db.delete(db.channelDrafts)
         ..where((d) => d.channelId.equals(channelId)))
+      .go();
+  await (db.delete(db.canvasPersonalLayouts)
+        ..where((l) => l.channelId.equals(channelId)))
       .go();
   await (db.delete(db.channels)..where((c) => c.id.equals(channelId))).go();
 }

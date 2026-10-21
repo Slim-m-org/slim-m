@@ -36,10 +36,10 @@ const _desktop = Size(1400, 900);
 /// padding plus the border stroke `BoxDecoration.padding` folds in.
 double get _focusRingOverhead => 2 * (focusRingGap + focusRingWidth);
 
-/// At pointer density the share button is the leading half of a joined pair
-/// with its options caret, so it drops the ring overhead.
+/// At pointer density the mic and share buttons are the leading half of a joined pair
+/// with their options caret, so it drops the ring overhead.
 Size _expectedSize(String label, double side, {bool joined = false}) =>
-    joined && label.startsWith('Share')
+    joined && (label.startsWith('Share') || label.startsWith('Mute'))
     ? Size(side - _focusRingOverhead, side - _focusRingOverhead)
     : Size(side, side);
 

@@ -107,6 +107,8 @@ class _CanvasActivityAnnouncerState
   @override
   Widget build(BuildContext context) => Semantics(
     key: CanvasActivityAnnouncer.liveRegionKey,
+    // Its own node: merged into the pane's focus scope, the call timer's tick rewrote this label every second.
+    container: true,
     liveRegion: true,
     label: _text,
     child: const SizedBox.shrink(),

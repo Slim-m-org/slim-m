@@ -235,20 +235,25 @@ void main() {
   /// Opening the canvas used to fire three requests: one against the
   /// degenerate viewport `initState` fetched before layout, and two more
   /// racing a stale read of `_fetched` inside the fetch's own repaint.
-  testWidgets('opening the canvas issues exactly one viewport request', (
-    tester,
-  ) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasObjectJson('a')];
-    final container = fixture.container();
-    addTearDown(container.dispose);
-    addTearDown(fixture.events.close);
+  testWidgets(
+    'opening the canvas reads the view once, then the rest of the board once',
+    (tester) async {
+      final fixture = CanvasPaneFixture()..objects = [canvasObjectJson('a')];
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
 
-    await pumpCanvasPane(tester, container);
-    // Long enough for a wrongly-scheduled debounce to fire, so this cannot pass merely because the clock never advanced far enough to expose one.
-    await tester.pump(const Duration(seconds: 1));
+      await pumpCanvasPane(tester, container);
+      // Long enough for a wrongly-scheduled debounce to fire, so this cannot pass merely because the clock never advanced far enough to expose one.
+      await tester.pump(const Duration(seconds: 1));
 
-    expect(fixture.viewportGets, 1);
-  });
+      expect(
+        fixture.viewportGets,
+        2,
+        reason: 'the view, then one page of the board',
+      );
+    },
+  );
 
   /// The unbounded loop: a truncated page resets `_fetched` to null, and
   /// reading that stale null from inside the fetch's own repaint rescheduled

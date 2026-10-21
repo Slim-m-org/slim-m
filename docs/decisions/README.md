@@ -16,7 +16,7 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0004](0004-visual-identity-review.md) | Visual identity review | accepted |
 | [0005](0005-threads.md) | Threads | built |
 | [0006](0006-channel-categories.md) | Channel categories are containers, not the channel's type | accepted |
-| [0007](0007-extensions-and-untrusted-execution.md) | Extensions, and why untrusted execution can only ever live behind one | proposed |
+| [0007](0007-extensions-and-untrusted-execution.md) | Extensions, and why untrusted execution can only ever live behind one | superseded by 0021 |
 | [0008](0008-space-analytics.md) | Space usage analytics | built |
 | [0009](0009-reactions-pins-polls-reconciliation.md) | The reconciliation debt reactions, pins and polls do not have, and would not need if they ever gained one | designed, not built |
 | [0010](0010-canvas-media-tiles.md) | Canvas media tiles: camera and screen share as movable AR objects | accepted |
@@ -87,3 +87,14 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0075](0075-livekit-client-2-13.md) | livekit_client 2.13.1, with the flutter_webrtc fork left where it is | accepted |
 | [0076](0076-remappable-call-shortcuts.md) | Mute, deafen and push-to-talk can be remapped | accepted |
 | [0077](0077-hang-up-summary.md) | A summary and Rejoin after hanging up a voice channel | accepted |
+| [0078](0078-flutter-webrtc-fork-on-1-6-2.md) | The flutter_webrtc fork moves onto upstream 1.6.2+hotfix.4 | accepted |
+| [0079](0079-message-toolbar-in-the-overlay.md) | The message hover toolbar lives in the overlay | accepted |
+| [0080](0080-board-containment.md) | Nothing leaves the board | accepted |
+| [0081](0081-canvas-tile-fullscreen-keeps-the-canvas.md) | Full screen on a canvas tile keeps the canvas | accepted |
+| [0082](0082-personal-canvas-view.md) | A personal view beside the shared board | accepted |
+| [0083](0083-bot-token-reissue-select-menus-and-forms.md) | Bot token re-issue, select menus and forms | accepted |
+| [0084](0084-data-exports.md) | A member exports their own data, an administrator exports the space, as one tar archive | accepted |
+| [0085](0085-canvas-clear-purge-and-paging.md) | A clear spares locked objects, erased canvas content is purged, and a big board pages in | accepted |
+| [0086](0086-avatar-tiles-leave-the-board.md) | Avatar tiles leave the board, the roster moves to the dock, and ink paints above tiles | accepted |
+| [0087](0087-sequenced-canvas-reducer-and-paged-first-read.md) | One sequenced canvas reducer, and a paged first read | accepted |
+| [0088](0088-catppuccin-mocha-theme.md) | Catppuccin Mocha is the fourth app theme | accepted |

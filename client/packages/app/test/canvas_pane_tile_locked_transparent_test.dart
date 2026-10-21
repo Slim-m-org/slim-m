@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Report 4 in the backlog channel, in the owner's own words: "if I move a
-/// shape over top of a screen recording, even while that screen recording
-/// is locked and moved to back, I cannot touch the rectangle again, same
-/// for notes" - `CanvasPresenceManipulableTile`'s outer `Listener` claimed
-/// every pointer within its bounds regardless of lock or depth, so a
-/// select-tool click meant for a shape sitting under a locked, sent-to-back
-/// tile never reached `CanvasSurface` at all.
+/// A locked tile must not swallow pointers: a select-tool click meant for a shape under a locked tile has to reach `CanvasSurface`.
 library;
 
 import 'package:flutter/material.dart';
@@ -13,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
 import 'features/voice/voice_controller_harness.dart';
@@ -31,7 +26,7 @@ const _cameraOn = VoiceParticipant(
 const _tileKey = ValueKey('camera:user-noor');
 
 void main() {
-  testWidgets('a shape dragged over a locked, sent-to-back tile can still be '
+  testWidgets('a shape dragged over a locked tile can still be '
       'selected and dragged again', (tester) async {
     final fixture = CanvasPaneFixture();
     final container = fixture.container(
@@ -74,6 +69,10 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
+    // A shape is hit on its outline, so the clicks below land on its left edge.
+    final moved = surfaceDocument(tester).objectBounds(shapeId)!;
+    final onShape = screenFor(tester, Offset(moved.x, moved.y + moved.h / 2));
+
     // Deselect, well clear of both and still inside the default test viewport.
     gesture = await tester.startGesture(
       screenFor(tester, const Offset(10, 400)),
@@ -82,18 +81,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(surfaceDocument(tester).selectedObjectId.value, isNull);
 
-    // Lock, then send the tile to the back - the two-tap reveal-then-operate sequence a real touch does.
+    // Lock the tile - the two-tap reveal-then-operate sequence a real touch does.
     await tester.tap(find.byKey(_tileKey));
     await tester.pump();
     await tester.tap(find.bySemanticsLabel('Lock this tile in place'));
     await tester.pump();
-    await tester.tap(find.byKey(_tileKey), warnIfMissed: false);
-    await tester.pump();
-    await tester.tap(find.bySemanticsLabel('Send this tile to the back'));
-    await tester.pump();
 
-    // The shape's own new position, now covered by the locked, backed tile.
-    gesture = await tester.startGesture(tileCenter);
+    // The shape's outline at its new position, now covered by the locked tile.
+    gesture = await tester.startGesture(onShape);
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -101,14 +96,14 @@ void main() {
       surfaceDocument(tester).selectedObjectId.value,
       shapeId,
       reason:
-          'a locked, sent-to-back tile must not swallow a select click '
+          'a locked tile must not swallow a select click '
           'meant for a shape moved over it',
     );
 
     // And it can be dragged again from there, not just re-selected.
     final before = surfaceDocument(tester).objectBounds(shapeId)!;
-    gesture = await tester.startGesture(tileCenter);
-    await gesture.moveTo(tileCenter + const Offset(60, 40));
+    gesture = await tester.startGesture(onShape);
+    await gesture.moveTo(onShape + const Offset(60, 40));
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -116,7 +111,7 @@ void main() {
     expect(
       after.x,
       closeTo(before.x + 60, 0.5),
-      reason: 'a locked, sent-to-back tile must not swallow a drag either',
+      reason: 'a locked tile must not swallow a drag either',
     );
   });
 }

@@ -27,6 +27,7 @@ import 'mic_failure_advice.dart';
 import 'voice_camera_failure.dart';
 import 'voice_deafen_publish.dart';
 import 'voice_camera_preference.dart';
+import 'join_timings_provider.dart';
 import 'voice_join_muted.dart';
 import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
@@ -44,6 +45,7 @@ part 'voice_controller_input.dart';
 part 'voice_controller_participant_volume.dart';
 part 'voice_controller_rejoin.dart';
 part 'voice_controller_share.dart';
+part 'voice_controller_video.dart';
 
 class VoiceController extends StateNotifier<VoiceState>
     with
@@ -53,7 +55,8 @@ class VoiceController extends StateNotifier<VoiceState>
         VoiceControllerShareMixin,
         VoiceControllerAudioDevicesMixin,
         VoiceControllerParticipantVolumeMixin,
-        VoiceControllerCameraHideMixin {
+        VoiceControllerCameraHideMixin,
+        VoiceControllerVideoMixin {
   VoiceController(
     this._ref, {
     VoiceSession? session,
@@ -65,6 +68,7 @@ class VoiceController extends StateNotifier<VoiceState>
   }) : _session =
            session ??
            VoiceSession(
+             joinTimings: _ref.read(joinTimingsProvider),
              audioLog: (line, {level = api.LogLevel.info}) =>
                  api.AppLog.at(level, api.LogTag.voice, line),
            ),
@@ -231,6 +235,7 @@ class VoiceController extends StateNotifier<VoiceState>
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;
+    _ref.read(joinTimingsProvider).begin();
     // Set before the first await, so an arrival elsewhere reads this as busy (VoiceState.joining); clearJustLeft because any real join attempt is never a stale rejoin to suppress.
     state = state.copyWith(
       channelId: channelId,
@@ -277,7 +282,10 @@ class VoiceController extends StateNotifier<VoiceState>
     bool mutedByCaller,
     bool Function() superseded,
   ) async {
+    final timings = _ref.read(joinTimingsProvider)
+      ..mark(JoinStage.tokenRequested);
     final token = await _ref.read(apiProvider).voiceToken(channelId);
+    timings.mark(JoinStage.tokenReceived);
     final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
     if (superseded()) return;
     final insecureReason = insecureSfuReason(token.url);
@@ -301,6 +309,7 @@ class VoiceController extends StateNotifier<VoiceState>
       // produces a failure to report; not asking is the honest thing.
       microphoneEnabled: microphoneAtJoin,
       cameraEnabled: state.cameraEnabled && token.canPublish,
+      canPublish: token.canPublish,
     );
     if (superseded()) return;
     // Show the push-to-talk-closed mic in the button; scoped to PTT so the canPublish path is untouched.
@@ -321,6 +330,7 @@ class VoiceController extends StateNotifier<VoiceState>
     bool retryable = false,
   }) {
     if (superseded()) return;
+    _ref.read(joinTimingsProvider).finish();
     state = state.copyWith(
       state: VoiceSessionState.failed,
       error: error,
@@ -357,6 +367,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _heartbeat.stop();
     _autoRejoin.reset();
     _callClock.forget();
+    _ref.read(joinTimingsProvider).finish();
     await _session.leave();
     if (generation != _callGeneration) return;
     // Best-effort and fire-and-forget: this client already disconnected.
@@ -438,6 +449,9 @@ class VoiceController extends StateNotifier<VoiceState>
   @override
   bool get supportsScreenShareAudio => _session.supportsScreenShareAudio;
 
+  /// Per-person audio quality and the last call's summary.
+  VoiceHealth get health => _session.health;
+
   /// Live per-track video numbers; sampled only while something listens.
   CallStatsSampler get callStats => _session.callStats;
 
@@ -455,78 +469,11 @@ class VoiceController extends StateNotifier<VoiceState>
     );
   }
 
-  /// Whether starting a share here needs a screen chosen first, and the
-  /// screens to choose from. Enumerating is also what makes the capture that
-  /// follows able to find anything, so it happens even for a single screen.
-  bool get screenShareNeedsSource => _session.screenShareNeedsSource;
-
-  /// See [VoiceSession.screenShareSourcePickerUseful].
-  bool get screenShareSourcePickerUseful =>
-      _session.screenShareSourcePickerUseful;
-
-  Future<List<ScreenShareSource>> screenShareSources() =>
-      _session.screenShareSources();
-
-  /// [identity]'s shared screen; see [VoiceSession.screenShareViewFor].
-  Widget screenShareViewFor(String identity, {bool declaresInterest = true}) =>
-      voiceVideoView(
-        participants: state.participants,
-        health: _session.videoHealth,
-        identity: identity,
-        view: _session.screenShareViewFor(identity),
-        screenShare: true,
-        declaresInterest: declaresInterest,
-      );
-
-  /// [identity]'s camera feed; see [VoiceSession.cameraViewFor].
-  Widget cameraViewFor(String identity, {bool declaresInterest = true}) =>
-      voiceVideoView(
-        participants: state.participants,
-        health: _session.videoHealth,
-        identity: identity,
-        view: _session.cameraViewFor(identity),
-        screenShare: false,
-        declaresInterest: declaresInterest,
-      );
-
-  /// Declares which presence tiles a surface currently wants video for, so
-  /// the rest can be unsubscribed; see [VoiceSession.setVideoInterest].
-  /// Null hands the decision back, and is what a surface says on unmount.
-  void setVideoInterest(Set<String>? tileKeys) =>
-      _session.setVideoInterest(tileKeys);
-
-  /// Whether switching cameras is a bare flip (mobile) rather than a picker.
-  bool get canFlipCamera => _session.canFlipCamera;
-
-  /// Whether switching cameras needs one named first (desktop and web).
-  bool get cameraNeedsSelection => _session.cameraNeedsSelection;
-
-  /// The cameras available to pick from; see [VoiceSession.cameraDevices].
-  Future<List<CameraDevice>> cameraDevices() => _session.cameraDevices();
-
-  /// Flips the published camera between front and back, mobile only.
-  Future<bool> flipCamera() async {
-    final ok = await _session.flipCamera();
-    state = state.copyWith(
-      error: ok ? null : 'Could not switch the camera.',
-      clearError: ok,
-    );
-    return ok;
-  }
-
-  /// Switches the published camera to [device], desktop's picker equivalent
-  /// of [flipCamera].
-  Future<bool> selectCameraDevice(CameraDevice device) async {
-    final ok = await _session.selectCameraDevice(device);
-    state = state.copyWith(
-      error: ok ? null : 'Could not switch to that camera.',
-      clearError: ok,
-    );
-    return ok;
-  }
-
   @override
   VoiceSession get _shareSession => _session;
+
+  @override
+  VoiceSession get _videoSession => _session;
 
   @override
   void _log(

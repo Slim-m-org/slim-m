@@ -38,15 +38,21 @@ import e2e_coverage
 import e2e_sweep
 import e2e_threads
 import e2e_voice
+import e2e_voice_health
 import e2e_voice_deafen
 import e2e_voice_move
 import e2e_voice_mic_release
 import e2e_voice_devices
 import e2e_voice_hide_stream
+import e2e_voice_join_time
 import e2e_voice_multishare
 import e2e_voice_share
 import e2e_share_quality
 import e2e_voice_noise
+import e2e_voice_desktop
+import e2e_voice_experience
+import e2e_voice_latency
+import e2e_voice_quality
 import e2e_voice_volume
 import e2e_voice_network
 import e2e_video_quality
@@ -266,6 +272,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             a, b, room_id)),
         ("voice: audio actually arrives",
          lambda: e2e_voice.audio_actually_arrives(a, b)),
+        ("voice: health probe reads real numbers after a minute",
+         lambda: e2e_voice_health.minute_line_has_real_numbers(a, b)),
+        ("voice: health hint turns on under loss and off after",
+         lambda: e2e_voice_health.hint_turns_on_under_loss_and_off_after(a, b)),
         ("voice: sharing a screen", lambda: e2e_voice.share_screen(
             a, b, room_id)),
         ("voice: mute reaches the server", lambda: e2e_voice.mute_propagates(
@@ -281,6 +291,8 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: leaving", lambda: e2e_voice.leave_call(a, b, room_id)),
         ("voice: re-clicking a channel already left rejoins it",
          lambda: e2e_voice_rejoin.rejoin_after_leaving(a, room_id)),
+        ("voice: join time, click to first remote audio",
+         lambda: e2e_voice_join_time.join_time(a, b, room_id)),
         ("voice: a client that loses its network rejoins on its own",
          lambda: e2e_voice_network.rejoins_after_a_network_drop(
              a, b, room_id)),
@@ -324,6 +336,22 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("voice: a call nobody answers shows up in the dm",
          lambda: e2e_dm_call.a_missed_call_shows_up_in_the_dm(
              a, b, admin, member)),
+        ("voice quality: known clips played both ways are scored per network "
+         "profile (opt in with E2E_ONLY)",
+         lambda: e2e_voice_quality.run_if_selected(
+             server, secret, admin, sign_in)),
+        ("voice latency: chirps through the call give the mouth-to-ear delay per "
+         "network profile (opt in with E2E_ONLY)",
+         lambda: e2e_voice_latency.run_if_selected(
+             server, secret, admin, sign_in)),
+        ("voice experience: join time, the speaking ring and a 10 s network cut "
+         "(opt in with E2E_ONLY)",
+         lambda: e2e_voice_experience.run_if_selected(
+             server, secret, admin, sign_in)),
+        ("voice desktop: the real Linux client against noise, Strong and the gate "
+         "(opt in with E2E_ONLY)",
+         lambda: e2e_voice_desktop.run_if_selected(
+             server, secret, admin, sign_in)),
         # Last, because it wipes bob's browser storage and signs him in again.
         ("account: usernames ignore case, registering and signing in",
          lambda: e2e_accounts.usernames_ignore_case(

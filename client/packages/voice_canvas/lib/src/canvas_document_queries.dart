@@ -93,6 +93,42 @@ extension CanvasDocumentQueries on CanvasDocument {
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 
+  /// Every live slot inside [world] (padded for ink width), in paint order.
+  List<int> orderedSlotsIn(ui.Rect world) {
+    final pad = cullPad;
+    final out = CullResult();
+    scene.queryRect(
+      world.left - pad,
+      world.top - pad,
+      world.right + pad,
+      world.bottom + pad,
+      out,
+    );
+    final slots = [
+      for (final slot in out.slots)
+        if (strokeIfAlive(slot) != null) slot,
+    ]..sort(comparePaintOrder);
+    return slots;
+  }
+
+  /// The on-screen images that hold a bitmap, so a zoom can tell which are
+  /// now drawn larger than they were decoded.
+  List<({String id, String attachmentId})> get visibleImagesHoldingBitmap => [
+        for (final slot in scene.visible)
+          if (strokeIfAlive(slot) case final stroke?)
+            if (stroke.kind == CanvasObjectKind.image &&
+                stroke.image != null &&
+                stroke.attachmentId != null)
+              (id: stroke.id, attachmentId: stroke.attachmentId!),
+      ];
+
+  /// The attachment [id] names, or null for any other object.
+  String? attachmentIdOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    return stroke != null && stroke.alive ? stroke.attachmentId : null;
+  }
+
   /// Live object counts by kind, across the whole document rather than only
   /// what the last cull kept - the one query the accessibility summary
   /// needs and nothing else here does, so it is a scan rather than a
@@ -133,5 +169,48 @@ extension CanvasDocumentQueries on CanvasDocument {
       bounds = bounds?.expandToInclude(box) ?? box;
     }
     return bounds;
+  }
+
+  /// A snapshot taken after an id's removal that still lists the id says it was restored since.
+  /// One taken at the removal's own seq reflects the removal, so it cannot be a restore.
+  bool _restoredBefore(String id, int? snapshotSeq) {
+    final removedAt = _removed.seqOf(id);
+    return snapshotSeq != null && removedAt != null && snapshotSeq > removedAt;
+  }
+
+  bool _alreadyReflected(int seq) {
+    final reflected = reflectedSeq;
+    return reflected != null && seq > 0 && seq <= reflected;
+  }
+
+  void _overwriteFrom(CanvasStroke existing, CanvasStrokeInput input) {
+    if (elevatedObjectId.value != existing.id) {
+      moveObject(existing.id, input.x, input.y, input.w, input.h);
+    }
+    if (existing.kind == CanvasObjectKind.note && input.text != null) {
+      existing.text = input.text;
+    }
+  }
+
+  /// Frees objects without tombstoning them: a snapshot that lacks an object
+  /// this document still shows says the document drifted, not that a later
+  /// read must refuse the id.
+  void dropObjects(Iterable<String> ids) {
+    for (final id in ids) {
+      final slot = _slotById.remove(id);
+      if (slot != null) _freeSlot(slot);
+    }
+  }
+
+  /// Every live object's id, box and seq, for reconciling against a snapshot.
+  Iterable<({String id, int seq, ui.Rect box})> liveObjects() sync* {
+    for (final stroke in _strokes) {
+      if (stroke == null || !stroke.alive) continue;
+      yield (
+        id: stroke.id,
+        seq: stroke.seq,
+        box: ui.Rect.fromLTWH(stroke.x, stroke.y, stroke.w, stroke.h),
+      );
+    }
   }
 }

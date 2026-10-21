@@ -34,6 +34,7 @@ class AutocompleteSuggestion {
     this.userId,
     this.isMassMention = false,
     this.isRoleMention = false,
+    this.offline = false,
   });
 
   final String insert;
@@ -63,6 +64,9 @@ class AutocompleteSuggestion {
   /// overlay draws the same shield glyph `member_roles_sheet.dart` already
   /// uses for a role row, rather than the plain command-row fallback.
   final bool isRoleMention;
+
+  /// A bot command whose bot has no live socket: drawn dim, with the reason.
+  final bool offline;
 }
 
 /// The built-in slash commands: text substitution only, needing nothing from
@@ -372,6 +376,7 @@ List<AutocompleteSuggestion> _botCommandRows(
           insert: '${command.prefix}${command.name} ',
           label: '${command.prefix}${command.name}',
           detail: '${command.description} · ${command.botDisplayName}',
+          offline: command.offline,
         ),
   ];
 }

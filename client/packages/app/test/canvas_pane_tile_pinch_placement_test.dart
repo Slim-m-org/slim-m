@@ -62,7 +62,7 @@ void main() {
       // Well clear of Noor's default tile at world (24, 24) 140x140.
       final firstFinger = screenFor(tester, const Offset(250, 50));
       // Inside it.
-      final secondFinger = screenFor(tester, const Offset(60, 60));
+      final secondFinger = screenFor(tester, const Offset(160, 160));
 
       final first = await tester.startGesture(firstFinger);
       final second = await tester.startGesture(secondFinger);

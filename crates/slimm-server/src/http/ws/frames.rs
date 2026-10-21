@@ -6,7 +6,7 @@
 //! marked apart by their own `// --- Envelope ---` / `// --- Connection ---`
 //! section comments before this existed.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::http::canvas::CanvasObjectDto;
 use crate::http::channels::ChannelDto;
@@ -123,6 +123,24 @@ pub(super) enum ServerFrame {
         user_id: String,
         user_display_name: String,
         created_at: i64,
+        /// The values chosen from a select menu.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        values: Vec<String>,
+        /// A submitted form's answers by field `custom_id`.
+        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        fields: std::collections::BTreeMap<String, String>,
+        /// The press the form was opened on, on a submitted form.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        origin_interaction_id: Option<String>,
+    },
+    /// A bot opened a form for this account's click.
+    #[serde(rename = "interaction.form")]
+    InteractionForm {
+        interaction_id: String,
+        channel_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        message_id: Option<String>,
+        form: crate::components::form::Form,
     },
     /// The bot answered this account's click.
     #[serde(rename = "interaction.answered")]
@@ -256,6 +274,22 @@ pub(super) enum ServerFrame {
         op_id: String,
         before_seq: i64,
     },
+    /// A distinct type so a client that predates scoped clears ignores it rather than clearing everything.
+    #[serde(rename = "canvas.cleared_scoped")]
+    CanvasClearedScoped {
+        channel_id: String,
+        seq: i64,
+        op_id: String,
+        before_seq: i64,
+        kinds: Vec<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        author_id: Option<String>,
+        /// Locked objects the clear left standing; fewer ids than `spared_count` means refetch.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        spared_ids: Vec<String>,
+        #[serde(skip_serializing_if = "is_zero")]
+        spared_count: i64,
+    },
     #[serde(rename = "canvas.objects.restored")]
     CanvasObjectsRestored {
         channel_id: String,
@@ -279,12 +313,26 @@ pub(super) enum ServerFrame {
         object_id: String,
         points: Vec<f64>,
         ended: bool,
+        color: Option<String>,
+        width: Option<f64>,
     },
     #[serde(rename = "canvas.object_preview.updated")]
     CanvasObjectPreview {
         channel_id: String,
         user_id: String,
         object_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        ended: bool,
+    },
+    #[serde(rename = "canvas.media_slot_preview.updated")]
+    CanvasMediaSlotPreview {
+        channel_id: String,
+        user_id: String,
+        kind: String,
+        slot_user_id: String,
         x: f64,
         y: f64,
         w: f64,
@@ -435,82 +483,6 @@ impl ServerFrame {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-pub(super) enum ClientFrame {
-    #[serde(rename = "hello")]
-    Hello { ticket: String, protocol: u32 },
-    #[serde(rename = "ping")]
-    Ping,
-    /// A typing refresh. Rate-limited and authorized like any other channel
-    /// event (view plus send); see [`super::signals::handle_typing`]. There is
-    /// no explicit "stop" frame: the state lapses on its own without a refresh.
-    #[serde(rename = "typing")]
-    Typing { channel_id: String },
-    /// The channels this connection has open and focused right now, replacing
-    /// its previous report; empty when none. Lapses after
-    /// [`crate::viewing::VIEWING_TTL`], so a client refreshes it periodically.
-    /// Used only to skip push for what this account is already reading.
-    /// `active` says the user has used this device recently, which skips
-    /// message pushes to their other devices for a short while.
-    #[serde(rename = "viewing")]
-    Viewing {
-        channel_ids: Vec<String>,
-        #[serde(default)]
-        active: bool,
-    },
-    /// A pointer position on a channel's canvas. Rate-limited and authorized
-    /// the same bar the canvas HTTP routes use (view plus `USE_CANVAS`); see
-    /// [`super::signals::handle_canvas_cursor`]. No "stop" frame either, for
-    /// the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
-    #[serde(rename = "canvas.cursor")]
-    CanvasCursor {
-        channel_id: String,
-        x: f64,
-        y: f64,
-        /// The pointer left the canvas; see [`crate::hub::Event::CanvasCursorMoved`].
-        #[serde(default)]
-        left: bool,
-    },
-    /// An in-flight stroke preview on a channel's canvas. Rate-limited by the
-    /// frame's own byte size rather than by count, and authorized on the same
-    /// bar the canvas write route uses (view plus `USE_CANVAS`, plus a direct
-    /// timeout check a cursor frame does not need, since this one carries
-    /// drawing content); see
-    /// [`super::signals::handle_canvas_stroke_preview`].
-    #[serde(rename = "canvas.stroke_preview")]
-    CanvasStrokePreview {
-        channel_id: String,
-        object_id: String,
-        points: Vec<f64>,
-        #[serde(default)]
-        ended: bool,
-    },
-    /// The box of an object this client is dragging or resizing, so others
-    /// can follow it before the move commits. Gated like a cursor, plus a
-    /// timeout check; see [`super::signals::handle_canvas_object_preview`].
-    #[serde(rename = "canvas.object_preview")]
-    CanvasObjectPreview {
-        channel_id: String,
-        object_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        #[serde(default)]
-        ended: bool,
-    },
-    /// The world rectangle this client is looking at, so others can follow it
-    /// or be summoned to it; gated like a cursor, see
-    /// [`super::signals::handle_canvas_view`].
-    #[serde(rename = "canvas.view")]
-    CanvasView {
-        channel_id: String,
-        x: f64,
-        y: f64,
-        w: f64,
-        h: f64,
-        #[serde(default)]
-        summon: bool,
-    },
+fn is_zero(n: &i64) -> bool {
+    *n == 0
 }

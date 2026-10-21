@@ -20,7 +20,7 @@ import 'package:slimm_app/src/features/voice/screens/voice_join_preview.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_reconnect_banner.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';

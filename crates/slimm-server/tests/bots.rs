@@ -191,6 +191,38 @@ async fn a_revoked_bot_is_still_listed_with_no_live_token() {
     );
 }
 
+#[tokio::test]
+async fn the_listing_says_whether_a_bot_has_a_live_socket() {
+    let (store, _guard) = new_store("slimm-bots-online").await;
+    let (_admin_id, root) = admin(&store, "root").await;
+    let state = support::app::state(store);
+    let presence = state.hub.presence();
+    let app = slimm_server::http::router(state);
+    let (bot_id, _bot_token) = create_bot(&app, &root, "helper").await;
+    let id = UserId(bot_id.parse().unwrap());
+
+    async fn online(app: &Router, root: &str) -> serde_json::Value {
+        let listing = json_body(
+            app.clone()
+                .oneshot(request("GET", "/bots", root, None))
+                .await
+                .unwrap(),
+        )
+        .await;
+        listing[0]["online"].clone()
+    }
+
+    assert_eq!(online(&app, &root).await, json!(false), "nobody connected");
+    presence.connect(id);
+    assert_eq!(online(&app, &root).await, json!(true));
+    presence.disconnect(id);
+    assert_eq!(
+        online(&app, &root).await,
+        json!(false),
+        "the socket dropped"
+    );
+}
+
 /// The limit that stops one compromised credential outliving the response to
 /// it: a bot holding MANAGE_SERVER still cannot mint a second one.
 #[tokio::test]

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-# Fails when the web client's main.dart.js, gzipped, outgrows its budget; see docs/ci.md, "The web bundle budget".
+# Fails when the web client's main.dart.js, gzipped, outgrows its budget; see docs/ci-details.md, "The web bundle budget".
 set -euo pipefail
 
 readonly BUDGET_BYTES=2400000

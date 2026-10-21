@@ -1,24 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The composer's "Paste image" action: whether to offer it, and running it
-/// against callbacks the composer supplies.
-///
-/// Split out of `composer.dart` rather than folded into its already-tight
-/// line budget, and because this is more than the wrapper `_pickAttachment`
-/// already has: reading the clipboard can fail in a way worth explaining
-/// (see `composer_clipboard_image_stub.dart`'s [ClipboardImageReadException]),
-/// where a file pick's own failures are already handled at the picker seam.
-///
-/// [composerClipboardPasteAvailable] is a plain [Future], never awaited
-/// before opening the actions sheet: `showComposerActionsSheet` resolves it
-/// itself, after the sheet is already on screen. Awaiting it first was
-/// tried and reverted - a `MethodChannel` call with no handler registered
-/// never completes inside a `testWidgets` pump cycle (confirmed directly;
-/// it throws immediately in a bare `test()`, the only difference being
-/// which zone the await runs in), so gating the sheet's very appearance on
-/// it silently hung every existing test that opens this sheet without also
-/// mocking a channel it has no reason to know about.
+/// The composer's "Paste image" action: whether to offer it, and running it against callbacks the composer supplies.
+/// [composerClipboardPasteAvailable] is never awaited before the actions sheet opens: a `MethodChannel` call with no handler never completes in a `testWidgets` pump, so awaiting it hung every test that opens the sheet.
 library;
 
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'composer_clipboard_image.dart';
@@ -81,13 +68,8 @@ Future<bool> composerClipboardPasteAvailable({
 }) =>
     platform == TargetPlatform.iOS ? Future.value(false) : hasClipboardImage();
 
-/// Runs the whole "Paste image" action: clears [setError] up front, so a
-/// retry that succeeds does not leave a stale failure on screen, then reads
-/// the clipboard and either [stage]s the bytes (the composer's own
-/// `_stageAttachment`, handed over directly rather than wrapped) or reports
-/// a genuine read failure back through [setError].
-/// Neither runs when the clipboard simply held no image - that is a silent
-/// no-op, not a failure, the same way a cancelled file pick reports nothing.
+/// Runs "Paste image": clears [setError], reads the clipboard, then [stage]s the bytes or reports a real read failure through [setError].
+/// A clipboard with no image is a silent no-op, like a cancelled file pick.
 Future<void> pasteClipboardImage(
   Future<void> Function(Uint8List bytes, String filename) stage,
   void Function(String? message) setError,
@@ -95,7 +77,11 @@ Future<void> pasteClipboardImage(
   setError(null);
   try {
     final bytes = await readClipboardImage();
-    if (bytes != null) await stage(bytes, 'pasted-image.png');
+    if (bytes == null || bytes.isEmpty) {
+      setError('No image on the clipboard.');
+      return;
+    }
+    await stage(await clipboardImageAsPng(bytes), 'pasted-image.png');
   } on ClipboardImageReadException catch (e, stack) {
     AppLog.swallowed(
       LogTag.ui,
@@ -104,5 +90,49 @@ Future<void> pasteClipboardImage(
       stack,
     );
     setError(e.message);
+  }
+}
+
+const _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+/// The widest side a clipboard image may have before it is refused rather than decoded.
+const int maxClipboardImageSide = 8192;
+
+/// [bytes] as PNG, re-encoding another format (a Windows clipboard bitmap) so
+/// what is staged matches the name it is uploaded under.
+@visibleForTesting
+Future<Uint8List> clipboardImageAsPng(Uint8List bytes) async {
+  if (bytes.length >= _pngSignature.length &&
+      Iterable<int>.generate(
+        _pngSignature.length,
+      ).every((i) => bytes[i] == _pngSignature[i])) {
+    return bytes;
+  }
+  ui.Codec? codec;
+  ui.Image? image;
+  try {
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    final descriptor = await ui.ImageDescriptor.encoded(buffer);
+    if (descriptor.width > maxClipboardImageSide ||
+        descriptor.height > maxClipboardImageSide) {
+      descriptor.dispose();
+      throw const ClipboardImageReadException(
+        'That image is too large to paste.',
+      );
+    }
+    codec = await descriptor.instantiateCodec();
+    image = (await codec.getNextFrame()).image;
+    final png = await image.toByteData(format: ui.ImageByteFormat.png);
+    if (png == null) throw const FormatException('no PNG encoder');
+    return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+  } on ClipboardImageReadException {
+    rethrow;
+  } catch (_) {
+    throw const ClipboardImageReadException(
+      'The clipboard image could not be read.',
+    );
+  } finally {
+    image?.dispose();
+    codec?.dispose();
   }
 }

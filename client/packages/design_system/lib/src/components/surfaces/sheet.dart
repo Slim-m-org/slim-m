@@ -78,7 +78,21 @@ Future<T?> showAppSheet<T>(
   double maxWidth = kSheetMaxWidth,
   bool scrolls = false,
   bool bare = false,
+  String? semanticLabel,
 }) {
+  // Focus moves into the sheet, so keys stop reaching the page behind it; the label names it for a screen reader.
+  Widget content(BuildContext context) {
+    final body = FocusScope(autofocus: true, child: Builder(builder: builder));
+    if (semanticLabel == null) return body;
+    return Semantics(
+      scopesRoute: true,
+      namesRoute: true,
+      explicitChildNodes: true,
+      label: semanticLabel,
+      child: body,
+    );
+  }
+
   // Only overridden when reduced, so a full-motion viewer keeps Flutter's own stock timing rather than this app's own scale.
   final noAnimation =
       AppMotion.isReduced(context) ? AnimationStyle.noAnimation : null;
@@ -101,7 +115,7 @@ Future<T?> showAppSheet<T>(
             Flexible(
               child: _KeyboardInset(
                 scrolls: scrolls,
-                child: Builder(builder: builder),
+                child: content(context),
               ),
             ),
           ],
@@ -116,7 +130,7 @@ Future<T?> showAppSheet<T>(
       maxWidth: maxWidth,
       scrolls: scrolls,
       bare: bare,
-      child: Builder(builder: builder),
+      child: content(context),
     ),
   );
 }

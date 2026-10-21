@@ -108,4 +108,32 @@ void main() {
     expect(focused?.color, AppTokens.trueBlack.focusRing);
     expect(focused?.width, 2);
   });
+
+  testWidgets('a focused raw IconButton draws the mocha focusRing border', (
+    tester,
+  ) async {
+    final node = FocusNode();
+    addTearDown(node.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.mocha),
+        home: Scaffold(
+          body: IconButton(
+            focusNode: node,
+            icon: const Icon(Icons.close),
+            tooltip: 'Close',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    node.requestFocus();
+    await tester.pump();
+    await tester.pump();
+
+    final focused = _resolvedSide(tester, find.byType(IconButton));
+    expect(focused?.color, AppTokens.mocha.focusRing);
+    expect(focused?.width, 2);
+  });
 }

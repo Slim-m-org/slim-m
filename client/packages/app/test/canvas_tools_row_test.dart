@@ -349,7 +349,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.bySemanticsLabel('More canvas actions'));
+      // The first tap's menu is still open, and a second tap would close it.
       await tester.pumpAndSettle();
       expect(find.text('Delete'), findsOneWidget);
 

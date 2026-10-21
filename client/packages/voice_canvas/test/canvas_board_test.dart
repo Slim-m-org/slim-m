@@ -147,4 +147,25 @@ void main() {
     expect(
         document.clampToBoard(const Offset(3000, -20)), const Offset(1920, 0));
   });
+
+  test('a follower is centred on a leader zoomed past the limit', () {
+    const viewport = Size(1600, 900);
+    final view = Rect.fromCenter(
+      center: const Offset(960, 540),
+      width: 200,
+      height: 112.5,
+    );
+
+    final camera = cameraForBoardView(view, canvasBoard, viewport);
+
+    final shown = Rect.fromLTWH(
+      camera.x,
+      camera.y,
+      viewport.width / camera.zoom,
+      viewport.height / camera.zoom,
+    );
+    expect(camera.zoom, maxZoom);
+    expect(shown.center.dx, closeTo(960, 1e-6));
+    expect(shown.center.dy, closeTo(540, 1e-6));
+  });
 }

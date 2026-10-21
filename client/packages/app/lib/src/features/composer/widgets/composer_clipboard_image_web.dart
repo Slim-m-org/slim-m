@@ -1,25 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The web implementation: the browser's own `paste` DOM event, which hands
-/// over pasted bytes directly with no extra permission prompt.
-///
-/// This deliberately does not use the async `navigator.clipboard.read()`
-/// API: that one needs an explicit clipboard-read permission grant, while a
-/// `paste` event is the browser's ordinary reaction to Ctrl+V and needs
-/// none. Only an item whose MIME type starts with `image/` is treated as a
-/// pasted image; anything else (plain text, the common case) is left alone,
-/// so the browser's own default paste still lands wherever Flutter's text
-/// field is really backed by an `<input>` or `<textarea>`.
-///
-/// State here is module-level rather than per-instance because the seam it
-/// backs ([startClipboardImagePaste]) is itself a pair of top-level
-/// functions: only one composer is ever focused at a time, so one active
-/// listener is all this needs to hold.
-///
-/// [hasClipboardImage] and [readClipboardImage] are the mobile seam's
-/// poll-and-tap pair (see `composer_clipboard_image_stub.dart`); the browser
-/// has no permission-free way to check clipboard contents ahead of a real
-/// paste, so both are no-ops here and the "Paste image" row they gate never
-/// shows on web - Ctrl+V through the listener above is already the way in.
+/// The web implementation: the browser's `paste` event hands over bytes with no permission prompt; only a tapped "Paste image" uses `navigator.clipboard.read()`.
+/// State is module-level (the seam is top-level functions): the newest caller gets the paste and hands it back when it stops. [hasClipboardImage] stays false, as the browser cannot check ahead.
 library;
 
 import 'dart:async';
@@ -28,48 +9,34 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
-/// False here: the browser hands the bytes over on its own
-/// `paste` event, so a keystroke that also polled would stage the same image
-/// twice. [hasClipboardImage] answers false on web anyway, so this is belt
-/// and braces rather than the only thing stopping it.
+/// False here: the browser hands the bytes over on its own `paste` event, so a polling keystroke would stage the image twice.
 const bool pasteKeystrokeReadsClipboardImage = false;
 
-/// A pasted image's bytes and a filename, also the ownership token
-/// [stopClipboardImagePaste] checks - declared independently of the stub's
-/// own copy since the two are conditional-import siblings, the same reason
-/// [ClipboardImageReadException] below is duplicated rather than shared.
+/// A pasted image's bytes and filename, also the ownership token [stopClipboardImagePaste] checks; duplicated from the stub because conditional-import siblings cannot share it.
 typedef PastedImageHandler = void Function(Uint8List bytes, String filename);
 
-PastedImageHandler? _onImage;
+final _handlers = <PastedImageHandler>[];
 JSFunction? _listener;
 
 /// Starts listening for a pasted image; call once per focus gained, paired
 /// with [stopClipboardImagePaste] on focus lost.
 void startClipboardImagePaste(PastedImageHandler onImage) {
-  _teardown();
-  _onImage = onImage;
+  // == rather than identical(): two tear-offs of one instance method are == but never identical.
+  _handlers
+    ..removeWhere((h) => h == onImage)
+    ..add(onImage);
+  if (_listener != null) return;
   final listener = _handlePaste.toJS;
   _listener = listener;
   web.document.addEventListener('paste', listener);
 }
 
-/// Stops listening, but only while [onImage] is still the registered
-/// callback - not merely "safe to call even if nothing was ever started",
-/// which was this function's whole contract before a real race exposed the
-/// gap in it: the canvas pane's own doc once reasoned that an unmounting
-/// caller's stop "would silently replace this one anyway" if a newer caller
-/// had already started, which is backwards when the *unmounting* caller's
-/// stop is the one that runs second. A composer losing focus right as the
-/// canvas opened called this after the canvas's own `start()` had already
-/// taken over, and since both shared one unconditional global, the
-/// composer's stale `stop()` tore down the canvas's listener - paste then
-/// did nothing, silently, because `_onImage` read null on every keystroke
-/// after. Found by an end-to-end scenario driving a real paste on the
-/// canvas, never by a widget test, since nothing here exercised two
-/// callers racing for the same global.
+/// Stops [onImage]'s turn; an earlier caller still listening gets the paste
+/// back. A stale stop from a composer losing focus once tore down the open
+/// canvas's listener, so this never touches another caller's registration.
 void stopClipboardImagePaste(PastedImageHandler onImage) {
-  // == rather than identical(): two tear-offs of one instance method are == but never identical.
-  if (_onImage == onImage) _teardown();
+  _handlers.removeWhere((h) => h == onImage);
+  if (_handlers.isEmpty) _teardown();
 }
 
 void _teardown() {
@@ -78,23 +45,46 @@ void _teardown() {
     web.document.removeEventListener('paste', listener);
   }
   _listener = null;
-  _onImage = null;
 }
 
 /// Always false: see this file's doc comment for why the browser cannot
 /// answer this without a permission prompt of its own.
 Future<bool> hasClipboardImage() async => false;
 
-/// Always null, matching [hasClipboardImage].
-Future<Uint8List?> readClipboardImage() async => null;
+/// The clipboard's first image, for a tapped "Paste image"; null when it
+/// holds none. The browser may refuse the read, which is reported.
+Future<Uint8List?> readClipboardImage() async {
+  try {
+    final items = (await web.window.navigator.clipboard.read().toDart).toDart;
+    for (final item in items) {
+      for (final type in item.types.toDart) {
+        final mime = type.toDart;
+        if (!mime.startsWith('image/')) continue;
+        final blob = await item.getType(mime).toDart;
+        final buffer = await blob.arrayBuffer().toDart;
+        return buffer.toDart.asUint8List();
+      }
+    }
+    return null;
+  } catch (_) {
+    throw const ClipboardImageReadException(
+      'The browser did not let this page read the clipboard. Try Ctrl+V.',
+    );
+  }
+}
 
 void _handlePaste(web.ClipboardEvent event) =>
     unawaited(_readPastedImage(event));
 
 Future<void> _readPastedImage(web.ClipboardEvent event) async {
-  final onImage = _onImage;
-  final items = event.clipboardData?.items;
-  if (onImage == null || items == null) return;
+  final onImage = _handlers.isEmpty ? null : _handlers.last;
+  final data = event.clipboardData;
+  final items = data?.items;
+  if (onImage == null || data == null || items == null) return;
+  // Copied cells or a document carry text beside their picture; pasted into a text field, the text is what was meant.
+  if (_targetsTextField(event) && data.getData('text/plain').isNotEmpty) {
+    return;
+  }
   for (var i = 0; i < items.length; i++) {
     final item = items[i];
     if (!item.type.startsWith('image/')) continue;
@@ -108,6 +98,15 @@ Future<void> _readPastedImage(web.ClipboardEvent event) async {
   }
 }
 
+bool _targetsTextField(web.Event event) {
+  final target = event.target;
+  if (target == null || !target.isA<web.HTMLElement>()) return false;
+  final element = target as web.HTMLElement;
+  return element.isA<web.HTMLInputElement>() ||
+      element.isA<web.HTMLTextAreaElement>() ||
+      element.isContentEditable;
+}
+
 String _filenameFor(String mimeType) {
   final extension = switch (mimeType) {
     'image/png' => 'png',
@@ -119,16 +118,8 @@ String _filenameFor(String mimeType) {
   return 'pasted-image.$extension';
 }
 
-/// The web half of the seam's exception type.
-///
-/// Declared here as well as in the stub because the two are conditional-
-/// import siblings: a caller writing `on ClipboardImageReadException` must
-/// compile on every target, and a type that exists on one side only fails
-/// dart2js while passing `dart analyze` outright. That is exactly how the
-/// web build broke without any gate noticing.
-///
-/// Nothing on this target throws it - the browser paste event hands over
-/// bytes or nothing - but the type must exist for the catch to compile.
+/// The web half of the exception type, declared here too because conditional-import siblings must both define it or dart2js fails while `dart analyze` passes.
+/// Thrown when the browser refuses a tapped clipboard read.
 class ClipboardImageReadException implements Exception {
   const ClipboardImageReadException(this.message);
 

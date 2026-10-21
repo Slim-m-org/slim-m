@@ -18,6 +18,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/auth/screens/sign_in_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import '../../support/mock_app_version.dart';
 
@@ -149,6 +150,13 @@ void main() {
           loginCalls++;
           return http.Response(
             jsonEncode(_tokens.toJson()),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path == '/version') {
+          return http.Response(
+            jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
             200,
             headers: const {'content-type': 'application/json'},
           );

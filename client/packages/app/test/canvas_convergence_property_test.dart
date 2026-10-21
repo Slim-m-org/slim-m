@@ -111,7 +111,8 @@ void expectConverged(
           '($id)',
     );
     expect(
-      document.applyPlaced(_originalInputFor(oracle, id)),
+      // The read a restore triggers is a snapshot, which is what may add it back.
+      document.applyPlaced(_originalInputFor(oracle, id), overwrite: true),
       isNotNull,
       reason: '$label: a restore must actually lift the tombstone for $id',
     );

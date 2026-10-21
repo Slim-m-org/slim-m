@@ -26,6 +26,18 @@ async fn migrator() -> Migrator {
         .expect("resolve migrations")
 }
 
+/// Applies 0081 and stops there: later migrations drop the legacy columns
+/// these tests read.
+async fn apply_0081(pool: &SqlitePool) {
+    let mut through = migrator().await;
+    through.migrations = through
+        .iter()
+        .filter(|m| m.version <= VERSION)
+        .cloned()
+        .collect();
+    through.run(pool).await.expect("apply 0081");
+}
+
 async fn pool_at_0080() -> (SqlitePool, support::TestDbGuard) {
     let (path, guard) = support::TestDbGuard::empty("slimm-notif-schedule-backfill");
     let options = SqliteConnectOptions::new()
@@ -82,7 +94,7 @@ async fn a_quiet_hours_user_is_migrated_into_a_utc_schedule() {
     let (pool, _guard) = pool_at_0080().await;
     seed(&pool).await;
 
-    migrator().await.run(&pool).await.expect("apply 0081");
+    apply_0081(&pool).await;
 
     let ada = vec![0x01u8; 16];
     let header = sqlx::query("SELECT timezone, off_hours_mode, snooze_until FROM notification_schedules WHERE user_id = ?")
@@ -123,7 +135,7 @@ async fn a_user_with_no_quiet_hours_gets_no_schedule_row() {
     let (pool, _guard) = pool_at_0080().await;
     seed(&pool).await;
 
-    migrator().await.run(&pool).await.expect("apply 0081");
+    apply_0081(&pool).await;
 
     let bram = vec![0x02u8; 16];
     let count: i64 =
@@ -136,13 +148,13 @@ async fn a_user_with_no_quiet_hours_gets_no_schedule_row() {
 }
 
 /// The migration reads `users.quiet_hours_*` but never writes to it: the old
-/// `/push/quiet-hours` route still serves the exact same values afterward.
+/// old columns keep the exact same values afterward.
 #[tokio::test]
 async fn the_migration_leaves_the_legacy_columns_untouched() {
     let (pool, _guard) = pool_at_0080().await;
     seed(&pool).await;
 
-    migrator().await.run(&pool).await.expect("apply 0081");
+    apply_0081(&pool).await;
 
     let ada = vec![0x01u8; 16];
     let row = sqlx::query(

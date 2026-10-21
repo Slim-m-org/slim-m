@@ -22,7 +22,9 @@ Future<CanvasPaneFixture> _openPane(
   int channelPermissions = 0,
 }) async {
   final fixture = CanvasPaneFixture(channelPermissions: channelPermissions)
-    ..objects = [canvasNoteJson('note', authorId: authorId, text: 'before')];
+    ..objects = [
+      canvasNoteJson('note', x: 400, authorId: authorId, text: 'before'),
+    ];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -39,7 +41,16 @@ Future<void> _mouseClick(WidgetTester tester, Offset at) async {
   await tester.pump();
 }
 
-const _onNote = Offset(15, 15);
+const _onNote = Offset(415, 15);
+
+/// A finger's first tap selects the note and its second opens the editor.
+Future<void> _fingerTapTwice(WidgetTester tester) async {
+  final at = screenFor(tester, _onNote);
+  await tester.tapAt(at);
+  await tester.pump(const Duration(milliseconds: 100));
+  await tester.tapAt(at);
+  await tester.pump();
+}
 
 void main() {
   testWidgets('a double click with a mouse opens the editor on the note', (
@@ -70,11 +81,21 @@ void main() {
     expect(find.byType(CanvasNoteEditor), findsNothing);
   });
 
-  testWidgets('a single tap with a finger opens the editor', (tester) async {
+  testWidgets('a first tap with a finger only selects the note', (
+    tester,
+  ) async {
     await _openPane(tester);
 
     await tester.tapAt(screenFor(tester, _onNote));
     await tester.pump();
+
+    expect(find.byType(CanvasNoteEditor), findsNothing);
+  });
+
+  testWidgets('a second tap with a finger opens the editor', (tester) async {
+    await _openPane(tester);
+
+    await _fingerTapTwice(tester);
 
     expect(find.byType(CanvasNoteEditor), findsOneWidget);
   });
@@ -83,7 +104,7 @@ void main() {
     await _openPane(tester);
 
     final gesture = await tester.startGesture(screenFor(tester, _onNote));
-    await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+    await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -105,8 +126,7 @@ void main() {
     tester,
   ) async {
     final fixture = await _openPane(tester);
-    await tester.tapAt(screenFor(tester, _onNote));
-    await tester.pump();
+    await _fingerTapTwice(tester);
 
     await tester.enterText(
       find.descendant(
@@ -119,10 +139,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(CanvasNoteEditor), findsNothing);
-    expect(fixture.postedOps, hasLength(1));
-    expect(fixture.postedOps.single['kind'], 'edit');
-    expect(fixture.postedOps.single['object_id'], 'note');
-    expect(fixture.postedOps.single['props'], {'text': 'after **bold**'});
+    final edits = fixture.postedOps.where((op) => op['kind'] == 'edit');
+    expect(edits, hasLength(1));
+    expect(edits.single['object_id'], 'note');
+    expect(edits.single['props'], {'text': 'after **bold**'});
     expect(surfaceDocument(tester).noteTextOf('note'), 'after **bold**');
 
     await tester.tap(find.bySemanticsLabel('Undo'));
@@ -140,8 +160,7 @@ void main() {
     tester,
   ) async {
     final fixture = await _openPane(tester);
-    await tester.tapAt(screenFor(tester, _onNote));
-    await tester.pump();
+    await _fingerTapTwice(tester);
     await tester.enterText(
       find.descendant(
         of: find.byType(CanvasNoteEditor),
@@ -165,7 +184,9 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final fixture = CanvasPaneFixture()
-        ..objects = [canvasNoteJson('note', authorId: 'me', text: 'before')];
+        ..objects = [
+          canvasNoteJson('note', x: 400, authorId: 'me', text: 'before'),
+        ];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -174,8 +195,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
       expect(container.read(memberPaneVisibleProvider), isTrue);
-      await tester.tapAt(screenFor(tester, _onNote));
-      await tester.pump();
+      await _fingerTapTwice(tester);
       expect(find.byType(CanvasNoteEditor), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -190,8 +210,7 @@ void main() {
     tester,
   ) async {
     final fixture = await _openPane(tester);
-    await tester.tapAt(screenFor(tester, _onNote));
-    await tester.pump();
+    await _fingerTapTwice(tester);
     await tester.showKeyboard(
       find.descendant(
         of: find.byType(CanvasNoteEditor),

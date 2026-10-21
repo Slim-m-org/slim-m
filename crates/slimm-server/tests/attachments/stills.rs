@@ -97,16 +97,10 @@ async fn a_gif_without_w_is_still_the_moving_original() {
 async fn an_uploaded_gif_is_given_its_stills_before_anyone_asks() {
     let r = ready("loop.gif", animated_gif(900, 600)).await;
 
-    let mut stored = 0;
-    for _ in 0..250 {
-        stored = r.media.previews().files().await.unwrap().len();
-        if stored == 3 {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-
-    assert_eq!(stored, 3, "one still per size bucket");
+    crate::support::wait::wait_until_async("one still per size bucket", || async {
+        r.media.previews().files().await.unwrap().len() == 3
+    })
+    .await;
 }
 
 #[tokio::test]

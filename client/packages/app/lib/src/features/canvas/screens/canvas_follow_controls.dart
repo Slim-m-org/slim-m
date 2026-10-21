@@ -2,11 +2,14 @@
 /// Follow someone's view, or bring everyone to yours.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../widgets/confirm_dialog.dart';
 import '../../members/widgets/user_avatar.dart';
 import 'canvas_view_relay.dart';
 
@@ -32,7 +35,12 @@ List<CanvasFollowTarget> canvasFollowTargets({
   return byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
 }
 
-class CanvasFollowControls extends StatelessWidget {
+/// Clears the top-left corner's rows: two rows of 44 at touch size, two of 28 otherwise.
+double _topInset(BuildContext context) => AppTouchTargets.of(context)
+    ? AppSpacing.s12 + 2 * AppSizes.rowTouch + 2 * AppSpacing.s8
+    : AppSpacing.s64;
+
+class CanvasFollowControls extends StatefulWidget {
   const CanvasFollowControls({
     super.key,
     required this.relay,
@@ -40,6 +48,7 @@ class CanvasFollowControls extends StatelessWidget {
     required this.participants,
     required this.selfId,
     required this.onBringEveryone,
+    this.canBringEveryone = true,
   });
 
   final CanvasViewRelay relay;
@@ -48,38 +57,116 @@ class CanvasFollowControls extends StatelessWidget {
   final String? selfId;
   final VoidCallback onBringEveryone;
 
+  /// False in the personal view, whose camera is never relayed (decision 0082).
+  final bool canBringEveryone;
+
+  @override
+  State<CanvasFollowControls> createState() => _CanvasFollowControlsState();
+}
+
+class _CanvasFollowControlsState extends State<CanvasFollowControls> {
+  List<CanvasFollowTarget> _targets = const [];
+  String? _followed;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.cursors.addListener(_refresh);
+    widget.relay.following.addListener(_refresh);
+    _targets = _compute();
+    _followed = widget.relay.following.value;
+  }
+
+  @override
+  void didUpdateWidget(covariant CanvasFollowControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cursors != widget.cursors) {
+      oldWidget.cursors.removeListener(_refresh);
+      widget.cursors.addListener(_refresh);
+    }
+    if (oldWidget.relay != widget.relay) {
+      oldWidget.relay.following.removeListener(_refresh);
+      widget.relay.following.addListener(_refresh);
+    }
+    _refresh(force: true);
+  }
+
+  @override
+  void dispose() {
+    widget.cursors.removeListener(_refresh);
+    widget.relay.following.removeListener(_refresh);
+    super.dispose();
+  }
+
+  List<CanvasFollowTarget> _compute() => canvasFollowTargets(
+    cursors: widget.cursors.all,
+    participants: widget.participants,
+    selfId: widget.selfId,
+  );
+
+  // Cursor frames arrive at pointer rate; only who can be followed matters here.
+  void _refresh({bool force = false}) {
+    if (!mounted) return;
+    final targets = _compute();
+    final followed = widget.relay.following.value;
+    final same =
+        followed == _followed &&
+        targets.length == _targets.length &&
+        [for (var i = 0; i < targets.length; i++) i].every(
+          (i) =>
+              targets[i].id == _targets[i].id &&
+              targets[i].name == _targets[i].name,
+        );
+    if (same && !force) return;
+    setState(() {
+      _targets = targets;
+      _followed = followed;
+    });
+  }
+
+  // Someone who left can no longer be followed, so their return must not pull the camera.
+  void _dropFollowedWhoLeft() {
+    final followed = _followed;
+    if (followed == null || _targets.any((t) => t.id == followed)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.relay.forget(followed);
+    });
+  }
+
+  Future<void> _confirmBringEveryone() async {
+    final confirmed = await confirmDangerousAction(
+      context,
+      title: 'Bring everyone to you?',
+      message:
+          'Every viewer jumps to the part of the board you are looking at.',
+      confirmLabel: 'Bring everyone',
+    );
+    if (confirmed) widget.onBringEveryone();
+  }
+
   @override
   Widget build(BuildContext context) {
+    _dropFollowedWhoLeft();
+    final followed = _followed;
+    if (_targets.isEmpty && followed == null) return const SizedBox.shrink();
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Align(
       alignment: Alignment.topRight,
       child: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
+        minimum: EdgeInsets.fromLTRB(
           AppSpacing.s12,
-          AppSpacing.s48,
+          _topInset(context),
           AppSpacing.s12,
           AppSpacing.s12,
         ),
-        child: ListenableBuilder(
-          listenable: Listenable.merge([cursors, relay.following]),
-          builder: (context, _) {
-            final targets = canvasFollowTargets(
-              cursors: cursors.all,
-              participants: participants,
-              selfId: selfId,
-            );
-            final followed = relay.following.value;
-            if (targets.isEmpty && followed == null) {
-              return const SizedBox.shrink();
-            }
-            return _Panel(
-              tokens: tokens,
-              targets: targets,
-              followed: followed,
-              relay: relay,
-              onBringEveryone: onBringEveryone,
-            );
-          },
+        child: _Panel(
+          tokens: tokens,
+          targets: _targets,
+          followed: followed,
+          relay: widget.relay,
+          onBringEveryone: widget.canBringEveryone
+              ? () => unawaited(_confirmBringEveryone())
+              : null,
         ),
       ),
     );
@@ -99,7 +186,7 @@ class _Panel extends StatelessWidget {
   final List<CanvasFollowTarget> targets;
   final String? followed;
   final CanvasViewRelay relay;
-  final VoidCallback onBringEveryone;
+  final VoidCallback? onBringEveryone;
 
   @override
   Widget build(BuildContext context) {
@@ -114,35 +201,51 @@ class _Panel extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final target in targets)
-            _PersonButton(
-              target: target,
-              selected: target.id == followed,
-              tokens: tokens,
-              onTap: () => target.id == followed
-                  ? relay.stopFollowing()
-                  : relay.follow(target.id),
+          // Scrolls rather than overflowing, so the buttons after it stay on screen in a big call.
+          Flexible(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final target in targets)
+                    _PersonButton(
+                      target: target,
+                      selected: target.id == followed,
+                      tokens: tokens,
+                      onTap: () => target.id == followed
+                          ? relay.stopFollowing()
+                          : relay.follow(target.id),
+                    ),
+                ],
+              ),
             ),
-          if (following != null)
+          ),
+          if (followed != null)
             AppIconButton(
               icon: AppIcons.dismiss,
-              semanticLabel: 'Stop following ${following.name}',
-              tooltip: 'Stop following ${following.name}',
+              semanticLabel: following == null
+                  ? 'Stop following'
+                  : 'Stop following ${following.name}',
+              tooltip: following == null
+                  ? 'Stop following'
+                  : 'Stop following ${following.name}',
               onPressed: relay.stopFollowing,
             ),
-          AppIconButton(
-            icon: AppIcons.recenter,
-            semanticLabel: 'Bring everyone to me',
-            tooltip: 'Bring everyone to me',
-            onPressed: onBringEveryone,
-          ),
+          if (onBringEveryone != null)
+            AppIconButton(
+              icon: AppIcons.members,
+              semanticLabel: 'Bring everyone to me',
+              tooltip: 'Bring everyone to me',
+              onPressed: onBringEveryone,
+            ),
         ],
       ),
     );
   }
 }
 
-class _PersonButton extends StatelessWidget {
+class _PersonButton extends StatefulWidget {
   const _PersonButton({
     required this.target,
     required this.selected,
@@ -156,42 +259,74 @@ class _PersonButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: selected
-        ? 'Following ${target.name}, tap to stop'
-        : 'Follow ${target.name}',
-    excludeSemantics: true,
-    onTap: onTap,
-    child: Tooltip(
-      message: selected
-          ? 'Stop following ${target.name}'
-          : 'Follow ${target.name}',
-      child: InkResponse(
-        onTap: onTap,
-        radius: AppSpacing.s24,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? tokens.accentFill : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: UserAvatar(
-                name: target.name,
-                userId: target.id,
-                size: AppAvatarSize.s24,
+  State<_PersonButton> createState() => _PersonButtonState();
+}
+
+class _PersonButtonState extends State<_PersonButton> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = widget.target;
+    final selected = widget.selected;
+    final tokens = widget.tokens;
+    final touch = AppTouchTargets.of(context);
+    // Layout room around the 32 square, so its hit area reaches a full 44 at touch density.
+    return Padding(
+      padding: EdgeInsets.all(touch ? (AppSizes.rowTouch - 32) / 2 : 0),
+      child: AppTouchHitArea(
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: selected
+              ? 'Following ${target.name}, tap to stop'
+              : 'Follow ${target.name}',
+          excludeSemantics: true,
+          onTap: widget.onTap,
+          child: Tooltip(
+            message: selected
+                ? 'Stop following ${target.name}'
+                : 'Follow ${target.name}',
+            child: InkResponse(
+              onTap: widget.onTap,
+              onFocusChange: (focused) => setState(() => _focused = focused),
+              radius: AppSpacing.s24,
+              // An outer ring, not a recolour: focusRing and accentFill are the same colour, and selection owns the inner ring.
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _focused ? tokens.focusRing : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? tokens.accentFill
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: UserAvatar(
+                        name: target.name,
+                        userId: target.id,
+                        size: AppAvatarSize.s24,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

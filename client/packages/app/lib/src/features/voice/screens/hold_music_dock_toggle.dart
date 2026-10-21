@@ -13,6 +13,7 @@ import '../../../audio/lounge_tracks.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../../widgets/control_options_menu.dart';
+import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../widgets/call_dock_button.dart';
 
 class HoldMusicDockToggle extends ConsumerWidget {
@@ -67,4 +68,42 @@ class HoldMusicDockToggle extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// The music controls as menu rows, for a dock too narrow to give the button its own slot.
+List<ControlOptionEntry> holdMusicMenuOptions(WidgetRef ref) {
+  final settings = ref.read(voiceSettingsControllerProvider.notifier);
+  final state = ref.watch(voiceSettingsControllerProvider);
+  final on = state.holdMusicEnabled;
+  final track = state.holdMusicTrack;
+  void play(LoungeTrack next) {
+    unawaited(settings.setHoldMusicTrack(next));
+    if (!on) {
+      unawaited(settings.setHoldMusicEnabled(true));
+      ref.read(holdMusicControllerProvider).startNow();
+    }
+  }
+
+  return [
+    const ControlOptionHeading('Music while alone'),
+    ControlOption(
+      label: on ? 'Pause music' : 'Play music',
+      icon: AppIcons.music,
+      onSelected: () {
+        unawaited(settings.setHoldMusicEnabled(!on));
+        if (!on) ref.read(holdMusicControllerProvider).startNow();
+      },
+    ),
+    for (final style in LoungeTrack.values)
+      ControlOption(
+        label: style.style,
+        selected: style == track,
+        onSelected: () => play(style),
+      ),
+    ControlOption(
+      label: 'Next track',
+      icon: AppIcons.callSkipNext,
+      onSelected: () => play(track.next),
+    ),
+  ];
 }

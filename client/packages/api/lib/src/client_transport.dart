@@ -127,7 +127,7 @@ extension SlimmApiTransport on SlimmApi {
     try {
       return jsonDecode(response.body) as Object;
     } catch (e) {
-      throw TransportException(
+      throw UnreadableReplyException(
         'could not decode the reply to $method $path: $e',
       );
     }

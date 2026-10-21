@@ -14,11 +14,14 @@
 /// during a disconnect would otherwise never be corrected.
 library;
 
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_cursor_relay.dart' show cursorSendInterval;
+import 'canvas_retry.dart';
 import 'canvas_presence_geometry.dart'
     show presenceTileIdentity, presenceTileKeyForSlot, presenceTileKind;
 
@@ -27,20 +30,89 @@ class CanvasMediaSlotSync {
     required this.channelId,
     required this.client,
     required this.overrides,
-  });
+    this.onError,
+    this.sendPreview,
+    this.selfId,
+    this.isBlocked,
+  }) {
+    overrides.onSharedRectDragged = (key, rect) => reportDrag(key, rect);
+  }
 
   final String channelId;
   final api.SlimmApi client;
   final CanvasPresenceTileOverrides overrides;
 
+  /// Told when a tile change could not be saved and was put back.
+  final void Function(String message)? onError;
+
+  /// Streams a tile's box mid-drag; null leaves tile drags visible to others only on commit.
+  final void Function(String key, Rect rect, {required bool ended})?
+  sendPreview;
+  final String? Function()? selfId;
+  final bool Function(String userId)? isBlocked;
+
+  final Map<String, Future<void>> _tails = {};
+  final Map<String, Timer> _abandon = {};
+  DateTime? _lastPreview;
+
+  /// How long a stream may go quiet without a commit before the drag counts as abandoned.
+  static const _abandonAfter = Duration(seconds: 3);
+
+  /// Call on every shared-view drag step; throttled like the other ephemeral previews.
+  void reportDrag(String key, Rect rect, {DateTime? now}) {
+    final send = sendPreview;
+    if (send == null) return;
+    final at = now ?? DateTime.now();
+    _abandon[key]?.cancel();
+    _abandon[key] = Timer(_abandonAfter, () => _endPreview(key, rect));
+    final last = _lastPreview;
+    if (last != null &&
+        at.isAfter(last) &&
+        at.difference(last) < cursorSendInterval) {
+      return;
+    }
+    _lastPreview = at;
+    send(key, rect, ended: false);
+  }
+
+  void _endPreview(String key, Rect rect) {
+    if (_abandon.remove(key) == null) return;
+    _abandon[key]?.cancel();
+    sendPreview?.call(key, rect, ended: true);
+  }
+
+  /// Drops pending abandon timers; the pane calls this when it goes away.
+  void dispose() {
+    for (final timer in _abandon.values) {
+      timer.cancel();
+    }
+    _abandon.clear();
+    overrides.onSharedRectDragged = null;
+  }
+
+  /// Shows another member's streamed tile drag; a locked tile, a blocked sender and this device's own frames are ignored.
+  void applyRemotePreview(api.CanvasMediaSlotPreview event) {
+    if (event.channelId != channelId) return;
+    if (event.userId == selfId?.call()) return;
+    if (isBlocked?.call(event.userId) ?? false) return;
+    final key = presenceTileKeyForSlot(event.kind, event.slotUserId);
+    if (event.ended) {
+      overrides.revertToServer(key);
+      return;
+    }
+    overrides.showRemoteRect(
+      key,
+      Rect.fromLTWH(event.x, event.y, event.w, event.h),
+    );
+  }
+
   /// Every slot this channel's canvas currently remembers, applied once.
-  /// Failures are silent and leave every tile at its default arrangement -
-  /// the same degrade a lost viewport read already falls back to, rather
-  /// than blocking the canvas on this one read.
+  /// A failure after the retries leaves every tile at its default
+  /// arrangement; the next reconnect fetches again.
   Future<void> fetch() async {
     final api.CanvasMediaSlotPage page;
     try {
-      page = await client.canvasMediaSlots(channelId);
+      page = await retryCanvasRequest(() => client.canvasMediaSlots(channelId));
     } on api.ApiException catch (error, stack) {
       api.reportFailure(api.LogTag.ui, 'load canvas media slots', error, stack);
       return;
@@ -55,26 +127,34 @@ class CanvasMediaSlotSync {
     }
   }
 
-  /// Sends [key]'s now-settled [rect], plus whatever `overrides.stateFor(key)`
-  /// currently says about lock and depth, to the server. Best-effort and
-  /// fire-and-forget, the same shape `VoiceController.leave()`'s own
-  /// heartbeat call already uses: a failed write leaves the caller's own
-  /// optimistic local update standing, with nowhere better to report a
-  /// canvas drag's own failure than a `SnackBar` nobody asked for.
-  Future<void> commit(String key, Rect rect) async {
+  /// Sends [key]'s settled [rect] with its lock and depth; writes for one key run in order, and a refused or lost write puts the tile back where the server has it.
+  Future<void> commit(String key, Rect rect) {
+    // A personal-view move is this viewer's alone, so nothing is sent.
+    if (overrides.personal) return Future.value();
+    _abandon.remove(key)?.cancel();
+    final previous = _tails[key] ?? Future<void>.value();
+    final next = previous.then((_) => _put(key, rect));
+    _tails[key] = next;
+    return next;
+  }
+
+  Future<void> _put(String key, Rect rect) async {
     final state = overrides.stateFor(key);
     try {
-      await client.putCanvasMediaSlot(
-        channelId,
-        kind: presenceTileKind(key),
-        userId: presenceTileIdentity(key),
-        x: rect.left,
-        y: rect.top,
-        w: rect.width,
-        h: rect.height,
-        locked: state.locked,
-        sentToBack: state.sentToBack,
+      await retryCanvasRequest(
+        () => client.putCanvasMediaSlot(
+          channelId,
+          kind: presenceTileKind(key),
+          userId: presenceTileIdentity(key),
+          x: rect.left,
+          y: rect.top,
+          w: rect.width,
+          h: rect.height,
+          locked: state.locked,
+          sentToBack: state.sentToBack,
+        ),
       );
+      overrides.confirm(key);
     } on api.ApiException catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -82,9 +162,17 @@ class CanvasMediaSlotSync {
         error,
         stack,
       );
-      // Best-effort; see this method's own doc.
+      overrides.revertToServer(key);
+      sendPreview?.call(key, overrides.stateFor(key).rect ?? rect, ended: true);
+      onError?.call(_explain(error));
     }
   }
+
+  static String _explain(api.ApiException error) => switch (error) {
+    api.ForbiddenException() =>
+      'That tile is locked or you cannot move it now.',
+    _ => 'That tile change could not be saved.',
+  };
 
   /// Applies a live `canvas.media_slot.changed` frame naming this channel.
   void applyRemote(api.CanvasMediaSlotChanged event) {

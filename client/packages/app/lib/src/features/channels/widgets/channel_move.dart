@@ -13,15 +13,6 @@ import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 
 import 'channel_rail_reorder.dart' show ChannelSection;
 
-/// What a channel row's menu needs to offer Move up and Move down.
-class ChannelMoveActions {
-  const ChannelMoveActions({required this.canMove, required this.move});
-
-  /// Whether a step of [delta] (-1 up, +1 down) lands anywhere.
-  final bool Function(int delta) canMove;
-  final void Function(int delta) move;
-}
-
 /// The whole rail's arrangement after moving [channelId] one step by [delta],
 /// or null when it is already at that end. [collapsed] holds category ids.
 List<ChannelOrderGroup>? groupsAfterStep(

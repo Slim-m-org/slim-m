@@ -86,13 +86,18 @@ void main() {
         const Rect.fromLTWH(960, 540, 480, 270),
         summon: false,
       );
+      container
+          .read(canvasEngineProvider('c1').notifier)
+          .cursors
+          .upsert(id: 'amy', x: 1, y: 1, label: 'Amy', colorIndex: 0);
       relay.follow('amy');
-      await tester.pump();
+      // The camera eases to a followed view over a glide, not in one frame.
+      await tester.pump(const Duration(milliseconds: 250));
       expect(document.isFitted, isFalse);
       expect(relay.following.value, 'amy');
 
       tester.view.physicalSize = const Size(1000, 800);
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       expect(relay.following.value, 'amy', reason: 'a resize only refits');
 
       document.setCamera(document.camera.copyWith(x: document.camera.x - 20));
@@ -100,6 +105,23 @@ void main() {
       expect(relay.following.value, isNull, reason: 'the follower moved');
     },
   );
+
+  testWidgets('choosing the personal view stops following', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true, tool: null);
+    final engine = container.read(canvasEngineProvider('c1').notifier);
+    engine.viewRelay.follow('amy');
+
+    engine.viewMode.showPersonal();
+
+    expect(engine.viewRelay.following.value, isNull);
+  });
 
   testWidgets('a person on the canvas can be followed and unfollowed', (
     tester,
@@ -200,9 +222,10 @@ void main() {
   for (final (size, docked) in [
     (const Size(1280, 800), true),
     (const Size(390, 844), false),
+    (const Size(1280, 400), false),
   ]) {
     testWidgets('Escape ${docked ? 'closes' : 'leaves alone'} the member list '
-        'at ${size.width.toInt()} wide', (tester) async {
+        'at ${size.width.toInt()} by ${size.height.toInt()}', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);

@@ -35,7 +35,7 @@ use super::messages::{AttachmentDto, MessageDto};
 use crate::hub::Event;
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
-use frames::ClientFrame;
+use client_frames::ClientFrame;
 use frames::ServerFrame;
 use permission_cache::PermissionCache;
 
@@ -45,6 +45,7 @@ mod authorization_bits;
 mod canvas_frames;
 mod canvas_gate;
 mod channel_scope;
+mod client_frames;
 mod deployment_frames;
 mod ephemeral_frames;
 mod frames;
@@ -52,6 +53,7 @@ mod interaction_frames;
 mod message_frames;
 mod permission_cache;
 mod signals;
+mod signals_canvas;
 
 /// How long a freshly connected socket has to send its `hello` before it is
 /// dropped, so unauthenticated sockets cannot linger.
@@ -104,8 +106,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
     let mut events = state.hub.subscribe();
     let mut ephemeral_events = state.hub.subscribe_ephemeral();
 
-    let ctx = match authenticate(&mut sink, &mut stream, &state).await {
-        Some(ctx) => ctx,
+    let (ctx, reported_active) = match authenticate(&mut sink, &mut stream, &state).await {
+        Some(opened) => opened,
         None => return,
     };
 
@@ -119,6 +121,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
         state.store.clone(),
         ctx.user_id,
         ctx.device_id,
+        reported_active.unwrap_or(true),
     )
     .await;
 
@@ -135,6 +138,8 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
         return;
     }
 
+    // A client that sends `active` frames reports real use; its keepalives then prove nothing.
+    let mut reports_activity = reported_active.is_some();
     loop {
         tokio::select! {
             incoming = stream.next() => {
@@ -142,8 +147,14 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                     Some(Ok(Message::Text(text))) => {
                         // Touch after the parse, never before: it takes the shared presence lock and nothing rate-limits inbound frames.
                         match serde_json::from_str::<ClientFrame>(text.as_str()) {
-                            Ok(ClientFrame::Ping) => {
+                            Ok(ClientFrame::Active) => {
+                                reports_activity = true;
                                 state.hub.presence().touch(ctx.user_id);
+                            }
+                            Ok(ClientFrame::Ping) => {
+                                if !reports_activity {
+                                    state.hub.presence().touch(ctx.user_id);
+                                }
                                 if send_frame(&mut sink, &ServerFrame::Pong).await.is_err() {
                                     break;
                                 }
@@ -168,14 +179,14 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 y,
                                 left,
                             }) => {
-                                signals::handle_canvas_cursor(
+                                signals_canvas::handle_canvas_cursor(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
                                     &channel_id,
-                                    signals::CursorAt { x, y, left },
+                                    signals_canvas::CursorAt { x, y, left },
                                 )
                                 .await;
                             }
@@ -184,20 +195,24 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 object_id,
                                 points,
                                 ended,
+                                color,
+                                width,
                             }) => {
                                 // The raw wire size, not a re-serialization: it is what this frame actually cost to send.
                                 let frame_bytes = text.as_str().len();
-                                signals::handle_canvas_stroke_preview(
+                                signals_canvas::handle_canvas_stroke_preview(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::StrokePreviewFrame {
+                                    signals_canvas::StrokePreviewFrame {
                                         channel_id,
                                         object_id,
                                         points,
                                         ended,
+                                        color,
+                                        width,
                                     },
                                     frame_bytes,
                                 )
@@ -212,15 +227,41 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 h,
                                 ended,
                             }) => {
-                                signals::handle_canvas_object_preview(
+                                signals_canvas::handle_canvas_object_preview(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::ObjectPreviewFrame {
+                                    signals_canvas::ObjectPreviewFrame {
                                         channel_id,
                                         object_id,
+                                        rect: [x, y, w, h],
+                                        ended,
+                                    },
+                                )
+                                .await;
+                            }
+                            Ok(ClientFrame::CanvasMediaSlotPreview {
+                                channel_id,
+                                kind,
+                                user_id,
+                                x,
+                                y,
+                                w,
+                                h,
+                                ended,
+                            }) => {
+                                signals_canvas::handle_canvas_media_slot_preview(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals_canvas::MediaSlotPreviewFrame {
+                                        channel_id,
+                                        kind,
+                                        slot_user_id: user_id,
                                         rect: [x, y, w, h],
                                         ended,
                                     },
@@ -235,13 +276,13 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 h,
                                 summon,
                             }) => {
-                                signals::handle_canvas_view(
+                                signals_canvas::handle_canvas_view(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::ViewFrame {
+                                    signals_canvas::ViewFrame {
                                         channel_id,
                                         rect: [x, y, w, h],
                                         summon,
@@ -257,9 +298,11 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                     Some(Ok(Message::Close(_))) | None => break,
                     Some(Err(_)) => break,
                     // Other frames (binary, ping, pong): axum answers a
-                    // protocol-level ping itself, but it is still activity.
+                    // protocol-level ping itself; activity only without `active`.
                     Some(Ok(_)) => {
-                        state.hub.presence().touch(ctx.user_id);
+                        if !reports_activity {
+                            state.hub.presence().touch(ctx.user_id);
+                        }
                     }
                 }
             }
@@ -329,15 +372,19 @@ async fn authenticate(
     sink: &mut Sink,
     stream: &mut Stream,
     state: &AppState,
-) -> Option<SessionContext> {
+) -> Option<(SessionContext, Option<bool>)> {
     let opening = tokio::time::timeout(AUTH_DEADLINE, stream.next()).await;
     let text = match opening {
         Ok(Some(Ok(Message::Text(text)))) => text,
         _ => return reject(sink, "expected a hello frame").await,
     };
 
-    let (ticket, protocol) = match serde_json::from_str::<ClientFrame>(text.as_str()) {
-        Ok(ClientFrame::Hello { ticket, protocol }) => (ticket, protocol),
+    let (ticket, protocol, active) = match serde_json::from_str::<ClientFrame>(text.as_str()) {
+        Ok(ClientFrame::Hello {
+            ticket,
+            protocol,
+            active,
+        }) => (ticket, protocol, active),
         _ => return reject(sink, "expected a hello frame").await,
     };
     if protocol != PROTOCOL_VERSION {
@@ -345,7 +392,7 @@ async fn authenticate(
     }
 
     match state.store.redeem_ws_ticket(&ticket).await {
-        Ok(Some(ctx)) => Some(ctx),
+        Ok(Some(ctx)) => Some((ctx, active)),
         _ => reject(sink, "invalid ticket").await,
     }
 }
@@ -361,7 +408,7 @@ async fn send_frame(sink: &mut Sink, frame: &ServerFrame) -> Result<(), ()> {
 }
 
 /// Sends a final error frame and resolves to `None`.
-async fn reject(sink: &mut Sink, message: &str) -> Option<SessionContext> {
+async fn reject<T>(sink: &mut Sink, message: &str) -> Option<T> {
     let _ = send_frame(
         sink,
         &ServerFrame::Error {

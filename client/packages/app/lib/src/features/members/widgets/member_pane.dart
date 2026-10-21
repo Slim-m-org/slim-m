@@ -1,34 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The right-hand member pane: the deployment's roster.
-///
-/// Presence is real now: `presenceSeedProvider` (in `member_presence.dart`,
-/// where the roster and presence data this pane renders all live now)
-/// batch-fetches status for the resolved member list and
-/// the presence controller keeps it current from live `presence.changed`
-/// events, so the roster grouping gets a real status map instead of an empty
-/// one.
-///
-/// A member's first role becomes a badge. `@everyone` is excluded server-side,
-/// so an empty list means no badge rather than no data. There is still no
-/// in-voice flag on a profile, so the design's speaker glyph is left off.
-///
-/// The roster is `channelMembersProvider`, narrowed server-side to who holds
-/// VIEW_CHANNEL in [AppMemberPane.channelId]. It used to be the whole
-/// deployment, which listed people an overwrite had shut out of the channel
-/// the pane was sitting beside - the pane's own heading claims to say who is
-/// here, so that was wrong even though none of it was secret. The unfiltered
-/// roster is still readable from the same route by any authenticated caller,
-/// which is why this is a display filter and nothing more.
-///
-/// The pane must still never be offered for a DM, whose two participants are
-/// never this list; `home_shell.dart`'s `_MemberPaneSlot` and
-/// `channel_header.dart`'s `ChannelHeader.isDm` are what withhold it there.
-///
-/// This pane watches presence only through `rosterEntriesProvider`, which
-/// regroups when someone crosses between sections and not when a dot changes
-/// colour within one. Each `MemberRow` separately watches its own id for the
-/// dot itself, which is what keeps a single dot change from rebuilding every
-/// row.
+/// The right-hand member pane: the roster of who holds VIEW_CHANNEL in [AppMemberPane.channelId] (`channelMembersProvider`), a display filter only.
+/// Presence comes from `presenceSeedProvider` and live `presence.changed`; a first role becomes a badge and the in-call chip is derived by `MemberVoiceChip`.
+/// Never offered for a DM (`_MemberPaneSlot`, `ChannelHeader.isDm`).
+/// It watches presence through `rosterEntriesProvider` (regroups on section change); each `MemberRow` watches its own dot so one change does not rebuild every row.
 library;
 
 import 'dart:async';
@@ -44,6 +18,7 @@ import '../providers/member_presence.dart';
 import '../providers/member_selection.dart';
 import '../../../providers/providers.dart';
 import '../providers/roster_grouping.dart';
+import 'invite_friend.dart';
 import 'member_bulk_actions.dart';
 import 'member_pane_rows.dart';
 import 'member_selection_bar.dart';
@@ -53,6 +28,20 @@ import 'member_selection_bar.dart';
 /// `LayoutClass.fitsMemberPane`, since the toggle can only hide the pane, not
 /// summon room for it that is not there.
 final memberPaneVisibleProvider = StateProvider<bool>((ref) => true);
+
+/// A window shorter than this does not open the member pane by itself.
+const double kMemberPaneAutoOpenMinHeight = 500;
+
+/// Set while the viewer opened the pane by hand on a window too short to open
+/// it automatically; the header toggle is the only writer.
+final memberPaneOpenedByHandProvider = StateProvider<bool>((ref) => false);
+
+/// Whether the docked pane is wanted at [size]: not hidden, and either tall
+/// enough to open by default or opened by hand.
+bool memberPaneWanted(WidgetRef ref, Size size) =>
+    ref.watch(memberPaneVisibleProvider) &&
+    (size.height >= kMemberPaneAutoOpenMinHeight ||
+        ref.watch(memberPaneOpenedByHandProvider));
 
 /// 236px, `--surface-sunken`, a left hairline: the design's right member pane.
 class AppMemberPane extends ConsumerWidget {
@@ -108,6 +97,9 @@ class AppMemberPane extends ConsumerWidget {
           _Header(
             count: membersAsync.valueOrNull?.length,
             onClose: onClose,
+            onInvite: watchCanInviteFriend(ref)
+                ? () => inviteAFriend(context)
+                : null,
             // Only a moderator is offered the mode; the server refuses the rest anyway.
             onStartSelecting: (canTimeOut || canRemove) && !selecting
                 ? ref.read(memberSelectionProvider.notifier).enter
@@ -115,9 +107,8 @@ class AppMemberPane extends ConsumerWidget {
           ),
           Expanded(
             child: membersAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              loading: () =>
+                  const Center(child: AppSpinner(size: AppSpinnerSize.lg)),
               error: (error, _) => _MembersError(
                 error: error,
                 onRetry: () => channelId == null
@@ -210,9 +201,17 @@ class _RosterList extends ConsumerWidget {
 /// Space is, and a search box quietly changing that number would answer a
 /// question nobody asked.
 class _Header extends StatelessWidget {
-  const _Header({required this.count, this.onStartSelecting, this.onClose});
+  const _Header({
+    required this.count,
+    this.onInvite,
+    this.onStartSelecting,
+    this.onClose,
+  });
 
   final int? count;
+
+  /// Null when the viewer may not invite.
+  final VoidCallback? onInvite;
   final VoidCallback? onClose;
 
   /// Enters selection mode. Null when the viewer holds neither moderation
@@ -237,6 +236,13 @@ class _Header extends StatelessWidget {
               style: AppText.label.copyWith(color: tokens.textSecondary),
             ),
           ),
+          if (onInvite != null)
+            AppIconButton(
+              icon: AppIcons.invite,
+              semanticLabel: 'Invite a friend',
+              tooltip: 'Invite a friend',
+              onPressed: onInvite,
+            ),
           if (onStartSelecting != null)
             AppIconButton(
               icon: AppIcons.shield,

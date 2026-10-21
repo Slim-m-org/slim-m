@@ -34,6 +34,7 @@ pub mod compress;
 mod memory_budget;
 pub use memory_budget::MemoryBudget;
 mod content_type;
+mod exports;
 mod image_header;
 mod linked_avatar;
 mod names;
@@ -79,6 +80,7 @@ const SPACE_ICON_KEY: &str = "space-icon";
 pub struct Media {
     attachments_dir: PathBuf,
     avatars_dir: PathBuf,
+    exports_dir: PathBuf,
     previews: preview::Previews,
     max_attachment_bytes: u64,
     /// The deployment-wide ceiling, or `None` for no ceiling. Carried here
@@ -126,6 +128,8 @@ impl Media {
         std::fs::create_dir_all(&previews_dir)?;
         let uploads_dir = root.join("uploads");
         std::fs::create_dir_all(&uploads_dir)?;
+        let exports_dir = root.join("exports");
+        std::fs::create_dir_all(&exports_dir)?;
         let memory = MemoryBudget::for_limit(crate::hub::memory_limit_bytes());
         Ok(Self {
             uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
@@ -133,6 +137,7 @@ impl Media {
             memory: memory.clone(),
             attachments_dir,
             avatars_dir,
+            exports_dir,
             previews: preview::Previews::new(previews_dir, memory.clone()),
             max_attachment_bytes,
             max_total_attachment_bytes: None,

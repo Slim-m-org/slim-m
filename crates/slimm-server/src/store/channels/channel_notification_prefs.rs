@@ -19,10 +19,8 @@ use crate::ids::{ChannelId, UserId};
 use crate::notifications::NotificationPreference;
 
 impl Store {
-    /// Sets or replaces `user_id`'s override for `channel_id`. `preference`
-    /// is never [`NotificationPreference::Everything`] in practice - the
-    /// HTTP layer refuses to store it, since having no row already means
-    /// that - but nothing here depends on that refusal for correctness.
+    /// Sets or replaces `user_id`'s override for `channel_id`. `Everything` is
+    /// a real override: a read-only channel or a bot's post defaults to mentions.
     pub async fn set_channel_notification_preference(
         &self,
         user_id: UserId,
@@ -65,9 +63,7 @@ impl Store {
     }
 
     /// `user_id`'s own override for `channel_id`, or `None` when the channel
-    /// is following the account default - never [`NotificationPreference::Everything`]
-    /// in practice, for the same reason [`Store::set_channel_notification_preference`]
-    /// never writes it.
+    /// is following the account default.
     pub async fn channel_notification_preference(
         &self,
         user_id: UserId,
@@ -86,7 +82,7 @@ impl Store {
 
     /// Every channel `user_id` has overridden, for their own settings screen
     /// and the rail's muted glyph - a channel following the account default
-    /// carries no row and is absent here, never listed at `everything`.
+    /// carries no row and is absent here.
     pub async fn list_channel_notification_preferences(
         &self,
         user_id: UserId,

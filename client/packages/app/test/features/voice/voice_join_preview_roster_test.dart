@@ -23,7 +23,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_screen.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 import 'voice_controller_harness.dart';
 

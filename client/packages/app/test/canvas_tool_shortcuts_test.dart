@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
+
 import 'features/canvas/canvas_pane_harness.dart';
 
 Finder _button(IconData icon) =>
@@ -111,6 +113,30 @@ void main() {
       await _press(tester, entry.key);
       expect(_activeTool(tester), entry.value, reason: '${entry.key}');
     }
+  });
+
+  testWidgets('the keys work in fullscreen, and a tool picked there stays '
+      'after leaving it', (tester) async {
+    tester.view.physicalSize = const Size(1000, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    container.read(canvasFullscreenProvider.notifier).state = 'c1';
+    await pumpCanvasPane(tester, container, tool: null);
+    await tester.pumpAndSettle();
+    expect(_activeTool(tester), CanvasTool.pan);
+
+    await _press(tester, LogicalKeyboardKey.keyP);
+    expect(_activeTool(tester), CanvasTool.pen);
+
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Exit fullscreen'));
+    await tester.pumpAndSettle();
+    expect(_activeTool(tester), CanvasTool.pen);
   });
 
   testWidgets('a modified letter does not arm a tool', (tester) async {

@@ -1,0 +1,155 @@
+// SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+//! Reads rows for an export one at a time so no export holds a table in memory.
+//! A 16-byte blob is a UUID, `is_*` and `has_*` columns are booleans, and a `_json` column is parsed and nested under the name without the suffix.
+
+use serde_json::{Map, Value};
+use sqlx::sqlite::SqliteRow;
+use sqlx::{Column, Row, TypeInfo, ValueRef};
+use tokio::sync::mpsc;
+use uuid::Uuid;
+
+use super::Store;
+
+/// Rows buffered between the database reader and the file writer.
+const ROW_BUFFER: usize = 256;
+
+/// Rows of one query, ended by the channel closing or by one error.
+pub type RowStream = mpsc::Receiver<anyhow::Result<Value>>;
+
+impl Store {
+    /// Runs `sql` with `?1` bound to `id` and streams its rows as JSON.
+    pub(super) fn stream_rows(&self, sql: &'static str, id: Uuid) -> RowStream {
+        let pool = self.pool.clone();
+        let (tx, rx) = mpsc::channel(ROW_BUFFER);
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            let mut rows = sqlx::query(sql).bind(id).fetch(&pool);
+            while let Some(row) = rows.next().await {
+                let item = row
+                    .map_err(anyhow::Error::from)
+                    .and_then(|r| row_to_json(&r));
+                let failed = item.is_err();
+                if tx.send(item).await.is_err() || failed {
+                    break;
+                }
+            }
+        });
+        rx
+    }
+
+    /// The single row of `sql` (bound as in [`Store::stream_rows`]), if any.
+    pub(super) async fn one_row(
+        &self,
+        sql: &'static str,
+        id: Uuid,
+    ) -> anyhow::Result<Option<Value>> {
+        let row = sqlx::query(sql).bind(id).fetch_optional(&self.pool).await?;
+        row.as_ref().map(row_to_json).transpose()
+    }
+
+    /// The first column of the first row of `sql`, as a count.
+    pub(super) async fn count_rows(&self, sql: &'static str, id: Uuid) -> anyhow::Result<i64> {
+        Ok(sqlx::query_scalar(sql)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?)
+    }
+}
+
+fn row_to_json(row: &SqliteRow) -> anyhow::Result<Value> {
+    let mut object = Map::new();
+    for (index, column) in row.columns().iter().enumerate() {
+        let name = column.name();
+        let raw = row.try_get_raw(index)?;
+        let value = if raw.is_null() {
+            Value::Null
+        } else {
+            match raw.type_info().name() {
+                "INTEGER" => {
+                    let number: i64 = row.try_get(index)?;
+                    if name.starts_with("is_") || name.starts_with("has_") {
+                        Value::Bool(number != 0)
+                    } else {
+                        Value::from(number)
+                    }
+                }
+                "REAL" => Value::from(row.try_get::<f64, _>(index)?),
+                "BLOB" => blob_value(&row.try_get::<Vec<u8>, _>(index)?),
+                _ => Value::String(row.try_get::<String, _>(index)?),
+            }
+        };
+        match name.strip_suffix("_json") {
+            Some(stem) => {
+                let parsed = match &value {
+                    Value::String(text) => serde_json::from_str(text)?,
+                    other => other.clone(),
+                };
+                object.insert(stem.to_owned(), hyphenate_ids(stem, parsed));
+            }
+            None => {
+                object.insert(name.to_owned(), value);
+            }
+        }
+    }
+    Ok(Value::Object(object))
+}
+
+/// Nested ids come out of SQL as bare hex; rewrites them as hyphenated UUIDs, and an empty one as null.
+fn hyphenate_ids(key: &str, value: Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .map(|(k, v)| {
+                    let v = hyphenate_ids(&k, v);
+                    (k, v)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => {
+            Value::Array(items.into_iter().map(|v| hyphenate_ids(key, v)).collect())
+        }
+        Value::String(text) if key == "id" || key.ends_with("_id") || key.ends_with("_ids") => {
+            match text.len() {
+                0 => Value::Null,
+                32 => Uuid::try_parse(&text).map_or(Value::String(text), |id| {
+                    Value::String(id.hyphenated().to_string())
+                }),
+                _ => Value::String(text),
+            }
+        }
+        other => other,
+    }
+}
+
+fn blob_value(bytes: &[u8]) -> Value {
+    match Uuid::from_slice(bytes) {
+        Ok(id) => Value::String(id.to_string()),
+        Err(_) => Value::String(crate::media::to_hex(bytes)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_ids_are_hyphenated_and_an_empty_one_is_null() {
+        let id = Uuid::now_v7();
+        let nested = serde_json::json!({
+            "origin_author_id": "", "role_ids": [id.simple().to_string()],
+            "overwrites": [{ "target_id": id.simple().to_string(), "sha256": "ab" }],
+        });
+        let fixed = hyphenate_ids("x", nested);
+        assert_eq!(fixed["origin_author_id"], Value::Null);
+        assert_eq!(fixed["role_ids"][0], id.to_string());
+        assert_eq!(fixed["overwrites"][0]["target_id"], id.to_string());
+        assert_eq!(fixed["overwrites"][0]["sha256"], "ab");
+    }
+
+    #[test]
+    fn a_blob_that_is_not_a_uuid_becomes_hex() {
+        assert_eq!(blob_value(&[0xab, 0xcd]), Value::String("abcd".into()));
+        let id = Uuid::now_v7();
+        assert_eq!(blob_value(id.as_bytes()), Value::String(id.to_string()));
+    }
+}

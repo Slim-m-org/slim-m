@@ -140,13 +140,7 @@ class _HealthLabel extends StatelessWidget {
       ),
       VideoTileHealth.stalled => (
         'Reconnecting video',
-        SizedBox.square(
-          dimension: 12,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            color: tokens.textSecondary,
-          ),
-        ),
+        AppSpinner(size: AppSpinnerSize.xs, color: tokens.textSecondary),
       ),
       _ => (
         'Video stopped',

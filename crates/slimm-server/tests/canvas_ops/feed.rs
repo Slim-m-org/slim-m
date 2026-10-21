@@ -120,7 +120,7 @@ async fn the_feed_serializes_every_kind_the_schema_admits() {
         other => panic!("expected Remove, got {other:?}"),
     }
     match &page.ops[2].body {
-        CanvasOpBody::Clear { before_seq } => assert_eq!(*before_seq, 1),
+        CanvasOpBody::Clear { before_seq, .. } => assert_eq!(*before_seq, 1),
         other => panic!("expected Clear, got {other:?}"),
     }
     match &page.ops[3].body {

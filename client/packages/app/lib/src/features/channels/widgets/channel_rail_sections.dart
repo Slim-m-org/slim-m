@@ -24,7 +24,6 @@ import '../../../routing/routes.dart';
 import 'category_header_menu.dart';
 import 'channel_grouping.dart';
 import 'channel_kind_icon.dart';
-import 'channel_move.dart';
 import 'channel_rail_channel_rows.dart';
 import 'channel_rail_reorder.dart';
 import 'channel_rail_section_label.dart';
@@ -32,6 +31,7 @@ import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
 import '../../settings/widgets/personal_space_row.dart';
+import '../providers/channel_latest_message_at.dart';
 
 /// A DM is stored locally as an ordinary [Channel] under `kind == 'dm'` (see
 /// `providers/dms.dart`), so this reads the same channel stream the
@@ -62,7 +62,6 @@ class DirectMessagesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Seeds every DM peer's presence dot.
     ref.watch(presenceSeedProvider(null));
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final split = splitPersonalSpace(channels);
     final personal = split.personal;
     final others = split.others;
@@ -78,26 +77,11 @@ class DirectMessagesSection extends ConsumerWidget {
             selected: personal != null && personal.id == selectedId,
           ),
         ),
-        if (others.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s4,
-            ),
-            child: Text(
-              'Start one from the member list.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          )
-        else
-          for (final channel in others)
-            SelectionMarkerTarget(
-              selected: channel.id == selectedId,
-              child: DmRow(
-                channel: channel,
-                selected: channel.id == selectedId,
-              ),
-            ),
+        for (final channel in others)
+          SelectionMarkerTarget(
+            selected: channel.id == selectedId,
+            child: DmRow(channel: channel, selected: channel.id == selectedId),
+          ),
       ],
     );
   }
@@ -230,20 +214,22 @@ class _ChannelCategorySectionsState
           );
     // The lifted copy is just the face of the row: no menu, kebab or hover.
     if (carried) return body(null);
-    return Padding(
-      padding: const EdgeInsets.only(left: kRailRowInset),
-      child: SelectionMarkerTarget(
-        selected: selected,
-        child: ManagedChannelRow(
-          canManage: widget.canManage,
-          reorderable: longPressDrags,
-          menuKey: _menuKeys.putIfAbsent(
-            channel.id,
-            GlobalKey<ContextMenuRegionState>.new,
+    return KeepsLatestMessageLoaded(
+      channelId: channel.id,
+      child: Padding(
+        padding: const EdgeInsets.only(left: kRailRowInset),
+        child: SelectionMarkerTarget(
+          selected: selected,
+          child: ManagedChannelRow(
+            canManage: widget.canManage,
+            reorderable: longPressDrags,
+            menuKey: _menuKeys.putIfAbsent(
+              channel.id,
+              GlobalKey<ContextMenuRegionState>.new,
+            ),
+            channel: channel,
+            row: body,
           ),
-          move: _moveActions(view, channel),
-          channel: channel,
-          row: body,
         ),
       ),
     );
@@ -260,22 +246,6 @@ class _ChannelCategorySectionsState
       return false;
     }
     return !selected && !view.indicatorOf(channel).lit;
-  }
-
-  ChannelMoveActions _moveActions(_RailView view, Channel channel) {
-    List<ChannelOrderGroup>? after(int delta) => groupsAfterStep(
-      view.sections,
-      channel.id,
-      delta,
-      collapsed: view.collapsed,
-    );
-    return ChannelMoveActions(
-      canMove: (delta) => after(delta) != null,
-      move: (delta) {
-        final groups = after(delta);
-        if (groups != null) widget.onReorder(groups);
-      },
-    );
   }
 
   Widget _header(

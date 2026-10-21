@@ -20,8 +20,7 @@ use crate::store::{
 };
 use crate::voice::CallRingOutcome;
 
-/// Each emoji with who reacted and when, as `ReactionsChanged` carries it.
-pub type Reactors = Vec<(String, Vec<(UserId, i64)>)>;
+use super::event_util::Reactors;
 
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
@@ -495,12 +494,17 @@ pub enum Event {
     /// Carries no ids: a clear can cover a channel's whole live ceiling, and
     /// [`crate::hub::CHANNEL_CAPACITY`] buffers 1024 cloned events, so a
     /// 20,000-id frame is exactly what the props ceiling exists to stop one
-    /// object doing.
+    /// object doing. The locked objects it spared are named up to
+    /// [`crate::store::MAX_REMOVE_IDS_PER_OP`]; `spared_count` is the true total,
+    /// so a receiver seeing fewer ids than the count refetches.
     CanvasCleared {
         channel_id: ChannelId,
         seq: Seq,
         op_id: CanvasOpId,
         before_seq: Seq,
+        scope: crate::store::ClearScope,
+        spared_ids: Vec<CanvasObjectId>,
+        spared_count: i64,
     },
     /// A removal or a clear was undone.
     ///
@@ -570,6 +574,10 @@ pub enum Event {
         object_id: CanvasObjectId,
         points: Arc<Vec<f64>>,
         ended: bool,
+        /// The drawer's pen colour key, when the sender named a valid one.
+        color: Option<String>,
+        /// The drawer's pen width in world units, when valid.
+        width: Option<f64>,
     },
     /// An object mid-drag or mid-resize: the box its mover currently holds.
     ///
@@ -580,6 +588,21 @@ pub enum Event {
         channel_id: ChannelId,
         user_id: UserId,
         object_id: CanvasObjectId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        ended: bool,
+    },
+    /// A camera or screen-share tile mid-drag: the box its mover currently holds.
+    ///
+    /// Ephemeral like [`Event::CanvasObjectPreview`]; the committed
+    /// [`Event::CanvasMediaSlotChanged`] always settles the final box.
+    CanvasMediaSlotPreview {
+        channel_id: ChannelId,
+        user_id: UserId,
+        kind: MediaSlotKind,
+        slot_user_id: UserId,
         x: f64,
         y: f64,
         w: f64,
@@ -733,6 +756,14 @@ pub enum Event {
     InteractionCreated {
         interaction: Arc<crate::store::Interaction>,
         clicker_display_name: String,
+        /// What was chosen or typed; carried by the event and never stored.
+        input: Arc<crate::store::InteractionInput>,
+    },
+    /// The bot opened a form for a click. Private to the clicker, whose client
+    /// shows it.
+    InteractionForm {
+        interaction: Arc<crate::store::Interaction>,
+        form: Arc<crate::components::form::Form>,
     },
     /// The bot answered a click. Private to the clicker, so the pressed
     /// button can leave its pending state.
@@ -766,14 +797,4 @@ pub enum Event {
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },
-}
-
-impl Event {
-    /// The event without any moderation stamp.
-    pub fn into_inner(self) -> Event {
-        match self {
-            Event::Stamped { event, .. } => *event,
-            other => other,
-        }
-    }
 }

@@ -100,24 +100,6 @@ void main() {
 
     final restarted = await _settled(rig.container(_me()));
     expect(restarted.active, isFalse);
-    expect(restarted.voiceHint, isFalse);
-  });
-
-  test('finishing arms the voice hint until it is dismissed', () async {
-    final first = rig.container(_me());
-    await _settled(first);
-    final controller = first.read(firstRunControllerProvider.notifier);
-    await controller.complete(voiceHint: true);
-    expect(first.read(firstRunControllerProvider).voiceHint, isTrue);
-
-    final restarted = rig.container(_me());
-    expect((await _settled(restarted)).voiceHint, isTrue);
-
-    await restarted
-        .read(firstRunControllerProvider.notifier)
-        .dismissVoiceHint();
-    final again = await _settled(rig.container(_me()));
-    expect(again.voiceHint, isFalse);
   });
 
   test('setup is tracked per account on the same device', () async {
@@ -129,16 +111,15 @@ void main() {
     expect(other.active, isTrue);
   });
 
-  test('running setup again writes nothing and leaves no hint', () async {
+  test('running setup again writes nothing', () async {
     final c = rig.container(_me(age: const Duration(days: 9)));
     await _settled(c);
     final controller = c.read(firstRunControllerProvider.notifier);
     controller.replay();
     expect(c.read(firstRunControllerProvider).replay, isTrue);
-    await controller.complete(voiceHint: true);
+    await controller.complete();
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getKeys(), isEmpty);
-    expect(c.read(firstRunControllerProvider).voiceHint, isFalse);
   });
 }

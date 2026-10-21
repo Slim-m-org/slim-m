@@ -3,13 +3,15 @@
 //!
 //! Bots post embeds with empty `content`; the iOS extension refuses an empty
 //! preview body and leaves the relay's generic "New message", which is what
-//! the owner saw for every bot post.
+//! the owner saw for every bot post. The reader chose "everything" for the
+//! channel, since a bot post only wakes someone who did.
 
 mod push_envelope_harness;
 mod support;
 
 use push_envelope_harness::*;
 use serde_json::json;
+use slimm_server::notifications::NotificationPreference;
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 
@@ -47,6 +49,21 @@ async fn a_poster_and_embed_post_with_no_text_previews_the_embed() {
     let world = world().await;
     let reader = account(&world.store, "reader", "Reader").await;
     let secret = register_push(&world.app, &reader, "reader-token", true).await;
+    let reader_id = world
+        .store
+        .live_user_id_by_username("reader")
+        .await
+        .unwrap()
+        .unwrap();
+    world
+        .store
+        .set_channel_notification_preference(
+            reader_id,
+            world.channel_id,
+            NotificationPreference::Everything,
+        )
+        .await
+        .unwrap();
     let owner = world.store.create_user("owner", "Owner").await.unwrap();
     let bot = world
         .store

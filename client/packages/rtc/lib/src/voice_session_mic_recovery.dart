@@ -31,6 +31,9 @@ mixin VoiceSessionMicRecovery {
   StreamSubscription<InputGateReading>? _micLevels;
   StreamSubscription<void>? _deviceChanges;
   Timer? _deviceDebounce;
+  bool _followingDeviceChange = false;
+  bool _deviceChangedMeanwhile = false;
+  String? _lastDeviceChangeLine;
   Timer? _senderPoll;
   String? _inputSignature;
 
@@ -183,41 +186,9 @@ mixin VoiceSessionMicRecovery {
     if (!_micStatuses.isClosed) _micStatuses.add(next);
   }
 
-  late final _glitchWatch = AudioGlitchWatch(
-    sources: _remoteVoiceStats,
-    log: _logMic,
-  );
-
-  Map<String, AudioStatsSource> _remoteVoiceStats() {
-    final out = <String, AudioStatsSource>{};
-    final remotes = _room?.remoteParticipants.values.toList() ?? const [];
-    for (final p in remotes) {
-      for (final pub in p.audioTrackPublications) {
-        final track = pub.track;
-        if (track is lk.RemoteAudioTrack &&
-            pub.source == lk.TrackSource.microphone) {
-          out[p.name.isEmpty ? p.identity : p.name] = () async {
-            final s = await track.getReceiverStats();
-            return s == null
-                ? null
-                : AudioReceiveSample(
-                    concealedSamples: s.concealedSamples,
-                    durationSeconds: s.totalSamplesDuration,
-                    packetsLost: s.packetsLost,
-                    jitterSeconds: s.jitter,
-                    clockRate: s.clockRate,
-                  );
-          };
-        }
-      }
-    }
-    return out;
-  }
-
   /// Follows the call: device changes are watched only while it is up.
   void _syncMicWatch(VoiceSessionState state) {
     if (state == VoiceSessionState.connected) {
-      _glitchWatch.start();
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
         unawaited(_rememberInputs());
@@ -234,7 +205,6 @@ mixin VoiceSessionMicRecovery {
   }
 
   void _stopMicWatch() {
-    _glitchWatch.stop();
     _micWanted = false;
     _deviceDebounce?.cancel();
     _deviceDebounce = null;
@@ -259,8 +229,26 @@ mixin VoiceSessionMicRecovery {
     _deviceDebounce?.cancel();
     _deviceDebounce = Timer(_micTiming.deviceDebounce, () {
       _deviceDebounce = null;
-      unawaited(_followDeviceChange());
+      unawaited(_followDeviceChangeOnce());
     });
+  }
+
+  /// A burst that lands while a re-check runs earns one more re-check, not one each.
+  Future<void> _followDeviceChangeOnce() async {
+    if (_followingDeviceChange) {
+      _deviceChangedMeanwhile = true;
+      return;
+    }
+    _followingDeviceChange = true;
+    try {
+      do {
+        _deviceChangedMeanwhile = false;
+        await _followDeviceChange();
+      } while (
+          _deviceChangedMeanwhile && _state == VoiceSessionState.connected);
+    } finally {
+      _followingDeviceChange = false;
+    }
   }
 
   Future<void> _followDeviceChange() async {
@@ -285,11 +273,11 @@ mixin VoiceSessionMicRecovery {
       );
     }
     final defaultMoved = await _defaultInputMoved();
-    _logMic(
-      'Audio devices changed; the chosen microphone is '
-      '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
-      '${defaultMoved ? ', and the system default moved' : ''}',
-    );
+    final line = 'Audio devices changed; the chosen microphone is '
+        '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
+        '${defaultMoved ? ', and the system default moved' : ''}';
+    if (line != _lastDeviceChangeLine) _logMic(line);
+    _lastDeviceChangeLine = line;
     if (!_micWanted) return;
     if (inputChanged ||
         defaultMoved ||

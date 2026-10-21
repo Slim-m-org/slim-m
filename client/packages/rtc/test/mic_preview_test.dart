@@ -13,10 +13,12 @@ class _Source implements MicPreviewSource {
   Object? openError;
   ({double levelDb, bool voice})? level = (levelDb: -30.0, voice: true);
   Duration openDelay = Duration.zero;
+  bool openHangs = false;
 
   @override
   Future<void> open(String? deviceId) async {
     events.add('open:${deviceId ?? 'default'}');
+    if (openHangs) await Completer<void>().future;
     await Future<void>.delayed(openDelay);
     final error = openError;
     if (error != null) throw error;
@@ -29,10 +31,16 @@ class _Source implements MicPreviewSource {
   Future<void> close() async => events.add('close');
 }
 
-MicPreview _preview(_Source source, {int maxMisses = 3}) => MicPreview(
+MicPreview _preview(
+  _Source source, {
+  int maxMisses = 3,
+  Duration openTimeout = const Duration(seconds: 10),
+}) =>
+    MicPreview(
       source: source,
       interval: const Duration(milliseconds: 5),
       maxMisses: maxMisses,
+      openTimeout: openTimeout,
     );
 
 Future<void> _until(bool Function() done) async {
@@ -114,5 +122,36 @@ void main() {
     );
 
     expect(source.events.last, 'close');
+  });
+
+  test('a capture that never finishes opening becomes unavailable', () async {
+    final source = _Source()..openDelay = const Duration(seconds: 5);
+    final preview = _preview(
+      source,
+      openTimeout: const Duration(milliseconds: 30),
+    );
+    addTearDown(preview.dispose);
+
+    await preview.start(null);
+
+    expect(preview.current.status, MicPreviewStatus.unavailable);
+    expect(source.events.last, 'close');
+  });
+
+  test(
+      'a stop during an open that never finishes does not hold up the next start',
+      () async {
+    final source = _Source()..openHangs = true;
+    final preview = _preview(source, openTimeout: const Duration(hours: 1));
+    addTearDown(preview.dispose);
+
+    unawaited(preview.start(null));
+    await _until(() => source.events.contains('open:default'));
+    await preview.stop();
+    source.openHangs = false;
+    await preview.start('mic-2');
+
+    expect(preview.current.status, isNot(MicPreviewStatus.unavailable));
+    expect(source.events, contains('open:mic-2'));
   });
 }

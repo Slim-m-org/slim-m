@@ -395,4 +395,64 @@ void main() {
       expect(sent.single.$3, isTrue);
     },
   );
+
+  CanvasStrokePreviewRelay relayWith(
+    RemoteStrokeDrafts drafts, {
+    void Function(String, List<double>, bool)? send,
+  }) => CanvasStrokePreviewRelay(
+    drafts: drafts,
+    paletteSize: 6,
+    send: send ?? (_, _, _) {},
+    isBlocked: (_) => false,
+    selfId: () => 'self',
+  );
+
+  test('the points of an ended frame are kept before the draft finishes', () {
+    final drafts = RemoteStrokeDrafts();
+    final relay = relayWith(drafts);
+    addTearDown(drafts.dispose);
+    addTearDown(relay.dispose);
+
+    relay.applyRemote('alice', 'd', [1.0, 1.0, 2.0, 2.0], false);
+    relay.applyRemote('alice', 'd', [3.0, 3.0], true);
+
+    expect(drafts.all.single.points, [1.0, 1.0, 2.0, 2.0, 3.0, 3.0]);
+    expect(drafts.all.single.ended, isTrue);
+  });
+
+  test('a stroke that fits one frame still shows as a ghost', () {
+    final drafts = RemoteStrokeDrafts();
+    final relay = relayWith(drafts);
+    addTearDown(drafts.dispose);
+    addTearDown(relay.dispose);
+
+    relay.applyRemote('alice', 'd', [1.0, 1.0, 2.0, 2.0], true);
+
+    expect(drafts.all.single.points, [1.0, 1.0, 2.0, 2.0]);
+  });
+
+  test('the remote pen reaches the draft', () {
+    final drafts = RemoteStrokeDrafts();
+    final relay = relayWith(drafts);
+    addTearDown(drafts.dispose);
+    addTearDown(relay.dispose);
+
+    relay.applyRemote('alice', 'd', [1.0, 1.0], false, color: 'pink', width: 4);
+
+    expect(drafts.all.single.colorKey, 'pink');
+    expect(drafts.all.single.width, 4);
+  });
+
+  test('the local pen is known while drawing and forgotten after', () {
+    final relay = relayWith(RemoteStrokeDrafts());
+    addTearDown(relay.dispose);
+
+    relay.reportLocalDraftPoint(
+      const Offset(1, 1),
+      pen: (colorKey: 'green', width: 2.5),
+    );
+    expect(relay.pen, (colorKey: 'green', width: 2.5));
+    relay.endLocalDraft();
+    expect(relay.pen, isNull);
+  });
 }

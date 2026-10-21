@@ -18,6 +18,7 @@ class _Session extends FakeSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {
     lastDisconnect = null;
     await super.join(

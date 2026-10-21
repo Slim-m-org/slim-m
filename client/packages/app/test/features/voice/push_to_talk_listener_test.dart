@@ -167,7 +167,7 @@ void main() {
       Column(
         children: [
           TextField(focusNode: composerNode),
-          TextField(focusNode: other, autofocus: true),
+          Focus(focusNode: other, autofocus: true, child: const SizedBox()),
         ],
       ),
     );

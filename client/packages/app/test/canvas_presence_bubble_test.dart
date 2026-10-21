@@ -1,10 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// What renders *inside* a presence tile - a live camera view, a screen
-/// share, or (report 4 in the backlog channel) a plain avatar with no card
-/// around it for a participant with neither - split out of
-/// `canvas_presence_layer_test.dart` once this content pushed it past the
-/// 500-line hard limit. That file covers layout and manipulation (drag,
-/// resize, lock, hide, paint order); this one covers what gets painted.
+/// What renders inside a presence tile: a live camera view or a screen share (decision 0086); layout and manipulation are in `canvas_presence_layer_test.dart`.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,6 +10,7 @@ import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'features/canvas/presence_stack.dart';
 
 const _onCamera = VoiceParticipant(
   identity: 'user-priya',
@@ -47,7 +43,7 @@ Widget _layer(
   List<VoiceParticipant> participants,
   CanvasPresenceTileOverrides overrides, {
   required CameraViewBuilder cameraViewFor,
-}) => CanvasPresenceLayer(
+}) => PresenceStack(
   document: document,
   participants: participants,
   cameraViewFor: cameraViewFor,
@@ -89,8 +85,7 @@ void main() {
   });
 
   testWidgets(
-    'a camera-off participant never calls cameraViewFor, and shows an avatar '
-    'instead',
+    'a camera-off participant never calls cameraViewFor and has no tile',
     (tester) async {
       final document = CanvasDocument();
       addTearDown(document.dispose);
@@ -114,49 +109,20 @@ void main() {
       await tester.pump();
 
       expect(calls, 0);
+      expect(find.byType(CanvasPresenceBubble), findsNothing);
+      expect(find.byType(UserAvatar), findsNothing);
     },
   );
 
-  /// canvas.md: a marker can land on top of anything on the canvas, ink
-  /// included, and a plain drop shadow tuned for the empty background loses
-  /// to a light note fill directly underneath it. The caption needs the
-  /// same translucent-pill background `_NameBadge` already carries.
-  testWidgets('the avatar marker caption sits on the same translucent pill '
-      'the camera-tile name badge does', (tester) async {
-    final document = CanvasDocument();
-    addTearDown(document.dispose);
-    document.setViewport(const Size(1000, 800));
-    final overrides = CanvasPresenceTileOverrides();
-
+  testWidgets('the camera badge names the person and shows their mic state', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      _wrap(
-        _layer(
-          document,
-          const [_cameraOff],
-          overrides,
-          cameraViewFor: (_) => const SizedBox(),
-        ),
-      ),
+      _wrap(const CanvasCameraBadge(participant: _onCamera)),
     );
     await tester.pump();
 
-    final nameText = tester.widget<Text>(find.text('Noor'));
-    final pill = tester.widget<Container>(
-      find
-          .ancestor(of: find.text('Noor'), matching: find.byType(Container))
-          .first,
-    );
-    final decoration = pill.decoration! as BoxDecoration;
-    expect(
-      decoration.color,
-      isNotNull,
-      reason: 'a filled pill, not a bare shadow behind the text',
-    );
-    expect(
-      nameText.style?.shadows,
-      anyOf(isNull, isEmpty),
-      reason: 'the pill carries legibility now, not a drop shadow',
-    );
+    expect(find.text('Priya'), findsOneWidget);
   });
 
   testWidgets(
@@ -203,50 +169,6 @@ void main() {
           (d) => d.borderRadius == BorderRadius.circular(AppRadii.window),
         ),
         isTrue,
-      );
-    },
-  );
-
-  testWidgets(
-    'a camera-off participant renders no card at all - a plain avatar, no '
-    'shadow, no fixed background - report 4 in the backlog channel asked '
-    'for something other than a shrunken box',
-    (tester) async {
-      final document = CanvasDocument();
-      addTearDown(document.dispose);
-      document.setViewport(const Size(1000, 800));
-      final overrides = CanvasPresenceTileOverrides();
-
-      await tester.pumpWidget(
-        _wrap(
-          _layer(
-            document,
-            const [_cameraOff],
-            overrides,
-            cameraViewFor: (_) => const SizedBox(),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      final decorated = tester
-          .widgetList<Container>(
-            find.descendant(
-              of: find.byType(CanvasPresenceBubble),
-              matching: find.byType(Container),
-            ),
-          )
-          .map((c) => c.decoration)
-          .whereType<BoxDecoration>();
-      expect(
-        decorated.any((d) => d.boxShadow == AppShadows.canvasTile),
-        isFalse,
-      );
-      expect(find.byType(UserAvatar), findsOneWidget);
-      expect(
-        find.text('Noor'),
-        findsOneWidget,
-        reason: 'the avatar alone does not say whose it is',
       );
     },
   );

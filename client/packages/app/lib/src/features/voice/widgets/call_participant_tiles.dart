@@ -93,9 +93,13 @@ class CallParticipantTile extends StatelessWidget {
     this.onExpand,
     this.width = kCallTileMinWidth,
     this.contextMenuItemsBuilder,
+    this.poorConnection = false,
   });
 
   final VoiceParticipant participant;
+
+  /// Whether this person's audio is breaking up; the tile then says so quietly.
+  final bool poorConnection;
 
   /// How wide this tile renders, video box and avatar included - the name
   /// label and mute badge stay their own fixed size regardless. Callers
@@ -134,6 +138,7 @@ class CallParticipantTile extends StatelessWidget {
       participant.isLocal ? '${participant.name}, you' : participant.name,
       participant.isMuted ? 'muted' : 'microphone on',
       if (participant.isDeafened) 'deafened',
+      if (poorConnection) poorConnectionLabel(participant),
       if (participant.isSpeaking) 'speaking',
       if (participant.isScreenSharing) 'sharing their screen',
     ];
@@ -145,6 +150,71 @@ class CallParticipantTile extends StatelessWidget {
   /// a camera turned off would otherwise still render.
   bool get _showsCamera => cameraView != null && participant.isCameraOn;
 
+  // The name gives way before "(you)" does, so a long name still says whose tile it is.
+  Widget _label(Color colour) {
+    final nameStyle = AppText.ui.copyWith(color: colour);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(
+          child: Text(
+            participant.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: nameStyle,
+          ),
+        ),
+        if (participant.isLocal) Text(' (you)', style: nameStyle),
+      ],
+    );
+  }
+
+  Widget _face(Color onFace, double avatarSize) => Stack(
+    children: [
+      if (_showsCamera)
+        Positioned.fill(child: cameraView!)
+      else
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: _kCallTileLabelBand,
+          child: Center(
+            child: UserAvatar(
+              name: participant.name,
+              userId: participant.identity,
+              size: avatarSize,
+              speaking: participant.isSpeaking,
+            ),
+          ),
+        ),
+      Positioned(
+        left: AppSpacing.s8,
+        right: AppSpacing.s8,
+        bottom: AppSpacing.s12,
+        child: _label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
+      ),
+      if (poorConnection)
+        Positioned(
+          left: AppSpacing.s8,
+          top: AppSpacing.s8,
+          child: _PoorConnectionBadge(participant: participant),
+        ),
+      // Top corner, so the name keeps the tile's whole width and its "(you)".
+      Positioned(
+        right: AppSpacing.s8,
+        top: AppSpacing.s8,
+        child: _StateBadge(
+          participant: participant,
+          stacked:
+              !_showsCamera &&
+              _badgesReachAvatar(width, avatarSize, participant),
+        ),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -154,59 +224,6 @@ class CallParticipantTile extends StatelessWidget {
     );
     // This build's own context, so a popover anchors to this tile - see [onTap]'s doc.
     final onTapHere = onTap == null ? null : () => onTap!(context);
-    // The name gives way before "(you)" does, so a long name still says whose tile it is.
-    Widget label(Color colour) {
-      final nameStyle = AppText.ui.copyWith(color: colour);
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Flexible(
-            child: Text(
-              participant.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: nameStyle,
-            ),
-          ),
-          if (participant.isLocal) Text(' (you)', style: nameStyle),
-        ],
-      );
-    }
-
-    Widget face(Color onFace) => Stack(
-      children: [
-        if (_showsCamera)
-          Positioned.fill(child: cameraView!)
-        else
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: _kCallTileLabelBand,
-            child: Center(
-              child: UserAvatar(
-                name: participant.name,
-                userId: participant.identity,
-                size: avatarSize,
-                speaking: participant.isSpeaking,
-              ),
-            ),
-          ),
-        Positioned(
-          left: AppSpacing.s8,
-          right: AppSpacing.s8,
-          bottom: AppSpacing.s12,
-          child: label(_showsCamera ? const Color(0xFFFFFFFF) : onFace),
-        ),
-        // Top corner, so the name keeps the tile's whole width and its "(you)".
-        Positioned(
-          right: AppSpacing.s8,
-          top: AppSpacing.s8,
-          child: _StateBadge(participant: participant),
-        ),
-      ],
-    );
     // A camera hides the avatar that carries the speaking ring, so the tile takes it.
     final ringsTile = _showsCamera && participant.isSpeaking;
     Widget tile = Stack(
@@ -238,10 +255,10 @@ class CallParticipantTile extends StatelessWidget {
                       width: width,
                       height: height,
                       child: _showsCamera
-                          ? face(tokens.textPrimary)
+                          ? _face(tokens.textPrimary, avatarSize)
                           : CallTileBackdrop(
                               identity: participant.identity,
-                              builder: (_, onFace) => face(onFace),
+                              builder: (_, onFace) => _face(onFace, avatarSize),
                             ),
                     ),
                   ),
@@ -266,10 +283,61 @@ class CallParticipantTile extends StatelessWidget {
   }
 }
 
-class _StateBadge extends StatelessWidget {
-  const _StateBadge({required this.participant});
+/// What a poor-connection mark says about [p], on a tile or a roster avatar.
+String poorConnectionLabel(VoiceParticipant p) =>
+    p.isLocal ? 'your connection is unstable' : 'connection is unstable';
+
+const double _kBadgeSize = 22;
+
+/// The round chip every tile badge sits in.
+Widget _badgeCircle(AppTokens tokens, Widget icon) => Container(
+  width: _kBadgeSize,
+  height: _kBadgeSize,
+  alignment: Alignment.center,
+  decoration: BoxDecoration(
+    color: tokens.surfaceRaised,
+    shape: BoxShape.circle,
+    border: Border.all(color: tokens.borderSubtle),
+  ),
+  child: icon,
+);
+
+bool _badgesReachAvatar(double width, double avatarSize, VoiceParticipant p) {
+  final count = p.isDeafened ? 2 : 1;
+  final row = count * _kBadgeSize + (count - 1) * AppSpacing.s4;
+  return width - AppSpacing.s8 - row < (width + avatarSize) / 2;
+}
+
+class _PoorConnectionBadge extends StatelessWidget {
+  const _PoorConnectionBadge({required this.participant});
 
   final VoiceParticipant participant;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Tooltip(
+      message: poorConnectionLabel(participant),
+      child: _badgeCircle(
+        tokens,
+        Icon(
+          AppIcons.connectionPoor,
+          key: poorConnectionBadgeKey,
+          size: 12,
+          color: tokens.warnText,
+        ),
+      ),
+    );
+  }
+}
+
+class _StateBadge extends StatelessWidget {
+  const _StateBadge({required this.participant, required this.stacked});
+
+  final VoiceParticipant participant;
+
+  /// Badges stack in a column when a row of them would run under the avatar.
+  final bool stacked;
 
   @override
   Widget build(BuildContext context) {
@@ -283,12 +351,13 @@ class _StateBadge extends StatelessWidget {
       size: 12,
       color: participant.isMuted ? tokens.textSecondary : tokens.accent,
     );
-    return Row(
+    return Flex(
+      direction: stacked ? Axis.vertical : Axis.horizontal,
       mainAxisSize: MainAxisSize.min,
       spacing: AppSpacing.s4,
       children: [
         if (participant.isDeafened)
-          _circle(
+          _badgeCircle(
             tokens,
             Icon(
               AppIcons.headphonesOff,
@@ -297,23 +366,14 @@ class _StateBadge extends StatelessWidget {
               color: tokens.textSecondary,
             ),
           ),
-        _circle(tokens, main),
+        _badgeCircle(tokens, main),
       ],
     );
   }
-
-  Widget _circle(AppTokens tokens, Widget icon) => Container(
-    width: 22,
-    height: 22,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: tokens.surfaceRaised,
-      shape: BoxShape.circle,
-      border: Border.all(color: tokens.borderSubtle),
-    ),
-    child: icon,
-  );
 }
+
+/// The unstable-connection glyph on a call tile, for tests to find.
+const poorConnectionBadgeKey = ValueKey('participant-poor-connection-badge');
 
 /// The deafened glyph on a call tile, for tests to find.
 const deafenedBadgeKey = ValueKey('participant-deafened-badge');

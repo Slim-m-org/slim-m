@@ -15,7 +15,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 
 Widget _wrap(Widget child) => UncontrolledProviderScope(
   container: ProviderContainer(

@@ -134,7 +134,7 @@ class ChannelSearchResults extends ConsumerWidget {
 
   Widget _body(BuildContext context, WidgetRef ref, AppTokens tokens) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const Center(child: AppSpinner(size: AppSpinnerSize.lg));
     }
     if (failed) {
       return Center(

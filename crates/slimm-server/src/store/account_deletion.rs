@@ -183,6 +183,14 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        let revoked_at = now_ms();
+        sqlx::query!(
+            "UPDATE invites SET revoked_at = ? WHERE created_by = ? AND revoked_at IS NULL",
+            revoked_at,
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
         sqlx::query!(
             "UPDATE invites SET created_by = NULL WHERE created_by = ?",
             user_id
@@ -397,6 +405,11 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        // Their archives go with the rows; the export sweep removes the files.
+        sqlx::query("DELETE FROM data_exports WHERE user_id = ?")
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query("DELETE FROM bot_ui_entries WHERE bot_user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)

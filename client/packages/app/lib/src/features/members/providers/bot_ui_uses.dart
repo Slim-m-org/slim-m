@@ -12,19 +12,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
-import '../../../providers/live_events.dart';
 import '../../messages/providers/pending_interactions.dart';
+import 'bot_presence_refetch.dart';
 import '../../../providers/providers.dart';
 
 /// Channel-scoped because a bot's visibility is per channel.
 final channelBotUiProvider = FutureProvider.autoDispose
-    .family<List<api.ChannelBotUi>, String>((ref, channelId) {
+    .family<List<api.ChannelBotUi>, String>((ref, channelId) async {
       // A bot that re-registers its controls would otherwise show stale ones until this channel remounts.
-      final changes = ref.read(liveEventsProvider).listen((event) {
-        if (event is api.BotUiChanged) ref.invalidateSelf();
-      });
-      ref.onDispose(changes.cancel);
-      return ref.watch(apiProvider).listChannelBotUi(channelId);
+      final presence = watchBotPresence(
+        ref,
+        alsoWhen: (event) => event is api.BotUiChanged,
+      );
+      final bots = await ref.watch(apiProvider).listChannelBotUi(channelId);
+      presence.loaded(ref, bots.map((b) => b.botUserId));
+      return bots;
     });
 
 /// How long a use waits for the bot before it is shown as failed.
@@ -143,6 +145,7 @@ class BotUiUsesController extends PendingInteractions<BotUiUse> {
   String _describe(api.ApiException e) => switch (e) {
     api.NotFoundException() =>
       'That is no longer available. The bot or its message may be gone.',
+    api.ConflictException() => 'That bot is offline right now.',
     api.ForbiddenException() =>
       'You cannot use that here. Controls in a call need you to be on the call.',
     _ => describeApiFailure('use that', e),

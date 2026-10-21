@@ -19,7 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_sections.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(
@@ -126,12 +126,11 @@ void main() {
         findsOneWidget,
         reason: 'it must be reachable before it has ever been opened',
       );
-      expect(
-        find.textContaining('Start one from the member list'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Start one from'), findsNothing);
       // Explicit: addTearDown runs after flutter_test's own pending-timer check.
+      await tester.pumpWidget(const SizedBox());
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -144,7 +143,9 @@ void main() {
     expect(find.text('Priya'), findsOneWidget);
     expect(find.text(personalSpaceName), findsOneWidget);
     expect(find.textContaining('Start one from the member list'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets(
@@ -164,7 +165,9 @@ void main() {
 
       expect(find.text(personalSpaceName), findsOneWidget);
       expect(find.text('Priya'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
       container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 
@@ -212,7 +215,9 @@ void main() {
           'tapping the impostor row must open their own channel, never '
           'the caller\'s personal space',
     );
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('an unread DM shows the unread marker', (tester) async {
@@ -225,7 +230,9 @@ void main() {
     );
 
     expect(find.byKey(AppListRow.unreadDotKey), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping a DM opens its channel route', (tester) async {
@@ -259,7 +266,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('channel:dm-1'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the personal space row before it exists opens it and '
@@ -296,7 +305,9 @@ void main() {
     final opens = requests.where((r) => r.url.path == '/dms/self');
     expect(opens, hasLength(1));
     expect(find.text('channel:dm-self'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('tapping the personal space row once it already exists navigates '
@@ -340,6 +351,8 @@ void main() {
       reason: 'an already-open personal space needs no round trip',
     );
     expect(find.text('channel:dm-self'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
     container.dispose();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

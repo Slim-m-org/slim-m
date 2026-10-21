@@ -259,6 +259,7 @@ Important conventions:
 - Never use the em dash character; use `-`.
 - No emoji as UI chrome.
 - Keep human-authored files under 300 lines where practical, and 500 as the budget. A file a little past it gets a Planka card to split it, not a split mid-feature; split in the change only when it is clearly unreasonable.
+- A widget or class used in one place stays private (`_Name`) in the file that uses it; when a second place needs it, make it public and move it to its own file. Split a big Dart file by extracting real classes or widgets into their own libraries, never with `part` files or extensions on a private `State`; `part` is for generated code only.
 - Plain comments (`//`, `#`) are one line max. Put durable reasoning in doc comments, `docs/`, or decision records.
 - Keep functions at 7 or fewer positional parameters; use a struct/parameter object beyond that. Named Dart widget/data-class parameters are fine.
 - Published material under Nick's name must follow `~/.claude/Voice.md`: plain, hedged, anti-hype, lowercase product names, no emoji/exclamation points.

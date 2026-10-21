@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/connection_test_controller.dart';
 import 'connection_test_format.dart';
 import 'settings_detail_row.dart';
+import 'settings_result_inset.dart';
 
 class ConnectionTestRow extends ConsumerWidget {
   const ConnectionTestRow({super.key});
@@ -61,7 +62,7 @@ class _Progress extends StatelessWidget {
     final route = p == null
         ? ''
         : ' (${p.route == ConnectionRoute.lan ? 'LAN' : 'Internet'})';
-    return _Inset(
+    return SettingsResultInset(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: AppSpacing.s4,
@@ -94,7 +95,7 @@ class _ResultLine extends StatelessWidget {
     final style = AppText.caption.copyWith(
       color: failed ? tokens.dangerText : tokens.textSecondary,
     );
-    return _Inset(
+    return SettingsResultInset(
       child: Text.rich(
         TextSpan(
           style: style,
@@ -111,23 +112,6 @@ class _ResultLine extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Lines up under a row's text, past its icon tile.
-class _Inset extends StatelessWidget {
-  const _Inset({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(62, 6, AppSpacing.s16, 6),
-      color: Color.lerp(tokens.surfaceBase, tokens.surfaceRaised, 0.5),
-      child: child,
     );
   }
 }

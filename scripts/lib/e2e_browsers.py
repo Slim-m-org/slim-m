@@ -21,7 +21,8 @@ from e2e_api import Api
 from e2e_client import Client
 
 # Clear of 9801/9802, which e2e.sh owns and pkills by port.
-EXTRA_PORTS = {"carol": 9811, "noisy": 9813, "raw": 9814}
+EXTRA_PORTS = {"carol": 9811, "noisy": 9813, "raw": 9814,
+               "vqa": 9815, "vqb": 9816}
 
 
 def _chrome():

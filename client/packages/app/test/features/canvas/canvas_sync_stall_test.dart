@@ -96,7 +96,11 @@ void main() {
         async.elapse(const Duration(seconds: 5));
 
         expect(document.applyPlaced(_stroke('a')), isNull);
-        expect(sync.asOfSeq, 8);
+        expect(
+          sync.asOfSeq,
+          9,
+          reason: 'the buffered frame applies once the page closes the gap',
+        );
       });
     },
   );

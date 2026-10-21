@@ -5,7 +5,7 @@
 //! moderation-audit trail decision 0028 promised for bot lifecycle. See
 //! `docs/decisions/0028-bot-accounts.md`.
 //!
-//! Split across three files (`harness`, `grants`, `lifecycle`) rather than
+//! Split across files (`harness`, `grants`, `lifecycle`, `reissue`) rather than
 //! one, the same shape `tests/response_contract/` already uses, once the
 //! single-file draft passed the 500-line hard limit.
 
@@ -15,3 +15,4 @@ mod support;
 mod grants;
 mod harness;
 mod lifecycle;
+mod reissue;

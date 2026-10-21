@@ -13,7 +13,9 @@ import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/display_server.dart';
+import 'package:slimm_app/src/desktop/window_fullscreen_hold.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
+import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
 import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
@@ -242,4 +244,41 @@ void main() {
       expect(port.destroyCalls, 1);
     });
   });
+
+  test(
+    'a window a call tile holds fullscreen is not saved as fullscreen',
+    () async {
+      final port = FakeDesktopWindowPort()..fullScreen = true;
+      DesktopWindowShell.debugPort = port;
+      DesktopWindowShell.debugActivate(frameless: true);
+      addTearDown(() {
+        DesktopWindowShell.debugReset();
+        WindowFullscreenHold.debugReset();
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final hold = WindowFullscreenHold(
+        container.read(fullscreenVideoActiveProvider.notifier),
+      );
+      await hold.enter();
+      final store = await _store();
+      await store.write(
+        const WindowGeometry(
+          windowedSize: WindowSize(width: 1000, height: 700),
+          runState: WindowRunState.windowed,
+        ),
+      );
+      final controller = _controller(port, store, positionSupported: true);
+      port.emit(DesktopWindowEventKind.fullScreen);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        store.read()!.runState,
+        WindowRunState.windowed,
+        reason: 'quitting with a tile focused must not relaunch fullscreen',
+      );
+      controller.dispose();
+    },
+  );
 }

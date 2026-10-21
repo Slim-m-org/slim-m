@@ -434,6 +434,7 @@ async fn channel_frame(
         | Event::CanvasCursorMoved { .. }
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
+        | Event::CanvasMediaSlotPreview { .. }
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -460,6 +461,7 @@ async fn channel_frame(
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
+        | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
         | Event::Stamped { .. } => return Authorization::Withhold,

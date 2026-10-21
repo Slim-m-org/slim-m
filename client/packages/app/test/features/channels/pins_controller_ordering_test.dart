@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/channels/providers/pins_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 Map<String, dynamic> _pinJson(String id) => {

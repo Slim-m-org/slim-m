@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_voice_participants.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -52,6 +53,27 @@ void main() {
 
       expect(find.byKey(deafenedBadgeKey), findsOneWidget);
       expect(find.byIcon(AppIcons.micOff), findsOneWidget);
+    });
+
+    testWidgets('at the narrowest tile the badges stay clear of the avatar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          CallParticipantTile(
+            participant: _who(deafened: true, muted: true),
+            width: kCallTileMinWidth,
+          ),
+        ),
+      );
+
+      final avatar = tester.getRect(find.byType(UserAvatar));
+      for (final badge in [
+        find.byKey(deafenedBadgeKey),
+        find.byIcon(AppIcons.micOff),
+      ]) {
+        expect(tester.getRect(badge).overlaps(avatar), isFalse);
+      }
     });
 
     testWidgets('a tile of someone who can hear shows no glyph', (

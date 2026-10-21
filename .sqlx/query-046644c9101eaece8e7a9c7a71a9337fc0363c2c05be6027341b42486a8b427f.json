@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE space_settings SET members_can_invite = ?, updated_at = ? WHERE id = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "046644c9101eaece8e7a9c7a71a9337fc0363c2c05be6027341b42486a8b427f"
+}

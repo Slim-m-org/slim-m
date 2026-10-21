@@ -11,6 +11,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
+
 /// The declared size of an image was past the ceiling the caller allows.
 class ImageTooLargeException implements Exception {
   const ImageTooLargeException(this.width, this.height);
@@ -34,6 +36,9 @@ Future<ui.Image> decodeBoundedImage(
   required int maxSide,
   int? maxSourcePixels,
 }) async {
+  if (kIsWeb) {
+    return decodeBoundedViaPostDecodeCheck(bytes, maxSide, maxSourcePixels);
+  }
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
   ui.ImageDescriptor? descriptor;
   ui.Codec? codec;
@@ -55,5 +60,47 @@ Future<ui.Image> decodeBoundedImage(
     codec?.dispose();
     descriptor?.dispose();
     buffer.dispose();
+  }
+}
+
+/// The web engine cannot read a descriptor's size, so the size is checked
+/// after the browser's own decode and an oversized result is redrawn smaller.
+@visibleForTesting
+Future<ui.Image> decodeBoundedViaPostDecodeCheck(
+  Uint8List bytes,
+  int maxSide,
+  int? maxSourcePixels,
+) async {
+  final codec = await ui.instantiateImageCodec(bytes);
+  final ui.Image image;
+  try {
+    image = (await codec.getNextFrame()).image;
+  } finally {
+    codec.dispose();
+  }
+  final width = image.width;
+  final height = image.height;
+  if (maxSourcePixels != null && width * height > maxSourcePixels) {
+    image.dispose();
+    throw ImageTooLargeException(width, height);
+  }
+  final longest = math.max(width, height);
+  if (longest <= maxSide) return image;
+  final scale = maxSide / longest;
+  final targetW = math.max(1, (width * scale).round());
+  final targetH = math.max(1, (height * scale).round());
+  final recorder = ui.PictureRecorder();
+  ui.Canvas(recorder).drawImageRect(
+    image,
+    ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+    ui.Rect.fromLTWH(0, 0, targetW.toDouble(), targetH.toDouble()),
+    ui.Paint()..filterQuality = ui.FilterQuality.medium,
+  );
+  final picture = recorder.endRecording();
+  try {
+    return await picture.toImage(targetW, targetH);
+  } finally {
+    picture.dispose();
+    image.dispose();
   }
 }

@@ -47,6 +47,8 @@ import '../../../widgets/context_menu_region.dart';
 import 'row_menu_notifications.dart';
 import '../../members/widgets/safety_actions.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../providers/channel_latest_message_at.dart';
+import 'channel_notifications_menu.dart';
 
 /// [channel] is never the caller's own personal space: that DM-shaped row is
 /// [PersonalSpaceRow], reached separately, since a self-conversation has no
@@ -89,9 +91,9 @@ class DmRow extends ConsumerWidget {
           onTap: () =>
               run(() => hideDmConversation(container, peerId, channel.id)),
         ),
-      markReadStateMenuItem(context, container, channel, close, isDm: true),
+      ?markReadStateMenuItem(context, container, channel, close, isDm: true),
       const AppMenuDivider(),
-      ...notificationMenuItems(
+      notificationsMenuItem(
         context,
         container,
         channel.id,
@@ -153,41 +155,49 @@ class DmRow extends ConsumerWidget {
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
       manuallyUnread: channel.manuallyUnread ?? false,
     );
-    return ContextMenuRegion(
-      itemsBuilder: (menuContext, close) => _menuItems(menuContext, ref, close),
-      // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
-      ownsFocusNode: false,
-      child: AppListRow(
-        label: channel.name,
-        selected: selected,
-        unread: indicator.unread,
-        mentioned: indicator.mentioned,
-        muted: muted,
-        leading: UserAvatar(
-          name: channel.name,
-          userId: channel.dmParticipantId,
-          size: AppAvatarSize.s28,
-          presence: true,
+    // Kept loaded so the row menu knows synchronously whether Mark as unread applies.
+    return KeepsLatestMessageLoaded(
+      channelId: channel.id,
+      child: ContextMenuRegion(
+        itemsBuilder: (menuContext, close) =>
+            _menuItems(menuContext, ref, close),
+        // AppListRow is already its own tab stop; see ContextMenuFocus.ownsFocusNode.
+        ownsFocusNode: false,
+        menuWidth: 240,
+        child: AppListRow(
+          label: channel.name,
+          selected: selected,
+          unread: indicator.unread,
+          mentioned: indicator.mentioned,
+          muted: muted,
+          leading: UserAvatar(
+            name: channel.name,
+            userId: channel.dmParticipantId,
+            size: AppAvatarSize.s28,
+            presence: true,
+          ),
+          trailing: inCall
+              ? Icon(
+                  AppIcons.startCall,
+                  size: AppSizes.icon16,
+                  color: tokens.accent,
+                )
+              : muted
+              ? Icon(
+                  AppIcons.notificationsOff,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                )
+              : null,
+          stateDescription: inCall ? 'call in progress' : null,
+          onTap: () {
+            // Opens straight into the call pane, the same double action RailCallSummary uses.
+            if (inCall) {
+              ref.read(dmCallOpenProvider.notifier).state = channel.id;
+            }
+            context.go(Routes.channel(channel.id));
+          },
         ),
-        trailing: inCall
-            ? Icon(
-                AppIcons.startCall,
-                size: AppSizes.icon16,
-                color: tokens.accent,
-              )
-            : muted
-            ? Icon(
-                AppIcons.notificationsOff,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              )
-            : null,
-        stateDescription: inCall ? 'call in progress' : null,
-        onTap: () {
-          // Opens straight into the call pane, the same double action RailCallSummary uses.
-          if (inCall) ref.read(dmCallOpenProvider.notifier).state = channel.id;
-          context.go(Routes.channel(channel.id));
-        },
       ),
     );
   }

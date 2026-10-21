@@ -22,7 +22,16 @@ class DockHeightReporter extends ConsumerStatefulWidget {
     required this.child,
     this.onHeight,
     this.reservation,
+    this.foldedHeight,
+    this.extraHeight = 0,
   });
+
+  /// Published instead of the measured height while the dock is folded away,
+  /// so what it reserves is what is still on screen. Null while it is showing.
+  final double? foldedHeight;
+
+  /// What sits above [child] and belongs to the dock's footprint, such as a fold handle.
+  final double extraHeight;
 
   final Widget child;
 
@@ -45,18 +54,37 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   late final StateController<double> _reservation = ref.read(
     (widget.reservation ?? bottomDockReservationProvider).notifier,
   );
+  late final StateController<double> _width = ref.read(
+    bottomDockWidthProvider.notifier,
+  );
   double _lastReported = 0;
+  double _lastWidth = 0;
+
+  /// Who published each reservation last, so a dock leaving does not zero a height another dock now holds.
+  static final _publisher = Expando<_DockHeightReporterState>();
 
   void _report() {
-    final height = _key.currentContext?.size?.height ?? 0;
+    final size = _key.currentContext?.size;
+    final measured = size?.height ?? 0;
+    final height = widget.foldedHeight ?? measured + widget.extraHeight;
+    _reportWidth(widget.foldedHeight == null ? size?.width ?? 0 : 0);
     if (height == _lastReported) return;
     _lastReported = height;
+    _publisher[_reservation] = this;
     final local = widget.onHeight;
     if (local != null) {
       local(height);
       return;
     }
     _reservation.state = height;
+  }
+
+  /// Only the shared dock publishes a width; a dock that keeps its height to itself keeps this too.
+  void _reportWidth(double width) {
+    if (widget.onHeight != null || widget.reservation != null) return;
+    if (width == _lastWidth) return;
+    _lastWidth = width;
+    _width.state = width;
   }
 
   /// Deferred to a microtask: Riverpod refuses a provider write made
@@ -69,7 +97,12 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
   void dispose() {
     final local = widget.onHeight != null;
     Future.microtask(() {
-      if (!local && _reservation.mounted) _reservation.state = 0;
+      if (local || !_reservation.mounted) return;
+      if (_publisher[_reservation] == this) {
+        _publisher[_reservation] = null;
+        _reservation.state = 0;
+        if (_lastWidth > 0 && _width.mounted) _width.state = 0;
+      }
     });
     super.dispose();
   }

@@ -75,6 +75,31 @@ def participants_with_mics(room_id, expected=2, timeout=25):
     return parts
 
 
+def _click_channel_row(client, channel, timeout=90):
+    """A plain `client.click(channel)` risks landing on the row's own
+    kebab ('Manage <channel>') instead of the row, once the roster grows
+    a participant count and the row's own text stops being an exact match
+    ('lounge' becomes 'lounge\\n1') - `e2e_js.click`'s containment rule
+    then prefers the kebab, since it sits nested inside the row's own
+    tappable container, the same rule that correctly favours a reply's
+    quote button over its enclosing row for a different search. Picking
+    the row by its own name as a *prefix* sidesteps that rule entirely,
+    without touching it and risking every other scenario that depends on
+    it: `join_call`'s own first click of this channel worked precisely
+    because the roster was still empty then, and this is that same click
+    repeated once the roster is not.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for n in client.nodes():
+            if n["t"].lower().startswith(channel.lower()):
+                client.tap(n["x"], n["y"])
+                time.sleep(1.5)
+                return
+        time.sleep(1)
+    raise AssertionError(f"{client.name}: no row named {channel!r} found")
+
+
 def join_call(a, b, room_id, channel=L.VOICE_CHANNEL):
     """Both clients into the same room, each publishing and subscribed.
 
@@ -87,7 +112,7 @@ def join_call(a, b, room_id, channel=L.VOICE_CHANNEL):
     # accessibility nodes until the shell stopped letting a modal barrier
     # block them, and nothing but a real run would have noticed.
     for c in (a, b):
-        c.click(channel)
+        _click_channel_row(c, channel)
         c.wait_for(L.IN_CALL)
 
     for c in (a, b):

@@ -128,6 +128,7 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
     required String token,
     bool microphoneEnabled = true,
     bool cameraEnabled = false,
+    bool canPublish = true,
   }) async {}
   @override
   Future<void> leave() async {}

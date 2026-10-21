@@ -33,7 +33,10 @@ void main() {
       );
 
       expect(_hasControlFocusRing(tester), isFalse);
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      // Mic and its caret come first and draw the joined inset ring; camera is the first plain chip.
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      }
       await tester.pumpAndSettle();
 
       expect(

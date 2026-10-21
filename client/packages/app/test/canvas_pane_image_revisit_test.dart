@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
@@ -30,6 +31,11 @@ void main() {
       () => document.hasImageBitmap('near') && document.hasImageBitmap('far'),
       reason: 'both images hydrate on open',
     );
+    // Hydration lands before the board pager widens the fetched region; a pan taken earlier still refetches.
+    await waitUntil(tester, () {
+      final state = container.read(canvasEngineProvider('c1'));
+      return !state.loading && state.paging == null;
+    }, reason: 'the whole board is in');
     final viewportGets = fixture.viewportGets;
     final fetches = fixture.attachmentFetches;
 
@@ -43,6 +49,10 @@ void main() {
     );
 
     expect(fixture.viewportGets, viewportGets, reason: 'no region refetch');
-    expect(fixture.attachmentFetches, fetches + 1);
+    expect(
+      fixture.attachmentFetches,
+      fetches,
+      reason: 'the evicted bitmap decodes again from the cached preview bytes',
+    );
   });
 }

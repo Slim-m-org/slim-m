@@ -70,7 +70,7 @@ Position, and any state that changes as it plays, stay out for now (see below).
 They appear in the call's dock only while the bot is a participant of that call, read off the roster the client already holds, so a bot that leaves takes its controls with it and nothing is left pointing at a process that is not there.
 Everyone on the call sees them, since anyone on the call can use them.
 A member who is not on the call gets a 403 on use: viewing a voice channel is not being in its call, and the server already knows who is on a call from the call heartbeat.
-A control's use is best effort like a press: silence shows an error on the control with a retry, and a bot that is offline simply never answers.
+A control's use is best effort like a press: silence shows an error on the control with a retry, and a bot that is offline answers 409; the client dims them.
 
 ### A call control may offer a choice
 

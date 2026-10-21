@@ -7,7 +7,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
+
+import 'canvas_summary.dart';
 
 /// The one thing this pane's own onboarding copy never said: how to move
 /// around it at all. Width-branched per `docs/design/desktop-vs-mobile.md`
@@ -40,14 +44,9 @@ class CanvasLoadingHint extends StatelessWidget {
     child: IgnorePointer(
       child: ExcludeSemantics(
         child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: tokens.textSecondary,
-              value: AppMotion.isReduced(context) ? 0.75 : null,
-            ),
+          child: AppSpinner(
+            size: AppSpinnerSize.lg,
+            color: tokens.textSecondary,
           ),
         ),
       ),
@@ -107,3 +106,59 @@ class CanvasEmptyHint extends StatelessWidget {
     ),
   );
 }
+
+/// Labels the surface for a screen reader and lays the loading or empty hint
+/// over it, never over an error banner or a call's participant tiles.
+class CanvasSurfaceStatus extends StatelessWidget {
+  const CanvasSurfaceStatus({
+    super.key,
+    required this.document,
+    required this.tokens,
+    required this.loading,
+    required this.hasError,
+    required this.hasCallParticipants,
+    this.onAddNote,
+    this.onAddShape,
+    required this.child,
+  });
+
+  final CanvasDocument document;
+  final AppTokens tokens;
+  final bool loading;
+  final bool hasError;
+  final bool hasCallParticipants;
+
+  /// Offered to a screen reader on the board itself, placing at the view's centre.
+  final VoidCallback? onAddNote;
+  final VoidCallback? onAddShape;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: document.objectCount,
+    builder: (context, count, child) => Semantics(
+      container: true,
+      label: loading ? 'Canvas, loading' : 'Canvas, ${canvasSummary(document)}',
+      customSemanticsActions: {
+        if (onAddNote case final add?) _addNote: add,
+        if (onAddShape case final add?) _addShape: add,
+      },
+      child: Stack(
+        children: [
+          child!,
+          // A blank canvas otherwise looks identical to a broken one; this is the sighted half of the screen-reader label above.
+          if (loading)
+            CanvasLoadingHint(tokens: tokens)
+          // Not over an error banner, nor over a call's tiles, where "nothing here yet" contradicts the video already on screen.
+          else if (count == 0 && !hasError && !hasCallParticipants)
+            CanvasEmptyHint(tokens: tokens),
+        ],
+      ),
+    ),
+    child: child,
+  );
+}
+
+const _addNote = CustomSemanticsAction(label: 'Add a note');
+const _addShape = CustomSemanticsAction(label: 'Add a shape');

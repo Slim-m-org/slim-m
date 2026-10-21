@@ -9,12 +9,7 @@ use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::routing::post;
 use axum::{Json, Router};
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64STD;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
-use hmac::{Hmac, Mac};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::hub::Hub;
@@ -27,39 +22,15 @@ use tower::ServiceExt;
 
 mod support;
 
+use support::livekit_webhook::webhook_request;
+
 type Present = Arc<Mutex<Vec<String>>>;
 
 const API_KEY: &str = "APItestkey";
 const API_SECRET: &str = "a-test-secret-of-at-least-32-characters";
 
-/// Signed the way LiveKit signs a webhook delivery; see live_voice_participant_events.rs.
 fn signed_webhook(body: &Value) -> Request<Body> {
-    let bytes = serde_json::to_vec(body).unwrap();
-    let header = BASE64URL.encode(r#"{"alg":"HS256","typ":"JWT"}"#);
-    let exp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-        + 300;
-    let claims =
-        json!({ "iss": API_KEY, "exp": exp, "sha256": BASE64STD.encode(Sha256::digest(&bytes)) });
-    let signing_input = format!(
-        "{header}.{}",
-        BASE64URL.encode(serde_json::to_vec(&claims).unwrap())
-    );
-    let mut mac = <Hmac<Sha256>>::new_from_slice(API_SECRET.as_bytes()).unwrap();
-    mac.update(signing_input.as_bytes());
-    let token = format!(
-        "{signing_input}.{}",
-        BASE64URL.encode(mac.finalize().into_bytes())
-    );
-    Request::builder()
-        .method("POST")
-        .uri("/voice/webhook")
-        .header("authorization", token)
-        .header("content-type", "application/webhook+json")
-        .body(Body::from(bytes))
-        .unwrap()
+    webhook_request(body.clone(), API_KEY, API_SECRET)
 }
 
 struct World {
@@ -415,11 +386,18 @@ async fn the_last_person_leaving_removes_the_room_through_the_webhook() {
         .unwrap()
         .status();
     assert_eq!(status, StatusCode::NO_CONTENT);
-    for _ in 0..40 {
-        if !w.listed(&w.alice.0, &id).await {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    panic!("the emptied room was still listed after the webhook");
+    support::wait::wait_until_async("the emptied room to leave the list", || async {
+        !w.listed(&w.alice.0, &id).await
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn a_message_can_be_sent_in_a_temporary_room() {
+    let w = world("slimm-rooms-send").await;
+    let room = w.open_room(&w.alice.0).await;
+    let uri = format!("/channels/{}/messages", room["id"].as_str().unwrap());
+    let body = json!({ "id": uuid::Uuid::now_v7().to_string(), "content": "hello room" });
+    let (status, sent) = w.call("POST", &uri, &w.alice.0, body).await;
+    assert_eq!(status, StatusCode::OK, "{sent}");
 }

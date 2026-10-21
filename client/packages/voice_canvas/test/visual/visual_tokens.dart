@@ -74,7 +74,19 @@ class VisualTheme {
     stripe: Color(0x12A8B2BC),
   );
 
-  static const all = [light, dark, trueBlack];
+  static const mocha = VisualTheme(
+    name: 'mocha',
+    surfaceBase: Color(0xFF1E1E2E),
+    surfaceRaised: Color(0xFF313244),
+    borderSubtle: Color(0xFF45475A),
+    textPrimary: Color(0xFFCDD6F4),
+    textSecondary: Color(0xFFA6ADC8),
+    textDisabled: Color(0xFF6C7086),
+    accentFill: Color(0xFFCBA6F7),
+    stripe: Color(0x12A6ADC8),
+  );
+
+  static const all = [light, dark, trueBlack, mocha];
 }
 
 /// `AppCanvasColors`, copied verbatim - the same three per-kind ink roles and

@@ -11,7 +11,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -20,7 +19,6 @@ import '../providers/blocks_controller.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/toasts.dart';
 import '../providers/user_notes.dart';
 import '../../../routing/routes.dart';
 import 'member_actions.dart';
@@ -35,6 +33,7 @@ import 'profile_banner.dart';
 import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
 import '../../../widgets/run_guarded.dart';
+import 'member_voice_chip.dart';
 import 'status_editor_sheet.dart';
 
 /// Runs [action] after closing the card, with a container that outlives it.
@@ -119,18 +118,6 @@ class SelfMemberCard extends ConsumerWidget {
             },
           ),
           AppMenuItem(
-            label: 'Copy username',
-            leading: AppIcons.copy,
-            onTap: () => run((container) async {
-              await Clipboard.setData(
-                ClipboardData(text: '@${profile.username}'),
-              );
-              container
-                  .read(toastsProvider.notifier)
-                  .show('Username copied.', severity: AppToastSeverity.success);
-            }),
-          ),
-          AppMenuItem(
             label: 'Profile settings',
             leading: AppIcons.settings,
             onTap: () {
@@ -179,7 +166,7 @@ class OtherMemberCard extends ConsumerStatefulWidget {
   final Widget? localAudio;
   final String? callChannelName;
 
-  /// The channel whose roster this card opened from, for the "In #channel" rows.
+  /// The channel whose roster this card opened from, for "Remove from #channel".
   final String? channelId;
   final ScaffoldState? memberPaneScaffold;
 
@@ -198,11 +185,11 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         ref.watch(userNoteProvider(profile.id)).valueOrNull?.body?.isNotEmpty ??
         false;
     final channelId = widget.channelId;
-    // The off-hours allow-list is per person, not per channel, so only removal belongs under the channel's heading.
-    final channelName =
-        channelId == null || !offersRemoveFromChannel(ref, channelId, profile)
-        ? null
-        : ref.watch(channelByIdProvider(channelId)).valueOrNull?.name;
+    // The off-hours allow-list is per person, not per channel, so only removal belongs in the channel's section.
+    final inChannel =
+        channelId != null &&
+        offersRemoveFromChannel(ref, channelId, profile) &&
+        ref.watch(channelByIdProvider(channelId)).valueOrNull != null;
     final canMessage = widget.actions.contains(ParticipantAction.message);
     final canCall = widget.actions.contains(ParticipantAction.call);
     final blocked = ref.watch(blocksProvider).contains(profile.id);
@@ -221,6 +208,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
         if (profile.about case final about? when about.isNotEmpty)
           MemberProfileAbout(about: about),
         MemberProfileActivity(userId: profile.id),
+        MemberProfileVoice(userId: profile.id, onOpened: widget.onDone),
         MemberProfileLinks(userId: profile.id),
         MemberProfileRolesAndJoin(
           roles: profile.roles,
@@ -232,6 +220,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             until: profile.timedOutUntil!,
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
+        const _Rule(),
         if (canMessage || !hasNote) _messageRow(canMessage, canCall, hasNote),
         if (hasNote || _noteRevealed)
           MemberProfileNoteField(
@@ -240,11 +229,11 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
           ),
         const _Rule(),
         if (widget.localAudio case final audio?) ...[audio, const _Rule()],
-        if (channelName != null) ...[
-          _channelSection(channelName),
-          const _Rule(),
-        ],
         _menuSection(blocked: blocked),
+        if (inChannel || !blocked) ...[
+          const _Rule(),
+          _dangerSection(inChannel: inChannel, blocked: blocked),
+        ],
       ],
     );
   }
@@ -252,12 +241,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
   Widget _messageRow(bool canMessage, bool canCall, bool hasNote) {
     final profile = widget.profile;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.s16,
-        0,
-        AppSpacing.s16,
-        AppSpacing.s16,
-      ),
+      padding: const EdgeInsets.all(AppSpacing.s12),
       child: Row(
         spacing: AppSpacing.s8,
         children: [
@@ -290,30 +274,16 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
               },
             ),
           if (!hasNote)
-            Expanded(
-              child: AppButton(
-                label: 'Add note',
-                icon: AppIcons.note,
-                variant: AppButtonVariant.secondary,
-                full: true,
-                onPressed: () => setState(() => _noteRevealed = true),
-              ),
+            AppIconButton(
+              icon: AppIcons.note,
+              semanticLabel: 'Add note',
+              tooltip: 'Add note',
+              onPressed: () => setState(() => _noteRevealed = true),
             ),
         ],
       ),
     );
   }
-
-  Widget _channelSection(String channelName) => _Section([
-    AppMenuLabel('In #$channelName'),
-    MemberRemoveFromChannelItem(
-      channelId: widget.channelId!,
-      profile: widget.profile,
-      host: widget.host,
-      guard: widget.guard,
-      onDone: widget.onDone,
-    ),
-  ]);
 
   Widget _menuSection({required bool blocked}) {
     final host = widget.host;
@@ -340,14 +310,29 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
           leading: AppIcons.restoreAccess,
           onTap: () =>
               run((container) => unblockMember(host, container, profile)),
-        )
-      else
+        ),
+    ]);
+  }
+
+  Widget _dangerSection({required bool inChannel, required bool blocked}) {
+    final host = widget.host;
+    final profile = widget.profile;
+    return _Section([
+      if (inChannel)
+        MemberRemoveFromChannelItem(
+          channelId: widget.channelId!,
+          profile: profile,
+          host: host,
+          guard: widget.guard,
+          onDone: widget.onDone,
+        ),
+      if (!blocked)
         AppMenuItem(
           label: 'Block',
           leading: AppIcons.revoke,
           tone: AppMenuItemTone.danger,
           onTap: () =>
-              run((container) => blockMember(host, container, profile)),
+              widget.run((container) => blockMember(host, container, profile)),
         ),
     ]);
   }

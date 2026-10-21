@@ -28,6 +28,7 @@
 /// intended if something else in the workspace pins lower.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +65,56 @@ void main() {
       );
     },
   );
+
+  test('flutter_webrtc is pinned past the first-share double chooser', () {
+    final ref = _forkRef();
+    expect(
+      _doubleChooserRefs,
+      isNot(contains(ref)),
+      reason: 'flutter_webrtc $ref opens one xdg-desktop-portal chooser for '
+          'libwebrtc\'s own screen list and a second for the capture, so the '
+          'first Linux share asks twice. Run scripts/linux-portal-probe/run.sh '
+          'before moving the pin.',
+    );
+  });
+
+  test('the locked flutter_webrtc carries the portal session guard', () {
+    final config = File(
+      '${_workspaceRoot().path}/.dart_tool/package_config.json',
+    );
+    final packages =
+        (jsonDecode(config.readAsStringSync())['packages'] as List<dynamic>);
+    final root = packages.cast<Map<String, dynamic>>().firstWhere(
+          (p) => p['name'] == 'flutter_webrtc',
+        )['rootUri'] as String;
+    final guard = File.fromUri(
+      Uri.parse(root.endsWith('/') ? root : '$root/').resolve(
+        'linux/portal_session_guard.cc',
+      ),
+    );
+    expect(
+      guard.existsSync(),
+      isTrue,
+      reason: 'without portal_session_guard.cc the first Linux share asks the '
+          'portal twice, whatever ref the lockfile names',
+    );
+  });
+}
+
+/// Fork commits whose first share opens two portal choosers.
+const _doubleChooserRefs = {'a5d9427e64b50dda1c74ac54e769bbacd0655282'};
+
+String _forkRef() {
+  final lines = File('${_workspaceRoot().path}/pubspec.lock').readAsLinesSync();
+  final start = lines.indexWhere((l) => l == '  flutter_webrtc:');
+  expect(start, greaterThanOrEqualTo(0),
+      reason: 'flutter_webrtc is not locked');
+  final resolved = RegExp(r'^      resolved-ref: "?([0-9a-f]{40})"?');
+  for (var j = start + 1; j < lines.length && j < start + 10; j++) {
+    final match = resolved.firstMatch(lines[j]);
+    if (match != null) return match.group(1)!;
+  }
+  fail('flutter_webrtc has no resolved-ref in the lockfile');
 }
 
 /// Reads the version pub actually resolved for [package] out of the

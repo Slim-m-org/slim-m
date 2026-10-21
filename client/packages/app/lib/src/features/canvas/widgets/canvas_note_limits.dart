@@ -30,9 +30,15 @@ const int maxNoteTextBytes = 4000;
 /// simple and can never split a surrogate pair or a grapheme cluster the way
 /// slicing a string at a computed cut point could.
 class NoteByteLimitFormatter extends TextInputFormatter {
-  const NoteByteLimitFormatter([this.maxBytes = maxNoteTextBytes]);
+  const NoteByteLimitFormatter({
+    this.maxBytes = maxNoteTextBytes,
+    this.onRefused,
+  });
 
   final int maxBytes;
+
+  /// Called when an edit is refused, so the field can say why nothing happened.
+  final VoidCallback? onRefused;
 
   @override
   TextEditingValue formatEditUpdate(
@@ -40,6 +46,7 @@ class NoteByteLimitFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     if (noteWireBytes(newValue.text) <= maxBytes) return newValue;
+    onRefused?.call();
     return oldValue;
   }
 }

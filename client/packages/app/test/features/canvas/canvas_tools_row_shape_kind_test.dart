@@ -35,7 +35,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.bySemanticsLabel('More canvas actions'));
+      // The menu from the first tap is still open, and a second tap would close it.
       await tester.pumpAndSettle();
       expect(find.text('Ellipse'), findsOneWidget);
 

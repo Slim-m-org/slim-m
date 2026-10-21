@@ -17,6 +17,8 @@ class SettingsSecretReveal extends StatelessWidget {
     required this.valueSemanticsLabel,
     required this.copyLabel,
     required this.onDismiss,
+    this.extraCopyLabel,
+    this.extraCopyValue,
   });
 
   final String warning;
@@ -24,6 +26,10 @@ class SettingsSecretReveal extends StatelessWidget {
   final String valueSemanticsLabel;
   final String copyLabel;
   final VoidCallback onDismiss;
+
+  /// A second copy action for the same secret in another shape, never drawn.
+  final String? extraCopyLabel;
+  final String? extraCopyValue;
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +57,9 @@ class SettingsSecretReveal extends StatelessWidget {
               style: AppText.code,
               semanticsLabel: valueSemanticsLabel,
             ),
-            Row(
+            Wrap(
               spacing: AppSpacing.s8,
+              runSpacing: AppSpacing.s8,
               children: [
                 AppButton(
                   label: copyLabel,
@@ -62,6 +69,16 @@ class SettingsSecretReveal extends StatelessWidget {
                   onPressed: () =>
                       Clipboard.setData(ClipboardData(text: value)),
                 ),
+                if (extraCopyLabel case final label?)
+                  AppButton(
+                    label: label,
+                    variant: AppButtonVariant.secondary,
+                    size: AppButtonSize.sm,
+                    icon: AppIcons.copy,
+                    onPressed: () => Clipboard.setData(
+                      ClipboardData(text: extraCopyValue ?? value),
+                    ),
+                  ),
                 AppButton(
                   label: 'Done',
                   variant: AppButtonVariant.secondary,

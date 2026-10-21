@@ -1,38 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Expanding one canvas presence tile to full screen - the owner's report
-/// was "no way to full screen a camera", which was closed on the voice
-/// screen (PR #468, `voice_screen_fullscreen_test.dart`) and left open on
-/// the canvas, where every camera bubble the same report's second half is
-/// about actually lives.
-///
-/// Covers the affordance and its one gate (a camera showing the avatar
-/// fallback has no feed to expand), that the route opened is the *existing*
-/// `showFullscreenVideo` rather than a second fullscreen of the canvas's
-/// own, and the half only this surface owns: while a tile is expanded,
-/// [CanvasPresenceLayer] narrows video interest to that one key, so every
-/// other participant's video is unsubscribed for as long as nobody can see
-/// it, and restored however the route is closed.
-///
-/// The interest assertions read the real reported sets rather than asserting
-/// "fewer": a fixture of three cameras all inside the viewport is what makes
-/// the before and after genuinely disagree, where a single participant would
-/// report one key either way and pass without exercising anything.
+/// Expanding a presence tile asks the pane to focus its feed: the affordance and its gate (no feed for an avatar fallback), the reported tile key, and the subscription half (the focused tile stops drawing here but every tile stays subscribed).
+/// `canvas_focused_tile_test.dart` owns what the pane then does.
 library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile_controls.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/voice/voice_controller_harness.dart';
+import 'features/canvas/presence_stack.dart';
 
 const _expandLabel = 'Show this tile full screen';
 
@@ -58,12 +40,19 @@ final _roster = [
 /// Everything one of these tests drives, plus the interest sets the layer
 /// actually reported, in order.
 class _Fixture {
-  _Fixture(this.harness, this.session, this.document, this.interest);
+  _Fixture(
+    this.harness,
+    this.session,
+    this.document,
+    this.interest,
+    this.focused,
+  );
 
   final VoiceHarness harness;
   final FakeSession session;
   final CanvasDocument document;
   final List<Set<String>?> interest;
+  final ValueNotifier<String?> focused;
 
   /// Stops the heartbeat `connected` started, from the test body itself: the
   /// pending-timer check runs before `addTearDown`, the trap
@@ -85,6 +74,8 @@ Future<_Fixture> _seated(
   final overrides = CanvasPresenceTileOverrides();
   addTearDown(overrides.dispose);
   final interest = <Set<String>?>[];
+  final focused = ValueNotifier<String?>(null);
+  addTearDown(focused.dispose);
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
@@ -95,14 +86,19 @@ Future<_Fixture> _seated(
           body: SizedBox(
             width: 1200,
             height: 800,
-            child: CanvasPresenceLayer(
-              document: document,
-              participants: roster,
-              cameraViewFor: (id) => SizedBox(key: Key('camera-$id')),
-              screenShareViewFor: (id) => SizedBox(key: Key('screen-$id')),
-              overrides: overrides,
-              onCommit: (_, __) {},
-              onVideoInterest: interest.add,
+            child: ValueListenableBuilder<String?>(
+              valueListenable: focused,
+              builder: (_, key, __) => PresenceStack(
+                document: document,
+                participants: roster,
+                cameraViewFor: (id) => SizedBox(key: Key('camera-$id')),
+                screenShareViewFor: (id) => SizedBox(key: Key('screen-$id')),
+                overrides: overrides,
+                onCommit: (_, __) {},
+                onVideoInterest: interest.add,
+                focusedKey: key,
+                onFocus: (next) => focused.value = next,
+              ),
             ),
           ),
         ),
@@ -115,7 +111,7 @@ Future<_Fixture> _seated(
   session.emitParticipants(roster);
   await tester.pumpAndSettle();
 
-  return _Fixture(harness, session, document, interest);
+  return _Fixture(harness, session, document, interest, focused);
 }
 
 /// Reveals one tile's control row the way a desktop pointer does - the row
@@ -150,37 +146,20 @@ void main() {
     await fixture.leave();
   });
 
-  testWidgets('a camera tile showing the avatar fallback offers none, since '
-      'there is no feed to fill a screen with', (tester) async {
+  testWidgets('a person with no camera has no tile to expand', (tester) async {
     final fixture = await _seated(
       tester,
       participants: [_camera('user-noor', 'Noor', on: false)],
     );
     addTearDown(fixture.harness.dispose);
 
-    await _hover(tester, 'camera:user-noor');
-
-    expect(
-      _expandButton('camera:user-noor'),
-      findsNothing,
-      reason:
-          'FullscreenVideoView pops itself the moment it opens on a feed '
-          'that is not live, so offering the control would be a button that '
-          'cannot work',
-    );
-    expect(
-      find.byWidgetPredicate((w) => w is TileControls),
-      findsOneWidget,
-      reason:
-          'the rest of the row must still be there - this asserts the '
-          'expand button alone is gated, not that the tile lost its '
-          'controls entirely',
-    );
+    expect(find.byKey(const ValueKey('camera:user-noor')), findsNothing);
+    expect(_expandButton('camera:user-noor'), findsNothing);
     await fixture.leave();
   });
 
-  testWidgets('expanding a tile opens the same route the voice screen uses, '
-      'never a second canvas fullscreen', (tester) async {
+  testWidgets('expanding a tile reports its key and opens no route over the '
+      'canvas', (tester) async {
     final fixture = await _seated(tester);
     addTearDown(fixture.harness.dispose);
 
@@ -188,71 +167,75 @@ void main() {
     await tester.tap(_expandButton('camera:user-noor'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(FullscreenVideoView), findsOneWidget);
-    await tester.tap(
-      find.byWidgetPredicate(
-        (w) => w is AppIconButton && w.semanticLabel == 'Exit full screen',
-      ),
-    );
-    await tester.pumpAndSettle();
+    expect(fixture.focused.value, 'camera:user-noor');
     expect(find.byType(FullscreenVideoView), findsNothing);
     await fixture.leave();
   });
 
-  testWidgets('an expanded tile narrows video interest to itself alone, and '
-      'closing it restores every other tile', (tester) async {
+  testWidgets('a layer with nobody to focus for offers no expand control', (
+    tester,
+  ) async {
+    final document = CanvasDocument()..setViewport(const Size(1200, 800));
+    addTearDown(document.dispose);
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    final harness = VoiceHarness();
+    addTearDown(harness.dispose);
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, voiceApi());
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: harness.container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: SizedBox(
+              width: 1200,
+              height: 800,
+              child: PresenceStack(
+                document: document,
+                participants: _roster,
+                cameraViewFor: (id) => const SizedBox(),
+                screenShareViewFor: (id) => const SizedBox(),
+                overrides: overrides,
+                onCommit: (_, __) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
+    await tester.pump();
+    session.emitParticipants(_roster);
+    await tester.pumpAndSettle();
+
+    await _hover(tester, 'camera:user-noor');
+    expect(_expandButton('camera:user-noor'), findsNothing);
+    await harness.container.read(voiceControllerProvider.notifier).leave();
+  });
+
+  testWidgets('the focused tile is drawn by the pane, not here, and every '
+      'tile stays subscribed', (tester) async {
     final fixture = await _seated(tester);
     addTearDown(fixture.harness.dispose);
 
+    await _hover(tester, 'camera:user-noor');
+    await tester.tap(_expandButton('camera:user-noor'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('camera:user-noor')), findsNothing);
+    expect(find.byKey(const ValueKey('camera:user-ada')), findsOneWidget);
     expect(fixture.interest.last, {
       'camera:user-noor',
       'camera:user-ada',
       'camera:user-rex',
-    }, reason: 'all three cameras are inside the viewport to begin with');
+    }, reason: 'the others are still on the canvas over the feed');
 
-    await _hover(tester, 'camera:user-noor');
-    await tester.tap(_expandButton('camera:user-noor'));
+    fixture.focused.value = null;
     await tester.pumpAndSettle();
-
-    expect(
-      fixture.interest.last,
-      {'camera:user-noor'},
-      reason:
-          'the two tiles nobody can see behind the route must be '
-          'unsubscribed, not merely hidden',
-    );
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
-
-    expect(
-      fixture.interest.last,
-      {'camera:user-noor', 'camera:user-ada', 'camera:user-rex'},
-      reason:
-          'Escape pops the route without telling the layer, so the restore '
-          'has to ride the await rather than a callback of the route own',
-    );
-    await fixture.leave();
-  });
-
-  testWidgets('a participant leaving while their tile is expanded restores '
-      'interest to whoever is left', (tester) async {
-    final fixture = await _seated(tester);
-    addTearDown(fixture.harness.dispose);
-
-    await _hover(tester, 'camera:user-noor');
-    await tester.tap(_expandButton('camera:user-noor'));
-    await tester.pumpAndSettle();
-    expect(fixture.interest.last, {'camera:user-noor'});
-
-    fixture.session.emitParticipants([_roster[1], _roster[2]]);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byType(FullscreenVideoView),
-      findsNothing,
-      reason: 'the route closes itself once the feed stops being live',
-    );
+    expect(find.byKey(const ValueKey('camera:user-noor')), findsOneWidget);
     await fixture.leave();
   });
 }

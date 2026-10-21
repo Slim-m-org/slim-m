@@ -118,7 +118,6 @@ impl Store {
         .await?;
         if let Some(row) = &existing
             && row.locked
-            && locked
             && (row.x != x || row.y != y || row.w != w || row.h != h)
         {
             tx.commit().await?;
@@ -159,6 +158,26 @@ impl Store {
             sent_to_back,
             updated_at: now,
         })
+    }
+
+    /// Whether the tile is locked; a tile nobody has placed yet is not.
+    pub async fn canvas_media_slot_locked(
+        &self,
+        channel_id: ChannelId,
+        user_id: UserId,
+        kind: MediaSlotKind,
+    ) -> anyhow::Result<bool> {
+        let kind_str = kind.as_str();
+        let row = sqlx::query!(
+            r#"SELECT locked AS "locked!: bool" FROM canvas_media_slots
+               WHERE channel_id = ? AND user_id = ? AND kind = ?"#,
+            channel_id,
+            user_id,
+            kind_str,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.is_some_and(|r| r.locked))
     }
 
     /// Every slot ever touched in this channel - bounded by however many

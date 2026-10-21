@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
 
 const _tokens = api.TokenPair(

@@ -12,6 +12,24 @@ extension MessageStoreInbox on MessageStore {
     return row?.toDto();
   }
 
+  /// Every channel's newest held seq, by id, read off the small channels table
+  /// so a consumer never queries the transcript per channel. Emits only when a
+  /// cursor actually moves, not on every other write to a channel row.
+  Stream<Map<String, int>> watchChannelCursors() {
+    final channels = db.channels;
+    final query = db.selectOnly(channels)
+      ..addColumns([channels.id, channels.cursor]);
+    return query
+        .watch()
+        .map(
+          (rows) => {
+            for (final row in rows)
+              row.read(channels.id)!: row.read(channels.cursor)!,
+          },
+        )
+        .distinct(mapEquals);
+  }
+
   /// For each channel, the message the inbox shows: the one at its mention
   /// seq when given, else its newest delivered one. A channel this client holds
   /// nothing for is absent from the result.

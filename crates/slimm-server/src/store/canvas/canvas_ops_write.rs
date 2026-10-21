@@ -37,6 +37,7 @@
 
 use super::super::{PlaceError, Store};
 use super::canvas_audit::record_canvas_audit;
+use super::canvas_clear::apply_clear;
 use super::canvas_edit::apply_edit;
 use super::canvas_ops_apply::{
     affected_count_for, apply_move, apply_remove, apply_reorder, apply_restore, current_canvas_seq,
@@ -80,11 +81,31 @@ async fn insert_targets_batch(
 /// point updates.
 pub const MAX_REMOVE_IDS_PER_OP: usize = 64;
 
+/// Narrows a `clear` to some object kinds and/or one author; the default clears everything.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ClearScope {
+    /// Empty means every kind.
+    pub kinds: Vec<String>,
+    pub author_id: Option<UserId>,
+}
+
+impl ClearScope {
+    pub fn is_unscoped(&self) -> bool {
+        self.kinds.is_empty() && self.author_id.is_none()
+    }
+
+    /// The JSON array the `clear_kinds` column and the kind filter bind, or `None` for every kind.
+    pub(in crate::store) fn kinds_json(&self) -> Option<String> {
+        (!self.kinds.is_empty()).then(|| serde_json::to_string(&self.kinds).unwrap_or_default())
+    }
+}
+
 /// One canvas mutation submitted through `POST /channels/{id}/canvas/ops`.
 pub enum CanvasOpRequest {
     Remove(Vec<CanvasObjectId>),
     Clear {
         before_seq: i64,
+        scope: ClearScope,
     },
     /// Un-deletes what a named `remove` or `clear` op touched.
     Restore {
@@ -141,6 +162,10 @@ pub struct SubmittedOp {
     /// enumerating potentially many ids. `None` for `remove`, `restore`, and
     /// a replay.
     pub cleared_before_seq: Option<i64>,
+    /// The narrowing a fresh `clear` applied; `None` for every other kind and a replay.
+    pub cleared_scope: Option<ClearScope>,
+    /// The locked objects a fresh `clear` left standing; empty for every other kind and a replay.
+    pub spared_ids: Vec<CanvasObjectId>,
     /// The bounds a fresh `move` applied, for the live event to carry so a
     /// receiver need not refetch. `None` for every other kind and for a
     /// replay, for the same reason `touched_ids` is empty there.
@@ -209,15 +234,10 @@ impl Store {
     /// resolved once by the caller alongside `VIEW_CHANNEL`/`USE_CANVAS`
     /// rather than re-read here.
     ///
-    /// Every kind but `clear` writes one `canvas_op_targets` row per touched
-    /// id, both for `restore_candidates`'s own `remove` lookup and for
-    /// `list_canvas_ops`'s page-byte budget, which prices those rows as that
-    /// kind's own wire payload. A `clear` is a fence over `before_seq`, never
-    /// a list - `restore_candidates`'s `clear` branch reads the
-    /// `deleted_at` fence, not this table, and `CanvasOpBodyDto::Clear` never
-    /// serializes an object list either - so a row written here for it would
-    /// be dead weight with one live cost: pricing a `clear` as if it carried
-    /// an `object_ids` array its own DTO never has.
+    /// Every kind writes one `canvas_op_targets` row per touched id, both for
+    /// `restore_candidates`'s own `remove` lookup and for `list_canvas_ops`'s
+    /// page-byte budget. A `clear` is a fence, never a list of what it cleared,
+    /// so its rows name only the locked objects it spared.
     pub async fn submit_canvas_op(
         &self,
         channel_id: ChannelId,
@@ -244,6 +264,8 @@ impl Store {
                 fresh: false,
                 touched_ids: Vec::new(),
                 cleared_before_seq: None,
+                cleared_scope: None,
+                spared_ids: Vec::new(),
                 moved_to: None,
                 reordered_to: None,
                 edited_props: None,
@@ -260,6 +282,9 @@ impl Store {
         let mut reorder_z: Option<i64> = None;
         // Only a fresh, effective `edit` sets this.
         let mut edit_props: Option<String> = None;
+        // Only a fresh, effective `clear` sets these.
+        let mut clear_scope: Option<ClearScope> = None;
+        let mut spared_ids: Vec<CanvasObjectId> = Vec::new();
         let (kind, affected, touched_ids, bound_seq) = match request {
             CanvasOpRequest::Remove(object_ids) => {
                 apply_remove(
@@ -272,23 +297,16 @@ impl Store {
                 )
                 .await?
             }
-            CanvasOpRequest::Clear { before_seq } => {
+            CanvasOpRequest::Clear { before_seq, scope } => {
                 if !may_moderate {
                     tx.commit().await?;
                     return Err(SubmitOpError::NotAuthorized);
                 }
-                // RETURNING rather than rows_affected(): the audit log below needs the ids.
-                let touched: Vec<CanvasObjectId> = sqlx::query_scalar!(
-                    r#"UPDATE canvas_objects SET deleted_at = ?
-                       WHERE channel_id = ? AND deleted_at IS NULL AND seq <= ?
-                       RETURNING id AS "id!: CanvasObjectId""#,
-                    now,
-                    channel_id,
-                    before_seq
-                )
-                .fetch_all(&mut *tx)
-                .await?;
+                let outcome = apply_clear(&mut tx, channel_id, before_seq, &scope, now).await?;
+                let touched = outcome.cleared;
+                spared_ids = outcome.spared;
                 let affected = touched.len() as i64;
+                clear_scope = Some(scope);
                 ("clear", affected, touched, Some(before_seq))
             }
             CanvasOpRequest::Restore { target_op } => {
@@ -361,6 +379,8 @@ impl Store {
                 fresh: true,
                 touched_ids: Vec::new(),
                 cleared_before_seq: None,
+                cleared_scope: None,
+                spared_ids: Vec::new(),
                 moved_to: None,
                 reordered_to: None,
                 edited_props: None,
@@ -373,11 +393,15 @@ impl Store {
             Some((x, y, w, h)) => (Some(x), Some(y), Some(w), Some(h)),
             None => (None, None, None, None),
         };
+        let clear_kinds = clear_scope.as_ref().and_then(ClearScope::kinds_json);
+        let clear_author_id = clear_scope.as_ref().and_then(|scope| scope.author_id);
+        let clear_affected = (kind == "clear").then_some(affected);
         sqlx::query!(
             r#"INSERT INTO canvas_ops
                    (channel_id, seq, id, kind, actor_id, bound_seq, target_op,
-                    move_x, move_y, move_w, move_h, reorder_z, edit_props, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+                    move_x, move_y, move_w, move_h, reorder_z, edit_props,
+                    clear_kinds, clear_author_id, affected, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
             channel_id,
             seq,
             op_id,
@@ -391,15 +415,21 @@ impl Store {
             move_h,
             reorder_z,
             edit_props,
+            clear_kinds,
+            clear_author_id,
+            clear_affected,
             now
         )
         .execute(&mut *tx)
         .await?;
 
-        // A `clear` names no per-object row here; see this function's own doc.
-        if kind != "clear" {
-            insert_targets_batch(&mut tx, channel_id, seq, &touched_ids).await?;
-        }
+        // A clear's target rows name the locked objects it spared, so a replay keeps them.
+        let target_ids = if kind == "clear" {
+            &spared_ids
+        } else {
+            &touched_ids
+        };
+        insert_targets_batch(&mut tx, channel_id, seq, target_ids).await?;
         record_canvas_audit(&mut tx, channel_id, actor_id, kind, &touched_ids, now).await?;
 
         tx.commit().await?;
@@ -413,6 +443,8 @@ impl Store {
             fresh: true,
             touched_ids,
             cleared_before_seq: bound_seq,
+            cleared_scope: clear_scope,
+            spared_ids,
             moved_to: move_bounds,
             reordered_to: reorder_z,
             edited_props: edit_props,

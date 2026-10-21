@@ -16,10 +16,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_bubble.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _jellyfin = VoiceParticipant(
   identity: 'user-jellyfin',
@@ -55,12 +57,7 @@ void main() {
     'the tile is actually hovered',
     (tester) async {
       await tester.pumpWidget(
-        _wrapBubble(
-          const CanvasScreenShareBubble(
-            participant: _jellyfin,
-            view: ColoredBox(color: Color(0xFF123456)),
-          ),
-        ),
+        _wrapBubble(const CanvasScreenShareBadge(participant: _jellyfin)),
       );
       await tester.pump();
 
@@ -79,7 +76,7 @@ void main() {
       );
 
       await gesture.moveTo(
-        tester.getCenter(find.byType(CanvasScreenShareBubble)),
+        tester.getCenter(find.byType(CanvasScreenShareBadge)),
       );
       await tester.pump(AppMotion.fast);
 
@@ -101,38 +98,8 @@ void main() {
     'interaction - the information must not become unreachable on a phone',
     (tester) async {
       await tester.pumpWidget(
-        _wrapBubble(
-          const CanvasScreenShareBubble(
-            participant: _jellyfin,
-            view: ColoredBox(color: Color(0xFF123456)),
-          ),
-        ),
+        _wrapBubble(const CanvasScreenShareBadge(participant: _jellyfin)),
       );
-      await tester.pump();
-
-      expect(_badgeOpacity(tester), 1);
-    },
-  );
-
-  testWidgets(
-    'a non-interactive (sent-to-back) bubble keeps the badge on regardless '
-    "of a connected mouse - it sits behind an IgnorePointer that a hover "
-    'can never reach',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrapBubble(
-          const CanvasScreenShareBubble(
-            participant: _jellyfin,
-            view: ColoredBox(color: Color(0xFF123456)),
-            interactive: false,
-          ),
-        ),
-      );
-      await tester.pump();
-
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      addTearDown(gesture.removePointer);
-      await gesture.addPointer(location: Offset.zero);
       await tester.pump();
 
       expect(_badgeOpacity(tester), 1);
@@ -158,7 +125,7 @@ void main() {
               body: SizedBox(
                 width: 1000,
                 height: 800,
-                child: CanvasPresenceLayer(
+                child: PresenceStack(
                   document: document,
                   participants: const [_jellyfin],
                   cameraViewFor: (_) => const SizedBox(),
@@ -175,12 +142,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      return tester.getRect(
-        find.ancestor(
-          of: find.text("Jellyfin's screen"),
-          matching: find.byType(ClipRRect),
-        ),
-      );
+      return tester.getRect(find.byType(CanvasPresenceManipulableTile));
     }
 
     testWidgets('at the tile\'s default screen-share size', (tester) async {

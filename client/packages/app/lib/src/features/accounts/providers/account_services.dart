@@ -17,6 +17,7 @@ import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
+import '../../members/providers/presence_activity_reporter.dart';
 import '../../voice/providers/voice_move_follower.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
@@ -30,6 +31,7 @@ import '../../../providers/admin_providers.dart';
 /// receiving, counting unread and notifying.
 void startAccountServices(ProviderContainer container) {
   container.read(syncControllerProvider);
+  container.read(presenceActivityReporterProvider);
   container.read(pushControllerProvider);
   container.read(directRouteProvider);
   container.read(viewingReporterProvider);

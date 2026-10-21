@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
 
@@ -17,7 +18,7 @@ void main() {
       final fixture = CanvasPaneFixture()
         ..objects = [
           canvasObjectJson('a', seq: 1),
-          canvasNoteJson('b', x: 50, seq: 2),
+          canvasNoteJson('b', x: 400, seq: 2),
         ];
       final container = fixture.container();
       addTearDown(container.dispose);
@@ -25,7 +26,7 @@ void main() {
       await pumpCanvasPane(tester, container);
       await tester.pumpAndSettle();
 
-      final point = screenFor(tester, const Offset(60, 20));
+      final point = screenFor(tester, const Offset(410, 20));
       await tester.tapAt(point, buttons: kSecondaryButton);
       await tester.pumpAndSettle();
 
@@ -36,7 +37,11 @@ void main() {
       expect(fixture.postedOps, hasLength(1));
       expect(fixture.postedOps.single['kind'], 'reorder');
       expect(fixture.postedOps.single['object_id'], 'b');
-      expect(surfaceDocument(tester).selectedObjectId.value, 'b');
+      expect(
+        tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool,
+        CanvasTool.pen,
+        reason: 'the menu does not change the tool',
+      );
     },
   );
 
@@ -65,14 +70,14 @@ void main() {
     'nothing',
     (tester) async {
       final fixture = CanvasPaneFixture()
-        ..objects = [canvasNoteJson('b', x: 50, authorId: 'someone-else')];
+        ..objects = [canvasNoteJson('b', x: 400, authorId: 'someone-else')];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
       await pumpCanvasPane(tester, container);
       await tester.pumpAndSettle();
 
-      final point = screenFor(tester, const Offset(60, 20));
+      final point = screenFor(tester, const Offset(410, 20));
       await tester.tapAt(point, buttons: kSecondaryButton);
       await tester.pumpAndSettle();
 

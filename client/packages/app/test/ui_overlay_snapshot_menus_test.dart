@@ -27,7 +27,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.da
 import 'package:slimm_app/src/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_app/main.dart' show appChromeBuilder;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -157,13 +157,13 @@ Future<void> _pumpCanvasObjectMenu(WidgetTester tester, Size window) async {
               selfId: 'me',
               requests: CanvasObjectMenuRequests(),
               tool: CanvasTool.pan,
-              onToolChanged: (_) {},
               onBringToFront: (_) {},
               onSendToBack: (_) {},
               onDeleteSelected: (_) {},
               onPasteImageAt: (_) {},
               onAddNoteAt: (_) {},
               onRecenter: () {},
+              onToolChanged: (_) {},
             ),
           ),
         ),

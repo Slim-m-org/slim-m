@@ -7,6 +7,7 @@ library;
 
 import 'package:slimm_platform/platform.dart';
 
+import '../../../routing/routes.dart' show desktopPane;
 import 'settings_index_gates.dart';
 
 export 'settings_index_gates.dart' show SettingsGate;
@@ -134,6 +135,24 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'account-devices',
+    'Your data',
+    description: 'A copy of what you wrote and uploaded.',
+    keywords: [
+      'export',
+      'download my data',
+      'archive',
+      'backup',
+      'portability',
+    ],
+  ),
+  SettingsEntry(
+    'account-devices',
+    'Download my data',
+    description: 'Messages, reactions, saved items, notes and uploads.',
+    keywords: ['export', 'archive', 'backup', 'portability'],
+  ),
+  SettingsEntry(
+    'account-devices',
     'Sign-in',
     description: "How you prove it's you on a new device.",
     keywords: ['2fa', 'two factor', 'totp', 'authenticator', 'security'],
@@ -235,7 +254,7 @@ const personalSettingsIndex = <SettingsEntry>[
   SettingsEntry(
     'voice',
     'Hold a key to talk',
-    description: 'Hold the key to talk; your mic stays on between presses.',
+    description: 'Hold the key to talk; your mic indicator stays on in calls.',
     keywords: ['push to talk', 'ptt', 'keybind', 'hotkey'],
     conditional: true,
     available: _desktop,
@@ -384,7 +403,14 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['cache', 'disk', 'clear'],
   ),
   SettingsEntry(
-    'general',
+    desktopPane,
+    'Startup',
+    description: 'What happens when the app opens.',
+    keywords: ['boot', 'launch', 'login'],
+    available: _desktop,
+  ),
+  SettingsEntry(
+    desktopPane,
     'Start on login',
     description: 'Opens slim-m in the tray when you sign in.',
     keywords: ['autostart', 'startup', 'boot', 'tray'],
@@ -392,15 +418,10 @@ const personalSettingsIndex = <SettingsEntry>[
     available: _desktop,
   ),
   SettingsEntry(
-    'general',
+    desktopPane,
     'Startup splash',
-    description: 'The shortest time the splash stays up at startup.',
-    available: _desktop,
-  ),
-  SettingsEntry(
-    'general',
-    'Startup',
-    keywords: ['autostart'],
+    description: 'How long the splash shows when the app opens.',
+    keywords: ['startup', 'launch', 'loading'],
     available: _desktop,
   ),
   SettingsEntry(
@@ -446,6 +467,12 @@ const personalSettingsIndex = <SettingsEntry>[
     'Connection test',
     description: 'Latency and speed to the server.',
     keywords: ['speed', 'ping', 'latency', 'lan', 'cloudflare', 'network'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Last call audio',
+    description: 'How the audio held up.',
+    keywords: ['voice', 'static', 'jitter', 'packet loss', 'quality', 'call'],
   ),
   SettingsEntry(
     'troubleshooting',

@@ -234,6 +234,27 @@ void main() {
       expect(row.detail, contains('Helper'));
     });
 
+    test('a command of an offline bot is flagged and says so', () {
+      final rows = _for(
+        AutocompleteKind.command,
+        'pi',
+        botCommands: [
+          const api.ChannelBotCommand(
+            botUserId: 'b1',
+            botUsername: 'Helper',
+            botDisplayName: 'Helper',
+            prefix: '!',
+            name: 'ping',
+            description: 'does ping things',
+            offline: true,
+          ),
+        ],
+      );
+      expect(rows.single.offline, isTrue);
+      expect(rows.single.detail, isNot(contains('offline')));
+      expect(rows.single.insert, '!ping ', reason: 'still insertable');
+    });
+
     test('two bots answering one trigger list only the first', () {
       final rows = _for(
         AutocompleteKind.command,

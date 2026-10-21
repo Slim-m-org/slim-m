@@ -4,7 +4,9 @@ library;
 
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
+import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:test/test.dart';
 
 const _buttons = [
@@ -98,5 +100,109 @@ void main() {
       }),
     );
     expect(event, isNull);
+  });
+
+  test('a row carries one select menu, with its bounds defaulted', () {
+    final message = Message.fromJson({
+      'id': 'm1',
+      'channel_id': 'c1',
+      'seq': 1,
+      'content': 'when?',
+      'created_at': 1,
+      'components': [
+        {
+          'buttons': <Object>[],
+          'select': {
+            'custom_id': 'day',
+            'placeholder': 'Pick a day',
+            'options': [
+              {'label': 'Monday', 'value': 'mon', 'description': 'first'},
+              {'label': 'Tuesday', 'value': 'tue'},
+            ],
+          },
+        },
+      ],
+    });
+    final select = message.components.single.select!;
+    expect(select.customId, 'day');
+    expect(select.placeholder, 'Pick a day');
+    expect(select.options.map((o) => o.value), ['mon', 'tue']);
+    expect(select.options.first.description, 'first');
+    expect(select.picksOne, isTrue);
+    expect(message.components.single.buttons, isEmpty);
+  });
+
+  test('parses interaction.form', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'interaction.form',
+        'interaction_id': 'i1',
+        'channel_id': 'c1',
+        'message_id': 'm1',
+        'form': {
+          'custom_id': 'remind',
+          'title': 'Remind me',
+          'fields': [
+            {'custom_id': 'what', 'label': 'What'},
+            {
+              'custom_id': 'note',
+              'label': 'Note',
+              'required': false,
+              'multiline': true,
+              'max_length': 80,
+            },
+          ],
+        },
+      }),
+    );
+    final form = (event as InteractionForm).form;
+    expect(event.interactionId, 'i1');
+    expect(form.title, 'Remind me');
+    expect(form.fields[0].required, isTrue);
+    expect(form.fields[0].maxLength, 200);
+    expect(form.fields[1].required, isFalse);
+    expect(form.fields[1].multiline, isTrue);
+    expect(form.fields[1].maxLength, 80);
+  });
+
+  test('a form frame without a form is ignored, not thrown', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'interaction.form',
+        'interaction_id': 'i1',
+        'channel_id': 'c1',
+      }),
+    );
+    expect(event, isNull);
+  });
+
+  test('choosing sends the values and submitting sends the fields', () async {
+    final sent = <String, Object?>{};
+    final api = testApi((request) async {
+      sent['${request.method} ${request.url.path}'] = jsonDecode(request.body);
+      return http.Response('{"id":"x","created_at":1}', 200);
+    });
+    await api.pressMessageButton(
+      channelId: 'c1',
+      messageId: 'm1',
+      id: 'p1',
+      customId: 'day',
+      values: ['mon', 'tue'],
+    );
+    await api.submitInteractionForm(
+      channelId: 'c1',
+      interactionId: 'i1',
+      id: 'p2',
+      fields: {'what': 'tea'},
+    );
+    expect(sent['POST /channels/c1/messages/m1/interactions'], {
+      'id': 'p1',
+      'custom_id': 'day',
+      'values': ['mon', 'tue'],
+    });
+    expect(sent['POST /channels/c1/interactions/i1/submit'], {
+      'id': 'p2',
+      'fields': {'what': 'tea'},
+    });
   });
 }

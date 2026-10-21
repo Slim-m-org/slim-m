@@ -8,11 +8,18 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_tool_buttons.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_tools_row.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../support/canvas_tools_row_fixtures.dart';
+
+final _strip = find.ancestor(
+  of: find.byType(CanvasToolButtons),
+  matching: find.byType(SingleChildScrollView),
+);
 
 void main() {
   /// A tool clipped by the strip's own scroll viewport is not the same as
@@ -41,10 +48,11 @@ void main() {
         reason: 'a bare tap must not silently land on a clipped tool',
       );
 
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(-1000, 0),
-      );
+      // The clipped tool sits under the neighbouring overflow button, so the bare tap opened its menu.
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      await tester.drag(_strip, const Offset(-1000, 0));
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel('Eraser'));
@@ -67,18 +75,12 @@ void main() {
       expect(find.byKey(canvasToolsLeadingFadeKey), findsNothing);
       expect(find.byKey(canvasToolsTrailingFadeKey), findsOneWidget);
 
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(-40, 0),
-      );
+      await tester.drag(_strip, const Offset(-40, 0));
       await tester.pumpAndSettle();
       expect(find.byKey(canvasToolsLeadingFadeKey), findsOneWidget);
       expect(find.byKey(canvasToolsTrailingFadeKey), findsOneWidget);
 
-      await tester.drag(
-        find.byType(SingleChildScrollView),
-        const Offset(-1000, 0),
-      );
+      await tester.drag(_strip, const Offset(-1000, 0));
       await tester.pumpAndSettle();
       expect(find.byKey(canvasToolsLeadingFadeKey), findsOneWidget);
       expect(find.byKey(canvasToolsTrailingFadeKey), findsNothing);

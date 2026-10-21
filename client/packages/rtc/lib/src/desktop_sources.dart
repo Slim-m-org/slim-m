@@ -97,18 +97,29 @@ class WebrtcDesktopSources implements DesktopSources {
     }
   }
 
-  /// [webrtc.SourceType.Window] is deliberately never requested: see
-  /// [ScreenShareSource] for the crash that causes.
+  /// Windows are listed too except on Linux ([ScreenShareSource]); screens first, untitled windows left out.
+  /// On Wayland the plugin must hold back libwebrtc's portal session for this list, or the first share shows the chooser twice (`scripts/linux-portal-probe/run.sh`).
   @override
   Future<List<ScreenShareSource>> list() async {
     if (!required) return const [];
     if (_linux) await _dropPortalSession();
-    final sources = await webrtc.desktopCapturer.getSources(
-      types: [webrtc.SourceType.Screen],
-    );
-    return [
-      for (final source in sources)
-        ScreenShareSource(id: source.id, name: source.name),
+    final types = [
+      webrtc.SourceType.Screen,
+      if (!_linux) webrtc.SourceType.Window,
     ];
+    final sources = await webrtc.desktopCapturer.getSources(types: types);
+    final screens = <ScreenShareSource>[];
+    final windows = <ScreenShareSource>[];
+    for (final source in sources) {
+      if (source.type == webrtc.SourceType.Window) {
+        if (source.name.trim().isEmpty) continue;
+        windows.add(
+          ScreenShareSource(id: source.id, name: source.name, isWindow: true),
+        );
+      } else {
+        screens.add(ScreenShareSource(id: source.id, name: source.name));
+      }
+    }
+    return [...screens, ...windows];
   }
 }

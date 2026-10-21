@@ -26,8 +26,15 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     final notifier = ref.read(canvasFullscreenProvider.notifier);
     if (_fullscreen) {
       notifier.state = null;
-      // Whatever was armed on the way in, or the default tool if this pane opened straight into fullscreen and has nothing of its own to restore.
-      _refresh(() => _tool = _toolBeforeFullscreen ?? _defaultTool);
+      ref.read(canvasFocusedTileProvider.notifier).state = null;
+      _windowHold.release();
+      _landscapeHold.release();
+      ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
+      // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
+      _refresh(() {
+        final before = _toolBeforeFullscreen;
+        if (_tool == CanvasTool.pan && before != null) _tool = before;
+      });
       _toolBeforeFullscreen = null;
       return;
     }
@@ -38,10 +45,52 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     });
   }
 
+  String? get _focusedTileKey {
+    final focus = ref.watch(canvasFocusedTileProvider);
+    return focus?.channelId == widget.channelId ? focus!.tileKey : null;
+  }
+
+  /// Fills the pane with one call tile's feed under the ink, going fullscreen to give it room; null puts both back.
+  void _focusTile(String? tileKey) {
+    // The feed reports a lost share after the frame, by which time this pane may be gone.
+    if (!_mounted) return;
+    final focus = ref.read(canvasFocusedTileProvider.notifier);
+    if (tileKey != null) {
+      focus.state = (channelId: widget.channelId, tileKey: tileKey);
+      unawaited(_windowHold.enter());
+      unawaited(_landscapeHold.enter());
+      if (ref.read(canvasFullscreenProvider) != widget.channelId) {
+        ref.read(canvasFullscreenFromFocusProvider.notifier).state =
+            widget.channelId;
+        _toggleFullscreen();
+      }
+      return;
+    }
+    if (focus.state?.channelId != widget.channelId) return;
+    _windowHold.release();
+    _landscapeHold.release();
+    if (ref.read(canvasFullscreenFromFocusProvider) == widget.channelId) {
+      _toggleFullscreen();
+      return;
+    }
+    focus.state = null;
+  }
+
   /// A pane that mounts while its channel is still fullscreen (the provider
   /// outlives it) gets the same disarmed pen [_toggleFullscreen] gives one
   /// that entered it, and the same tool to restore on the way out.
   void _disarmIfAlreadyFullscreen() {
+    if (ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId) {
+      // enter writes provider state, which a build phase must not.
+      scheduleMicrotask(() {
+        // The feed may have ended and cleared the focus before this ran.
+        final focusedStill =
+            ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId;
+        if (!_mounted || !focusedStill) return;
+        unawaited(_windowHold.enter());
+        unawaited(_landscapeHold.enter());
+      });
+    }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
     _toolBeforeFullscreen = _tool;
     _tool = CanvasTool.pan;
@@ -51,6 +100,10 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// channel reopened later would come back with its chrome already dropped
   /// and no memory of why.
   void _closeCanvas() {
+    _windowHold.release();
+    _landscapeHold.release();
+    ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
+    ref.read(canvasFocusedTileProvider.notifier).state = null;
     ref.read(canvasFullscreenProvider.notifier).state = null;
     ref.read(canvasOpenProvider.notifier).state = null;
   }

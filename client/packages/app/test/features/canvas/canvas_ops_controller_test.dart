@@ -326,7 +326,23 @@ void main() {
     });
   });
 
-  test('clear removes local ink at or below the fencing seq and can be '
+  test('a scoped clear goes out as its own kind, never as clear', () {
+    fakeAsync((async) {
+      final harness = _Harness();
+      unawaited(
+        harness.ops.clear(
+          10,
+          scope: const api.CanvasClearScope(kinds: ['stroke']),
+        ),
+      );
+      async.flushMicrotasks();
+
+      expect(harness.opRequests.single['kind'], 'clear_scoped');
+      expect(harness.opRequests.single['kinds'], ['stroke']);
+    });
+  });
+
+  test('clear posts the fence, leaves the removal to its frame, and can be '
       'undone by restoring it', () {
     fakeAsync((async) {
       final harness = _Harness();
@@ -339,7 +355,11 @@ void main() {
 
       expect(harness.opRequests.single['kind'], 'clear');
       expect(harness.opRequests.single['before_seq'], 10);
-      expect(harness.document.isAlive('old'), isFalse);
+      expect(
+        harness.document.isAlive('old'),
+        isTrue,
+        reason: 'the clear frame names what was spared, so it removes the ink',
+      );
       expect(harness.ops.canUndo, isTrue);
 
       unawaited(harness.ops.undo());
@@ -359,6 +379,39 @@ void main() {
 
       expect(harness.errors, ['The canvas could not be cleared.']);
       expect(harness.ops.canUndo, isFalse);
+    });
+  });
+
+  test('a scoped clear posts its scope', () {
+    fakeAsync((async) {
+      final harness = _Harness();
+      harness.document
+        ..applyPlaced(_liveStroke('ann-ink', authorId: 'ann'))
+        ..applyPlaced(_liveStroke('bob-ink', x: 200, authorId: 'bob'))
+        ..refresh();
+
+      unawaited(
+        harness.ops.clear(
+          10,
+          scope: const api.CanvasClearScope(kinds: ['stroke'], authorId: 'ann'),
+        ),
+      );
+      async.flushMicrotasks();
+
+      expect(harness.opRequests.single['kinds'], ['stroke']);
+      expect(harness.opRequests.single['author_id'], 'ann');
+      expect(harness.ops.canUndo, isTrue);
+    });
+  });
+
+  test('an unscoped clear posts no scope fields', () {
+    fakeAsync((async) {
+      final harness = _Harness();
+      unawaited(harness.ops.clear(10));
+      async.flushMicrotasks();
+
+      expect(harness.opRequests.single.containsKey('kinds'), isFalse);
+      expect(harness.opRequests.single.containsKey('author_id'), isFalse);
     });
   });
 }

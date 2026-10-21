@@ -22,6 +22,7 @@ VoiceParticipant _p(String identity, {bool local = false}) => VoiceParticipant(
   isMuted: false,
   isLocal: local,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 void main() {
@@ -104,6 +105,7 @@ void main() {
       isMuted: false,
       isLocal: false,
       isScreenSharing: true,
+      isCameraOn: true,
     );
     final keys = presenceTileKeys([camera, sharing]);
     final byIdentity = {'camera-user': camera, 'screen-user': sharing};
@@ -137,8 +139,9 @@ void main() {
       isMuted: false,
       isLocal: false,
       isScreenSharing: true,
+      isCameraOn: true,
     );
-    // One sharer: a 140-wide camera tile plus a 360-wide screen tile, a 548-wide block, wider than the 530-wide pane below.
+    // One sharer: a 220-wide camera tile plus a 360-wide screen tile, a 628-wide block, wider than the 610-wide pane below.
     final keys = presenceTileKeys([sharing]);
     final byIdentity = {'screen-user': sharing};
 
@@ -148,7 +151,7 @@ void main() {
       overrides: CanvasPresenceTileOverrides(),
       byIdentity: byIdentity,
       hideSelfCamera: false,
-      viewport: const Size(530, 800),
+      viewport: const Size(610, 800),
     );
 
     expect(rects, hasLength(2));
@@ -157,7 +160,7 @@ void main() {
     for (final rect in values) {
       expect(
         rect.right,
-        lessThanOrEqualTo(530),
+        lessThanOrEqualTo(610),
         reason: 'shifted left so nothing still runs past the pane edge',
       );
     }

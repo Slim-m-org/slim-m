@@ -44,6 +44,9 @@ class CanvasPresenceFrame {
 class CanvasPresenceFrameResolver {
   final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
 
+  /// The tile rects of the latest [resolve], for placing a new tile clear of them.
+  Map<String, Rect> lastOnCanvas = const {};
+
   /// Safe to call more than once per frame with the same input: the
   /// visibility test is idempotent for an unchanged viewport and rects.
   CanvasPresenceFrame resolve({
@@ -67,6 +70,7 @@ class CanvasPresenceFrameResolver {
       viewport: frame,
     );
     // Ahead of the visibility update, so an empty roster never disturbs the mounted set.
+    lastOnCanvas = onCanvas;
     final visibleIds = onCanvas.isEmpty
         ? const <String>{}
         : _visibility.update(document.worldView, onCanvas);
@@ -76,5 +80,26 @@ class CanvasPresenceFrameResolver {
       onCanvas: onCanvas,
       visibleIds: visibleIds,
     );
+  }
+}
+
+/// Tells a document notification that moved the view from one that only
+/// changed content, so tiles do not rebuild for every stroke or remote preview.
+class CanvasViewChangeGate {
+  Camera? _camera;
+  Size? _viewport;
+  Rect? _board;
+
+  bool changed(CanvasDocument document) {
+    final camera = document.camera;
+    final viewport = document.viewport;
+    final board = document.board;
+    if (camera == _camera && viewport == _viewport && board == _board) {
+      return false;
+    }
+    _camera = camera;
+    _viewport = viewport;
+    _board = board;
+    return true;
   }
 }

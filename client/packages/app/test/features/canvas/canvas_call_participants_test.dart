@@ -7,6 +7,7 @@ VoiceParticipant _p({
   double level = 0,
   bool speaking = false,
   bool camera = false,
+  bool deafened = false,
 }) => VoiceParticipant(
   identity: 'u1',
   name: 'Riley',
@@ -16,6 +17,7 @@ VoiceParticipant _p({
   isLocal: false,
   isScreenSharing: false,
   isCameraOn: camera,
+  isDeafened: deafened,
 );
 
 void main() {
@@ -26,6 +28,13 @@ void main() {
     );
   });
 
+  test('starting or stopping speech does not rebuild the canvas either', () {
+    expect(
+      CanvasCallParticipants([_p()]),
+      CanvasCallParticipants([_p(speaking: true)]),
+    );
+  });
+
   test('anything the canvas draws still counts as a change', () {
     expect(
       CanvasCallParticipants([_p()]),
@@ -33,7 +42,7 @@ void main() {
     );
     expect(
       CanvasCallParticipants([_p()]),
-      isNot(CanvasCallParticipants([_p(speaking: true)])),
+      isNot(CanvasCallParticipants([_p(deafened: true)])),
     );
     expect(
       CanvasCallParticipants([_p()]),

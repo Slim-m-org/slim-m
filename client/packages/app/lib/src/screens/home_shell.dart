@@ -63,6 +63,7 @@ import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
+import '../features/messages/widgets/bot_form_gate.dart';
 import '../features/canvas/screens/canvas_fullscreen.dart';
 import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
@@ -87,30 +88,36 @@ class HomeShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final layout = LayoutClass.of(context);
-    final width = MediaQuery.sizeOf(context).width;
     final selected = selectedChannelId(context);
     // Rebuilds the key bindings when a shortcut is remapped.
     ref.watch(shortcutOverridesProvider);
     listenForHangUpRecap(context, ref, selectedChannelId: selected);
     _holdSessionProviders(ref);
-    final facts = _shellFacts(ref, layout, width, selected);
+    final facts = _shellFacts(
+      ref,
+      layout,
+      MediaQuery.sizeOf(context),
+      selected,
+    );
     final scaffold = _scaffold(context, ref, layout, facts);
 
     final shell = WhatsNewGate(
-      child: PushToTalkListener(
-        child: CallbackShortcuts(
-          bindings: _shortcutBindings(context, ref),
-          // CallbackShortcuts only fires for a focused descendant, so this
-          // default makes the shortcut work the instant the app opens.
-          child: Focus(
-            autofocus: true,
-            child: _LayoutBridge(
-              layout: layout,
-              child: NewDeviceBannerHost(
-                child: RulesGateBannerHost(
-                  child: UpdateBannerHost(
-                    child: DownloadFailureHost(
-                      child: DatabaseResetNotice(child: scaffold),
+      child: BotFormGate(
+        child: PushToTalkListener(
+          child: CallbackShortcuts(
+            bindings: _shortcutBindings(context, ref),
+            // CallbackShortcuts only fires for a focused descendant, so this
+            // default makes the shortcut work the instant the app opens.
+            child: Focus(
+              autofocus: true,
+              child: _LayoutBridge(
+                layout: layout,
+                child: NewDeviceBannerHost(
+                  child: RulesGateBannerHost(
+                    child: UpdateBannerHost(
+                      child: DownloadFailureHost(
+                        child: DatabaseResetNotice(child: scaffold),
+                      ),
                     ),
                   ),
                 ),
@@ -147,9 +154,10 @@ class HomeShell extends ConsumerWidget {
   _ShellFacts _shellFacts(
     WidgetRef ref,
     LayoutClass layout,
-    double width,
+    Size size,
     String? selected,
   ) {
+    final width = size.width;
     // CanvasBar is the only header while open (ConversationPane's doc); the compact app bar below would otherwise stack a second one above it.
     final canvasOpen =
         selected != null && ref.watch(canvasOpenProvider) == selected;
@@ -181,7 +189,7 @@ class HomeShell extends ConsumerWidget {
         !notFound &&
         !canvasFullscreen &&
         !showThread &&
-        ref.watch(memberPaneVisibleProvider);
+        memberPaneWanted(ref, size);
     final dockedPane = switch ((showThread, showMembers)) {
       (true, _) => kThreadPaneWidth,
       (_, true) => AppMemberPane.width,
@@ -248,6 +256,7 @@ class HomeShell extends ConsumerWidget {
     return Scaffold(
       // Where no pane docks, the roster is the same end drawer compact uses.
       onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
+      endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
           : Drawer(
@@ -322,6 +331,7 @@ class HomeShell extends ConsumerWidget {
         // Only the canvas (a drawing surface of its own) also claims the rail; see DmCallPane's own doc for why a DM call keeps it.
         showRail: !facts.canvasOpen,
         showMembers: !(isDm || facts.notFound),
+        membersByEdgeDrag: !facts.canvasOpen,
         body: Column(
           children: [
             const RailConnectionBar(),

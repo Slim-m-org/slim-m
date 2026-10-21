@@ -15,28 +15,44 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// while the pen or eraser is active.
   void _onToolChanged(CanvasTool tool) {
     if (tool != CanvasTool.pan) _document.selectedObjectId.value = null;
+    // A deliberate pick stays through leaving fullscreen.
+    _toolBeforeFullscreen = null;
     _refresh(() => _tool = tool);
   }
 
   CanvasTool get _defaultTool => canvasDefaultTool();
 
+  /// A finger or a pen reaches further than a mouse, on a wide window too.
+  bool get _fingerReach => switch (_document.lastPointerKind) {
+    PointerDeviceKind.touch ||
+    PointerDeviceKind.stylus ||
+    PointerDeviceKind.invertedStylus => true,
+    _ => false,
+  };
+
+  /// A press anywhere in the pane takes the keyboard back from whatever outside it held it.
+  void _onPanePointerDown(PointerDownEvent event) {
+    _pointersDown++;
+
+    if (_editingNoteId == null && !_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+    }
+  }
+
+  void _onPanePointerUp(PointerEvent event) {
+    if (_pointersDown > 0) _pointersDown--;
+  }
+
   /// Arms the tool whose key [event] is, unless its button is absent or disabled, or a text field is taking the key.
-  KeyEventResult _onToolKey(
-    KeyEvent event, {
-    required bool canDraw,
-    required bool fullscreen,
-  }) {
+  KeyEventResult _onToolKey(KeyEvent event, {required bool canDraw}) {
     final keyboard = HardwareKeyboard.instance;
-    if (event is! KeyDownEvent || fullscreen) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (keyboard.isControlPressed ||
         keyboard.isMetaPressed ||
         keyboard.isAltPressed) {
       return KeyEventResult.ignored;
     }
-    final focus = FocusManager.instance.primaryFocus?.context;
-    if (focus?.findAncestorWidgetOfExactType<EditableText>() != null) {
-      return KeyEventResult.ignored;
-    }
+    if (textInputHasFocus()) return KeyEventResult.ignored;
     for (final tool in canvasToolOrder) {
       if (tool.shortcutKey != event.logicalKey) continue;
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
@@ -51,14 +67,28 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// for a sheet the person cancelled or left blank. [_selectPlaced] is what
   /// closes it out.
   Future<void> _onNotePlace(Offset world) async {
-    final text = await showCanvasNoteSheet(context);
-    if (text == null || !_mounted) return;
-    final placed = await _quickPlacement.placeNote(
-      world,
-      text,
-      onError: _engine.reportError,
-    );
-    if (placed != null) _selectPlaced(placed.id);
+    final startedWith = _tool;
+    var text = await showCanvasNoteSheet(context);
+    if (!_mounted) return;
+    _focusNode.requestFocus();
+    while (text != null && _mounted) {
+      final placed = await _quickPlacement.placeNote(
+        world,
+        text,
+        onError: _engine.reportError,
+      );
+      if (placed != null) {
+        _selectPlaced(placed.id, startedWith: startedWith);
+        return;
+      }
+      // Typed text outlives a failed placement: the sheet reopens with it.
+      text = await _reopenNoteSheet(text);
+    }
+  }
+
+  Future<String?> _reopenNoteSheet(String text) async {
+    if (!context.mounted) return null;
+    return showCanvasNoteSheet(context, initialText: text);
   }
 
   /// Places a shape of the bar's own currently-picked kind at once - no
@@ -72,14 +102,22 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// freshly placed shape with no way to resize it short of a manual switch
   /// to Move first, which is worse than the rapid-placement convenience it
   /// was bought with. [_selectPlaced] now matches the note and paste paths.
-  Future<void> _onShapePlace(Offset world, Size? draggedSize) async {
+  Future<void> _onShapePlace(
+    Offset world,
+    Size? draggedSize, {
+    bool flipX = false,
+    bool flipY = false,
+  }) async {
+    final startedWith = _tool;
     final placed = await _quickPlacement.placeShape(
       world,
       _shapeKind,
       draggedSize: draggedSize,
+      flipX: flipX,
+      flipY: flipY,
       onError: _engine.reportError,
     );
-    if (placed != null) _selectPlaced(placed.id);
+    if (placed != null) _selectPlaced(placed.id, startedWith: startedWith);
   }
 
   /// After placing a new object - a placed note, a placed shape, or a
@@ -97,16 +135,20 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// switches tools once per shape rather than never, where drag-to-place
   /// would have kept the rapid-placement flow at the cost of a heavier
   /// gesture change.
-  void _selectPlaced(String objectId) {
+  void _selectPlaced(String objectId, {CanvasTool? startedWith}) {
     if (!_mounted) return;
     // Undoable like a stroke: placing is an edit, and Ctrl+Z must take it back.
     _ops.recordDraw([objectId]);
+    // A reply that lands after the person moved on must not change what they are doing.
+    if (_pointersDown > 0 || (startedWith != null && _tool != startedWith)) {
+      return;
+    }
     _document.selectedObjectId.value = objectId;
     _refresh(() => _tool = CanvasTool.pan);
   }
 
   /// Undo, redo, paste and delete over the canvas's own selection.
-  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => {
+  Map<ShortcutActivator, VoidCallback> _canvasEditShortcuts() => unlessTyping({
     const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () =>
         unawaited(_onUndo()),
     const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): () =>
@@ -125,13 +167,16 @@ extension _CanvasPaneGestures on _CanvasPaneState {
         unawaited(_onRedo()),
     const SingleActivator(LogicalKeyboardKey.keyY, control: true): () =>
         unawaited(_onRedo()),
-    const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
-        unawaited(_imagePaste.pasteFromKeystroke()),
-    const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
-        unawaited(_imagePaste.pasteFromKeystroke()),
+    // Left unbound where the keystroke cannot read the clipboard: a handled keydown makes the browser drop the paste event that carries the image.
+    if (pasteKeystrokeReadsClipboardImage) ...{
+      const SingleActivator(LogicalKeyboardKey.keyV, control: true): () =>
+          unawaited(_imagePaste.pasteFromKeystroke()),
+      const SingleActivator(LogicalKeyboardKey.keyV, meta: true): () =>
+          unawaited(_imagePaste.pasteFromKeystroke()),
+    },
     const SingleActivator(LogicalKeyboardKey.delete): _onDeleteKey,
     const SingleActivator(LogicalKeyboardKey.backspace): _onDeleteKey,
-  };
+  });
 
   /// How soon a second click on a note makes a double click.
   static const _doubleClickWindow = Duration(milliseconds: 400);
@@ -140,6 +185,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// a mouse, or a single tap with a finger or a pen, on the selected note.
   void _onSelectTap(Offset world, PointerDeviceKind kind) {
     final id = _document.selectedObjectId.value;
+    if (id == null && _followCursorAt(world)) return;
     final bounds = id == null ? null : _document.objectBounds(id);
     final onNote =
         id != null &&
@@ -150,7 +196,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       _lastNoteClick = null;
       return;
     }
-    if (kind == PointerDeviceKind.mouse) {
+    if (kind != PointerDeviceKind.mouse) {
+      // The first tap selects the note; only a tap on a note that was already selected edits it.
+      if (id != _selectedBeforeDown) return;
+    } else {
       final last = _lastNoteClick;
       final now = clock.now();
       _lastNoteClick = (id: id, at: now);
@@ -175,11 +224,15 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   Future<void> _onNoteEditSave(String id, String text) async {
     _refresh(() => _editingNoteId = null);
+    _focusNode.requestFocus();
     await _ops.editNote(id, text);
     _refresh();
   }
 
-  void _onNoteEditCancel() => _refresh(() => _editingNoteId = null);
+  void _onNoteEditCancel() {
+    _refresh(() => _editingNoteId = null);
+    _focusNode.requestFocus();
+  }
 
   NoteSpanStyle _noteSpanStyle(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
@@ -194,7 +247,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   /// Whether the roster is docked beside the canvas, as the shell decides it.
   bool get _memberPaneDocked =>
-      ref.watch(memberPaneVisibleProvider) &&
+      memberPaneWanted(ref, MediaQuery.sizeOf(context)) &&
       LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
 
   void _closeMemberPane() =>
@@ -215,7 +268,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onSelectStart(Offset world) {
-    if (_followCursorAt(world)) return;
+    _selectedBeforeDown = _document.selectedObjectId.value;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
     final manageCanvas = ref
@@ -225,18 +278,26 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       world,
       manageCanvas: manageCanvas,
       selfId: me?.id,
-      touch: AppTouchTargets.of(context),
+      touch: AppTouchTargets.of(context) || _fingerReach,
     );
+    // Nothing to move or resize under the pointer: the pan tool pans, with one finger too.
+    if (_ops.activeMove == null) _dragPan.begin(world);
   }
 
-  /// Aspect locks by default; holding Shift frees it. Read fresh on every
-  /// drag point rather than once at [_onSelectStart], so releasing the key
-  /// mid-drag takes effect immediately rather than on the next gesture.
-  /// Alt moves freely; touch has no modifier, so it always snaps.
+  /// Images keep their aspect and notes or shapes resize freely; Shift flips either, Alt moves freely, touch always snaps.
+  /// Read on every drag point so releasing a key mid-drag takes effect at once.
   void _onSelectDrag(Offset world) {
+    if (_dragPan.active) {
+      _dragPan.drag(world, _document);
+      // A stroke is selected by a tap; a drag across it is a pan.
+      if (_dragPan.moving) _document.selectedObjectId.value = null;
+      return;
+    }
     _ops.dragSelect(
       world,
-      lockAspect: !HardwareKeyboard.instance.isShiftPressed,
+      lockAspect: _aspectLocked(
+        flipped: HardwareKeyboard.instance.isShiftPressed,
+      ),
       snap: !HardwareKeyboard.instance.isAltPressed,
     );
     if (_ops.activeMove case final move?) {
@@ -244,7 +305,22 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     }
   }
 
+  bool _aspectLocked({required bool flipped}) {
+    final id = _document.selectedObjectId.value;
+    final isImage =
+        id != null && _document.kindOf(id) == CanvasObjectKind.image;
+    return isImage != flipped;
+  }
+
+  Future<void> _onSelectCancel() async {
+    _dragPan.end();
+    final restored = _ops.cancelSelect();
+    _objectPreview.endLocal(restored?.box);
+    _refresh();
+  }
+
   Future<void> _onSelectEnd() async {
+    _dragPan.end();
     _objectPreview.endLocal(_ops.activeMove?.box);
     await _ops.endSelect();
     _refresh();
@@ -261,7 +337,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   Future<void> _onDeleteSelected(String objectId) async {
-    await _ops.deleteSelected(objectId);
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    await _ops.deleteSelected(objectId, manageCanvas: manageCanvas);
     _refresh();
   }
 
@@ -275,20 +354,46 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  Future<void> _onClear() async {
+  CanvasScopedClear get _scopedClear => CanvasScopedClear(
+    clear: (scope) => _onClear(scope: scope),
+    authorIds: _document.authorIds,
+  );
+
+  Future<void> _onClear({
+    api.CanvasClearScope scope = api.CanvasClearScope.everything,
+  }) async {
     // Fenced on the newest head this client can read; a stale one would leave later ink standing.
-    await _sync.catchUp();
-    final fence = _sync.asOfSeq;
+    final fence = await _sync.fenceHead();
     if (fence == null) {
       _engine.reportError('The canvas could not be cleared.');
       return;
     }
-    await _ops.clear(fence);
+    await _ops.clear(fence, scope: scope);
     _refresh();
   }
 
-  /// Brings the whole shared board back into view.
-  void _onRecenter() => _document.fitBoard();
+  Future<void> _onBringIntoBoard() async {
+    final manageCanvas = ref
+        .read(myChannelPermissionsProvider(widget.channelId))
+        .hasPermission(Perm.manageCanvas);
+    final result = await _ops.bringIntoBoard(
+      manageCanvas: manageCanvas,
+      selfId: ref.read(meProvider).valueOrNull?.id,
+    );
+    if (result.moved == 0 &&
+        !result.failed &&
+        _mounted &&
+        _document.idsOutsideBoard.isNotEmpty) {
+      _engine.reportError(
+        result.locked > 0
+            ? 'Unlock the objects to bring them in.'
+            : 'You can only bring in objects you placed.',
+      );
+    }
+  }
+
+  /// Fits the camera to what is drawn, or the whole board when the canvas is empty.
+  void _onRecenter() => _document.fitContent();
 
   /// Delete/Backspace over the current Move-tool selection, the desktop
   /// convention every other drawing surface honours - the overflow menu's
@@ -308,7 +413,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final selfId = ref.read(meProvider).valueOrNull?.id;
     final ids = <String>[];
     final width = canvasPenWorldWidth(_pen.width, _document.camera.zoom);
-    for (final segment in splitStroke(worldPoints)) {
+    final segments = splitStroke(worldPoints);
+    // The pieces of one long stroke share a group, so erasing one takes the whole mark.
+    final group = segments.length > 1 ? newCanvasObjectId() : null;
+    for (final segment in segments) {
       final id = newCanvasObjectId();
       ids.add(id);
       _document.applyPlaced(
@@ -324,6 +432,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
           width: width,
           colorKey: _pen.colorKey,
           authorId: selfId,
+          groupId: group,
         ),
       );
       _commits.add(
@@ -337,6 +446,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
             'points': segment.points,
             'width': width,
             'color': _pen.colorKey,
+            'group': ?group,
           },
         ),
       );
@@ -357,7 +467,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       world,
       manageCanvas: manageCanvas,
       selfId: me?.id,
-      touch: AppTouchTargets.of(context),
+      touch: AppTouchTargets.of(context) || _fingerReach,
     );
   }
 
@@ -366,12 +476,12 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _refresh();
   }
 
-  /// Who to show on the canvas as a camera bubble: nobody, unless this
-  /// device itself has joined a call in this exact channel - a canvas
-  /// viewer who has not joined the call has no LiveKit room to render a
-  /// live texture from at all (`VoiceSession.cameraViewFor` answers nothing
-  /// without one), so there is no video to lay out for anybody in that
-  /// case, not even for participants known some other way.
+  Future<void> _onEraseCancel() async {
+    _ops.cancelErase();
+    _refresh();
+  }
+
+  /// Who to show as a camera bubble: nobody unless this device joined a call in this channel, since without one there is no LiveKit room to render from.
   List<VoiceParticipant> _callParticipants() {
     final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
     if (channelId != widget.channelId) return const [];
@@ -386,7 +496,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 }
 
 /// The call participants as the canvas sees them: equal whenever nothing but
-/// a speaking level moved, since the canvas draws no level and rebuilding the
+/// a speaking flag or level moved, since the tiles draw neither (speaking is
+/// the cursor label's glow and the dock roster's ring) and rebuilding the
 /// whole pane several times a second per speaker made it lag.
 @visibleForTesting
 class CanvasCallParticipants {
@@ -397,8 +508,8 @@ class CanvasCallParticipants {
   static bool _same(VoiceParticipant a, VoiceParticipant b) =>
       a.identity == b.identity &&
       a.name == b.name &&
-      a.isSpeaking == b.isSpeaking &&
       a.isMuted == b.isMuted &&
+      a.isDeafened == b.isDeafened &&
       a.isLocal == b.isLocal &&
       a.isScreenSharing == b.isScreenSharing &&
       a.isCameraOn == b.isCameraOn;

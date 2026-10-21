@@ -19,3 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// The real, measured height of whatever bottom-anchored dock is on screen
 /// right now, or 0 when none is. See `DockHeightReporter`, the one writer.
 final bottomDockReservationProvider = StateProvider<double>((ref) => 0);
+
+/// The measured width of that dock, or 0 when none is showing, so a corner
+/// readout can tell whether the centred dock reaches it.
+final bottomDockWidthProvider = StateProvider<double>((ref) => 0);

@@ -110,7 +110,7 @@ class _Rig {
 }
 
 void main() {
-  test('a restored image is fetched again', () async {
+  test('a restored image gets its bitmap back from the byte cache', () async {
     final rig = _Rig();
     addTearDown(rig.dispose);
     rig.arrive('a');
@@ -123,7 +123,7 @@ void main() {
     rig.arrive('a');
     await _settleUntil(() => rig.has('a'));
 
-    expect(rig.fetched, hasLength(2), reason: 'restored image must refetch');
+    expect(rig.fetched, hasLength(1), reason: 'the preview bytes are cached');
     expect(rig.has('a'), isTrue);
   });
 
@@ -257,7 +257,7 @@ void main() {
       await _settleUntil(() => rig.has('far'));
 
       expect(rig.has('far'), isTrue);
-      expect(rig.fetched.where((id) => id == 'att-far'), hasLength(2));
+      expect(rig.fetched.where((id) => id == 'att-far'), hasLength(1));
     },
   );
 

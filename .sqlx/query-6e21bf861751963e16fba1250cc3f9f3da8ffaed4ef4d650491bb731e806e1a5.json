@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DISTINCT created_by AS \"created_by!: UserId\" FROM invites\n               WHERE created_by IS NOT NULL AND revoked_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_by!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "6e21bf861751963e16fba1250cc3f9f3da8ffaed4ef4d650491bb731e806e1a5"
+}

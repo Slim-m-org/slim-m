@@ -10,8 +10,17 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_retry.dart';
+
 class CanvasObjectLocks {
-  CanvasObjectLocks({required this.channelId, required this.client});
+  CanvasObjectLocks({
+    required this.channelId,
+    required this.client,
+    this.onError,
+  });
+
+  /// Told when a lock change did not stick.
+  final void Function(String message)? onError;
 
   final String channelId;
   final api.SlimmApi client;
@@ -28,7 +37,9 @@ class CanvasObjectLocks {
   Future<void> fetch() async {
     final Set<String> fetched;
     try {
-      fetched = await client.canvasObjectLocks(channelId);
+      fetched = await retryCanvasRequest(
+        () => client.canvasObjectLocks(channelId),
+      );
     } on api.ApiException catch (error, stack) {
       api.reportFailure(
         api.LogTag.ui,
@@ -52,11 +63,11 @@ class CanvasObjectLocks {
     final before = ids.value;
     _set(objectId, locked);
     try {
-      if (locked) {
-        await client.lockCanvasObject(channelId, objectId);
-      } else {
-        await client.unlockCanvasObject(channelId, objectId);
-      }
+      await retryCanvasRequest(
+        () => locked
+            ? client.lockCanvasObject(channelId, objectId)
+            : client.unlockCanvasObject(channelId, objectId),
+      );
       return true;
     } on api.ApiException catch (error, stack) {
       api.reportFailure(
@@ -66,6 +77,7 @@ class CanvasObjectLocks {
         stack,
       );
       if (!_disposed) ids.value = before;
+      onError?.call('That could not be ${locked ? 'locked' : 'unlocked'}.');
       return false;
     }
   }

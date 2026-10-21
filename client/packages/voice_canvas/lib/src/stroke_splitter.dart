@@ -110,6 +110,7 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
   var originX = _quantise(minX);
   var originY = _quantise(minY);
   var count = 2;
+  var exact = true;
   var sumNumLen =
       _numLen(points[start].dx - originX) + _numLen(points[start].dy - originY);
 
@@ -119,29 +120,32 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
     final newMinY = math.min(minY, p.dy);
     final newMaxX = math.max(maxX, p.dx);
     final newMaxY = math.max(maxY, p.dy);
-    if (newMaxX - newMinX > maxObjectExtent ||
-        newMaxY - newMinY > maxObjectExtent) {
-      break;
-    }
+    if (_overExtent(newMaxX - newMinX, newMaxY - newMinY)) break;
 
     final newOriginX = _quantise(newMinX);
     final newOriginY = _quantise(newMinY);
     final newCount = count + 2;
-    final int newSumNumLen;
-    if (newOriginX == originX && newOriginY == originY) {
-      newSumNumLen =
-          sumNumLen + _numLen(p.dx - originX) + _numLen(p.dy - originY);
-    } else {
-      var sum = 0;
-      for (var i = start; i <= candidate; i++) {
-        sum += _numLen(points[i].dx - newOriginX);
-        sum += _numLen(points[i].dy - newOriginY);
+    final bound = _encodedBound(newCount, newMaxX - newMinX, newMaxY - newMinY);
+    // A bound that fits proves the exact length fits, so the O(L) re-encode on an origin move only runs near the ceiling.
+    var newSumNumLen = sumNumLen;
+    var newExact = false;
+    if (bound > maxPropsBytes) {
+      if (exact && newOriginX == originX && newOriginY == originY) {
+        newSumNumLen =
+            sumNumLen + _numLen(p.dx - originX) + _numLen(p.dy - originY);
+      } else {
+        newSumNumLen = _exactNumLen(
+          points,
+          start,
+          candidate,
+          newOriginX,
+          newOriginY,
+        );
       }
-      newSumNumLen = sum;
+      newExact = true;
+      // jsonEncode of a list is "[" + numbers joined by "," + "]".
+      if (2 + newSumNumLen + (newCount - 1) > maxPropsBytes) break;
     }
-
-    // jsonEncode of a list is "[" + numbers joined by "," + "]".
-    if (2 + newSumNumLen + (newCount - 1) > maxPropsBytes) break;
 
     candidate++;
     minX = newMinX;
@@ -152,15 +156,64 @@ int _growSegment(List<Offset> points, int start, int maxPropsBytes) {
     originY = newOriginY;
     count = newCount;
     sumNumLen = newSumNumLen;
+    exact = newExact;
   }
   return candidate;
 }
+
+bool _overExtent(double width, double height) =>
+    width > maxObjectExtent || height > maxObjectExtent;
+
+/// The most bytes `count` coordinates of a box this size can encode to.
+int _encodedBound(int count, double width, double height) =>
+    2 + (count ~/ 2) * (_maxNumLen(width) + _maxNumLen(height)) + (count - 1);
+
+/// Re-encodes points `start..last` against a new origin, the O(L) path.
+int _exactNumLen(
+  List<Offset> points,
+  int start,
+  int last,
+  double originX,
+  double originY,
+) {
+  var sum = 0;
+  for (var i = start; i <= last; i++) {
+    sum += _numLen(points[i].dx - originX);
+    sum += _numLen(points[i].dy - originY);
+  }
+  return sum;
+}
+
+/// The longest a coordinate in `[0, extent]` can encode: all its whole digits, a point and two decimals.
+int _maxNumLen(double extent) => _digits(extent.ceil() + 1) + 3;
 
 double _quantise(double v) => (v * 100).roundToDouble() / 100;
 
 /// The JSON-encoded length of one coordinate, quantised the way [_segment]
 /// stores it, so a running sum of these equals re-encoding the whole list.
-int _numLen(double relative) => jsonEncode(_quantise(relative)).length;
+int _numLen(double relative) {
+  final q = _quantise(relative);
+  final cents = (q.abs() * 100).round();
+  final whole = cents ~/ 100;
+  final fraction = cents % 100;
+  final fractionDigits = fraction % 10 == 0 ? 1 : 2;
+  return (q.isNegative ? 1 : 0) + _digits(whole) + 1 + fractionDigits;
+}
+
+int _digits(int n) {
+  var digits = 1;
+  for (var rest = n ~/ 10; rest > 0; rest ~/= 10) {
+    digits++;
+  }
+  return digits;
+}
+
+/// The reference [_numLen] is verified against.
+@visibleForTesting
+int debugJsonNumLen(double relative) => jsonEncode(_quantise(relative)).length;
+
+@visibleForTesting
+int debugNumLen(double relative) => _numLen(relative);
 
 Rect _bounds(List<Offset> points, int start, int stop) {
   var minX = points[start].dx;

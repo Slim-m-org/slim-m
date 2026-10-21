@@ -87,8 +87,7 @@ async fn wait_for_entries(
     kind: &str,
     want: usize,
 ) -> Vec<Value> {
-    let start = std::time::Instant::now();
-    loop {
+    crate::support::wait::wait_for(&format!("{want} {kind:?} entries at the relay"), || async {
         let found: Vec<Value> = captured
             .lock()
             .await
@@ -96,16 +95,9 @@ async fn wait_for_entries(
             .filter(|m| m["kind"] == kind)
             .cloned()
             .collect();
-        if found.len() >= want {
-            return found;
-        }
-        assert!(
-            start.elapsed() < std::time::Duration::from_secs(5),
-            "the relay never received {want} {kind:?} entries, only {}",
-            found.len()
-        );
-        tokio::time::sleep(std::time::Duration::from_millis(15)).await;
-    }
+        (found.len() >= want).then_some(found)
+    })
+    .await
 }
 
 fn only(entries: &[Value], token: &str) -> Value {

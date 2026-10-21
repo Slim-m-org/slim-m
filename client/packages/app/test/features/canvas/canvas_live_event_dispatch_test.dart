@@ -126,6 +126,26 @@ void main() {
     expect(log.entries.single.actorId, isNull);
   });
 
+  test('a live scoped clear removes only what its scope names', () {
+    document
+      ..applyPlaced(_scopedStroke('a', 'ann'))
+      ..applyPlaced(_scopedStroke('b', 'bob'))
+      ..refresh();
+
+    dispatch(
+      const api.CanvasCleared(
+        channelId: 'c1',
+        seq: 1,
+        opId: 'op-1',
+        beforeSeq: 5,
+        scope: api.CanvasClearScope(authorId: 'ann'),
+      ),
+    );
+
+    expect(document.isAlive('a'), isFalse);
+    expect(document.isAlive('b'), isTrue);
+  });
+
   test('a live restore (non-empty ids) records with no actor', () {
     dispatch(
       const api.CanvasObjectsRestored(
@@ -150,7 +170,7 @@ void main() {
         coldFetches++;
       },
       forgetFetchedRegion: () {},
-    );
+    )..seedFromViewport(0);
 
     dispatchCanvasLiveEvent(
       const api.CanvasObjectsRestored(
@@ -403,3 +423,17 @@ void main() {
     expect(overrides.stateFor('camera:alice').rect, isNull);
   });
 }
+
+CanvasStrokeInput _scopedStroke(String id, String author) => CanvasStrokeInput(
+  id: id,
+  seq: 1,
+  zIndex: 1,
+  x: id.codeUnitAt(0).toDouble(),
+  y: 0,
+  w: 10,
+  h: 10,
+  points: const [0, 0, 10, 10],
+  width: 3,
+  colorKey: 'annotation',
+  authorId: author,
+);

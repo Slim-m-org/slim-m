@@ -16,7 +16,9 @@ extension SlimmApiDiagnostics on SlimmApi {
     return [
       if (lan != null) (ConnectionRoute.lan, _ApiProbe(this, lan)),
       (
-        ConnectionRoute.internet,
+        lan == null && isLocalHost(baseUrl.host)
+            ? ConnectionRoute.lan
+            : ConnectionRoute.internet,
         _ApiProbe(this, internet ?? _http, owns: internet != null),
       ),
     ];
@@ -68,17 +70,25 @@ class _ApiProbe implements ConnectionProbe {
       '/diagnostics/download',
       query: {'bytes': '$bytes'},
     );
+    final asked = Stopwatch()..start();
     final response = await _api._diagnosticsSend(_client, request);
     if (response.headers.containsKey('cf-ray')) viaCloudflare = true;
     if (response.statusCode != 200) {
       throw _api._errorFor(await http.Response.fromStream(response));
     }
-    final clock = Stopwatch()..start();
+    final clock = Stopwatch();
+    var timed = 0;
     var received = 0;
     try {
       await for (final chunk in response.stream) {
         cancel?.throwIfCancelled();
         received += chunk.length;
+        // The first chunk starts the clock uncounted: what the socket buffered before it was never timed.
+        if (!clock.isRunning) {
+          clock.start();
+        } else {
+          timed += chunk.length;
+        }
         onProgress?.call(received);
       }
     } on UploadCancelled {
@@ -86,7 +96,9 @@ class _ApiProbe implements ConnectionProbe {
     } catch (e) {
       throw TransportException('GET /diagnostics/download failed: $e');
     }
-    return ProbeTransfer(received, clock.elapsed);
+    // A one-chunk body has nothing inside to time, so the whole request is the honest figure.
+    if (timed == 0) return ProbeTransfer(received, asked.elapsed);
+    return ProbeTransfer(timed, clock.elapsed);
   }
 
   @override
@@ -112,7 +124,25 @@ class _ApiProbe implements ConnectionProbe {
     if (response.headers.containsKey('cf-ray')) viaCloudflare = true;
     final full = await http.Response.fromStream(response);
     if (full.statusCode != 200) throw _api._errorFor(full);
-    return ProbeTransfer(bytes, clock.elapsed);
+    return _uploadTiming(full, bytes, clock.elapsed);
+  }
+
+  /// The server's own receipt timing, which leaves out the client's buffering.
+  /// A proxy that buffers the whole request (Cloudflare) makes that look
+  /// instant, so there the sender's end-to-end time is the honest one.
+  ProbeTransfer _uploadTiming(http.Response full, int bytes, Duration sent) {
+    final whole = ProbeTransfer(bytes, sent);
+    if (viaCloudflare) return whole;
+    try {
+      final body = jsonDecode(full.body);
+      if (body is! Map) return whole;
+      final timedBytes = body['timed_bytes'];
+      final micros = body['duration_us'];
+      if (timedBytes is! int || micros is! int || timedBytes <= 0) return whole;
+      return ProbeTransfer(timedBytes, Duration(microseconds: micros));
+    } on FormatException {
+      return whole;
+    }
   }
 
   Stream<List<int>> _body(

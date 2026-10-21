@@ -7,6 +7,7 @@ library;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_devices.dart';
+import 'screen_share_audio_options.dart';
 import 'pulse_audio.dart';
 import 'voice_models.dart';
 
@@ -235,21 +236,32 @@ class AudioDeviceSwitching {
     }
   }
 
-  /// `Room.setAudioInputDevice` only sets the native recording device and the
-  /// room default on desktop, so the published track kept its own old
-  /// `deviceId`: it went on capturing the previous microphone, and any later
-  /// restart (unmute, push-to-talk) re-opened that one.
+  /// `Room.setAudioInputDevice` only sets the native device and room default on desktop, so the published track kept capturing the old microphone and re-opened it on restart.
+  /// On web it restarts every audio publication, share audio included, so there only the microphone is touched.
   static Future<void> switchLiveInput(
     lk.Room room,
-    lk.MediaDevice device,
-  ) async {
-    await room.setAudioInputDevice(device);
-    for (final publication
-        in room.localParticipant?.audioTrackPublications ?? const []) {
+    lk.MediaDevice device, {
+    bool? web,
+    void Function(lk.MediaDevice device)? select,
+  }) async {
+    if (web ?? lk.lkPlatformIs(lk.PlatformType.web)) {
+      (select ?? _selectHardwareInput)(device);
+    } else {
+      await room.setAudioInputDevice(device);
+    }
+    final publications =
+        voiceSourced<lk.LocalTrackPublication<lk.LocalAudioTrack>>(
+      room.localParticipant?.audioTrackPublications ?? const [],
+      (p) => p.source,
+    );
+    for (final publication in publications) {
       final track = publication.track;
       if (track is lk.LocalAudioTrack) await track.setDeviceId(device.deviceId);
     }
   }
+
+  static void _selectHardwareInput(lk.MediaDevice device) =>
+      lk.Hardware.instance.selectedAudioInput = device;
 
   /// [selectInput]'s counterpart for output.
   Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {

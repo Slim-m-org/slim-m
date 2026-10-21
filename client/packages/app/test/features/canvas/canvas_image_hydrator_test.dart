@@ -236,7 +236,7 @@ void main() {
   );
 
   test('a bound past maxDecodedBytes evicts the oldest off-screen bitmap, and '
-      'a later hydrate call re-fetches it', () async {
+      'a later hydrate call decodes it again', () async {
     final fetchedIds = <String>[];
     final document = CanvasDocument()..setViewport(const Size(200, 200));
     for (final (id, x) in [('a', 0.0), ('b', 5000.0)]) {
@@ -291,15 +291,17 @@ void main() {
     );
     expect(document.hasImageBitmap('b'), isTrue);
 
-    hydrator.hydrate(_imageObject('a', attachment: 'sha-a'));
-    await _settleUntil(
-      () => fetchedIds.where((id) => id == 'sha-a').length == 2,
-    );
+    document
+      ..setCamera(const Camera())
+      ..refresh();
+    hydrator.hydrateVisible();
+    await _settleUntil(() => document.hasImageBitmap('a'));
 
+    expect(document.hasImageBitmap('a'), isTrue);
     expect(
       fetchedIds.where((id) => id == 'sha-a').length,
-      2,
-      reason: 'an evicted image still awaits a bitmap, so it fetches again',
+      1,
+      reason: 'an evicted image decodes again from the cached preview bytes',
     );
   });
 

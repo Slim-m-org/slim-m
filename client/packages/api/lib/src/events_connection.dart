@@ -17,15 +17,15 @@ class EventConnection {
   /// Events after a successful handshake.
   Stream<ServerEvent> get events => _events;
 
-  /// Connects, mints nothing itself: pass a ticket from
-  /// [SlimmApi.webSocketTicket]. Completes once the server's hello arrives, so
-  /// a returned connection is authenticated and ready.
+  /// Connects with a ticket from [SlimmApi.webSocketTicket]; completes once the server's hello arrives.
+  /// A non-null [active] promises [active] frames from here on and says whether the person is at the device now.
   static Future<EventConnection> connect({
     required Uri url,
     required String ticket,
     Duration timeout = const Duration(seconds: 15),
     Duration keepaliveInterval = const Duration(seconds: 20),
     WebSocketChannel Function(Uri url)? open,
+    bool? active,
   }) async {
     final channel = (open ?? WebSocketChannel.connect)(url);
     // A connect that lands after the timeout would otherwise leave a socket nobody listens to.
@@ -69,6 +69,7 @@ class EventConnection {
         'type': 'hello',
         'ticket': ticket,
         'protocol': protocolVersion,
+        if (active != null) 'active': active,
       }),
     );
 
@@ -144,12 +145,12 @@ class EventConnection {
         }),
       );
 
-  /// Reports this user's pointer position on a channel's canvas.
-  ///
-  /// Ephemeral like [typing]: no acknowledgement, no retry, and safe to call
-  /// as often as the caller likes - the server rate-limits and drops the
-  /// excess silently. The caller is expected to throttle on its own so a
-  /// well-behaved client rarely hits that limit in the first place.
+  /// Tells the server the person used this device recently. After the first
+  /// one, this connection's pings stop counting as activity, so a client that
+  /// sends it must keep sending it, about once a minute, while they are here.
+  void active() => _channel.sink.add(jsonEncode({'type': 'active'}));
+
+  /// Reports this user's pointer position on a channel's canvas. Ephemeral like [typing]: unacknowledged, and the server rate-limits and drops the excess silently, so the caller should throttle.
   void canvasCursor(
     String channelId,
     double x,
@@ -166,17 +167,15 @@ class EventConnection {
         }),
       );
 
-  /// Relays this device's own in-flight stroke, a delta of [points] since
-  /// this [objectId]'s last frame. The same ephemeral shape as
-  /// [canvasCursor]: no acknowledgement, safe to call as often as the caller
-  /// likes, and the server rate-limits it (by the frame's own byte size
-  /// rather than by count) and drops the excess silently. [ended] marks the
-  /// gesture's last frame.
+  /// Relays this device's in-flight stroke as a delta of [points] since this [objectId]'s last frame.
+  /// Ephemeral like [canvasCursor]: unacknowledged, and the server drops excess by byte size. [ended] marks the last frame; [color] and [width] are the pen's.
   void canvasStrokePreview(
     String channelId,
     String objectId,
     List<double> points, {
     bool ended = false,
+    String? color,
+    double? width,
   }) =>
       _channel.sink.add(
         jsonEncode({
@@ -185,6 +184,8 @@ class EventConnection {
           'object_id': objectId,
           'points': points,
           'ended': ended,
+          if (color != null) 'color': color,
+          if (width != null) 'width': width,
         }),
       );
 
@@ -202,6 +203,29 @@ class EventConnection {
           'type': 'canvas.object_preview',
           'channel_id': channelId,
           'object_id': objectId,
+          'x': box.x,
+          'y': box.y,
+          'w': box.w,
+          'h': box.h,
+          'ended': ended,
+        }),
+      );
+
+  /// Relays the box of a camera or screen-share tile this device is dragging.
+  /// Same ephemeral shape as [canvasObjectPreview]; [slotUserId] is whose tile it is.
+  void canvasMediaSlotPreview(
+    String channelId,
+    String kind,
+    String slotUserId,
+    ({double x, double y, double w, double h}) box, {
+    bool ended = false,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.media_slot_preview',
+          'channel_id': channelId,
+          'kind': kind,
+          'user_id': slotUserId,
           'x': box.x,
           'y': box.y,
           'w': box.w,

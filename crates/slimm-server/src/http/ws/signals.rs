@@ -4,17 +4,13 @@
 //! handling. Split out of `super` (the envelope and connection loop) so that
 //! file stays focused on the wire protocol itself.
 
-use std::sync::Arc;
-
-use super::canvas_gate::{Frame, may_relay};
 use super::frames::ServerFrame;
-use super::permission_cache::PermissionCache;
 use crate::hub::{Event, Hub};
-use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
+use crate::ids::{ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::{self, DeviceKind, Status, Visibility};
 use crate::ratelimit::{Class, RateLimiter};
-use crate::store::{SessionContext, Store, WORLD_LIMIT};
+use crate::store::{SessionContext, Store};
 
 /// Ensures a disconnect is always recorded and published, no matter which
 /// branch of the read loop in `super::serve` causes it to return: a `Drop`
@@ -38,9 +34,10 @@ impl PresenceGuard {
         store: Store,
         user_id: UserId,
         device_id: DeviceId,
+        active: bool,
     ) -> Self {
         let kind = store.device_kind(device_id).await;
-        let first = hub.presence().connect_as(user_id, kind);
+        let first = hub.presence().connect_as(user_id, kind, active);
         // Fill the cache without clobbering a concurrent visibility change (see load_visibility).
         if let Ok(Some(visibility)) = store.presence_visibility(user_id).await {
             hub.presence().load_visibility(user_id, visibility);
@@ -263,248 +260,5 @@ pub(super) async fn handle_typing(
                 user_id,
             });
         }
-    });
-}
-
-/// A `canvas.cursor` frame's position and whether it reports leaving.
-pub(super) struct CursorAt {
-    pub(super) x: f64,
-    pub(super) y: f64,
-    pub(super) left: bool,
-}
-
-/// Relays a pointer position on a channel's canvas, if the rate limiter,
-/// bounds check and channel permissions all allow it. Silent on every
-/// rejection, the same treatment [`handle_typing`] gives a refused refresh:
-/// a dropped cursor frame is worth nothing, never an error frame or a closed
-/// socket.
-///
-/// The permission bar matches the canvas HTTP routes exactly (view plus
-/// `USE_CANVAS`), and there is deliberately no timeout check: a timeout
-/// freezes the pen, not the mouse, the same reasoning `submit_op` already
-/// gives for letting a timed-out member erase their own ink.
-pub(super) async fn handle_canvas_cursor(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
-    ctx: &SessionContext,
-    cache: &mut PermissionCache,
-    channel_id: &str,
-    CursorAt { x, y, left }: CursorAt,
-) {
-    let Ok(channel_id) = uuid::Uuid::parse_str(channel_id) else {
-        return;
-    };
-    let channel_id = ChannelId(channel_id);
-
-    if !x.is_finite() || !y.is_finite() || x.abs() > WORLD_LIMIT || y.abs() > WORLD_LIMIT {
-        return;
-    }
-
-    if !limiter.check(Class::CanvasCursor, &format!("u:{}", ctx.user_id)) {
-        return;
-    }
-
-    hub.presence().touch(ctx.user_id);
-
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Pointer).await {
-        return;
-    }
-
-    hub.publish(Event::CanvasCursorMoved {
-        channel_id,
-        user_id: ctx.user_id,
-        x,
-        y,
-        left,
-    });
-}
-
-/// Bound on how many coordinate pairs one in-flight stroke preview frame may
-/// carry. A well-behaved client never approaches this - it flushes on a
-/// timer and caps what it buffers - so this only ever refuses a frame
-/// nobody's own throttle produced, and it is checked before the frame costs
-/// anything against the byte-rate budget.
-const MAX_STROKE_PREVIEW_POINTS: usize = 24;
-
-/// One `canvas.stroke_preview` frame's fields, bundled so
-/// [`handle_canvas_stroke_preview`] stays under the project's parameter cap.
-pub(super) struct StrokePreviewFrame {
-    pub(super) channel_id: String,
-    pub(super) object_id: String,
-    pub(super) points: Vec<f64>,
-    pub(super) ended: bool,
-}
-
-/// Relays an in-flight stroke preview on a channel's canvas, if the
-/// byte-rate limiter, bounds check, permissions and timeout all allow it.
-/// Silent on every rejection, the same treatment [`handle_canvas_cursor`]
-/// gives a refused frame.
-///
-/// Two departures from [`handle_canvas_cursor`], both because this frame
-/// carries drawing content and a cursor's bare position does not: the rate
-/// limiter charges `frame_bytes` rather than one flat token (see
-/// [`crate::ratelimit::Class::CanvasStrokePreview`]), and a timed-out member
-/// is refused directly - the same check `http::canvas_write`'s own doc names
-/// as the one thing standing between a timeout and a second write path that
-/// forgot to apply it.
-pub(super) async fn handle_canvas_stroke_preview(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
-    ctx: &SessionContext,
-    cache: &mut PermissionCache,
-    frame: StrokePreviewFrame,
-    frame_bytes: usize,
-) {
-    let Ok(channel_id) = uuid::Uuid::parse_str(&frame.channel_id) else {
-        return;
-    };
-    let channel_id = ChannelId(channel_id);
-    let Ok(object_id) = uuid::Uuid::parse_str(&frame.object_id) else {
-        return;
-    };
-    let object_id = CanvasObjectId(object_id);
-
-    if !frame.points.len().is_multiple_of(2) || frame.points.len() / 2 > MAX_STROKE_PREVIEW_POINTS {
-        return;
-    }
-    if frame
-        .points
-        .iter()
-        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
-    {
-        return;
-    }
-
-    let key = format!("u:{}", ctx.user_id);
-    if !limiter.check_weighted(Class::CanvasStrokePreview, &key, frame_bytes as f64) {
-        return;
-    }
-
-    hub.presence().touch(ctx.user_id);
-
-    // Unlike a cursor, this frame carries ink; see this function's own doc.
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Ink).await {
-        return;
-    }
-
-    hub.publish(Event::CanvasStrokePreview {
-        channel_id,
-        user_id: ctx.user_id,
-        object_id,
-        points: Arc::new(frame.points),
-        ended: frame.ended,
-    });
-}
-
-/// One `canvas.view` frame's fields.
-pub(super) struct ViewFrame {
-    pub(super) channel_id: String,
-    /// `[x, y, w, h]` in world units.
-    pub(super) rect: [f64; 4],
-    pub(super) summon: bool,
-}
-
-/// Relays the world rectangle a member is looking at. Gated exactly like a
-/// cursor (view plus `USE_CANVAS`, no timeout check) and silent on every
-/// rejection.
-pub(super) async fn handle_canvas_view(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
-    ctx: &SessionContext,
-    cache: &mut PermissionCache,
-    frame: ViewFrame,
-) {
-    let Ok(channel_id) = uuid::Uuid::parse_str(&frame.channel_id) else {
-        return;
-    };
-    let channel_id = ChannelId(channel_id);
-    let [x, y, w, h] = frame.rect;
-    if frame
-        .rect
-        .iter()
-        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
-        || w <= 0.0
-        || h <= 0.0
-    {
-        return;
-    }
-    if !limiter.check(Class::CanvasView, &format!("u:{}", ctx.user_id)) {
-        return;
-    }
-    hub.presence().touch(ctx.user_id);
-
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Pointer).await {
-        return;
-    }
-
-    hub.publish(Event::CanvasView {
-        channel_id,
-        user_id: ctx.user_id,
-        x,
-        y,
-        w,
-        h,
-        summon: frame.summon,
-    });
-}
-
-/// One `canvas.object_preview` frame's fields.
-pub(super) struct ObjectPreviewFrame {
-    pub(super) channel_id: String,
-    pub(super) object_id: String,
-    /// `[x, y, w, h]` in world units.
-    pub(super) rect: [f64; 4],
-    pub(super) ended: bool,
-}
-
-/// Relays a drag or resize preview if the limiter, bounds, permissions and
-/// timeout allow it; silent on every rejection like its siblings.
-pub(super) async fn handle_canvas_object_preview(
-    store: &Store,
-    hub: &Hub,
-    limiter: &RateLimiter,
-    ctx: &SessionContext,
-    cache: &mut PermissionCache,
-    frame: ObjectPreviewFrame,
-) {
-    let (Ok(channel_id), Ok(object_id)) = (
-        uuid::Uuid::parse_str(&frame.channel_id),
-        uuid::Uuid::parse_str(&frame.object_id),
-    ) else {
-        return;
-    };
-    let channel_id = ChannelId(channel_id);
-    let [x, y, w, h] = frame.rect;
-    if frame
-        .rect
-        .iter()
-        .any(|v| !v.is_finite() || v.abs() > WORLD_LIMIT)
-        || w < 0.0
-        || h < 0.0
-    {
-        return;
-    }
-    let key = format!("u:{}", ctx.user_id);
-    if !limiter.check(Class::CanvasObjectPreview, &key) {
-        return;
-    }
-    hub.presence().touch(ctx.user_id);
-
-    if !may_relay(store, hub, ctx, cache, channel_id, Frame::Ink).await {
-        return;
-    }
-
-    hub.publish(Event::CanvasObjectPreview {
-        channel_id,
-        user_id: ctx.user_id,
-        object_id: CanvasObjectId(object_id),
-        x,
-        y,
-        w,
-        h,
-        ended: frame.ended,
     });
 }

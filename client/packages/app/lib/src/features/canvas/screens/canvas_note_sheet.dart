@@ -17,22 +17,27 @@ export '../widgets/canvas_note_limits.dart'
 
 /// Opens the note sheet and answers with the entered text, or null if the
 /// person cancelled without typing anything worth keeping.
-Future<String?> showCanvasNoteSheet(BuildContext context) {
+Future<String?> showCanvasNoteSheet(
+  BuildContext context, {
+  String initialText = '',
+}) {
   return showAppSheet<String?>(
     context,
-    builder: (context) => const _CanvasNoteSheet(),
+    builder: (context) => _CanvasNoteSheet(initialText: initialText),
   );
 }
 
 class _CanvasNoteSheet extends StatefulWidget {
-  const _CanvasNoteSheet();
+  const _CanvasNoteSheet({required this.initialText});
+
+  final String initialText;
 
   @override
   State<_CanvasNoteSheet> createState() => _CanvasNoteSheetState();
 }
 
 class _CanvasNoteSheetState extends State<_CanvasNoteSheet> {
-  final _text = TextEditingController();
+  late final _text = TextEditingController(text: widget.initialText);
   final _focus = FocusNode();
 
   @override

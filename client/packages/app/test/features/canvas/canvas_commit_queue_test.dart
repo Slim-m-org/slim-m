@@ -277,6 +277,37 @@ void main() {
     },
   );
 
+  test('a brief outage does not kill queued ink', () {
+    fakeAsync((async) {
+      var outage = true;
+      final harness = _Harness(
+        _fakeApi(() {
+          if (outage) return _json({'error': 'down'}, 503);
+          return _json(
+            _objectFor({
+              'id': 'a',
+              'x': 0.0,
+              'y': 0.0,
+              'w': 10.0,
+              'h': 10.0,
+              'props': <String, dynamic>{},
+            }),
+          );
+        }),
+      );
+      harness.queue.add(_commit('a'));
+      async.elapse(const Duration(seconds: 3));
+      outage = false;
+      async.elapse(const Duration(seconds: 30));
+
+      expect(
+        harness.failed,
+        isEmpty,
+        reason: 'a 3 s blip must leave the stroke pending, not kill it',
+      );
+    });
+  });
+
   test('undoPlacement on an id this queue never held is unresolved', () {
     final harness = _Harness(_fakeApi(() => _json(<Object>[])));
     expect(

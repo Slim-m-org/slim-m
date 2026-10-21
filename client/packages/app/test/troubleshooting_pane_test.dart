@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
+import 'package:slimm_app/src/features/settings/widgets/debug_log_toolbar.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -51,6 +52,16 @@ void main() {
     await tester.tap(find.byTooltip('Back to troubleshooting'));
     await tester.pumpAndSettle();
     expect(find.text('Device check'), findsOneWidget);
+  });
+
+  testWidgets('the header actions sit on the right edge of the content', (
+    tester,
+  ) async {
+    await _open(tester);
+
+    final clear = tester.getRect(find.byTooltip('Clear'));
+    final toolbar = tester.getRect(find.byType(DebugLogToolbar));
+    expect(clear.right, moreOrLessEquals(toolbar.right, epsilon: 1));
   });
 
   testWidgets('the filter narrows the list and counts each level', (

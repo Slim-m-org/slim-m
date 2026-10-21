@@ -17,11 +17,17 @@ import 'support/code_only.dart';
 final _emptyCatch = RegExp(r'\bcatch\s*\([^)]*\)\s*\{\s*\}');
 final _emptyOn = RegExp(r'\}\s*on\s+[\w.<>?]+\s*\{\s*\}');
 final _emptyCatchError = RegExp(r'catchError\(\s*\([^)]*\)\s*\{\s*\}');
+
+/// `=> null` and its kin: an empty body in an arrow.
+final _arrowCatchError = RegExp(
+  r'catchError\(\s*\([^)]*\)\s*=>\s*(null|false|true|0|const\b)',
+);
 final _debugPrint = RegExp(r'\bdebugPrint\s*\(');
 
-/// The logger itself may echo to the console.
+/// The logger may echo to the console, and the voice harness's stdout is what the harness reads.
 const _debugPrintAllowed = {
-  'client/packages/app/lib/src/diagnostics/debug_log.dart'
+  'client/packages/app/lib/src/diagnostics/debug_log.dart',
+  'client/packages/app/lib/src/diagnostics/voice_harness.dart',
 };
 
 void main() {
@@ -47,12 +53,14 @@ void main() {
       'try {} catch (e, s) {\n}',
       'try {} on StateError {}',
       'f.catchError((_) {})',
+      'f.catchError((_) => null)',
     ]) {
       final code = codeOnly(bad);
       expect(
         _emptyCatch.hasMatch(code) ||
             _emptyOn.hasMatch(code) ||
-            _emptyCatchError.hasMatch(code),
+            _emptyCatchError.hasMatch(code) ||
+            _arrowCatchError.hasMatch(code),
         isTrue,
         reason: bad,
       );
@@ -66,7 +74,12 @@ void main() {
     final hits = <String>[];
     for (final file in files) {
       final code = codeOnly(file.readAsStringSync());
-      for (final pattern in [_emptyCatch, _emptyOn, _emptyCatchError]) {
+      for (final pattern in [
+        _emptyCatch,
+        _emptyOn,
+        _emptyCatchError,
+        _arrowCatchError,
+      ]) {
         for (final m in pattern.allMatches(code)) {
           final line = '\n'.allMatches(code.substring(0, m.start)).length + 1;
           hits.add('${relative(file)}:$line');
