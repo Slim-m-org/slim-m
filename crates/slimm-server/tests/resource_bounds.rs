@@ -233,7 +233,7 @@ async fn the_previously_uncharged_routes_are_charged_now() {
     let channel = store.list_channels().await.unwrap()[0].id;
     let app = app_with_hops(store, 0);
 
-    // Write's burst is 30 and AuthedRead's is 40, so a run well past both is refused.
+    // Bursts are 30 (Write) and 40 (AuthedRead) with refill; a slow runner refills a fixed 45, so run until refused.
     let cases: Vec<(&str, String, Option<Value>)> = vec![
         (
             "POST",
@@ -253,7 +253,7 @@ async fn the_previously_uncharged_routes_are_charged_now() {
 
     for (method, uri, body) in cases {
         let mut throttled = false;
-        for _ in 0..45 {
+        for _ in 0..400 {
             let response = app
                 .clone()
                 .oneshot(authed(method, &uri, &token, body.clone()))
