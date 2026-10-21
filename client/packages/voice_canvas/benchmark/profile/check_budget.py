@@ -18,8 +18,7 @@ MEDIAN_MS = float(os.environ.get("PROFILE_RASTER_MEDIAN_MS", "8"))
 P99_MS = float(os.environ.get("PROFILE_RASTER_P99_MS", "16.7"))
 ROOTS = tuple(
     Path(root).resolve()
-    for root in (os.environ.get("CANVAS_PERF_OUT"), os.environ.get("TMPDIR"),
-                 tempfile.gettempdir(), Path.home(), Path.cwd())
+    for root in (os.environ.get("CANVAS_PERF_OUT"), tempfile.gettempdir(), Path.home(), Path.cwd())
     if root
 )
 

@@ -37,7 +37,16 @@ ALLOWED_HOSTS = ("archive.org", "datashare.ed.ac.uk", "upload.wikimedia.org")
 
 
 def checked_url(url):
-    """The URL itself when it is https on an allowed host; anything else is an error."""
+    """The URL rebuilt on its allowed https host; anything else is an error."""
+    parts = urllib.parse.urlsplit(url)
+    host = next((allowed for allowed in ALLOWED_HOSTS if parts.hostname == allowed), None)
+    if parts.scheme != "https" or host is None:
+        raise ValueError(f"{url}: only https downloads from {', '.join(ALLOWED_HOSTS)} are allowed")
+    return urllib.parse.urlunsplit(("https", host, parts.path, parts.query, ""))
+
+
+def checked_redirect(url):
+    """A redirect target, which may land on a mirror subdomain of an allowed host."""
     parts = urllib.parse.urlsplit(url)
     host = parts.hostname or ""
     if parts.scheme != "https" or not any(
@@ -71,7 +80,7 @@ class RangeFile(io.RawIOBase):
             total = resp.headers.get("Content-Range", "").partition("/")[2]
             if not total.isdigit():
                 raise OSError(f"{url}: the server ignored the Range request")
-            return int(total), checked_url(resp.geturl())
+            return int(total), checked_redirect(resp.geturl())
 
     def seekable(self):
         return True
@@ -190,6 +199,31 @@ def record_sources(fetcher, clip):
             part["sha256"] = sha256_file(fetcher.path(part))
 
 
+def write_manifest(manifest):
+    """One clip per line, so a re-record shows up as a readable diff."""
+    head = {k: v for k, v in manifest.items() if k != "clips"}
+    lines = [f" {json.dumps(k)}: {json.dumps(v, ensure_ascii=False)}," for k, v in head.items()]
+    clips = ",\n".join("  " + json.dumps(c, ensure_ascii=False) for c in manifest["clips"])
+    with open(corpus.MANIFEST, "w", encoding="utf-8") as fh:
+        fh.write("{\n" + "\n".join(lines) + '\n "clips": [\n' + clips + "\n ]\n}\n")
+
+
+def build_one(fetcher, clip, out, record):
+    if record:
+        record_sources(fetcher, clip)
+    samples, gain, limited = build_clip(fetcher, clip)
+    path = os.path.join(out, clip["id"] + ".wav")
+    dsp.write_wav(path, samples, corpus.RATE)
+    digest = sha256_file(path)
+    if record:
+        clip.update({"sha256": digest, "seconds": round(len(samples) / corpus.RATE, 2),
+                     "gain_db": gain, "peak_limited": limited})
+    elif clip.get("sha256") and clip["sha256"] != digest:
+        print(f"warning: {clip['id']} differs from the manifest hash (ffmpeg build?)")
+    print(f"{clip['id']:34} {len(samples) / corpus.RATE:6.1f}s gain {gain:+6.1f} dB"
+          f"{' (peak limited)' if limited else ''}", flush=True)
+
+
 def main(argv):
     out = Path(argv[argv.index("--out") + 1] if "--out" in argv else DEFAULT_OUT).resolve()
     if not any(out.is_relative_to(root) for root in ROOTS):
@@ -201,25 +235,10 @@ def main(argv):
     fetcher = Fetcher(os.path.join(os.path.dirname(out.rstrip("/")), "cache"))
     os.makedirs(out, exist_ok=True)
     for clip in manifest["clips"]:
-        if only and clip["id"] not in only:
-            continue
-        if record:
-            record_sources(fetcher, clip)
-        samples, gain, limited = build_clip(fetcher, clip)
-        path = os.path.join(out, clip["id"] + ".wav")
-        dsp.write_wav(path, samples, corpus.RATE)
-        digest = sha256_file(path)
-        if record:
-            clip.update({"sha256": digest, "seconds": round(len(samples) / corpus.RATE, 2),
-                         "gain_db": gain, "peak_limited": limited})
-        elif clip.get("sha256") and clip["sha256"] != digest:
-            print(f"warning: {clip['id']} differs from the manifest hash (ffmpeg build?)")
-        print(f"{clip['id']:34} {len(samples) / corpus.RATE:6.1f}s gain {gain:+6.1f} dB"
-              f"{' (peak limited)' if limited else ''}", flush=True)
+        if not only or clip["id"] in only:
+            build_one(fetcher, clip, out, record)
     if record:
-        with open(corpus.MANIFEST, "w", encoding="utf-8") as fh:
-            json.dump(manifest, fh, indent=1, ensure_ascii=False)
-            fh.write("\n")
+        write_manifest(manifest)
 
 
 if __name__ == "__main__":

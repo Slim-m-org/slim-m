@@ -6,6 +6,6 @@ from pathlib import Path
 
 ROOTS = tuple(
     Path(root).resolve()
-    for root in (os.environ.get("TMPDIR"), tempfile.gettempdir(), Path.home(), Path.cwd())
+    for root in (tempfile.gettempdir(), Path.home(), Path.cwd())
     if root
 )

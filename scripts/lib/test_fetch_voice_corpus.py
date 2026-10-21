@@ -82,7 +82,7 @@ class Confinement(unittest.TestCase):
                     "https://archive.org.evil.test/a.wav", "file:///etc/passwd"):
             with self.assertRaises(ValueError):
                 fetch.checked_url(url)
-        self.assertEqual(fetch.checked_url("https://ia8.us.archive.org/x"), "https://ia8.us.archive.org/x")
+        self.assertEqual(fetch.checked_redirect("https://ia8.us.archive.org/x"), "https://ia8.us.archive.org/x")
 
     def test_a_cache_outside_the_work_directories_is_refused(self):
         with self.assertRaises(SystemExit):
@@ -110,6 +110,18 @@ class BuildLayer(unittest.TestCase):
             fh.write(b"hello")
             fh.flush()
             self.assertEqual(fetch.sha256_file(fh.name), hashlib.sha256(b"hello").hexdigest())
+
+
+class Manifest(unittest.TestCase):
+    def test_a_re_record_writes_the_committed_manifest_back_byte_for_byte(self):
+        committed = fetch.corpus.MANIFEST
+        with open(committed, encoding="utf-8") as fh:
+            original = fh.read()
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(
+                fetch.corpus, "MANIFEST", folder + "/manifest.json"):
+            fetch.write_manifest(fetch.corpus.load_manifest())
+            with open(folder + "/manifest.json", encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), original)
 
 
 if __name__ == "__main__":
