@@ -44,6 +44,9 @@ class CanvasPresenceFrame {
 class CanvasPresenceFrameResolver {
   final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
 
+  /// The tile rects of the latest [resolve], for placing a new tile clear of them.
+  Map<String, Rect> lastOnCanvas = const {};
+
   /// Safe to call more than once per frame with the same input: the
   /// visibility test is idempotent for an unchanged viewport and rects.
   CanvasPresenceFrame resolve({
@@ -67,6 +70,7 @@ class CanvasPresenceFrameResolver {
       viewport: frame,
     );
     // Ahead of the visibility update, so an empty roster never disturbs the mounted set.
+    lastOnCanvas = onCanvas;
     final visibleIds = onCanvas.isEmpty
         ? const <String>{}
         : _visibility.update(document.worldView, onCanvas);

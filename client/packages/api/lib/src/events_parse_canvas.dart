@@ -126,6 +126,27 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
+    'canvas.media_slot_preview.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['kind'] is String &&
+            decoded['slot_user_id'] is String &&
+            decoded['x'] is num &&
+            decoded['y'] is num &&
+            decoded['w'] is num &&
+            decoded['h'] is num &&
+            decoded['ended'] is bool =>
+      CanvasMediaSlotPreview(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        kind: decoded['kind'] as String,
+        slotUserId: decoded['slot_user_id'] as String,
+        x: (decoded['x'] as num).toDouble(),
+        y: (decoded['y'] as num).toDouble(),
+        w: (decoded['w'] as num).toDouble(),
+        h: (decoded['h'] as num).toDouble(),
+        ended: decoded['ended'] as bool,
+      ),
     'canvas.view.updated'
         when decoded['channel_id'] is String &&
             decoded['user_id'] is String &&

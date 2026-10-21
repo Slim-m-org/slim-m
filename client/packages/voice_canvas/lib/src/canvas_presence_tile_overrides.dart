@@ -108,6 +108,9 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// overlay.
   final ValueNotifier<bool> worldEdgeHit = ValueNotifier<bool>(false);
 
+  /// Told on every shared-view drag step, so the arrangement can stream to others before it commits.
+  void Function(String key, Rect rect)? onSharedRectDragged;
+
   /// The shared board every tile is held inside; null leaves tiles unbounded.
   Rect? board;
 
@@ -206,6 +209,13 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Shows another member's tile mid-drag; unlike [applyServer] it is not what the server holds, so [revertToServer] can undo it.
+  void showRemoteRect(String key, Rect rect) {
+    if (_raw(key).locked) return;
+    _states[key] = _raw(key).copyWith(rect: _onBoard(rect));
+    notifyListeners();
+  }
+
   final Map<String, CanvasPresenceTileState> _confirmed = {};
 
   /// Marks what [key] shows now as what the server holds, once a write landed.
@@ -244,6 +254,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     _states[key] = _personal
         ? _raw(key).copyWith(personalRect: clamped)
         : _raw(key).copyWith(rect: clamped);
+    if (!_personal) onSharedRectDragged?.call(key, clamped);
     if (_personal) _placedAt[key] = _placeClock++;
     _z[key] = _nextZ++;
     notifyListeners();

@@ -14,7 +14,7 @@ use crate::ids::{CanvasObjectId, ChannelId, DeviceId, UserId};
 use crate::permissions::Permissions;
 use crate::presence::{self, DeviceKind, Status, Visibility};
 use crate::ratelimit::{Class, RateLimiter};
-use crate::store::{SessionContext, Store, WORLD_LIMIT, valid_bounds};
+use crate::store::{MediaSlotKind, SessionContext, Store, WORLD_LIMIT, valid_bounds};
 
 /// Ensures a disconnect is always recorded and published, no matter which
 /// branch of the read loop in `super::serve` causes it to return: a `Drop`
@@ -474,6 +474,70 @@ pub(super) async fn handle_canvas_view(
         w,
         h,
         summon: frame.summon,
+    });
+}
+
+/// One `canvas.media_slot_preview` frame's fields.
+pub(super) struct MediaSlotPreviewFrame {
+    pub(super) channel_id: String,
+    pub(super) kind: String,
+    pub(super) slot_user_id: String,
+    /// `[x, y, w, h]` in world units.
+    pub(super) rect: [f64; 4],
+    pub(super) ended: bool,
+}
+
+/// Relays a tile-drag preview under the same gate as the committed slot write: canvas access, not timed out, and the tile not locked; silent on every rejection.
+pub(super) async fn handle_canvas_media_slot_preview(
+    store: &Store,
+    hub: &Hub,
+    limiter: &RateLimiter,
+    ctx: &SessionContext,
+    cache: &mut PermissionCache,
+    frame: MediaSlotPreviewFrame,
+) {
+    let (Ok(channel_id), Ok(slot_user_id), Some(kind)) = (
+        uuid::Uuid::parse_str(&frame.channel_id),
+        uuid::Uuid::parse_str(&frame.slot_user_id),
+        MediaSlotKind::parse(&frame.kind),
+    ) else {
+        return;
+    };
+    let channel_id = ChannelId(channel_id);
+    let slot_user_id = UserId(slot_user_id);
+    let [x, y, w, h] = frame.rect;
+    if !valid_bounds(x, y, w, h) {
+        return;
+    }
+    let key = format!("u:{}", ctx.user_id);
+    if !limiter.check(Class::CanvasObjectPreview, &key) {
+        return;
+    }
+    hub.presence().touch(ctx.user_id);
+
+    if relay_grant(store, hub, ctx, cache, channel_id, Frame::Ink)
+        .await
+        .is_none()
+    {
+        return;
+    }
+    let locked = store
+        .canvas_media_slot_locked(channel_id, slot_user_id, kind)
+        .await;
+    if locked.unwrap_or(true) {
+        return;
+    }
+
+    hub.publish(Event::CanvasMediaSlotPreview {
+        channel_id,
+        user_id: ctx.user_id,
+        kind,
+        slot_user_id,
+        x,
+        y,
+        w,
+        h,
+        ended: frame.ended,
     });
 }
 

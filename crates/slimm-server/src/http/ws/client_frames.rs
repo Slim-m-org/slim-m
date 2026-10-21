@@ -71,6 +71,20 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         ended: bool,
     },
+    /// The box of a camera or screen-share tile this client is dragging, so others
+    /// see it move before the slot commits; see [`super::signals::handle_canvas_media_slot_preview`].
+    #[serde(rename = "canvas.media_slot_preview")]
+    CanvasMediaSlotPreview {
+        channel_id: String,
+        kind: String,
+        user_id: String,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        #[serde(default)]
+        ended: bool,
+    },
     /// The world rectangle this client is looking at, so others can follow it
     /// or be summoned to it; gated like a cursor, see
     /// [`super::signals::handle_canvas_view`].

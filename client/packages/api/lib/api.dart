@@ -103,6 +103,7 @@ export 'src/events.dart'
         CanvasObjectsRemoved,
         CanvasObjectsRestored,
         CanvasStrokePreview,
+        CanvasMediaSlotPreview,
         CanvasObjectPreview,
         CanvasView,
         CallRinging,

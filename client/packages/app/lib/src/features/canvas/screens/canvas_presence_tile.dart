@@ -236,10 +236,11 @@ class _CanvasPresenceManipulableTileState
       widget.tool == CanvasTool.pan &&
       (_hovering || _revealedForTouch || _focusedWithin);
 
-  /// A tile this small is all button once they appear, so its hover row stays away and the context menu hides it instead.
-  bool get _roomForControls =>
-      presenceScreenRect(_rect, widget.camera).shortestSide >=
-      canvasPresenceTileControlsMinSide;
+  /// A tile this small is all button once they appear, so its row shows only the buttons that fit and the context menu carries the rest.
+  int get _controlCapacity => canvasPresenceTileControlCapacity(
+    presenceScreenRect(_rect, widget.camera).size,
+    touch: AppTouchTargets.of(context),
+  );
 
   void _onHoverEnter(PointerEnterEvent _) => setState(() => _hovering = true);
   void _onHoverExit(PointerExitEvent _) => setState(() => _hovering = false);
@@ -346,7 +347,7 @@ class _CanvasPresenceManipulableTileState
   late final Widget _grip = TileResizeGrip(onUpdate: _resize, onEnd: _settle);
 
   Widget? _controlsWidget;
-  ({bool locked, bool expand, bool lock})? _controlsShape;
+  ({bool locked, bool expand, bool lock, int fit})? _controlsShape;
 
   /// The control row is rebuilt only when its shape changes: it sits invisible on every tile at every camera tick otherwise.
   Widget _controls() {
@@ -354,11 +355,13 @@ class _CanvasPresenceManipulableTileState
       locked: widget.locked,
       expand: widget.onExpand != null,
       lock: widget.onToggleLocked != null,
+      fit: _controlCapacity,
     );
     if (_controlsWidget == null || _controlsShape != shape) {
       _controlsShape = shape;
       _controlsWidget = TileControls(
         locked: shape.locked,
+        maxButtons: shape.fit,
         onExpand: shape.expand ? () => widget.onExpand?.call() : null,
         onToggleLocked: shape.lock ? () => widget.onToggleLocked?.call() : null,
         onHide: () => widget.onHide(),
@@ -375,7 +378,7 @@ class _CanvasPresenceManipulableTileState
     Widget child, {
     bool needsRoom = true,
   }) {
-    final room = !needsRoom || _roomForControls;
+    final room = !needsRoom || _controlCapacity > 0;
     final shown = _controlsVisible && room;
     return _PointerGate(
       ignoring: !shown,
@@ -481,8 +484,8 @@ class _CanvasPresenceManipulableTileState
                     child: _revealable(context, _grip, needsRoom: false),
                   ),
                 Positioned(
-                  right: 2,
-                  top: 2,
+                  right: canvasPresenceTileControlsInset,
+                  top: canvasPresenceTileControlsInset,
                   child: _revealable(context, _controls()),
                 ),
               ],

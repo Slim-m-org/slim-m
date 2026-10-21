@@ -595,6 +595,21 @@ pub enum Event {
         h: f64,
         ended: bool,
     },
+    /// A camera or screen-share tile mid-drag: the box its mover currently holds.
+    ///
+    /// Ephemeral like [`Event::CanvasObjectPreview`]; the committed
+    /// [`Event::CanvasMediaSlotChanged`] always settles the final box.
+    CanvasMediaSlotPreview {
+        channel_id: ChannelId,
+        user_id: UserId,
+        kind: MediaSlotKind,
+        slot_user_id: UserId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        ended: bool,
+    },
     /// The part of the shared board a member is looking at, in world units.
     ///
     /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, a

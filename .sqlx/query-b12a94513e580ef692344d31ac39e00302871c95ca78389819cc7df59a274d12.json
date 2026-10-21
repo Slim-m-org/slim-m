@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT locked AS \"locked!: bool\" FROM canvas_media_slots\n               WHERE channel_id = ? AND user_id = ? AND kind = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "locked!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b12a94513e580ef692344d31ac39e00302871c95ca78389819cc7df59a274d12"
+}
