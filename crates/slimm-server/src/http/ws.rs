@@ -53,6 +53,7 @@ mod interaction_frames;
 mod message_frames;
 mod permission_cache;
 mod signals;
+mod signals_canvas;
 
 /// How long a freshly connected socket has to send its `hello` before it is
 /// dropped, so unauthenticated sockets cannot linger.
@@ -178,14 +179,14 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 y,
                                 left,
                             }) => {
-                                signals::handle_canvas_cursor(
+                                signals_canvas::handle_canvas_cursor(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
                                     &channel_id,
-                                    signals::CursorAt { x, y, left },
+                                    signals_canvas::CursorAt { x, y, left },
                                 )
                                 .await;
                             }
@@ -199,13 +200,13 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                             }) => {
                                 // The raw wire size, not a re-serialization: it is what this frame actually cost to send.
                                 let frame_bytes = text.as_str().len();
-                                signals::handle_canvas_stroke_preview(
+                                signals_canvas::handle_canvas_stroke_preview(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::StrokePreviewFrame {
+                                    signals_canvas::StrokePreviewFrame {
                                         channel_id,
                                         object_id,
                                         points,
@@ -226,13 +227,13 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 h,
                                 ended,
                             }) => {
-                                signals::handle_canvas_object_preview(
+                                signals_canvas::handle_canvas_object_preview(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::ObjectPreviewFrame {
+                                    signals_canvas::ObjectPreviewFrame {
                                         channel_id,
                                         object_id,
                                         rect: [x, y, w, h],
@@ -251,13 +252,13 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 h,
                                 ended,
                             }) => {
-                                signals::handle_canvas_media_slot_preview(
+                                signals_canvas::handle_canvas_media_slot_preview(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::MediaSlotPreviewFrame {
+                                    signals_canvas::MediaSlotPreviewFrame {
                                         channel_id,
                                         kind,
                                         slot_user_id: user_id,
@@ -275,13 +276,13 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
                                 h,
                                 summon,
                             }) => {
-                                signals::handle_canvas_view(
+                                signals_canvas::handle_canvas_view(
                                     &state.store,
                                     &state.hub,
                                     &state.limiter,
                                     &ctx,
                                     &mut cache,
-                                    signals::ViewFrame {
+                                    signals_canvas::ViewFrame {
                                         channel_id,
                                         rect: [x, y, w, h],
                                         summon,
