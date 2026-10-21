@@ -19,12 +19,12 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
     final handle = tester.ensureSemantics();
-    addTearDown(handle.dispose);
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
 
     expect(surfaceDocument(tester).selectedObjectId.value, isNull);
     expect(find.bySemanticsLabel(RegExp('standup agenda')), findsWidgets);
+    handle.dispose();
   });
 
   testWidgets('the plus key zooms the board in', (tester) async {

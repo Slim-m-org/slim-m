@@ -134,6 +134,9 @@ class CanvasDocument extends ChangeNotifier {
 
   Size get viewport => _viewport;
 
+  /// The dock's share of the viewport's foot; see [setBottomInset].
+  double get bottomInset => _bottomInset;
+
   /// The viewport less the floating dock at its foot: what fitting and
   /// clamping the board aim at, while painting and culling still use all of it.
   Size get _fitView => Size(

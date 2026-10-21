@@ -7,7 +7,9 @@ extension _FuzzChecks on CanvasGestureFuzz {
 
   void _stepInvariants() {
     final camera = _doc.camera;
-    final viewport = _doc.viewport;
+    // Fit and clamp aim at the viewport above the floating dock.
+    final full = _doc.viewport;
+    final viewport = Size(full.width, full.height - _doc.bottomInset);
     if (!camera.x.isFinite || !camera.y.isFinite || !camera.zoom.isFinite) {
       _fail('camera-finite', 'camera is $camera');
       return;
@@ -34,7 +36,12 @@ extension _FuzzChecks on CanvasGestureFuzz {
   }
 
   void _boardContainment(Rect board, Camera camera, Size viewport) {
-    final view = _doc.worldView;
+    final view = Rect.fromLTWH(
+      camera.x,
+      camera.y,
+      viewport.width / camera.zoom,
+      viewport.height / camera.zoom,
+    );
     const eps = 1e-3;
     final fitsX = board.width * camera.zoom <= viewport.width + eps;
     final fitsY = board.height * camera.zoom <= viewport.height + eps;

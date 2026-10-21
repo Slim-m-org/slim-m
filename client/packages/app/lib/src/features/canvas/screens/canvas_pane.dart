@@ -265,8 +265,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             onPointerDown: _onPanePointerDown,
             onPointerUp: _onPanePointerUp,
             onPointerCancel: _onPanePointerUp,
+            // Not a Tab stop of its own: the board is the labelled stop and holds focus; this hears what bubbles up.
             child: Focus(
-              autofocus: true,
+              skipTraversal: true,
               focusNode: _focusNode,
               onKeyEvent: (_, event) => _onToolKey(
                 event,
