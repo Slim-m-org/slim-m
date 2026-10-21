@@ -3,16 +3,8 @@
 
 usage: voice_quality_mos.py <variant-dir>
 
-ViSQOL (google/visqol, speech mode, 16 kHz) runs from a docker image built
-from visqol.Dockerfile next to this file:
-`docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib`.
-It compares each received speech segment with the same segment of the aligned
-reference and gives MOS-LQO; identical audio scored 4.58 in one test, but real
-recordings of other clips score above that, so it is not a ceiling. DNSMOS
-(Microsoft, the `speechmos` package) scores the received audio on its own, so
-it is a cross-check that needs no alignment; run this file with a venv python
-that has numpy, scipy, onnxruntime, librosa and speechmos, e.g.
-~/.slimm-scratch/mos-venv. Either score is skipped when its tool is missing.
+ViSQOL (speech mode, 16 kHz) runs from the docker image built by `docker build -f scripts/lib/visqol.Dockerfile -t slimm-visqol:local scripts/lib`.
+DNSMOS (the `speechmos` package) needs a venv python with numpy, scipy, onnxruntime, librosa and speechmos, e.g. ~/.slimm-scratch/mos-venv; either score is skipped when its tool is missing.
 """
 import csv
 import io

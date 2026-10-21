@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Mouth-to-ear delay through a real call, per network profile.
 
-Both browsers play the latency clip (a chirp every couple of seconds, see
-make_speech_clip.py). Each taps its own microphone stream and the other's
-decoded track with one shared epoch clock (e2e_xp_js.py); the gap between a
-chirp leaving and arriving is the delay, and the receiver's jitter buffer
-delay from getStats is reported beside it. Opt in with E2E_ONLY="voice latency";
-E2E_VQ_PROFILES and E2E_VQ_SECONDS apply as for the quality scenario.
+Both browsers play the latency clip (make_speech_clip.py) and tap their microphone and the other's decoded track on one epoch clock (e2e_xp_js.py); the receiver's jitter buffer delay is reported beside it.
+Opt in with E2E_ONLY="voice latency"; E2E_VQ_PROFILES and E2E_VQ_SECONDS apply as for the quality scenario.
 """
 import json
 import os

@@ -1,12 +1,8 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Real-speech reference clips and the timed-chirp latency clip for the voice harness.
 
-The synthetic clips of make_quality_clip.py are good at finding artefacts but
-poor at scoring quality: an objective MOS model needs natural speech. Piper
-(a local neural TTS, MIT) says plain sentences in two voices; nothing is
-downloaded at run time and no audio is committed. Set SLIMM_PIPER to the
-`piper` executable and SLIMM_PIPER_VOICES to a folder holding
-en_US-lessac-medium.onnx and en_US-ryan-medium.onnx (their .json beside them).
+An objective MOS model needs natural speech, which make_quality_clip.py's synthetic clips are not, so Piper (a local neural TTS) says plain sentences in two voices; nothing is downloaded at run time or committed.
+Set SLIMM_PIPER to the `piper` executable and SLIMM_PIPER_VOICES to a folder holding en_US-lessac-medium.onnx and en_US-ryan-medium.onnx.
 
 usage: make_speech_clip.py speech|latency|pulse out.wav [A|B]
 """

@@ -1,11 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Mouth-to-ear delay from timed chirps: when each left the sender, when each arrived.
 
-The latency clip carries a 60 ms chirp every couple of seconds (make_speech_clip.py).
-One tap hears the sender's own microphone stream, another the decoded remote
-track, both stamped with the same epoch clock. Matching each arrival to the
-latest send before it gives the delay through the real call, encoder to
-decoder, SFU and network included, with the jitter buffer inside it.
+Matching each arrival to the latest send before it gives the delay through the real call, jitter buffer included, from taps stamped with one epoch clock.
 """
 import statistics
 from itertools import accumulate

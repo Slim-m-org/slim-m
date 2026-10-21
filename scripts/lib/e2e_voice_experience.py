@@ -1,13 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """What a person waits for: joining a call, the speaking ring, and a network cut.
 
-Join: a listener clicks the voice channel while the other person is already
-talking; the page logs the click and then the first remote packet, the first
-audible energy and the "in call" label. Speaking ring: a sender speaks after
-long silences and the listener's semantics tree is watched for "<name>,
-speaking". Cut: the SFU's egress drops everything for 10 s (netem loss 100%,
-which is the downlink only; the uplink keeps flowing) and the listener's tap,
-peer connection events and call state say how the call came back.
+Measures click to first remote packet and audible energy, the "<name>, speaking" semantics label after long silences, and how the call recovers from a 10 s egress drop (downlink only).
 Opt in with E2E_ONLY="voice experience"; E2E_XP_JOINS (default 5) repeats the join.
 """
 import json

@@ -1,17 +1,9 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """The real Linux desktop client against a noisy microphone, judged by a listener in a browser.
 
-A virtual PipeWire microphone plays speech with fan hum, typing and a dog bark
-mixed in (make_noise_bed.py). The release build of the Linux client, made with
-`--dart-define=SLIMM_VOICE_HARNESS=true`, runs inside a nested compositor with
-its own session and joins the e2e voice channel as `vqdesk` (the harness entry
-point, client/packages/app/lib/src/diagnostics/voice_harness.dart). A headless
-browser, `vqb`, is the listener and records what arrives. Four settings arms
-(Strong on or off, the input gate on or off) are each recorded on every network
-profile, and voice_noise.py scores floor, noise events, speech level and onsets.
-Opt in with E2E_ONLY="voice desktop". E2E_DESKTOP_BUNDLE points at the build,
-E2E_DESKTOP_ARMS and E2E_DESKTOP_PROFILES narrow the run, E2E_DESKTOP_SECONDS
-sets each recording (default 60). E2E_DESKTOP_VOICES lists corpus clip ids (or piper) to run in turn.
+A virtual PipeWire microphone plays speech mixed with noise (make_noise_bed.py) into the release client built with `--dart-define=SLIMM_VOICE_HARNESS=true`, which joins as `vqdesk` inside a nested compositor; a headless browser, `vqb`, records what arrives.
+Four settings arms are recorded on every network profile and scored by voice_noise.py.
+Opt in with E2E_ONLY="voice desktop"; E2E_DESKTOP_BUNDLE points at the build, E2E_DESKTOP_ARMS, E2E_DESKTOP_PROFILES and E2E_DESKTOP_SECONDS (default 60) narrow the run, and E2E_DESKTOP_VOICES lists corpus clip ids (or piper).
 """
 import dataclasses
 import json

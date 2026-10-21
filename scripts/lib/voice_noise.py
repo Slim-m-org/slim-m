@@ -1,11 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """How a call treated a noisy microphone: floor, noise events, speech level and word onsets.
 
-The sender played speech with noise mixed in (make_noise_bed.py) and the
-listener recorded what arrived. Three aligned views of the same moment are
-compared: what was sent (the noisy mix), the speech alone, and what arrived.
-All levels are dB over 10 ms frames at the analysis rate, so a change is
-`arrived - sent` and negative means quieter.
+Compares what was sent (the noisy mix), the speech alone, and what arrived, as dB over 10 ms frames; a change is `arrived - sent` and negative means quieter.
 """
 import math
 import statistics

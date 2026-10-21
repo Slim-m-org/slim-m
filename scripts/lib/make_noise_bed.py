@@ -1,12 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """A speech clip with a noisy room mixed in: fan hum, keyboard typing and a dog bark.
 
-Generated, not recorded, so nothing needs a licence: the fan is a few mains
-harmonics plus low-passed hiss, a keystroke is a damped click over a short
-thump, a bark is a gliding harmonic burst with two formants. Events are placed
-from the sentence spans so some land in clean gaps (what the suppressor should
-remove) and some on top of speech (what it should leave alone or ignore).
-`events` names each one with its start and end in seconds.
+Generated, not recorded, so nothing needs a licence. Events are placed from the sentence spans so some land in clean gaps (what a suppressor should remove) and some on speech (what it should leave alone); `events` names each with its start and end in seconds.
 """
 import math
 import random

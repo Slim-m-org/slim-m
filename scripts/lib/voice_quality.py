@@ -3,9 +3,7 @@
 
 usage: voice_quality.py reference.wav received.wav [--json]
 
-Every detector compares the received audio with what the reference should have
-sounded like at that moment, so speech onsets and sweeps are not mistaken for
-artefacts. Times are seconds into the received recording.
+Each detector compares the received audio with what the reference should sound like at that moment, so speech onsets and sweeps are not mistaken for artefacts.
 """
 import json
 import math

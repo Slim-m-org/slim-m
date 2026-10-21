@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Lines a received recording up with the looping reference clip it came from.
 
-Chrome loops the fake capture file, so the recording starts at an arbitrary
-point in the clip and has an unknown delay. A coarse pass finds that point on
-the loudness envelope; a tracking pass then follows the delay every couple of
-seconds on the waveform, which is what exposes drift and jitter-buffer steps.
+Chrome loops the fake capture file, so a coarse pass on the loudness envelope finds the start and a tracking pass follows the delay on the waveform, exposing drift and jitter-buffer steps.
 """
 import math
 from operator import mul
