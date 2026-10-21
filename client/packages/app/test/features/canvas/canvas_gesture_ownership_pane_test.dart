@@ -110,7 +110,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Shape'));
     await tester.pump();
     final first = await tester.startGesture(
-      screenFor(tester, const Offset(60, 60)),
+      screenFor(tester, const Offset(160, 160)),
     );
     await first.up();
     await tester.pump();
@@ -139,7 +139,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Shape'));
     await tester.pump();
     final tap = await tester.startGesture(
-      screenFor(tester, const Offset(60, 60)),
+      screenFor(tester, const Offset(160, 160)),
     );
     await tap.up();
     await tester.pumpAndSettle();
@@ -161,18 +161,24 @@ void main() {
     testWidgets('offers Delete for an image and leaves the tool alone', (
       tester,
     ) async {
-      await _open(tester, objects: [canvasImageJson('i', authorId: 'me')]);
+      await _open(
+        tester,
+        objects: [canvasImageJson('i', x: 400, authorId: 'me')],
+      );
 
-      await rightClick(tester, const Offset(20, 20));
+      await rightClick(tester, const Offset(410, 20));
 
       expect(find.text('Delete'), findsOneWidget);
       expect(_tool(tester), CanvasTool.pen);
     });
 
     testWidgets('offers Delete for a note', (tester) async {
-      await _open(tester, objects: [canvasNoteJson('n', authorId: 'me')]);
+      await _open(
+        tester,
+        objects: [canvasNoteJson('n', x: 400, authorId: 'me')],
+      );
 
-      await rightClick(tester, const Offset(20, 20));
+      await rightClick(tester, const Offset(410, 20));
 
       expect(find.text('Delete'), findsOneWidget);
     });
@@ -180,9 +186,13 @@ void main() {
     testWidgets("offers nothing on someone else's note without manage rights", (
       tester,
     ) async {
-      await _open(tester, objects: [canvasNoteJson('n', authorId: 'other')]);
+      await _open(
+        tester,
+        tool: 'Pan',
+        objects: [canvasNoteJson('n', x: 400, authorId: 'other')],
+      );
 
-      await rightClick(tester, const Offset(20, 20));
+      await rightClick(tester, const Offset(410, 20));
 
       expect(find.text('Delete'), findsNothing);
       expect(find.text('Add note'), findsOneWidget);
@@ -191,10 +201,10 @@ void main() {
     testWidgets('Delete removes the note on the server', (tester) async {
       final fixture = await _open(
         tester,
-        objects: [canvasNoteJson('n', authorId: 'me')],
+        objects: [canvasNoteJson('n', x: 400, authorId: 'me')],
       );
 
-      await rightClick(tester, const Offset(20, 20));
+      await rightClick(tester, const Offset(410, 20));
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
@@ -207,12 +217,12 @@ void main() {
     testWidgets('opens the object menu with the Move tool', (tester) async {
       await _open(
         tester,
-        objects: [canvasNoteJson('n', authorId: 'me')],
+        objects: [canvasNoteJson('n', x: 400, authorId: 'me')],
         tool: 'Pan',
       );
 
       final hold = await tester.startGesture(
-        screenFor(tester, const Offset(20, 20)),
+        screenFor(tester, const Offset(410, 20)),
       );
       await tester.pump(const Duration(milliseconds: 700));
       await hold.up();
@@ -224,13 +234,13 @@ void main() {
     testWidgets('does not open the editor on release', (tester) async {
       await _open(
         tester,
-        objects: [canvasNoteJson('n', authorId: 'me')],
+        objects: [canvasNoteJson('n', x: 400, authorId: 'me')],
         tool: 'Pan',
       );
 
       final touch = TestPointer(4);
       await tester.sendEventToBinding(
-        touch.down(screenFor(tester, const Offset(20, 20))),
+        touch.down(screenFor(tester, const Offset(410, 20))),
       );
       await tester.pump(const Duration(milliseconds: 700));
       await tester.sendEventToBinding(
@@ -246,12 +256,12 @@ void main() {
     testWidgets('is cancelled by a second finger', (tester) async {
       await _open(
         tester,
-        objects: [canvasNoteJson('n', authorId: 'me')],
+        objects: [canvasNoteJson('n', x: 400, authorId: 'me')],
         tool: 'Pan',
       );
 
       final first = await tester.startGesture(
-        screenFor(tester, const Offset(20, 20)),
+        screenFor(tester, const Offset(410, 20)),
         pointer: 1,
       );
       await tester.pump(const Duration(milliseconds: 200));

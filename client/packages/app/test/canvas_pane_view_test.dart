@@ -19,12 +19,11 @@ import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   /// The one route back once a temporary zoom has gone somewhere: the whole
-  /// shared board, whatever sits on it.
-  testWidgets('the zoom chip\'s fit brings the whole board back', (
+  /// shared board when nothing is drawn.
+  testWidgets('the zoom chip\'s fit brings the whole board back when empty', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture()
-      ..objects = [canvasNoteJson('note', x: 5000)];
+    final fixture = CanvasPaneFixture();
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -40,6 +39,25 @@ void main() {
 
     expect(document.isFitted, isTrue);
     expect(document.visibleBoard, canvasBoard);
+  });
+
+  testWidgets('the zoom chip\'s fit frames what is drawn', (tester) async {
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasNoteJson('note', x: 1500)];
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true);
+    await tester.pumpAndSettle();
+    final document = surfaceDocument(tester);
+    final fitZoom = document.camera.zoom;
+
+    await tester.tap(find.byTooltip('Fit view'));
+    await tester.pumpAndSettle();
+
+    expect(document.isFitted, isFalse);
+    expect(document.camera.zoom, greaterThan(fitZoom));
+    expect(document.contentBounds!.overlaps(document.worldView), isTrue);
   });
 
   /// The desktop convention every other drawing surface honours: Delete or

@@ -6,10 +6,8 @@
 /// `CLAUDE.md`), and panning or pinching around it left nothing on screen
 /// saying how far zoomed in or out a person had gone - the owner's backlog
 /// named this directly as a gap. This closes it with the smallest thing that
-/// answers the question, a small pill in the one corner nothing else already
-/// claims: `canvas_presence_roster.dart`'s own doc maps the error/truncation
-/// banners to top-left-to-center and the floating dock to bottom-center,
-/// which leaves bottom-left free.
+/// answers the question, a small pill in the top-left corner, which the
+/// presence roster (top-right) and the floating dock (bottom-center) leave free.
 ///
 /// Deliberately not a minimap, and not a position readout either: a
 /// position needs [CanvasDocument.contentBounds], which that getter's own
@@ -22,20 +20,17 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../widgets/canvas_pill_surface.dart';
+import '../widgets/canvas_roster_cluster.dart';
 
-import '../../modules/providers/dock_reservation.dart';
 import 'canvas_outside_board_notice.dart';
 import 'canvas_view_mode_controls.dart';
 
-/// At phone width the dock's cards reach into this corner, so the readout
-/// rides above them by the dock's measured height instead of sitting under it.
-/// Wider, it lifts only when its own row would reach the centred dock.
-class CanvasZoomIndicator extends ConsumerWidget {
+/// The canvas's top-left cluster: who is in the call, the view pill and the zoom readout, clear of the bottom dock at any width.
+class CanvasZoomIndicator extends StatelessWidget {
   const CanvasZoomIndicator({
     super.key,
     required this.document,
@@ -58,17 +53,8 @@ class CanvasZoomIndicator extends ConsumerWidget {
   final CanvasViewMode? viewMode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final phone = MediaQuery.sizeOf(context).width < kCompactWidth;
-    return CustomSingleChildLayout(
-      delegate: _CornerDelegate(
-        lift: ref.watch(bottomDockReservationProvider) + AppSpacing.s12,
-        dockWidth: ref.watch(bottomDockWidthProvider),
-        alwaysLifted: phone,
-      ),
-      child: _readout(),
-    );
-  }
+  Widget build(BuildContext context) =>
+      Align(alignment: Alignment.topLeft, child: _readout());
 
   Widget _readout() => SafeArea(
     minimum: const EdgeInsets.all(AppSpacing.s12),
@@ -76,10 +62,21 @@ class CanvasZoomIndicator extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (viewMode case final mode?) ...[
-          CanvasViewModeControls(mode: mode, tokens: tokens),
-          const SizedBox(height: AppSpacing.s8),
-        ],
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CanvasRosterCluster(),
+            if (viewMode case final mode?)
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.s8),
+                  child: CanvasViewModeControls(mode: mode, tokens: tokens),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.s8),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -145,35 +142,4 @@ class CanvasZoomIndicator extends ConsumerWidget {
       );
     },
   );
-}
-
-/// Pins the readout bottom-left, lifted over the dock when it could reach the corner.
-///
-/// A layout delegate rather than a LayoutBuilder: the readout listens to the
-/// document, and mounting it during layout kept a frame callback alive under
-/// reduce motion.
-class _CornerDelegate extends SingleChildLayoutDelegate {
-  const _CornerDelegate({
-    required this.lift,
-    required this.dockWidth,
-    required this.alwaysLifted,
-  });
-
-  final double lift;
-  final double dockWidth;
-  final bool alwaysLifted;
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final dockLeft = (size.width - dockWidth) / 2;
-    final reachesDock = dockWidth > 0 && childSize.width > dockLeft;
-    final lifted = alwaysLifted || reachesDock;
-    return Offset(0, size.height - childSize.height - (lifted ? lift : 0));
-  }
-
-  @override
-  bool shouldRelayout(_CornerDelegate old) =>
-      old.lift != lift ||
-      old.dockWidth != dockWidth ||
-      old.alwaysLifted != alwaysLifted;
 }
