@@ -16,7 +16,6 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_compact_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
 import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_focused_feed.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -121,14 +120,12 @@ const _tileKeyValue = ValueKey(_tileKey);
 // Collapsed, the dock is still in the tree but neither visible nor reachable.
 final _pen = find.bySemanticsLabel('Pen').hitTestable();
 
-Rect _feed(WidgetTester tester) =>
-    tester.getRect(find.byType(CanvasFocusedFeed));
 Rect _surface(WidgetTester tester) =>
     tester.getRect(find.byType(CanvasSurface));
 
 void main() {
-  testWidgets('full screen on a share keeps the canvas: the feed fills the '
-      'surface and sits under it, with no second route', (tester) async {
+  testWidgets('full screen on a share keeps the canvas: the camera fits the '
+      'tile and no second route opens', (tester) async {
     final (:voice, :container) = await _pump(tester);
     await _focusTheShare(tester);
 
@@ -139,24 +136,9 @@ void main() {
     expect(container.read(canvasFullscreenProvider), 'c1');
     expect(find.byType(FullscreenVideoView), findsNothing);
     expect(find.byType(CanvasSurface), findsOneWidget);
-    expect(find.byKey(_tileKeyValue), findsNothing, reason: 'drawn once');
-    expect(_feed(tester), _surface(tester));
+    expect(find.byKey(_tileKeyValue), findsNothing, reason: 'no tile controls');
+    expect(find.byKey(const ValueKey('video:$_tileKey')), findsOneWidget);
     expect(_surface(tester).width, 1280);
-
-    final stack = tester.widget<Stack>(
-      find
-          .ancestor(
-            of: find.byType(CanvasFocusedFeed),
-            matching: find.byType(Stack),
-          )
-          .first,
-    );
-    final order = stack.children.map((c) => c.runtimeType).toList();
-    expect(
-      order.indexOf(CanvasFocusedFeed),
-      lessThan(order.indexOf(CanvasSurface)),
-      reason: 'ink and images paint over the feed',
-    );
   });
 
   testWidgets('the dock folds behind a handle on screen, and tapping it '
@@ -214,7 +196,7 @@ void main() {
 
     expect(container.read(canvasFocusedTileProvider), isNull);
     expect(container.read(canvasFullscreenProvider), isNull);
-    expect(find.byType(CanvasFocusedFeed), findsNothing);
+    expect(find.byKey(const ValueKey('video:$_tileKey')), findsOneWidget);
     expect(find.byType(CanvasBar), findsOneWidget);
     expect(find.byKey(_tileKeyValue), findsOneWidget);
   });
@@ -236,7 +218,7 @@ void main() {
       'the share ends', (tester) async {
     final (:voice, :container) = await _pump(tester, fullscreenFirst: true);
     await _focusTheShare(tester);
-    expect(find.byType(CanvasFocusedFeed), findsOneWidget);
+    expect(container.read(canvasFocusedTileProvider), isNotNull);
 
     voice.become(_call(sharing: false));
     await tester.pumpAndSettle();

@@ -113,4 +113,11 @@ extension CanvasDocumentBoard on CanvasDocument {
     final board = _board;
     if (board != null) setCamera(cameraForBoardView(view, board, _fitView));
   }
+
+  /// Fits [rect] (world units) to the viewport above the dock: aspect-fit, centred, held to the board when there is one.
+  void showWorldRect(ui.Rect rect) {
+    if (_viewport.isEmpty || rect.isEmpty) return;
+    if (_board != null) return showBoardView(rect);
+    setCamera(cameraToFit(rect, _fitView, padding: 0));
+  }
 }

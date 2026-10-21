@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The focused feed outlives a voice reconnect (the roster empties for a
+/// The focused tile outlives a voice reconnect (the roster empties for a
 /// moment and the same people come back) but not a share that really ended.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_focused_feed.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_focused_fit.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -28,12 +29,13 @@ Future<void> _pump(
   MaterialApp(
     theme: buildTheme(Brightness.dark, AppTokens.dark),
     home: Scaffold(
-      body: CanvasFocusedFeed(
+      body: CanvasFocusedFit(
         document: document,
         tileKey: 'screen:user-ada',
         participants: participants,
-        cameraViewFor: (_) => const SizedBox(),
-        screenShareViewFor: (_) => const ColoredBox(color: Colors.green),
+        overrides: CanvasPresenceTileOverrides(),
+        resolver: CanvasPresenceFrameResolver(),
+        hideSelfCamera: false,
         onLost: onLost,
       ),
     ),
@@ -55,14 +57,13 @@ void main() {
     var lost = 0;
     await _pump(tester, document, [_ada()], () => lost++);
     await _pump(tester, document, const [], () => lost++);
-    await tester.pump(focusedFeedGrace ~/ 2);
+    await tester.pump(focusedTileGrace ~/ 2);
     expect(lost, 0, reason: 'still inside the grace');
 
     await _pump(tester, document, [_ada()], () => lost++);
-    await tester.pump(focusedFeedGrace * 2);
+    await tester.pump(focusedTileGrace * 2);
 
     expect(lost, 0, reason: 'they came back');
-    expect(find.byType(ColoredBox), findsWidgets);
   });
 
   testWidgets('a person who stays gone loses the focus after the grace', (
@@ -71,7 +72,7 @@ void main() {
     var lost = 0;
     await _pump(tester, document, const [], () => lost++);
 
-    await tester.pump(focusedFeedGrace + const Duration(milliseconds: 1));
+    await tester.pump(focusedTileGrace + const Duration(milliseconds: 1));
 
     expect(lost, 1);
   });
@@ -84,15 +85,5 @@ void main() {
     await tester.pump();
 
     expect(lost, 1);
-  });
-
-  testWidgets('the camera is held at fit while the feed shows', (tester) async {
-    await _pump(tester, document, [_ada()], () {});
-    document.setCamera(
-      document.camera.copyWith(zoom: document.camera.zoom * 3),
-    );
-    await tester.pump();
-
-    expect(document.isFitted, isTrue);
   });
 }
