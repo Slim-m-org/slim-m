@@ -370,61 +370,82 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
             Expanded(
               // Canvas content panned past the top edge must never paint over the header above it.
               child: ClipRect(
-                child: Stack(
-                  children: [
-                    _activityLogOpen ? _panel() : _surface(tokens),
-                    CanvasSpeakingSync(cursors: widget.cursors),
-                    if (!_activityLogOpen)
-                      CanvasPeerControls(
-                        document: widget.document,
-                        participants: widget.callParticipants,
-                        cursors: widget.cursors,
-                        relay: widget.viewRelay,
-                        selfId: widget.selfId,
-                        viewMode: widget.viewMode,
+                // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
+                child: FocusTraversalGroup(
+                  policy: OrderedTraversalPolicy(),
+                  child: Stack(
+                    children: [
+                      FocusTraversalOrder(
+                        order: const NumericFocusOrder(1),
+                        child: _activityLogOpen ? _panel() : _surface(tokens),
                       ),
-                    if (widget.paging case final paging?)
-                      CanvasPagingIndicator(paging: paging),
-                    // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
-                    if (widget.callError != null ||
-                        widget.error != null ||
-                        widget.truncated)
-                      Positioned(
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (widget.callError != null)
-                              Padding(
-                                padding: const EdgeInsets.all(AppSpacing.s12),
-                                child: AppErrorState(
-                                  message: widget.callError!,
-                                  onRetry: widget.onRetryCall,
-                                ),
-                              ),
-                            if (widget.error != null)
-                              Padding(
-                                padding: const EdgeInsets.all(AppSpacing.s12),
-                                child: AppErrorState(
-                                  message: widget.error!,
-                                  onDismiss: widget.onDismissError,
-                                  onRetry: widget.onRetryError,
-                                ),
-                              ),
-                            if (widget.truncated) const CanvasTruncatedNotice(),
-                          ],
+                      CanvasSpeakingSync(cursors: widget.cursors),
+                      if (!_activityLogOpen)
+                        FocusTraversalOrder(
+                          order: const NumericFocusOrder(4),
+                          child: CanvasPeerControls(
+                            document: widget.document,
+                            participants: widget.callParticipants,
+                            cursors: widget.cursors,
+                            relay: widget.viewRelay,
+                            selfId: widget.selfId,
+                            viewMode: widget.viewMode,
+                          ),
+                        ),
+                      if (widget.paging case final paging?)
+                        CanvasPagingIndicator(paging: paging),
+                      // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
+                      if (widget.callError != null ||
+                          widget.error != null ||
+                          widget.truncated)
+                        FocusTraversalOrder(
+                          order: const NumericFocusOrder(0),
+                          child: Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (widget.callError != null)
+                                  Padding(
+                                    padding: const EdgeInsets.all(
+                                      AppSpacing.s12,
+                                    ),
+                                    child: AppErrorState(
+                                      message: widget.callError!,
+                                      onRetry: widget.onRetryCall,
+                                    ),
+                                  ),
+                                if (widget.error != null)
+                                  Padding(
+                                    padding: const EdgeInsets.all(
+                                      AppSpacing.s12,
+                                    ),
+                                    child: AppErrorState(
+                                      message: widget.error!,
+                                      onDismiss: widget.onDismissError,
+                                      onRetry: widget.onRetryError,
+                                    ),
+                                  ),
+                                if (widget.truncated)
+                                  const CanvasTruncatedNotice(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      FocusTraversalOrder(
+                        order: const NumericFocusOrder(2),
+                        child: CanvasDockOverlay(
+                          call: widget.callDock,
+                          canvas: _dockData,
+                          tileOverrides: widget.tileOverrides,
+                          compact: compact,
                         ),
                       ),
-                    CanvasDockOverlay(
-                      call: widget.callDock,
-                      canvas: _dockData,
-                      tileOverrides: widget.tileOverrides,
-                      compact: compact,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

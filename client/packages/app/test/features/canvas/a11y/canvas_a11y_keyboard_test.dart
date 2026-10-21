@@ -64,9 +64,11 @@ void main() {
       final window = tester.view.physicalSize;
       final stops = await _cycle(tester, 40);
 
+      // The board is a named stop with its own ring (C-091); an unnamed one this size is the old phantom.
       final phantom = [
         for (final s in stops)
           if (s.rect != null &&
+              !s.name.startsWith('Canvas board') &&
               s.rect!.width * s.rect!.height > window.width * window.height / 2)
             s.name,
       ];
@@ -198,16 +200,12 @@ void main() {
         tester,
         objects: [canvasNoteJson('n1', x: 100, text: 'hello world')],
       );
-      final names = [for (final s in await _cycle(tester, 40)) s.name];
+      // The board holds focus; ] steps the selection through what is in view (C-091).
+      expect(focusedName(tester), startsWith('Canvas board'));
+      await pressKey(tester, LogicalKeyboardKey.bracketRight);
 
-      expect(
-        names.any((n) => n.contains('hello world')),
-        isTrue,
-        reason:
-            'the board is not a Tab stop and holds none: selecting, moving, '
-            'deleting or reordering an object needs a pointer.\n'
-            '${names.join('\n')}',
-      );
+      expect(surfaceDocument(tester).selectedObjectId.value, 'n1');
+      expect(find.bySemanticsLabel(RegExp('hello world')), findsWidgets);
     });
 
     a11yTest('a keyboard can pan and zoom the board', (tester) async {

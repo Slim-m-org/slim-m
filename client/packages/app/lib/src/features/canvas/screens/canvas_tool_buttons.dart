@@ -49,7 +49,7 @@ class CanvasToolButtons extends StatelessWidget {
 
   /// The caret only exists once the tool is selected, so the hint says what is true now.
   String get _shapeHint {
-    final armed = 'Shape · ${canvasShapeKindLabel(shapeKind)} armed, ';
+    final armed = 'Shape (S) · ${canvasShapeKindLabel(shapeKind)} armed, ';
     return tool == CanvasTool.shape
         ? '${armed}change it from the caret beside the tool'
         : '${armed}select it to choose another';
@@ -73,7 +73,7 @@ class CanvasToolButtons extends StatelessWidget {
         icon: AppIcons.pan,
         semanticLabel: 'Pan',
         tooltip:
-            'Pan the canvas, move an object, or select a stroke '
+            'Pan (H) · pan the canvas, move an object, or select a stroke '
             'to reorder it · hold Shift while resizing to flip '
             'the aspect lock',
         active: tool == CanvasTool.pan,
@@ -96,7 +96,7 @@ class CanvasToolButtons extends StatelessWidget {
       AppIconButton(
         icon: AppIcons.note,
         semanticLabel: 'Note',
-        tooltip: canDraw ? 'Note' : "Can't draw right now",
+        tooltip: canDraw ? 'Note (N)' : "Can't draw right now",
         active: tool == CanvasTool.note,
         onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
             ? () => onToolChanged(CanvasTool.note)
@@ -122,7 +122,7 @@ class CanvasToolButtons extends StatelessWidget {
         icon: AppIcons.eraser,
         semanticLabel: 'Eraser',
         tooltip:
-            'Eraser · erases ink and shapes. Right-click or long-press a '
+            'Eraser (E) · erases ink and shapes. Right-click or long-press a '
             'note or image, then Delete',
         active: tool == CanvasTool.eraser,
         onPressed: () => onToolChanged(CanvasTool.eraser),
@@ -156,7 +156,7 @@ class _PenButton extends StatelessWidget {
       AppIconButton(
         icon: AppIcons.pen,
         semanticLabel: 'Pen',
-        tooltip: canDraw ? 'Pen' : "Can't draw right now",
+        tooltip: canDraw ? 'Pen (P)' : "Can't draw right now",
         active: active,
         onPressed: onPressed,
       ),

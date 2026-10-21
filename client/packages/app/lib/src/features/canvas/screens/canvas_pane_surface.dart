@@ -178,19 +178,23 @@ class CanvasPaneSurface extends StatelessWidget {
           onOpenActions: menuRequests.request,
         ),
         // Last, on top of CanvasObjectContextMenu's hit catcher - see canvas_presence_tile.dart's own doc for why a right-click on a tile is absorbed rather than reaching an object underneath it.
-        CanvasPresenceLayer(
-          document: document,
-          participants: callParticipants,
-          overrides: tileOverrides,
-          onCommit: actions.onCommitTile,
-          onVideoInterest: actions.onVideoInterest,
-          hideSelfCamera: selfBubbleHidden,
-          tool: tool,
-          participantMenuItemsBuilder: actions.participantMenuItemsBuilder,
-          resolver: presenceFrames,
-          focusedKey: focusedTileKey,
-          onFocus: actions.onFocusTile,
-          onPointerMoved: actions.onPointerMoved,
+        FocusTraversalOrder(
+          // After the board and the dock in Tab order; see canvas_pane_body.dart.
+          order: const NumericFocusOrder(3),
+          child: CanvasPresenceLayer(
+            document: document,
+            participants: callParticipants,
+            overrides: tileOverrides,
+            onCommit: actions.onCommitTile,
+            onVideoInterest: actions.onVideoInterest,
+            hideSelfCamera: selfBubbleHidden,
+            tool: tool,
+            participantMenuItemsBuilder: actions.participantMenuItemsBuilder,
+            resolver: presenceFrames,
+            focusedKey: focusedTileKey,
+            onFocus: actions.onFocusTile,
+            onPointerMoved: actions.onPointerMoved,
+          ),
         ),
         ?noteEditor,
         // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.

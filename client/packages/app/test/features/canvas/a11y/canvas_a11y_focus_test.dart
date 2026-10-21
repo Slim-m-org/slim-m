@@ -132,8 +132,8 @@ void main() {
     await pumpA11yCanvas(tester);
     final nameless = <String>[];
     final cases = {
-      'Pan': 'Pan the canvas',
-      'Eraser': 'Eraser · pen ink only',
+      'Pan': 'Pan (H)',
+      'Eraser': 'Eraser (E)',
       'Mute': 'Mute (Ctrl+Shift+M)',
       'Close canvas': 'Close canvas',
     };

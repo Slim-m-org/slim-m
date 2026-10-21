@@ -59,7 +59,12 @@ void main() {
       wrapCanvasToolsRow(buildCanvasToolsRow(canManage: true, canUndo: true)),
     );
 
-    for (final tooltip in ['Pen', 'Note', 'Undo', 'More canvas actions']) {
+    for (final tooltip in [
+      'Pen (P)',
+      'Note (N)',
+      'Undo',
+      'More canvas actions',
+    ]) {
       expect(
         find.byTooltip(tooltip),
         findsOneWidget,
@@ -71,7 +76,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Tooltip &&
-            (widget.message?.startsWith('Pan the canvas') ?? false),
+            (widget.message?.startsWith('Pan (H) · pan the canvas') ?? false),
       ),
       findsOneWidget,
       reason: 'Pan\'s tooltip is the only place Shift-frees-aspect is said',
