@@ -13,10 +13,12 @@ class _Source implements MicPreviewSource {
   Object? openError;
   ({double levelDb, bool voice})? level = (levelDb: -30.0, voice: true);
   Duration openDelay = Duration.zero;
+  bool openHangs = false;
 
   @override
   Future<void> open(String? deviceId) async {
     events.add('open:${deviceId ?? 'default'}');
+    if (openHangs) await Completer<void>().future;
     await Future<void>.delayed(openDelay);
     final error = openError;
     if (error != null) throw error;
@@ -139,14 +141,14 @@ void main() {
   test(
       'a stop during an open that never finishes does not hold up the next start',
       () async {
-    final source = _Source()..openDelay = const Duration(hours: 1);
+    final source = _Source()..openHangs = true;
     final preview = _preview(source, openTimeout: const Duration(hours: 1));
     addTearDown(preview.dispose);
 
     unawaited(preview.start(null));
     await _until(() => source.events.contains('open:default'));
     await preview.stop();
-    source.openDelay = Duration.zero;
+    source.openHangs = false;
     await preview.start('mic-2');
 
     expect(preview.current.status, isNot(MicPreviewStatus.unavailable));

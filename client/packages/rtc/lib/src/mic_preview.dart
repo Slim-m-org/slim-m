@@ -60,7 +60,8 @@ class MicPreview {
   final int maxMisses;
 
   /// A capture that never finishes opening reads as unavailable, not as opening forever.
-  final Duration openTimeout;
+  /// Null waits for the capture however long it takes.
+  final Duration? openTimeout;
   final MicPreviewSource _source;
   Future<void> _queue = Future<void>.value();
   final _readings = StreamController<MicPreviewReading>.broadcast();
@@ -122,11 +123,14 @@ class MicPreview {
     final done = Completer<void>();
     _cancelOpen();
     _opening = done;
-    _openTimer = Timer(openTimeout, () {
-      if (!done.isCompleted) {
-        done.completeError(TimeoutException('microphone open', openTimeout));
-      }
-    });
+    final limit = openTimeout;
+    if (limit != null) {
+      _openTimer = Timer(limit, () {
+        if (!done.isCompleted) {
+          done.completeError(TimeoutException('microphone open', limit));
+        }
+      });
+    }
     _source.open(deviceId).then(
       (_) {
         if (!done.isCompleted) done.complete();

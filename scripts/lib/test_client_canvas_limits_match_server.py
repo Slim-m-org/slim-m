@@ -24,7 +24,7 @@ LIMITS = [
     ("voice_canvas/lib/src/canvas_stroke.dart", "worldLimit", "store/canvas/canvas_geometry.rs", "WORLD_LIMIT", "eq"),
     ("voice_canvas/lib/src/canvas_stroke.dart", "maxObjectExtent", "store/canvas/canvas_geometry.rs", "MAX_OBJECT_EXTENT", "eq"),
     ("app/lib/src/features/canvas/screens/canvas_ops_controller.dart", "maxRemoveIdsPerOp", "store/canvas/canvas_ops_write.rs", "MAX_REMOVE_IDS_PER_OP", "eq"),
-    ("app/lib/src/features/canvas/screens/canvas_stroke_preview_relay.dart", "maxStrokePreviewPointsPerFrame", "http/ws/signals.rs", "MAX_STROKE_PREVIEW_POINTS", "le"),
+    ("app/lib/src/features/canvas/screens/canvas_stroke_preview_relay.dart", "maxStrokePreviewPointsPerFrame", "http/ws/signals_canvas.rs", "MAX_STROKE_PREVIEW_POINTS", "le"),
 ]
 
 NUMBER = r"[\d_.]+(?:\s*\*\s*[\d_]+)*"
