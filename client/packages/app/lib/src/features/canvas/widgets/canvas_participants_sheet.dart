@@ -57,11 +57,22 @@ class CanvasParticipantsSheet extends ConsumerWidget {
               'Nobody else is here.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
-          for (final participant in participants)
-            _ParticipantRow(
-              key: ValueKey(participant.identity),
-              participant: participant,
+          // The sheet is bounded (scrolls: true), so a long call scrolls under the pinned heading.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final participant in participants)
+                    _ParticipantRow(
+                      key: ValueKey(participant.identity),
+                      participant: participant,
+                    ),
+                ],
+              ),
             ),
+          ),
         ],
       ),
     );
@@ -79,22 +90,32 @@ class _ParticipantRow extends StatelessWidget {
     return CanvasParticipantMenu(
       participant: participant,
       builder: (context, open) {
-        // This device's own row has nothing to open unless it is sharing or has a camera on.
-        final icon = participant.isMuted
-            ? AppIcons.micOff
-            : (open != null ? AppIcons.moreVertical : null);
+        // Said in words as well as icons, so a screen reader hears who is muted or talking.
+        final state = [
+          if (participant.isLocal) 'You',
+          if (participant.isSpeaking) 'Speaking',
+          if (participant.isDeafened)
+            'Deafened'
+          else if (participant.isMuted)
+            'Muted',
+        ];
         return AppListRow(
           label: participant.name,
-          meta: participant.isLocal ? 'You' : null,
+          meta: state.isEmpty ? null : state.join(', '),
           leading: UserAvatar(
             name: participant.name,
             userId: participant.identity,
             size: AppAvatarSize.s28,
             speaking: participant.isSpeaking,
           ),
-          trailing: icon == null
+          // This device's own row has nothing to open unless it is sharing or has a camera on.
+          trailing: open == null
               ? null
-              : Icon(icon, size: AppSizes.icon16, color: tokens.textSecondary),
+              : Icon(
+                  AppIcons.moreVertical,
+                  size: AppSizes.icon16,
+                  color: tokens.textSecondary,
+                ),
           onTap: open,
         );
       },

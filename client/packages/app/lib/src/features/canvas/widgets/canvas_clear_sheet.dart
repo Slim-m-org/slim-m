@@ -64,30 +64,43 @@ class _CanvasClearSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
-          for (final target in CanvasClearTarget.values)
-            AppListRow(
-              label: 'All ${target.label.toLowerCase()}',
-              leading: Icon(
-                AppIcons.delete,
-                size: AppSizes.icon16,
-                color: tokens.textSecondary,
-              ),
-              onTap: () => Navigator.of(context).pop(
-                CanvasClearChoice(
-                  target.scope,
-                  'all ${target.label.toLowerCase()}',
-                ),
+          // The sheet is bounded (scrolls: true), so the choices scroll under the pinned heading.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final target in CanvasClearTarget.values)
+                    AppListRow(
+                      label: 'All ${target.label.toLowerCase()}',
+                      leading: Icon(
+                        AppIcons.delete,
+                        size: AppSizes.icon16,
+                        color: tokens.textSecondary,
+                      ),
+                      onTap: () => Navigator.of(context).pop(
+                        CanvasClearChoice(
+                          target.scope,
+                          'all ${target.label.toLowerCase()}',
+                        ),
+                      ),
+                    ),
+                  if (authorIds.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.s12),
+                    Text(
+                      'One person\'s content (people in view)',
+                      style: AppText.caption.copyWith(
+                        color: tokens.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s4),
+                    for (final id in authorIds) _AuthorRow(authorId: id),
+                  ],
+                ],
               ),
             ),
-          if (authorIds.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              'One person\'s content (people in view)',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            for (final id in authorIds) _AuthorRow(authorId: id),
-          ],
+          ),
         ],
       ),
     );
