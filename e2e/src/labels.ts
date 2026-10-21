@@ -112,7 +112,7 @@ export const L = {
   "CLOSE_CANVAS": "Close canvas",
   "PEN_TOOL": "Pen",
   "NOTE_TOOL": "Note (N)",
-  "SHAPE_TOOL": "Shape",
+  "SHAPE_TOOL": "Shape (S)",
   "ERASER_TOOL": "Eraser",
   "PAN_TOOL": "Pan",
   "UNDO": "Undo",
