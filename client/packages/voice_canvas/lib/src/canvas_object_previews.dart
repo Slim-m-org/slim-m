@@ -91,6 +91,8 @@ class RemoteObjectPreviews {
   /// Records the box [objectId] is now reported at, starting its ease from
   /// wherever it is drawn right now.
   void apply(String objectId, ObjectBox box, {required DateTime now}) {
+    // A peer's frame can name any size; a box no object may have would index millions of grid cells on every viewer.
+    if (!(box.w <= maxObjectExtent && box.h <= maxObjectExtent)) return;
     final existing = _previews[objectId];
     if (existing == null) {
       final original = document.objectBounds(objectId);

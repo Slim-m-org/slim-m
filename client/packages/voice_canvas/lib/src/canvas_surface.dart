@@ -378,6 +378,8 @@ class _CanvasSurfaceState extends State<CanvasSurface>
           drafts: widget.remoteDrafts!,
           document: widget.document,
           colors: widget.cursorColors,
+          ink: widget.ink,
+          inkColors: widget.inkColors,
         );
   late CursorPainter? _cursorPainter = _buildCursorPainter();
 
@@ -447,7 +449,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   void dispose() {
     widget.cursors?.removeListener(_onCursorsChanged);
     _cursorPainter?.disposeLabels();
-    _strokes.disposeNoteLabels();
+    _strokes.dispose();
     // Before super: the ticker mixin asserts nothing is still ticking.
     _glideTicker.dispose();
     _cursorGlideTick.dispose();

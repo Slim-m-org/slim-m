@@ -63,6 +63,8 @@ class CursorLabelCache {
         ),
       ),
       textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
     )..layout(maxWidth: 160);
     _entries[id] = _CachedLabel(label, color, painter);
     assert(() {

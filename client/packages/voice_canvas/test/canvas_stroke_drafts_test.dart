@@ -4,6 +4,8 @@
 /// what is new here: accumulation across several frames.
 library;
 
+import 'dart:ui';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -255,5 +257,94 @@ void main() {
     drafts.pruneOlderThan(const Duration(seconds: 6),
         now: base.add(finishedDraftGrace + const Duration(milliseconds: 1)));
     expect(drafts.all, isEmpty);
+  });
+
+  RemoteStrokeDrafts longStroke() {
+    final drafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    drafts
+      ..appendOrCreate(
+        objectId: 'long',
+        authorId: 'alice',
+        points: const [0.0, 0.0, 100.0, 100.0, 300.0, 100.0],
+        colorIndex: 0,
+        width: 4,
+      )
+      ..finish('long');
+    return drafts;
+  }
+
+  test('the ghost of a split stroke stays until its last segment lands', () {
+    final drafts = longStroke();
+
+    drafts.settleAuthor(
+      'alice',
+      landed: const Rect.fromLTRB(0, 0, 100, 100),
+    );
+    expect(drafts.all, hasLength(1), reason: 'the first segment is not it all');
+
+    drafts.settleAuthor(
+      'alice',
+      landed: const Rect.fromLTRB(100, 100, 300, 100),
+    );
+    expect(drafts.all, isEmpty);
+  });
+
+  test('another stroke landing elsewhere does not settle the ghost', () {
+    final drafts = longStroke();
+
+    drafts.settleAuthor(
+      'alice',
+      landed: const Rect.fromLTRB(900, 900, 950, 950),
+    );
+    expect(drafts.all, hasLength(1));
+  });
+
+  test('a settled draft is not revived by a frame that arrives late', () {
+    final drafts = longStroke();
+    drafts.settleAuthor('alice');
+
+    drafts.appendOrCreate(
+      objectId: 'long',
+      authorId: 'alice',
+      points: const [1.0, 1.0],
+      colorIndex: 0,
+    );
+    expect(drafts.all, isEmpty);
+  });
+
+  test('a late frame keeps a finished draft finished', () {
+    final drafts = longStroke();
+    drafts.appendOrCreate(
+      objectId: 'long',
+      authorId: 'alice',
+      points: const [310.0, 100.0],
+      colorIndex: 0,
+    );
+    expect(drafts.all.single.ended, isTrue);
+    expect(drafts.all.single.points.length, 8);
+  });
+
+  test('the pen colour and width survive appends and the finish', () {
+    final drafts = RemoteStrokeDrafts();
+    addTearDown(drafts.dispose);
+    drafts
+      ..appendOrCreate(
+        objectId: 'd',
+        authorId: 'alice',
+        points: const [0.0, 0.0],
+        colorIndex: 0,
+        colorKey: 'blue',
+        width: 6,
+      )
+      ..appendOrCreate(
+        objectId: 'd',
+        authorId: 'alice',
+        points: const [1.0, 1.0],
+        colorIndex: 0,
+      )
+      ..finish('d');
+    expect(drafts.all.single.colorKey, 'blue');
+    expect(drafts.all.single.width, 6);
   });
 }

@@ -3,7 +3,8 @@
 # Builds profile_main.dart as a profile-mode Linux app and runs it inside a
 # nested compositor of its own, so no window ever opens on a real display.
 # Results land in $CANVAS_PERF_OUT/profile_<phases>.json; PROFILE_PHASES picks
-# "specs", "sweep" or both (the default).
+# "specs", "sweep" or both (the default). It exits non-zero when a row is past
+# the raster budget; see check_budget.py.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -50,3 +51,4 @@ grep -E '^(pan|zoom|repaint|draw|remote|sweep|bitmap|objects)|DONE' "$out/app.lo
   tail -20 "$out/app.log" >&2
   exit 1
 }
+python3 "$here/check_budget.py" "$out"/profile_*.json

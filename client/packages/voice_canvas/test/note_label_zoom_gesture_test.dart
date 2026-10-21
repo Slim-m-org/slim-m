@@ -39,11 +39,6 @@ CanvasStrokeInput _note(String id, {double w = 220, double h = 140}) =>
 StrokePainter _painter(CanvasDocument document) =>
     StrokePainter(document: document, ink: const Color(0xFF1A1A1A));
 
-TextPainter _build() => TextPainter(
-      text: const TextSpan(text: 'x'),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
 void main() {
   test('a continuous zoom gesture does not re-lay-out a note every frame', () {
     debugResetNoteLabelLayoutCounts();

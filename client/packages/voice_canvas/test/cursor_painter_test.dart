@@ -23,12 +23,16 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 class _RecordingCanvas implements Canvas {
   final List<Paint> pathPaints = <Paint>[];
   final List<double> rrectWidths = <double>[];
+  final List<Rect> rrectBounds = <Rect>[];
 
   @override
   void drawPath(Path path, Paint paint) => pathPaints.add(paint);
 
   @override
-  void drawRRect(RRect rrect, Paint paint) => rrectWidths.add(rrect.width);
+  void drawRRect(RRect rrect, Paint paint) {
+    rrectWidths.add(rrect.width);
+    rrectBounds.add(rrect.outerRect);
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
@@ -117,5 +121,38 @@ void main() {
           "Flutter's test placeholder face; identical widths means the "
           'family was never actually reaching the TextStyle',
     );
+  });
+
+  test('a chip near the right edge flips inside the surface', () {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final cursors = CanvasCursors()
+      ..upsert(id: 'u', x: 380, y: 100, label: 'Ada Lovelace', colorIndex: 0);
+    addTearDown(cursors.dispose);
+
+    final canvas = _RecordingCanvas();
+    CursorPainter(
+        cursors: cursors,
+        document: document,
+        colors: const [Color(0xFFE0699A)]).paint(canvas, const Size(400, 400));
+
+    final chip = canvas.rrectBounds.single;
+    expect(chip.right, lessThanOrEqualTo(400));
+    expect(chip.left, lessThan(380), reason: 'it sits left of the pointer');
+  });
+
+  test('a long name stays one line', () {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    final cursors = _oneCursor(label: 'A very long display name ' * 8);
+    addTearDown(cursors.dispose);
+
+    final canvas = _RecordingCanvas();
+    CursorPainter(
+        cursors: cursors,
+        document: document,
+        colors: const [Color(0xFFE0699A)]).paint(canvas, const Size(400, 400));
+
+    expect(canvas.rrectBounds.single.height, lessThan(24));
   });
 }

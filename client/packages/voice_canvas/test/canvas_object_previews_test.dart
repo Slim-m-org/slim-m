@@ -164,4 +164,16 @@ void main() {
     expect(document.objectBounds('a')!.x, 0);
     expect(previews.nextDeadline, isNull);
   });
+  test('a frame naming a box no object may have is ignored', () {
+    previews.apply(
+      'a',
+      (x: 0, y: 0, w: maxObjectExtent + 1, h: 10),
+      now: _t0,
+    );
+    previews.apply('a', (x: 0, y: 0, w: double.nan, h: 10), now: _t0);
+    previews.tick(_ms(200));
+
+    expect(document.objectBounds('a')!.w, 10);
+    expect(document.scene.slotCount, 1);
+  });
 }
