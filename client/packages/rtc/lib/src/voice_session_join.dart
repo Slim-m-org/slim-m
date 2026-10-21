@@ -21,15 +21,66 @@ Future<void> watchFirstAudio({
         onAudio();
         return;
       }
-    } on Object {
+    } on Object catch (error, stack) {
       // Stats can fail while a track is torn down; the loop's bounds end the wait.
+      AppLog.swallowed(
+          LogTag.voice, 'Could not read receiver stats', error, stack);
     }
     await Future<void>.delayed(every);
   }
 }
 
-/// What [VoiceSession.join] does besides connecting: the stage marks.
+/// What [VoiceSession.join] does once it is queued: connecting, publishing and the stage marks.
 extension VoiceSessionJoinWork on VoiceSession {
+  Future<void> _join({
+    required String url,
+    required String token,
+    required bool microphoneEnabled,
+    required bool cameraEnabled,
+    required bool canPublish,
+  }) async {
+    if (_disposed) return;
+    _mayPublish = canPublish;
+    if (_room != null) await leave();
+    // Claims the session past the leave above, whose own guard has run by now.
+    _generation++;
+    // A leave this join superseded never reached idle, which is what ends the old call's health.
+    _glitchWatch.finish();
+
+    _lastDisconnect = null;
+    _setState(VoiceSessionState.connecting);
+    final generation = _generation;
+    await _forgetUnpluggedDevices();
+    if (_disposed || generation != _generation) return;
+    final room = _roomFactory();
+    _room = room;
+    _listen(room);
+    try {
+      _joinTimings.mark(JoinStage.connectStarted);
+      await room.connect(url, token);
+      // A leave or newer join took this room mid-connect and tore it down.
+      if (!identical(_room, room)) return;
+      _joinTimings.mark(JoinStage.connected);
+      // Apart from the connect: a muted preview or a token without SPEAK must not fail the join.
+      final micFailed = microphoneEnabled && !await _trySetMicrophone(true);
+      if (cameraEnabled) {
+        await _trySetCamera(true);
+      }
+      if (!microphoneEnabled) await _primeMutedMic();
+      if (!identical(_room, room)) return;
+      _refreshParticipants();
+      _setState(VoiceSessionState.connected);
+      if (micFailed) _retryMicAfterJoin();
+    } catch (e, stack) {
+      reportFailure(LogTag.voice, 'join the call', e, stack);
+      if (!identical(_room, room)) return;
+      _lastError = e;
+      _joinTimings.finish();
+      await _teardown();
+      _setState(VoiceSessionState.failed);
+    }
+  }
+
   /// Marks the first remote audio, once a subscribed track has delivered a packet.
   Future<void> _watchFirstRemoteAudio(lk.RemoteAudioTrack track) {
     final room = _room;
