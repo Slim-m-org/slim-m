@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.99.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.98.0...server-v0.99.0) (2026-10-21)
+
+
+### Features
+
+* v115, voice harness and client, batch 15, canvas audit fixes and a catppuccin theme ([#2283](https://github.com/Slim-m-org/slim-m/issues/2283)) ([ce1716e](https://github.com/Slim-m-org/slim-m/commit/ce1716e1eb23d2bcfb7a5f2c205170399f00e6d1))
+
 ## [0.98.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.97.1...server-v0.98.0) (2026-10-19)
 
 
