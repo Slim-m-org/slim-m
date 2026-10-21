@@ -109,6 +109,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// Whether focusing a tile is what dropped the chrome, so ending the focus restores it.
   bool _fullscreenFromFocus = false;
+  bool _activityLogOpen = false;
   late final WindowFullscreenHold _windowHold;
   CanvasShapeKind _shapeKind = CanvasShapeKind.rectangle;
 
@@ -228,8 +229,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             const SingleActivator(LogicalKeyboardKey.escape): _toggleFullscreen
           else if (_memberPaneDocked)
             const SingleActivator(LogicalKeyboardKey.escape): _closeMemberPane,
-          // None of these while a note is being typed in: Backspace and Ctrl+Z belong to its field.
-          if (!editingNote) ..._canvasEditShortcuts(),
+          // None of these while a note is being typed in (its field owns them) or while the log hides the board.
+          if (!editingNote && !_activityLogOpen) ..._canvasEditShortcuts(),
         },
         child: Focus(
           autofocus: true,
@@ -240,6 +241,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
           child: CanvasPaneBody(
             channelId: widget.channelId,
             onClose: _closeCanvas,
+            onActivityLogOpenChanged: (open) =>
+                setState(() => _activityLogOpen = open),
             fullscreen: fullscreen,
             onToggleFullscreen: _toggleFullscreen,
             focusedTileKey: _focusedTileKey,

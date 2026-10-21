@@ -28,6 +28,7 @@ import 'dart:collection';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'package:slimm_api/api.dart' as api;
 
 /// What happened to the canvas. `resynced` is not a wire kind at all - it
@@ -221,9 +222,13 @@ class CanvasActivityLog extends ChangeNotifier {
   static String? _noteDetail(api.CanvasObject object) {
     if (object.kind != 'note') return null;
     final text = object.props['text'];
-    if (text is! String || text.isEmpty) return null;
+    if (text is! String) return null;
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (line.isEmpty) return null;
     const limit = 80;
-    return text.length > limit ? '${text.substring(0, limit)}…' : text;
+    // Cut by grapheme so an emoji or accent straddling the limit is never split.
+    final graphemes = line.characters;
+    return graphemes.length > limit ? '${graphemes.take(limit)}…' : line;
   }
 
   CanvasActivityEntry _entry(

@@ -43,6 +43,7 @@ class CanvasPaneBody extends StatefulWidget {
     super.key,
     required this.channelId,
     required this.onClose,
+    this.onActivityLogOpenChanged,
     required this.tool,
     required this.onToolChanged,
     required this.canUndo,
@@ -111,6 +112,9 @@ class CanvasPaneBody extends StatefulWidget {
 
   final String channelId;
   final VoidCallback onClose;
+
+  /// Told when the activity log replaces the board, so the pane's edit keys stand down.
+  final ValueChanged<bool>? onActivityLogOpenChanged;
 
   /// Follow and bring-everyone; null hides both.
   final CanvasViewRelay? viewRelay;
@@ -380,8 +384,10 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     onSendToBack: widget.onSendToBack,
     onDeleteSelected: widget.onDeleteSelected,
     activityLogOpen: _activityLogOpen,
-    onToggleActivityLog: () =>
-        setState(() => _activityLogOpen = !_activityLogOpen),
+    onToggleActivityLog: () {
+      setState(() => _activityLogOpen = !_activityLogOpen);
+      widget.onActivityLogOpenChanged?.call(_activityLogOpen);
+    },
     shapeKind: widget.shapeKind,
     onShapeKindChanged: widget.onShapeKindChanged,
     pen: widget.pen,
