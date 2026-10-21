@@ -22,6 +22,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
 import '../../desktop/support/fake_desktop_window_port.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_call_dock.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_compact_dock.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_dock_collapse.dart';
 import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_focused_feed.dart';
@@ -67,6 +68,7 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   WidgetTester tester, {
   bool fullscreenFirst = false,
   bool focusFirst = false,
+  bool sharing = true,
   Size size = const Size(1280, 800),
 }) async {
   final fixture = CanvasPaneFixture();
@@ -74,7 +76,7 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   final container = fixture.container(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _DrivenVoiceController(ref, _call()),
+        (ref) => voice = _DrivenVoiceController(ref, _call(sharing: sharing)),
       ),
     ],
   );
@@ -90,8 +92,10 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
       tileKey: _tileKey,
     );
   }
-  await tester.binding.setSurfaceSize(size);
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  // The view itself, not just the surface: only that makes MediaQuery agree, so a phone width really builds the compact dock.
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   await pumpCanvasPane(tester, container, tool: null);
   await tester.pumpAndSettle();
   return (voice: voice, container: container);
@@ -253,6 +257,7 @@ void main() {
   testWidgets('at phone width the folded dock is still reachable and its '
       'exit lands on screen', (tester) async {
     await _pump(tester, size: const Size(390, 844));
+    expect(find.byType(CanvasCompactDock), findsOneWidget);
     await _focusTheShare(tester);
 
     expect(_pen, findsNothing);
@@ -274,6 +279,7 @@ void main() {
   testWidgets('at phone width undo and the overflow stay reachable in '
       'fullscreen', (tester) async {
     await _pump(tester, size: const Size(390, 844));
+    expect(find.byType(CanvasCompactDock), findsOneWidget);
     await _focusTheShare(tester);
     await tester.tap(find.byTooltip('Show controls'));
     await tester.pumpAndSettle();
@@ -379,5 +385,24 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(port.fullScreen, isTrue);
     expect(container.read(fullscreenVideoActiveProvider), isTrue);
+  });
+
+  testWidgets('returning to a channel whose focused share ended leaves the '
+      'window windowed and nothing focused', (tester) async {
+    final port = FakeDesktopWindowPort();
+    DesktopWindowShell.debugPort = port;
+    DesktopWindowShell.debugActivate(frameless: true);
+    addTearDown(DesktopWindowShell.debugReset);
+
+    final (:voice, :container) = await _pump(
+      tester,
+      fullscreenFirst: true,
+      focusFirst: true,
+      sharing: false,
+    );
+
+    expect(container.read(canvasFocusedTileProvider), isNull);
+    expect(port.fullScreen, isFalse, reason: 'no feed, so no fullscreen');
+    expect(container.read(fullscreenVideoActiveProvider), isFalse);
   });
 }

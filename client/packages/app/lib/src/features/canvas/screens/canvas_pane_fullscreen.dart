@@ -28,7 +28,8 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       notifier.state = null;
       ref.read(canvasFocusedTileProvider.notifier).state = null;
       _windowHold.release();
-      _fullscreenFromFocus = false;
+      _landscapeHold.release();
+      ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
       // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
       _refresh(() {
         final before = _toolBeforeFullscreen;
@@ -57,15 +58,18 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     if (tileKey != null) {
       focus.state = (channelId: widget.channelId, tileKey: tileKey);
       unawaited(_windowHold.enter());
+      unawaited(_landscapeHold.enter());
       if (ref.read(canvasFullscreenProvider) != widget.channelId) {
-        _fullscreenFromFocus = true;
+        ref.read(canvasFullscreenFromFocusProvider.notifier).state =
+            widget.channelId;
         _toggleFullscreen();
       }
       return;
     }
     if (focus.state?.channelId != widget.channelId) return;
     _windowHold.release();
-    if (_fullscreenFromFocus) {
+    _landscapeHold.release();
+    if (ref.read(canvasFullscreenFromFocusProvider) == widget.channelId) {
       _toggleFullscreen();
       return;
     }
@@ -79,7 +83,12 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     if (ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId) {
       // enter writes provider state, which a build phase must not.
       scheduleMicrotask(() {
-        if (_mounted) unawaited(_windowHold.enter());
+        // The feed may have ended and cleared the focus before this ran.
+        final focusedStill =
+            ref.read(canvasFocusedTileProvider)?.channelId == widget.channelId;
+        if (!_mounted || !focusedStill) return;
+        unawaited(_windowHold.enter());
+        unawaited(_landscapeHold.enter());
       });
     }
     if (ref.read(canvasFullscreenProvider) != widget.channelId) return;
@@ -92,6 +101,8 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   /// and no memory of why.
   void _closeCanvas() {
     _windowHold.release();
+    _landscapeHold.release();
+    ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
     ref.read(canvasFocusedTileProvider.notifier).state = null;
     ref.read(canvasFullscreenProvider.notifier).state = null;
     ref.read(canvasOpenProvider.notifier).state = null;

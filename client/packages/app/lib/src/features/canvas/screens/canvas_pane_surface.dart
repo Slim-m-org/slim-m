@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The canvas pane's drawing layers, bottom to top: grid, focused feed, call-tile backdrop,
-/// ink surface, object menu, call tiles, note editor and edge indicators.
+/// The canvas pane's drawing layers, bottom to top: grid, focused feed, call-tile video,
+/// ink surface, object menu, call-tile controls, note editor and edge indicators.
 library;
 
 import 'package:flutter/material.dart';
@@ -83,13 +83,14 @@ class CanvasPaneSurface extends StatelessWidget {
       ),
       if (focusedTileKey case final key?)
         CanvasFocusedFeed(
+          document: document,
           tileKey: key,
           participants: callParticipants,
           cameraViewFor: actions.cameraViewFor,
           screenShareViewFor: actions.screenShareViewFor,
           onLost: () => actions.onFocusTile?.call(null),
         ),
-      // Before CanvasSurface, so a sent-to-back tile's own pixels sit under real ink - see canvas_presence_layer.dart's own doc for why its controls stay in the layer below regardless.
+      // Before CanvasSurface, so every tile's video sits under the ink, drafts and cursors; its controls stay in the layer above.
       CanvasPresenceBackdrop(
         document: document,
         participants: callParticipants,
@@ -167,8 +168,6 @@ class CanvasPaneSurface extends StatelessWidget {
       CanvasPresenceLayer(
         document: document,
         participants: callParticipants,
-        cameraViewFor: actions.cameraViewFor,
-        screenShareViewFor: actions.screenShareViewFor,
         overrides: tileOverrides,
         onCommit: actions.onCommitTile,
         onVideoInterest: actions.onVideoInterest,
@@ -178,6 +177,7 @@ class CanvasPaneSurface extends StatelessWidget {
         resolver: presenceFrames,
         focusedKey: focusedTileKey,
         onFocus: actions.onFocusTile,
+        onPointerMoved: actions.onPointerMoved,
       ),
       ?noteEditor,
       // Topmost and non-interactive - see its own doc for why a pan or a tile drag stopping at worldLimit otherwise looks like nothing happened.

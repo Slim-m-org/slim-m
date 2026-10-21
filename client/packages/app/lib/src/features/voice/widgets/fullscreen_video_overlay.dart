@@ -19,7 +19,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../desktop/window_fullscreen_hold.dart';
@@ -93,17 +92,20 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   late final WindowFullscreenHold _windowHold;
 
-  late final OrientationChannel _orientation;
+  late final PhoneLandscapeHold _landscape;
 
   @override
   void initState() {
     super.initState();
-    _orientation = ref.read(orientationChannelProvider);
+    _landscape = PhoneLandscapeHold(
+      ref.read(orientationChannelProvider),
+      ref.read(portraitLockedPhoneProvider.notifier),
+    );
     _windowHold = WindowFullscreenHold(
       ref.read(fullscreenVideoActiveProvider.notifier),
     );
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_allowLandscape());
+    unawaited(_landscape.enter());
     scheduleMicrotask(() {
       if (mounted) unawaited(_windowHold.enter());
     });
@@ -116,19 +118,11 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     if (mounted) setState(() {});
   }
 
-  /// A locked phone may rotate only while this route is up (decision 0058);
-  /// anywhere else nothing answers and nothing changes.
-  Future<void> _allowLandscape() async {
-    final lockedPhone = await _orientation.allowLandscape(true);
-    if (!lockedPhone || !mounted) return;
-    ref.read(portraitLockedPhoneProvider.notifier).state = true;
-  }
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _windowHold.release();
-    unawaited(_orientation.allowLandscape(false));
+    _landscape.release();
     super.dispose();
   }
 

@@ -10,6 +10,7 @@
 /// no reason to carry a pure list-building function anyway.
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -48,4 +49,28 @@ String _hiddenLabel(String key, VoiceParticipant participant) {
     return '${presenceScreenLabel(participant)} share';
   }
   return participant.isLocal ? 'Your camera' : "${participant.name}'s camera";
+}
+
+/// Notifies only when the set of hidden tile keys changes, not on every drag
+/// or resize of a tile, so the dock's restore list is not rebuilt per frame.
+class HiddenTileKeys extends ChangeNotifier {
+  HiddenTileKeys(this._overrides) : _keys = {..._overrides.hiddenKeys} {
+    _overrides.addListener(_check);
+  }
+
+  final CanvasPresenceTileOverrides _overrides;
+  Set<String> _keys;
+
+  void _check() {
+    final next = {..._overrides.hiddenKeys};
+    if (setEquals(next, _keys)) return;
+    _keys = next;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _overrides.removeListener(_check);
+    super.dispose();
+  }
 }

@@ -483,7 +483,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 }
 
 /// The call participants as the canvas sees them: equal whenever nothing but
-/// a speaking level moved, since the canvas draws no level and rebuilding the
+/// a speaking flag or level moved, since the tiles draw neither (speaking is
+/// the cursor label's glow and the dock roster's ring) and rebuilding the
 /// whole pane several times a second per speaker made it lag.
 @visibleForTesting
 class CanvasCallParticipants {
@@ -494,8 +495,8 @@ class CanvasCallParticipants {
   static bool _same(VoiceParticipant a, VoiceParticipant b) =>
       a.identity == b.identity &&
       a.name == b.name &&
-      a.isSpeaking == b.isSpeaking &&
       a.isMuted == b.isMuted &&
+      a.isDeafened == b.isDeafened &&
       a.isLocal == b.isLocal &&
       a.isScreenSharing == b.isScreenSharing &&
       a.isCameraOn == b.isCameraOn;

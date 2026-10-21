@@ -55,6 +55,7 @@ import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
+import '../widgets/canvas_call_roster.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
@@ -244,6 +245,7 @@ class CanvasCallDock extends ConsumerWidget {
       );
     }
     final alone = ref.watch(callAloneProvider);
+    final hasOthers = ref.watch(callHasOthersProvider);
     final extra = alone ? dockExtraExtent(context) : 0.0;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),
@@ -252,6 +254,7 @@ class CanvasCallDock extends ConsumerWidget {
         return FloatingDockCard(
           trailing: leave,
           rows: [
+            if (hasOthers) const CanvasCallRoster(),
             ?bots,
             ...width >= _oneRowMinWidth + extra
                 ? [

@@ -13,10 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_object_context_menu.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _local = VoiceParticipant(
   identity: 'me',
@@ -25,6 +25,7 @@ const _local = VoiceParticipant(
   isMuted: false,
   isLocal: true,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 /// Mirrors `canvas_pane_body.dart`'s own Stack order: the object menu's
@@ -56,7 +57,7 @@ Widget _wrap({
               onAddNoteAt: (_) {},
               onRecenter: () {},
             ),
-            CanvasPresenceLayer(
+            PresenceStack(
               document: document,
               participants: const [_local],
               cameraViewFor: (_) => const SizedBox(),

@@ -28,11 +28,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
+import 'presence_stack.dart';
 
 const _noor = VoiceParticipant(
   identity: 'user-noor',
@@ -41,6 +41,7 @@ const _noor = VoiceParticipant(
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,
+  isCameraOn: true,
 );
 
 // Well inside the default, untouched layout for a lone camera-off tile.
@@ -54,7 +55,7 @@ Widget _wrap(Widget child) => ProviderScope(
 );
 
 Widget _layer(CanvasDocument document, CanvasPresenceTileOverrides overrides) =>
-    CanvasPresenceLayer(
+    PresenceStack(
       document: document,
       participants: const [_noor],
       cameraViewFor: (_) => const SizedBox(),

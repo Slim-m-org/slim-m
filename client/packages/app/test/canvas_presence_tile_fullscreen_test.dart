@@ -17,14 +17,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile_controls.dart';
 import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/voice/voice_controller_harness.dart';
+import 'features/canvas/presence_stack.dart';
 
 const _expandLabel = 'Show this tile full screen';
 
@@ -98,7 +97,7 @@ Future<_Fixture> _seated(
             height: 800,
             child: ValueListenableBuilder<String?>(
               valueListenable: focused,
-              builder: (_, key, __) => CanvasPresenceLayer(
+              builder: (_, key, __) => PresenceStack(
                 document: document,
                 participants: roster,
                 cameraViewFor: (id) => SizedBox(key: Key('camera-$id')),
@@ -156,32 +155,15 @@ void main() {
     await fixture.leave();
   });
 
-  testWidgets('a camera tile showing the avatar fallback offers none, since '
-      'there is no feed to fill a screen with', (tester) async {
+  testWidgets('a person with no camera has no tile to expand', (tester) async {
     final fixture = await _seated(
       tester,
       participants: [_camera('user-noor', 'Noor', on: false)],
     );
     addTearDown(fixture.harness.dispose);
 
-    await _hover(tester, 'camera:user-noor');
-
-    expect(
-      _expandButton('camera:user-noor'),
-      findsNothing,
-      reason:
-          'FullscreenVideoView pops itself the moment it opens on a feed '
-          'that is not live, so offering the control would be a button that '
-          'cannot work',
-    );
-    expect(
-      find.byWidgetPredicate((w) => w is TileControls),
-      findsOneWidget,
-      reason:
-          'the rest of the row must still be there - this asserts the '
-          'expand button alone is gated, not that the tile lost its '
-          'controls entirely',
-    );
+    expect(find.byKey(const ValueKey('camera:user-noor')), findsNothing);
+    expect(_expandButton('camera:user-noor'), findsNothing);
     await fixture.leave();
   });
 
@@ -219,7 +201,7 @@ void main() {
             body: SizedBox(
               width: 1200,
               height: 800,
-              child: CanvasPresenceLayer(
+              child: PresenceStack(
                 document: document,
                 participants: _roster,
                 cameraViewFor: (id) => const SizedBox(),

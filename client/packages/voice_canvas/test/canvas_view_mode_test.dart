@@ -43,6 +43,18 @@ void main() {
     expect(mode.hasLayout, isFalse);
   });
 
+  test(
+      'a fitted personal camera is kept as null, so it refits a smaller '
+      'window instead of restoring a literal zoom', () {
+    document.fitBoard();
+    mode.showPersonal();
+
+    expect(mode.layout.camera, isNull);
+
+    document.setCamera(document.camera.copyWith(zoom: 2));
+    expect(mode.layout.camera, isNotNull);
+  });
+
   test('a zoomed personal camera is still kept when leaving the view', () {
     mode.showPersonal();
     document.setCamera(document.camera.copyWith(zoom: 2));

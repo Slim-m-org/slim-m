@@ -12,6 +12,7 @@ import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'display_server.dart';
 import 'window_geometry.dart';
+import 'window_fullscreen_hold.dart';
 import 'window_geometry_store.dart';
 
 /// How long to wait after the last resize/move event before writing, on the
@@ -195,6 +196,8 @@ class DesktopWindowController {
     );
     final maximized = await port.isMaximized();
     final fullscreen = await port.isFullScreen();
+    // A video or canvas tile holding the window fullscreen is not a state to reopen in.
+    if (fullscreen && WindowFullscreenHold.anyHeld) return null;
     if (maximized || fullscreen) {
       return previous.copyWith(
         runState: fullscreen

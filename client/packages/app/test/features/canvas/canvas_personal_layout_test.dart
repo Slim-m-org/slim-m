@@ -264,6 +264,38 @@ void main() {
     },
   );
 
+  test('opening a canvas does not rewrite the layout it restored', () async {
+    const stored = CanvasPersonalLayout(
+      personal: true,
+      camera: Camera(x: 1500, y: 1100, zoom: 0.5),
+      places: {'screen:a': _place},
+    );
+    await CanvasLayoutStore(db).save('c1', stored.encode(), now: 1);
+
+    final session = _Session(db, writes);
+    addTearDown(session.close);
+    await session.open('c1');
+    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+
+    final rows = await db.select(db.canvasPersonalLayouts).get();
+    expect(rows.single.updatedAt, 1, reason: 'restoring is not an edit');
+  });
+
+  test('a fitted personal camera is saved as fitted, not as a zoom', () async {
+    final session = _Session(db, writes);
+    addTearDown(session.close);
+    final engine = await session.open('c1');
+    engine.viewMode.showPersonal();
+    engine.tileOverrides.setRect('screen:a', _place);
+    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+
+    final saved = CanvasPersonalLayout.decode(
+      (await CanvasLayoutStore(db).load('c1'))!,
+    )!;
+    expect(saved.camera, isNull);
+    expect(saved.places, {'screen:a': _place});
+  });
+
   test('an unreadable stored layout opens the shared view', () async {
     await CanvasLayoutStore(db).save('c1', '{not json', now: 1);
 

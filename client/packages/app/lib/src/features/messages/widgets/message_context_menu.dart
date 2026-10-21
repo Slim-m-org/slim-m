@@ -203,24 +203,26 @@ class _MessageContextMenuRegionState extends State<MessageContextMenuRegion> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return MessageRowRoving(
-      builder: (context, rowNode) => ContextMenuRegion(
-        focusNode: rowNode,
-        itemsBuilder: _items,
-        onOpenChanged: (open) => HoverRevealScope.maybeOf(context)?.pin(open),
-        onVisibilityChanged: (open) =>
-            HoverRevealScope.maybeOf(context)?.reportMenuOpen(open),
-        onHoldChanged: (holding) => setState(() => _holding = holding),
-        child: AnimatedContainer(
-          duration: _holding
-              ? AppMotion.reduced(context, kLongPressTimeout)
-              : AppMotion.reduced(context, AppMotion.fast),
-          curve: Curves.linear,
-          color: _holding
-              ? tokens.accentSoft.withValues(alpha: 0.5)
-              : Colors.transparent,
-          child: widget.child,
-        ),
-      ),
+      builder: (context, rowNode) {
+        final reveal = HoverRevealScope.maybeOf(context);
+        return ContextMenuRegion(
+          focusNode: rowNode,
+          itemsBuilder: _items,
+          onOpenChanged: (open) => reveal?.pin(open),
+          onVisibilityChanged: (open) => reveal?.reportMenuOpen(open),
+          onHoldChanged: (holding) => setState(() => _holding = holding),
+          child: AnimatedContainer(
+            duration: _holding
+                ? AppMotion.reduced(context, kLongPressTimeout)
+                : AppMotion.reduced(context, AppMotion.fast),
+            curve: Curves.linear,
+            color: _holding
+                ? tokens.accentSoft.withValues(alpha: 0.5)
+                : Colors.transparent,
+            child: widget.child,
+          ),
+        );
+      },
     );
   }
 }

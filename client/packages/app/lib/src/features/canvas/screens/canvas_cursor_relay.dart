@@ -28,6 +28,12 @@ const Duration cursorSendInterval = Duration(milliseconds: 80);
 /// could wait for instead; see `Event::CanvasCursorMoved`'s own doc.
 const Duration cursorStaleAfter = Duration(seconds: 8);
 
+/// How long a resting pointer goes before its position is repeated, well under [cursorStaleAfter].
+const Duration cursorKeepaliveInterval = Duration(seconds: 3);
+
+/// How long a "left" waits for the pointer to turn up again, so crossing from the surface onto a tile is not a flicker.
+const Duration cursorLeftGrace = Duration(milliseconds: 150);
+
 /// How often stale cursors are swept.
 const Duration cursorPruneInterval = Duration(seconds: 2);
 
@@ -56,8 +62,8 @@ class CanvasCursorRelay {
   /// this is called.
   final void Function(double x, double y) send;
 
-  /// Tells everyone this device's pointer left the canvas.
-  final VoidCallback? sendLeft;
+  /// Tells everyone this device's pointer left the canvas, from where it last was.
+  final void Function(double x, double y)? sendLeft;
 
   final String Function(String userId) resolveLabel;
   final bool Function(String userId) isBlocked;
@@ -70,7 +76,12 @@ class CanvasCursorRelay {
   final bool Function()? canSend;
 
   Timer? _pruneTimer;
+  Timer? _trailing;
+  Timer? _keepalive;
+  Timer? _leftGrace;
   DateTime? _lastSent;
+  Offset? _lastWorld;
+  Offset? _unsent;
 
   // Armed by the first remote cursor and disarmed once none is left, so an idle canvas holds no timer.
   void _armPrune() {
@@ -86,22 +97,66 @@ class CanvasCursorRelay {
   }
 
   /// Call on every local pointer move, drawing or not; throttles internally
-  /// to [cursorSendInterval] so the caller does not have to.
+  /// to [cursorSendInterval] so the caller does not have to. The newest
+  /// position held back by the throttle is sent when its window ends, and a
+  /// resting pointer repeats every [cursorKeepaliveInterval].
   void reportLocalPointer(Offset world, {DateTime? now}) {
     if (canSend != null && !canSend!()) return;
+    _leftGrace?.cancel();
     final at = now ?? clock.now();
     final last = _lastSent;
-    if (last != null && at.difference(last) < cursorSendInterval) return;
+    if (last != null && at.difference(last) < cursorSendInterval) {
+      _unsent = world;
+      _trailing ??= Timer(cursorSendInterval, _sendTrailing);
+      return;
+    }
+    _sendNow(world, at);
+  }
+
+  void _sendNow(Offset world, DateTime at) {
     _lastSent = at;
+    _lastWorld = world;
+    _unsent = null;
+    _keepalive?.cancel();
+    _keepalive = Timer(cursorKeepaliveInterval, _repeat);
     send(world.dx, world.dy);
   }
 
+  void _sendTrailing() {
+    _trailing = null;
+    final world = _unsent;
+    if (world != null && (canSend?.call() ?? true)) {
+      _sendNow(world, clock.now());
+    }
+  }
+
+  void _repeat() {
+    final world = _lastWorld;
+    if (world != null && (canSend?.call() ?? true)) {
+      _sendNow(world, clock.now());
+    }
+  }
+
   /// Call when the local pointer leaves the canvas or a touch lifts. Sent at
-  /// most once per stretch over the canvas, and never throttled away.
+  /// most once per stretch over the canvas, and never throttled away; it
+  /// waits [cursorLeftGrace] so a pointer that moves straight onto a tile
+  /// does not flicker away.
   void reportLocalPointerLeft() {
     if (_lastSent == null) return;
+    _leftGrace?.cancel();
+    _leftGrace = Timer(cursorLeftGrace, _retract);
+  }
+
+  void _retract() {
+    _leftGrace = null;
+    _trailing?.cancel();
+    _trailing = null;
+    _keepalive?.cancel();
+    _keepalive = null;
+    final world = _lastWorld;
     _lastSent = null;
-    sendLeft?.call();
+    _unsent = null;
+    if (world != null) sendLeft?.call(world.dx, world.dy);
   }
 
   /// Call for every live `CanvasCursorMoved` naming this channel. Silently
@@ -127,6 +182,8 @@ class CanvasCursorRelay {
   }
 
   void dispose() {
+    _leftGrace?.cancel();
+    if (_lastSent != null) _retract();
     _disarmPrune();
     cursors.clear();
   }

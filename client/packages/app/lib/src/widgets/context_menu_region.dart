@@ -20,6 +20,8 @@
 /// `context_menu_region_reachability_test.dart`.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -143,9 +145,21 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// carried away from the row it was anchored to.
   ScrollPosition? _watched;
 
+  /// Whether the parent was last told this region is open.
+  bool _toldOpen = false;
+
   @override
   void dispose() {
     _watched?.removeListener(_closeOnScroll);
+    // A region unmounted while open never gets another chance to say it closed, which left a parent pinned open for good.
+    if (_toldOpen) {
+      final onOpenChanged = widget.onOpenChanged;
+      final onVisibilityChanged = widget.onVisibilityChanged;
+      scheduleMicrotask(() {
+        onVisibilityChanged?.call(false);
+        onOpenChanged?.call(false);
+      });
+    }
     super.dispose();
   }
 
@@ -179,6 +193,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     }
     if (!open && !_controller.isShowing) return;
     widget.onVisibilityChanged?.call(open);
+    _toldOpen = open;
     if (pinRow || !open) widget.onOpenChanged?.call(open);
     if (open && !_controller.isShowing) _anchor = _anchorOffset(pointerGlobal);
     _watchScroll(open);
@@ -195,6 +210,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
     if (_sheetOpen) return;
     _sheetOpen = true;
     widget.onVisibilityChanged?.call(true);
+    _toldOpen = true;
     if (pinRow) widget.onOpenChanged?.call(true);
     showAppSheet<void>(
       context,
@@ -214,6 +230,7 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   void _onSheetClosed() {
     _sheetOpen = false;
     if (!mounted) return;
+    _toldOpen = false;
     widget.onVisibilityChanged?.call(false);
     widget.onOpenChanged?.call(false);
   }

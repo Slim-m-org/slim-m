@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Camera and screen-share tiles for everyone on this channel's call,
-/// including the caller, placed in the canvas's world space.
+/// The controls of the camera and screen-share tiles for everyone on this
+/// channel's call, placed in the canvas's world space over [CanvasSurface].
 ///
-/// It is a widget layer over [CanvasSurface] because a video track is a
-/// platform texture a painter cannot sample, and it is the one place that
-/// decides which remote video is worth subscribing to ([onVideoInterest]),
-/// so what is mounted and what the SFU sends never disagree. The reasoning
-/// for presence over canvas objects and the backdrop for sent-to-back tiles is
-/// in docs/decisions/0010-canvas-media-tiles.md; full screen filling the pane
-/// under the ink, and the dock folding away, are in 0081.
+/// A video track is a platform texture a painter cannot sample, so the video
+/// paints in `CanvasPresenceBackdrop` under the ink and this layer carries the
+/// gestures and chrome. It is also the one place that decides which remote
+/// video is worth subscribing to ([onVideoInterest]), so what is mounted and
+/// what the SFU sends never disagree. The reasoning for presence over canvas
+/// objects is in docs/decisions/0010-canvas-media-tiles.md; full screen filling
+/// the pane under the ink, and the dock folding away, are in 0081; avatar-only
+/// people leaving the board and ink above every tile are in 0086.
 library;
 
 import 'package:flutter/foundation.dart' show setEquals;
@@ -27,19 +28,15 @@ export 'canvas_presence_bubble.dart';
 export 'canvas_presence_geometry.dart'
     show CameraViewBuilder, ScreenShareViewBuilder;
 
-/// Every call participant's tiles, world-anchored and individually
-/// draggable, resizable, lockable and hideable through [overrides] - except
-/// an avatar-only tile (camera off, no screen share), which only gets the
-/// drag and the hide; see `canvas_presence_tile.dart`'s own doc on
-/// `fixedRenderSize`. Renders nothing when [participants] is empty, so a
-/// canvas opened on a channel with no active call pays for none of this.
+/// Every camera and screen-share tile, world-anchored and individually
+/// draggable, resizable, lockable and hideable through [overrides]. Renders
+/// nothing when nobody has a feed up, so a canvas opened on a channel with no
+/// active call pays for none of this.
 class CanvasPresenceLayer extends StatefulWidget {
   const CanvasPresenceLayer({
     super.key,
     required this.document,
     required this.participants,
-    required this.cameraViewFor,
-    required this.screenShareViewFor,
     required this.overrides,
     required this.onCommit,
     this.onVideoInterest,
@@ -50,7 +47,11 @@ class CanvasPresenceLayer extends StatefulWidget {
     this.resolver,
     this.focusedKey,
     this.onFocus,
+    this.onPointerMoved,
   });
+
+  /// Relays this device's pointer over a tile, which the surface beneath it cannot see.
+  final PointerMoved? onPointerMoved;
 
   /// The tile whose feed `CanvasFocusedFeed` is showing instead, so it is not drawn twice.
   final String? focusedKey;
@@ -64,8 +65,6 @@ class CanvasPresenceLayer extends StatefulWidget {
 
   final CanvasDocument document;
   final List<VoiceParticipant> participants;
-  final CameraViewBuilder cameraViewFor;
-  final ScreenShareViewBuilder screenShareViewFor;
   final CanvasPresenceTileOverrides overrides;
 
   /// The canvas's own active tool, forwarded to every tile - see
@@ -123,7 +122,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
   @override
   void initState() {
     super.initState();
-    widget.document.addListener(_onChanged);
+    widget.document.addListener(_onDocumentChanged);
     widget.overrides.addListener(_onChanged);
   }
 
@@ -131,8 +130,8 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
   void didUpdateWidget(covariant CanvasPresenceLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.document != widget.document) {
-      oldWidget.document.removeListener(_onChanged);
-      widget.document.addListener(_onChanged);
+      oldWidget.document.removeListener(_onDocumentChanged);
+      widget.document.addListener(_onDocumentChanged);
     }
     if (oldWidget.overrides != widget.overrides) {
       oldWidget.overrides.removeListener(_onChanged);
@@ -142,17 +141,26 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final overrides = widget.overrides;
     final keys = presenceTileKeys(widget.participants);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.overrides == overrides) overrides.prune(keys);
+      // An empty roster is a reconnect in progress; pruning then would forget every hidden tile.
+      if (mounted && widget.overrides == overrides && keys.isNotEmpty) {
+        overrides.prune(keys);
+      }
     });
   }
 
   @override
   void dispose() {
-    widget.document.removeListener(_onChanged);
+    widget.document.removeListener(_onDocumentChanged);
     widget.overrides.removeListener(_onChanged);
     // Synchronously: there is no later frame of this widget's own to ride, and a stale interest set outliving it would keep culling a call nothing here is looking at.
     widget.onVideoInterest?.call(null);
     super.dispose();
+  }
+
+  final _viewGate = CanvasViewChangeGate();
+
+  void _onDocumentChanged() {
+    if (mounted && _viewGate.changed(widget.document)) setState(() {});
   }
 
   void _onChanged() {
@@ -190,7 +198,6 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final painted = presencePaintOrder(
       visibleIds.where((key) => key != widget.focusedKey).toSet(),
       widget.overrides.zFor,
-      (key) => presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
     );
     return CanvasBoardClip(
       document: widget.document,
@@ -232,28 +239,17 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
 
   static String _semanticLabel(VoiceParticipant participant, bool isScreen) {
     if (!isScreen) {
-      return '${participant.name}${participant.isLocal ? ', you' : ''}, '
-          "on this call's canvas";
+      return participant.isLocal
+          ? "Your camera, on this call's canvas"
+          : "${participant.name}'s camera, on this call's canvas";
     }
     if (participant.isLocal) return "Your screen share, on this call's canvas";
     return "${participant.name}'s screen share, on this call's canvas";
   }
 
-  Widget _tileContent(VoiceParticipant participant, bool isScreen) {
-    final identity = participant.identity;
-    if (isScreen) {
-      return CanvasScreenShareBubble(
-        participant: participant,
-        view: widget.screenShareViewFor(identity),
-      );
-    }
-    return CanvasPresenceBubble(
-      participant: participant,
-      cameraView: participant.isCameraOn
-          ? widget.cameraViewFor(identity)
-          : null,
-    );
-  }
+  Widget _tileBadge(VoiceParticipant participant, bool isScreen) => isScreen
+      ? CanvasScreenShareBadge(participant: participant)
+      : CanvasCameraBadge(participant: participant);
 
   List<Widget> Function(BuildContext, VoidCallback)? _participantItemsBuilder(
     VoiceParticipant participant,
@@ -273,15 +269,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final identity = presenceTileIdentity(key);
     final participant = byIdentity[identity];
     if (participant == null) return null;
-    final avatarOnly = presenceTileIsAvatarOnly(key, byIdentity);
-    final state = widget.overrides.stateFor(key);
-    // Forced false, never the raw override, for an avatar-only tile - see canvas_presence_geometry.dart's own doc on presenceEffectiveSentToBack for why a stale value from before this camera turned off must not resurface here.
-    final locked = !avatarOnly && state.locked;
-    final sentToBack = presenceEffectiveSentToBack(
-      key,
-      widget.overrides,
-      byIdentity,
-    );
+    final locked = widget.overrides.stateFor(key).locked;
     // Never null: the override's own rect once set, this build's resolved default otherwise.
     void commit() =>
         widget.onCommit(key, widget.overrides.stateFor(key).rect ?? rect);
@@ -291,35 +279,22 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       camera: camera,
       locked: locked,
       tool: widget.tool,
-      sentToBack: sentToBack,
-      fixedRenderSize: avatarOnly ? canvasAvatarMarkerSize : null,
       document: widget.document,
       onRectChanged: (next) => widget.overrides.setRect(key, next),
       onRectCommitted: commit,
-      onToggleLocked: avatarOnly || widget.overrides.personal
+      onToggleLocked: widget.overrides.personal
           ? null
           : () {
               widget.overrides.setLocked(key, !locked);
               commit();
             },
-      onToggleSentToBack: avatarOnly || widget.overrides.personal
-          ? null
-          : () {
-              widget.overrides.setSentToBack(key, !sentToBack);
-              commit();
-            },
       onHide: () => widget.overrides.setHidden(key, true),
       participantItemsBuilder: _participantItemsBuilder(participant),
-      // A camera tile showing the avatar fallback has no feed to fill the pane with; a screen-share tile always does, since its key only exists while the share is up.
-      onExpand: widget.onFocus == null || !(isScreen || participant.isCameraOn)
-          ? null
-          : () => widget.onFocus!(key),
+      onPointerMoved: widget.onPointerMoved,
+      personal: widget.overrides.personal,
+      onExpand: widget.onFocus == null ? null : () => widget.onFocus!(key),
       semanticLabel: _semanticLabel(participant, isScreen),
-      // Real content moves to CanvasPresenceBackdrop when sent to back; .expand, not .shrink, or the wrapping GestureDetector's own opaque hit box shrinks with it.
-      child: sentToBack
-          ? const SizedBox.expand()
-          // The pop plays once per tile mount (a participant arriving), never on pan or zoom, which only move the tile's slot.
-          : CallTilePop(child: _tileContent(participant, isScreen)),
+      child: CallTilePop(child: _tileBadge(participant, isScreen)),
     );
   }
 }

@@ -86,13 +86,18 @@ void main() {
         const Rect.fromLTWH(960, 540, 480, 270),
         summon: false,
       );
+      container
+          .read(canvasEngineProvider('c1').notifier)
+          .cursors
+          .upsert(id: 'amy', x: 1, y: 1, label: 'Amy', colorIndex: 0);
       relay.follow('amy');
-      await tester.pump();
+      // The camera eases to a followed view over a glide, not in one frame.
+      await tester.pump(const Duration(milliseconds: 250));
       expect(document.isFitted, isFalse);
       expect(relay.following.value, 'amy');
 
       tester.view.physicalSize = const Size(1000, 800);
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       expect(relay.following.value, 'amy', reason: 'a resize only refits');
 
       document.setCamera(document.camera.copyWith(x: document.camera.x - 20));

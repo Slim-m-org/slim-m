@@ -44,4 +44,11 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
         authorId: () => ref.read(meProvider).valueOrNull?.id,
       );
+
+  /// What the canvas says when this device's call in the channel failed or dropped for good.
+  String? _callFailure(VoiceFlags flags) =>
+      flags.channelId == widget.channelId &&
+          flags.state == VoiceSessionState.failed
+      ? (flags.error ?? 'The call was dropped.')
+      : null;
 }

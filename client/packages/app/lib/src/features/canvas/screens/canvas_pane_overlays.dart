@@ -11,6 +11,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_collapse.dart';
+import 'canvas_hidden_tiles.dart';
 import 'canvas_follow_controls.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_view_relay.dart';
@@ -24,6 +25,7 @@ class CanvasPeerControls extends StatelessWidget {
     required this.cursors,
     required this.relay,
     required this.selfId,
+    this.viewMode,
   });
 
   final CanvasDocument document;
@@ -31,6 +33,9 @@ class CanvasPeerControls extends StatelessWidget {
   final CanvasCursors? cursors;
   final CanvasViewRelay? relay;
   final String? selfId;
+
+  /// Whether the view is personal decides whether a summon is on offer.
+  final CanvasViewMode? viewMode;
 
   @override
   Widget build(BuildContext context) {
@@ -43,20 +48,24 @@ class CanvasPeerControls extends StatelessWidget {
       );
     }
     if (cursors == null) return const SizedBox.shrink();
-    return CanvasFollowControls(
-      relay: relay,
-      cursors: cursors,
-      participants: participants,
-      selfId: selfId,
-      onBringEveryone: () =>
-          relay.summonEveryone(document.visibleBoard ?? canvasBoard),
+    return ListenableBuilder(
+      listenable: viewMode ?? relay.following,
+      builder: (context, _) => CanvasFollowControls(
+        relay: relay,
+        cursors: cursors,
+        participants: participants,
+        selfId: selfId,
+        canBringEveryone: !(viewMode?.personal ?? false),
+        onBringEveryone: () =>
+            relay.summonEveryone(document.visibleBoard ?? canvasBoard),
+      ),
     );
   }
 }
 
 /// The dock pinned to the bottom edge, height-reported so the surface can
 /// keep its own controls clear of it.
-class CanvasDockOverlay extends StatelessWidget {
+class CanvasDockOverlay extends StatefulWidget {
   const CanvasDockOverlay({
     super.key,
     required this.call,
@@ -67,37 +76,65 @@ class CanvasDockOverlay extends StatelessWidget {
 
   final CallDockData? call;
 
-  /// Read inside the tile-override listener, so a hide or show reaches the dock's restore list.
+  /// Read inside the hidden-tile listener, so a hide or show reaches the dock's restore list.
   final CanvasDockData Function() canvas;
   final CanvasPresenceTileOverrides tileOverrides;
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.bottomCenter,
-    // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
-    child: CanvasDockCollapse(
-      collapsible: canvas().fullscreen,
-      builder: (context, revealed) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.s12,
-          canvas().fullscreen ? AppSpacing.s8 : AppSpacing.s12,
-          AppSpacing.s12,
-          AppSpacing.s12,
-        ),
-        child: DockHeightReporter(
-          foldedHeight: revealed ? null : canvasDockHandleHeight,
-          extraHeight: canvas().fullscreen
-              ? canvasDockHandleHeight + AppSpacing.s8
-              : 0,
-          // Nothing else here rebuilds for a tile hide or show.
-          child: ListenableBuilder(
-            listenable: tileOverrides,
-            builder: (context, _) =>
-                CanvasCallDock(call: call, canvas: canvas(), compact: compact),
+  State<CanvasDockOverlay> createState() => _CanvasDockOverlayState();
+}
+
+class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
+  late HiddenTileKeys _hidden = HiddenTileKeys(widget.tileOverrides);
+
+  @override
+  void didUpdateWidget(covariant CanvasDockOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tileOverrides != widget.tileOverrides) {
+      _hidden.dispose();
+      _hidden = HiddenTileKeys(widget.tileOverrides);
+    }
+  }
+
+  @override
+  void dispose() {
+    _hidden.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canvas = widget.canvas;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      // The margin lives inside the collapse region, so a pointer at the very edge still reaches it.
+      child: CanvasDockCollapse(
+        collapsible: canvas().fullscreen,
+        builder: (context, revealed) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.s12,
+            canvas().fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+            AppSpacing.s12,
+            AppSpacing.s12,
+          ),
+          child: DockHeightReporter(
+            foldedHeight: revealed ? null : canvasDockHandleHeight,
+            extraHeight: canvas().fullscreen
+                ? canvasDockHandleHeight + AppSpacing.s8
+                : 0,
+            // Nothing else here rebuilds for a tile hide or show.
+            child: ListenableBuilder(
+              listenable: _hidden,
+              builder: (context, _) => CanvasCallDock(
+                call: widget.call,
+                canvas: canvas(),
+                compact: widget.compact,
+              ),
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

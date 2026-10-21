@@ -35,6 +35,7 @@ import 'canvas_pane_surface.dart';
 import 'canvas_pane_surface_actions.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
+import 'canvas_speaking_sync.dart';
 import 'canvas_summary.dart';
 import 'canvas_truncated_notice.dart';
 
@@ -103,6 +104,8 @@ class CanvasPaneBody extends StatefulWidget {
     this.focusedTileKey,
     this.onFocusTile,
     this.callDock,
+    this.callError,
+    this.onRetryCall,
     this.participantMenuItemsBuilder,
     this.onSelectTap,
     this.onEditNote,
@@ -273,6 +276,10 @@ class CanvasPaneBody extends StatefulWidget {
   /// section, since this widget only exists while the canvas itself is open.
   final CallDockData? callDock;
 
+  /// Why this device's call in this channel failed or dropped, with the way to join again; null while it is not failed.
+  final String? callError;
+  final VoidCallback? onRetryCall;
+
   /// Forwarded straight to [CanvasPresenceLayer.participantMenuItemsBuilder]
   /// - see that field's own doc.
   final List<Widget> Function(
@@ -328,6 +335,14 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                     ? CanvasCompactEditGroup(canvas: _dockData())
                     : null,
               ),
+            if (widget.callError != null)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.s12),
+                child: AppErrorState(
+                  message: widget.callError!,
+                  onRetry: widget.onRetryCall,
+                ),
+              ),
             if (widget.error != null)
               Padding(
                 padding: const EdgeInsets.all(AppSpacing.s12),
@@ -344,6 +359,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                 child: Stack(
                   children: [
                     _activityLogOpen ? _panel() : _surface(tokens),
+                    CanvasSpeakingSync(cursors: widget.cursors),
                     if (!_activityLogOpen)
                       CanvasPeerControls(
                         document: widget.document,
@@ -351,6 +367,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                         cursors: widget.cursors,
                         relay: widget.viewRelay,
                         selfId: widget.selfId,
+                        viewMode: widget.viewMode,
                       ),
                     CanvasDockOverlay(
                       call: widget.callDock,

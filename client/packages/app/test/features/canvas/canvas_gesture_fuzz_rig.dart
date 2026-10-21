@@ -61,7 +61,8 @@ const _me = VoiceParticipant(
 const _noor = VoiceParticipant(
   identity: 'user-noor',
   name: 'Noor',
-  isSpeaking: true,
+  // Silent: the dock roster's speaking ring pulses for as long as anyone talks, so pumpAndSettle would never settle.
+  isSpeaking: false,
   isMuted: false,
   isLocal: false,
   isScreenSharing: false,

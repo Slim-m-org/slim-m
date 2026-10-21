@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The visible half of a tile sent to the back: its own video and name
-/// badge, painted *before* [CanvasSurface] in `canvas_pane_body.dart`'s own
-/// Stack, so real ink drawn near it composites on top - answering "draw on
-/// it" for a tile the owner has deliberately put behind the canvas.
+/// The video of every camera and screen-share tile, painted *before*
+/// [CanvasSurface] in `canvas_pane_surface.dart`'s Stack, so ink, live drafts
+/// and cursors composite on top of every tile (decision 0086).
 ///
-/// Carries no gesture of its own, on purpose - see `canvas_presence_layer
-/// .dart`'s own doc for the rendered probe that ruled out the shape that
-/// would need one. [CanvasPresenceManipulableTile] still owns every tile's
-/// drag, resize, lock and hide, at the same screen position, whichever side
-/// of [CanvasSurface] its content happens to be painting on; this widget
-/// only ever answers "what does a sent-to-back tile look like right now,"
-/// never "did somebody just touch it."
+/// Carries no gesture of its own, on purpose: [CanvasPresenceManipulableTile]
+/// owns every tile's drag, resize, lock and hide at the same screen position.
+/// This widget only answers "what does a tile look like right now".
 library;
 
 import 'package:flutter/widgets.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../voice/widgets/call_roster_motion.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
@@ -29,10 +25,8 @@ const canvasPresenceBackdropIgnorePointerKey = Key(
   'canvas_presence_backdrop_ignore_pointer',
 );
 
-/// The non-interactive backdrop for every currently sent-to-back tile.
-/// Renders nothing when none is - the common case - so an ordinary call
-/// with every tile still in front pays nothing for this widget beyond the
-/// two listeners it registers.
+/// The non-interactive video backdrop for every visible tile. Renders nothing
+/// when no tile is up, so a canvas with no feeds pays only for its listeners.
 class CanvasPresenceBackdrop extends StatefulWidget {
   const CanvasPresenceBackdrop({
     super.key,
@@ -73,7 +67,7 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
   @override
   void initState() {
     super.initState();
-    widget.document.addListener(_onChanged);
+    widget.document.addListener(_onDocumentChanged);
     widget.overrides.addListener(_onChanged);
   }
 
@@ -81,8 +75,8 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
   void didUpdateWidget(covariant CanvasPresenceBackdrop oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.document != widget.document) {
-      oldWidget.document.removeListener(_onChanged);
-      widget.document.addListener(_onChanged);
+      oldWidget.document.removeListener(_onDocumentChanged);
+      widget.document.addListener(_onDocumentChanged);
     }
     if (oldWidget.overrides != widget.overrides) {
       oldWidget.overrides.removeListener(_onChanged);
@@ -92,9 +86,15 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
 
   @override
   void dispose() {
-    widget.document.removeListener(_onChanged);
+    widget.document.removeListener(_onDocumentChanged);
     widget.overrides.removeListener(_onChanged);
     super.dispose();
+  }
+
+  final _viewGate = CanvasViewChangeGate();
+
+  void _onDocumentChanged() {
+    if (mounted && _viewGate.changed(widget.document)) setState(() {});
   }
 
   void _onChanged() {
@@ -114,19 +114,12 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
     final onCanvas = frame.onCanvas;
     if (onCanvas.isEmpty) return const SizedBox.shrink();
     final backKeys = frame.visibleIds
-        .where(
-          (key) =>
-              key != widget.focusedKey &&
-              presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
-        )
+        .where((key) => key != widget.focusedKey)
         .toSet();
     if (backKeys.isEmpty) return const SizedBox.shrink();
     final camera = widget.document.camera;
-    final painted = presencePaintOrder(
-      backKeys,
-      widget.overrides.zFor,
-      (key) => presenceEffectiveSentToBack(key, widget.overrides, byIdentity),
-    );
+    _contents.removeWhere((key, _) => !backKeys.contains(key));
+    final painted = presencePaintOrder(backKeys, widget.overrides.zFor);
     return CanvasBoardClip(
       document: widget.document,
       child: IgnorePointer(
@@ -156,30 +149,31 @@ class _CanvasPresenceBackdropState extends State<CanvasPresenceBackdrop> {
     if (participant == null) return null;
     final screen = presenceScreenRect(worldRect, camera);
     return Positioned(
-      key: ValueKey(key),
+      key: ValueKey('video:$key'),
       left: screen.left,
       top: screen.top,
       width: screen.width,
       height: screen.height,
-      child: _content(participant, isScreen),
+      child: _content(key, participant, isScreen),
     );
   }
 
-  Widget _content(VoiceParticipant participant, bool isScreen) {
+  /// One content widget per tile, reused until its feed changes: a fresh video widget each build re-sends the stream to the platform.
+  final Map<String, ({bool live, Widget widget})> _contents = {};
+
+  Widget _content(String key, VoiceParticipant participant, bool isScreen) {
+    final live = isScreen
+        ? participant.isScreenSharing
+        : participant.isCameraOn;
+    final cached = _contents[key];
+    if (cached != null && cached.live == live) return cached.widget;
     final identity = participant.identity;
-    if (isScreen) {
-      return CanvasScreenShareBubble(
-        participant: participant,
-        view: widget.screenShareViewFor(identity),
-        // This subtree is IgnorePointer-wrapped end to end, so a hover can never reach it to reveal the badge - keep it always-on.
-        interactive: false,
-      );
-    }
-    return CanvasPresenceBubble(
-      participant: participant,
-      cameraView: participant.isCameraOn
-          ? widget.cameraViewFor(identity)
-          : null,
+    final built = CallTilePop(
+      child: isScreen
+          ? CanvasScreenShareBubble(view: widget.screenShareViewFor(identity))
+          : CanvasPresenceBubble(cameraView: widget.cameraViewFor(identity)),
     );
+    _contents[key] = (live: live, widget: built);
+    return built;
   }
 }

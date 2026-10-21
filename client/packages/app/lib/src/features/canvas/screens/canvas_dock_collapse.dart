@@ -44,12 +44,16 @@ class CanvasDockCollapse extends StatefulWidget {
 class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
   bool _pinned = false;
   bool _hovering = false;
-  bool _popupOpen = false;
+  int _popupPins = 0;
   bool _focusWithin = false;
   Timer? _hideTimer;
 
   bool get _revealed =>
-      !widget.collapsible || _pinned || _hovering || _popupOpen || _focusWithin;
+      !widget.collapsible ||
+      _pinned ||
+      _hovering ||
+      _popupPins > 0 ||
+      _focusWithin;
 
   @override
   void didUpdateWidget(covariant CanvasDockCollapse oldWidget) {
@@ -58,7 +62,7 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
       _hideTimer?.cancel();
       _pinned = false;
       _hovering = false;
-      _popupOpen = false;
+      _popupPins = 0;
       _focusWithin = false;
     }
   }
@@ -81,10 +85,12 @@ class _CanvasDockCollapseState extends State<CanvasDockCollapse> {
     });
   }
 
-  // A popup's pointer is outside this region's own bounds, so it keeps the dock up itself.
+  // Counted, as a popup's pointer is outside this region and a second opening as the first closes must not unpin the dock.
   void _pinForPopup(bool open) {
-    if (!mounted || _popupOpen == open) return;
-    setState(() => _popupOpen = open);
+    if (!mounted) return;
+    final next = (_popupPins + (open ? 1 : -1)).clamp(0, 1 << 20);
+    if (next == _popupPins) return;
+    setState(() => _popupPins = next);
   }
 
   void _onFocusChange(bool focused) {

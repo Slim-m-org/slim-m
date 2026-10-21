@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A camera or screen-share tile in the canvas's world space that can be
-/// dragged, resized, locked so drawing reaches through it, sent back, or
-/// hidden - the AR-glasses framing the owner asked for. An avatar-only tile
-/// gets drag and hide only, since resize, lock and depth exist for video.
+/// A camera or screen-share tile's controls in the canvas's world space: drag,
+/// resize, lock so drawing reaches through it, or hide - the AR-glasses framing
+/// the owner asked for. The video itself paints in `CanvasPresenceBackdrop`,
+/// under the ink, so this layer carries only the gestures and the chrome.
 ///
 /// Its controls show on hover, focus or a first touch rather than always
 /// (backlog reports 3 and 0.35.1), and a locked tile can always reveal its
 /// own unlock button. Unless it is unlocked under the pan tool, the tile
 /// passes pointers through so a pen stroke can start over it (report 2).
-/// Why presence tiles are not canvas objects, and how sending one back keeps
-/// its controls in place, is in docs/decisions/0010-canvas-media-tiles.md.
+/// Why presence tiles are not canvas objects is in
+/// docs/decisions/0010-canvas-media-tiles.md; why ink paints above them, in 0086.
 library;
 
 import 'dart:async';
@@ -21,20 +21,12 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_presence_geometry.dart' show presenceScreenRect;
+import 'canvas_presence_tile_camera.dart';
 import 'canvas_presence_tile_context_menu.dart';
 import 'canvas_presence_tile_controls.dart';
 import 'canvas_presence_tile_metrics.dart';
 
 export 'canvas_presence_tile_metrics.dart';
-
-/// Every device that drags a tile; a trackpad scroll belongs to the camera.
-const Set<PointerDeviceKind> _tileDragDevices = {
-  PointerDeviceKind.touch,
-  PointerDeviceKind.mouse,
-  PointerDeviceKind.stylus,
-  PointerDeviceKind.invertedStylus,
-  PointerDeviceKind.unknown,
-};
 
 class CanvasPresenceManipulableTile extends StatefulWidget {
   const CanvasPresenceManipulableTile({
@@ -43,18 +35,17 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
     required this.camera,
     required this.locked,
     required this.tool,
-    required this.sentToBack,
     required this.onRectChanged,
     required this.onRectCommitted,
     this.onToggleLocked,
-    this.onToggleSentToBack,
     required this.onHide,
     required this.semanticLabel,
     required this.document,
     required this.child,
     this.onExpand,
-    this.fixedRenderSize,
     this.participantItemsBuilder,
+    this.onPointerMoved,
+    this.personal = false,
   });
 
   final Rect worldRect;
@@ -65,12 +56,6 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
   /// anything but [CanvasTool.pan] makes this tile transparent to a
   /// pointer the same way [locked] already does.
   final CanvasTool tool;
-
-  /// Whether this tile's own content currently paints behind
-  /// [CanvasSurface] rather than above it - purely informational here, for
-  /// the corner control's own icon and label; see this file's own doc for
-  /// why depth never changes anything else about this widget.
-  final bool sentToBack;
 
   /// Only read for a middle-mouse grab-pan starting on this tile - see the
   /// library doc for why that one gesture is handled here directly rather
@@ -88,12 +73,8 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
   final VoidCallback onRectCommitted;
 
   /// Null renders no lock button at all, the same shape [onExpand] already
-  /// uses - see [fixedRenderSize]'s own doc for why an avatar-only tile
-  /// passes null here.
+  /// uses; the personal view passes null because lock is a shared action.
   final VoidCallback? onToggleLocked;
-
-  /// Null renders no depth button at all - see [onToggleLocked]'s own doc.
-  final VoidCallback? onToggleSentToBack;
   final VoidCallback onHide;
 
   /// Forwarded straight to [TileControls.onExpand] - see its own doc for why
@@ -102,25 +83,26 @@ class CanvasPresenceManipulableTile extends StatefulWidget {
   final String semanticLabel;
   final Widget child;
 
-  /// This tile's own paint and hit-test box, in world units, when it is not
-  /// [worldRect]'s size at all - the avatar-only case, whose fixed footprint
-  /// is `canvasAvatarMarkerSize`. [worldRect] itself is left completely
-  /// alone: [_drag] still shifts it by the pointer's own delta and hands the
-  /// *unshrunk* result to [onRectChanged], so a size this widget merely
-  /// paints smaller than never overwrites the size a video tile sharing this
-  /// same server-side slot would need back the moment its camera comes on.
-  /// Null keeps every existing camera and screen-share tile pixel-identical
-  /// to before this field existed - painted at [worldRect] itself, resizable
-  /// via [TileResizeGrip], lockable, and depth-toggleable.
-  final Size? fixedRenderSize;
-
   /// Forwarded to `CanvasPresenceTileContextMenu.participantItemsBuilder` - see that field's own doc. Null for this device's own tile.
   final List<Widget> Function(BuildContext tileContext, VoidCallback close)?
   participantItemsBuilder;
+
+  /// Relays this device's pointer while it is over the tile, which hides the surface's own hover.
+  final PointerMoved? onPointerMoved;
+
+  /// Whether the tile is being placed for this device alone; a change mid-drag cancels the drag.
+  final bool personal;
   @override
   State<CanvasPresenceManipulableTile> createState() =>
       _CanvasPresenceManipulableTileState();
 }
+
+const _dragDevices = {
+  PointerDeviceKind.touch,
+  PointerDeviceKind.mouse,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+};
 
 class _CanvasPresenceManipulableTileState
     extends State<CanvasPresenceManipulableTile> {
@@ -128,6 +110,11 @@ class _CanvasPresenceManipulableTileState
   /// through - see `canvas_presence_tile_context_menu.dart`'s own library
   /// doc for why a controller, not a `GlobalKey`, carries that open call.
   final _menuController = CanvasPresenceTileMenuController();
+
+  late final _camera = TileCameraForwarder(
+    document: widget.document,
+    originOf: () => presenceScreenRect(_rect, widget.camera).topLeft,
+  );
 
   /// Non-null only while a drag or resize is in flight. Tracking it locally,
   /// rather than trusting [CanvasPresenceManipulableTile.worldRect] to have
@@ -143,23 +130,40 @@ class _CanvasPresenceManipulableTileState
   /// to this tile itself.
   bool get _passThrough => widget.locked || widget.tool != CanvasTool.pan;
 
-  /// [_rect], with its size swapped for [CanvasPresenceManipulableTile
-  /// .fixedRenderSize] when one is given - the box this widget actually
-  /// paints and hit-tests at, kept separate from [_rect] itself so [_drag]
-  /// can go on reporting [_rect]'s own, unshrunk size to [_settle]'s caller.
-  Rect get _paintRect {
-    final fixed = widget.fixedRenderSize;
-    return fixed == null
-        ? _rect
-        : Rect.fromLTWH(_rect.left, _rect.top, fixed.width, fixed.height);
+  Rect? _dragStartRect;
+  Offset _dragTotal = Offset.zero;
+  bool _dragPersonal = false;
+  bool _dragCancelled = false;
+
+  void _dragStart(DragStartDetails details) {
+    _dragStartRect = _rect;
+    _dragTotal = Offset.zero;
+    _dragPersonal = widget.personal;
+    _dragCancelled = false;
   }
 
   void _drag(DragUpdateDetails details) {
+    // A summon flips the board to shared mid-drag; carrying on would write the shared rect for everyone.
+    if (_dragCancelled || widget.personal != _dragPersonal) {
+      _dragCancelled = true;
+      return;
+    }
+    if (_camera.pinching) return;
+    _dragTotal += details.delta;
+    // From the start rect and the total travel, so the overshoot past a clamp is not lost.
     final next = widget.document.placeOnBoard(
-      _rect.shift(details.delta / widget.camera.zoom),
+      (_dragStartRect ?? _rect).shift(_dragTotal / widget.camera.zoom),
     );
     setState(() => _liveRect = next);
     widget.onRectChanged(next);
+  }
+
+  void _dragEnd(DragEndDetails details) {
+    if (_dragCancelled) {
+      setState(() => _liveRect = null);
+      return;
+    }
+    _settle(details);
   }
 
   /// The largest side from [start] that stays within [edge], never under [min] or over [limit].
@@ -234,11 +238,14 @@ class _CanvasPresenceManipulableTileState
   /// one separately.
   bool _focusedWithin = false;
 
-  bool get _controlsVisible => _hovering || _revealedForTouch || _focusedWithin;
+  // A stroke started over the controls would otherwise end on one of them.
+  bool get _controlsVisible =>
+      widget.tool == CanvasTool.pan &&
+      (_hovering || _revealedForTouch || _focusedWithin);
 
   /// A tile this small is all button once they appear, so its hover row stays away and the context menu hides it instead.
   bool get _roomForControls =>
-      presenceScreenRect(_paintRect, widget.camera).shortestSide >=
+      presenceScreenRect(_rect, widget.camera).shortestSide >=
       canvasPresenceTileControlsMinSide;
 
   void _onHoverEnter(PointerEnterEvent _) => setState(() => _hovering = true);
@@ -260,6 +267,7 @@ class _CanvasPresenceManipulableTileState
     // Unconditional even in pass-through: see this file's own library doc.
     _revealForTouch();
     if (_passThrough) return;
+    _camera.touchDown(event);
     _countedPointers.add(event.pointer);
     widget.document.externalPointers.add();
     if (_panPointer == null && _isPanButton(event.buttons)) {
@@ -269,6 +277,9 @@ class _CanvasPresenceManipulableTileState
   }
 
   void _pointerMove(PointerMoveEvent event) {
+    _relayPointer(event.localPosition);
+    if (_passThrough) return;
+    _camera.touchMove(event);
     if (event.pointer != _panPointer) return;
     if (!_isPanButton(event.buttons)) {
       _panPointer = null;
@@ -288,6 +299,7 @@ class _CanvasPresenceManipulableTileState
   }
 
   void _pointerUp(PointerEvent event) {
+    _camera.touchUp(event);
     if (_countedPointers.remove(event.pointer)) {
       widget.document.externalPointers.remove();
     }
@@ -295,6 +307,19 @@ class _CanvasPresenceManipulableTileState
       _panPointer = null;
       _panFrom = null;
     }
+  }
+
+  void _relayPointer(Offset local) {
+    final relay = widget.onPointerMoved;
+    if (relay == null) return;
+    final screen = presenceScreenRect(_rect, widget.camera).topLeft + local;
+    final camera = widget.document.camera;
+    relay(
+      Offset(
+        camera.x + screen.dx / camera.zoom,
+        camera.y + screen.dy / camera.zoom,
+      ),
+    );
   }
 
   /// A wheel notch landing inside this tile's own opaque bounds - see this
@@ -307,7 +332,7 @@ class _CanvasPresenceManipulableTileState
   void _onPointerSignal(PointerSignalEvent event) {
     if (_passThrough) return;
     if (event is! PointerScrollEvent) return;
-    final screen = presenceScreenRect(_paintRect, widget.camera);
+    final screen = presenceScreenRect(_rect, widget.camera);
     final focal = screen.topLeft + event.localPosition;
     final keys = HardwareKeyboard.instance;
     widget.document.setCamera(
@@ -323,34 +348,6 @@ class _CanvasPresenceManipulableTileState
     );
   }
 
-  double _trackpadScale = 1;
-
-  void _panZoomStart(PointerPanZoomStartEvent event) => _trackpadScale = 1;
-
-  /// A two-finger trackpad scroll or pinch over the tile moves the camera,
-  /// like the same gesture over bare canvas, instead of dragging the tile.
-  void _panZoomUpdate(PointerPanZoomUpdateEvent event) {
-    if (_passThrough) return;
-    final document = widget.document;
-    var camera = document.camera;
-    camera = camera.copyWith(
-      x: camera.x - event.panDelta.dx / camera.zoom,
-      y: camera.y - event.panDelta.dy / camera.zoom,
-    );
-    final ratio = event.scale / _trackpadScale;
-    _trackpadScale = event.scale;
-    if (ratio != 1) {
-      final screen = presenceScreenRect(_paintRect, widget.camera);
-      camera = cameraAfterZoom(
-        camera,
-        focal: screen.topLeft + event.localPosition,
-        zoomTarget: camera.zoom * ratio,
-        zoomFloor: document.zoomFloor,
-      );
-    }
-    document.setCamera(camera);
-  }
-
   @override
   void dispose() {
     for (final _ in _countedPointers) {
@@ -358,7 +355,32 @@ class _CanvasPresenceManipulableTileState
     }
     _countedPointers.clear();
     _hideTimer?.cancel();
+    _camera.reset();
     super.dispose();
+  }
+
+  late final Widget _grip = TileResizeGrip(onUpdate: _resize, onEnd: _settle);
+
+  Widget? _controlsWidget;
+  ({bool locked, bool expand, bool lock})? _controlsShape;
+
+  /// The control row is rebuilt only when its shape changes: it sits invisible on every tile at every camera tick otherwise.
+  Widget _controls() {
+    final shape = (
+      locked: widget.locked,
+      expand: widget.onExpand != null,
+      lock: widget.onToggleLocked != null,
+    );
+    if (_controlsWidget == null || _controlsShape != shape) {
+      _controlsShape = shape;
+      _controlsWidget = TileControls(
+        locked: shape.locked,
+        onExpand: shape.expand ? () => widget.onExpand?.call() : null,
+        onToggleLocked: shape.lock ? () => widget.onToggleLocked?.call() : null,
+        onHide: () => widget.onHide(),
+      );
+    }
+    return _controlsWidget!;
   }
 
   /// Hides [child] from pointers and sight until the tile is revealed. It stays
@@ -394,7 +416,7 @@ class _CanvasPresenceManipulableTileState
 
   @override
   Widget build(BuildContext context) {
-    final screen = presenceScreenRect(_paintRect, widget.camera);
+    final screen = presenceScreenRect(_rect, widget.camera);
     return Positioned(
       left: screen.left,
       top: screen.top,
@@ -413,12 +435,17 @@ class _CanvasPresenceManipulableTileState
               ? HitTestBehavior.translucent
               : HitTestBehavior.opaque,
           onPointerDown: _pointerDown,
+          onPointerHover: (event) => _relayPointer(event.localPosition),
+          onPointerPanZoomStart: (event) {
+            if (!_passThrough) _camera.trackpadStart(event);
+          },
+          onPointerPanZoomUpdate: (event) {
+            if (!_passThrough) _camera.trackpadUpdate(event);
+          },
           onPointerMove: _pointerMove,
           onPointerUp: _pointerUp,
           onPointerCancel: _pointerUp,
           onPointerSignal: _onPointerSignal,
-          onPointerPanZoomStart: _panZoomStart,
-          onPointerPanZoomUpdate: _panZoomUpdate,
           child: Semantics(
             container: true,
             label: widget.semanticLabel,
@@ -428,9 +455,7 @@ class _CanvasPresenceManipulableTileState
                 CanvasPresenceTileContextMenu(
                   controller: _menuController,
                   locked: widget.locked,
-                  sentToBack: widget.sentToBack,
                   onToggleLocked: widget.onToggleLocked,
-                  onToggleSentToBack: widget.onToggleSentToBack,
                   onHide: widget.onHide,
                   onExpand: widget.onExpand,
                   participantItemsBuilder: widget.participantItemsBuilder,
@@ -439,42 +464,29 @@ class _CanvasPresenceManipulableTileState
                   ignoring: _passThrough,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    // Trackpad scrolling is the camera's, handled by the Listener above.
-                    supportedDevices: _tileDragDevices,
                     // Opens this tile's own menu rather than a no-op now, but still HitTestBehavior.opaque - a right-click on a tile must never leak to a canvas object underneath it, `canvas_self_presence_overlay.dart`'s old precedent for this exact absorption. onLongPressStart is its touch equivalent (law 3), matching canvas_object_context_menu.dart's own precedent.
                     onSecondaryTapUp: (details) =>
                         _menuController.open(details.globalPosition),
                     onLongPressStart: (details) =>
                         _menuController.open(details.globalPosition),
+                    // A trackpad scroll moves the camera, not the tile.
+                    supportedDevices: _dragDevices,
+                    onPanStart: _dragStart,
                     onPanUpdate: _drag,
-                    onPanEnd: _settle,
+                    onPanEnd: _dragEnd,
                     child: widget.child,
                   ),
                 ),
-                if (!_passThrough && widget.fixedRenderSize == null)
+                if (!_passThrough)
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: _revealable(
-                      context,
-                      TileResizeGrip(onUpdate: _resize, onEnd: _settle),
-                      needsRoom: false,
-                    ),
+                    child: _revealable(context, _grip, needsRoom: false),
                   ),
                 Positioned(
                   right: 2,
                   top: 2,
-                  child: _revealable(
-                    context,
-                    TileControls(
-                      locked: widget.locked,
-                      sentToBack: widget.sentToBack,
-                      onExpand: widget.onExpand,
-                      onToggleLocked: widget.onToggleLocked,
-                      onToggleSentToBack: widget.onToggleSentToBack,
-                      onHide: widget.onHide,
-                    ),
-                  ),
+                  child: _revealable(context, _controls()),
                 ),
               ],
             ),
