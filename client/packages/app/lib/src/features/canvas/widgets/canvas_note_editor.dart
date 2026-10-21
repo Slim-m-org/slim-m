@@ -176,9 +176,11 @@ class _Panel extends StatelessWidget {
               const SizedBox(height: AppSpacing.s4),
               Align(
                 alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                // Wraps: a sideways phone with its keyboard up leaves the panel narrower than both buttons.
+                child: Wrap(
+                  alignment: WrapAlignment.end,
                   spacing: AppSpacing.s8,
+                  runSpacing: AppSpacing.s4,
                   children: [
                     AppButton(
                       label: 'Cancel',
