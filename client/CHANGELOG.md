@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.115.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.114.0...client-v0.115.0) (2026-10-21)
+
+
+### Features
+
+* v115, voice harness and client, batch 15, canvas audit fixes and a catppuccin theme ([#2283](https://github.com/Slim-m-org/slim-m/issues/2283)) ([ce1716e](https://github.com/Slim-m-org/slim-m/commit/ce1716e1eb23d2bcfb7a5f2c205170399f00e6d1))
+
+
+### Bug Fixes
+
+* **client:** the continuation pipe starts at the first message's avatar ([#2274](https://github.com/Slim-m-org/slim-m/issues/2274)) ([274ba3b](https://github.com/Slim-m-org/slim-m/commit/274ba3b8e6be630659392db9d3875cf7fd6f69e6))
+
 ## [0.114.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.113.1...client-v0.114.0) (2026-10-19)
 
 
