@@ -80,6 +80,10 @@ Purely additive changes such as a new optional field or a new endpoint are not b
 
 Two jobs run it, against two different bases, because one commit needs both.
 
+`schema/oasdiff-err-ignore.txt` lists intentional breaks, one literal oasdiff line per finding (a removed route, a response enum that gained a value); both jobs pass it as `err-ignore`.
+The match is exact text, not a regex, so each entry names one finding and an unlisted break still fails.
+Entries are harmless once merged and can be pruned.
+
 `breaking-change-gate` runs on `pull_request` and diffs the PR's base against its head - the meaningful comparison for a reviewer, and the one that can catch a breaking change before it ever reaches `main`.
 The PR's head commit is checked out explicitly rather than the default merge-ref checkout, so `HEAD:schema/openapi.yaml` is exactly the schema the PR proposes with no synthetic merge commit in between.
 oasdiff also needs the base branch's schema content, but that checkout only fetched the PR head commit, so the workflow fetches just that one base commit, shallowly, by its exact SHA from the `pull_request` event payload, landing it in the local object database without cloning the base branch's history.

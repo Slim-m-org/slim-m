@@ -74,6 +74,7 @@ jobs:
           base: "${{ steps.merge-base.outputs.sha }}:schema/openapi.yaml"
           revision: "HEAD:schema/openapi.yaml"
           fail-on: ERR
+          err-ignore: schema/oasdiff-err-ignore.txt
 
   # `verify-release-checks.yml` polls check-runs on the exact commit a
   # release verifies, and that commit is never the PR head above once
@@ -106,3 +107,4 @@ jobs:
           base: "HEAD~1:schema/openapi.yaml"
           revision: "HEAD:schema/openapi.yaml"
           fail-on: ERR
+          err-ignore: schema/oasdiff-err-ignore.txt
