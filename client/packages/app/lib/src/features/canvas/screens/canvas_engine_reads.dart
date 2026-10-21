@@ -52,7 +52,16 @@ extension CanvasEngineReads on CanvasEngine {
       );
       if (outcome == CanvasPageOutcome.stale) return true;
       // Set before refresh(), not after: refresh() reaches _onCameraMoved synchronously and must see this fetch's own answer, not the value from before it ran.
-      _emit((s) => s.copyWith(loading: false, clearError: !keepError));
+      // Only the read's own failures: a pan or refit must not wipe what an action just said.
+      _emit(
+        (s) => s.copyWith(
+          loading: false,
+          clearError:
+              !keepError &&
+              (s.error == CanvasEngine.genericLoadError ||
+                  s.error == canvasUnavailableMessage),
+        ),
+      );
       // A truncated page is not coverage: recording it would let the next pan skip what this read never returned.
       _fetched = page.hasMore ? null : region;
       document.refresh();

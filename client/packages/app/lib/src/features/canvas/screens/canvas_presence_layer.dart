@@ -199,15 +199,20 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       visibleIds.where((key) => key != widget.focusedKey).toSet(),
       widget.overrides.zFor,
     );
-    return CanvasBoardClip(
-      document: widget.document,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (final key in painted)
-            if (_tile(key, onCanvas[key]!, camera, byIdentity) case final tile?)
-              tile,
-        ],
+    // After the board and the dock in Tab order; see canvas_pane_body.dart.
+    return FocusTraversalOrder(
+      order: const NumericFocusOrder(3),
+      child: CanvasBoardClip(
+        document: widget.document,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final key in painted)
+              if (_tile(key, onCanvas[key]!, camera, byIdentity)
+                  case final tile?)
+                tile,
+          ],
+        ),
       ),
     );
   }

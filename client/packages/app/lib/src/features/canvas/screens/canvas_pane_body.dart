@@ -380,12 +380,14 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                   child: Stack(
                     children: [
                       FocusTraversalOrder(
+                        key: const ValueKey('canvas-surface'),
                         order: const NumericFocusOrder(1),
                         child: _activityLogOpen ? _panel() : _surface(tokens),
                       ),
                       CanvasSpeakingSync(cursors: widget.cursors),
                       if (!_activityLogOpen)
                         FocusTraversalOrder(
+                          key: const ValueKey('canvas-peer-controls'),
                           order: const NumericFocusOrder(4),
                           child: CanvasPeerControls(
                             document: widget.document,
@@ -403,6 +405,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           widget.error != null ||
                           widget.truncated)
                         FocusTraversalOrder(
+                          key: const ValueKey('canvas-banners'),
                           order: const NumericFocusOrder(0),
                           child: Positioned(
                             top: 0,
@@ -440,6 +443,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           ),
                         ),
                       FocusTraversalOrder(
+                        key: const ValueKey('canvas-dock'),
                         order: const NumericFocusOrder(2),
                         child: CanvasDockOverlay(
                           call: widget.callDock,
