@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The two member card layouts: someone else's (Message and Add note up top,
 /// "Remove from #channel" when opened from a channel you manage) and your own
-/// (activity, then Set status, Copy username, Profile settings), at popover
+/// (activity, then Set status, Profile settings), at popover
 /// and phone width, in both themes.
 library;
 
@@ -250,22 +250,21 @@ void main() {
   });
 
   group('your own card', () {
-    testWidgets('is the preview plus Set status, Copy username, settings', (
-      tester,
-    ) async {
+    testWidgets('is the preview plus Set status and settings', (tester) async {
       await _pump(tester, _harness((_) => _card(), self: true));
 
       expect(find.text('YOU'), findsOneWidget);
       expect(find.text('Online'), findsOneWidget);
       expect(find.text('Set status'), findsOneWidget);
-      expect(find.text('Copy username'), findsOneWidget);
+      expect(find.text('Copy username'), findsNothing);
+      expect(find.byTooltip('Copy username'), findsOneWidget);
       expect(find.text('Profile settings'), findsOneWidget);
       for (final other in ['Message', 'Add note', 'Report user', 'Block']) {
         expect(find.text(other), findsNothing, reason: other);
       }
     });
 
-    testWidgets('Copy username puts @username on the clipboard and says so', (
+    testWidgets('the copy icon after the handle copies @username and says so', (
       tester,
     ) async {
       String? copied;
@@ -289,7 +288,7 @@ void main() {
         tester.element(find.byType(MemberProfileBody)),
       );
 
-      await tester.tap(find.text('Copy username'));
+      await tester.tap(find.byTooltip('Copy username'));
       await tester.pump();
       await tester.pump();
 

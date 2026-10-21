@@ -11,7 +11,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
@@ -20,7 +19,6 @@ import '../providers/blocks_controller.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/member_presence.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/toasts.dart';
 import '../providers/user_notes.dart';
 import '../../../routing/routes.dart';
 import 'member_actions.dart';
@@ -118,18 +116,6 @@ class SelfMemberCard extends ConsumerWidget {
               memberPaneScaffold?.closeEndDrawer();
               unawaited(showStatusEditorSheet(host, status));
             },
-          ),
-          AppMenuItem(
-            label: 'Copy username',
-            leading: AppIcons.copy,
-            onTap: () => run((container) async {
-              await Clipboard.setData(
-                ClipboardData(text: '@${profile.username}'),
-              );
-              container
-                  .read(toastsProvider.notifier)
-                  .show('Username copied.', severity: AppToastSeverity.success);
-            }),
           ),
           AppMenuItem(
             label: 'Profile settings',

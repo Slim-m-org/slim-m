@@ -62,7 +62,6 @@ class DirectMessagesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Seeds every DM peer's presence dot.
     ref.watch(presenceSeedProvider(null));
-    final tokens = Theme.of(context).extension<AppTokens>()!;
     final split = splitPersonalSpace(channels);
     final personal = split.personal;
     final others = split.others;
@@ -78,26 +77,11 @@ class DirectMessagesSection extends ConsumerWidget {
             selected: personal != null && personal.id == selectedId,
           ),
         ),
-        if (others.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.s8,
-              vertical: AppSpacing.s4,
-            ),
-            child: Text(
-              'Start one from the member list.',
-              style: AppText.caption.copyWith(color: tokens.textSecondary),
-            ),
-          )
-        else
-          for (final channel in others)
-            SelectionMarkerTarget(
-              selected: channel.id == selectedId,
-              child: DmRow(
-                channel: channel,
-                selected: channel.id == selectedId,
-              ),
-            ),
+        for (final channel in others)
+          SelectionMarkerTarget(
+            selected: channel.id == selectedId,
+            child: DmRow(channel: channel, selected: channel.id == selectedId),
+          ),
       ],
     );
   }
