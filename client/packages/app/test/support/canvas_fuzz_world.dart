@@ -206,7 +206,11 @@ class FuzzClient {
       world.server.setLocked(id, request.method == 'PUT');
       return Future.value(http.Response('', 204));
     }
-    if (path.endsWith('/canvas/objects') || path.endsWith('/canvas/ops')) {
+    final deletesObject =
+        request.method == 'DELETE' && path.contains('/canvas/objects/');
+    if (deletesObject ||
+        path.endsWith('/canvas/objects') ||
+        path.endsWith('/canvas/ops')) {
       final p = FuzzPending(request, Completer<http.Response>());
       pending.add(p);
       return p.completer.future;
@@ -355,6 +359,14 @@ class FuzzWorld {
                 .clamp(1, 200);
         return jsonOf(server.feed(after, limit));
       }
+      if (request.method == 'DELETE') {
+        final gone = server.purge(
+          client.userId,
+          server.moderators.contains(client.userId),
+          request.url.pathSegments.last,
+        );
+        return jsonOf(gone.toJson());
+      }
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       if (path.endsWith('/canvas/objects')) {
         final placed = server.place(
@@ -486,6 +498,7 @@ class FuzzWorld {
 
   static String _summary(http.Request r) {
     if (r.method == 'GET') return r.url.queryParameters.toString();
+    if (r.method == 'DELETE') return r.url.pathSegments.last;
     final body = jsonDecode(r.body) as Map<String, dynamic>;
     final keys = {
       for (final k in [

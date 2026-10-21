@@ -45,9 +45,9 @@ class CanvasViewModeControls extends StatelessWidget {
             _Pill(
               tokens: tokens,
               selected: false,
-              icon: AppIcons.undo,
-              label: 'Reset my layout',
+              icon: AppIcons.resetLayout,
               semanticLabel: 'Reset my layout, return to the shared view',
+              tooltip: 'Reset my layout',
               onTap: mode.reset,
             ),
         ],
@@ -61,7 +61,7 @@ class _Pill extends StatelessWidget {
     required this.tokens,
     required this.selected,
     required this.icon,
-    required this.label,
+    this.label,
     required this.semanticLabel,
     required this.onTap,
     this.tooltip,
@@ -70,7 +70,9 @@ class _Pill extends StatelessWidget {
   final AppTokens tokens;
   final bool selected;
   final IconData icon;
-  final String label;
+
+  /// Null makes an icon-only pill, named by its tooltip and semantics label.
+  final String? label;
   final String semanticLabel;
   final String? tooltip;
   final VoidCallback onTap;
@@ -91,26 +93,31 @@ class _Pill extends StatelessWidget {
         borderColor: selected ? tokens.accent : null,
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+          constraints: const BoxConstraints(
+            minHeight: AppSizes.icon28,
+            minWidth: AppSizes.icon28,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: AppSizes.icon16, color: colour),
-                const SizedBox(width: AppSpacing.s4),
-                // Shrinks with an ellipsis at very large text instead of overflowing the pill.
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppText.caption.copyWith(
-                      color: colour,
-                      fontWeight: AppWeights.medium,
+                if (label case final text?) ...[
+                  const SizedBox(width: AppSpacing.s4),
+                  // Shrinks with an ellipsis at very large text instead of overflowing the pill.
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.caption.copyWith(
+                        color: colour,
+                        fontWeight: AppWeights.medium,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

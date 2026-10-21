@@ -40,7 +40,6 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../widgets/app_drop_zone.dart';
-import '../../../widgets/confirm_dialog.dart';
 import '../../modules/providers/dock_reservation.dart';
 import '../../messages/widgets/attachment_picker.dart'
     show AttachmentSource, attachmentPickerProvider;
@@ -71,6 +70,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_object_preview_relay.dart';
+import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
@@ -348,7 +348,6 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onBringToFront: (id) => unawaited(_onBringToFront(id)),
                   onSendToBack: (id) => unawaited(_onSendToBack(id)),
                   onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
-                  onPurge: (id) => unawaited(_onPurge(id)),
                   selfId: me?.id,
                   viewRelay: _engine.viewRelay,
                   cursors: _cursors,

@@ -47,6 +47,7 @@ Widget _build({required CanvasDocument document, required CanvasTool tool}) =>
             onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
+            onToolChanged: (_) {},
           ),
         ),
       ),

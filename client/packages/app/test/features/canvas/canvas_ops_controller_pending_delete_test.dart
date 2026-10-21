@@ -18,6 +18,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_sync.dart'
     show canvasStrokeInputFrom;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
+import '../../support/canvas_purge_fake.dart';
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
   jsonEncode(body),
@@ -56,6 +57,7 @@ class _Harness {
   _Harness() {
     final client = testApi(
       (request) async {
+        if (isPurge(request)) return fakePurge(request, serverObjects);
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         if (request.url.path.endsWith('/canvas/objects')) {
           final id = body['id'] as String;
@@ -171,17 +173,20 @@ void main() {
     expect(h.document.isAlive('second'), isFalse);
   });
 
-  test('deleting a landed object still sends an ordinary remove', () async {
-    final h = _Harness();
-    h.serverObjects.add('a');
-    h.document
-      ..applyPlaced(_stroke('a'))
-      ..refresh();
+  test(
+    'deleting a landed object deletes it for good and keeps an undo',
+    () async {
+      final h = _Harness();
+      h.serverObjects.add('a');
+      h.document
+        ..applyPlaced(_stroke('a'))
+        ..refresh();
 
-    await h.ops.deleteSelected('a');
+      await h.ops.deleteSelected('a');
 
-    expect(h.errors, isEmpty);
-    expect(h.serverObjects, isNot(contains('a')));
-    expect(h.ops.canUndo, isTrue);
-  });
+      expect(h.errors, isEmpty);
+      expect(h.serverObjects, isNot(contains('a')));
+      expect(h.ops.canUndo, isTrue);
+    },
+  );
 }

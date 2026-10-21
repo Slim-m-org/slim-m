@@ -34,10 +34,10 @@ class CanvasPaneSurfaceActions {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    this.onPurge,
     required this.onPasteImageAt,
     this.onEditNote,
     required this.onRecenter,
+    required this.onToolChanged,
     required this.onBringIntoBoard,
     this.participantMenuItemsBuilder,
     this.onFocusTile,
@@ -66,11 +66,10 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
 
-  /// Deletes an object for good, locked or not; offered to canvas moderators.
-  final ValueChanged<String>? onPurge;
   final ValueChanged<Offset> onPasteImageAt;
   final ValueChanged<String>? onEditNote;
   final VoidCallback onRecenter;
+  final ValueChanged<CanvasTool> onToolChanged;
   final VoidCallback onBringIntoBoard;
   final List<Widget> Function(
     BuildContext context,

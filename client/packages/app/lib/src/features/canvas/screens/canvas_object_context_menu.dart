@@ -46,10 +46,10 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
-    this.onPurge,
     required this.onPasteImageAt,
     required this.onAddNoteAt,
     required this.onRecenter,
+    required this.onToolChanged,
     this.onEditNote,
     this.canDraw = true,
   });
@@ -77,9 +77,6 @@ class CanvasObjectContextMenu extends StatefulWidget {
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;
 
-  /// Deletes an object for good, locked or not; offered to canvas moderators.
-  final ValueChanged<String>? onPurge;
-
   /// The empty-space menu's "Paste image" item - `CanvasImagePaste.pasteAt`,
   /// the same clipboard-image pipeline the overflow menu's "Paste image"
   /// runs, aimed at the clicked point instead of the view's centre.
@@ -94,6 +91,9 @@ class CanvasObjectContextMenu extends StatefulWidget {
   /// The empty-space menu's "Recenter view" item - the pane's own
   /// always-available camera reset, identical to the overflow menu's copy.
   final VoidCallback onRecenter;
+
+  /// A right-click on bare canvas under a drawing tool returns to Move through this.
+  final ValueChanged<CanvasTool> onToolChanged;
 
   /// The object menu's "Edit note" item, shown over a note only: the touch
   /// and keyboard-free route to the editor a double click opens.
@@ -200,6 +200,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final id = _hitTest(world);
     if (id != null) {
       _openFor(id, pointerGlobal: details.globalPosition);
+    } else if (widget.tool != CanvasTool.pan) {
+      widget.onToolChanged(CanvasTool.pan);
     } else {
       _openEmptySpace(world, details.globalPosition);
     }
@@ -293,12 +295,6 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     final id = _target;
     _close();
     if (id != null) widget.onDeleteSelected(id);
-  }
-
-  void _purge() {
-    final id = _target;
-    _close();
-    if (id != null) widget.onPurge?.call(id);
   }
 
   void _pasteImage() {
@@ -423,16 +419,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
           label: 'Delete',
           leading: AppIcons.delete,
           tone: AppMenuItemTone.danger,
-          onTap: locked ? null : _delete,
+          // A moderator's delete outranks a lock; an author unlocks their own first.
+          onTap: locked && !widget.canManage ? null : _delete,
         ),
-        // Locked or not: a moderator removing abusive content should not have to unlock it first.
-        if (widget.canManage && widget.onPurge != null)
-          AppMenuItem(
-            label: 'Delete for good',
-            leading: AppIcons.delete,
-            tone: AppMenuItemTone.danger,
-            onTap: _purge,
-          ),
       ],
     );
   }

@@ -154,6 +154,13 @@ void main() {
             headers: const {'content-type': 'application/json'},
           );
         }
+        if (request.url.path == '/version') {
+          return http.Response(
+            jsonEncode({'name': 'slim-m', 'version': '0.10.0', 'protocol': 1}),
+            200,
+            headers: const {'content-type': 'application/json'},
+          );
+        }
         return http.Response('{}', 200);
       });
 

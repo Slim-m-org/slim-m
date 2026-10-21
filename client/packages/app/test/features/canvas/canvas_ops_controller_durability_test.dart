@@ -15,6 +15,7 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_ops_controller.dart
 import 'package:slimm_test_support/slimm_test_support.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../support/canvas_ops_rig.dart';
+import '../../support/canvas_purge_fake.dart';
 
 CanvasStrokeInput _object(
   String id, {
@@ -38,9 +39,13 @@ CanvasStrokeInput _object(
 );
 
 class _Rig {
-  _Rig({this.reply, Set<String> locked = const {}}) {
+  _Rig({this.reply, Set<String> locked = const {}, this.alreadyGone = false}) {
     final client = testApi(
       (request) async {
+        if (isPurge(request)) {
+          final id = request.url.pathSegments.last;
+          return fakePurge(request, alreadyGone ? {} : {id}, purged: purges);
+        }
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         requests.add(body);
         final custom = reply?.call(body, requests.length);
@@ -77,6 +82,8 @@ class _Rig {
     ..setBoard(canvasBoard);
   late final CanvasCommitQueue commits;
   late final CanvasOpsController ops;
+  final bool alreadyGone;
+  final purges = <String>[];
   final requests = <Map<String, dynamic>>[];
   final errors = <String>[];
 
@@ -161,28 +168,17 @@ void main() {
     expect(removes.single['object_ids'], ['a']);
   });
 
-  test('a remove the server skipped does not push an undo entry', () async {
-    final rig = _Rig(
-      reply: (body, n) => http.Response(
-        jsonEncode({
-          'op': {
-            'id': 'x',
-            'seq': 1,
-            'kind': 'remove',
-            'affected': 0,
-            'created_at': 0,
-          },
-          'fresh': true,
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      ),
-    )..place('a', kind: CanvasObjectKind.shape);
+  test(
+    'a delete of an object the server already lost pushes no undo entry',
+    () async {
+      final rig = _Rig(alreadyGone: true)
+        ..place('a', kind: CanvasObjectKind.shape);
 
-    await rig.ops.deleteSelected('a');
+      await rig.ops.deleteSelected('a');
 
-    expect(rig.ops.canUndo, isFalse);
-  });
+      expect(rig.ops.canUndo, isFalse);
+    },
+  );
 
   test('delete does nothing to a locked object', () async {
     final rig = _Rig(locked: {'a'})..place('a', kind: CanvasObjectKind.shape);
@@ -190,6 +186,7 @@ void main() {
     await rig.ops.deleteSelected('a');
 
     expect(rig.requests, isEmpty);
+    expect(rig.purges, isEmpty);
     expect(rig.document.isAlive('a'), isTrue);
   });
 

@@ -163,6 +163,7 @@ Future<void> _pumpCanvasObjectMenu(WidgetTester tester, Size window) async {
               onPasteImageAt: (_) {},
               onAddNoteAt: (_) {},
               onRecenter: () {},
+              onToolChanged: (_) {},
             ),
           ),
         ),

@@ -52,6 +52,8 @@ const _identityA = {
 
 String _handleFor(String server) => 'server_identity:$server';
 
+const _validVersion = {'name': 'slim-m', 'version': '0.10.0', 'protocol': 1};
+
 /// [versionBody] answers every `/version` probe. [authResponder] answers
 /// `/auth/login` and `/auth/register`; a null one leaves both at the fake
 /// client's plain `{}` 200, which is enough for the probe-only states below.
@@ -65,7 +67,7 @@ Future<ProviderContainer> _pumpSignIn(
   final httpClient = MockClient((request) async {
     if (request.method == 'GET' && request.url.path == '/version') {
       return http.Response(
-        jsonEncode(versionBody ?? const {}),
+        jsonEncode(versionBody ?? _validVersion),
         200,
         headers: const {'content-type': 'application/json'},
       );

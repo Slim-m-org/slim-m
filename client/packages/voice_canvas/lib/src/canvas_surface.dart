@@ -26,6 +26,7 @@ import 'canvas_board_clip.dart';
 import 'canvas_camera_wheel.dart';
 import 'canvas_cursors.dart';
 import 'canvas_document.dart';
+import 'canvas_eraser_ring.dart';
 import 'canvas_painters.dart';
 import 'canvas_resize.dart' show minObjectSize;
 import 'canvas_stroke_drafts.dart';
@@ -482,7 +483,12 @@ class _CanvasSurfaceState extends State<CanvasSurface>
               builder: (context, panning, child) => MouseRegion(
                 cursor: _cursorFor(widget.tool, widget.enabled, panning),
                 onExit: (_) => widget.onPointerLeft?.call(),
-                child: child,
+                child: CanvasEraserRing(
+                  active: widget.tool == CanvasTool.eraser &&
+                      widget.enabled &&
+                      !panning,
+                  child: child!,
+                ),
               ),
               child: Stack(
                 fit: StackFit.expand,

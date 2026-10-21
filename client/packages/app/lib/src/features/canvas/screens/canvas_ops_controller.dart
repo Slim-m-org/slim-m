@@ -19,6 +19,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_note_sizing.dart';
+import 'canvas_object_inputs.dart';
 import 'canvas_retry.dart';
 
 /// Bring-to-front/send-to-back: split out once resize joined this file and
@@ -42,6 +43,9 @@ part 'canvas_ops_controller_group.dart';
 
 /// The eraser's sweep and its batched removal, and the clear.
 part 'canvas_ops_controller_erase.dart';
+
+/// Delete, which is always for good, and the undo that places its rows again.
+part 'canvas_ops_controller_purge.dart';
 
 /// How many gestures [CanvasOpsController] can reverse. About the product,
 /// not the memory: a deeper stack that dies on pane close is a promise the
@@ -179,44 +183,36 @@ class CanvasOpsController {
     await _submitRemove([id]);
   }
 
-  /// Removes [objectId] the select tool picked up: applied locally at once
-  /// and pushed onto the undo stack on success. An object still in the
-  /// placement queue is settled there instead, like the eraser and undo do:
-  /// the server has not seen it, so a remove would 404 and the placement
-  /// would land after. [CanvasDocument.removeObject]'s own `_freeSlot`
-  /// already clears the selection when the freed slot is the current one.
-  Future<void> deleteSelected(String objectId) async {
-    if (isLocked(objectId)) return;
+  /// Deletes [objectId] (and the rest of its mark) for good: hidden at once, then
+  /// purged on the server, with the rows kept so [undo] can place them again.
+  /// An object still in the placement queue is settled there instead, like the
+  /// eraser and undo do: the server has not seen it, so a delete would 404 and
+  /// the placement would land after. A moderator's delete also takes a locked object.
+  Future<void> deleteSelected(
+    String objectId, {
+    bool manageCanvas = false,
+  }) async {
+    bool pinned(String id) => !manageCanvas && isLocked(id);
+    if (pinned(objectId)) return;
     final mark = document.groupOf(objectId);
-    if (mark.length > 1) {
-      for (final member in mark) {
-        if (!isLocked(member) && _dragBatch.add(member)) {
+    final members = mark.length > 1 ? mark : [objectId];
+    final immediate = <String>[];
+    for (final member in members) {
+      if (pinned(member)) continue;
+      switch (commits.undoPlacement(member)) {
+        case UndoPlacementOutcome.cancelled:
+          document.kill(member);
+        case UndoPlacementOutcome.armed:
           document.removeObject(member);
-        }
+        case UndoPlacementOutcome.unresolved:
+          document.removeObject(member);
+          immediate.add(member);
       }
-      document.refresh();
-      await endErase();
-      return;
     }
-    switch (commits.undoPlacement(objectId)) {
-      case UndoPlacementOutcome.cancelled:
-        document.kill(objectId);
-        document.refresh();
-        return;
-      case UndoPlacementOutcome.armed:
-        document.removeObject(objectId);
-        document.refresh();
-        return;
-      case UndoPlacementOutcome.unresolved:
-        break;
-    }
-    document.removeObject(objectId);
     document.refresh();
-    const message = 'That could not be deleted.';
-    final removed = await _submitRemove([objectId], errorMessage: message);
-    if (removed.opIds.isNotEmpty) {
-      _pushUndo(_EraseEntry(removed.opIds, [objectId]));
-    }
+    if (immediate.isEmpty) return;
+    final purged = await _purge(immediate, 'That could not be deleted.');
+    if (purged.rows.isNotEmpty) _pushUndo(_PurgeEntry(purged.rows));
   }
 
   /// Reverses the most recent drawn or erased gesture and makes it available to [redo]; an entry leaves the stack only once its reversal succeeded.
@@ -247,6 +243,7 @@ class CanvasOpsController {
   Future<_RedoEntry?> _undoStep(_UndoEntry entry) => switch (entry) {
     _DrawEntry(:final objectIds) => _undoDraw(objectIds),
     _EraseEntry(:final opIds, :final objectIds) => _restore(opIds, objectIds),
+    _PurgeEntry(:final objects) => _undoPurge(objects),
     _MoveEntry(
       :final objectId,
       :final fromX,
@@ -296,6 +293,7 @@ class CanvasOpsController {
       objectIds,
     ),
     _RedoRemove(:final objectIds) => _redoRemove(objectIds),
+    _RedoPurge(:final objectIds) => _redoPurge(objectIds),
     final _RedoMove move => _redoMove(move),
     _RedoMoveGroup(:final to) => _redoMoveGroup(to),
     _RedoReorder(:final objectId, :final toZIndex) => _redoReorder(

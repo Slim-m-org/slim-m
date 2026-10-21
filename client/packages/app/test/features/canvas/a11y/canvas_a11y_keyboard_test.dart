@@ -207,27 +207,24 @@ void main() {
     a11yTest('a keyboard can pan and zoom the board', (tester) async {
       await pumpA11yCanvas(tester);
       final document = surfaceDocument(tester);
-      final before = (
-        document.camera.x,
-        document.camera.y,
-        document.camera.zoom,
-      );
+      const reason = 'no key moves the camera; only Fit view is reachable';
+      final fitZoom = document.camera.zoom;
+
+      await pressKey(tester, LogicalKeyboardKey.equal);
+      final zoomed = document.camera;
+      expect(zoomed.zoom, greaterThan(fitZoom), reason: reason);
 
       for (final key in [
         LogicalKeyboardKey.arrowRight,
         LogicalKeyboardKey.arrowDown,
         LogicalKeyboardKey.pageDown,
-        LogicalKeyboardKey.equal,
-        LogicalKeyboardKey.minus,
       ]) {
         await pressKey(tester, key);
       }
+      expect(document.camera, isNot(zoomed), reason: reason);
 
-      expect(
-        (document.camera.x, document.camera.y, document.camera.zoom),
-        isNot(before),
-        reason: 'no key moves the camera; only Fit view is reachable',
-      );
+      await pressKey(tester, LogicalKeyboardKey.minus);
+      expect(document.camera.zoom, lessThan(zoomed.zoom), reason: reason);
     });
   });
 }

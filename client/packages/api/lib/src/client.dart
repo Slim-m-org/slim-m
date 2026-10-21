@@ -248,10 +248,28 @@ class SlimmApi {
 
   // --- System ---
 
+  /// What the server says about itself. An address that answers without a
+  /// slim-m `/version` (a web page, a 404 or 405 from something else) throws
+  /// [NotASlimServerException]; one that does not answer stays a [TransportException].
   Future<Version> version() async {
-    final json = await _send('GET', '/version', authenticated: false);
-    final version = Version.fromJson(json as Map<String, dynamic>);
-    return version;
+    try {
+      final json = await _send('GET', '/version', authenticated: false);
+      return Version.fromJson(json as Map<String, dynamic>);
+    } on UnreadableReplyException {
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
+    } on NotFoundException catch (e) {
+      if (!e.unexplained) rethrow;
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
+    } on ServerException catch (e) {
+      if (e.statusCode >= 500) rethrow;
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
+    } on TypeError {
+      throw const NotASlimServerException(
+          'that address is not a slim-m server');
+    }
   }
 
   // --- Channels ---

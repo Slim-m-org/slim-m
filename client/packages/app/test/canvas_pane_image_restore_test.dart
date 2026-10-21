@@ -22,7 +22,8 @@ void main() {
   testWidgets('Delete then Undo of a hydrated image repaints the image', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasImageJson('img')];
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasImageJson('img', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -35,7 +36,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
     final tap = await tester.startGesture(
-      screenFor(tester, const Offset(15, 15)),
+      screenFor(tester, const Offset(415, 15)),
     );
     await tap.up();
     await tester.pumpAndSettle();
@@ -43,32 +44,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-    expect(fixture.postedOps.single['kind'], 'remove');
+    expect(fixture.deletedObjects, ['img']);
     expect(surfaceDocument(tester).objectCount.value, 0);
-    // The server echoes the author's own ops back as live frames.
-    fixture.events.add(
-      const api.CanvasObjectsRemoved(
-        channelId: 'c1',
-        seq: 2,
-        opId: 'server-op-1',
-        objectIds: ['img'],
-      ),
-    );
-    await tester.pumpAndSettle();
 
     await tester.tap(find.bySemanticsLabel('Undo'));
     await tester.pumpAndSettle();
-    expect(fixture.postedOps.last['kind'], 'restore');
-    fixture.events.add(
-      const api.CanvasObjectsRestored(
-        channelId: 'c1',
-        seq: 3,
-        opId: 'server-op-2',
-        objectIds: ['img'],
-      ),
-    );
+    expect(fixture.posted.single['kind'], 'image');
 
-    // The restore's cold fetch re-adds the object; give it and any hydrate real time.
+    // The placed-again image is a fresh object; give its hydrate real time.
     await waitUntil(
       tester,
       () => surfaceDocument(tester).objectCount.value == 1,
@@ -94,7 +77,7 @@ void main() {
     tester,
   ) async {
     final fixture = CanvasPaneFixture()
-      ..objects = [canvasImageJson('img', authorId: 'someone-else')];
+      ..objects = [canvasImageJson('img', x: 400, authorId: 'someone-else')];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);

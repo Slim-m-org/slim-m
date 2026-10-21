@@ -195,3 +195,33 @@ async fn restoring_a_locked_object_publishes_its_lock() {
         ]
     );
 }
+
+#[tokio::test]
+async fn a_delete_for_good_drops_the_object_on_another_members_board_live() {
+    let (store, _guard) = new_store().await;
+    let state = support::app::state(store.clone());
+    let (alice_access, alice_ticket, alice) = user_ticket(&store, "alice").await;
+    store.bootstrap_deployment(alice).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id;
+    let (_bob_access, bob_ticket, _bob) = user_ticket(&store, "bob").await;
+    let addr = serve(state.clone()).await;
+    let _alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+    let object = place_note(&state, channel, &alice_access).await;
+    assert_eq!(
+        read_frame(&mut bob_ws).await["type"],
+        "canvas.object.placed"
+    );
+
+    let delete = Request::builder()
+        .method("DELETE")
+        .uri(format!("/channels/{channel}/canvas/objects/{object}"))
+        .header("authorization", format!("Bearer {alice_access}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(status_of(&state, delete).await, StatusCode::OK);
+
+    let removed = read_frame(&mut bob_ws).await;
+    assert_eq!(removed["type"], "canvas.objects.removed");
+    assert_eq!(removed["object_ids"][0].as_str(), Some(object.as_str()));
+}

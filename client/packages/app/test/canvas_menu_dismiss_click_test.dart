@@ -18,6 +18,8 @@ void main() {
     addTearDown(fixture.events.close);
     await pumpCanvasPane(tester, container);
     await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Pan'));
+    await tester.pumpAndSettle();
 
     await tester.tapAt(
       screenFor(tester, const Offset(300, 200)),

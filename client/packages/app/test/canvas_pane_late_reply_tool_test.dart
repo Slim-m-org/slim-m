@@ -24,7 +24,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Shape'));
     await tester.pump();
     final gesture = await tester.startGesture(
-      screenFor(tester, const Offset(50, 50)),
+      screenFor(tester, const Offset(150, 150)),
     );
     await gesture.up();
     await tester.pump();

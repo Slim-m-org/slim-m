@@ -96,6 +96,7 @@ abstract final class AppIcons {
   static const IconData thread = LucideIcons.messagesSquare300;
   static const IconData edit = LucideIcons.pencil300;
   static const IconData retry = LucideIcons.rotateCw300;
+  static const IconData resetLayout = LucideIcons.rotateCcw300;
   static const IconData pending = LucideIcons.clock300;
   static const IconData failed = LucideIcons.circleAlert300;
   static const IconData poll = LucideIcons.barChart2300;
