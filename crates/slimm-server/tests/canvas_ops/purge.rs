@@ -11,8 +11,7 @@ use sqlx::SqlitePool;
 use tower::ServiceExt;
 
 use crate::fixtures::{app, general, member, new_store_and_pool, register};
-
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+use crate::support::canvas::{DAY_MS, age_canvas_history};
 
 async fn place(store: &Store, channel: ChannelId, author: UserId, kind: &str) -> CanvasObjectId {
     let object = CanvasObjectId::generate();
@@ -42,21 +41,6 @@ async fn erase(store: &Store, channel: ChannelId, actor: UserId, object: CanvasO
         .expect("erased");
 }
 
-async fn age_everything(pool: &SqlitePool, days: i64) {
-    sqlx::query("UPDATE canvas_ops SET created_at = created_at - ?")
-        .bind(days * DAY_MS)
-        .execute(pool)
-        .await
-        .unwrap();
-    sqlx::query(
-        "UPDATE canvas_objects SET deleted_at = deleted_at - ? WHERE deleted_at IS NOT NULL",
-    )
-    .bind(days * DAY_MS)
-    .execute(pool)
-    .await
-    .unwrap();
-}
-
 async fn count(pool: &SqlitePool, table: &str) -> i64 {
     sqlx::query_scalar(&format!("SELECT COUNT(*) FROM {table}"))
         .fetch_one(pool)
@@ -81,7 +65,7 @@ async fn nothing_is_hard_deleted_while_retention_is_off() {
     let channel = general(&store).await;
     let object = place(&store, channel, actor, "stroke").await;
     erase(&store, channel, actor, object).await;
-    age_everything(&pool, 400).await;
+    age_canvas_history(&pool, 400).await;
 
     store.sweep_canvas_ops().await.unwrap();
 
@@ -97,7 +81,7 @@ async fn the_sweep_hard_deletes_what_was_erased_before_the_window_and_only_that(
     let old = place(&store, channel, actor, "stroke").await;
     let kept_live = place(&store, channel, actor, "stroke").await;
     erase(&store, channel, actor, old).await;
-    age_everything(&pool, 40).await;
+    age_canvas_history(&pool, 40).await;
     let recent = place(&store, channel, actor, "stroke").await;
     erase(&store, channel, actor, recent).await;
 
@@ -148,7 +132,7 @@ async fn a_purge_frees_the_image_bytes_for_the_attachment_sweep() {
         .await
         .unwrap();
     erase(&store, channel, actor, image).await;
-    age_everything(&pool, 40).await;
+    age_canvas_history(&pool, 40).await;
     sqlx::query("UPDATE attachments SET created_at = created_at - ?")
         .bind(40 * DAY_MS)
         .execute(&pool)
@@ -171,7 +155,7 @@ async fn a_cursor_inside_purged_history_resets_but_a_fresh_one_does_not() {
     place(&store, channel, actor, "stroke").await;
     let old = place(&store, channel, actor, "stroke").await;
     erase(&store, channel, actor, old).await;
-    age_everything(&pool, 40).await;
+    age_canvas_history(&pool, 40).await;
     place(&store, channel, actor, "stroke").await;
 
     store.sweep_canvas_ops().await.unwrap();

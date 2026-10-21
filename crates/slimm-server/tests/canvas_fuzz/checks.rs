@@ -14,7 +14,7 @@ use crate::replay::{Client, Held, first_diff, whole_world};
 use crate::script::Bounds;
 use crate::world::{Check, World, v};
 
-const DAY_MS: i64 = 24 * 60 * 60 * 1000;
+use crate::support::canvas::DAY_MS;
 
 pub struct TableRow {
     pub held: Held,
