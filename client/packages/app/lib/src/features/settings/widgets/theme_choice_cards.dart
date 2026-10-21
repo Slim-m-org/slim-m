@@ -30,8 +30,7 @@ class ThemeChoiceCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Width decides (desktop-vs-mobile.md, the one rule): five across crowd
-    // "True black" on a phone, so below kCompactWidth they go two by two.
+    // Width decides (desktop-vs-mobile.md, the one rule): five across crowd a phone.
     final narrow = MediaQuery.sizeOf(context).width < kCompactWidth;
     final cards = [
       for (final choice in _order)
