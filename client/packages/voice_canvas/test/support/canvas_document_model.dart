@@ -7,6 +7,7 @@
 /// or the spatial grid, so a bug shared by both could not make them agree.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -24,6 +25,7 @@ class ModelObject {
     required this.author,
     required this.width,
     required this.rel,
+    this.shapeKind,
     this.text,
   });
 
@@ -38,10 +40,21 @@ class ModelObject {
   final String? author;
   final double width;
   final List<double> rel;
+  final CanvasShapeKind? shapeKind;
   String? text;
   bool alive = true;
 
   Rect get box => Rect.fromLTWH(x, y, w, h);
+
+  /// A point a hit test must reach: a shape answers only on its outline.
+  Offset get hitProbe {
+    if (kind == CanvasObjectKind.stroke) {
+      return rel.isEmpty ? box.center : absolutePoints.first;
+    }
+    if (kind != CanvasObjectKind.shape) return box.center;
+    final roundEdge = shapeKind == CanvasShapeKind.ellipse && w > 0 && h > 0;
+    return roundEdge ? Offset(x + w / 2, y) : Offset(x, y);
+  }
 
   /// Absolute points, the way a hit test sees them.
   List<Offset> get absolutePoints => [
@@ -57,6 +70,12 @@ class DocumentModel {
 
   /// Ids told to drop that no restore has lifted.
   final Set<String> tombstones = {};
+
+  /// The widest pen ever placed since the last reset, which pads every cull.
+  double maxInkWidth = 0;
+
+  /// How far a cull reaches past the view, by the document's stated rule (half the widest ink, capped).
+  double get cullPad => math.min(maxInkWidth / 2, 128);
 
   Iterable<ModelObject> get alive => known.values.where((o) => o.alive);
   int get killedCount => known.values.where((o) => !o.alive).length;
@@ -75,6 +94,7 @@ class DocumentModel {
       }
       return true;
     }
+    maxInkWidth = math.max(maxInkWidth, input.width);
     known[input.id] = ModelObject(
       id: input.id,
       kind: input.kind,
@@ -87,6 +107,7 @@ class DocumentModel {
       author: input.authorId,
       width: input.width,
       rel: List<double>.of(input.points),
+      shapeKind: input.shapeKind,
       text: input.text,
     );
     return true;
@@ -151,6 +172,7 @@ class DocumentModel {
   void reset() {
     known.clear();
     tombstones.clear();
+    maxInkWidth = 0;
   }
 
   /// Ids a board of [board] cannot hold whole, by the document's stated rule.

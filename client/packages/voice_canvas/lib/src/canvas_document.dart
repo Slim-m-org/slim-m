@@ -114,6 +114,9 @@ class CanvasDocument extends ChangeNotifier {
   /// How far a cull reaches past a box so thick ink at the screen edge still paints.
   double get cullPad => math.min(_maxStrokeWidth / 2, _maxCullPad);
 
+  /// Half the widest pen placed so far, uncapped: how far past its box any ink can reach.
+  double get maxInkReach => _maxStrokeWidth / 2;
+
   void _changed() => _contentRevision++;
 
   /// Whether [dispose] ran, so a timer that outlives the document can skip it.
