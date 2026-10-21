@@ -24,8 +24,6 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'camera_switching.dart';
 import 'first_frame_gate.dart';
-import 'last_frame.dart';
-import 'video_subscription_culler.dart' show videoSubscriptionKey;
 import 'video_quality.dart';
 import 'track_tile_state.dart';
 
@@ -144,44 +142,27 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
       return true;
     }());
     final track = currentTrack();
-    final tileKey = videoSubscriptionKey(
-      identity: widget.identity,
-      screenShare: false,
-    );
-    // Unlike a screen share, no placeholder text for a camera not here yet; its last frame, blurred, holds the tile.
-    if (track == null) {
-      return BlurredLastFrame(
-        tileKey: tileKey,
-        fallback: const SizedBox.shrink(),
-      );
-    }
+    // Unlike a screen share, no placeholder text for a camera not here yet.
+    if (track == null) return const SizedBox.shrink();
     final owned = ownedRenderer;
     // The renderer's own initialize() is still pending; same nothing as above.
-    if (owned == null) {
-      return BlurredLastFrame(
-        tileKey: tileKey,
-        fallback: const SizedBox.shrink(),
-      );
-    }
+    if (owned == null) return const SizedBox.shrink();
     return FirstFrameReveal(
       tracker: owned.tracker,
-      placeholder: BlurredLastFrame(tileKey: tileKey),
-      child: RememberLastFrame(
-        tileKey: tileKey,
-        tracker: owned.tracker,
-        child: OwnedRendererView(
-          owned: owned,
-          builder: (renderer) => withReceiveDensity(
-            widget.density,
-            (density) => lk.VideoTrackRenderer(
-              track,
-              fit: lk.VideoViewFit.cover,
-              mirrorMode:
-                  mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
-              cachedRenderer: renderer,
-              autoDisposeRenderer: false,
-              adaptiveStreamPixelDensity: density,
-            ),
+      // No placeholder graphic for a camera either, same as the branch above.
+      placeholder: const SizedBox.expand(),
+      child: OwnedRendererView(
+        owned: owned,
+        builder: (renderer) => withReceiveDensity(
+          widget.density,
+          (density) => lk.VideoTrackRenderer(
+            track,
+            fit: lk.VideoViewFit.cover,
+            mirrorMode:
+                mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
+            cachedRenderer: renderer,
+            autoDisposeRenderer: false,
+            adaptiveStreamPixelDensity: density,
           ),
         ),
       ),

@@ -5,8 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart'
-    show BlurredLastFrame, ScreenShareStatus, videoSubscriptionKey;
+import 'package:slimm_rtc/rtc.dart' show ScreenShareStatus;
 
 import '../../members/widgets/user_avatar.dart';
 
@@ -21,7 +20,6 @@ class VideoStateCard extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.dimsVideoBehind = false,
-    this.blurredFrameOf,
   });
 
   final IconData? icon;
@@ -35,21 +33,16 @@ class VideoStateCard extends StatelessWidget {
   /// Translucent, so the last good frame shows dimmed instead of a flat surface.
   final bool dimsVideoBehind;
 
-  /// The tile key whose remembered last frame shows blurred behind the card, in place of a flat surface.
-  final String? blurredFrameOf;
-
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Semantics(
       container: true,
       label: subtitle == null ? title : '$title. $subtitle',
-      child: _Backdrop(
-        tileKey: blurredFrameOf,
+      child: ColoredBox(
         color: dimsVideoBehind
             ? tokens.surfaceRaised.withValues(alpha: 0.78)
             : tokens.surfaceRaised,
-        dim: tokens.surfaceRaised.withValues(alpha: 0.55),
         child: Center(
           child: FittedBox(
             fit: BoxFit.scaleDown,
@@ -119,37 +112,6 @@ class VideoStateCard extends StatelessWidget {
   }
 }
 
-/// [color] flat, or [dim] over [tileKey]'s blurred last frame when one has been remembered.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop({
-    required this.tileKey,
-    required this.color,
-    required this.dim,
-    required this.child,
-  });
-
-  final String? tileKey;
-  final Color color;
-  final Color dim;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final key = tileKey;
-    if (key == null) return ColoredBox(color: color, child: child);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        BlurredLastFrame(
-          tileKey: key,
-          fallback: ColoredBox(color: color),
-        ),
-        ColoredBox(color: dim, child: child),
-      ],
-    );
-  }
-}
-
 /// What a remote screen share shows while it has no picture, by [ScreenShareStatus].
 Widget screenShareStatusCard({
   required BuildContext context,
@@ -180,8 +142,5 @@ Widget screenShareStatusCard({
     subtitle: subtitle,
     identity: identity,
     name: name,
-    blurredFrameOf: status == ScreenShareStatus.ended
-        ? null
-        : videoSubscriptionKey(identity: identity, screenShare: true),
   );
 }
