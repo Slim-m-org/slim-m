@@ -6630,16 +6630,23 @@ paths:
     delete:
       operationId: purgeCanvasObject
       tags: [canvas]
-      summary: Remove a canvas object for good.
+      summary: Delete a canvas object for good.
       description: >
-        Requires `VIEW_CHANNEL`, `USE_CANVAS` and `MANAGE_CANVAS`. A live
-        object is erased first (and unlocked, since a purge outranks a lock), so
-        every viewer drops it; then its rows, op history and image bytes are
-        deleted and it can no longer be restored. An object already erased is
-        simply deleted. A 409 means the object was restored in between.
+        Requires `VIEW_CHANNEL` and `USE_CANVAS`, and either being the
+        object's author or holding `MANAGE_CANVAS`; this is the only delete. A
+        live object is erased first, so every viewer drops it, then its rows,
+        op history and image bytes are deleted and it can no longer be
+        restored. A moderator's delete also unlocks a locked object; an author
+        gets 409 until they unlock their own. The reply is the row as it was,
+        so the deleter can undo by placing it again. A 404 means it is already
+        gone.
       responses:
-        "204":
-          description: The object is gone for good.
+        "200":
+          description: The object is gone for good; this is its last row.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanvasObject"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

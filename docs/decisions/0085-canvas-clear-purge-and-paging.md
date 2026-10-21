@@ -52,3 +52,15 @@ A read of any kind also stops at about 900 KiB of response with `has_more` true.
 
 - The client work (visible-area-first load, the "loaded / total" indicator, the purge menu item, honouring `spared_ids`) is batch 2.
 - Moving `props` to a side table to cut the write cost of a huge clear is not done; hold time is unchanged.
+
+## Addendum 2026-10-21: one Delete, always for good
+
+The owner's decision after testing the batch: the canvas object menu has a single "Delete", and it always deletes for good.
+There is no soft delete and no "Delete for good" beside it.
+
+`DELETE /channels/{id}/canvas/objects/{object_id}` is that Delete.
+It needs `VIEW_CHANNEL` and `USE_CANVAS`, and either being the object's author or holding `MANAGE_CANVAS`.
+A moderator's delete also unlocks a locked object first; an author unlocks their own object first (409 otherwise).
+The reply is the object's last row, so the client can undo: it places the same row again for as long as the session lasts.
+Other viewers drop the object through the erase frame the route publishes before the rows go.
+The eraser still removes ink and shapes with ordinary `remove` ops, which the retention sweep above handles.
