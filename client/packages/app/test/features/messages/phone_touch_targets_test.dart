@@ -17,7 +17,7 @@ import 'package:slimm_app/src/features/auth/screens/sign_in_alternatives.dart';
 import 'package:slimm_app/src/features/messages/widgets/author_profile_tap_target.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
+import 'package:slimm_app/src/features/members/widgets/profile_colour_field.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_data/data.dart';
@@ -160,9 +160,7 @@ void main() {
   testWidgets('every profile colour swatch', (tester) async {
     await _pump(
       tester,
-      const Scaffold(
-        body: SingleChildScrollView(child: ProfileFieldsSection()),
-      ),
+      const Scaffold(body: SingleChildScrollView(child: ProfileColourField())),
       overrides: [meProvider.overrideWith((ref) => Completer<api.Me>().future)],
     );
     final swatches = find.byWidgetPredicate(

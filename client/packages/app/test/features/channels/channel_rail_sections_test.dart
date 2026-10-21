@@ -126,10 +126,7 @@ void main() {
         findsOneWidget,
         reason: 'it must be reachable before it has ever been opened',
       );
-      expect(
-        find.textContaining('Start one from the member list'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Start one from'), findsNothing);
       // Explicit: addTearDown runs after flutter_test's own pending-timer check.
       await tester.pumpWidget(const SizedBox());
       container.dispose();

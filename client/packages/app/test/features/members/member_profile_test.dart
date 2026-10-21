@@ -85,7 +85,7 @@ void main() {
     expect(find.text('Online'), findsOneWidget);
     expect(find.text('Message'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
-    expect(find.text('Add note'), findsOneWidget);
+    expect(find.byTooltip('Add note'), findsOneWidget);
 
     // No call in progress, so nothing about hearing them.
     expect(
@@ -112,7 +112,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('House DJ'), findsOneWidget);
-    expect(find.text('@maya · account name Maya'), findsOneWidget);
+    expect(find.text('@maya'), findsOneWidget);
+    expect(find.text(' · account name Maya'), findsOneWidget);
   });
 
   testWidgets('the profile composes before any action row', (tester) async {

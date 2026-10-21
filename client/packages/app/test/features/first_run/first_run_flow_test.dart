@@ -11,7 +11,6 @@ import 'package:flutter/material.dart' show Material;
 import 'package:flutter/widgets.dart' show EditableText;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart' show AppInput;
-import 'package:slimm_app/src/features/first_run/providers/first_run_controller.dart';
 
 import 'package:slimm_app/src/features/first_run/widgets/first_run_frame.dart';
 
@@ -41,11 +40,10 @@ void main() {
   });
 
   testWidgets('skip setup closes it for good and stays put', (tester) async {
-    final rig = await pumpFirstRun(tester);
+    await pumpFirstRun(tester);
     await _tap(tester, 'Skip setup');
     expect(find.text('Skip setup'), findsNothing);
     expect(find.text('shell'), findsOneWidget);
-    expect(rig.container.read(firstRunControllerProvider).voiceHint, isFalse);
   });
 
   testWidgets('the you step saves pronouns on continue', (tester) async {
@@ -109,10 +107,10 @@ void main() {
     expect(find.text('Welcome'), findsOneWidget);
   });
 
-  testWidgets('finishing lands on the busiest text channel and arms the hint', (
+  testWidgets('finishing lands on the busiest text channel with no hint', (
     tester,
   ) async {
-    final rig = await pumpFirstRun(tester);
+    await pumpFirstRun(tester);
     for (var i = 0; i < 3; i++) {
       await _tap(tester, 'Continue');
     }
@@ -120,32 +118,11 @@ void main() {
     await _tap(tester, 'Finish');
 
     expect(find.text('channel:busy'), findsOneWidget);
-    expect(rig.container.read(firstRunControllerProvider).voiceHint, isTrue);
-    expect(
-      find.textContaining('Voice channels are in the channel list'),
-      findsOneWidget,
-    );
-
-    await _tap(tester, 'Got it');
     expect(
       find.textContaining('Voice channels are in the channel list'),
       findsNothing,
     );
-  });
-
-  testWidgets('finishing on a Space with no voice channel arms no hint', (
-    tester,
-  ) async {
-    final rig = await pumpFirstRun(
-      tester,
-      channels: [harnessChannel('general', 'text', 1)],
-    );
-    for (var i = 0; i < 3; i++) {
-      await _tap(tester, 'Continue');
-    }
-    await _tap(tester, 'Finish');
-    expect(find.text('channel:general'), findsOneWidget);
-    expect(rig.container.read(firstRunControllerProvider).voiceHint, isFalse);
+    expect(find.text('Got it'), findsNothing);
   });
 
   testWidgets('a wide window shows a centred card, not a full page', (

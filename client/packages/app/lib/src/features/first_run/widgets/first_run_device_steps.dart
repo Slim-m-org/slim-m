@@ -204,11 +204,16 @@ class _FirstRunVoiceStepState extends ConsumerState<FirstRunVoiceStep> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DecoratedBox(
+          // In front, so a hovered row's fill cannot paint over the outline.
+          position: DecorationPosition.foreground,
           decoration: BoxDecoration(
             border: Border.all(color: tokens.borderSubtle),
             borderRadius: BorderRadius.circular(AppRadii.card),
           ),
-          child: const AudioDeviceSection(embedded: true),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            child: const AudioDeviceSection(embedded: true),
+          ),
         ),
         const SizedBox(height: AppSpacing.s16),
         if (_meterOn)

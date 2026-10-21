@@ -95,13 +95,4 @@ void main() {
       expect(pickLandingChannel(const []), isNull);
     });
   });
-
-  test('voiceChannelsOf keeps only voice channels, in order', () {
-    final voice = voiceChannelsOf([
-      _channel('a', 'voice', 0),
-      _channel('b', 'text', 0),
-      _channel('c', 'voice', 0),
-    ]);
-    expect([for (final c in voice) c.id], ['a', 'c']);
-  });
 }

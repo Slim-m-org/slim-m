@@ -19,6 +19,7 @@ import 'package:slimm_app/src/spotify/spotify_config.dart';
 import 'package:slimm_app/src/spotify/spotify_link.dart';
 import 'package:slimm_app/src/features/members/widgets/activity_sharing_section.dart';
 import 'package:slimm_app/src/features/members/widgets/avatar_settings_section.dart';
+import 'package:slimm_app/src/features/members/widgets/profile_colour_field.dart';
 import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
@@ -141,7 +142,7 @@ void main() {
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
-    final patches = await _pump(tester, const ProfileFieldsSection());
+    final patches = await _pump(tester, const ProfileColourField());
 
     await tester.tap(find.bySemanticsLabel(RegExp('^Profile colour: Green\$')));
     await tester.pumpAndSettle();

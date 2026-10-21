@@ -25,7 +25,6 @@ That covers a returning member who signs in on a new device.
 
 One flag per account and per Space, kept in the device's preferences under `slimm.first_run.done.<space>|<account>`.
 It is written the moment the flow is finished or skipped, so a restart mid-flow shows it again and a restart after never does.
-A second flag, `slimm.first_run.voice_hint.<space>|<account>`, marks the voice hint as still owed after a finished setup.
 Running setup again from Settings ignores the done flag for that run and writes nothing new.
 
 ## Steps
@@ -63,8 +62,7 @@ Short, plain, no exclamation points, one verb per action (`wording.md`).
 
 Skip setup on any step writes the done flag and closes the flow without moving the member.
 They stay on the empty pane, which then carries brief guidance and a "Run setup" button.
-Finish writes the done flag, moves the member to the landing channel and arms the voice hint.
-The voice hint is one dismissible line, shown once, and then cleared.
+Finish writes the done flag and moves the member to the landing channel.
 
 ## Landing channel
 

@@ -20,14 +20,9 @@ final firstRunClockProvider = Provider<DateTime Function()>(
 );
 
 /// [offered] is whether setup is still owed on this device, for the home to offer it.
-typedef FirstRunState = ({
-  bool active,
-  bool replay,
-  bool voiceHint,
-  bool offered,
-});
+typedef FirstRunState = ({bool active, bool replay, bool offered});
 
-const _idle = (active: false, replay: false, voiceHint: false, offered: false);
+const _idle = (active: false, replay: false, offered: false);
 
 class FirstRunController extends StateNotifier<FirstRunState> {
   FirstRunController(this._ref) : super(_idle) {
@@ -54,13 +49,7 @@ class FirstRunController extends StateNotifier<FirstRunState> {
         now: _ref.read(firstRunClockProvider)(),
       );
       if (!mounted) return;
-      final hint = prefs.getBool(firstRunVoiceHintKey(space, account)) ?? false;
-      state = (
-        active: due,
-        replay: false,
-        voiceHint: hint && !due,
-        offered: !done && !wrote,
-      );
+      state = (active: due, replay: false, offered: !done && !wrote);
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.ui,
@@ -72,52 +61,21 @@ class FirstRunController extends StateNotifier<FirstRunState> {
   }
 
   /// Opens setup for the first time, so finishing or skipping it is remembered.
-  void start() => state = (
-    active: true,
-    replay: false,
-    voiceHint: false,
-    offered: state.offered,
-  );
+  void start() => state = (active: true, replay: false, offered: state.offered);
 
   /// Opens setup again from Settings, whatever was saved.
-  void replay() => state = (
-    active: true,
-    replay: true,
-    voiceHint: false,
-    offered: state.offered,
-  );
+  void replay() => state = (active: true, replay: true, offered: state.offered);
 
-  /// Closes the flow for good. [voiceHint] arms the hint; a replay writes nothing.
-  Future<void> complete({bool voiceHint = false}) async {
+  /// Closes the flow for good; a replay writes nothing.
+  Future<void> complete() async {
     final replay = state.replay;
-    final hint = voiceHint && !replay;
-    state = (
-      active: false,
-      replay: false,
-      voiceHint: hint,
-      offered: replay && state.offered,
-    );
+    state = (active: false, replay: false, offered: replay && state.offered);
     if (replay) return;
     final space = _space;
     final account = _account;
     if (space == null || account == null) return;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(firstRunDoneKey(space, account), true);
-    if (hint) await prefs.setBool(firstRunVoiceHintKey(space, account), true);
-  }
-
-  Future<void> dismissVoiceHint() async {
-    state = (
-      active: state.active,
-      replay: state.replay,
-      voiceHint: false,
-      offered: state.offered,
-    );
-    final space = _space;
-    final account = _account;
-    if (space == null || account == null) return;
-    final prefs = await _ref.read(preferencesProvider.future);
-    await prefs.remove(firstRunVoiceHintKey(space, account));
   }
 
   /// The channels, read at the moment a landing is chosen.

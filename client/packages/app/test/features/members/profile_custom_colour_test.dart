@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/features/members/widgets/profile_fields_section.dart';
+import 'package:slimm_app/src/features/members/widgets/profile_colour_field.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/widgets/color_swatch_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -77,7 +77,7 @@ Future<_Harness> _pump(WidgetTester tester, {int? customRgb}) async {
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
         home: const Scaffold(
-          body: SingleChildScrollView(child: ProfileFieldsSection()),
+          body: SingleChildScrollView(child: ProfileColourField()),
         ),
       ),
     ),

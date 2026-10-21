@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The two member card layouts: someone else's (Message and Add note up top,
 /// "Remove from #channel" when opened from a channel you manage) and your own
-/// (activity, then Set status, Copy username, Profile settings), at popover
+/// (activity, then Set status, Profile settings), at popover
 /// and phone width, in both themes.
 library;
 
@@ -169,7 +169,7 @@ void main() {
       expect(find.text('MEMBER'), findsOneWidget);
       expect(find.textContaining('Joined'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
-      expect(find.text('Add note'), findsOneWidget);
+      expect(find.byTooltip('Add note'), findsOneWidget);
       expect(find.text('Report user'), findsOneWidget);
       expect(find.text('Block'), findsOneWidget);
       expect(find.text('Set status'), findsNothing);
@@ -177,12 +177,20 @@ void main() {
       expect(find.text('Add a private note'), findsNothing);
     });
 
+    testWidgets('Block closes the menu, after the other rows', (tester) async {
+      await _pump(tester, _harness((_) => _card()));
+
+      double top(String label) => tester.getTopLeft(find.text(label)).dy;
+      expect(top('Block'), greaterThan(top('Report user')));
+      expect(top('Report user'), greaterThan(top('Message')));
+    });
+
     testWidgets('Add note reveals the private note field and focuses it', (
       tester,
     ) async {
       await _pump(tester, _harness((_) => _card()));
 
-      await tester.tap(find.text('Add note'));
+      await tester.tap(find.byTooltip('Add note'));
       await tester.pump();
       await tester.pump();
 
@@ -196,7 +204,7 @@ void main() {
     ) async {
       await _pump(tester, _harness((_) => _card(), note: 'met at the meetup'));
 
-      expect(find.text('Add note'), findsNothing);
+      expect(find.byTooltip('Add note'), findsNothing);
       expect(find.text('met at the meetup'), findsOneWidget);
       expect(find.text('Message'), findsOneWidget);
     });
@@ -250,22 +258,21 @@ void main() {
   });
 
   group('your own card', () {
-    testWidgets('is the preview plus Set status, Copy username, settings', (
-      tester,
-    ) async {
+    testWidgets('is the preview plus Set status and settings', (tester) async {
       await _pump(tester, _harness((_) => _card(), self: true));
 
       expect(find.text('YOU'), findsOneWidget);
       expect(find.text('Online'), findsOneWidget);
       expect(find.text('Set status'), findsOneWidget);
-      expect(find.text('Copy username'), findsOneWidget);
+      expect(find.text('Copy username'), findsNothing);
+      expect(find.byTooltip('Copy username'), findsOneWidget);
       expect(find.text('Profile settings'), findsOneWidget);
-      for (final other in ['Message', 'Add note', 'Report user', 'Block']) {
+      for (final other in ['Message', 'Report user', 'Block']) {
         expect(find.text(other), findsNothing, reason: other);
       }
     });
 
-    testWidgets('Copy username puts @username on the clipboard and says so', (
+    testWidgets('the copy icon after the handle copies @username and says so', (
       tester,
     ) async {
       String? copied;
@@ -289,7 +296,7 @@ void main() {
         tester.element(find.byType(MemberProfileBody)),
       );
 
-      await tester.tap(find.text('Copy username'));
+      await tester.tap(find.byTooltip('Copy username'));
       await tester.pump();
       await tester.pump();
 
@@ -380,7 +387,7 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('with invite K7Q2'), findsOneWidget);
+        expect(find.byTooltip('Joined with invite K7Q2'), findsOneWidget);
       },
     );
 
@@ -390,7 +397,12 @@ void main() {
       (tester) async {
         await tester.pumpWidget(_harness((_) => _card()));
         await tester.pumpAndSettle();
-        expect(find.textContaining('with invite'), findsNothing);
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is Tooltip && (w.message ?? '').contains('invite'),
+          ),
+          findsNothing,
+        );
       },
     );
   });
