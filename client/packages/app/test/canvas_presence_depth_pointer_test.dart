@@ -57,7 +57,7 @@ void main() {
       await tester.pump();
 
       final firstFinger = screenFor(tester, const Offset(250, 50));
-      final secondFinger = screenFor(tester, const Offset(60, 60));
+      final secondFinger = screenFor(tester, const Offset(160, 160));
 
       final first = await tester.startGesture(firstFinger);
       final second = await tester.startGesture(secondFinger);
@@ -103,7 +103,7 @@ void main() {
       expect(document.camera.x, 0);
       expect(document.camera.y, 0);
 
-      final start = screenFor(tester, const Offset(60, 60));
+      final start = screenFor(tester, const Offset(160, 160));
       final pointer = TestPointer(1, PointerDeviceKind.mouse);
       await tester.sendEventToBinding(
         pointer.down(start, buttons: kMiddleMouseButton),

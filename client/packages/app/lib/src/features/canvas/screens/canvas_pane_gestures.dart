@@ -392,8 +392,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     }
   }
 
-  /// Brings the whole shared board back into view.
-  void _onRecenter() => _document.fitBoard();
+  /// Fits the camera to what is drawn, or the whole board when the canvas is empty.
+  void _onRecenter() => _document.fitContent();
 
   /// Delete/Backspace over the current Move-tool selection, the desktop
   /// convention every other drawing surface honours - the overflow menu's

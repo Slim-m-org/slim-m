@@ -79,6 +79,7 @@ class _Harness {
             onPasteImageAt: (_) {},
             onAddNoteAt: (_) {},
             onRecenter: () {},
+            onToolChanged: (_) {},
           ),
         ),
       ),

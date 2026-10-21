@@ -52,12 +52,46 @@ void main() {
     );
   });
 
-  testWidgets('the eraser shows a precise cursor too', (tester) async {
+  testWidgets('the shape tool shows a precise cursor', (tester) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    expect(
+      await _cursorAfter(tester, document, tool: CanvasTool.shape),
+      SystemMouseCursors.precise,
+    );
+  });
+
+  testWidgets('the note tool shows a text cursor', (tester) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    expect(
+      await _cursorAfter(tester, document, tool: CanvasTool.note),
+      SystemMouseCursors.text,
+    );
+  });
+
+  testWidgets('the eraser hides the system cursor and draws its own ring', (
+    tester,
+  ) async {
     final document = CanvasDocument();
     addTearDown(document.dispose);
     expect(
       await _cursorAfter(tester, document, tool: CanvasTool.eraser),
-      SystemMouseCursors.precise,
+      SystemMouseCursors.none,
+    );
+    final ring = find.descendant(
+      of: find.byType(CanvasEraserRing),
+      matching: find.byType(CustomPaint),
+    );
+    final gesture = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      pointer: 1,
+    );
+    await gesture.moveTo(tester.getCenter(ring.first) + const Offset(5, 5));
+    await tester.pump();
+    expect(
+      tester.renderObject(ring.first),
+      paints..circle(radius: eraserRingRadius),
     );
   });
 

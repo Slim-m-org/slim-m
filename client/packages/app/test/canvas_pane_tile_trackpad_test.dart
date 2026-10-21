@@ -55,11 +55,11 @@ void main() {
 
     final pointer = TestPointer(1, PointerDeviceKind.trackpad);
     await tester.sendEventToBinding(
-      pointer.panZoomStart(screenFor(tester, const Offset(60, 60))),
+      pointer.panZoomStart(screenFor(tester, const Offset(160, 160))),
     );
     await tester.sendEventToBinding(
       pointer.panZoomUpdate(
-        screenFor(tester, const Offset(60, 60)),
+        screenFor(tester, const Offset(160, 160)),
         pan: const Offset(-40, 30),
       ),
     );

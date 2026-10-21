@@ -22,7 +22,9 @@ Future<CanvasPaneFixture> _openPane(
   int channelPermissions = 0,
 }) async {
   final fixture = CanvasPaneFixture(channelPermissions: channelPermissions)
-    ..objects = [canvasNoteJson('note', authorId: authorId, text: 'before')];
+    ..objects = [
+      canvasNoteJson('note', x: 400, authorId: authorId, text: 'before'),
+    ];
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -39,7 +41,7 @@ Future<void> _mouseClick(WidgetTester tester, Offset at) async {
   await tester.pump();
 }
 
-const _onNote = Offset(15, 15);
+const _onNote = Offset(415, 15);
 
 /// A finger's first tap selects the note and its second opens the editor.
 Future<void> _fingerTapTwice(WidgetTester tester) async {
@@ -102,7 +104,7 @@ void main() {
     await _openPane(tester);
 
     final gesture = await tester.startGesture(screenFor(tester, _onNote));
-    await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+    await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -182,7 +184,9 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final fixture = CanvasPaneFixture()
-        ..objects = [canvasNoteJson('note', authorId: 'me', text: 'before')];
+        ..objects = [
+          canvasNoteJson('note', x: 400, authorId: 'me', text: 'before'),
+        ];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);

@@ -95,6 +95,13 @@ extension CanvasDocumentBoard on CanvasDocument {
     if (board != null) setCamera(boardFitCamera(board, _fitView));
   }
 
+  /// Fits the camera to the drawn objects above the dock; the whole board when nothing is drawn.
+  void fitContent() {
+    final bounds = contentBounds;
+    if (bounds == null || _viewport.isEmpty) return fitBoard();
+    setCamera(cameraToFit(bounds, _fitView));
+  }
+
   /// The part of the board in view, or null when no board is set.
   ui.Rect? get visibleBoard {
     final board = _board;

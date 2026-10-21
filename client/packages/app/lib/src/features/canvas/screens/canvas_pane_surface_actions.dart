@@ -37,6 +37,7 @@ class CanvasPaneSurfaceActions {
     required this.onPasteImageAt,
     this.onEditNote,
     required this.onRecenter,
+    required this.onToolChanged,
     required this.onBringIntoBoard,
     this.participantMenuItemsBuilder,
     this.onFocusTile,
@@ -68,6 +69,7 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<Offset> onPasteImageAt;
   final ValueChanged<String>? onEditNote;
   final VoidCallback onRecenter;
+  final ValueChanged<CanvasTool> onToolChanged;
   final VoidCallback onBringIntoBoard;
   final List<Widget> Function(
     BuildContext context,

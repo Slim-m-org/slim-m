@@ -34,11 +34,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     if (panning) return SystemMouseCursors.grabbing;
     if (!enabled) return SystemMouseCursors.basic;
     return switch (tool) {
-      CanvasTool.pen ||
-      CanvasTool.eraser ||
-      CanvasTool.note ||
-      CanvasTool.shape =>
-        SystemMouseCursors.precise,
+      CanvasTool.pen || CanvasTool.shape => SystemMouseCursors.precise,
+      CanvasTool.note => SystemMouseCursors.text,
+      CanvasTool.eraser => SystemMouseCursors.none,
       CanvasTool.pan => SystemMouseCursors.grab,
     };
   }

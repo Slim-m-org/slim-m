@@ -167,6 +167,7 @@ class CanvasPaneSurface extends StatelessWidget {
           onEditNote: actions.onEditNote,
           canDraw: !canvasErrorBlocksDrawing(error),
           onRecenter: actions.onRecenter,
+          onToolChanged: actions.onToolChanged,
         ),
         CanvasBoardObjectSemantics(
           document: document,

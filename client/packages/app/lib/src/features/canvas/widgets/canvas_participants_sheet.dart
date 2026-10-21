@@ -8,9 +8,9 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../members/providers/blocks_controller.dart';
-import '../../members/widgets/user_avatar.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'canvas_participant_menu.dart';
+import 'canvas_roster_avatar.dart';
 
 Future<void> showCanvasParticipantsSheet(BuildContext context) =>
     showAppSheet<void>(
@@ -66,7 +66,7 @@ class CanvasParticipantsSheet extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final participant in participants)
-                    _ParticipantRow(
+                    CanvasParticipantRow(
                       key: ValueKey(participant.identity),
                       participant: participant,
                     ),
@@ -80,8 +80,9 @@ class CanvasParticipantsSheet extends ConsumerWidget {
   }
 }
 
-class _ParticipantRow extends StatelessWidget {
-  const _ParticipantRow({super.key, required this.participant});
+/// One person in a call list: avatar, state in words, and the menu their call tile has.
+class CanvasParticipantRow extends StatelessWidget {
+  const CanvasParticipantRow({super.key, required this.participant});
 
   final VoiceParticipant participant;
 
@@ -103,12 +104,10 @@ class _ParticipantRow extends StatelessWidget {
         return AppListRow(
           label: participant.name,
           meta: state.isEmpty ? null : state.join(', '),
-          leading: UserAvatar(
-            name: participant.name,
-            userId: participant.identity,
-            size: AppAvatarSize.s28,
-            speaking: participant.isSpeaking,
-          ),
+          stateDescription: state.isEmpty
+              ? null
+              : state.join(', ').toLowerCase(),
+          leading: CanvasRosterAvatar(participant: participant),
           // This device's own row has nothing to open unless it is sharing or has a camera on.
           trailing: open == null
               ? null

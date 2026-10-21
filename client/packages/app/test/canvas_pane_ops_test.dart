@@ -80,7 +80,7 @@ void main() {
     (tester) async {
       final fixture = CanvasPaneFixture()
         ..objects = [
-          canvasObjectJson('foreign', x: 0, authorId: 'someone-else'),
+          canvasObjectJson('foreign', x: 400, authorId: 'someone-else'),
         ];
       final container = fixture.container();
       addTearDown(container.dispose);
@@ -92,7 +92,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Eraser'));
       await tester.pump();
 
-      final point = screenFor(tester, const Offset(10, 20));
+      final point = screenFor(tester, const Offset(410, 20));
       final gesture = await tester.startGesture(point);
       await gesture.up();
       await tester.pumpAndSettle();
@@ -105,7 +105,9 @@ void main() {
   testWidgets('the eraser removes another member\'s stroke with '
       'MANAGE_CANVAS, in one op', (tester) async {
     final fixture = CanvasPaneFixture(mePermissions: Perm.manageCanvas)
-      ..objects = [canvasObjectJson('foreign', x: 0, authorId: 'someone-else')];
+      ..objects = [
+        canvasObjectJson('foreign', x: 400, authorId: 'someone-else'),
+      ];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -116,7 +118,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Eraser'));
     await tester.pump();
 
-    final point = screenFor(tester, const Offset(10, 20));
+    final point = screenFor(tester, const Offset(410, 20));
     final gesture = await tester.startGesture(point);
     await gesture.up();
     await tester.pumpAndSettle();
@@ -133,10 +135,14 @@ void main() {
       'deployment-wide bit grants MANAGE_CANVAS, not the per-channel answer', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture(
-      mePermissions: Perm.manageCanvas,
-      channelPermissions: 0,
-    )..objects = [canvasObjectJson('foreign', x: 0, authorId: 'someone-else')];
+    final fixture =
+        CanvasPaneFixture(
+            mePermissions: Perm.manageCanvas,
+            channelPermissions: 0,
+          )
+          ..objects = [
+            canvasObjectJson('foreign', x: 400, authorId: 'someone-else'),
+          ];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -147,7 +153,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Eraser'));
     await tester.pump();
 
-    final point = screenFor(tester, const Offset(10, 20));
+    final point = screenFor(tester, const Offset(410, 20));
     final gesture = await tester.startGesture(point);
     await gesture.up();
     await tester.pumpAndSettle();
@@ -161,7 +167,8 @@ void main() {
   testWidgets(
     'the overflow offers no Clear canvas item without MANAGE_CANVAS',
     (tester) async {
-      final fixture = CanvasPaneFixture()..objects = [canvasObjectJson('a')];
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasObjectJson('a', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -186,7 +193,7 @@ void main() {
       final fixture = CanvasPaneFixture(
         mePermissions: Perm.manageCanvas,
         channelPermissions: 0,
-      )..objects = [canvasObjectJson('a')];
+      )..objects = [canvasObjectJson('a', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -204,7 +211,10 @@ void main() {
     'the clear control reaches the canvas: confirm, then one clear op',
     (tester) async {
       final fixture = CanvasPaneFixture(mePermissions: Perm.manageCanvas)
-        ..objects = [canvasObjectJson('a'), canvasObjectJson('b', x: 50)];
+        ..objects = [
+          canvasObjectJson('a', x: 400),
+          canvasObjectJson('b', x: 50),
+        ];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -246,7 +256,7 @@ void main() {
     'the undo button reflects a clear that is the first undoable action',
     (tester) async {
       final fixture = CanvasPaneFixture(mePermissions: Perm.manageCanvas)
-        ..objects = [canvasObjectJson('a')];
+        ..objects = [canvasObjectJson('a', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -285,7 +295,8 @@ void main() {
   testWidgets(
     'dragging with the select tool moves an image and posts one move op',
     (tester) async {
-      final fixture = CanvasPaneFixture()..objects = [canvasImageJson('img')];
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasImageJson('img', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -295,20 +306,20 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
 
-      final start = screenFor(tester, const Offset(15, 15));
+      final start = screenFor(tester, const Offset(415, 15));
       final gesture = await tester.startGesture(start);
-      await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+      await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
 
       expect(fixture.postedOps, hasLength(1));
       expect(fixture.postedOps.single['kind'], 'move');
       expect(fixture.postedOps.single['object_id'], 'img');
-      expect(fixture.postedOps.single['x'], 40);
+      expect(fixture.postedOps.single['x'], 430);
       expect(fixture.postedOps.single['y'], 30);
 
       final bounds = surfaceDocument(tester).objectBounds('img')!;
-      expect(bounds.x, 40);
+      expect(bounds.x, 430);
       expect(bounds.y, 30);
     },
   );
@@ -319,7 +330,8 @@ void main() {
   testWidgets(
     'move is scoped to box kinds: dragging over a stroke does nothing',
     (tester) async {
-      final fixture = CanvasPaneFixture()..objects = [canvasObjectJson('a')];
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasObjectJson('a', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -329,15 +341,15 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
 
-      final start = screenFor(tester, const Offset(15, 15));
+      final start = screenFor(tester, const Offset(415, 15));
       final gesture = await tester.startGesture(start);
-      await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+      await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
 
       expect(fixture.postedOps, isEmpty);
       final bounds = surfaceDocument(tester).objectBounds('a')!;
-      expect(bounds.x, 10);
+      expect(bounds.x, 400);
       expect(bounds.y, 10);
     },
   );
@@ -347,7 +359,8 @@ void main() {
   testWidgets(
     'dragging with the select tool moves a note and posts one move op',
     (tester) async {
-      final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasNoteJson('note', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -357,9 +370,9 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
 
-      final start = screenFor(tester, const Offset(15, 15));
+      final start = screenFor(tester, const Offset(415, 15));
       final gesture = await tester.startGesture(start);
-      await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+      await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
       await gesture.up();
       await tester.pumpAndSettle();
 
@@ -368,7 +381,7 @@ void main() {
       expect(fixture.postedOps.single['object_id'], 'note');
 
       final bounds = surfaceDocument(tester).objectBounds('note')!;
-      expect(bounds.x, 40);
+      expect(bounds.x, 430);
       expect(bounds.y, 30);
     },
   );
@@ -381,7 +394,8 @@ void main() {
     'selecting a note and choosing Delete deletes it for good, and undo '
     'places it again',
     (tester) async {
-      final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+      final fixture = CanvasPaneFixture()
+        ..objects = [canvasNoteJson('note', x: 400)];
       final container = fixture.container();
       addTearDown(container.dispose);
       addTearDown(fixture.events.close);
@@ -391,7 +405,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Pan'));
       await tester.pump();
       final gesture = await tester.startGesture(
-        screenFor(tester, const Offset(15, 15)),
+        screenFor(tester, const Offset(415, 15)),
       );
       await gesture.up();
       await tester.pumpAndSettle();
@@ -427,7 +441,7 @@ void main() {
     tester,
   ) async {
     final fixture = CanvasPaneFixture(opsPostStatus: 403)
-      ..objects = [canvasImageJson('img')];
+      ..objects = [canvasImageJson('img', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -437,9 +451,9 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
 
-    final start = screenFor(tester, const Offset(15, 15));
+    final start = screenFor(tester, const Offset(415, 15));
     final gesture = await tester.startGesture(start);
-    await gesture.moveTo(screenFor(tester, const Offset(45, 35)));
+    await gesture.moveTo(screenFor(tester, const Offset(445, 35)));
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -447,7 +461,7 @@ void main() {
     expect(find.text('That could not be moved.'), findsOneWidget);
 
     final bounds = surfaceDocument(tester).objectBounds('img')!;
-    expect(bounds.x, 10, reason: 'a failed move must put the image back');
+    expect(bounds.x, 400, reason: 'a failed move must put the image back');
     expect(bounds.y, 10);
   });
 

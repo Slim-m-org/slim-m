@@ -12,7 +12,8 @@ void main() {
   testWidgets('Delete does not remove a note while the activity log is open', (
     tester,
   ) async {
-    final fixture = CanvasPaneFixture()..objects = [canvasNoteJson('note')];
+    final fixture = CanvasPaneFixture()
+      ..objects = [canvasNoteJson('note', x: 400)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -22,7 +23,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Pan'));
     await tester.pump();
     final gesture = await tester.startGesture(
-      screenFor(tester, const Offset(15, 15)),
+      screenFor(tester, const Offset(415, 15)),
       kind: PointerDeviceKind.mouse,
     );
     await gesture.up();

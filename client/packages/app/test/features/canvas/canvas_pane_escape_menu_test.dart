@@ -18,7 +18,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final fixture = CanvasPaneFixture()
-      ..objects = [canvasNoteJson('b', x: 50, seq: 2)];
+      ..objects = [canvasNoteJson('b', x: 400, seq: 2)];
     final container = fixture.container();
     addTearDown(container.dispose);
     addTearDown(fixture.events.close);
@@ -27,7 +27,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tapAt(
-      screenFor(tester, const Offset(60, 20)),
+      screenFor(tester, const Offset(410, 20)),
       buttons: kSecondaryButton,
     );
     await tester.pumpAndSettle();

@@ -46,6 +46,9 @@ void _report(ProviderContainer container, String message) =>
 Future<({AppMenuItem paste, AppMenuItem note})> _emptySpaceMenu(
   WidgetTester tester,
 ) async {
+  // A bare right-click under a drawing tool only returns to Move.
+  await tester.tap(find.bySemanticsLabel('Pan'));
+  await tester.pump();
   await tester.tapAt(
     screenFor(tester, const Offset(300, 200)),
     buttons: kSecondaryButton,
