@@ -21,6 +21,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../ids.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_note_sizing.dart';
+import 'canvas_retry.dart';
 import 'canvas_sync.dart';
 
 /// A note's default box: wide enough for a few sentences before wrapping,
@@ -125,15 +126,17 @@ class CanvasQuickPlacement {
     final id = newCanvasObjectId();
     _show(id, kind, box, props);
     try {
-      final placed = await client.placeCanvasObject(
-        channelId,
-        id: id,
-        kind: kind,
-        x: box.left,
-        y: box.top,
-        w: box.width,
-        h: box.height,
-        props: props,
+      final placed = await retryCanvasRequest(
+        () => client.placeCanvasObject(
+          channelId,
+          id: id,
+          kind: kind,
+          x: box.left,
+          y: box.top,
+          w: box.width,
+          h: box.height,
+          props: props,
+        ),
       );
       final input = canvasStrokeInputFrom(placed);
       if (input != null) {

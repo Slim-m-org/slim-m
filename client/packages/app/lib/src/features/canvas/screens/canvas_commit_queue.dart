@@ -11,6 +11,13 @@ import 'dart:async';
 import 'package:slimm_api/api.dart' as api;
 
 import 'canvas_forbidden_message.dart';
+import 'canvas_retry.dart';
+
+const Duration _attemptTimeout = Duration(seconds: 15);
+const Duration _closeGrace = Duration(seconds: 30);
+const Duration _unreadableReplyDelay = Duration(seconds: 1);
+const int _maxUnreadableReplies = 3;
+const int _attemptsBeforeRotating = 8;
 
 /// One queued placement.
 class CanvasCommit {
@@ -87,9 +94,12 @@ class CanvasCommitQueue {
 
   final List<CanvasCommit> _pending = <CanvasCommit>[];
   final Set<String> _armedForRemoval = <String>{};
+  final Set<String> _attempted = <String>{};
   String? _inFlightId;
   bool _running = false;
   bool _closed = false;
+  bool _expired = false;
+  Timer? _closeDeadline;
 
   void add(CanvasCommit commit) {
     if (_closed) return;
@@ -97,12 +107,24 @@ class CanvasCommitQueue {
     unawaited(_drain());
   }
 
-  void close() => _closed = true;
+  /// Stops reporting, but keeps sending what is queued for [_closeGrace], so
+  /// hanging up right after a scribble does not drop its tail for everyone.
+  void close() {
+    if (_closed) return;
+    _closed = true;
+    if (!_running) return;
+    _closeDeadline = Timer(_closeGrace, () => _expired = true);
+  }
 
   /// See [UndoPlacementOutcome]. Named for its main caller, undo, but the
   /// eraser catching its own just-drawn ink resolves through the same path.
   UndoPlacementOutcome undoPlacement(String id) {
     final index = _pending.indexWhere((c) => c.id == id);
+    if (index != -1 && _attempted.contains(id)) {
+      // An earlier try may have landed with its reply lost, so removal waits for the confirm.
+      _armedForRemoval.add(id);
+      return UndoPlacementOutcome.armed;
+    }
     if (index != -1) {
       _pending.removeAt(index);
       return UndoPlacementOutcome.cancelled;
@@ -118,38 +140,65 @@ class CanvasCommitQueue {
     if (_running) return;
     _running = true;
     try {
-      while (_pending.isNotEmpty && !_closed) {
+      while (_pending.isNotEmpty && !_expired) {
         final commit = _pending.removeAt(0);
         await _send(commit);
       }
     } finally {
       _running = false;
+      _closeDeadline?.cancel();
     }
   }
 
+  /// Retries until the server accepts or definitively refuses: a blip or a
+  /// deploy must not delete ink the drawer can still see on their screen.
   Future<void> _send(CanvasCommit commit) async {
     _inFlightId = commit.id;
     try {
-      // Three tries backing off: a 429 while somebody scribbles must not lose ink already on their own screen.
-      var delay = const Duration(milliseconds: 250);
-      for (var attempt = 0; attempt < 3; attempt++) {
-        final retry = await _attempt(commit, lastAttempt: attempt == 2);
-        if (!retry) return;
-        await Future<void>.delayed(delay);
-        delay *= 2;
+      var malformed = 0;
+      while (true) {
+        try {
+          _attempted.add(commit.id);
+          final object = await retryCanvasRequest(
+            () => _place(commit),
+            maxAttempts: _attemptsBeforeRotating,
+            giveUp: () => _expired,
+          );
+          _confirm(commit, object);
+          return;
+        } on api.ApiException catch (error, stack) {
+          api.reportFailure(
+            api.LogTag.ui,
+            'send a canvas change',
+            error,
+            stack,
+          );
+          if (isTransientCanvasFailure(error) && !_expired) {
+            // A reply that never reads must not hold up every stroke behind it.
+            if (_pending.isEmpty) continue;
+            _pending.add(commit);
+            return;
+          }
+          _refuse(commit, error);
+          return;
+        } on Object catch (error, stack) {
+          // A reply that cannot be read may still mean the stroke landed, so ask again with the same id.
+          api.reportFailure(api.LogTag.ui, 'read a canvas reply', error, stack);
+          if (++malformed >= _maxUnreadableReplies || _expired) {
+            _refuse(commit, null);
+            return;
+          }
+          await Future<void>.delayed(_unreadableReplyDelay);
+        }
       }
     } finally {
       if (_inFlightId == commit.id) _inFlightId = null;
+      if (!_pending.any((c) => c.id == commit.id)) _attempted.remove(commit.id);
     }
   }
 
-  /// Returns true when the placement failed in a way worth retrying.
-  Future<bool> _attempt(
-    CanvasCommit commit, {
-    required bool lastAttempt,
-  }) async {
-    try {
-      final object = await client.placeCanvasObject(
+  Future<api.CanvasObject> _place(CanvasCommit commit) => client
+      .placeCanvasObject(
         channelId,
         id: commit.id,
         kind: 'stroke',
@@ -158,32 +207,30 @@ class CanvasCommitQueue {
         w: commit.w,
         h: commit.h,
         props: commit.props,
+      )
+      .timeout(
+        _attemptTimeout,
+        onTimeout: () => throw const api.TransportException('timed out'),
       );
-      if (_closed) return false;
-      if (_armedForRemoval.remove(commit.id)) {
-        onEraseOnConfirm(commit.id);
-      } else {
-        onPlaced(object);
-      }
-      return false;
-    } on api.ApiException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'send a canvas change', error, stack);
-      if (_closed) return false;
-      if (_retryable(error) && !lastAttempt) return true;
-      _armedForRemoval.remove(commit.id);
-      if (_isRemovedConflict(error)) {
-        onRemoved(commit.id);
-      } else {
-        onFailed(commit.id, _explain(error, timedOutUntil()));
-      }
-      return false;
+
+  void _confirm(CanvasCommit commit, api.CanvasObject object) {
+    if (_closed) return;
+    if (_armedForRemoval.remove(commit.id)) {
+      onEraseOnConfirm(commit.id);
+    } else {
+      onPlaced(object);
     }
   }
 
-  static bool _retryable(api.ApiException error) =>
-      error is api.RateLimitedException ||
-      error is api.UnavailableException ||
-      error is api.TransportException;
+  void _refuse(CanvasCommit commit, api.ApiException? error) {
+    if (_closed) return;
+    _armedForRemoval.remove(commit.id);
+    if (error != null && _isRemovedConflict(error)) {
+      onRemoved(commit.id);
+    } else {
+      onFailed(commit.id, _explain(error, timedOutUntil()));
+    }
+  }
 
   /// A retried placement's own id already names a removed object: the
   /// object was real and a moderator (or this same gesture's own undo) took
@@ -196,7 +243,7 @@ class CanvasCommitQueue {
   static const _removedMessage = 'that object was removed';
 
   static String _explain(
-    api.ApiException error,
+    api.ApiException? error,
     int? timedOutUntil,
   ) => switch (error) {
     // Covers a channel-wide refusal and a timeout freeze alike; canvasDrawForbiddenMessage tells them apart from the caller's own timeout deadline.

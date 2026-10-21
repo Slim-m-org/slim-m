@@ -200,12 +200,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     channelId: channelId,
     client: _client,
     overrides: tileOverrides,
+    onError: reportError,
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.
   late final CanvasObjectLocks objectLocks = CanvasObjectLocks(
     channelId: channelId,
     client: _client,
+    onError: reportError,
   );
 
   late final CanvasImageHydrator hydrator = CanvasImageHydrator(
@@ -374,8 +376,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   }
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
-  /// a refused write. A null message clears it, the same as `_refresh(() =>
-  /// _error = null)` used to.
+  /// a refused write; null clears it.
   void reportError(String? message) {
     if (!mounted) return;
     state = state.copyWith(error: message, clearError: message == null);
@@ -497,6 +498,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     _panDebounce?.cancel();
     _follower.dispose();
     _queue?.close();
+    _opsController?.dispose();
     unawaited(_live?.cancel());
     _syncStatusSubscription?.close();
     sync.dispose();

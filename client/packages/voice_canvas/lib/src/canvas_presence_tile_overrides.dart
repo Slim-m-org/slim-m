@@ -205,6 +205,25 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   }) {
     _states[key] = _raw(key)
         .copyWith(rect: _onBoard(rect), locked: locked, sentToBack: sentToBack);
+    _confirmed[key] = _raw(key);
+    notifyListeners();
+  }
+
+  final Map<String, CanvasPresenceTileState> _confirmed = {};
+
+  /// Marks what [key] shows now as what the server holds, once a write landed.
+  void confirm(String key) => _confirmed[key] = _raw(key);
+
+  /// Puts [key] back to what the server last confirmed, after a write it
+  /// refused or never received, keeping the viewer's own [hidden].
+  void revertToServer(String key) {
+    final server = _confirmed[key];
+    if (server == null) return;
+    _states[key] = _raw(key).copyWith(
+      rect: server.rect,
+      locked: server.locked,
+      sentToBack: server.sentToBack,
+    );
     notifyListeners();
   }
 

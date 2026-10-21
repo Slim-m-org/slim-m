@@ -71,16 +71,27 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   /// closes it out.
   Future<void> _onNotePlace(Offset world) async {
     final startedWith = _tool;
-    final text = await showCanvasNoteSheet(context);
+    var text = await showCanvasNoteSheet(context);
     if (!_mounted) return;
     _focusNode.requestFocus();
-    if (text == null) return;
-    final placed = await _quickPlacement.placeNote(
-      world,
-      text,
-      onError: _engine.reportError,
-    );
-    if (placed != null) _selectPlaced(placed.id, startedWith: startedWith);
+    while (text != null && _mounted) {
+      final placed = await _quickPlacement.placeNote(
+        world,
+        text,
+        onError: _engine.reportError,
+      );
+      if (placed != null) {
+        _selectPlaced(placed.id, startedWith: startedWith);
+        return;
+      }
+      // Typed text outlives a failed placement: the sheet reopens with it.
+      text = await _reopenNoteSheet(text);
+    }
+  }
+
+  Future<String?> _reopenNoteSheet(String text) async {
+    if (!context.mounted) return null;
+    return showCanvasNoteSheet(context, initialText: text);
   }
 
   /// Places a shape of the bar's own currently-picked kind at once - no
@@ -369,7 +380,11 @@ extension _CanvasPaneGestures on _CanvasPaneState {
         !result.failed &&
         _mounted &&
         _document.idsOutsideBoard.isNotEmpty) {
-      _engine.reportError('You can only bring in objects you placed.');
+      _engine.reportError(
+        result.locked > 0
+            ? 'Unlock the objects to bring them in.'
+            : 'You can only bring in objects you placed.',
+      );
     }
   }
 

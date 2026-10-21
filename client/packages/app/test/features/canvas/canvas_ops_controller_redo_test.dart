@@ -225,7 +225,7 @@ void main() {
     expect(redo['z_index'], raisedTo);
   });
 
-  test('a refused redo says so and leaves nothing to redo again', () async {
+  test('a failed redo says so and stays available to retry', () async {
     final harness = _Harness()..place('a');
     harness.ops.recordDraw(['a']);
     await harness.ops.undo();
@@ -234,6 +234,23 @@ void main() {
     await harness.ops.redo();
 
     expect(harness.errors, ['That could not be redone.']);
-    expect(harness.ops.canRedo, isFalse);
+    expect(harness.ops.canRedo, isTrue);
+  });
+
+  test('a failed undo of an erase keeps the entry so Undo can retry', () async {
+    final harness = _Harness()..place('a', kind: CanvasObjectKind.stroke);
+    await harness.ops.deleteSelected('a');
+    harness.failNext = true;
+
+    await harness.ops.undo();
+    expect(harness.errors, isNotEmpty);
+
+    expect(
+      harness.ops.canUndo,
+      isTrue,
+      reason: 'the remove op id lives only in the entry; losing it strands a',
+    );
+    await harness.ops.undo();
+    expect(harness.opRequests.last['kind'], 'restore');
   });
 }

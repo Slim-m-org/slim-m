@@ -37,6 +37,7 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
       _reorder(objectId, toFront: false);
 
   Future<void> _reorder(String objectId, {required bool toFront}) async {
+    if (isLocked(objectId)) return;
     final current = document.zIndexOf(objectId);
     if (current == null) return;
     final range = document.zIndexRange;
@@ -61,17 +62,21 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     document.setZIndex(objectId, toZ);
     document.refresh();
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'reorder',
-        objectId: objectId,
-        zIndex: toZ,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'reorder',
+          objectId: objectId,
+          zIndex: toZ,
+        ),
       );
       _pushUndo(_ReorderEntry(objectId, fromZ));
     } on api.ApiException {
-      document.setZIndex(objectId, fromZ);
-      document.refresh();
+      if (document.zIndexOf(objectId) == toZ) {
+        document.setZIndex(objectId, fromZ);
+        document.refresh();
+      }
       onError('That could not be reordered.');
     }
   }
@@ -94,16 +99,18 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     document.setZIndex(objectId, z);
     document.refresh();
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'reorder',
-        objectId: objectId,
-        zIndex: z,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'reorder',
+          objectId: objectId,
+          zIndex: z,
+        ),
       );
       return before;
     } on api.ApiException {
-      if (before != null) {
+      if (before != null && document.zIndexOf(objectId) == z) {
         document.setZIndex(objectId, before);
         document.refresh();
       }

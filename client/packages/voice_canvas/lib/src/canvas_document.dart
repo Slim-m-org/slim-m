@@ -380,6 +380,10 @@ class CanvasDocument extends ChangeNotifier {
     if (elevatedObjectId.value == id) elevatedObjectId.value = null;
   }
 
+  /// True for an id taken off the board by a removal, as opposed to [kill]'s
+  /// never-landed one.
+  bool wasRemoved(String id) => _removed.contains(id);
+
   /// Removes a placed object by id, or records the id as removed even if
   /// this document never held it - the in-flight-viewport-page race the
   /// removal design exists to close.

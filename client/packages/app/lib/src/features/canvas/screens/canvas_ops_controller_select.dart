@@ -358,28 +358,44 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     String objectId,
     ({double x, double y, double w, double h}) from,
     ({double x, double y, double w, double h}) to,
-    String errorMessage,
-  ) async {
+    String errorMessage, {
+    bool record = true,
+  }) async {
     if (to == from) return true;
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'move',
-        objectId: objectId,
-        x: to.x,
-        y: to.y,
-        w: to.w,
-        h: to.h,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'move',
+          objectId: objectId,
+          x: to.x,
+          y: to.y,
+          w: to.w,
+          h: to.h,
+        ),
       );
-      _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
+      if (record) {
+        _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
+      }
       return true;
     } on api.ApiException {
-      document.moveObject(objectId, from.x, from.y, from.w, from.h);
-      document.refresh();
+      _rollBackBounds(objectId, from, to);
       onError(errorMessage);
       return false;
     }
+  }
+
+  /// Puts the old box back only while the optimistic one is still showing, so
+  /// a remote change that landed meanwhile is not overwritten.
+  void _rollBackBounds(
+    String objectId,
+    ({double x, double y, double w, double h}) from,
+    ({double x, double y, double w, double h}) to,
+  ) {
+    if (document.objectBounds(objectId) != to) return;
+    document.moveObject(objectId, from.x, from.y, from.w, from.h);
+    document.refresh();
   }
 
   Future<_RedoEntry?> _undoMove(
@@ -423,52 +439,25 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     document.moveObject(objectId, x, y, w, h);
     document.refresh();
     try {
-      await client.submitCanvasOp(
-        channelId,
-        id: newCanvasOpId(),
-        kind: 'move',
-        objectId: objectId,
-        x: x,
-        y: y,
-        w: w,
-        h: h,
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'move',
+          objectId: objectId,
+          x: x,
+          y: y,
+          w: w,
+          h: h,
+        ),
       );
       return before;
     } on api.ApiException {
       if (before != null) {
-        document.moveObject(objectId, before.x, before.y, before.w, before.h);
-        document.refresh();
+        _rollBackBounds(objectId, before, (x: x, y: y, w: w, h: h));
       }
       onError('That could not be $verb.');
       return null;
     }
-  }
-
-  /// Moves every object the caller may move, and the board cannot hold whole,
-  /// back onto the board, stopping at the first refusal. Returns how many it moved,
-  /// and whether a request failed, which [onError] has already told the viewer.
-  Future<({int moved, bool failed})> bringIntoBoard({
-    required bool manageCanvas,
-    required String? selfId,
-  }) async {
-    var moved = 0;
-    var failed = false;
-    for (final id in document.idsOutsideBoard) {
-      final from = document.objectBounds(id);
-      final mine =
-          manageCanvas || (selfId != null && document.authorIdOf(id) == selfId);
-      if (from == null || isLocked(id) || !mine) continue;
-      final to = document.boxOnBoard(id, from.x, from.y, from.w, from.h);
-      if (to == from) continue;
-      document.moveObject(id, to.x, to.y, to.w, to.h);
-      final ok = await _commitBounds(id, from, to, 'That could not be moved.');
-      if (!ok) {
-        failed = true;
-        break;
-      }
-      moved++;
-    }
-    document.refresh();
-    return (moved: moved, failed: failed);
   }
 }
