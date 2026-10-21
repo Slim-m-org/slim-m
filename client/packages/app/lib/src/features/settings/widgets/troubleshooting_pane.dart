@@ -113,31 +113,38 @@ class TroubleshootingHeading extends ConsumerWidget {
             iconSize: AppSizes.icon16,
             onPressed: back,
           ),
-          Flexible(
-            child: GestureDetector(
-              onTap: back,
-              child: Text(
-                'Troubleshooting',
-                overflow: TextOverflow.ellipsis,
-                style: AppText.body.copyWith(color: tokens.textSecondary),
-              ),
-            ),
-          ),
-          Text(
-            '/',
-            style: AppText.heading.copyWith(color: tokens.textSecondary),
-          ),
           Expanded(
-            child: Semantics(
-              header: true,
-              child: Text(
-                'Debug log',
-                overflow: TextOverflow.ellipsis,
-                style: AppText.heading.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: AppWeights.semi,
+            child: Row(
+              spacing: AppSpacing.s8,
+              children: [
+                Flexible(
+                  child: GestureDetector(
+                    onTap: back,
+                    child: Text(
+                      'Troubleshooting',
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.body.copyWith(color: tokens.textSecondary),
+                    ),
+                  ),
                 ),
-              ),
+                Text(
+                  '/',
+                  style: AppText.heading.copyWith(color: tokens.textSecondary),
+                ),
+                Flexible(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      'Debug log',
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.heading.copyWith(
+                        color: tokens.textPrimary,
+                        fontWeight: AppWeights.semi,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           AppIconButton(
