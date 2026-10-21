@@ -196,7 +196,7 @@ void main() {
 }
 
 void _c055() {
-  test('C-055: a rejected commit does not leave the tile only this viewer '
+  test('a rejected commit does not leave the tile only this viewer '
       'sees where it was dropped', () async {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);

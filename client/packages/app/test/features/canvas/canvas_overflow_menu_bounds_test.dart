@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-119: the overflow menu has no height bound or scroll, so on a short
+/// The overflow menu has no height bound or scroll, so on a short
 /// window its fullest form leaves the screen.
 library;
 

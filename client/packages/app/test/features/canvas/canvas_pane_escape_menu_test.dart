@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-089: Escape must dismiss an open canvas menu before the pane's own
+/// Escape must dismiss an open canvas menu before the pane's own
 /// fullscreen binding gets it.
 library;
 

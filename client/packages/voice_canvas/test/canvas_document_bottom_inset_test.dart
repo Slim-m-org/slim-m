@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A floating dock at the viewport's foot is an inset for fitting the board,
-/// not for painting: the fitted board sits above it (C-122).
+/// not for painting: the fitted board sits above it.
 library;
 
 import 'package:flutter/painting.dart';

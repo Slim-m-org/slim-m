@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-093: the Fit view pill must show a visible focus ring under keyboard focus.
+/// The Fit view pill must show a visible focus ring under keyboard focus.
 library;
 
 import 'package:flutter/material.dart';

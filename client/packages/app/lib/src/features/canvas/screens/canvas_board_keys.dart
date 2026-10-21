@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The board as one keyboard stop: arrows pan, plus and minus zoom, 0 fits,
 /// ] and [ step the selection through what is in view, and Enter places with
-/// the armed tool or opens the selected object's actions (C-091).
+/// the armed tool or opens the selected object's actions.
 library;
 
 import 'package:flutter/material.dart';

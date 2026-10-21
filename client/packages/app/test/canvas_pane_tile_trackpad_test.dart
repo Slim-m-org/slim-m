@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-019: a trackpad two-finger pan with the cursor over an unlocked tile
+/// A trackpad two-finger pan with the cursor over an unlocked tile
 /// arrives as PointerPanZoom, which the tile's pan recognizer accepted, so it
 /// dragged the tile (and saved the slot for everyone) instead of the camera.
 library;

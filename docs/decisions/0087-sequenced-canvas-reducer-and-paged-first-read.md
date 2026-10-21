@@ -58,5 +58,5 @@ A page does not speak for the objects it omits, so a paged read never drops anyt
 
 ## Not done
 
-- The lock and media-slot frames still carry no ordering (C-165), which needs a wire change on both sides.
+- The lock and media-slot frames still carry no ordering, which needs a wire change on both sides.
 - The moderator purge (`purgeCanvasObject`) is bound but has no menu item here.

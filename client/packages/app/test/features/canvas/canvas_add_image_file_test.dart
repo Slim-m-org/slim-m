@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// "Add image from file" places a picked picture, so a canvas has a way in
-/// for images where the clipboard has none (C-022).
+/// for images where the clipboard has none.
 library;
 
 import 'package:flutter/material.dart';

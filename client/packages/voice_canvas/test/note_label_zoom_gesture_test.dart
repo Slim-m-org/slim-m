@@ -64,7 +64,7 @@ void main() {
     expect(
       debugNoteLabelLayoutCounts['n1'],
       lessThan(frames ~/ 3),
-      reason: 'C-063: the layout key holds the exact zoom, so every zoom '
+      reason: 'the layout key holds the exact zoom, so every zoom '
           'frame re-shapes every visible note',
     );
   });

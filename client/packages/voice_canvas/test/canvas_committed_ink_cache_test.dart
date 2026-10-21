@@ -4,7 +4,7 @@
 ///
 /// Impeller has no raster cache, so every `StrokePainter.paint` re-rasterises
 /// every visible stroke. A remote cursor moving keeps frames coming, so a
-/// still board pays the full cost per frame (C-014).
+/// still board pays the full cost per frame.
 library;
 
 import 'dart:typed_data';

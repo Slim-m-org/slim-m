@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-073: the press that dismisses the canvas context menu must not also act
+/// The press that dismisses the canvas context menu must not also act
 /// with the armed tool on the surface underneath.
 library;
 

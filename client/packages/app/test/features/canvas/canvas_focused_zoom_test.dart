@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-106: zooming under a full screen tile must not slide the ink off the feed.
+/// Zooming under a full screen tile must not slide the ink off the feed.
 ///
 /// The focused feed is anchored to the pane while ink follows the camera, so
 /// any camera change while focused puts a stroke over a different part of the

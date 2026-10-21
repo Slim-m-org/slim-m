@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// An error banner lies over the board instead of taking height from it, so
-/// the fitted board does not re-zoom when one appears (C-118).
+/// the fitted board does not re-zoom when one appears.
 library;
 
 import 'package:flutter/material.dart';

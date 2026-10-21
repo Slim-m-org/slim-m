@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// C-090: a sheet opened from the canvas overflow menu must take keyboard
+/// A sheet opened from the canvas overflow menu must take keyboard
 /// focus, so pane hotkeys do not fire behind the modal barrier.
 library;
 
