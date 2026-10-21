@@ -420,11 +420,10 @@ void main() {
     });
   });
 
-  // The commit queue is owned by the no-lost-work batch.
   test(
     'a stroke the server confirmed is not given up on because three '
     'replies were lost',
-    skip: 'commit queue batch',
+    skip: 'commit queue: the no-lost-work batch',
     () {
       _scenario((world, me, peer) {
         const id = 'me-s';
