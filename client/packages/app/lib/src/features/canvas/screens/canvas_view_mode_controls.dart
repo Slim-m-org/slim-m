@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_pill_surface.dart';
+
 class CanvasViewModeControls extends StatelessWidget {
   const CanvasViewModeControls({
     super.key,
@@ -83,34 +85,28 @@ class _Pill extends StatelessWidget {
       hint: tooltip,
       excludeSemantics: true,
       onTap: onTap,
-      child: Material(
-        color: selected ? tokens.accentSoft : tokens.surfaceRaised,
-        shape: StadiumBorder(
-          side: BorderSide(
-            color: selected ? tokens.accent : tokens.borderSubtle,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: AppSizes.icon28),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: AppSizes.icon16, color: colour),
-                  const SizedBox(width: AppSpacing.s4),
-                  Text(
-                    label,
-                    style: AppText.caption.copyWith(
-                      color: colour,
-                      fontWeight: AppWeights.medium,
-                    ),
+      child: CanvasPillSurface(
+        tokens: tokens,
+        color: selected ? tokens.accentSoft : null,
+        borderColor: selected ? tokens.accent : null,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: AppSizes.icon16, color: colour),
+                const SizedBox(width: AppSpacing.s4),
+                Text(
+                  label,
+                  style: AppText.caption.copyWith(
+                    color: colour,
+                    fontWeight: AppWeights.medium,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

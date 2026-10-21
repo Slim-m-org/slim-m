@@ -240,7 +240,7 @@ class _Panel extends StatelessWidget {
   }
 }
 
-class _PersonButton extends StatelessWidget {
+class _PersonButton extends StatefulWidget {
   const _PersonButton({
     required this.target,
     required this.selected,
@@ -254,42 +254,65 @@ class _PersonButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: selected
-        ? 'Following ${target.name}, tap to stop'
-        : 'Follow ${target.name}',
-    excludeSemantics: true,
-    onTap: onTap,
-    child: Tooltip(
-      message: selected
-          ? 'Stop following ${target.name}'
+  State<_PersonButton> createState() => _PersonButtonState();
+}
+
+class _PersonButtonState extends State<_PersonButton> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = widget.target;
+    final selected = widget.selected;
+    final tokens = widget.tokens;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: selected
+          ? 'Following ${target.name}, tap to stop'
           : 'Follow ${target.name}',
-      child: InkResponse(
-        onTap: onTap,
-        radius: AppSpacing.s24,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      child: Tooltip(
+        message: selected
+            ? 'Stop following ${target.name}'
+            : 'Follow ${target.name}',
+        child: InkResponse(
+          onTap: widget.onTap,
+          onFocusChange: (focused) => setState(() => _focused = focused),
+          radius: AppSpacing.s24,
+          // An outer ring, not a recolour: focusRing and accentFill are the same colour, and selection owns the inner ring.
           child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: selected ? tokens.accentFill : Colors.transparent,
+                color: _focused ? tokens.focusRing : Colors.transparent,
                 width: 2,
               ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(2),
-              child: UserAvatar(
-                name: target.name,
-                userId: target.id,
-                size: AppAvatarSize.s24,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: selected ? tokens.accentFill : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: UserAvatar(
+                    name: target.name,
+                    userId: target.id,
+                    size: AppAvatarSize.s24,
+                  ),
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

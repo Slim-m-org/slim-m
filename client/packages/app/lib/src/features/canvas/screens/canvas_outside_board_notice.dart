@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_pill_surface.dart';
+
 class CanvasOutsideBoardNotice extends StatelessWidget {
   const CanvasOutsideBoardNotice({
     super.key,
@@ -33,28 +35,22 @@ class CanvasOutsideBoardNotice extends StatelessWidget {
           label: '$label, bring ${count == 1 ? 'it' : 'them'} in',
           excludeSemantics: true,
           onTap: onBringIn,
-          child: Material(
-            color: tokens.surfaceRaised,
-            shape: StadiumBorder(side: BorderSide(color: tokens.borderSubtle)),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onBringIn,
-              child: SizedBox(
-                height: AppSizes.icon28,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s12,
-                  ),
-                  child: Center(
-                    widthFactor: 1,
-                    child: Text(
-                      '$label - bring in',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.caption.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: AppWeights.medium,
-                      ),
+          child: CanvasPillSurface(
+            tokens: tokens,
+            onTap: onBringIn,
+            child: SizedBox(
+              height: AppSizes.icon28,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    '$label - bring in',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(
+                      color: tokens.textSecondary,
+                      fontWeight: AppWeights.medium,
                     ),
                   ),
                 ),

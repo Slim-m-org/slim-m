@@ -26,6 +26,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../widgets/canvas_pill_surface.dart';
+
 import '../../modules/providers/dock_reservation.dart';
 import 'canvas_outside_board_notice.dart';
 import 'canvas_view_mode_controls.dart';
@@ -111,36 +113,30 @@ class CanvasZoomIndicator extends ConsumerWidget {
         onTap: onFit,
         child: Tooltip(
           message: 'Fit view',
-          child: Material(
-            color: tokens.surfaceRaised,
-            shape: StadiumBorder(side: BorderSide(color: tokens.borderSubtle)),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onFit,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: AppSizes.icon28),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.s8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$percent%',
-                        style: AppText.caption.copyWith(
-                          color: tokens.textSecondary,
-                          fontWeight: AppWeights.medium,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.s4),
-                      Icon(
-                        AppIcons.recenter,
-                        size: AppSizes.icon16,
+          child: CanvasPillSurface(
+            tokens: tokens,
+            onTap: onFit,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppSizes.icon28),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$percent%',
+                      style: AppText.caption.copyWith(
                         color: tokens.textSecondary,
+                        fontWeight: AppWeights.medium,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: AppSpacing.s4),
+                    Icon(
+                      AppIcons.recenter,
+                      size: AppSizes.icon16,
+                      color: tokens.textSecondary,
+                    ),
+                  ],
                 ),
               ),
             ),
