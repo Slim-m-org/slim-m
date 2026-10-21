@@ -18,9 +18,12 @@ class ProbeTransfer {
   final int bytes;
   final Duration elapsed;
 
-  double get bitsPerSecond => elapsed.inMicroseconds <= 0
+  /// Infinite for an instant transfer; [capSpeed] puts a ceiling on what is shown.
+  double get bitsPerSecond => bytes <= 0
       ? 0
-      : bytes * 8 * 1e6 / elapsed.inMicroseconds;
+      : elapsed.inMicroseconds <= 0
+          ? double.infinity
+          : bytes * 8 * 1e6 / elapsed.inMicroseconds;
 }
 
 /// What the test needs from one route; a seam for tests, which have no network.
@@ -75,12 +78,43 @@ class ConnectionTestProgress {
   final double fraction;
 }
 
-const kPingSamples = 5;
-const _probeBytes = 1024 * 1024;
+/// Whether [host] is this machine or a private network, where a speed is the
+/// local network's and calling it "Internet" would be wrong.
+bool isLocalHost(String host) {
+  final name = host.toLowerCase();
+  if (name == 'localhost' || name.endsWith('.local')) return true;
+  if (name == '::1' || name.startsWith('fc') && name.contains(':')) return true;
+  if (name.startsWith('fd') && name.contains(':')) return true;
+  if (name.startsWith('fe80:')) return true;
+  final parts = name.split('.').map(int.tryParse).toList();
+  if (parts.length != 4 || parts.any((p) => p == null || p < 0 || p > 255)) {
+    return false;
+  }
+  final [a, b, ...] = parts.cast<int>();
+  return a == 127 ||
+      a == 10 ||
+      (a == 172 && b >= 16 && b <= 31) ||
+      (a == 192 && b == 168) ||
+      (a == 169 && b == 254);
+}
 
-/// Under the server's own 25 MiB cap on a diagnostics transfer.
-const _maxBytes = 24 * 1024 * 1024;
-const _targetSeconds = 3;
+const kPingSamples = 5;
+const _warmUpBytes = 1024 * 1024;
+
+/// Under the server's own 64 MiB cap on a diagnostics transfer.
+const _maxBytes = 64 * 1024 * 1024;
+const _targetSeconds = 2;
+
+/// Below this the warm-up is all a slow link can afford, so it is the result.
+const _minMeasuredBytes = 2 * 1024 * 1024;
+
+/// Above this a single phone-to-server transfer is not trustworthy, so it is
+/// reported as "at least" this much.
+const kMaxReportedBps = 10e9;
+
+/// A speed no higher than [kMaxReportedBps].
+double capSpeed(double bitsPerSecond) =>
+    math.min(bitsPerSecond, kMaxReportedBps);
 
 /// Runs each probe in turn and measures latency, download and upload.
 ///
@@ -168,24 +202,31 @@ typedef _Transfer = Future<ProbeTransfer> Function(
   void Function(int done)? onProgress,
 });
 
-/// A small transfer to learn the speed, then one sized to last a few seconds
-/// when the link is fast enough to make that worthwhile.
+/// A warm-up transfer that opens the congestion window and sizes the real one,
+/// then a measured transfer meant to last a couple of seconds. The warm-up is
+/// the result only when the link is too slow to afford a second transfer.
 Future<double> _transfer(
   _Transfer run,
   UploadCancelToken? cancel,
   void Function() tick,
 ) async {
   cancel?.throwIfCancelled();
-  final probe = await run(_probeBytes, cancel: cancel);
+  final warmUp = await run(_warmUpBytes, cancel: cancel);
   tick();
-  final fit = probe.bitsPerSecond / 8 * _targetSeconds;
-  if (fit <= _probeBytes * 2) {
+  final fit = measuredBytes(warmUp.bitsPerSecond);
+  if (fit < _minMeasuredBytes) {
     tick();
-    return probe.bitsPerSecond;
+    return capSpeed(warmUp.bitsPerSecond);
   }
   cancel?.throwIfCancelled();
-  final full =
-      await run(math.min(fit, _maxBytes.toDouble()).floor(), cancel: cancel);
+  final measured = await run(fit, cancel: cancel);
   tick();
-  return full.bitsPerSecond;
+  return capSpeed(measured.bitsPerSecond);
+}
+
+/// How many bytes to move to keep a link of [bitsPerSecond] busy for the
+/// target time, under the server's cap.
+int measuredBytes(double bitsPerSecond) {
+  final fit = bitsPerSecond / 8 * _targetSeconds;
+  return math.min(fit, _maxBytes.toDouble()).floor();
 }

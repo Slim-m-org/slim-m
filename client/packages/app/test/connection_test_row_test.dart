@@ -196,6 +196,7 @@ void main() {
     expect(formatSpeed(5.4e6), '5.4 Mbps');
     expect(formatSpeed(480e6), '480 Mbps');
     expect(formatSpeed(1.25e9), '1.3 Gbps');
+    expect(formatSpeed(16.2e9), '10+ Gbps');
     expect(formatLatency(const Duration(microseconds: 400)), 'under 1 ms');
     expect(formatLatency(const Duration(milliseconds: 31)), '31 ms');
   });

@@ -21,7 +21,7 @@ use super::extract::{AuthedLimited, DIAGNOSTIC_PING, DIAGNOSTIC_TRANSFER, Json, 
 use crate::store::now_ms;
 
 /// The most one transfer may move, in bytes; a bigger ask is refused, never trimmed.
-pub const MAX_TRANSFER_BYTES: u64 = 25 * 1024 * 1024;
+pub const MAX_TRANSFER_BYTES: u64 = 64 * 1024 * 1024;
 
 const DEFAULT_DOWNLOAD_BYTES: u64 = 1024 * 1024;
 const CHUNK_BYTES: usize = 64 * 1024;
@@ -32,7 +32,7 @@ pub fn ping_routes() -> Router<AppState> {
 }
 
 /// The transfers, kept out of the router's total-time timeout: a slow link legitimately
-/// takes longer than it to move 25 MiB.
+/// takes longer than it to move 64 MiB.
 pub fn transfer_routes() -> Router<AppState> {
     Router::new()
         .route("/diagnostics/download", get(download))
@@ -105,6 +105,8 @@ async fn download(
 struct UploadResultDto {
     bytes: u64,
     duration_ms: u64,
+    timed_bytes: u64,
+    duration_us: u64,
 }
 
 fn declared_length(headers: &HeaderMap) -> Option<u64> {
@@ -126,6 +128,7 @@ async fn upload(
     }
     let started = Instant::now();
     let mut seen: u64 = 0;
+    let mut timing = ReceiptTiming::default();
     let mut stream = body.into_data_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|_| ApiError::BadRequest("upload stream ended early"))?;
@@ -133,12 +136,68 @@ async fn upload(
         if seen > MAX_TRANSFER_BYTES {
             return Err(ApiError::PayloadTooLarge);
         }
+        timing.record(chunk.len() as u64);
     }
     Ok((
         StatusCode::OK,
         Json(UploadResultDto {
             bytes: seen,
             duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            timed_bytes: timing.timed_bytes,
+            duration_us: timing.elapsed_us(),
         }),
     ))
+}
+
+/// Times a body from its first chunk to its last, leaving the first chunk's bytes out, so
+/// whatever the socket had buffered before the handler ran does not flatter the speed.
+#[derive(Default)]
+struct ReceiptTiming {
+    first_chunk_at: Option<Instant>,
+    last_chunk_at: Option<Instant>,
+    timed_bytes: u64,
+}
+
+impl ReceiptTiming {
+    fn record(&mut self, len: u64) {
+        let now = Instant::now();
+        if self.first_chunk_at.is_none() {
+            self.first_chunk_at = Some(now);
+        } else {
+            self.timed_bytes += len;
+        }
+        self.last_chunk_at = Some(now);
+    }
+
+    fn elapsed_us(&self) -> u64 {
+        match (self.first_chunk_at, self.last_chunk_at) {
+            (Some(first), Some(last)) => {
+                u64::try_from(last.duration_since(first).as_micros()).unwrap_or(u64::MAX)
+            }
+            _ => 0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn timing_leaves_the_first_chunk_out() {
+        let mut timing = ReceiptTiming::default();
+        timing.record(100);
+        assert_eq!(timing.timed_bytes, 0);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        timing.record(50);
+        timing.record(25);
+        assert_eq!(timing.timed_bytes, 75);
+        assert!(timing.elapsed_us() >= 5_000);
+    }
+
+    #[test]
+    fn an_empty_body_has_no_timing() {
+        let timing = ReceiptTiming::default();
+        assert_eq!((timing.timed_bytes, timing.elapsed_us()), (0, 0));
+    }
 }

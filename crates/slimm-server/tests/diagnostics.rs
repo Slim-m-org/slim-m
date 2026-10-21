@@ -12,7 +12,7 @@ mod totp_support;
 
 use totp_support::{app, json_body, member, new_store, request};
 
-const CAP: usize = 25 * 1024 * 1024;
+const CAP: usize = 64 * 1024 * 1024;
 
 fn upload_request(token: &str, bytes: usize) -> Request<Body> {
     Request::builder()
@@ -122,6 +122,9 @@ async fn upload_counts_what_it_was_sent_and_keeps_nothing() {
     let body = json_body(response).await;
     assert_eq!(body["bytes"], 3 * 1024 * 1024 + 5);
     assert!(body["duration_ms"].is_u64());
+    assert!(body["duration_us"].is_u64());
+    let timed = body["timed_bytes"].as_u64().unwrap();
+    assert!(timed <= 3 * 1024 * 1024 + 5, "never more than was sent");
 }
 
 #[tokio::test]
@@ -146,7 +149,7 @@ async fn upload_over_the_cap_is_refused_before_it_is_read() {
         .uri("/diagnostics/upload")
         .header("authorization", format!("Bearer {token}"))
         .body(Body::from_stream(futures_util::stream::iter(
-            (0..30).map(|_| Ok::<_, std::io::Error>(vec![0u8; 1024 * 1024])),
+            (0..70).map(|_| Ok::<_, std::io::Error>(vec![0u8; 1024 * 1024])),
         )))
         .unwrap();
     let response = router.oneshot(undeclared).await.unwrap();

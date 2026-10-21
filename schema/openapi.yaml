@@ -5911,7 +5911,7 @@ paths:
       summary: Send throwaway bytes, for the connection test's download speed.
       description: >
         Streams `bytes` of incompressible filler as `application/octet-stream`
-        with `Cache-Control: no-store`. `bytes` is 1 to 26214400 (25 MiB) and
+        with `Cache-Control: no-store`. `bytes` is 1 to 67108864 (64 MiB) and
         defaults to 1 MiB; a value outside that range is refused with 400, never
         trimmed. Touches neither disk nor database. Rate limited per account,
         far tighter than ordinary reads.
@@ -5944,11 +5944,13 @@ paths:
       summary: Take and discard bytes, for the connection test's upload speed.
       description: >
         Reads the body to the end and throws it away. The body may be at most
-        26214400 bytes (25 MiB): a larger declared `Content-Length` is refused
+        67108864 bytes (64 MiB): a larger declared `Content-Length` is refused
         with 413 before any of it is read, and an undeclared body is cut off with
         413 once it passes the cap. `duration_ms` is how long the server spent
         reading, which a proxy that buffers the whole request first will make
-        look shorter than the sender's own timing. Rate limited per account,
+        look shorter than the sender's own timing. `duration_us` and `timed_bytes`
+        time the body from its first chunk to its last, leaving the first chunk
+        out, so buffered bytes do not inflate the speed. Rate limited per account,
         far tighter than ordinary writes.
       requestBody:
         required: true
@@ -15903,7 +15905,7 @@ components:
 
     DiagnosticsUpload:
       type: object
-      required: [bytes, duration_ms]
+      required: [bytes, duration_ms, timed_bytes, duration_us]
       properties:
         bytes:
           type: integer
@@ -15913,6 +15915,14 @@ components:
           type: integer
           format: int64
           description: Milliseconds the server spent reading the body.
+        timed_bytes:
+          type: integer
+          format: int64
+          description: Bytes that arrived after the first chunk.
+        duration_us:
+          type: integer
+          format: int64
+          description: Microseconds from the first chunk to the last.
 
     NotificationScheduleDay:
       type: object
