@@ -111,6 +111,7 @@ extension SlimmApiModeration on SlimmApi {
     int? maxUses,
     int? expiresAt,
     String? roleGrant,
+    bool reuse = false,
   }) async {
     final json = await _send(
       'POST',
@@ -119,6 +120,7 @@ extension SlimmApiModeration on SlimmApi {
         if (maxUses != null) 'max_uses': maxUses,
         if (expiresAt != null) 'expires_at': expiresAt,
         if (roleGrant != null) 'role_grant': roleGrant,
+        if (reuse) 'reuse': true,
       },
     );
     return Invite.fromJson(json as Map<String, dynamic>);

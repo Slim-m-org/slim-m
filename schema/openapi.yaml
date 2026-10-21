@@ -1802,7 +1802,8 @@ paths:
       description: >
         Without CREATE_INVITE, while the space lets members invite, the
         invite defaults to one use and 24 hours, may not exceed 10 uses or
-        7 days, and may not grant a role.
+        7 days, and may not grant a role. With `reuse`, the caller's live invite
+        of the same limits and no role is returned instead of a new one.
       requestBody:
         required: true
         content:
@@ -12751,6 +12752,11 @@ components:
             and the role's permissions must already be held by the caller:
             an invite that grants a role is role assignment with a delay, so
             it is gated exactly as assigning one directly is.
+        reuse:
+          type: boolean
+          description: >
+            Return the caller's live invite with the same limits and no role
+            instead of minting another. Defaults to false.
 
     CheckInviteResponse:
       type: object
