@@ -65,11 +65,14 @@ class _DragState {
 /// the anchor [resizeBounds] measures every later point against), and the
 /// bounds it currently previews.
 class _ResizeState {
-  _ResizeState(this.objectId, this.corner, this.fromBounds)
+  _ResizeState(this.objectId, this.corner, this.fromBounds, this.grab)
     : current = fromBounds;
 
   final String objectId;
   final ResizeCorner corner;
+
+  /// From the press to the handle's centre, so the corner does not jump to the pointer.
+  final Offset grab;
   final ({double x, double y, double w, double h}) fromBounds;
   ({double x, double y, double w, double h}) current;
 }
@@ -81,13 +84,12 @@ class _ResizeState {
 /// undo stack.
 extension CanvasOpsControllerSelect on CanvasOpsController {
   /// Grabs a resize handle on the current selection if [world] lands on
-  /// one, or otherwise picks up the topmost live box object (image, note or
-  /// shape) under [world] the caller may move - their own, or anybody's
-  /// with [manageCanvas] - selecting it and remembering its original bounds
-  /// so [dragSelect] can preview locally and [undo] can reverse whichever
-  /// this turns out to be. Failing that, falls back to a stroke under
-  /// [world]: selectable for reorder (see `CanvasOpsControllerReorder`),
-  /// never for a drag, since a freehand mark has no box a person expects to
+  /// one, or otherwise picks up the topmost live object under [world] the
+  /// caller may move - their own, or anybody's with [manageCanvas] -
+  /// selecting it and remembering its original bounds so [dragSelect] can
+  /// preview locally and [undo] can reverse whichever this turns out to be.
+  /// A stroke is selectable for reorder (see `CanvasOpsControllerReorder`)
+  /// but never dragged, since a freehand mark has no box a person expects to
   /// relocate the way a placed box object's is. Deselects, silently, if
   /// nothing is there: the same "scope at hit-test time" choice
   /// [onErasePoint] already makes.
@@ -111,14 +113,7 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         !isLocked(stroke.id) &&
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
-    final id =
-        hitTestBoxAt(
-          document,
-          world,
-          allowed: allowed,
-          slopPx: touch ? touchHitSlopPx : 0,
-        ) ??
-        _hitTestSelectableStroke(world, allowed, touch);
+    final id = hitTestTopmost(document, world, touch: touch, allowed: allowed);
     document.selectedObjectId.value = id;
     if (id == null || document.kindOf(id) == CanvasObjectKind.stroke) return;
     final bounds = document.objectBounds(id);
@@ -150,7 +145,8 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       hitRadius: touch ? touchResizeHandleHitRadius : resizeHandleHitRadius,
     );
     if (corner == null) return false;
-    _resize = _ResizeState(selected, corner, bounds);
+    final grab = resizeHandleCorners(bounds)[corner]! - world;
+    _resize = _ResizeState(selected, corner, bounds, grab);
     document.elevatedObjectId.value = selected;
     return true;
   }
@@ -179,27 +175,6 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         world.dy <= bounds.y + bounds.h - marginY;
   }
 
-  /// A stroke under [world] the caller may reorder, or null. `hitTestStroke`
-  /// tests every kind's own path/tolerance, not only strokes, so a box
-  /// object [beginSelect]'s own box test just missed is excluded here
-  /// rather than re-admitted through a looser one.
-  String? _hitTestSelectableStroke(
-    Offset world,
-    bool Function(CanvasStroke stroke) allowed,
-    bool touch,
-  ) {
-    final id = hitTestStroke(
-      document,
-      world,
-      allowed: allowed,
-      slopPx: touch ? touchHitSlopPx : defaultHitSlopPx,
-    );
-    if (id == null || document.kindOf(id) != CanvasObjectKind.stroke) {
-      return null;
-    }
-    return id;
-  }
-
   /// Continues whichever gesture [beginSelect] started: reshapes the
   /// selection's box toward [world] if a handle was grabbed ([lockAspect]
   /// true unless a modifier is held), or moves it by the same drag delta
@@ -217,8 +192,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       final raw = resizeBounds(
         corner: resize.corner,
         original: resize.fromBounds,
-        pointerWorld: document.clampToBoard(world + point),
+        pointerWorld: document.clampToBoard(world + resize.grab + point),
         lockAspect: lockAspect,
+        within: document.board,
       );
       resize.current = document.boxOnBoard(
         resize.objectId,
@@ -352,6 +328,30 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
       (x: drag.x, y: drag.y, w: drag.w, h: drag.h),
       'That could not be moved.',
     );
+  }
+
+  /// Puts a cancelled drag or resize back where it began, and returns what
+  /// moved so a relayed preview can be ended on the original box.
+  ({String id, ObjectBox box})? cancelSelect() {
+    document.elevatedObjectId.value = null;
+    document.snapGuides.value = const [];
+    final resize = _resize;
+    final drag = _drag;
+    _resize = null;
+    _drag = null;
+    final restored = resize != null
+        ? (id: resize.objectId, box: resize.fromBounds)
+        : drag == null
+        ? null
+        : (
+            id: drag.objectId,
+            box: (x: drag.fromX, y: drag.fromY, w: drag.fromW, h: drag.fromH),
+          );
+    if (restored == null) return null;
+    final box = restored.box;
+    document.moveObject(restored.id, box.x, box.y, box.w, box.h);
+    document.refresh();
+    return restored;
   }
 
   Future<bool> _commitBounds(

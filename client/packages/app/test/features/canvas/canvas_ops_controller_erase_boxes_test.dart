@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The eraser removes every kind of object it can see, not only strokes.
+/// The eraser removes ink and shapes; a note or an image goes through Delete.
 library;
 
 import 'package:flutter/painting.dart';
@@ -57,12 +57,34 @@ CanvasOpsController _ops(
 }
 
 void main() {
-  for (final kind in [
-    CanvasObjectKind.shape,
-    CanvasObjectKind.note,
-    CanvasObjectKind.image,
-  ]) {
-    test('the eraser removes a $kind of its own', () {
+  test('the eraser removes a shape of its own by its outline', () {
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    document
+      ..applyPlaced(_box('o', CanvasObjectKind.shape, authorId: 'me'))
+      ..refresh();
+
+    _ops(
+      document,
+    ).onErasePoint(const Offset(0, 40), manageCanvas: false, selfId: 'me');
+
+    expect(document.isAlive('o'), isFalse);
+  });
+
+  test('the eraser passes through the empty inside of a shape', () {
+    final document = CanvasDocument()..setViewport(const Size(800, 600));
+    document
+      ..applyPlaced(_box('o', CanvasObjectKind.shape, authorId: 'me'))
+      ..refresh();
+
+    _ops(
+      document,
+    ).onErasePoint(const Offset(50, 40), manageCanvas: false, selfId: 'me');
+
+    expect(document.isAlive('o'), isTrue);
+  });
+
+  for (final kind in [CanvasObjectKind.note, CanvasObjectKind.image]) {
+    test('the eraser leaves a $kind alone', () {
       final document = CanvasDocument()..setViewport(const Size(800, 600));
       document
         ..applyPlaced(_box('o', kind, authorId: 'me'))
@@ -70,9 +92,9 @@ void main() {
 
       _ops(
         document,
-      ).onErasePoint(const Offset(50, 40), manageCanvas: false, selfId: 'me');
+      ).onErasePoint(const Offset(50, 40), manageCanvas: true, selfId: 'me');
 
-      expect(document.isAlive('o'), isFalse);
+      expect(document.isAlive('o'), isTrue);
     });
   }
 
@@ -84,7 +106,7 @@ void main() {
 
     _ops(
       document,
-    ).onErasePoint(const Offset(50, 40), manageCanvas: false, selfId: 'me');
+    ).onErasePoint(const Offset(0, 40), manageCanvas: false, selfId: 'me');
 
     expect(document.isAlive('o'), isTrue);
   });
@@ -98,7 +120,7 @@ void main() {
     _ops(
       document,
       locked: (id) => id == 'o',
-    ).onErasePoint(const Offset(50, 40), manageCanvas: true, selfId: 'me');
+    ).onErasePoint(const Offset(0, 40), manageCanvas: true, selfId: 'me');
 
     expect(document.isAlive('o'), isTrue);
   });
@@ -155,7 +177,7 @@ void main() {
 
       _ops(
         document,
-      ).onErasePoint(const Offset(1900, 40), manageCanvas: true, selfId: 'me');
+      ).onErasePoint(const Offset(1880, 40), manageCanvas: true, selfId: 'me');
 
       expect(document.isAlive('o'), isFalse);
     });

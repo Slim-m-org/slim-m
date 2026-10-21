@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/painting.dart';
 
 import 'canvas_board.dart';
@@ -41,6 +42,7 @@ class CanvasDocument extends ChangeNotifier {
   /// this package's footprint.
   final List<CanvasStroke?> _strokes = <CanvasStroke?>[];
   final Map<String, int> _slotById = <String, int>{};
+  final Map<String, List<int>> _slotsByGroup = <String, List<int>>{};
   final PaintOrderCache _paintOrder = PaintOrderCache();
   final RemovedIds _removed = RemovedIds();
 
@@ -92,6 +94,17 @@ class CanvasDocument extends ChangeNotifier {
   final ValueNotifier<bool> snapToGrid = ValueNotifier<bool>(false);
 
   Camera get camera => _camera;
+
+  /// The kind of the latest press, so a finger's reach follows the finger and not the window width.
+  PointerDeviceKind lastPointerKind = PointerDeviceKind.mouse;
+
+  /// The lowest zoom a wheel or pinch may aim for: the board's fit when that sits below [minZoom].
+  double get zoomFloor {
+    final board = _board;
+    if (board == null || _viewport.isEmpty) return minZoom;
+    return math.min(minZoom, boardFitZoom(board, _viewport));
+  }
+
   Size get viewport => _viewport;
 
   /// Slots the last cull kept, in paint order.
@@ -170,13 +183,29 @@ class CanvasDocument extends ChangeNotifier {
         attachmentId: input.attachmentId,
         text: input.text,
         shapeKind: input.shapeKind,
+        groupId: input.groupId,
       ),
     );
+    if (input.groupId case final group?) {
+      (_slotsByGroup[group] ??= <int>[]).add(slot);
+    }
     _slotById[input.id] = slot;
     _trackOutside(_strokes[slot]);
     objectCount.value = objectCount.value + 1;
     _paintOrder.markDirty();
     return slot;
+  }
+
+  /// Every live object drawn as one mark with [id] - [id] itself when it
+  /// was never split - in no particular order.
+  List<String> groupOf(String id) {
+    final slot = _slotById[id];
+    final group = slot == null ? null : _strokes[slot]?.groupId;
+    if (group == null) return [id];
+    return [
+      for (final member in _slotsByGroup[group] ?? const <int>[])
+        if (_strokes[member] case final stroke? when stroke.alive) stroke.id,
+    ];
   }
 
   /// The bounds a live object currently occupies, or null if [id] is unknown
@@ -366,6 +395,7 @@ class CanvasDocument extends ChangeNotifier {
     _disposeImages();
     _strokes.clear();
     _slotById.clear();
+    _slotsByGroup.clear();
     _paintOrder.clear();
     _removed.clear();
     scene.reset();
@@ -418,7 +448,7 @@ class CanvasDocument extends ChangeNotifier {
     final board = _board;
     worldEdgeHit.value =
         board == null && (clamped.x != next.x || clamped.y != next.y);
-    if (board != null) {
+    if (board != null && !_viewport.isEmpty) {
       _atFit = clamped.zoom <= boardFitZoom(board, _viewport) + 1e-9;
     }
     if (clamped == _camera) return;
@@ -432,7 +462,7 @@ class CanvasDocument extends ChangeNotifier {
     final board = _board;
     _camera =
         board != null && _atFit ? boardFitCamera(board, size) : _clamp(_camera);
-    if (board != null) {
+    if (board != null && !size.isEmpty) {
       _atFit = _camera.zoom <= boardFitZoom(board, size) + 1e-9;
     }
     _reculled();

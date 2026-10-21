@@ -123,6 +123,7 @@ class CanvasPaneFixture {
     this.placeStatus = 201,
     this.attachmentFetchStatus = 200,
     this.attachmentUploadStatus = 200,
+    this.placeDelay = Duration.zero,
   }) : channelPermissions = channelPermissions ?? mePermissions;
 
   final StreamController<api.ServerEvent> events =
@@ -141,6 +142,9 @@ class CanvasPaneFixture {
   /// refused draw (403 forbidden, timeout freeze; 409 channel full) without
   /// a real server refusal.
   final int placeStatus;
+
+  /// How long a placement waits before it is answered, so a test can act while the request is in flight.
+  final Duration placeDelay;
 
   /// The status `GET .../attachments/{id}` answers with. 200 serves a real
   /// decodable PNG, so a test can prove an image object placed by anyone
@@ -164,6 +168,9 @@ class CanvasPaneFixture {
   /// value here to make the two genuinely disagree.
   final int channelPermissions;
   final List<Map<String, dynamic>> posted = [];
+
+  /// When set, a placement POST is recorded but its reply waits on this.
+  Completer<void>? placeGate;
   List<Map<String, dynamic>> objects = [];
 
   /// Every `GET .../canvas/objects` the pane sent, in order. A count rather
@@ -300,6 +307,9 @@ class CanvasPaneFixture {
         }
         if (request.method == 'POST') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
+          if (placeDelay > Duration.zero) {
+            await Future<void>.delayed(placeDelay);
+          }
           if (placeStatus != 201) {
             return http.Response(
               jsonEncode({'error': 'no'}),
@@ -308,6 +318,7 @@ class CanvasPaneFixture {
             );
           }
           posted.add(body);
+          await placeGate?.future;
           return http.Response(
             jsonEncode({
               ...canvasObjectJson(body['id'] as String),

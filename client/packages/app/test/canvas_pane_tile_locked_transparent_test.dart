@@ -74,6 +74,10 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
 
+    // A shape is hit on its outline, so the clicks below land on its left edge.
+    final moved = surfaceDocument(tester).objectBounds(shapeId)!;
+    final onShape = screenFor(tester, Offset(moved.x, moved.y + moved.h / 2));
+
     // Deselect, well clear of both and still inside the default test viewport.
     gesture = await tester.startGesture(
       screenFor(tester, const Offset(10, 400)),
@@ -93,7 +97,7 @@ void main() {
     await tester.pump();
 
     // The shape's own new position, now covered by the locked, backed tile.
-    gesture = await tester.startGesture(tileCenter);
+    gesture = await tester.startGesture(onShape);
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -107,8 +111,8 @@ void main() {
 
     // And it can be dragged again from there, not just re-selected.
     final before = surfaceDocument(tester).objectBounds(shapeId)!;
-    gesture = await tester.startGesture(tileCenter);
-    await gesture.moveTo(tileCenter + const Offset(60, 40));
+    gesture = await tester.startGesture(onShape);
+    await gesture.moveTo(onShape + const Offset(60, 40));
     await gesture.up();
     await tester.pumpAndSettle();
 

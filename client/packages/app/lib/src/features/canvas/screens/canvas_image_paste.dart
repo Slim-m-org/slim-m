@@ -100,9 +100,18 @@ class CanvasImagePaste {
   void _handleNativePaste(Uint8List bytes, String filename) =>
       unawaited(_stage(bytes, filename));
 
+  bool _staging = false;
+
   Future<void> _stage(Uint8List bytes, String filename, {ui.Offset? at}) async {
-    final placed = await _place(bytes, at: at);
-    if (placed != null && !_stopped) onPlaced(placed.id);
+    // A repeated Ctrl+V while one image is still uploading would place it twice.
+    if (_staging) return;
+    _staging = true;
+    try {
+      final placed = await _place(bytes, at: at);
+      if (placed != null && !_stopped) onPlaced(placed.id);
+    } finally {
+      _staging = false;
+    }
   }
 
   /// Decodes [bytes], uploads them, and places an image object centered on

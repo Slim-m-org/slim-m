@@ -60,7 +60,6 @@ Widget _wrap({
                 selfId: 'me',
                 requests: requests,
                 tool: CanvasTool.pan,
-                onToolChanged: (_) {},
                 onBringToFront: (_) {},
                 onSendToBack: (_) {},
                 onDeleteSelected: (_) {},

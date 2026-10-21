@@ -34,7 +34,7 @@ void main() {
       const PointerScaleEvent(
         position: Offset(100, 100),
         device: 1,
-        kind: PointerDeviceKind.mouse,
+        kind: PointerDeviceKind.trackpad,
         scale: 1.5,
       ),
     );
@@ -43,5 +43,34 @@ void main() {
     expect(document.camera.zoom, closeTo(1.5, 1e-9));
     expect(document.camera.x + 100 / 1.5, closeTo(world.dx, 1e-9));
     expect(document.camera.y + 100 / 1.5, closeTo(world.dy, 1e-9));
+  });
+
+  testWidgets('a mouse wheel scale notch is held to one wheel step', (
+    tester,
+  ) async {
+    final document = CanvasDocument();
+    addTearDown(document.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CanvasSurface(
+          document: document,
+          ink: const Color(0xFFE86A5C),
+          onStroke: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.sendEventToBinding(
+      const PointerScaleEvent(
+        position: Offset(100, 100),
+        device: 1,
+        kind: PointerDeviceKind.mouse,
+        scale: 1.82,
+      ),
+    );
+    await tester.pump();
+
+    expect(document.camera.zoom, closeTo(maxWheelZoomStep, 1e-9));
   });
 }

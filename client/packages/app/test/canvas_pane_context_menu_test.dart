@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'features/canvas/canvas_pane_harness.dart';
 
@@ -36,7 +37,11 @@ void main() {
       expect(fixture.postedOps, hasLength(1));
       expect(fixture.postedOps.single['kind'], 'reorder');
       expect(fixture.postedOps.single['object_id'], 'b');
-      expect(surfaceDocument(tester).selectedObjectId.value, 'b');
+      expect(
+        tester.widget<CanvasSurface>(find.byType(CanvasSurface)).tool,
+        CanvasTool.pen,
+        reason: 'the menu does not change the tool',
+      );
     },
   );
 

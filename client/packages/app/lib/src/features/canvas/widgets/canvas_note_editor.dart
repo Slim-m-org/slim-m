@@ -159,41 +159,44 @@ class _Panel extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadii.card),
           boxShadow: AppShadows.menu,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CanvasNoteField(
-              controller: controller,
-              focusNode: focusNode,
-              onSave: onSave,
-              onCancel: onCancel,
-              minLines: 2,
-              maxLines: 8,
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: AppSpacing.s8,
-                children: [
-                  AppButton(
-                    label: 'Cancel',
-                    variant: AppButtonVariant.ghost,
-                    size: AppButtonSize.sm,
-                    onPressed: onCancel,
-                  ),
-                  AppButton(
-                    label: 'Save',
-                    variant: AppButtonVariant.primary,
-                    size: AppButtonSize.sm,
-                    onPressed: onSave,
-                  ),
-                ],
+        // Scrolls so a short window, or a keyboard, cannot overflow the panel.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CanvasNoteField(
+                controller: controller,
+                focusNode: focusNode,
+                onSave: onSave,
+                onCancel: onCancel,
+                minLines: 2,
+                maxLines: 8,
               ),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.s4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: AppSpacing.s8,
+                  children: [
+                    AppButton(
+                      label: 'Cancel',
+                      variant: AppButtonVariant.ghost,
+                      size: AppButtonSize.sm,
+                      onPressed: onCancel,
+                    ),
+                    AppButton(
+                      label: 'Save',
+                      variant: AppButtonVariant.primary,
+                      size: AppButtonSize.sm,
+                      onPressed: onSave,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -228,11 +231,16 @@ class _EditorLayout extends SingleChildLayoutDelegate {
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    final room = _bounds(constraints.biggest).width - _margin * 2;
-    final width = noteWidth.clamp(canvasNoteEditorMinWidth, room).toDouble();
+    final room = math.max(
+      0.0,
+      _bounds(constraints.biggest).width - _margin * 2,
+    );
+    final width = noteWidth
+        .clamp(math.min(canvasNoteEditorMinWidth, room), room)
+        .toDouble();
     return BoxConstraints(
-      minWidth: width.clamp(0, room).toDouble(),
-      maxWidth: width.clamp(0, room).toDouble(),
+      minWidth: width,
+      maxWidth: width,
       maxHeight:
           (_floor(constraints.biggest, _bounds(constraints.biggest)) -
                   _bounds(constraints.biggest).top -

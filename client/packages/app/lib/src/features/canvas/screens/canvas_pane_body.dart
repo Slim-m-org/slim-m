@@ -66,6 +66,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onStroke,
     required this.onErase,
     required this.onEraseEnd,
+    this.onEraseCancel,
+    this.onSelectCancel,
     required this.onSelectStart,
     required this.onSelectDrag,
     required this.onSelectEnd,
@@ -160,6 +162,8 @@ class CanvasPaneBody extends StatefulWidget {
   final StrokeCommitted onStroke;
   final ValueChanged<Offset> onErase;
   final VoidCallback onEraseEnd;
+  final VoidCallback? onEraseCancel;
+  final VoidCallback? onSelectCancel;
   final ValueChanged<Offset> onSelectStart;
   final ValueChanged<Offset> onSelectDrag;
   final VoidCallback onSelectEnd;
@@ -438,11 +442,12 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
         onSelectDrag: widget.onSelectDrag,
         onSelectStart: widget.onSelectStart,
         onEraseEnd: widget.onEraseEnd,
+        onEraseCancel: widget.onEraseCancel,
+        onSelectCancel: widget.onSelectCancel,
         onErase: widget.onErase,
         onStroke: widget.onStroke,
         onCommitTile: widget.onCommitTile,
         onVideoInterest: widget.onVideoInterest,
-        onToolChanged: widget.onToolChanged,
         onBringToFront: widget.onBringToFront,
         onSendToBack: widget.onSendToBack,
         onDeleteSelected: widget.onDeleteSelected,

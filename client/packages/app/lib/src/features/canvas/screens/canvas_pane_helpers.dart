@@ -42,5 +42,6 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
         channelId: widget.channelId,
         document: _document,
         timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+        authorId: () => ref.read(meProvider).valueOrNull?.id,
       );
 }

@@ -256,6 +256,7 @@ class HomeShell extends ConsumerWidget {
     return Scaffold(
       // Where no pane docks, the roster is the same end drawer compact uses.
       onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
+      endDrawerEnableOpenDragGesture: !facts.canvasOpen,
       endDrawer: isDm || facts.membersFit || selected == null
           ? null
           : Drawer(
@@ -330,6 +331,7 @@ class HomeShell extends ConsumerWidget {
         // Only the canvas (a drawing surface of its own) also claims the rail; see DmCallPane's own doc for why a DM call keeps it.
         showRail: !facts.canvasOpen,
         showMembers: !(isDm || facts.notFound),
+        membersByEdgeDrag: !facts.canvasOpen,
         body: Column(
           children: [
             const RailConnectionBar(),

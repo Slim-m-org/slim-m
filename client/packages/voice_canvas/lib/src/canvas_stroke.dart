@@ -132,6 +132,7 @@ class CanvasStrokeInput {
     this.attachmentId,
     this.text,
     this.shapeKind,
+    this.groupId,
   });
 
   final String id;
@@ -172,6 +173,11 @@ class CanvasStrokeInput {
 
   /// A [CanvasObjectKind.shape]'s own primitive. Null for every other kind.
   final CanvasShapeKind? shapeKind;
+
+  /// Shared by the pieces one long drawn stroke was split into, so they are
+  /// erased and deleted as the one mark the person drew. Null for anything
+  /// that was never split.
+  final String? groupId;
 }
 
 /// A stroke ready to paint: its [Path] is built once, at insert, in
@@ -196,6 +202,7 @@ class CanvasStroke {
     this.imageLoadFailed = false,
     this.text,
     this.shapeKind,
+    this.groupId,
   });
 
   final String id;
@@ -251,6 +258,9 @@ class CanvasStroke {
 
   /// See [CanvasStrokeInput.shapeKind].
   final CanvasShapeKind? shapeKind;
+
+  /// See [CanvasStrokeInput.groupId].
+  final String? groupId;
 
   /// Every point in absolute world coordinates, for hit testing against a
   /// world-space pointer with no per-call offset arithmetic.

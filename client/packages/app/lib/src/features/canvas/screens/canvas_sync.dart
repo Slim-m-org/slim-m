@@ -83,6 +83,9 @@ CanvasStrokeInput? _strokeInputFrom(api.CanvasObject object) {
     width: width is num && width.isFinite && width > 0 ? width.toDouble() : 3,
     colorKey: color is String ? color : 'annotation',
     authorId: object.authorId,
+    groupId: object.props['group'] is String
+        ? object.props['group'] as String
+        : null,
   );
 }
 

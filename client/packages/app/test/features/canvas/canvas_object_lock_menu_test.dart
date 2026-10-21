@@ -25,7 +25,8 @@ CanvasStrokeInput _photo({required String authorId}) => CanvasStrokeInput(
   points: const [],
   width: 0,
   colorKey: 'shape',
-  kind: CanvasObjectKind.shape,
+  kind: CanvasObjectKind.note,
+  text: 'note',
   authorId: authorId,
 );
 
@@ -72,7 +73,6 @@ class _Harness {
             selfId: 'me',
             requests: CanvasObjectMenuRequests(),
             tool: CanvasTool.pan,
-            onToolChanged: (_) {},
             onBringToFront: restacked.add,
             onSendToBack: restacked.add,
             onDeleteSelected: deleted.add,

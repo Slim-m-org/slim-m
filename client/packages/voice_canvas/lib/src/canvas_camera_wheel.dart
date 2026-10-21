@@ -28,13 +28,15 @@ Camera cameraAfterWheelScroll(
   required double dy,
   required bool zoomModifier,
   required bool horizontalModifier,
+  double zoomFloor = minZoom,
 }) {
   if (zoomModifier) {
-    final factor = dy > 0 ? 0.9 : 1.1;
+    if (dy == 0) return camera;
     return cameraAfterZoom(
       camera,
       focal: focal,
-      zoomTarget: camera.zoom * factor,
+      zoomTarget: camera.zoom * wheelZoomFactor(dy),
+      zoomFloor: zoomFloor,
     );
   }
   if (horizontalModifier) {
@@ -47,6 +49,18 @@ Camera cameraAfterWheelScroll(
   );
 }
 
+/// How much one wheel event of vertical delta [dy] scales the zoom.
+///
+/// Proportional to the delta so a smooth wheel's many small events add up to
+/// what one notch does, and capped so a single large delta cannot leap.
+double wheelZoomFactor(double dy) => math
+    .exp(-dy * _zoomPerWheelPixel)
+    .clamp(minWheelZoomStep, maxWheelZoomStep);
+
+const double _zoomPerWheelPixel = 0.0015;
+const double minWheelZoomStep = 0.8;
+const double maxWheelZoomStep = 1.25;
+
 /// Solves directly for the camera that leaves the world point under [focal]
 /// exactly where it was, at the new zoom - one result rather than a
 /// set-then-correct pair, so a camera already near a world edge cannot have
@@ -58,10 +72,11 @@ Camera cameraAfterZoom(
   Camera camera, {
   required Offset focal,
   required double zoomTarget,
+  double zoomFloor = minZoom,
 }) {
   // A board fit can sit below minZoom; never turn a zoom-out into a zoom-in.
   final zoom =
-      zoomTarget.clamp(math.min(minZoom, camera.zoom), maxZoom).toDouble();
+      zoomTarget.clamp(math.min(zoomFloor, camera.zoom), maxZoom).toDouble();
   if (zoom == camera.zoom) return camera;
   final worldFocal = Offset(
     camera.x + focal.dx / camera.zoom,

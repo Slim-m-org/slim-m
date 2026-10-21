@@ -29,6 +29,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_presence_layer.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_presence_tile.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -158,6 +159,39 @@ void main() {
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
       expect(document.camera.zoom, greaterThan(1));
+    },
+  );
+
+  testWidgets(
+    'a two-finger trackpad scroll over a tile pans the camera and leaves the '
+    'tile where it was',
+    (tester) async {
+      final document = CanvasDocument()..setViewport(const Size(1000, 800));
+      addTearDown(document.dispose);
+      final overrides = CanvasPresenceTileOverrides();
+      addTearDown(overrides.dispose);
+      await tester.pumpWidget(_wrap(_layer(document, overrides)));
+      await tester.pump();
+      final tile = find.byType(CanvasPresenceManipulableTile);
+      final before = tester.getTopLeft(tile);
+
+      final pad = TestPointer(1, PointerDeviceKind.trackpad);
+      await tester.sendEventToBinding(pad.panZoomStart(_pointOnTile));
+      for (var i = 1; i <= 5; i++) {
+        await tester.sendEventToBinding(
+          pad.panZoomUpdate(_pointOnTile, pan: Offset(-10.0 * i, 0)),
+        );
+        await tester.pump();
+      }
+      await tester.sendEventToBinding(pad.panZoomEnd());
+      await tester.pump();
+
+      expect(document.camera.x, closeTo(50, 1e-9));
+      expect(
+        tester.getTopLeft(tile) - before,
+        const Offset(-50, 0),
+        reason: 'the tile moved only because the camera did',
+      );
     },
   );
 }

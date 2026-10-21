@@ -41,7 +41,15 @@ class CanvasQuickPlacement {
     required this.channelId,
     required this.document,
     required this.timedOutUntil,
+    this.authorId = _noAuthor,
   });
+
+  static String? _noAuthor() => null;
+
+  /// Who the optimistic copy shows as the author of, until the reply says.
+  final String? Function() authorId;
+
+  bool _inFlight = false;
 
   final api.SlimmApi client;
   final String channelId;
@@ -102,13 +110,18 @@ class CanvasQuickPlacement {
     required Map<String, dynamic> props,
     required void Function(String message) onError,
   }) async {
+    // A second tap while one is still being saved would place a second copy.
+    if (_inFlight) return null;
+    _inFlight = true;
     final box = document.placeOnBoard(
       Rect.fromCenter(center: world, width: w, height: h),
     );
+    final id = newCanvasObjectId();
+    _show(id, kind, box, props);
     try {
       final placed = await client.placeCanvasObject(
         channelId,
-        id: newCanvasObjectId(),
+        id: id,
         kind: kind,
         x: box.left,
         y: box.top,
@@ -124,9 +137,37 @@ class CanvasQuickPlacement {
       }
       return placed;
     } on api.ApiException catch (error) {
+      document
+        ..kill(id)
+        ..refresh();
       onError(_explain(error, timedOutUntil()));
       return null;
+    } finally {
+      _inFlight = false;
     }
+  }
+
+  /// Shows the object at once under its final id; the reply then settles its order.
+  void _show(String id, String kind, Rect box, Map<String, dynamic> props) {
+    final input = canvasStrokeInputFrom(
+      api.CanvasObject(
+        id: id,
+        kind: kind,
+        zIndex: provisionalLocalZIndex,
+        x: box.left,
+        y: box.top,
+        w: box.width,
+        h: box.height,
+        props: props,
+        authorId: authorId(),
+        seq: 0,
+        createdAt: 0,
+      ),
+    );
+    if (input == null) return;
+    document
+      ..applyPlaced(input)
+      ..refresh();
   }
 
   static String _explain(api.ApiException error, int? timedOutUntil) =>

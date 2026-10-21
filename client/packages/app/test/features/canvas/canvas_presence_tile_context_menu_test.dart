@@ -49,7 +49,6 @@ Widget _wrap({
               selfId: 'me',
               requests: requests,
               tool: CanvasTool.pan,
-              onToolChanged: (_) {},
               onBringToFront: (_) {},
               onSendToBack: (_) {},
               onDeleteSelected: (_) {},
@@ -90,7 +89,8 @@ void main() {
           points: [],
           width: 0,
           colorKey: 'shape',
-          kind: CanvasObjectKind.shape,
+          kind: CanvasObjectKind.note,
+          text: 'note',
           authorId: 'me',
         ),
       );
@@ -128,7 +128,8 @@ void main() {
           points: [],
           width: 0,
           colorKey: 'shape',
-          kind: CanvasObjectKind.shape,
+          kind: CanvasObjectKind.note,
+          text: 'note',
           authorId: 'me',
         ),
       );

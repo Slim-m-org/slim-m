@@ -8,6 +8,21 @@ const double _shapeDragThreshold = 4.0;
 /// How far, in screen pixels, a select gesture may travel and still be a tap.
 const double _selectTapSlop = 6.0;
 
+/// The one tool gesture a surface runs at a time. It belongs to the first
+/// accepted pointer and the tool and camera that were current when that
+/// pointer went down; it ends when that pointer lifts or is cancelled, or
+/// sooner when a second pointer turns it into a pinch.
+class _Gesture {
+  _Gesture(this.pointer, this.tool, this.camera, this.downAt);
+
+  final int pointer;
+  final CanvasTool tool;
+  final Duration downAt;
+
+  /// The camera this gesture's screen points were sampled under.
+  Camera camera;
+}
+
 /// Every pointer, scroll and scale handler [_CanvasSurfaceState.build]
 /// wires up, plus the coordinate conversion and cursor choice they share.
 /// A `part of` file rather than a mixin: the eraser and placement tools
@@ -42,14 +57,23 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   /// right-press, which middle-drag simply never collides with.
   bool _isPanButton(int buttons) => buttons & kMiddleMouseButton != 0;
 
-  /// This surface's own pointer count plus [CanvasDocument.externalPointers]
-  /// - a second finger a presence tile absorbed before this widget's own
-  /// [Listener] ever saw its down event still has to count as a real second
-  /// pointer for the pinch-cancellation and grab-pan logic below.
-  int get _totalPointers => _pointers + widget.document.externalPointers.count;
+  /// Only a primary press drives a tool; a stylus counts by contact alone, since a barrel button or an eraser end can leave the primary bit clear.
+  bool _isToolPress(PointerDownEvent event) =>
+      _isStylus(event.kind) || event.buttons & kPrimaryButton != 0;
 
-  Offset _toWorld(Offset screen) {
-    final camera = widget.document.camera;
+  bool _isStylus(PointerDeviceKind kind) =>
+      kind == PointerDeviceKind.stylus ||
+      kind == PointerDeviceKind.invertedStylus;
+
+  /// The pointers taking part in a gesture plus
+  /// [CanvasDocument.externalPointers] - a second finger a presence tile
+  /// absorbed before this widget's own [Listener] ever saw its down event
+  /// still has to count as a real second pointer.
+  int get _totalPointers =>
+      _downPointers.length + widget.document.externalPointers.count;
+
+  Offset _toWorld(Offset screen, [Camera? under]) {
+    final camera = under ?? widget.document.camera;
     return Offset(
       camera.x + screen.dx / camera.zoom,
       camera.y + screen.dy / camera.zoom,
@@ -57,55 +81,102 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   }
 
   void _down(PointerDownEvent event) {
+    widget.document.lastPointerKind = event.kind;
     widget.onPointerMoved?.call(_toWorld(event.localPosition));
-    _pointers++;
     if (_isPanButton(event.buttons)) {
-      // A second pointer's own grab button must not steal an already-owned pan - see _move's identical guard.
-      if (_panning.value) return;
-      // Nothing has begun for this pointer yet, so there is only a stray draft to drop, not flush.
-      final hadDraft = !_draft.isEmpty;
-      _draft.cancel();
-      if (hadDraft) widget.onDraftEnded?.call();
-      _shapeDraft.cancel();
-      _pendingErasePoint = null;
-      _beginPan(event.pointer, event.localPosition);
+      _downPointers[event.pointer] = event.kind;
+      _downForPan(event);
       return;
     }
-    if (_totalPointers > 1) {
-      _selectDownAt = null;
-      // A pinch owns the camera now; a one-finger pan anchored before it would jump back when the pinch ends.
-      if (widget.tool == CanvasTool.pan) widget.onSelectEnd?.call();
-      final hadDraft = !_draft.isEmpty;
-      _draft.cancel();
-      if (hadDraft) widget.onDraftEnded?.call();
-      _shapeDraft.cancel();
-      _pendingErasePoint = null;
+    if (!_isToolPress(event)) return;
+    final stylus = _isStylus(event.kind);
+    if (stylus) {
+      _stylusTakesOver();
+      _stylusPointers.add(event.pointer);
+    } else if (_stylusPointers.isNotEmpty) {
+      return;
+    }
+    final alone = _totalPointers == 0;
+    _downPointers[event.pointer] = event.kind;
+    if (!alone) {
+      _interruptGesture();
       return;
     }
     if (!widget.enabled) return;
-    if (widget.tool.placesInk &&
-        !widget.document.acceptsPlacementAt(_toWorld(event.localPosition))) {
-      return;
-    }
-    switch (widget.tool) {
+    _startGesture(event);
+  }
+
+  /// A stylus beats whatever touch was already down: that was a resting palm.
+  void _stylusTakesOver() {
+    final palms = [
+      for (final entry in _downPointers.entries)
+        if (entry.value == PointerDeviceKind.touch) entry.key,
+    ];
+    if (palms.isEmpty) return;
+    if (palms.contains(_gesture?.pointer)) _cancelGesture();
+    palms.forEach(_downPointers.remove);
+  }
+
+  void _downForPan(PointerDownEvent event) {
+    // A second pointer's own grab button must not steal an already-owned pan - see _move's identical guard.
+    if (_panning.value) return;
+    _interruptGesture();
+    _beginPan(event.pointer, event.localPosition);
+  }
+
+  /// Arms the gesture the active tool needs for a pointer that went down alone at [screen].
+  void _startGesture(PointerEvent event) {
+    final (pointer, kind, screen) = (
+      event.pointer,
+      event.kind,
+      event.localPosition,
+    );
+    final tool = kind == PointerDeviceKind.invertedStylus
+        ? CanvasTool.eraser
+        : widget.tool;
+    final world = _toWorld(screen);
+    if (tool.placesInk && !widget.document.acceptsPlacementAt(world)) return;
+    _gesture = _Gesture(
+      pointer,
+      tool,
+      widget.document.camera,
+      event.timeStamp,
+    );
+    switch (tool) {
       case CanvasTool.eraser:
-        _pendingErasePoint = _toWorld(event.localPosition);
+        _pendingErasePoint = world;
       case CanvasTool.pan:
-        _selectDownAt = event.localPosition;
-        widget.onSelectStart?.call(_toWorld(event.localPosition));
+        _selectDownAt = screen;
+        _ownCamera(() => widget.onSelectStart?.call(world));
       case CanvasTool.note:
         _pendingPlacementTool = CanvasTool.note;
-        _pendingPlacementWorld = _toWorld(event.localPosition);
+        _pendingPlacementWorld = world;
       case CanvasTool.shape:
         _pendingPlacementTool = CanvasTool.shape;
-        _pendingPlacementWorld = _toWorld(event.localPosition);
-        _shapeDraft.begin(event.localPosition, widget.shapeKind);
+        _pendingPlacementWorld = world;
+        _shapeDraft.begin(screen, widget.shapeKind);
       case CanvasTool.pen:
-        // Pan is the middle button, so a right-press reaches here; it opens the menu, it does not draw.
-        if (event.buttons & kPrimaryButton == 0) return;
-        _draft.begin(event.localPosition);
-        widget.onDraftPoint?.call(_toWorld(event.localPosition));
+        _draft.begin(screen);
+        widget.onDraftPoint?.call(world);
     }
+  }
+
+  /// Runs [body], which may move the camera on this gesture's behalf, without that counting as a foreign camera change.
+  void _ownCamera(VoidCallback body) {
+    _inOwnCallback = true;
+    try {
+      body();
+    } finally {
+      _inOwnCallback = false;
+      _gesture?.camera = widget.document.camera;
+    }
+  }
+
+  /// A camera moved by something other than the gesture (a follow, a summon, a wheel) would relocate what it has drawn so far.
+  void _onDocumentChanged() {
+    final gesture = _gesture;
+    if (gesture == null || _inOwnCallback) return;
+    if (widget.document.camera != gesture.camera) _finishGesture();
   }
 
   void _move(PointerMoveEvent event) {
@@ -120,35 +191,40 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       // The grab button itself let go, but this pointer still holds another - resume the tool right here rather than staying stuck panning until the whole pointer lifts.
       _endPan();
       if (_totalPointers == 1 && widget.enabled) {
-        _resumeToolAt(event.localPosition);
+        _startGesture(event);
       }
       return;
     }
-    if (_isPanButton(event.buttons)) {
-      _interruptForPan();
+    if (_isPanButton(event.buttons) &&
+        _downPointers.containsKey(event.pointer)) {
+      _interruptGesture();
       _beginPan(event.pointer, event.localPosition);
       return;
     }
+    final gesture = _gesture;
+    if (gesture == null || gesture.pointer != event.pointer) return;
     if (_totalPointers != 1 || !widget.enabled) return;
-    switch (widget.tool) {
+    final screen = event.localPosition;
+    final world = _toWorld(screen);
+    switch (gesture.tool) {
       case CanvasTool.eraser:
         if (_pendingErasePoint case final pending?) {
           widget.onErase?.call(pending);
           _pendingErasePoint = null;
         }
-        widget.onErase?.call(_toWorld(event.localPosition));
+        widget.onErase?.call(world);
       case CanvasTool.pan:
         if (_selectDownAt case final down? when _movedPastTap(down, event)) {
           _selectDownAt = null;
         }
-        widget.onSelectDrag?.call(_toWorld(event.localPosition));
+        _ownCamera(() => widget.onSelectDrag?.call(world));
       case CanvasTool.note:
         break;
       case CanvasTool.shape:
-        _shapeDraft.update(event.localPosition);
+        _shapeDraft.update(screen);
       case CanvasTool.pen:
-        _draft.extend(event.localPosition);
-        widget.onDraftPoint?.call(_toWorld(event.localPosition));
+        _draft.extend(screen);
+        widget.onDraftPoint?.call(world);
     }
   }
 
@@ -168,94 +244,162 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     widget.onPointerMoved?.call(_toWorld(event.localPosition));
   }
 
-  /// `wasAlone` is read before the decrement below: a second finger a presence
-  /// tile absorbed never reaches [_down], so this is the only place a one-point
-  /// draft can still learn it was never alone.
-  void _up(PointerEvent event) {
-    final wasAlone = _totalPointers <= 1;
-    _pointers = (_pointers - 1).clamp(0, 10);
+  /// Forgets [event]'s pointer, and says whether it ever took part: a
+  /// right-click or a rejected palm never did, so its lift changes nothing.
+  bool _release(PointerEvent event) {
+    _stylusPointers.remove(event.pointer);
+    if (_downPointers.remove(event.pointer) == null) return false;
     _reportLeftIfTouch(event);
+    return true;
+  }
+
+  void _up(PointerUpEvent event) {
+    final wasAlone = _totalPointers <= 1;
+    if (!_release(event)) return;
     if (_panning.value) {
       // An unrelated pointer lifting (a second finger, say) must not end someone else's grab.
-      if (event.pointer != _panPointer) return;
-      _endPan();
+      if (event.pointer == _panPointer) _endPan();
       return;
     }
-    _resolvePendingPlacement();
-    switch (widget.tool) {
-      case CanvasTool.eraser:
-        if (_pendingErasePoint case final pending?) {
-          widget.onErase?.call(pending);
-          _pendingErasePoint = null;
-        }
-        if (_totalPointers == 0) widget.onEraseEnd?.call();
-      case CanvasTool.pan:
-        if (_totalPointers != 0) return;
-        final tapAt = _selectDownAt;
-        _selectDownAt = null;
-        widget.onSelectEnd?.call();
-        if (tapAt != null && !_movedPastTap(tapAt, event)) {
-          widget.onSelectTap?.call(_toWorld(event.localPosition), event.kind);
-        }
-      case CanvasTool.note:
-      case CanvasTool.shape:
-        break;
-      case CanvasTool.pen:
-        if (_draft.isEmpty) return;
-        final screen = _draft.take();
-        widget.onDraftEnded?.call();
-        // A single point still commits: it paints as a dot, not nothing.
-        if (screen.length < 2 && !wasAlone) return;
-        widget.onStroke(
-          screen
-              .map((p) => widget.document.clampToBoard(_toWorld(p)))
-              .toList(growable: false),
-        );
-    }
+    if (_gesture?.pointer != event.pointer) return;
+    _finishGesture(lift: event, wasAlone: wasAlone);
   }
 
   /// The system took the touch (a back gesture, palm rejection): not a lift,
-  /// so nothing is committed. Live gestures still close, since they have
-  /// already acted and would otherwise never learn they ended.
-  void _cancel(PointerEvent event) {
-    _pointers = (_pointers - 1).clamp(0, 10);
-    _reportLeftIfTouch(event);
+  /// so nothing the gesture did is kept.
+  void _cancel(PointerCancelEvent event) {
+    if (!_release(event)) return;
     if (_panning.value) {
       if (event.pointer == _panPointer) _endPan();
       return;
     }
-    _pendingPlacementTool = null;
-    _pendingPlacementWorld = null;
-    _selectDownAt = null;
-    _shapeDraft.cancel();
-    _pendingErasePoint = null;
-    switch (widget.tool) {
+    if (_gesture?.pointer == event.pointer) _cancelGesture();
+  }
+
+  /// Ends the gesture keeping what it did: a pen stroke is committed, an
+  /// erase or a drag is submitted. A [lift] also resolves a tap, a note or a
+  /// shape placement; without one (the tool or camera changed under it) the
+  /// pointer is simply ignored from here until it lifts.
+  void _finishGesture({PointerUpEvent? lift, bool wasAlone = true}) {
+    final gesture = _gesture;
+    if (gesture == null) return;
+    _gesture = null;
+    switch (gesture.tool) {
       case CanvasTool.eraser:
-        if (_totalPointers == 0) widget.onEraseEnd?.call();
+        _flushPendingErase();
+        widget.onEraseEnd?.call();
       case CanvasTool.pan:
-        if (_totalPointers == 0) widget.onSelectEnd?.call();
+        final tapAt = _selectDownAt;
+        _selectDownAt = null;
+        _ownCamera(() => widget.onSelectEnd?.call());
+        final quick =
+            lift != null && lift.timeStamp - gesture.downAt < kLongPressTimeout;
+        if (quick && tapAt != null && !_movedPastTap(tapAt, lift)) {
+          widget.onSelectTap?.call(_toWorld(lift.localPosition), lift.kind);
+        }
       case CanvasTool.note:
       case CanvasTool.shape:
-        break;
+        if (lift == null) {
+          _dropPlacement();
+        } else {
+          _resolvePendingPlacement();
+        }
       case CanvasTool.pen:
-        if (_draft.isEmpty) return;
-        _draft.cancel();
-        widget.onDraftEnded?.call();
+        _commitDraft(gesture.camera, single: lift != null && wasAlone);
     }
   }
 
-  /// Fires whichever placement [_down] armed, at the point it was armed
-  /// with, only on the [_up] that drops [_pointers] to zero. Runs once per
-  /// lifted pointer and consumes pending state on its first call regardless
-  /// of [_pointers], so any second pointer having touched down - landing
-  /// that first call at a nonzero count - is what stops this ever firing.
+  /// Ends the gesture because a second pointer or the pan button joined it:
+  /// what an erase or a drag already did is kept, a draft is not.
+  void _interruptGesture() {
+    final gesture = _gesture;
+    if (gesture == null) return;
+    _gesture = null;
+    _dropPlacement();
+    switch (gesture.tool) {
+      case CanvasTool.eraser:
+        _pendingErasePoint = null;
+        widget.onEraseEnd?.call();
+      case CanvasTool.pan:
+        _selectDownAt = null;
+        _ownCamera(() => widget.onSelectEnd?.call());
+      case CanvasTool.pen:
+        _dropDraft();
+      case CanvasTool.note:
+      case CanvasTool.shape:
+        break;
+    }
+  }
+
+  /// Ends the gesture as though it never happened: the owner's own cancel
+  /// event is the system saying the touch was not meant.
+  void _cancelGesture() {
+    final gesture = _gesture;
+    if (gesture == null) return;
+    _gesture = null;
+    _dropPlacement();
+    _pendingErasePoint = null;
+    switch (gesture.tool) {
+      case CanvasTool.eraser:
+        widget.onEraseCancel?.call();
+      case CanvasTool.pan:
+        _selectDownAt = null;
+        _ownCamera(() => widget.onSelectCancel?.call());
+      case CanvasTool.pen:
+        _dropDraft();
+      case CanvasTool.note:
+      case CanvasTool.shape:
+        break;
+    }
+  }
+
+  void _flushPendingErase() {
+    if (_pendingErasePoint case final pending?) {
+      widget.onErase?.call(pending);
+      _pendingErasePoint = null;
+    }
+  }
+
+  void _dropPlacement() {
+    _pendingPlacementTool = null;
+    _pendingPlacementWorld = null;
+    _shapeDraft.cancel();
+  }
+
+  void _dropDraft() {
+    if (_draft.isEmpty) return;
+    _draft.cancel();
+    widget.onDraftEnded?.call();
+  }
+
+  /// Hands the draft to [CanvasSurface.onStroke]. A single point is a dot
+  /// only when [single]; a lone point left by a pointer that never drew
+  /// alone is a stray touch.
+  void _commitDraft(Camera under, {required bool single}) {
+    if (_draft.isEmpty) return;
+    final screen = _draft.take();
+    widget.onDraftEnded?.call();
+    if (screen.length < 2 && !single) return;
+    widget.onStroke(
+      screen
+          .map((p) => widget.document.clampToBoard(_toWorld(p, under)))
+          .toList(growable: false),
+    );
+  }
+
+  /// Fires whichever placement [_startGesture] armed, at the point it was
+  /// armed with, on the lift of the pointer that armed it. A pointer a
+  /// presence tile absorbed still holds the placement back.
   void _resolvePendingPlacement() {
     final tool = _pendingPlacementTool;
     final world = _pendingPlacementWorld;
     if (tool == null || world == null) return;
+    if (_totalPointers != 0) {
+      _dropPlacement();
+      return;
+    }
     _pendingPlacementTool = null;
     _pendingPlacementWorld = null;
-    if (_totalPointers != 0) return;
     switch (tool) {
       case CanvasTool.note:
         widget.onNotePlace?.call(world);
@@ -271,9 +415,9 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
 
   /// [world], unchanged, and a null size for a plain tap (nothing in
   /// [_shapeDraft] worth calling a drag); otherwise the dragged box's own
-  /// centre and world-space size, clamped to the same
-  /// [minObjectSize]..`maxObjectExtent` a resize handle already respects, so
-  /// a placement drag can never commit a box a resize could not.
+  /// centre and world-space size, clipped to the board and clamped to the
+  /// same [minObjectSize]..`maxObjectExtent` a resize handle already
+  /// respects, so a placement drag can never commit a box a resize could not.
   (Offset, Size?) _resolveShapeDrag(Offset world) {
     final screen = _shapeDraft.take();
     if (screen == null ||
@@ -281,10 +425,14 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
             screen.height < _shapeDragThreshold)) {
       return (world, null);
     }
-    final bounds = Rect.fromPoints(
+    var bounds = Rect.fromPoints(
       _toWorld(screen.topLeft),
       _toWorld(screen.bottomRight),
     );
+    final board = widget.document.board;
+    if (board != null && bounds.overlaps(board)) {
+      bounds = bounds.intersect(board);
+    }
     final width = bounds.width.clamp(minObjectSize, maxObjectExtent);
     final height = bounds.height.clamp(minObjectSize, maxObjectExtent);
     return (bounds.center, Size(width, height));
@@ -312,31 +460,6 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     _panFrom = null;
   }
 
-  /// Re-arms the active tool at [screen] as though this pointer had just
-  /// gone down here - the counterpart to [_interruptForPan]'s cancel, for
-  /// when a grab ends mid-gesture (the grab button released while another
-  /// stays held) rather than the whole pointer lifting. Note/shape still
-  /// resolve on this same pointer's eventual up through the normal
-  /// [_pendingPlacementTool] path, exactly as a fresh tap would.
-  void _resumeToolAt(Offset screen) {
-    switch (widget.tool) {
-      case CanvasTool.eraser:
-        _pendingErasePoint = _toWorld(screen);
-      case CanvasTool.pan:
-        widget.onSelectStart?.call(_toWorld(screen));
-      case CanvasTool.note:
-        _pendingPlacementTool = CanvasTool.note;
-        _pendingPlacementWorld = _toWorld(screen);
-      case CanvasTool.shape:
-        _pendingPlacementTool = CanvasTool.shape;
-        _pendingPlacementWorld = _toWorld(screen);
-        _shapeDraft.begin(screen, widget.shapeKind);
-      case CanvasTool.pen:
-        _draft.begin(screen);
-        widget.onDraftPoint?.call(_toWorld(screen));
-    }
-  }
-
   void _updatePan(Offset screen) {
     final from = _panFrom;
     if (from == null) return;
@@ -348,102 +471,6 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       camera.copyWith(
         x: camera.x - delta.dx / camera.zoom,
         y: camera.y - delta.dy / camera.zoom,
-      ),
-    );
-  }
-
-  /// Ends whatever tool gesture this pointer was mid-way through the moment
-  /// the pan button joins it - only reachable from [_move], since [_down]
-  /// has nothing to end yet. A pen draft is cancelled, not submitted as a
-  /// truncated stroke or left suspended for a resume this widget never
-  /// attempts - the same treatment a second touch pointer already gives it
-  /// above. Erase and select flush through their own end callback instead,
-  /// since both apply incrementally and an unflushed accumulator on the
-  /// caller's side would otherwise sit forever unsubmitted.
-  void _interruptForPan() {
-    final hadDraft = !_draft.isEmpty;
-    _draft.cancel();
-    if (hadDraft) widget.onDraftEnded?.call();
-    _shapeDraft.cancel();
-    switch (widget.tool) {
-      case CanvasTool.eraser:
-        if (_pendingErasePoint case final pending?) {
-          widget.onErase?.call(pending);
-          _pendingErasePoint = null;
-        }
-        widget.onEraseEnd?.call();
-      case CanvasTool.pan:
-        widget.onSelectEnd?.call();
-      case CanvasTool.note:
-      case CanvasTool.shape:
-      case CanvasTool.pen:
-        break;
-    }
-    _pendingPlacementTool = null;
-    _pendingPlacementWorld = null;
-  }
-
-  /// A plain wheel notch pans vertically - the one axis a mouse wheel
-  /// itself reports, and what a trackpad's own vertical swipe already
-  /// produces too - while Ctrl/Cmd zooms and Shift adds the horizontal axis
-  /// a single-axis wheel cannot report on its own. A trackpad's native
-  /// two-axis swipe keeps panning freely in both directions unmodified,
-  /// which switching the unmodified case to zoom would have broken; a
-  /// middle-mouse grab-drag (see [_beginPan]) is what actually gives a
-  /// plain mouse free motion in both axes, not the wheel.
-  ///
-  /// The actual arithmetic lives in [cameraAfterWheelScroll], a pure
-  /// function rather than a method here, because this surface is no longer
-  /// the only thing a wheel event can land on: a manipulable presence tile
-  /// in the app layer sits in front of it with its own opaque hit test, and
-  /// has to answer for that same gesture rather than silently swallowing it
-  /// - see that widget's own doc for why. Two independent copies of this
-  /// would drift the day only one changed; this is the one place either
-  /// caller reads it from.
-  void _signal(PointerSignalEvent event) {
-    final document = widget.document;
-    // On the web a ctrl-wheel or trackpad pinch arrives as a scale event, never as a scroll.
-    if (event is PointerScaleEvent) {
-      document.setCamera(
-        cameraAfterZoom(
-          document.camera,
-          focal: event.localPosition,
-          zoomTarget: document.camera.zoom * event.scale,
-        ),
-      );
-      return;
-    }
-    if (event is! PointerScrollEvent) return;
-    final keys = HardwareKeyboard.instance;
-    document.setCamera(
-      cameraAfterWheelScroll(
-        document.camera,
-        focal: event.localPosition,
-        dx: event.scrollDelta.dx,
-        dy: event.scrollDelta.dy,
-        zoomModifier: keys.isControlPressed || keys.isMetaPressed,
-        horizontalModifier: keys.isShiftPressed,
-      ),
-    );
-  }
-
-  void _scaleBegin(ScaleStartDetails details) {
-    _scaleStart = widget.document.camera;
-    _scaleFocalWorld = _toWorld(details.localFocalPoint);
-  }
-
-  void _scaleUpdate(ScaleUpdateDetails details) {
-    final start = _scaleStart;
-    final anchor = _scaleFocalWorld;
-    if (start == null || anchor == null || details.pointerCount < 2) return;
-    final document = widget.document;
-    document.setCamera(start.copyWith(zoom: start.zoom * details.scale));
-    final camera = document.camera;
-    final focal = details.localFocalPoint;
-    document.setCamera(
-      camera.copyWith(
-        x: anchor.dx - focal.dx / camera.zoom,
-        y: anchor.dy - focal.dy / camera.zoom,
       ),
     );
   }

@@ -25,7 +25,8 @@ CanvasStrokeInput _shape(String id, {required String authorId}) =>
       points: const [],
       width: 0,
       colorKey: 'shape',
-      kind: CanvasObjectKind.shape,
+      kind: CanvasObjectKind.note,
+      text: 'note',
       authorId: authorId,
     );
 
@@ -42,7 +43,6 @@ class _Harness {
   final String? selfId;
   final bool canManage;
 
-  final List<CanvasTool> toolChanges = [];
   final List<String> bringToFront = [];
   final List<String> sendToBack = [];
   final List<String> deleted = [];
@@ -62,7 +62,6 @@ class _Harness {
           selfId: selfId,
           requests: requests,
           tool: CanvasTool.pan,
-          onToolChanged: toolChanges.add,
           onBringToFront: bringToFront.add,
           onSendToBack: sendToBack.add,
           onDeleteSelected: deleted.add,
@@ -96,7 +95,6 @@ void main() {
       expect(find.text('Send to back'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
       expect(document.selectedObjectId.value, 'a');
-      expect(harness.toolChanges, [CanvasTool.pan]);
     },
   );
 
@@ -145,7 +143,6 @@ void main() {
       expect(find.text('Add note'), findsOneWidget);
       expect(find.text('Recenter view'), findsOneWidget);
       expect(document.selectedObjectId.value, isNull);
-      expect(harness.toolChanges, isEmpty);
     },
   );
 
@@ -357,7 +354,6 @@ void main() {
 
     expect(find.text('Bring to front'), findsNothing);
     expect(document.selectedObjectId.value, isNull);
-    expect(harness.toolChanges, isEmpty);
   });
 
   /// A movement within the slop still counts as a click - the same leeway
@@ -398,7 +394,6 @@ void main() {
 
     expect(find.text('Bring to front'), findsOneWidget);
     expect(document.selectedObjectId.value, 'a');
-    expect(harness.toolChanges, [CanvasTool.pan]);
   });
 
   testWidgets('the same request twice in a row reopens the menu both times', (
