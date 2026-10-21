@@ -39,7 +39,10 @@ const double _maxCullPad = 128;
 
 /// The document: index, camera, strokes, and dedupe by id.
 class CanvasDocument extends ChangeNotifier {
-  CanvasDocument();
+  CanvasDocument() {
+    // A drag that starts and ends between two frames must still invalidate the cached ink.
+    elevatedObjectId.addListener(_changed);
+  }
 
   final CanvasScene scene = CanvasScene();
 

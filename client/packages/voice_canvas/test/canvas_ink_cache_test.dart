@@ -118,6 +118,23 @@ void main() {
     expect(canvas.deviceBounds.single, const Rect.fromLTRB(200, 200, 216, 216));
   });
 
+  test('a drag that begins and ends between two frames still repaints it', () {
+    _strokesDrawn(painter);
+    _strokesDrawn(painter);
+
+    document
+      ..elevatedObjectId.value = 's5'
+      ..moveObject('s5', 300, 300, 16, 16)
+      ..elevatedObjectId.value = null
+      ..refresh();
+    final canvas = RecordingCanvas();
+    painter.paint(canvas, _size);
+    expect(
+      canvas.deviceBounds,
+      contains(const Rect.fromLTRB(200, 200, 216, 216)),
+    );
+  });
+
   test('a removed object leaves the texture on the next frame', () {
     _strokesDrawn(painter);
     _strokesDrawn(painter);
