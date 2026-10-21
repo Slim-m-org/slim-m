@@ -3,6 +3,7 @@
 /// how a drag reshapes the box, and the two ceilings it must respect.
 library;
 
+import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -80,7 +81,7 @@ void main() {
       () {
         // Zoomed out 10x, the same screen radius covers 10x the world space.
         const farInWorldSpace = Offset(
-          100 + resizeHandleHitRadius * 5,
+          100 - resizeHandleHitRadius * 5,
           100,
         );
         expect(
@@ -166,6 +167,40 @@ void main() {
         closeTo(_box.w / _box.h, 0.001),
         reason: 'the ratio must survive being clamped to the ceiling',
       );
+    });
+  });
+
+  group('resizeBounds inside a board', () {
+    const original = (x: 100.0, y: 100.0, w: 100.0, h: 50.0);
+    const board = Rect.fromLTWH(0, 0, 400, 300);
+
+    test('an aspect-locked drag stops at the edge with its anchor held', () {
+      final box = resizeBounds(
+        corner: ResizeCorner.bottomRight,
+        original: original,
+        pointerWorld: const Offset(380, 290),
+        lockAspect: true,
+        within: board,
+      );
+
+      expect(box.x, 100);
+      expect(box.y, 100);
+      expect(box.x + box.w, lessThanOrEqualTo(400));
+      expect(box.y + box.h, lessThanOrEqualTo(300));
+      expect(box.w / box.h, closeTo(2, 1e-9));
+    });
+
+    test('a free drag stops at the edge on each axis alone', () {
+      final box = resizeBounds(
+        corner: ResizeCorner.bottomRight,
+        original: original,
+        pointerWorld: const Offset(900, 250),
+        lockAspect: false,
+        within: board,
+      );
+
+      expect(box.w, 300);
+      expect(box.h, 150);
     });
   });
 }

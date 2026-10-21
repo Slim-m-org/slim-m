@@ -17,6 +17,9 @@ class CanvasDragPan {
 
   bool get active => _start != null;
 
+  /// Whether the press has travelled past the tap slop and is moving the camera.
+  bool get moving => _anchor != null;
+
   /// Arms a pan from [world]; the camera stays put until the pointer leaves the tap slop.
   void begin(Offset world) {
     _start = world;

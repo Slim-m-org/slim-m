@@ -31,9 +31,8 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       _fullscreenFromFocus = false;
       // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
       _refresh(() {
-        if (_tool == CanvasTool.pan) {
-          _tool = _toolBeforeFullscreen ?? _defaultTool;
-        }
+        final before = _toolBeforeFullscreen;
+        if (_tool == CanvasTool.pan && before != null) _tool = before;
       });
       _toolBeforeFullscreen = null;
       return;

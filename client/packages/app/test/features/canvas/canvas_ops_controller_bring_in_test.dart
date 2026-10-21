@@ -188,11 +188,11 @@ void main() {
         ..refresh();
 
       rig.ops.beginSelect(
-        const Offset(100, 100),
+        const Offset(0, 100),
         manageCanvas: false,
         selfId: 'me',
       );
-      rig.ops.dragSelect(const Offset(110, 110), lockAspect: true);
+      rig.ops.dragSelect(const Offset(10, 110), lockAspect: true);
       await rig.ops.endSelect();
 
       final shown = rig.document.objectBounds('huge')!;

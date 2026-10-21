@@ -23,7 +23,8 @@ CanvasStrokeInput _shape(String id, {required String authorId}) =>
       points: const [],
       width: 0,
       colorKey: 'shape',
-      kind: CanvasObjectKind.shape,
+      kind: CanvasObjectKind.note,
+      text: 'note',
       authorId: authorId,
     );
 
@@ -40,7 +41,6 @@ Widget _build({required CanvasDocument document, required CanvasTool tool}) =>
             selfId: 'me',
             requests: CanvasObjectMenuRequests(),
             tool: tool,
-            onToolChanged: (_) {},
             onBringToFront: (_) {},
             onSendToBack: (_) {},
             onDeleteSelected: (_) {},

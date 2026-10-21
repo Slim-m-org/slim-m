@@ -195,7 +195,7 @@ void main() {
     expect(hitTestBoxAt(document, const Offset(10, 10)), 'over');
   });
 
-  test('a point inside a note or a shape box is a hit, like an image', () {
+  test('a point inside a note box, or on the outline of a shape, is a hit', () {
     final document = CanvasDocument()..setViewport(const Size(800, 600));
     document
       ..applyPlaced(
@@ -233,7 +233,7 @@ void main() {
       ..refresh();
 
     expect(hitTestBoxAt(document, const Offset(10, 10)), 'note');
-    expect(hitTestBoxAt(document, const Offset(110, 110)), 'shape');
+    expect(hitTestBoxAt(document, const Offset(100.2, 120)), 'shape');
   });
 
   test('allowed skips a disallowed image for the one behind it', () {

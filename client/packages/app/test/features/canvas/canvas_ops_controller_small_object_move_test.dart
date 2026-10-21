@@ -161,7 +161,7 @@ void main() {
             'a translate never changes the box size; only a resize '
             'grows it, which is what grabbing a corner must still do',
       );
-      expect(harness.opRequests.single['h'], 10);
+      expect(harness.opRequests.single['h'], 20);
     });
   });
 }

@@ -14,6 +14,8 @@
 /// at the bottom of this same stack, drawing over exactly that content.
 library;
 
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
@@ -36,47 +38,10 @@ import 'selection_painter.dart';
 /// second class. The two fields a pinch gesture needs across its own start
 /// and update callbacks (`_scaleStart`, `_scaleFocalWorld`) stay here, since
 /// an extension cannot declare instance state.
+part 'canvas_surface_camera_input.dart';
 part 'canvas_surface_gestures.dart';
+part 'canvas_surface_types.dart';
 part 'canvas_surface_painters.dart';
-
-/// A pen stroke the surface has finished and wants committed.
-typedef StrokeCommitted = void Function(List<Offset> worldPoints);
-
-/// A shape tool's placement: the box's own centre in world coordinates,
-/// and, when the pointer actually dragged rather than merely tapped, the
-/// world-space size that drag sized it to - null for a plain tap, which
-/// keeps the caller's own default size.
-typedef ShapePlaced = void Function(Offset worldCenter, Size? draggedSize);
-
-/// This pointer moved to a world position, on every hover and drag alike.
-/// The caller decides whether and how often to relay it.
-typedef PointerMoved = void Function(Offset worldPoint);
-
-/// A point was added to the pen stroke currently under this device's own
-/// pointer, in world coordinates. Fires on the same down/move events
-/// [StrokeCommitted] itself is eventually built from, but as they happen
-/// rather than once at the end - the caller decides whether, and how often,
-/// to relay it onward as an ephemeral preview.
-typedef DraftPointAdded = void Function(Offset worldPoint);
-
-/// Which gesture a single pointer draws.
-///
-/// Decision 0004 named the tool dock as exactly three placement tools - pen,
-/// note, shape - each dropping a new object where a pointer taps. `eraser`
-/// and `pan` are not placement modes: they act on objects already there
-/// (erase, move, resize), added once this canvas grew objects worth acting
-/// on, and are additional to the three named tools rather than a fourth and
-/// fifth placement choice.
-enum CanvasTool {
-  pan,
-  pen,
-  note,
-  shape,
-  eraser;
-
-  /// Whether a press starts a new mark, as opposed to selecting or erasing.
-  bool get placesInk => this == pen || this == note || this == shape;
-}
 
 /// The canvas itself.
 ///
@@ -94,10 +59,12 @@ class CanvasSurface extends StatefulWidget {
     required this.onStroke,
     this.onErase,
     this.onEraseEnd,
+    this.onEraseCancel,
     this.onSelectStart,
     this.onSelectTap,
     this.onSelectDrag,
     this.onSelectEnd,
+    this.onSelectCancel,
     this.onNotePlace,
     this.onShapePlace,
     this.shapeKind = CanvasShapeKind.rectangle,
@@ -240,6 +207,10 @@ class CanvasSurface extends StatefulWidget {
   /// point, which is what makes undoing an erase drag a single op.
   final VoidCallback? onEraseEnd;
 
+  /// Fires instead of [onEraseEnd] when the system cancels the erasing
+  /// pointer, so the caller can bring back what the gesture hid.
+  final VoidCallback? onEraseCancel;
+
   /// Fires on pointer-down while [tool] is [CanvasTool.pan], in world
   /// coordinates. Resolving whether an object was actually picked up (and
   /// which one) is the caller's job, the same division [onErase] already
@@ -254,6 +225,10 @@ class CanvasSurface extends StatefulWidget {
   /// caller can commit the final position as one op rather than one per
   /// move, the same shape [onEraseEnd] already uses.
   final VoidCallback? onSelectEnd;
+
+  /// Fires instead of [onSelectEnd] when the system cancels the dragging
+  /// pointer, so the caller can put the object back where it started.
+  final VoidCallback? onSelectCancel;
 
   /// Fires after [onSelectEnd] for a select gesture that never travelled
   /// past a tap's slop, with the kind of pointer that made it, so the caller
@@ -309,6 +284,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
     super.initState();
     _glideTicker = createTicker(_onGlideFrame);
     widget.cursors?.addListener(_onCursorsChanged);
+    widget.document.addListener(_onDocumentChanged);
   }
 
   /// Starts the glide ticker on a cursor update. The zero-glide early
@@ -360,6 +336,19 @@ class _CanvasSurfaceState extends State<CanvasSurface>
   void didUpdateWidget(CanvasSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     _refreshPainters(oldWidget);
+    if (oldWidget.document != widget.document) {
+      oldWidget.document.removeListener(_onDocumentChanged);
+      widget.document.addListener(_onDocumentChanged);
+    }
+    if (oldWidget.tool != widget.tool || !widget.enabled) {
+      _endGestureAfterBuild();
+    }
+  }
+
+  /// Closes the running gesture once this build is over: its callbacks rebuild ancestors, which a build must not.
+  void _endGestureAfterBuild() {
+    if (_gesture == null) return;
+    scheduleMicrotask(_finishGesture);
   }
 
   final DraftShape _shapeDraft = DraftShape();
@@ -404,7 +393,13 @@ class _CanvasSurfaceState extends State<CanvasSurface>
           touchHandles: widget.touchHandles,
         );
 
-  int _pointers = 0;
+  /// The pointers taking part in a gesture; a right-click or a rejected palm never joins.
+  final Map<int, PointerDeviceKind> _downPointers = {};
+  final Set<int> _stylusPointers = <int>{};
+  _Gesture? _gesture;
+
+  /// True while a callback this gesture made may be moving the camera itself.
+  bool _inOwnCallback = false;
 
   /// Where the select tool's pointer went down, until it moves past a tap's
   /// slop or a second pointer joins.
@@ -445,6 +440,7 @@ class _CanvasSurfaceState extends State<CanvasSurface>
 
   @override
   void dispose() {
+    widget.document.removeListener(_onDocumentChanged);
     widget.cursors?.removeListener(_onCursorsChanged);
     _cursorPainter?.disposeLabels();
     _strokes.disposeNoteLabels();

@@ -21,6 +21,8 @@ class CanvasPaneSurfaceActions {
     required this.onShapePlace,
     required this.onNotePlace,
     this.onSelectTap,
+    this.onEraseCancel,
+    this.onSelectCancel,
     required this.onSelectEnd,
     required this.onSelectDrag,
     required this.onSelectStart,
@@ -29,7 +31,6 @@ class CanvasPaneSurfaceActions {
     required this.onStroke,
     required this.onCommitTile,
     required this.onVideoInterest,
-    required this.onToolChanged,
     required this.onBringToFront,
     required this.onSendToBack,
     required this.onDeleteSelected,
@@ -54,11 +55,12 @@ class CanvasPaneSurfaceActions {
   final ValueChanged<Offset> onSelectDrag;
   final ValueChanged<Offset> onSelectStart;
   final VoidCallback onEraseEnd;
+  final VoidCallback? onEraseCancel;
+  final VoidCallback? onSelectCancel;
   final ValueChanged<Offset> onErase;
   final StrokeCommitted onStroke;
   final void Function(String key, Rect rect) onCommitTile;
   final void Function(Set<String>? tileKeys) onVideoInterest;
-  final ValueChanged<CanvasTool> onToolChanged;
   final ValueChanged<String> onBringToFront;
   final ValueChanged<String> onSendToBack;
   final ValueChanged<String> onDeleteSelected;

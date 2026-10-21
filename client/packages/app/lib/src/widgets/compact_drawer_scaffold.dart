@@ -26,6 +26,7 @@ class CompactDrawerScaffold extends ConsumerStatefulWidget {
     required this.showAppBar,
     required this.showRail,
     required this.showMembers,
+    this.membersByEdgeDrag = true,
     super.key,
   });
 
@@ -37,6 +38,9 @@ class CompactDrawerScaffold extends ConsumerStatefulWidget {
   final bool showRail;
 
   final bool showMembers;
+
+  /// False over the canvas, where an edge stroke is a drawing and not a drawer.
+  final bool membersByEdgeDrag;
 
   @override
   ConsumerState<CompactDrawerScaffold> createState() =>
@@ -95,6 +99,7 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
           drawerDragStartBehavior: DragStartBehavior.down,
           onDrawerChanged: _onRailChanged,
           onEndDrawerChanged: (open) => endSelectionOnDrawerClose(ref, open),
+          endDrawerEnableOpenDragGesture: widget.membersByEdgeDrag,
           // The roster slides in from the right: the conversation is the only pane at this width.
           endDrawer: showMembers
               ? restore(

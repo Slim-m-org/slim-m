@@ -80,10 +80,10 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Tooltip &&
-            (widget.message?.contains('pen ink only') ?? false),
+            (widget.message?.contains('erases ink and shapes') ?? false),
       ),
       findsOneWidget,
-      reason: 'Eraser\'s tooltip is the only place its ink-only scope is said',
+      reason: 'Eraser\'s tooltip is the only place its scope is said',
     );
   });
 

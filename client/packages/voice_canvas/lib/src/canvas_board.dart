@@ -56,10 +56,11 @@ Rect visibleBoardPart(Rect worldView, Rect board) {
 /// own aspect, so a follower on another shape sees extra board around it.
 Camera cameraForBoardView(Rect view, Rect board, Size viewport) {
   if (viewport.isEmpty || view.isEmpty) return boardFitCamera(board, viewport);
-  final zoom = math.min(
-    viewport.width / view.width,
-    viewport.height / view.height,
-  );
+  final fit = boardFitZoom(board, viewport);
+  final zoom = math
+      .min(viewport.width / view.width, viewport.height / view.height)
+      .clamp(fit, math.max(fit, maxZoom))
+      .toDouble();
   return clampCameraToBoard(
     Camera(
       x: view.center.dx - viewport.width / (2 * zoom),

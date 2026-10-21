@@ -140,6 +140,17 @@ class CanvasOpsController {
   /// would land after. [CanvasDocument.removeObject]'s own `_freeSlot`
   /// already clears the selection when the freed slot is the current one.
   Future<void> deleteSelected(String objectId) async {
+    final mark = document.groupOf(objectId);
+    if (mark.length > 1) {
+      for (final member in mark) {
+        if (!isLocked(member) && _dragBatch.add(member)) {
+          document.removeObject(member);
+        }
+      }
+      document.refresh();
+      await endErase();
+      return;
+    }
     switch (commits.undoPlacement(objectId)) {
       case UndoPlacementOutcome.cancelled:
         document.kill(objectId);
@@ -273,8 +284,13 @@ class CanvasOpsController {
     return null;
   }
 
-  /// Erases the topmost stroke under [world] the caller is allowed to
-  /// erase - their own ink always, or anybody's with [manageCanvas] - and
+  /// Ink and shapes are what the eraser takes; an image or a note goes through the object menu's Delete.
+  static bool _isInk(CanvasStroke stroke) =>
+      stroke.kind == CanvasObjectKind.stroke ||
+      stroke.kind == CanvasObjectKind.shape;
+
+  /// Erases the topmost ink or shape under [world] the caller is allowed to
+  /// erase - their own always, or anybody's with [manageCanvas] - and
   /// removes it from view at once. Scoped at hit-test time so a drag
   /// visibly picks up nothing it cannot touch, rather than sending a
   /// request the server would refuse anyway. Fires on pointer-down and every
@@ -285,19 +301,29 @@ class CanvasOpsController {
     required String? selfId,
     bool touch = false,
   }) {
-    if (_dragBatch.length >= maxRemoveIdsPerOp) return;
+    // One op carries only so many ids; a long drag goes out in several.
+    if (_dragBatch.length >= maxRemoveIdsPerOp) unawaited(endErase());
     // Legacy content past the board is hidden by its clip, so a press there must not reach it.
     if (!document.acceptsPlacementAt(world)) return;
     bool allowed(CanvasStroke stroke) =>
         !isLocked(stroke.id) &&
         (manageCanvas ||
             (stroke.authorId != null && stroke.authorId == selfId));
-    final slopPx = touch ? touchHitSlopPx : defaultHitSlopPx;
-    final id =
-        hitTestStroke(document, world, allowed: allowed, slopPx: slopPx) ??
-        hitTestBoxAt(document, world, allowed: allowed);
-    if (id == null || !_dragBatch.add(id)) return;
-    document.removeObject(id);
+    final id = hitTestTopmost(
+      document,
+      world,
+      touch: touch,
+      allowed: allowed,
+      accepts: _isInk,
+    );
+    if (id == null || _dragBatch.contains(id)) return;
+    // A long stroke was saved in pieces; the whole mark goes with the one touched.
+    for (final member in document.groupOf(id)) {
+      final author = document.authorIdOf(member);
+      final mine = manageCanvas || (author != null && author == selfId);
+      if (isLocked(member) || !mine || !_dragBatch.add(member)) continue;
+      document.removeObject(member);
+    }
     document.refresh();
   }
 
@@ -317,6 +343,15 @@ class CanvasOpsController {
     if (immediate.isEmpty) return;
     final opId = await _submitRemove(immediate);
     if (opId != null) _pushUndo(_EraseEntry(opId, immediate));
+  }
+
+  /// The erase pointer was cancelled by the system: what it hid comes back from the server and nothing is removed.
+  void cancelErase() {
+    if (_dragBatch.isEmpty) return;
+    final ids = _dragBatch.toList(growable: false);
+    _dragBatch.clear();
+    document.forgetRemoved(ids);
+    unawaited(onRemoveFailed?.call());
   }
 
   /// Clears every object placed at or before [beforeSeq] - see

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The eraser tooltip promises pen ink only; a drift off the ink must not
-/// take the image underneath (audit C-084).
+/// The eraser tooltip promises ink and shapes only; a drift off the ink must
+/// not take the image underneath (audit C-084).
 library;
 
 import 'package:flutter/painting.dart';
@@ -75,7 +75,7 @@ void main() {
     expect(
       document.isAlive('img'),
       isTrue,
-      reason: 'tooltip: "Eraser - pen ink only"',
+      reason: 'tooltip: "Eraser - erases ink and shapes"',
     );
   });
 }

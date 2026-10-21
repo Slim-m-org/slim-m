@@ -74,8 +74,8 @@ class CanvasToolButtons extends StatelessWidget {
         semanticLabel: 'Pan',
         tooltip:
             'Pan the canvas, move an object, or select a stroke '
-            'to reorder it · hold Shift while resizing to free '
-            'the aspect ratio',
+            'to reorder it · hold Shift while resizing to flip '
+            'the aspect lock',
         active: tool == CanvasTool.pan,
         onPressed: () => onToolChanged(CanvasTool.pan),
       ),
@@ -122,8 +122,8 @@ class CanvasToolButtons extends StatelessWidget {
         icon: AppIcons.eraser,
         semanticLabel: 'Eraser',
         tooltip:
-            'Eraser · pen ink only, select then Delete for a '
-            'note, shape or image',
+            'Eraser · erases ink and shapes. Right-click or long-press a '
+            'note or image, then Delete',
         active: tool == CanvasTool.eraser,
         onPressed: () => onToolChanged(CanvasTool.eraser),
       ),

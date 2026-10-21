@@ -73,12 +73,34 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
     if (event.logicalKey != settings.pushToTalkKey) return false;
     final gate = ref.read(pushToTalkGateProvider);
     if (event is KeyDownEvent) {
+      if (_isShortcutChord(event) || _typingIntoField()) return false;
       gate.press(HoldSource.inWindow);
     } else {
       gate.keyWentUp();
     }
     return false;
   }
+
+  static final _modifierKeys = {
+    LogicalKeyboardKey.controlLeft,
+    LogicalKeyboardKey.controlRight,
+    LogicalKeyboardKey.metaLeft,
+    LogicalKeyboardKey.metaRight,
+    LogicalKeyboardKey.altLeft,
+    LogicalKeyboardKey.altRight,
+  };
+
+  /// Another modifier held with the key makes it a shortcut such as paste, not a hold-to-talk press.
+  bool _isShortcutChord(KeyEvent event) => HardwareKeyboard
+      .instance
+      .logicalKeysPressed
+      .any((k) => _modifierKeys.contains(k) && k != event.logicalKey);
+
+  /// A key typed into a text field belongs to the text, a canvas note included.
+  bool _typingIntoField() =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>() !=
+      null;
 
   @override
   Widget build(BuildContext context) {

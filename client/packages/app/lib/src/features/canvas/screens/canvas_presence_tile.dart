@@ -27,6 +27,15 @@ import 'canvas_presence_tile_metrics.dart';
 
 export 'canvas_presence_tile_metrics.dart';
 
+/// Every device that drags a tile; a trackpad scroll belongs to the camera.
+const Set<PointerDeviceKind> _tileDragDevices = {
+  PointerDeviceKind.touch,
+  PointerDeviceKind.mouse,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+  PointerDeviceKind.unknown,
+};
+
 class CanvasPresenceManipulableTile extends StatefulWidget {
   const CanvasPresenceManipulableTile({
     super.key,
@@ -309,8 +318,37 @@ class _CanvasPresenceManipulableTileState
         dy: event.scrollDelta.dy,
         zoomModifier: keys.isControlPressed || keys.isMetaPressed,
         horizontalModifier: keys.isShiftPressed,
+        zoomFloor: widget.document.zoomFloor,
       ),
     );
+  }
+
+  double _trackpadScale = 1;
+
+  void _panZoomStart(PointerPanZoomStartEvent event) => _trackpadScale = 1;
+
+  /// A two-finger trackpad scroll or pinch over the tile moves the camera,
+  /// like the same gesture over bare canvas, instead of dragging the tile.
+  void _panZoomUpdate(PointerPanZoomUpdateEvent event) {
+    if (_passThrough) return;
+    final document = widget.document;
+    var camera = document.camera;
+    camera = camera.copyWith(
+      x: camera.x - event.panDelta.dx / camera.zoom,
+      y: camera.y - event.panDelta.dy / camera.zoom,
+    );
+    final ratio = event.scale / _trackpadScale;
+    _trackpadScale = event.scale;
+    if (ratio != 1) {
+      final screen = presenceScreenRect(_paintRect, widget.camera);
+      camera = cameraAfterZoom(
+        camera,
+        focal: screen.topLeft + event.localPosition,
+        zoomTarget: camera.zoom * ratio,
+        zoomFloor: document.zoomFloor,
+      );
+    }
+    document.setCamera(camera);
   }
 
   @override
@@ -379,6 +417,8 @@ class _CanvasPresenceManipulableTileState
           onPointerUp: _pointerUp,
           onPointerCancel: _pointerUp,
           onPointerSignal: _onPointerSignal,
+          onPointerPanZoomStart: _panZoomStart,
+          onPointerPanZoomUpdate: _panZoomUpdate,
           child: Semantics(
             container: true,
             label: widget.semanticLabel,
@@ -399,6 +439,8 @@ class _CanvasPresenceManipulableTileState
                   ignoring: _passThrough,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
+                    // Trackpad scrolling is the camera's, handled by the Listener above.
+                    supportedDevices: _tileDragDevices,
                     // Opens this tile's own menu rather than a no-op now, but still HitTestBehavior.opaque - a right-click on a tile must never leak to a canvas object underneath it, `canvas_self_presence_overlay.dart`'s old precedent for this exact absorption. onLongPressStart is its touch equivalent (law 3), matching canvas_object_context_menu.dart's own precedent.
                     onSecondaryTapUp: (details) =>
                         _menuController.open(details.globalPosition),

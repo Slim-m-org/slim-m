@@ -104,12 +104,16 @@ ResizeCorner? hitTestResizeHandle(
   double hitRadius = resizeHandleHitRadius,
 }) {
   final worldRadius = hitRadius / zoom;
+  ResizeCorner? nearest;
+  var nearestDistance = double.infinity;
   for (final corner in ResizeCorner.values) {
-    if ((world - _cornerOf(bounds, corner)).distance <= worldRadius) {
-      return corner;
+    final distance = (world - _cornerOf(bounds, corner)).distance;
+    if (distance <= worldRadius && distance < nearestDistance) {
+      nearest = corner;
+      nearestDistance = distance;
     }
   }
-  return null;
+  return nearest;
 }
 
 /// The new bounds a resize drag produces: [corner] follows [pointerWorld],
@@ -126,20 +130,34 @@ ResizeCorner? hitTestResizeHandle(
   required ({double x, double y, double w, double h}) original,
   required Offset pointerWorld,
   required bool lockAspect,
+  Rect? within,
 }) {
   final anchor = _cornerOf(original, _oppositeOf(corner));
+  final left = pointerWorld.dx <= anchor.dx;
+  final top = pointerWorld.dy <= anchor.dy;
+  // Growth stops at the board edge instead of letting the anchor slide.
+  final roomW = within == null
+      ? double.infinity
+      : (left ? anchor.dx - within.left : within.right - anchor.dx);
+  final roomH = within == null
+      ? double.infinity
+      : (top ? anchor.dy - within.top : within.bottom - anchor.dy);
 
   var w = _clamped((pointerWorld.dx - anchor.dx).abs());
   var h = _clamped((pointerWorld.dy - anchor.dy).abs());
 
   if (lockAspect && original.w > 0 && original.h > 0) {
-    final scale = _lockedScale(w / original.w, h / original.h, original);
+    var scale = _lockedScale(w / original.w, h / original.h, original);
+    scale = _lesser(scale, _lesser(roomW / original.w, roomH / original.h));
     w = original.w * scale;
     h = original.h * scale;
+  } else {
+    w = _lesser(w, roomW);
+    h = _lesser(h, roomH);
   }
 
-  final left = pointerWorld.dx <= anchor.dx;
-  final top = pointerWorld.dy <= anchor.dy;
+  w = _greater(w, minObjectSize);
+  h = _greater(h, minObjectSize);
   return (
     x: left ? anchor.dx - w : anchor.dx,
     y: top ? anchor.dy - h : anchor.dy,
