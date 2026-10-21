@@ -122,7 +122,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
 
   bool _fit() {
     if (_document.board == null) return false;
-    _document.fitBoard();
+    _document.fitContent();
     return true;
   }
 

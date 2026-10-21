@@ -82,4 +82,47 @@ void main() {
 
     expect(camera.zoom, lessThanOrEqualTo(maxZoom));
   });
+
+  group('fitContent on a board', () {
+    CanvasDocument boardDoc() {
+      final document = CanvasDocument()
+        ..setBoard(canvasBoard)
+        ..setViewport(const Size(1000, 800));
+      addTearDown(document.dispose);
+      return document;
+    }
+
+    test('fits the drawn objects, not the whole board', () {
+      final document = boardDoc()
+        ..applyPlaced(_box('a', x: 400, y: 300))
+        ..applyPlaced(_box('b', x: 600, y: 400));
+      final fitZoom = document.camera.zoom;
+      document.fitContent();
+
+      expect(document.camera.zoom, greaterThan(fitZoom * 2));
+      expect(document.worldView.contains(const Offset(400, 300)), isTrue);
+      expect(document.worldView.contains(const Offset(640, 440)), isTrue);
+      expect(document.isFitted, isFalse);
+    });
+
+    test('keeps the content above the dock inset', () {
+      final document = boardDoc()
+        ..setBottomInset(200)
+        ..applyPlaced(_box('a', x: 400, y: 300));
+      document.fitContent();
+
+      final footY = (document.viewport.height - 200) / document.camera.zoom +
+          document.camera.y;
+      expect(footY, greaterThanOrEqualTo(340));
+    });
+
+    test('fits the whole board when nothing is drawn', () {
+      final document = boardDoc();
+      document
+        ..setCamera(const Camera(x: 500, y: 300, zoom: 2))
+        ..fitContent();
+
+      expect(document.isFitted, isTrue);
+    });
+  });
 }
