@@ -183,4 +183,30 @@ void main() {
       },
     );
   });
+
+  test(
+    'a caller that stops hands a pasted image back to the one under it',
+    () async {
+      final canvas = <String>[];
+      final composer = <String>[];
+      void onCanvas(Uint8List bytes, String name) => canvas.add(name);
+      void onComposer(Uint8List bytes, String name) => composer.add(name);
+      addTearDown(() => stopClipboardImagePaste(onCanvas));
+
+      startClipboardImagePaste(onCanvas);
+      startClipboardImagePaste(onComposer);
+      stopClipboardImagePaste(onComposer);
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            'top.npcserver.slimm/clipboard_image',
+            const StandardMethodCodec().encodeMethodCall(
+              MethodCall('pastedImage', Uint8List.fromList([1, 2, 3])),
+            ),
+            (_) {},
+          );
+
+      expect(composer, isEmpty);
+      expect(canvas, ['pasted-image.png']);
+    },
+  );
 }

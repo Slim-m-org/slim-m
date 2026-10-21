@@ -69,31 +69,33 @@ const MethodChannel _clipboardImageChannel = MethodChannel(
 /// typedef for why a real race made that check necessary.
 typedef PastedImageHandler = void Function(Uint8List bytes, String filename);
 
-PastedImageHandler? _onPastedImage;
+/// Newest last, as on web: a caller that stops hands the paste back to the one it started over.
+final _handlers = <PastedImageHandler>[];
 
 /// Starts listening for an image the iOS edit menu's Paste item hands over;
 /// call once per focus gained, paired with [stopClipboardImagePaste] on
 /// focus lost - see this file's doc comment for why a native menu tap is
 /// treated as the same seam as the web listener it mirrors.
 void startClipboardImagePaste(PastedImageHandler onImage) {
-  _onPastedImage = onImage;
+  // == rather than identical(): two tear-offs of one instance method are == but never identical.
+  _handlers
+    ..removeWhere((h) => h == onImage)
+    ..add(onImage);
   _clipboardImageChannel.setMethodCallHandler(_handlePastedImageCall);
 }
 
-/// Stops listening, but only while [onImage] is still the registered
-/// callback - matching the web implementation's own fix for the race where
-/// an unmounting caller's stop can otherwise outrun a newer caller's start.
+/// Stops [onImage]'s turn without touching any other caller's registration.
 void stopClipboardImagePaste(PastedImageHandler onImage) {
-  // == rather than identical(): two tear-offs of one instance method are == but never identical.
-  if (_onPastedImage != onImage) return;
-  _onPastedImage = null;
-  _clipboardImageChannel.setMethodCallHandler(null);
+  _handlers.removeWhere((h) => h == onImage);
+  if (_handlers.isEmpty) _clipboardImageChannel.setMethodCallHandler(null);
 }
 
 Future<void> _handlePastedImageCall(MethodCall call) async {
   if (call.method != 'pastedImage') return;
   final bytes = call.arguments as Uint8List?;
-  if (bytes != null) _onPastedImage?.call(bytes, 'pasted-image.png');
+  if (bytes != null && _handlers.isNotEmpty) {
+    _handlers.last(bytes, 'pasted-image.png');
+  }
 }
 
 /// Thrown by [readClipboardImage] when the clipboard holds an image but the
