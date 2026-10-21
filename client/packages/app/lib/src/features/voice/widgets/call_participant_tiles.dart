@@ -138,7 +138,7 @@ class CallParticipantTile extends StatelessWidget {
       participant.isLocal ? '${participant.name}, you' : participant.name,
       participant.isMuted ? 'muted' : 'microphone on',
       if (participant.isDeafened) 'deafened',
-      if (poorConnection) _poorLabel(participant),
+      if (poorConnection) poorConnectionLabel(participant),
       if (participant.isSpeaking) 'speaking',
       if (participant.isScreenSharing) 'sharing their screen',
     ];
@@ -282,7 +282,8 @@ class CallParticipantTile extends StatelessWidget {
   }
 }
 
-String _poorLabel(VoiceParticipant p) =>
+/// What a poor-connection mark says about [p], on a tile or a roster avatar.
+String poorConnectionLabel(VoiceParticipant p) =>
     p.isLocal ? 'your connection is unstable' : 'connection is unstable';
 
 const double _kBadgeSize = 22;
@@ -315,7 +316,7 @@ class _PoorConnectionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     return Tooltip(
-      message: _poorLabel(participant),
+      message: poorConnectionLabel(participant),
       child: _badgeCircle(
         tokens,
         Icon(
