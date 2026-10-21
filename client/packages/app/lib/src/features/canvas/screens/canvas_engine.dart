@@ -274,6 +274,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       return fetch(keepError: true);
     },
     isLocked: objectLocks.isLocked,
+    onObjectPlaced: hydrator.hydrate,
   );
 
   CanvasCursorRelay? _cursorRelay;

@@ -124,6 +124,7 @@ class CanvasOpsController {
     required this.commits,
     required this.onError,
     this.onRemoveFailed,
+    this.onObjectPlaced,
     this.isLocked = _nothingLocked,
   });
 
@@ -157,6 +158,9 @@ class CanvasOpsController {
   /// Reads the region again after a remove the server refused, so the
   /// objects hidden for it come back from the server, the way a restore does.
   final Future<void> Function()? onRemoveFailed;
+
+  /// Called for an object this controller placed again, so its bitmap is fetched.
+  final void Function(api.CanvasObject object)? onObjectPlaced;
 
   final Queue<_UndoEntry> _undoStack = Queue<_UndoEntry>();
   final Queue<_RedoEntry> _redoStack = Queue<_RedoEntry>();

@@ -76,6 +76,7 @@ extension CanvasOpsControllerPurge on CanvasOpsController {
         document
           ..applyPlaced(input)
           ..refresh();
+        onObjectPlaced?.call(placed);
       }
     } on api.ApiException {
       onError('That could not be undone.');
