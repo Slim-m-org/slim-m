@@ -50,6 +50,8 @@ step() {
     FAILED=1
     printf '\n----- %s failed -----\n' "$name" >&2
     tail -n 60 "$log" >&2
+    # A test failure scrolls out of the tail on a long suite, so the failing names always print last.
+    grep -aE '\[E\]$|^\s+FAIL \[|^(FAIL|ERROR): ' "$log" | sort -u | tail -n 20 >&2 || true
     [ -n "${FIX:-}" ] && printf 'fix: %s\n' "$FIX" >&2
     printf -- '---------------------\n\n' >&2
   fi
