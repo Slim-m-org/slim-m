@@ -158,8 +158,15 @@ def open_on_both(a, b, channel):
         c.wait_for("no objects")
         fit_to_board_zoom_one(c)
         # The canvas opens on the pan tool; the drawing scenarios start on the pen.
-        c.click(L.PEN_TOOL)
+        arm_tool(c, L.PEN_TOOL)
     print("  both clients opened the canvas and see it empty")
+
+
+def arm_tool(client, label):
+    """Arms [label] whatever was armed before: a second press on an armed tool puts it down, so Pan comes first."""
+    if label != L.PAN_TOOL:
+        client.click(L.PAN_TOOL)
+    client.click(label)
 
 
 def draw_stroke_and_see_it_live(a, b):
@@ -266,7 +273,7 @@ def erase_undo_clear_and_restore(a, b, admin_api, channel_id):
     forgot to sweep a note or a shape would still pass a stroke-and-image-only
     version of this test.
     """
-    a.click(L.ERASER_TOOL)
+    arm_tool(a, L.ERASER_TOOL)
     a.gestures(True)
     a.drag([at(origin(a), STROKE_MID)])
     a.gestures(False)
@@ -314,7 +321,7 @@ def reload_persists(client, channel, admin_api, channel_id):
     client.wait_for("1 stroke, 1 image", timeout=30)
     client.wait_for(f"{server_count} objects", timeout=10)
     fit_to_board_zoom_one(client)
-    client.click(L.PEN_TOOL)
+    arm_tool(client, L.PEN_TOOL)
     client.shot("canvas-after-reload")
     print(f"  after a full reload, {client.name} still sees all "
           f"{server_count} objects the server does")
@@ -419,7 +426,7 @@ def concurrent_edits_converge(a, b, admin_api, channel_id):
           f"({settled['x']:.0f}, {settled['y']:.0f}) and stayed there")
 
     # A wedged sync loop looks identical to a healthy one until something moves.
-    a.click(L.PEN_TOOL)
+    arm_tool(a, L.PEN_TOOL)
     a.gestures(True)
     a.drag([at(org_a, STROKE_START), at(org_a, STROKE_MID),
             at(org_a, STROKE_END)])

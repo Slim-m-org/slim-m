@@ -19,6 +19,7 @@ from e2e_api import wait_until
 from e2e_board_frame import board_frame
 from e2e_canvas import (
     STROKE_MID,
+    arm_tool,
     at,
     at_frac,
     close_activity_log,
@@ -52,7 +53,7 @@ def place_note_and_see_it_live(a, b, admin_api, channel_id):
     watching, sees it arrive - text and all, not just an empty box.
     """
     point = at_frac(a, *_NOTE_POINT)
-    a.click(L.NOTE_TOOL)
+    arm_tool(a, L.NOTE_TOOL)
     assert_clear_of_dock(a, point)
     a.gestures(True)
     a.drag([point])
@@ -75,7 +76,7 @@ def place_shape_and_see_it_live(a, b, admin_api, channel_id):
     sees it arrive too.
     """
     point = at_frac(a, *_SHAPE_POINT)
-    a.click(L.SHAPE_TOOL)
+    arm_tool(a, L.SHAPE_TOOL)
     assert_clear_of_dock(a, point)
     a.gestures(True)
     a.drag([point])
@@ -130,7 +131,7 @@ def place_then_move_without_switching_tools(a, admin_api, channel_id):
     before = sum(1 for o in admin_api.canvas_objects(channel_id)
                  if o["kind"] == "shape")
     point = at_frac(a, *_MOVE_TEST_POINT)
-    a.click(L.SHAPE_TOOL)
+    arm_tool(a, L.SHAPE_TOOL)
     a.gestures(True)
     a.drag([point])
     a.gestures(False)

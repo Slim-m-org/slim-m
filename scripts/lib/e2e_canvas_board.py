@@ -153,7 +153,7 @@ def follow_and_bring_everyone(a, b):
     assert label, "b has no one to follow while a is in the canvas and the call"
     b.click(label)
     _ctrl_wheel(a, -100, notches=2)
-    assert zoom_percent(a) > 100
+    _wait_zoom(a, lambda z: z > 100, "ctrl and the wheel never zoomed in")
     _wait_zoom(b, lambda z: z > 100, "never followed a's zoom")
     print("  b follows a: a zoomed in, so b did")
 
