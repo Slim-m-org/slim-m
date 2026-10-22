@@ -31,7 +31,6 @@ const _knownExceptions = {
   'features/composer/providers/composer_attachment_drop.dart -> features/composer/widgets/composer_attachments.dart',
   'features/members/providers/user_profiles.dart -> features/messages/widgets/author_label.dart',
   'features/messages/providers/link_preview.dart -> features/channels/widgets/channel_rail_frame.dart',
-  'features/messages/providers/message_alert_policy.dart -> features/messages/widgets/message_mentions.dart',
   'features/voice/providers/voice_controller.dart -> features/voice/widgets/video_health_overlay.dart',
   'providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
 };
