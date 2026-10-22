@@ -11,6 +11,7 @@ Split out of the scenarios that use it, which live in e2e_*.py beside this.
 """
 import base64
 import json
+import re
 import os
 import tempfile
 import time
@@ -200,18 +201,21 @@ class Client:
         raw = self.ev(e2e_js.NODES)
         return json.loads(raw or "[]")
 
-    def find(self, label, field=None):
+    def find(self, label, field=None, exact=False):
+        """The first node whose label holds `label`, or with `exact` starts with it as a whole word (a short label like "Pan" sits inside "Expand")."""
+        wanted = label.lower()
         for n in self.nodes():
             if field is not None and n.get("field") != field:
                 continue
-            if label.lower() in n["t"].lower():
+            text = n["t"].lower()
+            if (re.match(rf"{re.escape(wanted)}(?![a-z])", text) if exact else (wanted in text)):
                 return n
         return None
 
-    def wait_for(self, label, timeout=TIMEOUT, field=None):
+    def wait_for(self, label, timeout=TIMEOUT, field=None, exact=False):
         deadline = time.time() + timeout
         while time.time() < deadline:
-            n = self.find(label, field=field)
+            n = self.find(label, field=field, exact=exact)
             if n:
                 return n
             time.sleep(POLL_SECONDS)

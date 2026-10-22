@@ -48,7 +48,7 @@ def _everyone_sees(clients, needle):
 def _press_tool(c, label):
     """A real pointer press on the dock button, not a semantics click; Pan first, as a second press puts an armed tool down."""
     for name in ([L.PAN_TOOL] if label != L.PAN_TOOL else []) + [label]:
-        node = c.wait_for(name)
+        node = c.wait_for(name, exact=True)
         c.gestures(True)
         c.mouse_click(node["x"], node["y"])
         c.gestures(False)

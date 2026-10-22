@@ -165,7 +165,8 @@ def follow_and_bring_everyone(a, b):
     _ctrl_wheel(a, -100, notches=2)
     _wait_zoom(b, lambda z: not _near(z, fit), "stopped following early")
     _ctrl_wheel(b, -100, notches=1)
-    assert not b.find("Following"), "b still follows after its own zoom"
+    wait_until(lambda: b.find("Following"), lambda found: not found,
+               "b still follows after its own zoom", 15)
     assert _follow_label(b), "b's follow control did not come back"
     own = zoom_percent(b)
     a.click(L.FIT_VIEW)
