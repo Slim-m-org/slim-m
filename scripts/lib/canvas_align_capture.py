@@ -46,7 +46,8 @@ class Browser:
         found = re.search(r"^result: (.*)$", out, re.M)
         if not found:
             return None
-        value = json.loads(json.loads(found.group(1)))
+        # Live labels can carry newlines from real messages, so control characters are allowed inside strings.
+        value = json.loads(json.loads(found.group(1)), strict=False)
         if not isinstance(value, str):
             return value
         try:
@@ -111,11 +112,25 @@ def _sign_in(browser, args, password):
     browser.axi("open", args.web_url)
     time.sleep(4)
     browser.enable_semantics()
-    if not browser.find("Welcome back"):
+    # A served client already knows its server and opens on sign-in; a bare one asks for a Space first.
+    deadline = time.time() + _STEP_TIMEOUT_S
+    while not (browser.find("Username", field=True) or browser.find("Connect to a Space")):
+        if time.time() > deadline:
+            raise RuntimeError("neither the sign-in nor the connect screen came up")
+        time.sleep(1)
+    if not browser.find("Username", field=True):
         browser.click("Connect to a Space")
         browser.type_into("Server address", args.base_url)
         browser.click("Continue")
-        browser.click("It matches")
+        # A server with a trusted certificate confirms itself; only an unconfirmed one asks.
+        deadline = time.time() + _STEP_TIMEOUT_S
+        while not browser.find("Username", field=True):
+            if browser.find("It matches"):
+                browser.click("It matches")
+                break
+            if time.time() > deadline:
+                raise RuntimeError("the sign-in form never came up after connecting")
+            time.sleep(1)
     browser.type_into("Username", args.username)
     browser.type_into("Password", password)
     browser.click("Sign in", settle=6)
