@@ -177,15 +177,16 @@ void main() {
   }
 
   for (final width in [320.0, 390.0]) {
-    testWidgets('at $width the row folds instead of overflowing', (
-      tester,
-    ) async {
-      await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
+    testWidgets(
+      'at $width the extras spill into a row above instead of overflowing',
+      (tester) async {
+        await _pump(tester, width: width, touch: true, canvasChannelId: 'c1');
 
-      expect(tester.takeException(), isNull);
-      await _expectMusicReachable(tester);
-      expect(find.text('Open canvas'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.bySemanticsLabel(_off), findsOneWidget);
+        expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
+      },
+    );
   }
 
   testWidgets('the music options pick a style, turning music on with it', (

@@ -49,6 +49,7 @@ Widget? dockExtras({required bool alone, Widget? toggle}) {
 /// The card rows for a call: the call row with [toggle] and the music button
 /// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
 /// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
+/// [spillRow] skips the menu: the extras always get that row of their own, so they stay visible.
 List<Widget> callRowsWithExtras(
   BuildContext context,
   WidgetRef ref, {
@@ -58,6 +59,7 @@ List<Widget> callRowsWithExtras(
   Widget? toggle,
   int toggleSlots = 1,
   List<ControlOptionEntry> toggleMenu = const [],
+  bool spillRow = false,
 }) {
   final alone = soloMusicInDock(context, ref);
   final extras = dockExtras(alone: alone, toggle: toggle);
@@ -85,6 +87,9 @@ List<Widget> callRowsWithExtras(
   if (extras == null) return [callRow(null)];
   final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
   if (fits) return [callRow(extras)];
+  if (spillRow) {
+    return [Center(child: extras), callRow(null)];
+  }
   // The one rule of desktop-vs-mobile.md: width decides, so extras fold into the mic menu.
   final music = alone
       ? holdMusicMenuOptions(ref)
