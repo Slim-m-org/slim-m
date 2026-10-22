@@ -121,6 +121,14 @@ const compactBracket = ['compact-599', 'compact-600'];
 /// `dark` and `light` in the two capture names.
 const darkAndLight = 'dark+light';
 
+/// The palettes a capture can be named for; the plain `dark` and `light` are the matrix's own pair.
+final snapshotThemes = <String, ({Brightness brightness, AppTokens tokens})>{
+  'dark': (brightness: Brightness.dark, tokens: AppTokens.dark),
+  'light': (brightness: Brightness.light, tokens: AppTokens.light),
+  'soft': (brightness: Brightness.dark, tokens: AppTokens.soft),
+  'forest': (brightness: Brightness.dark, tokens: AppTokens.forest),
+};
+
 /// Where PNGs land. Gitignored: these are for looking at, not for diffing.
 const snapshotDir = 'build/ui-snapshots';
 
@@ -460,9 +468,10 @@ Future<void> renderSurfaceThemes(
   Widget build(String theme) {
     final app = MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      theme: theme == 'dark'
-          ? buildTheme(Brightness.dark, AppTokens.dark)
-          : buildTheme(Brightness.light, AppTokens.light),
+      theme: buildTheme(
+        snapshotThemes[theme]!.brightness,
+        snapshotThemes[theme]!.tokens,
+      ),
       routerConfig: router,
       // The same wrapper main.dart ships, so density matches the app.
       builder: appChromeBuilder,

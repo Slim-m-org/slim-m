@@ -89,6 +89,8 @@ void main() {
       ('dark', AppTokens.dark),
       ('true black', AppTokens.trueBlack),
       ('mocha', AppTokens.mocha),
+      ('soft', AppTokens.soft),
+      ('forest', AppTokens.forest),
     ]) {
       test('$name: a live meter is visible and outweighs a silenced one', () {
         final trough = tokens.surfaceSunken;

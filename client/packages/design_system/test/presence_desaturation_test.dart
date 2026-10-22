@@ -37,6 +37,8 @@ const _themes = <String, (Brightness, AppTokens)>{
   'dark': (Brightness.dark, AppTokens.dark),
   'true_black': (Brightness.dark, AppTokens.trueBlack),
   'mocha': (Brightness.dark, AppTokens.mocha),
+  'soft': (Brightness.dark, AppTokens.soft),
+  'forest': (Brightness.dark, AppTokens.forest),
 };
 
 /// The luma coefficients of Rec. 709, matching [_greyscaleMatrix] so the

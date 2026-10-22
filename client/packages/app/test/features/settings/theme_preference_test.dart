@@ -55,6 +55,8 @@ String _labelOf(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.dark => 'Dark',
   AppThemeChoice.trueBlack => 'True black',
   AppThemeChoice.catppuccin => 'Catppuccin',
+  AppThemeChoice.softDark => 'Soft dark',
+  AppThemeChoice.forest => 'Forest',
 };
 
 Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
@@ -214,28 +216,33 @@ void main() {
     expect(theme.extension<AppTokens>(), AppTokens.dark);
   });
 
-  testWidgets(
-    'a stored Catppuccin choice paints the mocha tokens on relaunch',
-    (tester) async {
-      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+  for (final (choice, tokens) in [
+    (AppThemeChoice.catppuccin, AppTokens.mocha),
+    (AppThemeChoice.softDark, AppTokens.soft),
+    (AppThemeChoice.forest, AppTokens.forest),
+  ]) {
+    testWidgets(
+      'a stored ${choice.name} choice paints its tokens on relaunch',
+      (tester) async {
+        tester.platformDispatcher.platformBrightnessTestValue =
+            Brightness.light;
+        addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
 
-      final first = _restartedContainer();
-      await first.read(themeControllerProvider.notifier).restore();
-      await first
-          .read(themeControllerProvider.notifier)
-          .select(AppThemeChoice.catppuccin);
+        final first = _restartedContainer();
+        await first.read(themeControllerProvider.notifier).restore();
+        await first.read(themeControllerProvider.notifier).select(choice);
 
-      final relaunched = _restartedContainer();
-      await relaunched.read(themeControllerProvider.notifier).restore();
-      await _pumpApp(tester, relaunched);
+        final relaunched = _restartedContainer();
+        await relaunched.read(themeControllerProvider.notifier).restore();
+        await _pumpApp(tester, relaunched);
 
-      final theme = _paintedTheme(tester);
-      expect(theme.brightness, Brightness.dark);
-      expect(theme.extension<AppTokens>(), AppTokens.mocha);
-      expect(theme.extension<AppTokens>()!.accent, const Color(0xFFCBA6F7));
-    },
-  );
+        final theme = _paintedTheme(tester);
+        expect(theme.brightness, Brightness.dark);
+        expect(theme.extension<AppTokens>(), tokens);
+        expect(theme.extension<AppTokens>()!.accent, tokens.accent);
+      },
+    );
+  }
 
   testWidgets('true black is reachable, and following the system never is', (
     tester,

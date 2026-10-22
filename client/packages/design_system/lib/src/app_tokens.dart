@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter/material.dart';
 
+import 'app_token_colors.dart';
+
+export 'app_token_colors.dart';
+
 /// Semantic design tokens for slim-m, exposed as a [ThemeExtension] so a widget
 /// does one lookup (`Theme.of(context).extension<AppTokens>()`).
 ///
@@ -283,6 +287,58 @@ class AppTokens extends ThemeExtension<AppTokens> {
     code: AppCodeColors.mocha,
   );
 
+  /// A dimmer grey dark, between [dark] and the daylight of [light]. Same cool
+  /// slate neutrals and glacier accent as [dark], lifted a step or two.
+  static const AppTokens soft = AppTokens(
+    surfaceSunken: Color(0xFF22262B),
+    surfaceBase: Color(0xFF2B3036),
+    surfaceRaised: Color(0xFF363C44),
+    borderSubtle: Color(0xFF454C55),
+    borderStrong: Color(0xFF8A939D),
+    textPrimary: Color(0xFFECEDEF),
+    textSecondary: Color(0xFFB3BAC2),
+    textDisabled: Color(0xFF7C858F),
+    accent: Color(0xFF6CC0E2),
+    accentFill: Color(0xFF6CC0E2),
+    accentOn: Color(0xFF070E12),
+    accentSoft: Color(0xFF2C4A58),
+    accentRing: Color(0x406CC0E2),
+    focusRing: Color(0xFF6CC0E2),
+    status: AppStatusColors.soft,
+    dangerText: Color(0xFFEE9C93),
+    dangerBorder: Color(0xFFCF6A60),
+    warnText: Color(0xFFDDAA4C),
+    warnSoft: Color(0x1ADDAA4C),
+    stripe: Color(0x12B3BAC2),
+    code: AppCodeColors.soft,
+  );
+
+  /// Deep pine surfaces with a seafoam accent of its own, the one theme that
+  /// leaves slate behind. See docs/decisions/0089.
+  static const AppTokens forest = AppTokens(
+    surfaceSunken: Color(0xFF0B1411),
+    surfaceBase: Color(0xFF12201B),
+    surfaceRaised: Color(0xFF1C2E27),
+    borderSubtle: Color(0xFF2B4239),
+    borderStrong: Color(0xFF6E8A7E),
+    textPrimary: Color(0xFFE6EFE9),
+    textSecondary: Color(0xFFA5B8AE),
+    textDisabled: Color(0xFF6B8277),
+    accent: Color(0xFF5FD4C4),
+    accentFill: Color(0xFF5FD4C4),
+    accentOn: Color(0xFF05130F),
+    accentSoft: Color(0xFF1B4640),
+    accentRing: Color(0x405FD4C4),
+    focusRing: Color(0xFF5FD4C4),
+    status: AppStatusColors.forest,
+    dangerText: Color(0xFFE58A7B),
+    dangerBorder: Color(0xFFD0675B),
+    warnText: Color(0xFFD9A441),
+    warnSoft: Color(0x1AD9A441),
+    stripe: Color(0x12A5B8AE),
+    code: AppCodeColors.forest,
+  );
+
   @override
   AppTokens copyWith({
     Color? surfaceSunken,
@@ -359,116 +415,6 @@ class AppTokens extends ThemeExtension<AppTokens> {
       code: t < 0.5 ? code : other.code,
     );
   }
-}
-
-/// Presence colours, one per state.
-///
-/// The traffic-light convention is used because it is the one users already
-/// have, but it is never load-bearing on its own: every presence indicator
-/// pairs a hue with a distinct shape (filled disc, hollow ring, dash, crescent)
-/// so the state survives greyscale. That matters more than usual here, because
-/// a bug report arrives as a screenshot and a status dot is the smallest thing
-/// in it.
-@immutable
-class AppStatusColors {
-  const AppStatusColors({
-    required this.online,
-    required this.away,
-    required this.dnd,
-    required this.offline,
-  });
-
-  final Color online;
-  final Color away;
-  final Color dnd;
-  final Color offline;
-
-  static const AppStatusColors light = AppStatusColors(
-    online: Color(0xFF2E7D45),
-    away: Color(0xFF8A6218),
-    dnd: Color(0xFFA83B32),
-    offline: Color(0xFF6C757E),
-  );
-
-  static const AppStatusColors dark = AppStatusColors(
-    online: Color(0xFF3FA45B),
-    away: Color(0xFFC08A2E),
-    dnd: Color(0xFFC0524A),
-    offline: Color(0xFF6C757E),
-  );
-
-  static const AppStatusColors mocha = AppStatusColors(
-    online: Color(0xFFA6E3A1),
-    away: Color(0xFFF9E2AF),
-    dnd: Color(0xFFF38BA8),
-    offline: Color(0xFF6C7086),
-  );
-
-  List<Color> get all => [online, away, dnd, offline];
-}
-
-/// Syntax colours for fenced code blocks, five roles per theme.
-///
-/// Per theme because the same string colour cannot clear 4.5:1 on both white
-/// and black, and a code block is exactly the surface that quietly ends up the
-/// one inaccessible thing in an otherwise AA product.
-@immutable
-class AppCodeColors {
-  const AppCodeColors({
-    required this.keyword,
-    required this.string,
-    required this.number,
-    required this.comment,
-    required this.punctuation,
-  });
-
-  final Color keyword;
-  final Color string;
-  final Color number;
-  final Color comment;
-  final Color punctuation;
-
-  /// Comment and punctuation are darker here than the design system's CSS,
-  /// which leaves both at slate-400. That is an oversight in the source rather
-  /// than a choice: the light block overrides keyword, string and number and
-  /// simply does not override these two, so they inherit a value that lands at
-  /// about 2.2:1 on white. The rule stated one line above this class is the one
-  /// followed.
-  static const AppCodeColors light = AppCodeColors(
-    keyword: Color(0xFF166B64),
-    string: Color(0xFF7A5A22),
-    number: Color(0xFF7A5A22),
-    comment: Color(0xFF5B6169),
-    punctuation: Color(0xFF5B6169),
-  );
-
-  static const AppCodeColors dark = AppCodeColors(
-    keyword: Color(0xFF8FC7C1),
-    string: Color(0xFFC6A882),
-    number: Color(0xFFC6A882),
-    comment: Color(0xFFA7AEB6),
-    punctuation: Color(0xFFA7AEB6),
-  );
-
-  static const AppCodeColors trueBlack = AppCodeColors(
-    keyword: Color(0xFF79C8BE),
-    string: Color(0xFFC9AA84),
-    number: Color(0xFFC9AA84),
-    comment: Color(0xFFA8B2BC),
-    punctuation: Color(0xFFA8B2BC),
-  );
-
-  /// Comment and punctuation use subtext0: overlay1 and overlay2 fail 4.5:1.
-  static const AppCodeColors mocha = AppCodeColors(
-    keyword: Color(0xFFCBA6F7),
-    string: Color(0xFFA6E3A1),
-    number: Color(0xFFFAB387),
-    comment: Color(0xFFA6ADC8),
-    punctuation: Color(0xFFA6ADC8),
-  );
-
-  /// Every role, for a contrast gate that must not miss one.
-  List<Color> get all => [keyword, string, number, comment, punctuation];
 }
 
 /// Colours for objects drawn on the Voice Canvas.

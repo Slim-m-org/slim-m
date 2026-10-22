@@ -86,7 +86,31 @@ class VisualTheme {
     stripe: Color(0x12A6ADC8),
   );
 
-  static const all = [light, dark, trueBlack, mocha];
+  static const soft = VisualTheme(
+    name: 'soft',
+    surfaceBase: Color(0xFF2B3036),
+    surfaceRaised: Color(0xFF363C44),
+    borderSubtle: Color(0xFF454C55),
+    textPrimary: Color(0xFFECEDEF),
+    textSecondary: Color(0xFFB3BAC2),
+    textDisabled: Color(0xFF7C858F),
+    accentFill: Color(0xFF6CC0E2),
+    stripe: Color(0x12B3BAC2),
+  );
+
+  static const forest = VisualTheme(
+    name: 'forest',
+    surfaceBase: Color(0xFF12201B),
+    surfaceRaised: Color(0xFF1C2E27),
+    borderSubtle: Color(0xFF2B4239),
+    textPrimary: Color(0xFFE6EFE9),
+    textSecondary: Color(0xFFA5B8AE),
+    textDisabled: Color(0xFF6B8277),
+    accentFill: Color(0xFF5FD4C4),
+    stripe: Color(0x12A5B8AE),
+  );
+
+  static const all = [light, dark, trueBlack, mocha, soft, forest];
 }
 
 /// `AppCanvasColors`, copied verbatim - the same three per-kind ink roles and

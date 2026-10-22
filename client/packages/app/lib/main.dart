@@ -450,7 +450,9 @@ ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.light => ThemeMode.light,
   AppThemeChoice.dark ||
   AppThemeChoice.trueBlack ||
-  AppThemeChoice.catppuccin => ThemeMode.dark,
+  AppThemeChoice.catppuccin ||
+  AppThemeChoice.softDark ||
+  AppThemeChoice.forest => ThemeMode.dark,
 };
 
 /// The dark-family choices are palettes, not modes: each is the dark theme
@@ -458,5 +460,7 @@ ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
 AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.trueBlack => AppTokens.trueBlack,
   AppThemeChoice.catppuccin => AppTokens.mocha,
+  AppThemeChoice.softDark => AppTokens.soft,
+  AppThemeChoice.forest => AppTokens.forest,
   _ => AppTokens.dark,
 };

@@ -54,7 +54,8 @@ The accent is a muted teal, far in hue from Discord's blurple, Slack's aubergine
 | accent.default | #1B6F91 | #58B4D8 | #40B6D9 | #CBA6F7 |
 
 The Catppuccin column is Catppuccin Mocha, a fourth palette added on 2026-10-21 with its own mauve accent; the table shows only the headline roles, the full mapping is in [decisions/0088-catppuccin-mocha-theme.md](../decisions/0088-catppuccin-mocha-theme.md).
-All four columns mirror `AppTokens.light`, `dark`, `trueBlack` and `mocha` in `app_tokens.dart`, which stays the source of truth.
+The Soft dark (`AppTokens.soft`) and Forest (`AppTokens.forest`) palettes were added on 2026-10-22; see [decisions/0089-soft-dark-and-forest-themes.md](../decisions/0089-soft-dark-and-forest-themes.md).
+The four columns above mirror `AppTokens.light`, `dark`, `trueBlack` and `mocha` in `app_tokens.dart`, which stays the source of truth.
 
 The accent moved from the teal this table originally carried (#2B8A83 / #4FBDB4) to glacier cyan on 2026-07-27.
 The reasoning, including that the review's own stated argument for the move turned out to be wrong when measured, is in [decisions/0004-visual-identity-review.md](../decisions/0004-visual-identity-review.md).

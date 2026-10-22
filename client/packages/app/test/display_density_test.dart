@@ -189,6 +189,10 @@ void main() {
     await tester.pumpWidget(_app(container, const AppearanceSettingsSection()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(
+      find.byKey(DisplaySettingsSection.spacingSliderKey),
+    );
+    await tester.pumpAndSettle();
     final before = _previewAvatarTop(tester);
     await tester.tapAt(
       tester
