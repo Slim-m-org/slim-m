@@ -14,7 +14,21 @@ cd "$ROOT" || exit 1
 export SQLX_OFFLINE="${SQLX_OFFLINE:-true}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"
 export TMPDIR="${TMPDIR:-/tmp}"
-export FLUTTER_CONCURRENCY="${SLIMM_HOOK_FLUTTER_CONCURRENCY:-2}"
+# Measured 2026-10-22 on the app suite: 2 workers 848 s, 6 318 s, 10 263 s, 14 246 s, about 5.7 GB at 10; scaled down on a busy or small box.
+default_flutter_concurrency() {
+  local cores avail_mb by_cores by_memory
+  cores=$(nproc 2>/dev/null || echo 4)
+  avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 4096)
+  by_cores=$((cores / 3))
+  by_memory=$((avail_mb / 700))
+  local n=10
+  ((by_cores < n)) && n=$by_cores
+  ((by_memory < n)) && n=$by_memory
+  ((n < 2)) && n=2
+  echo "$n"
+}
+FLUTTER_CONCURRENCY="${SLIMM_HOOK_FLUTTER_CONCURRENCY:-$(default_flutter_concurrency)}"
+export FLUTTER_CONCURRENCY
 
 HOOK_LOG_DIR=$(mktemp -d "$TMPDIR/slimm-hook.XXXXXX")
 trap 'rm -rf "$HOOK_LOG_DIR"' EXIT

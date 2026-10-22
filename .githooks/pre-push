@@ -5,7 +5,7 @@
 # Enable with scripts/install-hooks.sh. Bypass once with `git push --no-verify`.
 #
 # Knobs: SLIMM_HOOK_ENV (a file to source first, for CARGO_TARGET_DIR and TMPDIR), SLIMM_HOOK_KEEP_GOING=1 (do not stop
-# at the first failure), SLIMM_HOOK_SKIP (a regex of step names to skip), SLIMM_HOOK_FLUTTER_CONCURRENCY (default 2), CARGO_BUILD_JOBS (default 4).
+# at the first failure), SLIMM_HOOK_SKIP (a regex of step names to skip), SLIMM_HOOK_FLUTTER_CONCURRENCY (default from cores and free memory, up to 10), CARGO_BUILD_JOBS (default 4).
 set -o pipefail
 
 HOOK_NAME=pre-push
