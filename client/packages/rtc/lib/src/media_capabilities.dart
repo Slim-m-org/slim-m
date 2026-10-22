@@ -12,6 +12,8 @@ library;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
+import 'desktop_sources.dart';
+
 /// Whether a capability is available, and if not, what went wrong.
 class CapabilityResult {
   const CapabilityResult.available(this.detail)
@@ -163,14 +165,10 @@ class _RealProbe implements MediaDevicesProbe {
     }
   }
 
+  // Through the share path's own listing so the Linux portal guard is re-armed before this getSources.
   @override
   Future<int> countScreenSources() async {
-    // Screens only, never SourceType.Window: enumerating windows segfaults
-    // the whole process on Wayland (see WebrtcDesktopSources, which learned
-    // this first); this probe had the crash the sibling already avoided.
-    final sources = await desktopCapturer.getSources(
-      types: [SourceType.Screen],
-    );
-    return sources.length;
+    final sources = await const WebrtcDesktopSources().list();
+    return sources.where((source) => !source.isWindow).length;
   }
 }
