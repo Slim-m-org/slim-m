@@ -7,7 +7,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_design_system/design_system.dart' show AppSpacing;
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_bar.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
@@ -287,10 +286,8 @@ void main() {
     expect(
       reserved,
       tester.getSize(find.byType(CanvasCallDock)).height +
-          canvasDockHandleHeight +
-          AppSpacing.s8,
-      reason:
-          'shown, the dock, its gap and its handle are what the snackbars clear',
+          canvasDockHandleHeight,
+      reason: 'shown, the dock and its handle are what the snackbars clear',
     );
     expect(reserved, greaterThan(canvasDockHandleHeight));
 

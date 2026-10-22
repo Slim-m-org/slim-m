@@ -114,15 +114,14 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
         builder: (context, revealed) => Padding(
           padding: EdgeInsets.fromLTRB(
             AppSpacing.s12,
-            canvas().fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+            // Flush in fullscreen, so the handle tab sits on the dock's top edge.
+            canvas().fullscreen ? 0 : AppSpacing.s12,
             AppSpacing.s12,
             AppSpacing.s12,
           ),
           child: DockHeightReporter(
             foldedHeight: revealed ? null : canvasDockHandleHeight,
-            extraHeight: canvas().fullscreen
-                ? canvasDockHandleHeight + AppSpacing.s8
-                : 0,
+            extraHeight: canvas().fullscreen ? canvasDockHandleHeight : 0,
             // Nothing else here rebuilds for a tile hide or show.
             child: ListenableBuilder(
               listenable: _hidden,
