@@ -17,15 +17,21 @@ import time
 VOICE_LABEL = "Volume for you"
 SCREEN_LABEL = "Screen audio"
 MEASURE_SECONDS = 3
+MEASURE_TRIES = 3
 TOLERANCE_DB = 1.5
 
 
 def _heard(probe, stream):
-    """(applied gain dB, loudest output dB while the source was audible)."""
-    series = probe.measure(stream, MEASURE_SECONDS)
-    gain = lv.applied_gain_db(series)
-    assert gain is not None, "the stream never became audible to measure against"
-    return gain, e2e_audio.heard_while_audible(series)
+    """(applied gain dB, loudest output dB while the source was audible).
+
+    A window can land on a quiet stretch of the shared clip, so a few are tried before calling it silent.
+    """
+    for _ in range(MEASURE_TRIES):
+        series = probe.measure(stream, MEASURE_SECONDS)
+        gain = lv.applied_gain_db(series)
+        if gain is not None:
+            return gain, e2e_audio.heard_while_audible(series)
+    raise AssertionError("the stream never became audible to measure against")
 
 
 _AUDIO_KEY = "flutter.slimm.voice.screen_share_include_audio"
