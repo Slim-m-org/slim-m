@@ -5,7 +5,7 @@ import time
 
 import e2e_input
 import e2e_labels as L
-from e2e_voice import _tap_label, sfu_participants
+from e2e_voice import _tap_label, _wait_until_gone, sfu_participants
 
 # Material's slider inset: the track starts this far inside the control's box.
 SLIDER_INSET = 12
@@ -34,13 +34,27 @@ def stream_for(probe, room_id, identity, source="MICROPHONE", timeout=45):
                 if stream:
                     return stream
         time.sleep(0.25)
-    raise AssertionError(f"no {source} stream from {identity} reached the listener")
+    tracks = [(p["identity"][:13], t.get("source"), t.get("sid"))
+              for p in sfu_participants(room_id) for t in p.get("tracks", [])]
+    playing = [e["element"] for e in probe.listening()]
+    page = probe.client.ev(_PAGE_AUDIO_STATE)
+    raise AssertionError(f"no {source} stream from {identity} reached the listener; "
+                         f"sfu tracks {tracks}, listener plays {playing}, page {page}")
+
+
+_PAGE_AUDIO_STATE = """JSON.stringify({
+  audio: [...document.querySelectorAll('audio')].map(e => [e.id, !!e.srcObject, e.paused]),
+  pcs: (window.__e2eAudio ? window.__e2eAudio.pcs : []).map(pc => [pc.connectionState,
+    pc.getReceivers().filter(r => r.track && r.track.kind === 'audio')
+      .map(r => [r.track.id.slice(0, 12), r.track.readyState])])})"""
 
 
 def leave_if_in_call(*clients):
     for c in clients:
         if c.find(L.LEAVE_CALL):
             _tap_label(c, L.LEAVE_CALL, settle=3)
+            # A missed leave keeps the call up and corrupts whichever scenario runs next.
+            _wait_until_gone(c, L.LEAVE_CALL, timeout=10)
 
 
 def slider_rect(client, label):

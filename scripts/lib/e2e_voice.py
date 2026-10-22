@@ -21,6 +21,10 @@ import e2e_api
 import e2e_labels as L
 
 
+# The window's top-left corner: hovering there opens nothing.
+TOOLTIP_FREE_POINT = (1, 1)
+TOOLTIP_GONE_SECONDS = 0.4
+
 def sfu_participants(room):
     """Ask the SFU itself who is connected, rather than trusting either UI."""
     def b64(b):
@@ -360,6 +364,8 @@ def _tap_label(client, label, settle=1.0):
     on an outright miss, used here unconditionally instead of hoping for
     a hit.
     """
+    # A pointer resting on the button shows its tooltip, a second node with the same label that a tap there misses.
+    client.hover(*TOOLTIP_FREE_POINT, settle=TOOLTIP_GONE_SECONDS)
     n = client.wait_for(label)
     client.tap(n["x"], n["y"])
     client.settle(settle)
