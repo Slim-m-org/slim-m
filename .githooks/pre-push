@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# The checks CI would otherwise spend runner minutes on, run here instead, scoped to what the push changes.
+# Enable with scripts/install-hooks.sh. Bypass once with `git push --no-verify`.
+#
+# Knobs: SLIMM_HOOK_ENV (a file to source first, for CARGO_TARGET_DIR and TMPDIR), SLIMM_HOOK_KEEP_GOING=1 (do not stop
+# at the first failure), SLIMM_HOOK_SKIP (a regex of step names to skip), SLIMM_HOOK_FLUTTER_CONCURRENCY (default 2), CARGO_BUILD_JOBS (default 4).
+set -o pipefail
+
+HOOK_NAME=pre-push
+# shellcheck source=.githooks/lib.sh
+. "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+
+zero=0000000000000000000000000000000000000000
+
+# The files the pushed commits change against what the remote already has, or against main for a new branch.
+changed_files() {
+  local local_sha remote_sha base
+  while read -r _ local_sha _ remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue
+    if [ "$remote_sha" = "$zero" ] || ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      base=$(git merge-base "$local_sha" origin/main 2>/dev/null || git rev-list --max-parents=0 "$local_sha" | tail -1)
+    else
+      base=$remote_sha
+    fi
+    git diff --name-only --diff-filter=ACMRD "$base" "$local_sha"
+  done
+}
+
+mapfile -t CHANGED < <(changed_files | sort -u)
+
+# Hooks inherit the pushing repository's variables, and tests that build their own repositories must not.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_QUARANTINE_PATH
+[ "${#CHANGED[@]}" -gt 0 ] || exit 0
+
+touched() { printf '%s\n' "${CHANGED[@]}" | grep -Eq "$1"; }
+
+client=0 rust=0 migrations=0 queries=0 schema=0 workflows=0 shell=0
+touched '^client/' && client=1
+touched '^(crates/|Cargo\.(toml|lock)$|rust-toolchain\.toml$)' && rust=1
+touched '^crates/slimm-server/migrations/' && migrations=1
+touched '^(\.sqlx/|crates/slimm-server/migrations/)' && queries=1
+if [ -n "$(printf '%s\n' "${CHANGED[@]}" | grep -E '^crates/.*\.rs$' | xargs -r grep -sEl 'query(_as|_scalar)?!')" ]; then
+  queries=1
+fi
+touched '^(schema/|crates/slimm-server/src/http)' && schema=1
+touched '^\.github/(workflows|actions)/' && workflows=1
+touched '(\.sh$|^scripts/)' && shell=1
+
+printf 'pre-push: %d changed files (client=%d rust=%d migrations=%d sqlx=%d schema=%d workflows=%d shell=%d)\n' \
+  "${#CHANGED[@]}" "$client" "$rust" "$migrations" "$queries" "$schema" "$workflows" "$shell" >&2
+
+# Cheap gates first, so a slow suite never runs on a push that was going to fail anyway.
+FIX="see the error lines above"
+step "file budget" bash scripts/check-file-budget.sh
+step "comment cap" bash scripts/check-comment-cap.sh
+step "no API failure shown with a SnackBar" python3 scripts/check-error-surface.py
+step "data.dart exports Message as a DTO" python3 scripts/check-message-dto-boundary.py
+step "migrations do not collide or change" python3 scripts/check-migration-versions.py
+step "no unscoped MediaQuery.of" python3 scripts/check-media-query-scope.py
+step "every workflow is in docs/ci.md" python3 scripts/check-ci-docs.py
+step "no emoji in UI source" bash scripts/check-no-emoji.sh
+step "SPDX headers, Dart" bash scripts/check-spdx-dart.sh
+step "SPDX headers, Rust" bash scripts/check-spdx-rust.sh
+step "ios purpose strings" bash scripts/check-ios-purpose-strings.sh
+step "ios broadcast extension wired" bash scripts/check-ios-broadcast-wired.sh
+step "ios notification extension wired" bash scripts/check-ios-nse-wired.sh
+step "orientation locked on phones only" bash scripts/check-orientation-lock.sh
+# The backup and restore tests fsync SQLite databases and dominate the suite, so they run only when what they cover changed.
+backup_touched=0
+touched '^(scripts/(backup|restore-drill)\.py|scripts/lib/[a-z_]*(backup|restore)|crates/slimm-server/migrations/)' && backup_touched=1
+FIX="cd scripts/lib && python3 -m unittest discover -p 'test_*.py' -v"
+step "scripts/lib unittests" bash -c "cd scripts/lib && modules=\$(ls test_*.py | { if [ $backup_touched = 1 ]; then cat; else grep -Ev 'backup|restore'; fi; } | sed 's/\.py\$//') && python3 -m unittest \$modules"
+
+if [ "$workflows" = 1 ]; then
+  if have docker; then
+    FIX="bash scripts/check-actionlint.sh"
+    step "actionlint (pinned digest)" bash scripts/check-actionlint.sh
+  else
+    skip "actionlint (pinned digest)" "no docker"
+  fi
+fi
+if [ "$workflows" = 1 ] || [ "$shell" = 1 ]; then
+  if have docker; then
+    FIX="bash scripts/check-shellcheck.sh"
+    step "shellcheck (pinned digest)" bash scripts/check-shellcheck.sh
+  else
+    skip "shellcheck (pinned digest)" "no docker"
+  fi
+fi
+
+if [ "$client" = 1 ]; then
+  if ! have flutter; then
+    skip "client analyze, format and tests" "flutter not installed"
+  else
+    if [ ! -f client/.dart_tool/package_config.json ]; then
+      FIX="cd client && flutter pub get --enforce-lockfile"
+      step "flutter pub get (worktree not resolved)" bash -c "cd client && flutter pub get --enforce-lockfile"
+    fi
+    FIX="cd client && dart analyze"
+    step "dart analyze (workspace)" bash -c "cd client && dart analyze"
+    FIX="cd client && dart format ."
+    step "dart format (workspace)" bash -c "cd client && dart format --output=none --set-exit-if-changed ."
+  fi
+fi
+
+if [ "$rust" = 1 ] && have cargo; then
+  FIX="cargo clippy --locked --all-targets --all-features -- -D warnings"
+  step "cargo fmt" cargo fmt --all --check
+  step "clippy -D warnings" cargo clippy --locked --all-targets --all-features -- -D warnings
+fi
+
+if [ "$queries" = 1 ] && have cargo; then
+  if have sqlx; then
+    db="$HOOK_LOG_DIR/sqlx-check.db"
+    FIX="regenerate with 'cargo sqlx prepare --workspace -- --all-targets' (see CLAUDE.md)"
+    step "sqlx offline cache matches the schema" bash -c \
+      "export DATABASE_URL=sqlite://$db; (cd crates/slimm-server && sqlx database create && sqlx migrate run --source migrations) && cargo sqlx prepare --workspace --check -- --all-targets"
+  else
+    skip "sqlx offline cache matches the schema" "sqlx-cli not installed"
+  fi
+fi
+
+if [ "$rust" = 1 ] && have cargo; then
+  if have cargo-nextest; then
+    FIX="cargo nextest run --locked --workspace"
+    step "server tests (nextest)" cargo nextest run --locked --workspace
+    step "server doctests" cargo test --locked --workspace --doc
+  else
+    FIX="cargo test --locked --workspace"
+    step "server tests (cargo test; install cargo-nextest for speed)" cargo test --locked --workspace
+  fi
+elif [ "$schema" = 1 ] && have cargo; then
+  FIX="cargo test --locked -p slimm-server --test openapi_contract"
+  step "openapi contract test" cargo test --locked -p slimm-server --test openapi_contract
+fi
+
+if [ "$client" = 1 ] && have flutter; then
+  while IFS= read -r pkg; do
+    [ -n "$pkg" ] || continue
+    FIX="cd $pkg && flutter test --concurrency=$FLUTTER_CONCURRENCY"
+    step "flutter test $pkg" bash -c "cd $pkg && flutter test --concurrency=$FLUTTER_CONCURRENCY"
+  done < <(printf '%s\n' "${CHANGED[@]}" | python3 .githooks/affected-packages.py .)
+fi
+
+summary
