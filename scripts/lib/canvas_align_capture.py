@@ -14,6 +14,7 @@ import time
 
 import e2e_js
 import e2e_labels as L
+import safe_paths
 from canvas_align_report import load_manifest
 
 SIZES = [(1920, 1080), (1280, 720), (1024, 768), (390, 844), (844, 390)]
@@ -150,13 +151,14 @@ def _open_canvas(browser, channel_name):
     browser.wait_for(L.IN_CALL)
     browser.click("Open canvas", settle=2)
     browser.wait_for(L.FIT_VIEW)
-    if browser.find(L.CLOSE_MEMBER_LIST):
-        browser.click(L.CLOSE_MEMBER_LIST)
+    if browser.find(L.MEMBER_PANE_HEADER):
+        browser.click(L.MEMBER_LIST)
 
 
 def capture_web(args, password):
     """Saves web-<width>x<height>.png for every size and returns the paths."""
     manifest = load_manifest(args.manifest)
+    args.out_dir = safe_paths.home_or_cwd(args.out_dir)
     os.makedirs(args.out_dir, exist_ok=True)
     browser = Browser()
     paths = []

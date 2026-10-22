@@ -5,6 +5,7 @@ import sys
 import urllib.parse
 
 import canvas_align_manifest as scene
+import safe_paths
 from e2e_api import Api
 from uuid7 import uuid7
 
@@ -33,6 +34,6 @@ def seed(base_url, username, password, channel, allow_existing=False):
 
 
 def write_manifest(manifest, path):
-    with open(path, "w", encoding="utf-8") as out:
+    with open(safe_paths.home_or_cwd(path), "w", encoding="utf-8") as out:
         json.dump(manifest, out, indent=2)
         out.write("\n")

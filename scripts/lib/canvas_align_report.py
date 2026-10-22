@@ -3,6 +3,7 @@
 import json
 import os
 
+import safe_paths
 from canvas_align_geometry import TOLERANCE_PX, VISIBLE_SHARE, distance_px, within_tolerance
 
 _SOURCE_NOTE = {"edge": "the board edge",
@@ -14,7 +15,7 @@ def _gap_note(gap):
 
 
 def load_manifest(path):
-    with open(path, encoding="utf-8") as handle:
+    with open(safe_paths.home_or_cwd(path), encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -97,6 +98,7 @@ def run(paths, manifest_path, tolerance=TOLERANCE_PX, annotate_dir=None):
         print("\n".join(lines))
         all_ok = all_ok and ok
         if annotate_dir and frame is not None:
+            annotate_dir = safe_paths.home_or_cwd(annotate_dir)
             os.makedirs(annotate_dir, exist_ok=True)
             annotate(rgb, frame, rows, manifest, os.path.join(annotate_dir, f"{label}-diff.png"))
     print(f"tolerance {tolerance:g}px: {'PASS' if all_ok else 'FAIL'}")

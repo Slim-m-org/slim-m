@@ -16,6 +16,7 @@ import sys
 import time
 
 import e2e_groups
+import safe_paths
 import e2e_run
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -77,11 +78,10 @@ def auto_shards():
 
 def safe_work_dir(path):
     """The resolved work dir; shards write and clear trees under it, so it must sit inside the home dir or the repo."""
-    real = os.path.realpath(path)
-    bases = (os.path.realpath(os.path.expanduser("~")), os.path.realpath(ROOT))
-    if real not in bases and any(os.path.commonpath([real, b]) == b for b in bases):
-        return real
-    raise SystemExit(f"--work must be a directory inside your home or the repo, not {path}")
+    work = safe_paths.confined(path, os.path.expanduser("~"), ROOT)
+    if work == os.path.realpath(ROOT):
+        raise SystemExit(f"--work must be a directory inside the repo, not the repo itself: {path}")
+    return work
 
 
 def start(index, env, names, log_dir):
