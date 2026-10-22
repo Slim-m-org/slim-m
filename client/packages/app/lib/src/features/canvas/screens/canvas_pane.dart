@@ -51,6 +51,7 @@ import '../../members/widgets/member_pane.dart'
     show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
+import '../../members/widgets/profile_colour.dart' show profileColourOf;
 import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
@@ -138,7 +139,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
-  CanvasPenStyle _pen = const CanvasPenStyle();
+  late CanvasPenStyle _pen = _profilePen();
   final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
@@ -179,6 +180,17 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _document.setBottomInset(
       _boardInset(ref.read(bottomDockReservationProvider)),
     );
+  }
+
+  /// Starts the pen in the colour nearest the user's profile colour, when one is set.
+  CanvasPenStyle _profilePen() {
+    final me = ref.read(meProvider).valueOrNull;
+    final colour = me == null
+        ? null
+        : profileColourOf(index: me.profileColor, rgb: me.profileColorRgb);
+    return colour == null
+        ? const CanvasPenStyle()
+        : CanvasPenStyle(colorKey: nearestPenColorKey(colour));
   }
 
   /// In fullscreen the dock floats over the board, so showing it never refits the view; only its handle is kept clear.

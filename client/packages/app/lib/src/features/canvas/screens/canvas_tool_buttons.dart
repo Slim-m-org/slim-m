@@ -131,8 +131,7 @@ class CanvasToolButtons extends StatelessWidget {
   );
 }
 
-/// The pen button, with a sample of the armed colour and thickness under the
-/// glyph at the size the stroke will have on the drawer's own screen.
+/// The pen button, with a dot of the armed colour under the glyph.
 class _PenButton extends StatelessWidget {
   const _PenButton({
     required this.pen,
@@ -146,8 +145,10 @@ class _PenButton extends StatelessWidget {
   final bool canDraw;
   final VoidCallback? onPressed;
 
-  static const double _sampleLength = 14;
-  static const double _sampleInset = 5;
+  static const double _sampleInset = 4;
+
+  /// Grows with the armed width, so the dot still says thin or thick.
+  double get _dot => (pen.width + 3).clamp(5, 9).toDouble();
 
   @override
   Widget build(BuildContext context) => Stack(
@@ -164,12 +165,9 @@ class _PenButton extends StatelessWidget {
         bottom: _sampleInset,
         child: IgnorePointer(
           child: Container(
-            width: _sampleLength,
-            height: pen.width,
-            decoration: BoxDecoration(
-              color: pen.color,
-              borderRadius: BorderRadius.circular(pen.width / 2),
-            ),
+            width: _dot,
+            height: _dot,
+            decoration: BoxDecoration(color: pen.color, shape: BoxShape.circle),
           ),
         ),
       ),
