@@ -29,14 +29,14 @@ for pattern in "$@"; do
       echo "::warning::no file matches $pattern; continuing"
       continue
     fi
-    echo "::error::no file matches $pattern, so nothing was uploaded" >&2
+    echo "::error::no file matches $pattern, so nothing was uploaded"
     exit 1
   fi
   files+=("${matches[@]}")
 done
 
 if [[ ${#files[@]} -eq 0 ]]; then
-  echo "::error::nothing to upload" >&2
+  echo "::error::nothing to upload"
   exit 1
 fi
 
@@ -51,5 +51,5 @@ for attempt in $(seq 1 "$attempts"); do
   fi
 done
 remaining=$(gh api rate_limit --jq '.resources.core.remaining' 2>/dev/null || echo unknown)
-echo "::error::could not upload ${files[*]} to $tag after $attempts attempts (core API calls left: $remaining)" >&2
+echo "::error::could not upload ${files[*]} to $tag after $attempts attempts (core API calls left: $remaining)"
 exit 1

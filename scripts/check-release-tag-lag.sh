@@ -47,7 +47,7 @@ check_package() {
     echo "${tag} not yet cut, ${age}s since ${manifest} last changed, within the ${GRACE_SECONDS}s grace window"
     return 0
   fi
-  echo "::error::${tag} was never cut: ${manifest} has read ${version} for ${age}s with no matching tag" >&2
+  echo "::error::${tag} was never cut: ${manifest} has read ${version} for ${age}s with no matching tag"
   stuck=1
 }
 

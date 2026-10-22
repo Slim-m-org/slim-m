@@ -53,7 +53,7 @@ class CheckNoEmojiTest(unittest.TestCase):
     def test_a_scan_error_is_a_failure_not_a_pass(self):
         result = subprocess.run([str(SCRIPT), "/nonexistent-dir"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("scan itself failed", result.stderr)
+        self.assertIn("scan itself failed", result.stdout)
 
     def test_the_client_tree_is_clean(self):
         result = subprocess.run([str(SCRIPT), str(SCRIPT.parents[1] / "client")], capture_output=True, text=True)

@@ -60,7 +60,7 @@ class UploadReleaseAssets(unittest.TestCase):
     def test_a_required_pattern_matching_nothing_fails_without_uploading(self):
         done, uploads = self.run_script("a.zip", "*.flatpak", files=["a.zip"])
         self.assertEqual(done.returncode, 1)
-        self.assertIn("no file matches", done.stderr)
+        self.assertIn("no file matches", done.stdout)
         self.assertEqual(uploads, [])
 
     def test_an_optional_pattern_may_match_nothing(self):

@@ -98,7 +98,7 @@ if [[ "$streak_len" -ge "$FAILURE_THRESHOLD" ]]; then
   latest_url=$(jq -r '.html_url' <<<"$latest_row")
   first_url=$(jq -r '.html_url' <<<"$oldest_in_streak")
   first_sha=$(jq -r '.head_sha' <<<"$oldest_in_streak")
-  echo "::error::${SUBJECT} has failed ${streak_len} consecutive completed runs on main, starting at ${first_url} (commit ${first_sha}); latest ${latest_url}" >&2
+  echo "::error::${SUBJECT} has failed ${streak_len} consecutive completed runs on main, starting at ${first_url} (commit ${first_sha}); latest ${latest_url}"
   existing="$(existing_open)"
   if [[ -z "$existing" ]]; then
     gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color B60205 \
