@@ -94,7 +94,14 @@ Drift's generated code is committed; regenerate it rather than editing it:
 scripts/e2e.sh --keep                    # real LiveKit, the server and two browsers
 E2E_ONLY="reaction" scripts/e2e.sh       # one scenario, or several split by |
 E2E_REBUILD=1 scripts/e2e.sh             # after a client change, or it serves the old web build
+scripts/e2e-parallel.sh                  # the same suite on up to four stacks at once, one combined report
 ```
+
+`scripts/e2e.sh` runs every scenario in turn on one stack and is what CI uses.
+`scripts/e2e-parallel.sh` deals the scenarios across several stacks, each with its own ports, LiveKit container and work directory, and exits non-zero if any scenario fails.
+On the 32-core dev box it finishes in about six minutes instead of half an hour.
+Pick the number of stacks with `--shards N` (default `auto`, at most four, fewer when memory or cores are short), and see the deal first with `--plan`.
+It never touches a stack on the default ports, but two parallel runs at once need `--port-shift` on the second.
 
 See [e2e.md](e2e.md) for how the harness finds controls and what each scenario proves.
 
