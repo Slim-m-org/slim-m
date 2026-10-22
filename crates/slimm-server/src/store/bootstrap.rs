@@ -180,8 +180,11 @@ pub(super) async fn claim_in(
     .await?;
 
     let channel_id = ChannelId::generate();
+    // Migration 0031 seeds the "Text" category before any channel exists; file #general there.
     sqlx::query!(
-        "INSERT INTO channels (id, name, kind, created_at) VALUES (?, 'general', 'text', ?)",
+        "INSERT INTO channels (id, name, kind, created_at, category_id) VALUES (?, 'general', 'text', ?,
+             (SELECT id FROM channel_categories WHERE name = 'Text' AND deleted_at IS NULL
+              ORDER BY position LIMIT 1))",
         channel_id,
         now
     )
