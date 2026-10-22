@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -100,7 +101,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     _expiry?.cancel();
     _expiryFor = until;
     if (!timeoutActive(until)) return;
-    final wait = until! - DateTime.now().millisecondsSinceEpoch;
+    final wait = until! - clock.now().millisecondsSinceEpoch;
     _expiry = Timer(Duration(milliseconds: wait + 1), () {
       if (mounted) setState(() {});
     });

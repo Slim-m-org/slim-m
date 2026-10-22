@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,14 +40,10 @@ Widget _harness(Widget child) => ProviderScope(
   ),
 );
 
-Future<void> _pastDeadline(WidgetTester tester) async {
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 1600)),
-  );
-  await tester.pump(const Duration(seconds: 2));
-}
+Future<void> _pastDeadline(WidgetTester tester) =>
+    tester.pump(const Duration(seconds: 2));
 
-int _deadlineIn(Duration d) => DateTime.now().add(d).millisecondsSinceEpoch;
+int _deadlineIn(Duration d) => clock.now().add(d).millisecondsSinceEpoch;
 
 void main() {
   testWidgets('the timed out badge goes when the deadline passes', (
