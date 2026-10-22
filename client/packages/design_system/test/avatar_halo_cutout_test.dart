@@ -16,11 +16,20 @@ const _boundary = Key('halo-boundary');
 const _inset = 20.0;
 const _scale = 4.0;
 
-Future<Color> _haloGapPixel(WidgetTester tester, {required bool phone}) async {
+Future<Color> _haloGapPixel(
+  WidgetTester tester, {
+  required bool phone,
+  AppPresence presence = AppPresence.online,
+  Brightness brightness = Brightness.dark,
+  bool above = false,
+}) async {
   const size = AppAvatarSize.s36;
   await tester.pumpWidget(
     MaterialApp(
-      theme: buildTheme(Brightness.dark, AppTokens.dark),
+      theme: buildTheme(
+        brightness,
+        brightness == Brightness.dark ? AppTokens.dark : AppTokens.light,
+      ),
       home: Align(
         alignment: Alignment.topLeft,
         child: RepaintBoundary(
@@ -31,7 +40,7 @@ Future<Color> _haloGapPixel(WidgetTester tester, {required bool phone}) async {
             child: AppAvatar(
               name: 'Nadia',
               size: size,
-              status: AppPresence.online,
+              status: presence,
               mobileOnly: phone,
             ),
           ),
@@ -41,9 +50,10 @@ Future<Color> _haloGapPixel(WidgetTester tester, {required bool phone}) async {
   );
   final geometry = AppAvatarGeometry(size, phone: phone);
   // Straight right of the mark, inside the halo ring and past the avatar's edge.
-  final probe = geometry.dotCenter +
-      Offset(geometry.dotHaloRadius - 0.75, 0) +
-      const Offset(_inset, _inset);
+  final gap = above
+      ? Offset(0, -(geometry.markDiameter / 2 + AppAvatarGeometry.dotHalo / 2))
+      : Offset(geometry.dotHaloRadius - 0.75, 0);
+  final probe = geometry.dotCenter + gap + const Offset(_inset, _inset);
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(_boundary),
   );
@@ -66,5 +76,28 @@ void main() {
     ) async {
       expect(await _haloGapPixel(tester, phone: phone), _surface);
     });
+  }
+
+  for (final presence in [
+    AppPresence.online,
+    AppPresence.away,
+    AppPresence.dnd,
+    AppPresence.offline,
+    AppPresence.hidden,
+  ]) {
+    for (final brightness in Brightness.values) {
+      testWidgets(
+          'the gap above the ${presence.name} mark shows the surface '
+          '(${brightness.name})', (tester) async {
+        final pixel = await _haloGapPixel(
+          tester,
+          phone: false,
+          presence: presence,
+          brightness: brightness,
+          above: true,
+        );
+        expect(pixel, _surface);
+      });
+    }
   }
 }

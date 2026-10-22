@@ -17,7 +17,13 @@ import 'profile_colour.dart';
 const _colourNames = ['Pink', 'Purple', 'Blue', 'Orange', 'Green', 'Magenta'];
 
 class ProfileColourField extends ConsumerStatefulWidget {
-  const ProfileColourField({super.key});
+  const ProfileColourField({super.key, this.leading, this.imageSet = false});
+
+  /// A tile ahead of the colours for the banner image.
+  final Widget? leading;
+
+  /// A banner image is showing, so no colour is the current choice, and picking one swaps the image out.
+  final bool imageSet;
 
   @override
   ConsumerState<ProfileColourField> createState() => _ProfileColourFieldState();
@@ -53,6 +59,7 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
   Future<void> _save(Future<Object?> Function() save) async {
     setState(() => _error = null);
     try {
+      if (widget.imageSet) await ref.read(apiProvider).deleteBanner();
       await save();
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
@@ -72,11 +79,16 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
           label: 'Profile colour',
           colors: AppCanvasColors.cursors,
           names: _colourNames,
-          selected: custom == null ? me?.profileColor : null,
+          selected: custom == null && !widget.imageSet
+              ? me?.profileColor
+              : null,
           onSelect: me == null ? null : _setColor,
+          leading: widget.leading,
           custom: CustomSwatch(
             label: 'Custom',
-            colour: custom == null ? null : profileColourOf(rgb: custom),
+            colour: custom == null || widget.imageSet
+                ? null
+                : profileColourOf(rgb: custom),
             onTap: me == null ? null : () => _pickCustom(me),
           ),
         ),

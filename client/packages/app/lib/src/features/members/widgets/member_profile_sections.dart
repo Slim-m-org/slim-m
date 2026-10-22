@@ -106,71 +106,87 @@ class MemberProfileHeader extends ConsumerWidget {
       ),
     );
 
+    final avatar = Opacity(
+      // The avatar only, never the text, which would cost its contrast.
+      opacity: timedOut ? 0.7 : 1,
+      child: DecoratedBox(
+        // Sheet-coloured, so the avatar reads as cut out of the banner it overlaps.
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: tokens.surfaceRaised, width: _avatarGap),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(_avatarGap),
+          child: UserAvatar.known(
+            userId: profile.id,
+            avatarUpdatedAt: profile.avatarUpdatedAt,
+            name: profile.displayName,
+            size: AppAvatarSize.s56,
+            // The status line below carries presence, once, with its word.
+            presence: false,
+            // The ring here means "in a call with you", so the name says that.
+            speaking: inCallTogether,
+            // The profile colour; absent on an older server reads as no ring.
+            ringColor: inCallTogether
+                ? null
+                : profileRingColour(profile, tokens.surfaceRaised),
+            semanticLabel: inCallTogether
+                ? '${profile.displayName}, in a call with you'
+                : null,
+          ),
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
-        AppSpacing.s16,
+        0,
         AppSpacing.s16,
         AppSpacing.s12,
       ),
-      child: Row(
-        spacing: AppSpacing.s12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        spacing: 2,
         children: [
-          // The avatar only, never the text, which would cost its contrast.
-          Opacity(
-            opacity: timedOut ? 0.7 : 1,
-            child: UserAvatar.known(
-              userId: profile.id,
-              avatarUpdatedAt: profile.avatarUpdatedAt,
-              name: profile.displayName,
-              size: AppAvatarSize.s56,
-              presence: true,
-              // The ring here means "in a call with you", so the name says that.
-              speaking: inCallTogether,
-              // The profile colour; absent on an older server reads as no ring.
-              ringColor: inCallTogether
-                  ? null
-                  : profileRingColour(
-                      profile,
-                      Theme.of(context).extension<AppTokens>()!.surfaceRaised,
-                    ),
-              semanticLabel: inCallTogether
-                  ? '${profile.displayName}, in a call with you'
-                  : null,
+          // The avatar rises over the banner's lower edge; the name stays below it.
+          SizedBox(
+            key: const Key('member-profile-avatar-slot'),
+            height: _avatarSlot,
+            width: double.infinity,
+            child: OverflowBox(
+              alignment: Alignment.bottomLeft,
+              minWidth: 0,
+              minHeight: 0,
+              maxHeight: _avatarSlot * 2,
+              child: avatar,
             ),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              spacing: 2,
+          const SizedBox(height: AppSpacing.s8),
+          if (isSelf)
+            Row(
+              spacing: AppSpacing.s8,
               children: [
-                if (isSelf)
-                  Row(
-                    spacing: AppSpacing.s8,
-                    children: [
-                      Flexible(child: name),
-                      const AppBadge(
-                        variant: AppBadgeVariant.tag,
-                        label: 'You',
-                      ),
-                    ],
-                  )
-                else
-                  name,
-                handleLine,
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: statusLine,
-                ),
+                Flexible(child: name),
+                const AppBadge(variant: AppBadgeVariant.tag, label: 'You'),
               ],
-            ),
-          ),
+            )
+          else
+            name,
+          handleLine,
+          Padding(padding: const EdgeInsets.only(top: 2), child: statusLine),
         ],
       ),
     );
   }
 }
+
+/// The sheet-coloured border that separates the avatar from the banner behind it.
+const double _avatarGap = 3;
+
+/// The avatar's height below the banner's lower edge: half of it plus its border.
+const double _avatarSlot = AppAvatarSize.s56 / 2 + _avatarGap;
 
 String _sentenceCase(String? word) => word == null || word.isEmpty
     ? ''
