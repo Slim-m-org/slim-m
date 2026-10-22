@@ -68,7 +68,7 @@ def search_finds_what_was_said(api, channel_id):
         hits = got.get("messages", got) if isinstance(got, dict) else got
         if hits:
             break
-        time.sleep(2)
+        time.sleep(0.5)
     _did("GET /channels/{id}/messages/search")
     assert hits, f"search found nothing for {needle!r}"
     assert any(needle in (m.get("content") or "") for m in hits), hits

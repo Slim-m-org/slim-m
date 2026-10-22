@@ -74,7 +74,7 @@ def _wait_for_slot(admin_api, channel_id, alice_id, after_updated_at=None,
         if slot and (after_updated_at is None or
                      slot["updated_at"] > after_updated_at):
             return slot
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError("the server never recorded the tile's own commit")
 
 
@@ -156,7 +156,8 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
         c.wait_for("Canvas,")
     a.click(CAMERA_ON, settle=3)
     a.wait_for(ALICE_SELF_LABEL, timeout=30)
-    b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
+    # Leaving the call resets the tile, so the cold reopen is held to where it stood after the rejoin.
+    b_rejoined = b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
     print("  the tile reappeared for both after leaving and rejoining "
           "the call")
 
@@ -164,7 +165,7 @@ def move_converges_and_persists(a, b, admin_api, channel_id, room_id):
     b.wait_for(L.MUTE)
     b.click(L.OPEN_CANVAS)
     reopened = b.wait_for(ALICE_REMOTE_LABEL, timeout=30)
-    rx, ry = reopened["x"] - b_after["x"], reopened["y"] - b_after["y"]
+    rx, ry = reopened["x"] - b_rejoined["x"], reopened["y"] - b_rejoined["y"]
     assert abs(rx) < 15 and abs(ry) < 15, \
         f"b's freshly reopened canvas, with no local cache left, landed " \
         f"at a different spot than the server holds: dx={rx} dy={ry}"

@@ -8,6 +8,7 @@ running order and nothing else.
 
 Called by scripts/e2e.sh, which owns the stack this talks to.
 """
+import json
 import os
 import sys
 import tempfile
@@ -58,10 +59,13 @@ import e2e_voice_network
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_api
+import e2e_browsers
 from e2e_api import Api
 from e2e_client import Client
 
 _fixtures_dir = None
+# How long after the channel list appears the setup card may still turn up.
+SETUP_CARD_GRACE = 2.0
 
 
 def fixtures_dir():
@@ -84,7 +88,7 @@ def sign_in(client, server, username, password):
     client.click("It matches")
     client.type_into("Username", username)
     client.type_into("Password", password)
-    client.click("Sign in", settle=6)
+    client.click("Sign in", settle=1)
     client.wait_url("#/channels")
     skip_first_run(client)
     print(f"  {client.name}: signed in as {username}")
@@ -93,14 +97,21 @@ def sign_in(client, server, username, password):
 def skip_first_run(client, timeout=15):
     """A new account opens on the setup card, which covers the shell.
 
-    Only a first sign-in per browser shows it, so its absence is fine.
+    Only a first sign-in per browser shows it, so its absence is fine: once the
+    channel list is up and the card has had a moment to follow it, there is
+    nothing to wait for.
     """
     deadline = time.time() + timeout
+    shell_since = None
     while time.time() < deadline:
         if client.find(L.SKIP_SETUP):
             client.click(L.SKIP_SETUP)
             return
-        time.sleep(1)
+        if client.find(L.TEXT_CHANNEL):
+            shell_since = shell_since or time.time()
+            if time.time() - shell_since > SETUP_CARD_GRACE:
+                return
+        time.sleep(0.25)
 
 
 def go_home(client):
@@ -359,13 +370,39 @@ def scenarios(a, b, admin, member, room_id, server, secret):
     ]
 
 
+def write_results(results):
+    """Per-scenario outcome and duration for a caller that merges several runs."""
+    path = os.environ.get("E2E_RESULTS")
+    if path:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(results, fh, indent=1)
+
+
+def scenario_names():
+    """Every scenario's name in running order, without a stack to run them on."""
+    return [name for name, _ in scenarios(None, None, None, None, None, None, None)]
+
+
+def selected(name, only, exact):
+    """Whether [name] runs: an exact list wins, then name fragments, else all."""
+    if exact is not None:
+        return name in exact
+    return not only or any(o in name for o in only)
+
+
 def main():
     server, room_id, secret = sys.argv[1], sys.argv[2], sys.argv[3]
     # One name fragment, or several split by |.
     only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]
+    # A JSON list of whole names, which a parallel run deals to each stack.
+    exact = None
+    if os.environ.get("E2E_ONLY_FILE"):
+        with open(os.environ["E2E_ONLY_FILE"], encoding="utf-8") as fh:
+            exact = set(json.load(fh))
 
-    a = Client("alice", 9801)
-    b = Client("bob", 9802)
+    base = e2e_browsers.cdp_base()
+    a = Client("alice", base + 1)
+    b = Client("bob", base + 2)
     admin = Api(server)
     admin.login("alice", secret, device="e2e-admin")
     member = Api(server)
@@ -379,8 +416,9 @@ def main():
     sign_in(b, server, "bob", secret)
 
     failures = []
+    results = []
     for name, run in scenarios(a, b, admin, member, room_id, server, secret):
-        if only and not any(o in name for o in only):
+        if not selected(name, only, exact):
             continue
         print(f"\n== {name} ==")
         try:
@@ -391,14 +429,19 @@ def main():
             go_home(b)
             began = time.time()
             run()
-            print(f"  ({time.time() - began:.0f}s)")
+            took = time.time() - began
+            results.append({"name": name, "ok": True, "seconds": round(took, 1)})
+            print(f"  ({took:.0f}s)")
         except Exception:
+            results.append({"name": name, "ok": False,
+                            "seconds": round(time.time() - began, 1)})
             # Kept going rather than stopped: one broken scenario should not
             # hide the state of every one after it, and the run still fails.
             failures.append(name)
             traceback.print_exc()
             print(f"  FAILED: {name}")
 
+    write_results(results)
     print("\n== what this run actually touched ==")
     touched = set(e2e_api.TOUCHED)
     for client in (a, b):

@@ -144,7 +144,7 @@ class AudioProbe:
             found = self.listening()
             if len(found) >= count:
                 return found
-            time.sleep(0.5)
+            time.sleep(0.25)
         raise AssertionError(
             f"{self.client.name}: expected {count} remote audio stream(s), "
             f"found {len(found)}: {found}")

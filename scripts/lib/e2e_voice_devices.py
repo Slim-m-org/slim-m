@@ -38,7 +38,7 @@ def _wait_for_device(client, differs_from, timeout=20):
         sender = _audio_sender(client)
         if sender["settings"]["deviceId"] != differs_from:
             return sender
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(
         f"{client.name}: the published track stayed on {differs_from!r}")
 
@@ -69,7 +69,7 @@ def _wait_for_sender(client, timeout=30):
         try:
             return _audio_sender(client)
         except AssertionError:
-            time.sleep(0.5)
+            time.sleep(0.25)
     raise AssertionError(f"{client.name}: no live audio sender after rejoining")
 
 

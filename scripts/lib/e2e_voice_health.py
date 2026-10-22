@@ -4,19 +4,34 @@
 Needs `voice: two clients in one call` to have run first, and leaves the call up.
 """
 import json
+import os
 import re
 import subprocess
 import time
 
+from e2e_voice_hide_stream import _set_page_visible
+
 IMAGE = "slimm-netem:local"
-LIVEKIT_CONTAINER = "slimm-e2e-lk"
+LIVEKIT_CONTAINER = os.environ.get("E2E_LK_CONTAINER", "slimm-e2e-lk")
 # The jitter buffer is what crosses its 160 ms line; the old 20ms 30ms profile sat at 140-190 ms.
 LOSSY = "delay 100ms 200ms loss 20%"
 HINT = "connection is unstable"
 _LINE = re.compile(r"\[voice-health\][^\"\\]*")
 
 
+def _flush_log(client):
+    """Leaves the foreground for a moment, which makes the app save its debug log.
+
+    It otherwise saves a minute after the first unsaved line, so the minute
+    line the probe waits for would reach storage a minute after it was logged.
+    """
+    _set_page_visible(client, False)
+    time.sleep(0.2)
+    _set_page_visible(client, True)
+
+
 def _health_lines(client):
+    _flush_log(client)
     raw = client.ev("localStorage.getItem('flutter.debug_log.v1') || ''") or ""
     return _LINE.findall(raw)
 
@@ -27,7 +42,7 @@ def _wait_for_minute_line(client, timeout):
         lines = [l for l in _health_lines(client) if "last 60s" in l]
         if lines:
             return lines
-        time.sleep(10)
+        time.sleep(3)
     raise AssertionError(f"{client.name}: no [voice-health] minute line in {timeout}s")
 
 
@@ -68,6 +83,6 @@ def hint_turns_on_under_loss_and_off_after(a, b):
     for c in (a, b):
         deadline = time.time() + 90
         while c.find(HINT) and time.time() < deadline:
-            time.sleep(3)
+            time.sleep(0.25)
         assert c.find(HINT) is None, f"{c.name}: the hint never cleared"
     print("  the hint cleared once the link was clean")

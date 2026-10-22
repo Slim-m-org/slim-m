@@ -302,6 +302,30 @@ drag reveals it. Widening this harness's browsers to a second, narrower
 size would only add a scenario that cannot tell "found" from "reachable" -
 an honest gap declined for the same reason the stroke preview above is.
 
+## Running it in parallel
+
+`scripts/e2e-parallel.sh` runs the same scenarios as `scripts/e2e.sh` on several stacks at once.
+It builds the server and the web client once, then starts one `scripts/e2e.sh` per shard with its own `E2E_API_PORT`, `E2E_WEB_PORT`, `E2E_LK_PORT`, `E2E_RTC_*`, `E2E_CDP_BASE`, `E2E_LK_CONTAINER` and `E2E_WORK`.
+The shards use ports from 28100 up (browsers from 29000), clear of the serial defaults, so a stack someone is using by hand is left alone.
+
+A scenario that leans on what an earlier one left behind runs on the same stack as it, in the same order.
+`scripts/lib/e2e_groups.py` names those groups (`text`, `settings`, `admin`, `canvas`, `call`, `dm-call`), and every other scenario is its own group.
+Groups are dealt longest first to the emptiest stack, using the measured seconds in `scripts/lib/e2e_durations.json`.
+After a run that changes how long things take, `--record` rewrites that file from the passes.
+A new scenario that needs state from another goes in that scenario's group; one that does not needs no entry.
+
+Each shard writes `E2E_RESULTS`, a JSON list of name, outcome and seconds, and the runner merges them into one report with the slowest scenarios and a non-zero exit if any scenario failed or never reported.
+Each shard's full log is `shard-N.log` in `E2E_PAR_WORK` (default `/tmp/e2e-par`).
+`E2E_ONLY_FILE` selects scenarios by exact name from a JSON list, which is how a shard is given its share; `E2E_ONLY` still works for a fragment.
+
+## How the client waits
+
+`Client.click` and `Client.settle` wait for the accessibility tree to stop changing rather than sleeping a fixed time, with the old time as the ceiling.
+A pause that waits on something the tree never shows, such as a video track winding down before a decoding check, passes `fixed=True`.
+`E2E_FIXED_SETTLE=1` restores fixed sleeps everywhere, which is the first thing to try when a scenario is flaky and the cause is not clear.
+Polls re-read the tree every 250 ms.
+The canvas board's position is read off the pixels (`e2e_board_frame.board_frame`), not derived from where other controls sit.
+
 ## What it drives at the API, on purpose
 
 Reporting and blocking live behind the message context menu, and are still

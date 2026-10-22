@@ -198,7 +198,7 @@ def _one(a, b, room_id, bob_id, cfg):
             while time.time() < deadline and not any(
                     p["identity"] == bob_id and tracks_of(p, "SCREEN_SHARE")
                     for p in sfu_participants(room_id)):
-                time.sleep(1)
+                time.sleep(0.25)
             if cfg.get("cores"):
                 _pin(b.port, cfg["cores"])
             time.sleep(WARM_SECONDS)

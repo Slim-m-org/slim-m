@@ -45,7 +45,7 @@ def _chip_below(client, row, label):
                  if label in n["t"] and n["y"] >= row["y"]]
         if below:
             return min(below, key=lambda n: n["y"])
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"{client.name}: no {label!r} chip under the message")
 
 
@@ -160,7 +160,7 @@ def message_menu_quick_row_then_more(alice, bob, admin_api, member_api,
         reactions = member_api.message_with(channel_id, text)["reactions"]
         if reactions:
             break
-        time.sleep(1)
+        time.sleep(0.25)
     assert [r["emoji"] for r in reactions] == [THUMBS_UP], \
         f"the quick reaction did not reach the server: {reactions}"
     print("  Back returned to the first page, and a quick reaction landed")

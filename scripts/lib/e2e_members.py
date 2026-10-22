@@ -20,7 +20,7 @@ def _wait_for_member_row(client, name, timeout=20):
         for node in client.nodes():
             if node["t"].startswith(f"{name}, ") and node["x"] > 1000:
                 return node
-        time.sleep(0.5)
+        time.sleep(0.25)
     client.shot(f"missing-member-{name}")
     raise AssertionError(f"{client.name}: no member row for {name!r}")
 

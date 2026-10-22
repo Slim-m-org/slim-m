@@ -12,6 +12,7 @@ from e2e_voice import (_tap_label, audio_actually_arrives, join_call,
                        participants_with_mics, sfu_participants)
 
 DROP_SECONDS = int(os.environ.get("E2E_DROP_SECONDS", "90"))
+EVICTED_GRACE = 3
 RECOVERY_SECONDS = int(os.environ.get("E2E_RECOVERY_SECONDS", "90"))
 
 
@@ -27,8 +28,25 @@ def _timeline(a, b, room_id, seconds):
               f"alice sees 2={a_in} bob sees 2={b_in}")
         if len(parts) == 2 and a_in and b_in:
             return True
-        time.sleep(3)
+        time.sleep(1)
     return False
+
+
+def _stay_offline_until_evicted(room_id):
+    """Seconds spent offline: until the SFU drops alice, then a moment past it.
+
+    The drop has to outlast the SFU's own patience for the case to be the one
+    that matters, a seat already given away, so it waits on that rather than
+    on a clock that is only ever too long or too short. DROP_SECONDS is the
+    most it will wait.
+    """
+    began = time.time()
+    while time.time() - began < DROP_SECONDS:
+        if len(sfu_participants(room_id)) < 2:
+            time.sleep(EVICTED_GRACE)
+            break
+        time.sleep(0.25)
+    return time.time() - began
 
 
 def rejoins_after_a_network_drop(a, b, room_id, channel=L.VOICE_CHANNEL):
@@ -39,9 +57,9 @@ def rejoins_after_a_network_drop(a, b, room_id, channel=L.VOICE_CHANNEL):
     """
     join_call(a, b, room_id, channel)
     try:
-        print(f"  alice goes offline for {DROP_SECONDS}s")
         a.go_offline()
-        time.sleep(DROP_SECONDS)
+        held = _stay_offline_until_evicted(room_id)
+        print(f"  alice was offline for {held:.0f}s, until the SFU let her go")
         a.go_online()
         print("  alice is back online, waiting for the call to recover")
         ok = _timeline(a, b, room_id, RECOVERY_SECONDS)

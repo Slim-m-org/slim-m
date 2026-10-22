@@ -24,6 +24,7 @@
 #   E2E_RTC_UDP_END [21050]    beside the first needs all three moved
 #   E2E_WEB_DIR           serve this prebuilt web bundle instead of the tree's own
 #   E2E_REBUILD           set to rebuild the web client even if one exists
+#   E2E_SKIP_SERVER_BUILD  use the release binary as it is; a parallel run builds it once
 #   E2E_PASSWORD          pin the seeded accounts' password (default: random)
 set -euo pipefail
 
@@ -97,7 +98,7 @@ start_sfu() {
 
 start_server() {
   echo "== server =="
-  ( cd "$ROOT" && SQLX_OFFLINE=true cargo build --release --bin slimm-server -q )
+  [[ -n "${E2E_SKIP_SERVER_BUILD:-}" ]] || ( cd "$ROOT" && SQLX_OFFLINE=true cargo build --release --bin slimm-server -q )
   # A server already on this port answers with a build this run did not compile.
   if curl -sf -o /dev/null "http://localhost:$API_PORT/healthz" 2>/dev/null; then
     echo "port $API_PORT is already serving something; stop that first"; exit 1

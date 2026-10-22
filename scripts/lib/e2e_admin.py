@@ -31,7 +31,7 @@ def create_role(client, api):
     while time.time() < deadline:
         if 'moderator' in {r['name'] for r in api.roles()}:
             break
-        time.sleep(2)
+        time.sleep(0.5)
     after = {r['name'] for r in api.roles()}
     assert 'moderator' in after, f'the server has no moderator role: {after}'
     assert after != before, 'the role list did not change'
@@ -49,7 +49,7 @@ def report_a_message(reporter_api, admin_api, channel_id, needle):
 
     deadline = time.time() + 20
     while time.time() < deadline and not admin_api.reports():
-        time.sleep(2)
+        time.sleep(0.5)
     filed = admin_api.reports()
     assert filed, 'the server holds no report'
     assert any(r.get('subject_id') == target['id'] for r in filed), \

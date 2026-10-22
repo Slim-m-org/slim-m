@@ -71,7 +71,7 @@ def start_dm_and_call(a, b, admin_api, member_api):
         conversation = next(
             (c for c in rows if c['user']['display_name'] == 'Alice'), None)
         if conversation is None:
-            time.sleep(1)
+            time.sleep(0.25)
     assert conversation, "bob's own /dms never listed the conversation alice opened"
     channel_id = conversation['channel_id']
     print(f"  bob's own account already lists the DM: {channel_id}")

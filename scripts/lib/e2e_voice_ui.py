@@ -33,7 +33,7 @@ def stream_for(probe, room_id, identity, source="MICROPHONE", timeout=45):
                 stream = probe.stream_of_track(track["sid"])
                 if stream:
                     return stream
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(f"no {source} stream from {identity} reached the listener")
 
 
@@ -87,7 +87,7 @@ def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
             client.mouse_click(aim, y + h / 2)
         finally:
             client.gestures(False)
-        time.sleep(0.8)
+        time.sleep(0.3)
     shown = slider_percent(client, label)
     assert abs(shown - percent) <= tolerance, \
         f"{client.name}: {label!r} would not reach {percent}%, stuck at {shown}%"

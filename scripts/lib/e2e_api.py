@@ -34,7 +34,7 @@ def wait_until(read, satisfied, failure_message, timeout=15):
         current = read()
         if satisfied(current):
             return current
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(failure_message)
 
 

@@ -30,7 +30,7 @@ def _wait_until_gone(client, label, timeout=20):
     while time.time() < deadline:
         if client.find(label) is None:
             return
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"{client.name}: {label!r} never went away")
 
 

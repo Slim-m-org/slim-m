@@ -29,6 +29,9 @@ npx playwright test messaging       # one spec file
 npx playwright test -g "an edit"    # one test by name
 ```
 
+`E2E_EVIDENCE=failure` (or `off`) keeps the video, trace and screenshot for failing tests only, which is what a local run usually wants.
+`../scripts/e2e-playwright-parallel.sh` runs each spec file on its own stack at the same time, with that default.
+
 To iterate without booting the stack every time, keep it up:
 
 ```bash

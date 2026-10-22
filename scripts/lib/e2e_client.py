@@ -19,6 +19,12 @@ import urllib.request
 import e2e_js
 
 TIMEOUT = 90
+# How long the tree must hold still, and the least wait before looking, in [Client.settle].
+SETTLE_QUIET = 0.4
+SETTLE_FLOOR = 0.3
+FIXED_SETTLE = bool(os.environ.get("E2E_FIXED_SETTLE"))
+# How often a wait re-reads the tree; a poll is one cheap script, so a short one costs nothing.
+POLL_SECONDS = 0.25
 _MOUSE = "Input.dispatchMouseEvent"
 _KEY = "Input.dispatchKeyEvent"
 _DEFAULT_MIME = "image/png"
@@ -138,7 +144,7 @@ class Client:
                 # A bootstrap asset that failed to load (seen once for canvaskit) never retries itself.
                 reload_at = 0
                 self.send("Page.reload", {})
-            time.sleep(1)
+            time.sleep(0.25)
         self.shot("app-never-booted")
         raise AssertionError(f"{self.name}: the app never booted within {timeout}s")
 
@@ -208,7 +214,7 @@ class Client:
             n = self.find(label, field=field)
             if n:
                 return n
-            time.sleep(1)
+            time.sleep(POLL_SECONDS)
         self.shot(f"missing-{label[:20].replace(' ', '-')}")
         raise AssertionError(f"{self.name}: never saw {label!r}")
 
@@ -241,7 +247,7 @@ class Client:
                        "clickCount": 1})
             time.sleep(0.06)
 
-    def click(self, label, settle=1.5):
+    def click(self, label, settle=1.5, fixed=False):
         """Activate a widget the way a screen reader would.
 
         Dispatching a mouse event at the widget's coordinates hits whatever
@@ -254,7 +260,31 @@ class Client:
         if not hit:
             n = self.wait_for(label)
             self.tap(n["x"], n["y"])
-        time.sleep(settle)
+        self.settle(settle, fixed=fixed)
+
+    def settle(self, seconds, quiet=SETTLE_QUIET, floor=SETTLE_FLOOR, fixed=False):
+        """Waits for the screen to stop changing, for at most [seconds].
+
+        A fixed pause is the worst case every time; the tree going quiet is
+        what the pause was standing in for. Always waits [floor] for a
+        round trip to start redrawing, then until the tree has held still for
+        [quiet]. [fixed] sleeps the whole [seconds], for a pause that is
+        waiting on something the tree never shows (a video track winding down);
+        E2E_FIXED_SETTLE=1 does that everywhere.
+        """
+        if fixed or FIXED_SETTLE or seconds <= floor:
+            time.sleep(seconds)
+            return
+        began = time.time()
+        time.sleep(floor)
+        last, since = None, time.time()
+        while time.time() - began < seconds:
+            now = self.ev(e2e_js.SIGNATURE)
+            if now != last:
+                last, since = now, time.time()
+            elif time.time() - since >= quiet:
+                return
+            time.sleep(0.1)
 
     def type_into(self, label, text):
         """Focus the field's own element rather than clicking where it looks.
@@ -272,9 +302,9 @@ class Client:
         if not focused:
             n = self.wait_for(label, field=True)
             self.tap(n["x"], n["y"])
-        time.sleep(0.4)
+        time.sleep(0.15)
         self.send("Input.insertText", {"text": text})
-        time.sleep(0.4)
+        time.sleep(0.15)
 
     def gestures(self, on):
         """Let real pointer events through to the canvas, or take them back.
@@ -313,7 +343,7 @@ class Client:
                       {"type": kind, "x": x, "y": y, "button": button,
                        "clickCount": 1})
             time.sleep(hold)
-        time.sleep(1.0)
+        self.settle(1.0)
 
     def watch_for_file_input(self):
         """Catch the picker's <input> at the moment it is made.
@@ -418,7 +448,7 @@ class Client:
         while time.time() < deadline:
             if fragment in (self.ev("location.href") or ""):
                 return
-            time.sleep(1)
+            time.sleep(POLL_SECONDS)
         self.shot(f"stuck-at{fragment.replace('/', '-')}")
         raise AssertionError(
             f"{self.name}: never reached {fragment!r}, still at "

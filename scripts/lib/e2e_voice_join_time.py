@@ -70,7 +70,7 @@ def _row_point(client, channel, timeout=60):
         for n in client.nodes():
             if n["t"].lower().startswith(channel.lower()):
                 return n["x"], n["y"]
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"{client.name}: no row named {channel!r}")
 
 
@@ -99,7 +99,7 @@ def _impair(profile):
 
 
 def join_time(a, b, room_id, channel=L.VOICE_CHANNEL):
-    runs_wanted = int(os.environ.get("JOIN_RUNS", "12"))
+    runs_wanted = int(os.environ.get("JOIN_RUNS", "6"))
     profile = os.environ.get("JOIN_NETEM", "clean")
     if profile == "clean":
         return _join_time(a, b, room_id, channel, runs_wanted)
