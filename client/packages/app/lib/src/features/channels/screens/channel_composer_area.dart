@@ -17,6 +17,7 @@ library;
 
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
@@ -85,7 +86,7 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     _expiry?.cancel();
     _expiryFor = until;
     if (until == null) return;
-    final remaining = until - DateTime.now().millisecondsSinceEpoch;
+    final remaining = until - clock.now().millisecondsSinceEpoch;
     if (remaining <= 0) return;
     _expiry = Timer(Duration(milliseconds: remaining), () {
       if (mounted) setState(() {});
@@ -134,7 +135,7 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     _scheduleExpiry(timedOutUntil);
     final stillTimedOut =
         timedOutUntil != null &&
-        timedOutUntil > DateTime.now().millisecondsSinceEpoch;
+        timedOutUntil > clock.now().millisecondsSinceEpoch;
     final composer = Composer(
       controller: widget.controller,
       channelId: channelId,

@@ -40,7 +40,9 @@ var alertStateMaxAge = const Duration(minutes: 1);
 var selfLookupRetryAfter = const Duration(seconds: 30);
 
 /// How long an alert waits for that refetch before it uses what it already has.
-const _refreshWait = Duration(seconds: 2);
+/// A `var` so a test can shrink it.
+@visibleForTesting
+var alertRefreshWait = const Duration(seconds: 2);
 
 final messageAlertPolicyProvider = Provider<MessageAlertPolicy>(
   MessageAlertPolicy.new,
@@ -272,7 +274,7 @@ class MessageAlertPolicy {
       final profile = await _ref
           .read(batchProfilesControllerProvider.notifier)
           .profile(authorId)
-          .timeout(_refreshWait);
+          .timeout(alertRefreshWait);
       return profile != null && (profile.isBot || profile.isWebhook);
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
@@ -298,7 +300,7 @@ class MessageAlertPolicy {
       final perms = await _ref
           .read(apiProvider)
           .getChannelPermissions(channelId)
-          .timeout(_refreshWait);
+          .timeout(alertRefreshWait);
       final value = perms.hasPermission(Perm.sendMessages);
       _canSend[channelId] = (value: value, at: DateTime.now());
       return value;
@@ -338,7 +340,7 @@ class MessageAlertPolicy {
       _loadedAt[provider] = loadedAt;
     }
     try {
-      return await _ref.read(future).timeout(_refreshWait);
+      return await _ref.read(future).timeout(alertRefreshWait);
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,

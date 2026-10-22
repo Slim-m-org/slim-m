@@ -59,6 +59,13 @@ class _IndexWatcher extends ConsumerWidget {
       Text('${ref.watch(customEmojiIndexProvider).length}');
 }
 
+/// Shrinks the rate-limit retry wait, so exhausting the retries takes milliseconds.
+void _quickRetries() {
+  final saved = emojiImageRetryDelay;
+  emojiImageRetryDelay = const Duration(milliseconds: 5);
+  addTearDown(() => emojiImageRetryDelay = saved);
+}
+
 void main() {
   _unfocusedEmojiTest();
   group('a fetch that failed', () {
@@ -192,6 +199,7 @@ void main() {
       'every settings-list row fetches its image at once past the asset '
       'budget',
       (tester) async {
+        _quickRetries();
         var requests = 0;
         final container = ProviderContainer(
           overrides: [
@@ -239,6 +247,7 @@ void main() {
       'gives up and shows the missing-image glyph once retries are spent, '
       'rather than retrying forever',
       (tester) async {
+        _quickRetries();
         var requests = 0;
         final container = ProviderContainer(
           overrides: [

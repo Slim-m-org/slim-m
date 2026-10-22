@@ -68,6 +68,13 @@ ProviderContainer _container({
   return container;
 }
 
+/// Shrinks the rate-limit retry wait, so exhausting the retries takes milliseconds.
+void _quickRetries() {
+  final saved = emojiImageRetryDelay;
+  emojiImageRetryDelay = const Duration(milliseconds: 5);
+  addTearDown(() => emojiImageRetryDelay = saved);
+}
+
 void main() {
   test('a cache hit resolves without ever calling the network', () async {
     final cache = _FakeCache()..store['e-1'] = _png;
@@ -144,6 +151,7 @@ void main() {
     () async {
       final originalCooldown = emojiImageTombstoneCooldown;
       emojiImageTombstoneCooldown = const Duration(milliseconds: 30);
+      _quickRetries();
       addTearDown(() => emojiImageTombstoneCooldown = originalCooldown);
 
       var requests = 0;
@@ -182,6 +190,7 @@ void main() {
     test('$mode on the first fetch heals once it is over', () async {
       final originalCooldown = emojiImageTombstoneCooldown;
       emojiImageTombstoneCooldown = const Duration(milliseconds: 30);
+      _quickRetries();
       addTearDown(() => emojiImageTombstoneCooldown = originalCooldown);
 
       var requests = 0;
@@ -220,6 +229,7 @@ void main() {
     test('a $status is the answer and is not retried', () async {
       final originalCooldown = emojiImageTombstoneCooldown;
       emojiImageTombstoneCooldown = const Duration(milliseconds: 30);
+      _quickRetries();
       addTearDown(() => emojiImageTombstoneCooldown = originalCooldown);
 
       var requests = 0;

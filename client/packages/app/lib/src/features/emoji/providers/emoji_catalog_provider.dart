@@ -134,6 +134,11 @@ final emojiImageCacheProvider = Provider<EmojiImageCache>(
 @visibleForTesting
 var emojiImageTombstoneCooldown = const Duration(seconds: 10);
 
+/// The first wait before an image fetch is retried after a rate limit; it doubles each time.
+/// A `var` so a test can shrink it.
+@visibleForTesting
+var emojiImageRetryDelay = const Duration(milliseconds: 250);
+
 /// One emoji's image bytes, by emoji id.
 ///
 /// Not `autoDispose`, for the reason above and because the same emoji recurs
@@ -180,7 +185,7 @@ final customEmojiImageProvider = FutureProvider.family<Uint8List, String>((
   if (cached != null) return cached;
 
   final api = ref.watch(apiProvider);
-  var delay = const Duration(milliseconds: 250);
+  var delay = emojiImageRetryDelay;
   for (var attempt = 0; ; attempt++) {
     await _emojiImageFetchLimiter.acquire();
     Uint8List? bytes;

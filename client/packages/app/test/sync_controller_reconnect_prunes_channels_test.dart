@@ -15,6 +15,7 @@ import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/testing.dart';
 
+import 'support/quick_reconnect.dart';
 import 'support/sync_harness.dart';
 
 const _tokens = api.TokenPair(
@@ -70,6 +71,7 @@ void main() {
         keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         sessionProvider.overrideWithValue(api.SessionStore()),
         storeProvider.overrideWith((ref) async => store),
+        quickReconnect,
         apiProvider.overrideWith((ref) {
           final client = api.SlimmApi(
             baseUrl: server.baseUrl,
