@@ -84,17 +84,13 @@ extension VoiceSessionStall on VoiceSession {
     String identity,
     lk.TrackSource source,
   ) {
-    final wanted = _statsSource(source);
-    for (final sample in snapshot) {
-      if (sample.local || sample.identity != identity) continue;
-      if (sample.source != wanted) continue;
-      final stamps = [
-        for (final s in sample.streams)
-          if (s.timestampMs case final t?) t,
-      ];
-      return stamps.isEmpty ? null : stamps.reduce((a, b) => a > b ? a : b);
-    }
-    return null;
+    final streams = _streamsOf(snapshot, identity, source);
+    if (streams == null) return null;
+    final stamps = [
+      for (final s in streams)
+        if (s.timestampMs case final t?) t,
+    ];
+    return stamps.isEmpty ? null : stamps.reduce((a, b) => a > b ? a : b);
   }
 
   num? _bytesReceived(
@@ -110,15 +106,25 @@ extension VoiceSessionStall on VoiceSession {
     lk.TrackSource source,
     num? Function(VideoStreamStats) read,
   ) {
+    final streams = _streamsOf(snapshot, identity, source);
+    if (streams == null) return null;
+    final values = [
+      for (final s in streams)
+        if (read(s) case final v?) v,
+    ];
+    return values.isEmpty ? null : values.reduce((a, b) => a + b);
+  }
+
+  Iterable<VideoStreamStats>? _streamsOf(
+    CallStatsSnapshot snapshot,
+    String identity,
+    lk.TrackSource source,
+  ) {
     final wanted = _statsSource(source);
     for (final sample in snapshot) {
       if (sample.local || sample.identity != identity) continue;
       if (sample.source != wanted) continue;
-      final values = [
-        for (final s in sample.streams)
-          if (read(s) case final v?) v,
-      ];
-      return values.isEmpty ? null : values.reduce((a, b) => a + b);
+      return sample.streams;
     }
     return null;
   }

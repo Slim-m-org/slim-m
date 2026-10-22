@@ -125,16 +125,7 @@ extension VoiceSessionTracks on VoiceSession {
       if (reopen) {
         _diag('Reopened the microphone in ${opened.elapsedMilliseconds} ms');
       }
-      enabled ? _micRelease.reopened() : _micRelease.onMuted();
-      if (enabled) {
-        _joinTimings.mark(JoinStage.micPublished);
-      }
-      if (enabled && options != null) {
-        if (!hadTrack) {
-          _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
-        }
-        _capture.retry();
-      }
+      _noteMicSet(enabled, hadTrack: hadTrack, options: options);
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
       _setMicFailure(null);
@@ -149,6 +140,21 @@ extension VoiceSessionTracks on VoiceSession {
       _refreshParticipants();
       return false;
     }
+  }
+
+  void _noteMicSet(
+    bool enabled, {
+    required bool hadTrack,
+    required lk.AudioCaptureOptions? options,
+  }) {
+    enabled ? _micRelease.reopened() : _micRelease.onMuted();
+    if (!enabled) return;
+    _joinTimings.mark(JoinStage.micPublished);
+    if (options == null) return;
+    if (!hadTrack) {
+      _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
+    }
+    _capture.retry();
   }
 
   /// Publishes (or stops) a camera track. Failure is swallowed exactly as
