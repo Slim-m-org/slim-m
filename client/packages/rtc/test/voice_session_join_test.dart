@@ -9,7 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
-class _GatedRoom extends lk.Room {
+import 'support/session_fakes.dart';
+
+class _GatedRoom extends ConnectlessRoom {
   _GatedRoom(this.gate);
 
   final Completer<void> gate;

@@ -44,15 +44,10 @@ class _Me extends Fake implements lk.LocalParticipant {
   Future<bool> dispose() async => true;
 }
 
-/// A room whose connect returns at once and whose local identity is [me].
-class InstantRoom extends lk.Room {
-  InstantRoom({this.me = 'me'});
-
-  final String me;
-
-  @override
-  lk.LocalParticipant? get localParticipant => _Me(me);
-
+/// A room that never reaches a server.
+///
+/// Its disconnect returns at once: livekit's waits 10 s for an engine event a room that never connected cannot send.
+class ConnectlessRoom extends lk.Room {
   @override
   Future<void> connect(
     String url,
@@ -61,6 +56,19 @@ class InstantRoom extends lk.Room {
     lk.RoomOptions? roomOptions,
     lk.FastConnectOptions? fastConnectOptions,
   }) async {}
+
+  @override
+  Future<void> disconnect() async {}
+}
+
+/// A room whose connect returns at once and whose local identity is [me].
+class InstantRoom extends ConnectlessRoom {
+  InstantRoom({this.me = 'me'});
+
+  final String me;
+
+  @override
+  lk.LocalParticipant? get localParticipant => _Me(me);
 }
 
 /// A microphone that counts how often the capture is opened muted.
