@@ -51,6 +51,7 @@ import '../../members/widgets/member_pane.dart'
     show memberPaneVisibleProvider, memberPaneWanted;
 import '../../../routing/breakpoints.dart';
 import '../../members/providers/blocks_controller.dart';
+import '../../members/widgets/profile_colour.dart' show profileColourOf;
 import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
@@ -74,6 +75,7 @@ import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
 import 'canvas_fullscreen.dart';
 import 'canvas_image_paste.dart';
 import 'canvas_media_slot_sync.dart';
@@ -137,7 +139,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
-  CanvasPenStyle _pen = const CanvasPenStyle();
+  late CanvasPenStyle _pen = _profilePen();
   final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
@@ -175,8 +177,27 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _engine.attachPane(); // also forces the late field's ref.read now
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
-    _document.setBottomInset(ref.read(bottomDockReservationProvider));
+    _document.setBottomInset(
+      _boardInset(ref.read(bottomDockReservationProvider)),
+    );
   }
+
+  /// Starts the pen in the colour nearest the user's profile colour, when one is set.
+  CanvasPenStyle _profilePen() {
+    final me = ref.read(meProvider).valueOrNull;
+    final colour = me == null
+        ? null
+        : profileColourOf(index: me.profileColor, rgb: me.profileColorRgb);
+    return colour == null
+        ? const CanvasPenStyle()
+        : CanvasPenStyle(colorKey: nearestPenColorKey(colour));
+  }
+
+  /// In fullscreen the dock floats over the board, so showing it never refits the view; only its handle is kept clear.
+  double _boardInset(double dockReservation) =>
+      ref.read(canvasFullscreenProvider) == widget.channelId
+      ? canvasDockHandleHeight
+      : dockReservation;
 
   @override
   void didChangeDependencies() {
@@ -233,7 +254,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     // The fitted board sits above the floating dock, so its foot is never hidden at fit.
     ref.listen(
       bottomDockReservationProvider,
-      (_, height) => _document.setBottomInset(height),
+      (_, height) => _document.setBottomInset(_boardInset(height)),
     );
     final noteSpanStyle = _noteSpanStyle(context);
     final editingNote = _editingNoteId != null;

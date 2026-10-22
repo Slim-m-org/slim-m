@@ -36,9 +36,13 @@ class MicOptionsMenu extends ConsumerStatefulWidget {
     required this.showCaret,
     required this.child,
     this.extraOptions = const [],
+    this.destructive = false,
   });
 
   final bool showCaret;
+
+  /// True while the mic is muted or lost, so the caret shares the button's danger outline.
+  final bool destructive;
   final Widget child;
 
   /// Dock controls that have no slot of their own on a narrow dock ride at the end of this menu.
@@ -84,6 +88,7 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
     return ControlOptionsMenu(
       optionsLabel: 'Microphone options',
       showCaret: widget.showCaret,
+      destructive: widget.destructive,
       menuWidth: micMenuWidth,
       options: [
         ..._deviceOptions(

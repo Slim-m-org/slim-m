@@ -159,12 +159,28 @@ void main() {
       CanvasTool? chosen;
       await pumpCanvasCallDock(
         tester,
-        canvas: buildCanvasDockData(onToolChanged: (t) => chosen = t),
+        canvas: buildCanvasDockData(
+          tool: CanvasTool.pan,
+          onToolChanged: (t) => chosen = t,
+        ),
       );
       await tester.tap(_tool('Pen'));
       await tester.pumpAndSettle();
       expect(chosen, CanvasTool.pen);
       expect(find.byTooltip('Coral'), findsNothing);
+    });
+
+    testWidgets('a second press on the armed tool puts it down, back to Pan', (
+      tester,
+    ) async {
+      CanvasTool? chosen;
+      await pumpCanvasCallDock(
+        tester,
+        canvas: buildCanvasDockData(onToolChanged: (t) => chosen = t),
+      );
+      await tester.tap(_tool('Pen'));
+      await tester.pumpAndSettle();
+      expect(chosen, CanvasTool.pan);
     });
   });
 
