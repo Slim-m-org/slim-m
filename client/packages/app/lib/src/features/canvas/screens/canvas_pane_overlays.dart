@@ -146,11 +146,12 @@ class CanvasMusicBadge extends ConsumerWidget {
   const CanvasMusicBadge({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => HoldMusicBadgeOverlay(
-    // The dock's own bottom margin is outside what it reports.
-    bottom:
-        ref.watch(bottomDockReservationProvider) +
-        AppSpacing.s12 +
-        AppSpacing.s8,
-  );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reserved = ref.watch(bottomDockReservationProvider);
+    return HoldMusicBadgeOverlay(
+      // The dock's own bottom margin is outside what it reports.
+      fallbackBottom: reserved + AppSpacing.s12 + AppSpacing.s8,
+      dockHeight: reserved > 0 ? reserved : null,
+    );
+  }
 }
