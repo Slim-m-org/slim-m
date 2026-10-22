@@ -16,6 +16,7 @@ import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/labeled_field.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
+import '../../members/providers/user_profiles.dart';
 import '../providers/bot_forms.dart';
 
 /// How long a submission waits for the bot before it says so.
@@ -157,8 +158,8 @@ class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
             child: Text(
-              'This form was opened by a bot${_where()}. What you enter goes to '
-              'that bot, not to slim-m.',
+              'This form was opened by ${_who()}${_where()}. What you enter '
+              'goes to that bot, not to slim-m.',
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),
           ),
@@ -195,6 +196,14 @@ class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
         ],
       ),
     );
+  }
+
+  String _who() {
+    final botId = widget.request.botId;
+    final name = botId == null
+        ? null
+        : ref.watch(userProfileProvider(botId)).valueOrNull?.displayName;
+    return name == null || name.isEmpty ? 'a bot' : name;
   }
 
   String _where() {

@@ -47,6 +47,7 @@ pub(super) async fn authorize(
                 ServerFrame::InteractionForm {
                     interaction_id: interaction.id.to_string(),
                     channel_id: interaction.channel_id.to_string(),
+                    bot_id: interaction.bot_id.to_string(),
                     message_id: interaction.message_id.map(|m| m.to_string()),
                     form: Form::clone(form),
                 }

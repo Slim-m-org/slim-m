@@ -15,11 +15,13 @@ class BotFormRequest {
     required this.interactionId,
     required this.channelId,
     required this.form,
+    this.botId,
   });
 
   final String interactionId;
   final String channelId;
   final api.BotForm form;
+  final String? botId;
 }
 
 class BotFormsController extends StateNotifier<List<BotFormRequest>> {
@@ -29,6 +31,7 @@ class BotFormsController extends StateNotifier<List<BotFormRequest>> {
         :final interactionId,
         :final channelId,
         :final form,
+        :final botId,
       )) {
         state = [
           ...state,
@@ -36,6 +39,7 @@ class BotFormsController extends StateNotifier<List<BotFormRequest>> {
             interactionId: interactionId,
             channelId: channelId,
             form: form,
+            botId: botId,
           ),
         ];
       }

@@ -139,6 +139,7 @@ void main() {
         'interaction_id': 'i1',
         'channel_id': 'c1',
         'message_id': 'm1',
+        'bot_id': 'b1',
         'form': {
           'custom_id': 'remind',
           'title': 'Remind me',
@@ -157,6 +158,7 @@ void main() {
     );
     final form = (event as InteractionForm).form;
     expect(event.interactionId, 'i1');
+    expect(event.botId, 'b1');
     expect(form.title, 'Remind me');
     expect(form.fields[0].required, isTrue);
     expect(form.fields[0].maxLength, 200);
