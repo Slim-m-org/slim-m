@@ -27,6 +27,7 @@ const Set<String> spaceScopedKeys = {
   'slimm.voice.join_leave_sounds_enabled',
   'slimm.voice.hold_music_enabled',
   'slimm.voice.hold_music_track',
+  'slimm.voice.hold_music_volume',
   'slimm.voice.call_ring_sound_enabled',
 };
 

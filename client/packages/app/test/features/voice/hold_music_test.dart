@@ -19,6 +19,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_settings_controller
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
+import '../../support/hold_playback_fake.dart';
 
 class _Driven extends VoiceController {
   _Driven(super.ref, VoiceState initial) : super(session: FakeSession()) {
@@ -28,7 +29,7 @@ class _Driven extends VoiceController {
   void set(VoiceState next) => state = next;
 }
 
-class _FakePlayer implements HoldMusicPlayer {
+class _FakePlayer with HoldPlaybackFake implements HoldMusicPlayer {
   final calls = <String>[];
 
   @override
@@ -127,6 +128,21 @@ void main() {
       });
     },
   );
+
+  test('the saved volume reaches the player, and a change follows live', () {
+    fakeAsync((async) {
+      final rig = _Rig(enabled: false);
+      async.flushMicrotasks();
+      expect(rig.player.volumes, isNotEmpty);
+      unawaited(
+        rig.container
+            .read(voiceSettingsControllerProvider.notifier)
+            .setHoldMusicVolume(0.7),
+      );
+      async.flushMicrotasks();
+      expect(rig.player.volumes.last, 0.7);
+    });
+  });
 
   test('alone with the setting off stays silent', () {
     fakeAsync((async) {

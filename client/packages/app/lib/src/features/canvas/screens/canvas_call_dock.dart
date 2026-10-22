@@ -51,7 +51,6 @@ import '../../voice/widgets/bot_call_controls.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
-import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
@@ -247,7 +246,7 @@ class CanvasCallDock extends ConsumerWidget {
         ),
       );
     }
-    final alone = ref.watch(callAloneProvider);
+    final alone = soloMusicInDock(context, ref);
     final extra = alone ? dockExtraExtent(context) : 0.0;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),

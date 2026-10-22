@@ -20,6 +20,7 @@ import 'voice_controller.dart';
 const _soundsKey = 'slimm.voice.join_leave_sounds_enabled';
 const _holdMusicKey = 'slimm.voice.hold_music_enabled';
 const _holdMusicTrackKey = 'slimm.voice.hold_music_track';
+const _holdMusicVolumeKey = 'slimm.voice.hold_music_volume';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
 const _qualityKey = 'slimm.voice.screen_share_quality';
 const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
@@ -142,6 +143,7 @@ class VoiceSettingsState {
     this.callRingSoundEnabled = true,
     this.holdMusicEnabled = false,
     this.holdMusicTrack = LoungeTrack.lofi,
+    this.holdMusicVolume = defaultHoldMusicVolume,
     this.screenShareQuality = ScreenShareQuality.standard,
     this.receiveVideoQuality = ReceiveVideoQuality.auto,
     this.cameraQuality = CameraQuality.balanced,
@@ -171,6 +173,9 @@ class VoiceSettingsState {
 
   /// Which style plays while you are alone.
   final LoungeTrack holdMusicTrack;
+
+  /// How loud that music is, 0 to 1.
+  final double holdMusicVolume;
   final ScreenShareQuality screenShareQuality;
 
   /// How sharp the video you watch is; see [ReceiveVideoQuality].
@@ -236,6 +241,7 @@ class VoiceSettingsState {
     bool? callRingSoundEnabled,
     bool? holdMusicEnabled,
     LoungeTrack? holdMusicTrack,
+    double? holdMusicVolume,
     ScreenShareQuality? screenShareQuality,
     ReceiveVideoQuality? receiveVideoQuality,
     CameraQuality? cameraQuality,
@@ -258,6 +264,7 @@ class VoiceSettingsState {
     callRingSoundEnabled: callRingSoundEnabled ?? this.callRingSoundEnabled,
     holdMusicEnabled: holdMusicEnabled ?? this.holdMusicEnabled,
     holdMusicTrack: holdMusicTrack ?? this.holdMusicTrack,
+    holdMusicVolume: holdMusicVolume ?? this.holdMusicVolume,
     screenShareQuality: screenShareQuality ?? this.screenShareQuality,
     receiveVideoQuality: receiveVideoQuality ?? this.receiveVideoQuality,
     cameraQuality: cameraQuality ?? this.cameraQuality,
@@ -304,6 +311,9 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       callRingSoundEnabled: prefs.getBool(_callRingSoundKey) ?? true,
       holdMusicEnabled: prefs.getBool(_holdMusicKey) ?? false,
       holdMusicTrack: LoungeTrack.fromName(prefs.getString(_holdMusicTrackKey)),
+      holdMusicVolume:
+          (prefs.getDouble(_holdMusicVolumeKey) ?? defaultHoldMusicVolume)
+              .clamp(0.0, 1.0),
       screenShareQuality: screenShareQualityFromStored(storedQuality),
       receiveVideoQuality: _byName(
         ReceiveVideoQuality.values,
@@ -357,6 +367,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(holdMusicTrack: track);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(_holdMusicTrackKey, track.name);
+  }
+
+  Future<void> setHoldMusicVolume(double volume) async {
+    final clamped = volume.clamp(0.0, 1.0);
+    state = state.copyWith(holdMusicVolume: clamped);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setDouble(_holdMusicVolumeKey, clamped);
   }
 
   Future<void> setScreenShareResolution(ScreenShareResolution r) =>

@@ -8,8 +8,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/lounge_tracks.dart';
+import 'support/hold_playback_fake.dart';
 
-class _Output implements HoldLoopOutput {
+class _Output with HoldPlaybackFake implements HoldLoopOutput {
   final calls = <String>[];
   Completer<void>? gate;
 

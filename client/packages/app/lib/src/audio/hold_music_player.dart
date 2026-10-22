@@ -7,6 +7,7 @@ library;
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'lounge_tracks.dart';
@@ -14,29 +15,69 @@ import 'releasable_player.dart';
 import 'sound_output_router.dart';
 import 'notification_sound.dart' show AudioPlayersSoundPlayer;
 
+/// Where the loop is, for the badge's timeline; [duration] is null until the file reports it.
+class HoldPlayback {
+  const HoldPlayback({this.position = Duration.zero, this.duration});
+
+  static const idle = HoldPlayback();
+
+  final Duration position;
+  final Duration? duration;
+
+  HoldPlayback copyWith({Duration? position, Duration? duration}) =>
+      HoldPlayback(
+        position: position ?? this.position,
+        duration: duration ?? this.duration,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is HoldPlayback &&
+      other.position == position &&
+      other.duration == duration;
+
+  @override
+  int get hashCode => Object.hash(position, duration);
+}
+
 abstract class HoldMusicPlayer {
   Future<void> start();
   Future<void> stop();
+
+  /// The loop's progress; back at zero whenever it is stopped.
+  ValueListenable<HoldPlayback> get playback;
+
+  /// Live volume, 0 to 1.
+  Future<void> setVolume(double volume);
+
+  /// Jumps within the track that is playing; a no-op while stopped.
+  Future<void> seek(Duration position);
 
   /// Switches to [track], live when it is already playing.
   Future<void> setTrack(LoungeTrack track);
   Future<void> dispose();
 }
 
-/// Quieter than a chime: this runs for minutes, not a moment.
-const holdMusicVolume = 0.2;
-
 /// The sink a track plays through, so a test can stand in for the plugin.
 abstract class HoldLoopOutput {
   Future<void> play(String asset);
   Future<void> stop();
   Future<void> dispose();
+  ValueListenable<HoldPlayback> get playback;
+  Future<void> setVolume(double volume);
+  Future<void> seek(Duration position);
 }
 
 class _AudioPlayersOutput implements HoldLoopOutput {
   _AudioPlayersOutput(this._afterPlay);
 
   final Future<void> Function()? _afterPlay;
+  final _playback = ValueNotifier(HoldPlayback.idle);
+  final _subscriptions = <StreamSubscription<Object>>[];
+  double _volume = defaultHoldMusicVolume;
+
+  @override
+  ValueListenable<HoldPlayback> get playback => _playback;
 
   /// Built on first use and disposed on every stop, so an idle app holds no native player.
   final _player = ReleasablePlayer<AudioPlayer>(
@@ -48,20 +89,62 @@ class _AudioPlayersOutput implements HoldLoopOutput {
   Future<void> play(String asset) async {
     final player = _player.current;
     await player.stop();
+    _playback.value = HoldPlayback.idle;
+    _follow(player);
     await player.setReleaseMode(ReleaseMode.loop);
     await player.play(
       AssetSource(asset),
-      volume: holdMusicVolume,
+      volume: _volume,
       ctx: AudioPlayersSoundPlayer.sharedAmbientContext,
     );
     unawaited(_afterPlay?.call());
   }
 
-  @override
-  Future<void> stop() => _player.release();
+  void _follow(AudioPlayer player) {
+    _unfollow();
+    _subscriptions
+      ..add(
+        player.onPositionChanged.listen(
+          (p) => _playback.value = _playback.value.copyWith(position: p),
+        ),
+      )
+      ..add(
+        player.onDurationChanged.listen(
+          (d) => _playback.value = _playback.value.copyWith(duration: d),
+        ),
+      );
+  }
+
+  void _unfollow() {
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
+    }
+    _subscriptions.clear();
+  }
 
   @override
-  Future<void> dispose() => _player.release();
+  Future<void> setVolume(double volume) async {
+    _volume = volume;
+    if (_player.allocated) await _player.current.setVolume(volume);
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    if (_player.allocated) await _player.current.seek(position);
+  }
+
+  @override
+  Future<void> stop() {
+    _unfollow();
+    _playback.value = HoldPlayback.idle;
+    return _player.release();
+  }
+
+  @override
+  Future<void> dispose() {
+    _unfollow();
+    return _player.release();
+  }
 }
 
 class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
@@ -96,6 +179,15 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
     _generation++;
     await _output.stop();
   }
+
+  @override
+  ValueListenable<HoldPlayback> get playback => _output.playback;
+
+  @override
+  Future<void> setVolume(double volume) => _output.setVolume(volume);
+
+  @override
+  Future<void> seek(Duration position) => _output.seek(position);
 
   @override
   Future<void> setTrack(LoungeTrack track) async {

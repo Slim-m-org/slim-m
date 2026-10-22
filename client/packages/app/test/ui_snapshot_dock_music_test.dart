@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The call dock with the "music while alone" button, off and on, at phone and
-/// desktop width in both themes. PNGs are written only under
+/// a narrow window in both themes. PNGs are written only under
 /// SLIMM_UI_SNAPSHOTS=1; otherwise this asserts the dock lays out cleanly.
 library;
 
@@ -31,7 +31,7 @@ VoiceParticipant _me() => const VoiceParticipant(
 void main() {
   setUpAll(loadRealFonts);
 
-  const sizes = {'phone': Size(390, 230), 'desktop': Size(900, 160)};
+  const sizes = {'phone': Size(390, 230), 'narrow': Size(560, 160)};
   for (final theme in const ['dark', 'light']) {
     for (final entry in sizes.entries) {
       for (final on in const [false, true]) {

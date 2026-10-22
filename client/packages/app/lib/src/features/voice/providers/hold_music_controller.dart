@@ -56,6 +56,11 @@ class HoldMusicController {
       (_, track) => unawaited(_player.setTrack(track)),
       fireImmediately: true,
     );
+    _ref.listen<double>(
+      voiceSettingsControllerProvider.select((s) => s.holdMusicVolume),
+      (_, volume) => unawaited(_player.setVolume(volume)),
+      fireImmediately: true,
+    );
     _evaluate();
   }
 

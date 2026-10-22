@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/audio/hold_music_player.dart';
 import 'package:slimm_app/src/audio/releasable_player.dart';
+import 'support/hold_playback_fake.dart';
 
 class _Native {
   bool disposed = false;
@@ -56,7 +57,7 @@ void main() {
   );
 }
 
-class _DisposedMidStart implements HoldLoopOutput {
+class _DisposedMidStart with HoldPlaybackFake implements HoldLoopOutput {
   final opened = Completer<void>();
 
   @override

@@ -4,11 +4,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../modules/providers/dock_reservation.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
+import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_collapse.dart';
 import 'canvas_hidden_tiles.dart';
@@ -137,4 +140,18 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
       ),
     );
   }
+}
+
+/// The music badge, lifted above whatever dock height is currently reserved.
+class CanvasMusicBadge extends ConsumerWidget {
+  const CanvasMusicBadge({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => HoldMusicBadgeOverlay(
+    // The dock's own bottom margin is outside what it reports.
+    bottom:
+        ref.watch(bottomDockReservationProvider) +
+        AppSpacing.s12 +
+        AppSpacing.s8,
+  );
 }

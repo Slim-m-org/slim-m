@@ -15,12 +15,13 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../support/canvas_call_dock_fixtures.dart';
 import 'voice_call_controls_harness.dart';
+import '../../support/hold_playback_fake.dart';
 
 const _connected = VoiceFlags(state: VoiceSessionState.connected);
 const _on = 'Pause music (Lofi)';
 const _off = 'Play music while alone';
 
-class _FakePlayer implements HoldMusicPlayer {
+class _FakePlayer with HoldPlaybackFake implements HoldMusicPlayer {
   @override
   Future<void> setTrack(LoungeTrack track) async {}
 
@@ -51,12 +52,16 @@ final _roster = StateProvider<List<VoiceParticipant>>(
 
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
-  double width = 800,
+  double width = 560,
   bool touch = false,
   String? canvasChannelId,
 }) async {
   SharedPreferences.setMockInitialValues({});
   _player.calls.clear();
+  // The window width is what keeps music in the dock (under 600) or moves it to the badge.
+  tester.view.physicalSize = Size(width, 800);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
   return pumpVoiceCallDock(
     tester,
     _connected,
@@ -76,6 +81,12 @@ Future<void> _expectMusicReachable(WidgetTester tester) async {
   await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
   await tester.pumpAndSettle();
   expect(find.text('Play music'), findsOneWidget);
+}
+
+/// At 600 and wider the music lives in the floating badge, so the dock carries none of it.
+void _expectNoDockMusic(WidgetTester tester) {
+  expect(find.bySemanticsLabel(_off), findsNothing);
+  expect(find.bySemanticsLabel('Music options'), findsNothing);
 }
 
 void main() {
@@ -118,6 +129,9 @@ void main() {
 
   testWidgets('at 360 with no canvas the row still folds', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     await pumpVoiceCallDock(
       tester,
       _connected,
@@ -134,7 +148,7 @@ void main() {
   });
 
   for (final width in [360.0, 440.0, 720.0, 1000.0]) {
-    testWidgets('with the canvas open at $width the music button fits', (
+    testWidgets('with the canvas open at $width the music is reachable', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -154,7 +168,11 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      await _expectMusicReachable(tester);
+      if (width >= 600) {
+        _expectNoDockMusic(tester);
+      } else {
+        await _expectMusicReachable(tester);
+      }
     });
   }
 

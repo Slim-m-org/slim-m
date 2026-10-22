@@ -3,6 +3,9 @@
 /// style, CC0 or made for slim-m. Credits and sources are in `assets/audio/music/CREDITS.md`.
 library;
 
+/// Quieter than a chime: this runs for minutes, not a moment.
+const defaultHoldMusicVolume = 0.2;
+
 enum LoungeTrack {
   lofi('Lofi', 'Chill lofi inspired', 'lofi.mp3'),
   jazz('Jazz', 'Elevator Music', 'jazz.mp3'),
