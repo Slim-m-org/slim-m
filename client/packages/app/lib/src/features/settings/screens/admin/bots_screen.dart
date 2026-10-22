@@ -112,6 +112,8 @@ class _BotsPaneState extends ConsumerState<BotsPane>
   }
 
   Future<void> _create() async {
+    // A pending reveal is the only copy of the last bot's token, so a second create waits for it.
+    if (_justCreated != null) return;
     final username = _username.text.trim();
     if (username.isEmpty) return;
     final prefix = _prefix.text.trim();
@@ -230,9 +232,18 @@ class _BotsPaneState extends ConsumerState<BotsPane>
                   child: AppButton(
                     label: ActionLabels.createBot,
                     variant: AppButtonVariant.primary,
-                    onPressed: _busy ? null : _create,
+                    onPressed: _busy || _justCreated != null ? null : _create,
                   ),
                 ),
+                if (_justCreated != null)
+                  Text(
+                    'Copy or dismiss the token above first.',
+                    style: AppText.caption.copyWith(
+                      color: Theme.of(
+                        context,
+                      ).extension<AppTokens>()!.textSecondary,
+                    ),
+                  ),
                 if (actionError case final error?)
                   AppErrorState(message: error, onDismiss: clearActionError),
               ],
