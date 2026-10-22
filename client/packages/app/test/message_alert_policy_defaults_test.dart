@@ -5,6 +5,8 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:slimm_app/src/features/messages/providers/message_alert_policy.dart';
+
 import 'support/message_alert_policy_rig.dart';
 
 void main() {
@@ -81,6 +83,9 @@ void main() {
     });
 
     test('a lookup that never answers falls open after its timeout', () async {
+      final saved = alertRefreshWait;
+      alertRefreshWait = const Duration(milliseconds: 100);
+      addTearDown(() => alertRefreshWait = saved);
       await wire(AlertRig()..usersHang = true);
       final plain = alertMessage('group-1', 'new article', authorId: 'feedbot');
       expect(await alertsFor(rig, plain), isTrue);
