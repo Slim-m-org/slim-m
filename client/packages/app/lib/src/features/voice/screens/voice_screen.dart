@@ -356,12 +356,17 @@ class _InCallState extends ConsumerState<_InCall> {
   /// The dock's real height, which bot controls and the call row make vary;
   /// null until measured.
   double? _dockHeight;
+  double? _dockWidth;
 
   String get channelId => widget.channelId;
   bool get isDm => widget.isDm;
 
   void _onDockHeight(double height) {
     if (mounted && _dockHeight != height) setState(() => _dockHeight = height);
+  }
+
+  void _onDockWidth(double width) {
+    if (mounted && _dockWidth != width) setState(() => _dockWidth = width);
   }
 
   /// The margin [SafeArea] keeps below the dock.
@@ -419,6 +424,7 @@ class _InCallState extends ConsumerState<_InCall> {
               offset: 0,
               child: DockHeightReporter(
                 onHeight: _onDockHeight,
+                onWidth: _onDockWidth,
                 child: VoiceCallDock(
                   controller: controller,
                   voice: VoiceFlags.from(voice),
@@ -433,6 +439,7 @@ class _InCallState extends ConsumerState<_InCall> {
           fallbackBottom:
               (_clearance(context) ?? defaultDockClearance) + AppSpacing.s8,
           dockHeight: _dockHeight,
+          dockWidth: _dockWidth ?? 0,
           dockMargin: _dockMargin(context),
         ),
       ],

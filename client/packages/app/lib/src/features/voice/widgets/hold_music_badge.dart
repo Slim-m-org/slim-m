@@ -28,6 +28,7 @@ class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
     super.key,
     required this.fallbackBottom,
     this.dockHeight,
+    this.dockWidth,
     this.dockMargin = AppSpacing.s12,
   });
 
@@ -36,6 +37,9 @@ class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
 
   /// The dock's measured height, or null before it has been laid out.
   final double? dockHeight;
+
+  /// The dock's measured width; the shared dock's published width when null.
+  final double? dockWidth;
 
   /// The gap between the dock and the bottom edge.
   final double dockMargin;
@@ -60,7 +64,8 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
   Widget build(BuildContext context) {
     final shown = ref.watch(callAloneProvider) && holdMusicBadgeFits(context);
     if (!shown) return const SizedBox.shrink();
-    final dockWidth = ref.watch(bottomDockWidthProvider);
+    final sharedDockWidth = ref.watch(bottomDockWidthProvider);
+    final double dockWidth = widget.dockWidth ?? sharedDockWidth;
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
     final badge = KeyedSubtree(key: _badgeKey, child: const HoldMusicBadge());
     return LayoutBuilder(
