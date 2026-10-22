@@ -35,6 +35,10 @@ class CanvasToolButtons extends StatelessWidget {
   final CanvasPenStyle pen;
   final ValueChanged<CanvasPenStyle> onPenChanged;
 
+  /// A second press on the armed tool puts it down, like every other dock toggle.
+  void _pick(CanvasTool picked) =>
+      onToolChanged(tool == picked ? CanvasTool.pan : picked);
+
   /// Options belong to the selected tool only, and only while it can be used.
   List<ControlOptionEntry> _optionsFor(CanvasTool forTool) =>
       tool == forTool && forTool.isAvailable(canDraw: canDraw)
@@ -88,7 +92,7 @@ class CanvasToolButtons extends StatelessWidget {
           active: tool == CanvasTool.pen,
           canDraw: canDraw,
           onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
-              ? () => onToolChanged(CanvasTool.pen)
+              ? () => _pick(CanvasTool.pen)
               : null,
         ),
       ),
@@ -99,7 +103,7 @@ class CanvasToolButtons extends StatelessWidget {
         tooltip: canDraw ? 'Note (N)' : "Can't draw right now",
         active: tool == CanvasTool.note,
         onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
-            ? () => onToolChanged(CanvasTool.note)
+            ? () => _pick(CanvasTool.note)
             : null,
       ),
       const SizedBox(width: AppSpacing.s4),
@@ -113,7 +117,7 @@ class CanvasToolButtons extends StatelessWidget {
           tooltip: canDraw ? _shapeHint : "Can't draw right now",
           active: tool == CanvasTool.shape,
           onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
-              ? () => onToolChanged(CanvasTool.shape)
+              ? () => _pick(CanvasTool.shape)
               : null,
         ),
       ),
@@ -125,7 +129,7 @@ class CanvasToolButtons extends StatelessWidget {
             'Eraser (E) · erases ink and shapes. Right-click or long-press a '
             'note or image, then Delete',
         active: tool == CanvasTool.eraser,
-        onPressed: () => onToolChanged(CanvasTool.eraser),
+        onPressed: () => _pick(CanvasTool.eraser),
       ),
     ],
   );
