@@ -25,7 +25,8 @@ class WindowMaximizedTracker extends ChangeNotifier {
 
   void _onEvent(DesktopWindowEventKind event) {
     if (event == DesktopWindowEventKind.maximize ||
-        event == DesktopWindowEventKind.unmaximize) {
+        event == DesktopWindowEventKind.unmaximize ||
+        event == DesktopWindowEventKind.show) {
       unawaited(refresh());
     }
   }
@@ -33,6 +34,7 @@ class WindowMaximizedTracker extends ChangeNotifier {
   /// Re-queries the port rather than assuming, so a window manager that
   /// refuses a request cannot desync the icon from reality.
   Future<void> refresh() async {
+    if (_disposed || !_port.windowQueryable) return;
     try {
       final value = await _port.isMaximized();
       if (_disposed || value == _maximized) return;
@@ -49,6 +51,7 @@ class WindowMaximizedTracker extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    if (_disposed || !_port.windowQueryable) return;
     try {
       if (await _port.isMaximized()) {
         await _port.unmaximize();
