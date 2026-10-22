@@ -79,7 +79,8 @@ class Subscriber:
                 return False
             self.connected = True
             return True
-        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        # recorded, not swallowed
+        except Exception as exc:  # noqa: BLE001
             self.failure = f"{type(exc).__name__}: {exc}"
             return False
 

@@ -20,15 +20,16 @@ from e2e_api import wait_until
 
 CAMERA_ON = "Turn on camera"
 RESTART_SETTLE_SECONDS = 20
+CANVAS_TITLE = "Canvas,"
 
 
 def _in_canvas(c, channel):
-    if not c.find(L.OPEN_CANVAS) and not c.find("Canvas,"):
+    if not c.find(L.OPEN_CANVAS) and not c.find(CANVAS_TITLE):
         c.click(channel)
         c.wait_for(L.IN_CALL)
-    if not c.find("Canvas,"):
+    if not c.find(CANVAS_TITLE):
         c.click(L.OPEN_CANVAS)
-    c.wait_for("Canvas,")
+    c.wait_for(CANVAS_TITLE)
     fit_to_board_zoom_one(c)
 
 

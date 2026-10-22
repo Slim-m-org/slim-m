@@ -87,7 +87,7 @@ def run(api_by_index, admin_api, channel_id, placed, rng):
     remove_count = max(3, len(remaining) // 6)
     candidates = remaining[:remove_count]
     removed_ops, restored_ops = _run_removes_and_restores(
-        api_by_index, admin_api, channel_id, candidates, rng, stats)
+        api_by_index, admin_api, channel_id, candidates, stats)
     return stats, removed_ops, restored_ops
 
 
@@ -161,8 +161,19 @@ def _try_restore(api, channel_id, target_op, stats):
     return result["op"]
 
 
+def _restore_alternate(remove_ops, admin_api, channel_id, stats):
+    restored = []
+    for index, (op_id, author_api) in enumerate(remove_ops):
+        if index % 2:
+            continue
+        actor = admin_api if admin_api and index % 6 == 0 else author_api
+        if _try_restore(actor, channel_id, op_id, stats):
+            restored.append(op_id)
+    return restored
+
+
 def _run_removes_and_restores(api_by_index, admin_api, channel_id,
-                               candidates, rng, stats):
+                               candidates, stats):
     """A third of `candidates` removed one at a time by their own author, a
     third removed together in batch ops (one per author), and - if `admin_api` is
     available - up to three removed by the admin account acting on
@@ -193,11 +204,5 @@ def _run_removes_and_restores(api_by_index, admin_api, channel_id,
     for target in moderated:
         _try_remove(admin_api, channel_id, [target["id"]], stats)
 
-    restored = []
-    for index, (op_id, author_api) in enumerate(remove_ops):
-        if index % 2:
-            continue
-        actor = admin_api if admin_api and index % 6 == 0 else author_api
-        if _try_restore(actor, channel_id, op_id, stats):
-            restored.append(op_id)
+    restored = _restore_alternate(remove_ops, admin_api, channel_id, stats)
     return [op_id for op_id, _ in remove_ops], restored

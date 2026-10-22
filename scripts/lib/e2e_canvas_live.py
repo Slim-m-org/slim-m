@@ -134,7 +134,7 @@ def cursor_hides_when_pointer_leaves(a, b):
     time.sleep(SETTLE)
     empty = b.region_png(rect)
     a.hover(*at(org, PATH[0]), settle=0.2)
-    shown, pixels = poll_region(
+    _, pixels = poll_region(
         b, rect, empty, lambda px: len(px) >= MIN_CURSOR_PIXELS)
     _require(pixels, MIN_CURSOR_PIXELS, "b's view of a's cursor before leaving")
     canvas = a.canvas_rect()

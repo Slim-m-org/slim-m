@@ -55,8 +55,11 @@ class PerfBaselineTest(unittest.TestCase):
                 perf_baseline.build("0.84.0", "ci", root, [glibc_only])
 
     def test_no_benchmarks_is_refused(self):
-        with tempfile.TemporaryDirectory() as tmp, self.assertRaises(ValueError):
-            perf_baseline.build("0.84.0", "ci", Path(tmp), [RUN.format(ig=1, im=1)])
+        runs = [RUN.format(ig=1, im=1)]
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = Path(tmp)
+            with self.assertRaises(ValueError):
+                perf_baseline.build("0.84.0", "ci", out_dir, runs)
 
     def test_the_committed_baselines_parse_as_this_shape(self):
         for path in (Path(__file__).resolve().parents[2] / "perf" / "baselines").glob("*.json"):

@@ -102,7 +102,7 @@ def register_accounts(base_url, count, password, invite_code, device_prefix,
         reused = False
         try:
             got = seed_backoff.call_with_backoff(
-                lambda b=body: api.call("POST", "/auth/register", b))
+                lambda a=api, b=body: a.call("POST", "/auth/register", b))
         except urllib.error.HTTPError as exc:
             got, reused = _reuse_or_raise(
                 api, exc, (username, password, device_prefix, index),

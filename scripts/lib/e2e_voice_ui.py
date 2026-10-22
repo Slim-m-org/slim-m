@@ -20,19 +20,26 @@ JSON.stringify((function(){
   return [r.x, r.y, r.width, r.height];})())"""
 
 
+def _stream_of_identity(probe, room_id, identity, source):
+    for p in sfu_participants(room_id):
+        if p["identity"] != identity:
+            continue
+        for track in p.get("tracks", []):
+            if track.get("source") != source:
+                continue
+            stream = probe.stream_of_track(track["sid"])
+            if stream:
+                return stream
+    return None
+
+
 def stream_for(probe, room_id, identity, source="MICROPHONE", timeout=45):
     """The listener's stream id carrying `identity`'s SFU track of `source`."""
     deadline = time.time() + timeout
     while time.time() < deadline:
-        for p in sfu_participants(room_id):
-            if p["identity"] != identity:
-                continue
-            for track in p.get("tracks", []):
-                if track.get("source") != source:
-                    continue
-                stream = probe.stream_of_track(track["sid"])
-                if stream:
-                    return stream
+        stream = _stream_of_identity(probe, room_id, identity, source)
+        if stream:
+            return stream
         time.sleep(0.25)
     tracks = [(p["identity"][:13], t.get("source"), t.get("sid"))
               for p in sfu_participants(room_id) for t in p.get("tracks", [])]

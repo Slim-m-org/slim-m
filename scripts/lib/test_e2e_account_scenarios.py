@@ -98,8 +98,7 @@ class ShareQualityTest(unittest.TestCase):
     def test_fails_when_nothing_durable_recorded_the_choice(self):
         client = _QualityClient(stored=None)
         with self.assertRaises(AssertionError):
-            e2e_video_quality.share_quality_from_the_share_menu(
-                client, "room")
+            e2e_video_quality.share_quality_from_the_share_menu(client)
         self.assertIn(L.RES_1440P, client.clicked)
 
 

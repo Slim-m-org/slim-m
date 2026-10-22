@@ -91,7 +91,7 @@ def _place(api, channel_id, placement, author_index):
     return result
 
 
-def run(api_by_index, channel_id, centers, weights, placed, rng):
+def run(api_by_index, channel_id, centers, weights, placed):
     """Places the diagram and returns its rows, the same shape
     `place_main_pass` returns."""
     accounts = len(api_by_index)

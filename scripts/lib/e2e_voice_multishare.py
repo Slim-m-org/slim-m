@@ -23,7 +23,8 @@ from e2e_voice import join_call, sfu_participants, tracks_of
 
 NOT_BLACK_MEAN = 20.0  # live share 100-104, black 0
 MIN_SPREAD = 4.0  # live share 16-25, flat fill 0
-FOCUS = "Focus Alice's screen"
+ALICE_SCREEN = "Alice's screen"
+FOCUS = f"Focus {ALICE_SCREEN}"
 SHOW_ALL = "Show all shares"
 # A video must decode new frames across this long to count as live.
 FRESH_SECONDS = 2.0
@@ -143,7 +144,7 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
               + ", ".join(f"{v['width']}x{v['height']} mean {v['mean']:.0f} "
                           f"spread {v['spread']:.0f} frames {v['frames']}"
                           for v in seen))
-        c.wait_for("Alice's screen")
+        c.wait_for(ALICE_SCREEN)
         c.wait_for("Bob's screen")
         mine = wait_for_videos(pa, every, 2)
         theirs = wait_for_videos(pb, every, 2)
@@ -151,13 +152,13 @@ def _three_way(a, b, c, server, secret, sign_in, room_id, bob_id):
               f"preview and the other's share ({len(theirs)})")
 
         before = max(_area(v) for v in share_tiles(pc.videos(), every))
-        ui.open_share_menu(c, "Alice's screen", FOCUS)
+        ui.open_share_menu(c, ALICE_SCREEN, FOCUS)
         c.click(FOCUS, settle=2)
-        c.wait_for("Alice's screen")
+        c.wait_for(ALICE_SCREEN)
         after = max(_area(v) for v in share_tiles(pc.videos(), every))
         print(f"  focusing one share: largest video {before} -> {after} px")
         assert after > before * 1.1, "focusing a share did not enlarge it"
-        ui.open_share_menu(c, "Alice's screen", SHOW_ALL)
+        ui.open_share_menu(c, ALICE_SCREEN, SHOW_ALL)
         c.click(SHOW_ALL, settle=2)
         c.wait_for("Bob's screen")
         wait_for_videos(pc, every, 2)

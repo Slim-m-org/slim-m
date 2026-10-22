@@ -249,7 +249,7 @@ async fn import_one(store: &Store, media: &Media, path: &Path) -> anyhow::Result
         }));
     }
 
-    let stem = path.file_stem().and_then(|stem| stem.to_str());
+    let stem = path.file_stem().and_then(std::ffi::OsStr::to_str);
     let name = match stem.map(super::normalize_name) {
         Some(Ok(name)) => name,
         Some(Err(NameProblem::TooLong { length })) => {

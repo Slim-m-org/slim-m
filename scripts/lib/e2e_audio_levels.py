@@ -113,8 +113,9 @@ def longest_gap_seconds(samples, threshold_db, until=None):
             longest = max(longest, at - last_loud)
         last_loud = at
     if until is not None:
-        anchor = last_loud if last_loud is not None else (
-            samples[0][0] if samples else None)
+        anchor = last_loud
+        if anchor is None and samples:
+            anchor = samples[0][0]
         if anchor is not None:
             longest = max(longest, until - anchor)
     return longest

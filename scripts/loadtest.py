@@ -200,7 +200,8 @@ async def send_phase(accounts, channel_id, args, sent_at):
             try:
                 got = await asyncio.to_thread(
                     api.send_message, channel_id, body)
-            except Exception as exc:  # noqa: BLE001 - counted, not fatal
+            # counted, not fatal
+            except Exception as exc:  # noqa: BLE001
                 latencies.append(None)
                 return f"send failed for sender {index}: {exc}"
             done = time.monotonic()

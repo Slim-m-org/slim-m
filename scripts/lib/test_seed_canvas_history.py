@@ -57,7 +57,7 @@ class BatchRemoveTest(unittest.TestCase):
         ops.remove, ops.restore = fake_remove, fake_restore
         try:
             history._run_removes_and_restores(
-                apis, None, "c", candidates, random.Random(1), stats)
+                apis, None, "c", candidates, stats)
         finally:
             ops.remove, ops.restore = orig
         return stats, sent
@@ -96,8 +96,9 @@ class ThrowawayBatchTest(unittest.TestCase):
         server = FakeCanvasServer(can_clear=False)
         admin = server.user("admin")
 
+        placer = stroke_placer(admin)
         with self.assertRaises(urllib.error.HTTPError) as caught:
-            history.run_throwaway_batch(admin, "c", 8, stroke_placer(admin))
+            history.run_throwaway_batch(admin, "c", 8, placer)
 
         self.assertEqual(caught.exception.code, 403)
         self.assertEqual(server.live(), [])
