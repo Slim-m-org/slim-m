@@ -41,6 +41,7 @@ import '../widgets/participant_call_menu.dart';
 import 'voice_call_dock.dart';
 import '../../canvas/screens/canvas_pane.dart' show canvasOpenProvider;
 import '../widgets/hold_music_badge.dart';
+import '../widgets/lounge_backdrop.dart';
 import 'voice_idle/voice_channel_idle.dart';
 import 'voice_join_preview.dart';
 import 'voice_text_pane.dart';
@@ -381,6 +382,13 @@ class _InCallState extends ConsumerState<_InCall> {
 
     return Stack(
       children: [
+        Positioned.fill(
+          child: LoungeBackdrop(
+            channelId: channelId,
+            participants: voice.participants,
+            canvas: !isDm,
+          ),
+        ),
         CallStageLayout(
           voice: voice,
           controller: controller,
