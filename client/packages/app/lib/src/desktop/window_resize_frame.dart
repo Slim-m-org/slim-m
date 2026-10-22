@@ -66,6 +66,7 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
   }
 
   Future<void> _syncRunState() async {
+    if (!widget.port.windowQueryable) return;
     try {
       final maximized = await widget.port.isMaximized();
       final fullScreen = await widget.port.isFullScreen();
@@ -94,6 +95,8 @@ class _WindowResizeFrameState extends State<WindowResizeFrame> {
         setState(() => _fullScreen = true);
       case DesktopWindowEventKind.leaveFullScreen:
         setState(() => _fullScreen = false);
+      case DesktopWindowEventKind.show:
+        unawaited(_syncRunState());
       default:
         break;
     }
