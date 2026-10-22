@@ -33,10 +33,10 @@ description: Install the apt packages a Linux build of the slim-m client needs.
 runs:
   using: composite
   steps:
-    - shell: bash
-      # A composite step has no timeout-minutes key; the script bounds each attempt and falls back to another mirror.
-      run: |
-        "$GITHUB_WORKSPACE/scripts/apt-install.sh" \
-          clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev \
-          libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    # Through the cached action, so a stalled Ubuntu mirror only costs the first run on each runner image.
+    - uses: ./.github/actions/apt-install
+      with:
+        packages: >-
+          clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev
+          libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
           libayatana-appindicator3-dev libpulse-dev libmpv-dev libepoxy-dev
