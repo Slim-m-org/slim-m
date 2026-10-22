@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_hover_toolbar.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_app/src/widgets/hover_reveal.dart';
 
 import 'message_row_harness.dart';
 import 'message_hover_toolbar_support.dart';
@@ -189,6 +190,10 @@ void main() {
       expect(tester.getTopLeft(hoverPlate).dy, tester.getTopLeft(row).dy);
 
       controller.jumpTo(6);
+      await tester.pump();
+      await tester.pump(AppMotion.fast * 2);
+      expect(hoverPlate, findsNothing, reason: 'hover is calm while scrolling');
+      await tester.pump(kScrollSettle + kRowHoverIntent);
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(row).dy, lessThan(300));
       expect(tester.getTopLeft(hoverPlate).dy, tester.getTopLeft(row).dy);

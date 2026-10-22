@@ -41,6 +41,9 @@ import 'message_toolbar_anchor.dart';
 import 'swipe_to_reply.dart';
 import 'message_text.dart';
 
+/// A pointer sweeping across rows must rest this long before a row lights.
+const kRowHoverIntent = Duration(milliseconds: 60);
+
 /// One message, and optionally the "New" divider directly above it.
 ///
 /// Grouping (dropping the avatar and header for a continuation) is decided by
@@ -152,6 +155,8 @@ class MessageRow extends ConsumerWidget {
     final inlineTime =
         marked && !_unsent && !editing && message.content.isNotEmpty;
     return HoverReveal(
+      enterDelay: kRowHoverIntent,
+      calmWhileScrolling: true,
       builder: (context, hovered, menuOpen, focusWithin) {
         final view = _RowView(
           tokens: tokens,
