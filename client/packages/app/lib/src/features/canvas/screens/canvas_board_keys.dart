@@ -58,10 +58,12 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   void initState() {
     super.initState();
     _node.addListener(_onFocusChanged);
+    FocusManager.instance.addHighlightModeListener(_onHighlightMode);
   }
 
   @override
   void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_onHighlightMode);
     _node.removeListener(_onFocusChanged);
     _node.dispose();
     super.dispose();
@@ -73,11 +75,29 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     if (focused == _focused) return;
     setState(() {
       _focused = focused;
-      // A Tab or arrow that moved focus here is still down when this runs.
+      // A Tab or arrow that moved focus here is still down when this runs; a held shortcut modifier is not.
       _ring =
-          focused && HardwareKeyboard.instance.logicalKeysPressed.isNotEmpty;
+          focused &&
+          HardwareKeyboard.instance.logicalKeysPressed.any(
+            _navigationKeys.contains,
+          );
     });
   }
+
+  // A click or touch anywhere puts the app back in pointer mode, which hides a ring the keyboard drew.
+  void _onHighlightMode(FocusHighlightMode mode) {
+    if (mode == FocusHighlightMode.touch && _ring && mounted) {
+      setState(() => _ring = false);
+    }
+  }
+
+  static final _navigationKeys = {
+    LogicalKeyboardKey.tab,
+    LogicalKeyboardKey.arrowLeft,
+    LogicalKeyboardKey.arrowRight,
+    LogicalKeyboardKey.arrowUp,
+    LogicalKeyboardKey.arrowDown,
+  };
 
   CanvasDocument get _document => widget.document;
 
