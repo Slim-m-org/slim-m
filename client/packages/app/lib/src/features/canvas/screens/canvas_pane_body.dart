@@ -450,6 +450,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           compact: compact,
                         ),
                       ),
+                      const FocusTraversalOrder(
+                        key: ValueKey('canvas-music-badge'),
+                        order: NumericFocusOrder(5),
+                        child: CanvasMusicBadge(),
+                      ),
                     ],
                   ),
                 ),

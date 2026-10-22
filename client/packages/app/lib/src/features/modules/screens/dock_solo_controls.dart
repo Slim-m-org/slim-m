@@ -14,10 +14,15 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/camera_switch.dart';
+import '../../voice/providers/hold_music_actions.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/hold_music_dock_toggle.dart';
 import '../../voice/widgets/voice_call_controls.dart';
+
+/// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
+bool soloMusicInDock(BuildContext context, WidgetRef ref) =>
+    ref.watch(callAloneProvider) && !holdMusicBadgeFits(context);
 
 /// One slot's width: the button with its focus-ring reserve, plus the gap before it.
 double dockExtraExtent(BuildContext context) {
@@ -54,7 +59,7 @@ List<Widget> callRowsWithExtras(
   int toggleSlots = 1,
   List<ControlOptionEntry> toggleMenu = const [],
 }) {
-  final alone = ref.watch(callAloneProvider);
+  final alone = soloMusicInDock(context, ref);
   final extras = dockExtras(alone: alone, toggle: toggle);
   Widget callRow(
     Widget? extra, {
