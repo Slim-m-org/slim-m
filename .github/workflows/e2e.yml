@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "client/packages/rtc/**"
       - "client/packages/api/**"
@@ -57,6 +58,8 @@ env:
 jobs:
   e2e:
     name: the full stack, driven end to end
+    # Drafts skip the run; ready_for_review starts it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
