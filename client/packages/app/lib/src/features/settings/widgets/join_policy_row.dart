@@ -53,7 +53,9 @@ class _JoinPolicyRowState extends ConsumerState<JoinPolicyRow>
     setState(() => _saving = true);
     final ok = await guard(
       whatFailed: 'change who can join',
-      action: () => ref.read(apiProvider).setSpaceSettings(joinPolicy: policy),
+      action: () => ref
+          .read(apiProvider)
+          .setSpaceSettings(api.SpaceSettingsUpdate(joinPolicy: policy)),
     );
     if (!mounted) return;
     setState(() => _saving = false);

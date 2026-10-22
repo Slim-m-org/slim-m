@@ -90,9 +90,11 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
       action: () => ref
           .read(apiProvider)
           .setSpaceSettings(
-            welcomeEnabled: _enabled,
-            welcomeChannelId: _channel,
-            welcomeMessage: message,
+            api.SpaceSettingsUpdate(
+              welcomeEnabled: _enabled,
+              welcomeChannelId: _channel,
+              welcomeMessage: message,
+            ),
           ),
     );
     if (!mounted) return;

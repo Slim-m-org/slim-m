@@ -49,7 +49,9 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
     setState(() => _saving = true);
     final ok = await guard(
       whatFailed: 'change the two-factor policy',
-      action: () => ref.read(apiProvider).setSpaceSettings(totpPolicy: policy),
+      action: () => ref
+          .read(apiProvider)
+          .setSpaceSettings(api.SpaceSettingsUpdate(totpPolicy: policy)),
     );
     if (!mounted) return;
     setState(() => _saving = false);

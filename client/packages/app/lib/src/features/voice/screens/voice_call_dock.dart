@@ -149,13 +149,15 @@ class _VoiceCallDockState extends State<VoiceCallDock>
             ...callRowsWithExtras(
               context,
               ref,
-              width: constraints.maxWidth,
-              controller: widget.controller,
-              voice: widget.voice,
-              toggle: channelId == null
-                  ? null
-                  : _CanvasToggleButton(channelId: channelId),
-              spillRow: true,
+              CallRowOptions(
+                width: constraints.maxWidth,
+                controller: widget.controller,
+                voice: widget.voice,
+                toggle: channelId == null
+                    ? null
+                    : _CanvasToggleButton(channelId: channelId),
+                spillRow: true,
+              ),
             ),
           ],
         ),

@@ -46,21 +46,45 @@ Widget? dockExtras({required bool alone, Widget? toggle}) {
   );
 }
 
+/// What [callRowsWithExtras] lays out beside the call row.
+class CallRowOptions {
+  const CallRowOptions({
+    required this.width,
+    required this.controller,
+    required this.voice,
+    this.toggle,
+    this.toggleSlots = 1,
+    this.toggleMenu = const [],
+    this.spillRow = false,
+  });
+
+  final double width;
+  final VoiceController controller;
+  final VoiceFlags voice;
+  final Widget? toggle;
+  final int toggleSlots;
+  final List<ControlOptionEntry> toggleMenu;
+  final bool spillRow;
+}
+
 /// The card rows for a call: the call row with [toggle] and the music button
 /// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
 /// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
 /// [spillRow] skips the menu: the extras always get that row of their own, so they stay visible.
 List<Widget> callRowsWithExtras(
   BuildContext context,
-  WidgetRef ref, {
-  required double width,
-  required VoiceController controller,
-  required VoiceFlags voice,
-  Widget? toggle,
-  int toggleSlots = 1,
-  List<ControlOptionEntry> toggleMenu = const [],
-  bool spillRow = false,
-}) {
+  WidgetRef ref,
+  CallRowOptions options,
+) {
+  final CallRowOptions(
+    :width,
+    :controller,
+    :voice,
+    :toggle,
+    :toggleSlots,
+    :toggleMenu,
+    :spillRow,
+  ) = options;
   final alone = soloMusicInDock(context, ref);
   final extras = dockExtras(alone: alone, toggle: toggle);
   Widget callRow(

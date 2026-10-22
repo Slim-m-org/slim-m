@@ -78,13 +78,15 @@ List<Widget> participantCallMenuItems(
   final sourceChannel =
       channelId ?? ref.read(voiceFlagsProvider.select((f) => f.channelId));
   final actions = participantActions(
-    surface: ParticipantSurface.menu,
-    isSelf: false,
-    inCallTogether: true,
-    supportsVolume: controller.supportsParticipantVolume,
-    hasProfile: profile != null,
-    showModeration: gates?.showModeration ?? false,
-    canMove: sourceChannel != null && _canMove(ref, sourceChannel),
+    ParticipantActionContext(
+      surface: ParticipantSurface.menu,
+      isSelf: false,
+      inCallTogether: true,
+      supportsVolume: controller.supportsParticipantVolume,
+      hasProfile: profile != null,
+      showModeration: gates?.showModeration ?? false,
+      canMove: sourceChannel != null && _canMove(ref, sourceChannel),
+    ),
   );
 
   return [

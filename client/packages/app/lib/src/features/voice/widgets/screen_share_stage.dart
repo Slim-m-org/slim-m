@@ -131,19 +131,21 @@ class ScreenShareStage extends ConsumerWidget {
     return ContextMenuRegion(
       itemsBuilder: (_, close) => shareStageMenuItems(
         close,
-        sharerName: sharerName,
-        onPopOut: canPopOut
-            ? () => ref.read(popOutFeedProvider.notifier).state = (
-                identity: popOutId,
-                name: sharerName,
-                kind: FeedKind.screenShare,
-              )
-            : null,
-        onStreamVolume: volume == null ? null : () => volume(context),
-        onFocus: onFocus,
-        focused: focused,
-        onStopWatching: onStopWatching,
-        onFullscreen: onExpand,
+        ShareStageMenu(
+          sharerName: sharerName,
+          onPopOut: canPopOut
+              ? () => ref.read(popOutFeedProvider.notifier).state = (
+                  identity: popOutId,
+                  name: sharerName,
+                  kind: FeedKind.screenShare,
+                )
+              : null,
+          onStreamVolume: volume == null ? null : () => volume(context),
+          onFocus: onFocus,
+          focused: focused,
+          onStopWatching: onStopWatching,
+          onFullscreen: onExpand,
+        ),
       ),
       child: stage,
     );

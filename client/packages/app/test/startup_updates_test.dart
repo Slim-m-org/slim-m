@@ -166,9 +166,11 @@ void main() {
 
     await runStartupUpdates(
       c,
-      check: check.call,
-      format: InstallFormat.rpm,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: check.call,
+        format: InstallFormat.rpm,
+        currentVersion: '1.0.0',
+      ),
     );
 
     expect(check.ran, isFalse);
@@ -182,9 +184,11 @@ void main() {
 
       await runStartupUpdates(
         c,
-        check: check.call,
-        format: InstallFormat.rpm,
-        currentVersion: '1.0.0',
+        StartupUpdateDeps(
+          check: check.call,
+          format: InstallFormat.rpm,
+          currentVersion: '1.0.0',
+        ),
       );
 
       expect(check.ran, isTrue, reason: 'on is the default');
@@ -214,11 +218,13 @@ void main() {
 
       await runStartupUpdates(
         scoped,
-        check: _Check(_update(InstallFormat.tarball)).call,
-        relaunch: () async => relaunched = true,
-        format: InstallFormat.tarball,
-        currentVersion: '1.0.0',
-        selfApplies: true,
+        StartupUpdateDeps(
+          check: _Check(_update(InstallFormat.tarball)).call,
+          relaunch: () async => relaunched = true,
+          format: InstallFormat.tarball,
+          currentVersion: '1.0.0',
+          selfApplies: true,
+        ),
       );
 
       expect(installedFor, '1.0.0');
@@ -242,11 +248,13 @@ void main() {
 
     await runStartupUpdates(
       scoped,
-      check: _Check(_update(InstallFormat.tarball)).call,
-      relaunch: () async => fail('nothing was installed to restart into'),
-      format: InstallFormat.tarball,
-      currentVersion: '1.0.0',
-      selfApplies: true,
+      StartupUpdateDeps(
+        check: _Check(_update(InstallFormat.tarball)).call,
+        relaunch: () async => fail('nothing was installed to restart into'),
+        format: InstallFormat.tarball,
+        currentVersion: '1.0.0',
+        selfApplies: true,
+      ),
     );
 
     expect(
@@ -270,12 +278,14 @@ void main() {
 
     await runStartupUpdates(
       scoped,
-      check: _Check(_update(InstallFormat.tarball)).call,
-      relaunch: () async => fail('a stalled install must not restart'),
-      format: InstallFormat.tarball,
-      currentVersion: '1.0.0',
-      selfApplies: true,
-      deadline: const Duration(milliseconds: 50),
+      StartupUpdateDeps(
+        check: _Check(_update(InstallFormat.tarball)).call,
+        relaunch: () async => fail('a stalled install must not restart'),
+        format: InstallFormat.tarball,
+        currentVersion: '1.0.0',
+        selfApplies: true,
+        deadline: const Duration(milliseconds: 50),
+      ),
     );
 
     expect(
@@ -294,11 +304,13 @@ void main() {
 
     await runStartupUpdates(
       c,
-      check: _Check(_update()).call,
-      rpm: dnf,
-      relaunch: () async => relaunched = true,
-      format: InstallFormat.rpm,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: _Check(_update()).call,
+        rpm: dnf,
+        relaunch: () async => relaunched = true,
+        format: InstallFormat.rpm,
+        currentVersion: '1.0.0',
+      ),
     );
     sub.close();
 
@@ -326,11 +338,13 @@ void main() {
 
     final pass = runStartupUpdates(
       c,
-      check: _Check(_update()).call,
-      rpm: _Dnf(ok: false, detail: 'Error: Transaction failed'),
-      relaunch: () async => fail('nothing was installed to restart into'),
-      format: InstallFormat.rpm,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: _Check(_update()).call,
+        rpm: _Dnf(ok: false, detail: 'Error: Transaction failed'),
+        relaunch: () async => fail('nothing was installed to restart into'),
+        format: InstallFormat.rpm,
+        currentVersion: '1.0.0',
+      ),
     );
     final prompt = await answer(c, primary: false);
     await pass;
@@ -352,11 +366,13 @@ void main() {
 
     final pass = runStartupUpdates(
       c,
-      check: _Check(_update(InstallFormat.flatpak)).call,
-      rpm: dnf,
-      relaunch: () async => fail('a flatpak is never installed from here'),
-      format: InstallFormat.flatpak,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: _Check(_update(InstallFormat.flatpak)).call,
+        rpm: dnf,
+        relaunch: () async => fail('a flatpak is never installed from here'),
+        format: InstallFormat.flatpak,
+        currentVersion: '1.0.0',
+      ),
     );
     final prompt = await answer(c, primary: false);
     await pass;
@@ -372,9 +388,11 @@ void main() {
 
     await runStartupUpdates(
       c,
-      check: _Check(null).call,
-      format: InstallFormat.rpm,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: _Check(null).call,
+        format: InstallFormat.rpm,
+        currentVersion: '1.0.0',
+      ),
     );
 
     expect(c.read(startupPromptProvider), isNull);
@@ -390,9 +408,11 @@ void main() {
 
     await runStartupUpdates(
       c,
-      check: _Check(_update(InstallFormat.tarball)).call,
-      format: InstallFormat.tarball,
-      currentVersion: '1.0.0',
+      StartupUpdateDeps(
+        check: _Check(_update(InstallFormat.tarball)).call,
+        format: InstallFormat.tarball,
+        currentVersion: '1.0.0',
+      ),
     );
 
     expect(c.read(startupPromptProvider), isNull);

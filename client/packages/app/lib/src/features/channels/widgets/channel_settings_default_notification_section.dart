@@ -43,8 +43,8 @@ class _ChannelDefaultNotificationSectionState
       final updated = await ref
           .read(apiProvider)
           .updateChannel(
-            channelId: widget.channel.id,
-            defaultNotification: level,
+            widget.channel.id,
+            ChannelUpdate(defaultNotification: level),
           );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([updated]);
