@@ -14,10 +14,10 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../widgets/canvas_clear_scope.dart' show clearDocumentScope;
-import 'canvas_object_inputs.dart';
+import '../providers/canvas_object_inputs.dart';
 import 'canvas_op_log.dart';
 
-export 'canvas_object_inputs.dart';
+export '../providers/canvas_object_inputs.dart';
 
 part 'canvas_sync_pages.dart';
 

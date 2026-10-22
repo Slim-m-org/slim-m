@@ -13,8 +13,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../providers/providers.dart';
-import '../../canvas/screens/canvas_object_inputs.dart';
-import '../../canvas/screens/canvas_pen_style.dart';
+import '../../canvas/providers/canvas_object_inputs.dart';
+import '../../canvas/providers/canvas_pen_style.dart';
 
 /// How big the snapshot is drawn before it is stretched behind the call: the blur hides the low resolution.
 const loungeGlowSize = Size(480, 270);

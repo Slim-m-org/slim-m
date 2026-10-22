@@ -19,7 +19,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_note_sizing.dart';
-import 'canvas_object_inputs.dart';
+import '../providers/canvas_object_inputs.dart';
 import 'canvas_retry.dart';
 
 /// Bring-to-front/send-to-back: split out once resize joined this file and

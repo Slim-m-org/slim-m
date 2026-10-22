@@ -14,7 +14,7 @@ import 'canvas_board_keys.dart';
 import 'canvas_board_object_semantics.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_pane_surface_actions.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_selection_semantics.dart';

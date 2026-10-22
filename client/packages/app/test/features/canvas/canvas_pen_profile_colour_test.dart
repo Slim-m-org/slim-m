@@ -5,7 +5,7 @@ library;
 
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
 
 void main() {
   test('each pen colour maps to itself', () {

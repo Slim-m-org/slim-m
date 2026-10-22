@@ -83,7 +83,7 @@ import 'canvas_note_sheet.dart';
 import 'canvas_ops_controller.dart';
 import 'canvas_pane_body.dart';
 import 'canvas_real_window.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_quick_placement.dart';
 import 'canvas_stroke_preview_relay.dart';
 import 'canvas_tool_model.dart';
