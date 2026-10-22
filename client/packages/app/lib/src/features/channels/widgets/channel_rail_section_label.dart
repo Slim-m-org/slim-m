@@ -103,7 +103,7 @@ class _SectionLabelState extends State<SectionLabel> {
           AppSpacing.s8,
           AppRhythm.headingTop,
           AppSpacing.s8,
-          AppRhythm.headingBottom,
+          AppSpacing.s4,
         ),
         child: trailing == null
             ? label

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// A docked member pane has a visible close control; a drawer, which closes
-/// itself, has none.
+/// The member pane has no close control of its own: the header's members
+/// button toggles it.
 library;
 
 import 'dart:convert';
@@ -24,7 +24,7 @@ const _tokens = TokenPair(
   accessExpiresAt: 0,
 );
 
-Future<void> _pump(WidgetTester tester, {VoidCallback? onClose}) async {
+Future<void> _pump(WidgetTester tester) async {
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -52,9 +52,7 @@ Future<void> _pump(WidgetTester tester, {VoidCallback? onClose}) async {
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: Scaffold(
-          body: AppMemberPane(channelId: 'c1', onClose: onClose),
-        ),
+        home: const Scaffold(body: AppMemberPane(channelId: 'c1')),
       ),
     ),
   );
@@ -62,19 +60,10 @@ Future<void> _pump(WidgetTester tester, {VoidCallback? onClose}) async {
 }
 
 void main() {
-  testWidgets('a docked pane closes from its own header', (tester) async {
-    var closed = 0;
-    await _pump(tester, onClose: () => closed++);
-
-    await tester.tap(find.bySemanticsLabel('Close member list'));
-    expect(closed, 1);
-  });
-
-  testWidgets('a pane with no close callback shows no close control', (
-    tester,
-  ) async {
+  testWidgets('the pane header carries no close control', (tester) async {
     await _pump(tester);
 
     expect(find.bySemanticsLabel('Close member list'), findsNothing);
+    expect(find.byIcon(AppIcons.dismiss), findsNothing);
   });
 }

@@ -45,10 +45,7 @@ bool memberPaneWanted(WidgetRef ref, Size size) =>
 
 /// 236px, `--surface-sunken`, a left hairline: the design's right member pane.
 class AppMemberPane extends ConsumerWidget {
-  const AppMemberPane({super.key, required this.channelId, this.onClose});
-
-  /// Closes a docked pane; null where it is a drawer, which closes itself.
-  final VoidCallback? onClose;
+  const AppMemberPane({super.key, required this.channelId});
 
   /// The channel this pane sits beside. The roster is narrowed to who can
   /// view it, so a channel an overwrite closes off does not list the people
@@ -96,7 +93,6 @@ class AppMemberPane extends ConsumerWidget {
         children: [
           _Header(
             count: membersAsync.valueOrNull?.length,
-            onClose: onClose,
             onInvite: watchCanInviteFriend(ref)
                 ? () => inviteAFriend(context)
                 : null,
@@ -201,18 +197,12 @@ class _RosterList extends ConsumerWidget {
 /// Space is, and a search box quietly changing that number would answer a
 /// question nobody asked.
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.count,
-    this.onInvite,
-    this.onStartSelecting,
-    this.onClose,
-  });
+  const _Header({required this.count, this.onInvite, this.onStartSelecting});
 
   final int? count;
 
   /// Null when the viewer may not invite.
   final VoidCallback? onInvite;
-  final VoidCallback? onClose;
 
   /// Enters selection mode. Null when the viewer holds neither moderation
   /// bit, or when the mode is already running.
@@ -248,13 +238,6 @@ class _Header extends StatelessWidget {
               icon: AppIcons.shield,
               semanticLabel: 'Select members to moderate',
               onPressed: onStartSelecting,
-            ),
-          if (onClose != null)
-            AppIconButton(
-              icon: AppIcons.dismiss,
-              semanticLabel: 'Close member list',
-              tooltip: 'Close member list',
-              onPressed: onClose,
             ),
         ],
       ),

@@ -27,12 +27,11 @@ def _metrics(client, width, height):
 def fit_to_board_zoom_one(client):
     """Sizes the window so the surface is the board's width and taller.
 
-    The docked member list goes first: Escape closes it (the scenarios press
-    Escape to dismiss menus), and the surface would widen under a window sized
+    The docked member list goes first (the header's members button closes it), and the surface would widen under a window sized
     with it open.
     """
-    if client.find(L.CLOSE_MEMBER_LIST):
-        client.click(L.CLOSE_MEMBER_LIST)
+    if client.find(L.MEMBER_PANE_HEADER):
+        client.click(L.MEMBER_LIST)
     _metrics(client, _WIDE_START, _TALL)
     rect = client.canvas_rect()
     _metrics(client, _WIDE_START - (rect["width"] - BOARD_W), _TALL)
