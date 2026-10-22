@@ -16,8 +16,7 @@ UNKNOWN_SECONDS = 30
 # The cost of a stack coming up, signing two browsers in and tearing down.
 SHARD_OVERHEAD_SECONDS = 60
 
-# (group, name prefixes); the first prefix a scenario starts with decides.
-# A prefix naming a whole area ("canvas: ") keeps the area on one stack.
+# (group, name prefixes): the first prefix a scenario starts with decides its group.
 _RULES = [
     ("text", ("messaging: ", "composer: ", "emoji: ", "markdown: ",
               "moderation: ", "permissions: ")),

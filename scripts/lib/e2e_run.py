@@ -283,17 +283,16 @@ def scenarios(a, b, admin, member, room_id, server, secret):
             a, b, room_id)),
         ("voice: audio actually arrives",
          lambda: e2e_voice.audio_actually_arrives(a, b)),
+        ("voice: health probe reads real numbers after a minute",
+         lambda: e2e_voice_health.minute_line_has_real_numbers(a, b)),
+        ("voice: health hint turns on under loss and off after",
+         lambda: e2e_voice_health.hint_turns_on_under_loss_and_off_after(a, b)),
         ("voice: sharing a screen", lambda: e2e_voice.share_screen(
             a, b, room_id)),
         ("voice: mute reaches the server", lambda: e2e_voice.mute_propagates(
             a, b, room_id)),
         ("voice: muting actually silences it",
          lambda: e2e_voice.mute_actually_silences(a, b)),
-        # After the other in-call scenarios, so the minute the probe waits for is spent doing them.
-        ("voice: health probe reads real numbers after a minute",
-         lambda: e2e_voice_health.minute_line_has_real_numbers(a, b)),
-        ("voice: health hint turns on under loss and off after",
-         lambda: e2e_voice_health.hint_turns_on_under_loss_and_off_after(a, b)),
         ("voice: the canvas dock keeps mute and hang-up reachable",
          lambda: e2e_voice.canvas_keeps_call_controls(a, room_id)),
         ("voice: a shared camera tile converges and persists",

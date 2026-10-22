@@ -37,8 +37,7 @@ NODES = """
 })()"""
 
 
-# A cheap fingerprint of the accessibility tree, to tell a screen that has
-# stopped changing from one still redrawing, without reading every node.
+# A cheap fingerprint of the tree: a screen that stopped changing from one still redrawing.
 SIGNATURE = """
 (function(){
   var h=5381,n=0;
