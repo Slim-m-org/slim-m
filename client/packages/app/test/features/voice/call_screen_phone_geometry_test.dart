@@ -20,8 +20,8 @@ import '../../support/interactive_rects.dart';
 
 const _phones = {'390x844': Size(390, 844), '360x640': Size(360, 640)};
 
-/// Of the viewport height, all the dock's cards together.
-const _maxDockFraction = 0.21;
+/// All the dock's cards together: the bot row, the canvas toggle's row and the call row.
+const _maxDockHeight = 192.0;
 
 /// The canvas dock is tools plus call controls; the roster moved to the canvas corner (decision 0086).
 const _maxCanvasDockFraction = 0.20;
@@ -92,11 +92,15 @@ void main() {
             tester.getRect(find.byWidget(c.widget)),
         ];
         final height = cards.map((r) => r.height).fold(0.0, (a, b) => a + b);
-        expect(
-          height / entry.value.height,
-          lessThanOrEqualTo(canvas ? _maxCanvasDockFraction : _maxDockFraction),
-          reason: 'cards $cards',
-        );
+        if (canvas) {
+          expect(
+            height / entry.value.height,
+            lessThanOrEqualTo(_maxCanvasDockFraction),
+            reason: 'cards $cards',
+          );
+        } else {
+          expect(height, lessThanOrEqualTo(_maxDockHeight), reason: '$cards');
+        }
 
         await teardown(tester, s.container, s.db);
       });
@@ -126,17 +130,24 @@ void main() {
       });
     }
 
-    testWidgets('the canvas toggle folds into the mic menu at ${entry.key}', (
-      tester,
-    ) async {
-      final s = await pumpCallScreen(tester, entry.value);
+    testWidgets(
+      'the canvas toggle is on the dock, not in the mic menu at ${entry.key}',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        final s = await pumpCallScreen(tester, entry.value);
 
-      await tester.longPress(find.bySemanticsLabel(RegExp('^Mute')));
-      await tester.pumpAndSettle();
-      expect(find.text('Open canvas'), findsOneWidget);
+        final toggle = _rect(tester, 'Open canvas');
+        expect(toggle.width, greaterThanOrEqualTo(44));
+        expect(toggle.height, greaterThanOrEqualTo(44));
+        expect(
+          (Offset.zero & entry.value).contains(toggle.bottomRight),
+          isTrue,
+        );
 
-      await teardown(tester, s.container, s.db);
-    });
+        semantics.dispose();
+        await teardown(tester, s.container, s.db);
+      },
+    );
 
     testWidgets('the canvas keeps a bot in the mic menu at ${entry.key}', (
       tester,

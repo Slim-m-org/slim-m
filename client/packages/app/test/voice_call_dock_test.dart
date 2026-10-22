@@ -96,44 +96,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the toggle folds into its own row, rather than overflowing the first '
-      'one, once the camera is on at 380', (tester) async {
-    // A bare-flip platform: this test is about the row's fold width, not the picker platform's async device count.
-    await pumpVoiceCallDock(
-      tester,
-      _connectedWithCamera,
-      canvasChannelId: 'c1',
-      width: 380,
-      touch: true,
-      session: InertSession()..canFlipCamera = true,
-    );
+  testWidgets(
+    'the toggle spills into a row of its own, rather than overflowing the first '
+    'one or hiding in the mic menu, once the camera is on at 380',
+    (tester) async {
+      // A bare-flip platform: this test is about the row's fold width, not the picker platform's async device count.
+      await pumpVoiceCallDock(
+        tester,
+        _connectedWithCamera,
+        canvasChannelId: 'c1',
+        width: 380,
+        touch: true,
+        session: InertSession()..canFlipCamera = true,
+      );
 
-    expect(
-      tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-      hasLength(1),
-      reason:
-          'mic, deafen, camera, switch camera, share, leave and the toggle no '
-          'longer fit one line at 380, so the toggle moves into the mic menu',
-    );
-    expect(find.bySemanticsLabel('Open canvas'), findsNothing);
-    expect(
-      tester.takeException(),
-      isNull,
-      reason: 'a genuine RenderFlex overflow throws during the pump above',
-    );
+      expect(
+        tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
+        hasLength(2),
+        reason:
+            'mic, deafen, camera, switch camera, share, leave and the toggle no '
+            'longer fit one line at 380, so the toggle gets a row above',
+      );
+      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'a genuine RenderFlex overflow throws during the pump above',
+      );
 
-    // Folding the toggle must not have clipped or stolen a neighbor's hit area.
-    await tester.tap(find.bySemanticsLabel(RegExp(r'^Mute')));
-    await tester.tap(find.bySemanticsLabel('Switch camera'));
-    await tester.longPress(find.bySemanticsLabel(RegExp(r'^Mute')));
-    await tester.pumpAndSettle();
-    expect(find.text('Open canvas'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      // Folding the toggle must not have clipped or stolen a neighbor's hit area.
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Mute')));
+      await tester.tap(find.bySemanticsLabel('Switch camera'));
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'the fold threshold is exact: one pixel narrower than what the camera-off '
-    'row needs folds it, one pixel is not enough to avoid needing to',
+    'row needs spills it, one pixel is not enough to avoid needing to',
     (tester) async {
       // 6 controls at 52dp (44dp plus AppFocusRing's 8dp), 5 gaps of 8dp, plus the card's 24dp padding and 2dp border: 312+40+1+24+2, the 1 being what the divider before leave adds over a plain gap.
       const exact = 379.0;
@@ -159,9 +159,9 @@ void main() {
       );
       expect(
         tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(1),
+        hasLength(2),
       );
-      expect(find.bySemanticsLabel('Open canvas'), findsNothing);
+      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
     },
   );
 }

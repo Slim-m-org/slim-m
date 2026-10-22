@@ -42,7 +42,7 @@ void main() {
   );
 
   testWidgets(
-    'a second camera shows the switch button and folds the toggle into the mic menu',
+    'a second camera shows the switch button and spills the toggle into a row above',
     (tester) async {
       await pumpVoiceCallDock(
         tester,
@@ -62,9 +62,9 @@ void main() {
       expect(find.bySemanticsLabel('Switch camera'), findsOneWidget);
       expect(
         tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
-        hasLength(1),
+        hasLength(2),
       );
-      expect(find.bySemanticsLabel('Open canvas'), findsNothing);
+      expect(find.bySemanticsLabel('Open canvas'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
