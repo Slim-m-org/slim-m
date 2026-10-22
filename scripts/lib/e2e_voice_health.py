@@ -28,7 +28,7 @@ def _wait_for_minute_line(client, timeout):
         lines = [l for l in _health_lines(client) if "last 60s" in l]
         if lines:
             return lines
-        time.sleep(10)
+        time.sleep(0.5)
     raise AssertionError(f"{client.name}: no [voice-health] minute line in {timeout}s")
 
 
@@ -69,6 +69,6 @@ def hint_turns_on_under_loss_and_off_after(a, b):
     for c in (a, b):
         deadline = time.time() + 90
         while c.find(HINT) and time.time() < deadline:
-            time.sleep(3)
+            time.sleep(0.25)
         assert c.find(HINT) is None, f"{c.name}: the hint never cleared"
     print("  the hint cleared once the link was clean")

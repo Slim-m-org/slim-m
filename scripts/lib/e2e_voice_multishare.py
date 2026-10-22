@@ -47,7 +47,7 @@ def _wait_sharing(room_id, count, timeout=45):
     while time.time() < deadline:
         if len(_sharing(room_id)) == count:
             return
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(
         f"expected {count} sharer(s) at the SFU, saw {len(_sharing(room_id))}")
 
@@ -102,7 +102,7 @@ def _area(video):
 
 def _hidden_shares_stop_decoding(c, pc, every):
     """In a text channel only the mini player's one feed may keep decoding."""
-    c.click(L.TEXT_CHANNEL, settle=8)
+    c.click(L.TEXT_CHANNEL, settle=8, fixed=True)
     first = pc.inbound_frames()
     time.sleep(HIDDEN_WINDOW_SECONDS)
     after = pc.inbound_frames()

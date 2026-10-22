@@ -33,7 +33,7 @@ def stream_for(probe, room_id, identity, source="MICROPHONE", timeout=45):
                 stream = probe.stream_of_track(track["sid"])
                 if stream:
                     return stream
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(f"no {source} stream from {identity} reached the listener")
 
 

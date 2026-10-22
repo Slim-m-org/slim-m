@@ -60,7 +60,7 @@ def _wait_for_debugger(port, timeout=40):
             urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version")
             return
         except OSError:
-            time.sleep(1)
+            time.sleep(0.25)
     raise AssertionError(f"chrome on :{port} never opened its debugger")
 
 
@@ -76,7 +76,7 @@ def _wait_for_page(port, timeout=40):
         if any(t.get("type") == "page" and t.get("url", "").startswith("http")
                for t in tabs):
             return
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"chrome on :{port} never opened the app tab")
 
 
@@ -150,5 +150,5 @@ def dismiss_welcome(client, timeout=20):
         else:
             if client.find("lounge"):
                 return
-        time.sleep(1)
+        time.sleep(0.25)
     client.shot("welcome-stuck")

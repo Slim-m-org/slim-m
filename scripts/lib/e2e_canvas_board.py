@@ -86,6 +86,25 @@ def zoom_percent(client):
     return int(_ZOOM.search(node["t"]).group(1))
 
 
+def _near(zoom, other, tolerance=0.06):
+    """Two viewports fit the same content a few percent apart, so a follow lands near, not on."""
+    return abs(zoom - other) <= other * tolerance
+
+
+def _settled_zoom(client, hold=0.6, timeout=10):
+    """The zoom once it has stopped moving; a fit animates, so the first read is mid-flight."""
+    deadline = time.time() + timeout
+    last, since = None, time.time()
+    while time.time() < deadline:
+        now = zoom_percent(client)
+        if now != last:
+            last, since = now, time.time()
+        elif time.time() - since >= hold:
+            return now
+        time.sleep(0.1)
+    return last
+
+
 def _ctrl_wheel(client, delta, notches=5):
     """Ctrl plus wheel over the surface, the way a mouse zooms it.
 
@@ -114,7 +133,16 @@ def _follow_label(client):
 
 
 def _wait_zoom(client, ok, what, timeout=15):
-    wait_until(lambda: zoom_percent(client), ok, f"{client.name}: {what}")
+    seen = []
+
+    def read():
+        seen.append(zoom_percent(client))
+        return seen[-1]
+
+    try:
+        wait_until(read, ok, "", timeout)
+    except AssertionError:
+        raise AssertionError(f"{client.name}: {what} (zoom read {seen[-1]}%)")
 
 
 def follow_and_bring_everyone(a, b):
@@ -129,27 +157,30 @@ def follow_and_bring_everyone(a, b):
     _wait_zoom(b, lambda z: z > 100, "never followed a's zoom")
     print("  b follows a: a zoomed in, so b did")
 
+    # Fit view fits what is drawn, so on a board with content it is not 100.
     a.click(L.FIT_VIEW)
-    _wait_zoom(b, lambda z: z == 100, "did not follow a back to the fit")
+    fit = _settled_zoom(a)
+    _wait_zoom(b, lambda z: _near(z, fit), "did not follow a back to the fit")
 
     _ctrl_wheel(a, -100, notches=2)
-    _wait_zoom(b, lambda z: z > 100, "stopped following early")
+    _wait_zoom(b, lambda z: not _near(z, fit), "stopped following early")
     _ctrl_wheel(b, -100, notches=1)
     assert not b.find("Following"), "b still follows after its own zoom"
     assert _follow_label(b), "b's follow control did not come back"
+    own = zoom_percent(b)
     a.click(L.FIT_VIEW)
     time.sleep(1.5)
-    assert zoom_percent(b) > 100, "b followed a after it stopped following"
+    assert _near(zoom_percent(b), own), "b followed a after it stopped following"
     print("  b's own zoom ended the follow, and a's next move left b alone")
 
     b.click(L.FIT_VIEW)
-    _wait_zoom(b, lambda z: z == 100, "b could not fit")
+    _wait_zoom(b, lambda z: _near(z, fit), "b could not fit")
     _ctrl_wheel(a, -100, notches=2)
     a.click(L.BRING_EVERYONE)
     a.click(L.BRING_EVERYONE_CONFIRM, settle=2)  # the confirm dialog's own button
-    _wait_zoom(b, lambda z: z > 100, "was not brought to a")
+    _wait_zoom(b, lambda z: not _near(z, fit), "was not brought to a")
     print("  bring everyone to me jumped b to a's view")
 
     a.click(L.FIT_VIEW)
     b.click(L.FIT_VIEW)
-    _wait_zoom(b, lambda z: z == 100, "b could not fit afterwards")
+    _wait_zoom(b, lambda z: _near(z, fit), "b could not fit afterwards")

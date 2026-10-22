@@ -66,7 +66,7 @@ def survives_an_absence(away, watcher, channel, api):
         if away.find(doomed) is None:
             print(f"  and the deleted message is gone from {away.name}")
             return
-        time.sleep(1)
+        time.sleep(0.25)
     away.shot("deleted-message-survived-absence")
     raise AssertionError(
         f"{away.name} still shows a message deleted while it was away")

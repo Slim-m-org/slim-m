@@ -127,7 +127,7 @@ def wait_for_kind_count(api, channel_id, kind, expected, timeout=15):
         count = sum(1 for o in api.canvas_objects(channel_id) if o["kind"] == kind)
         if count == expected:
             return
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"server never settled to {expected} {kind}(s)")
 
 
@@ -196,7 +196,7 @@ def paste_image_and_hydrate(a, b, server, admin_api, channel_id, image_path):
             print(f"  b's own browser fetched the attachment bytes "
                   f"({attachment_id}) rather than showing an empty box")
             return
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(
         "b's browser never fetched the pasted image's bytes - "
         "it would have rendered as a placeholder, not a picture")

@@ -55,7 +55,7 @@ def react(client, other, message_text, emoji_name, api, channel):
         stored = api.message_with(channel_id, message_text)
         if stored.get('reactions'):
             break
-        time.sleep(2)
+        time.sleep(0.5)
     stored = api.message_with(channel_id, message_text)
     assert stored.get('reactions'), 'the server recorded no reaction'
     other.wait_for('reaction')
@@ -93,7 +93,7 @@ def attach(client, other, channel, path, api):
                 found = m
                 break
         if not found:
-            time.sleep(2)
+            time.sleep(0.5)
     assert found, 'the server stored no attachment'
     client.shot('attachment-sent')
     other.shot('attachment-received')

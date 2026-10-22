@@ -58,7 +58,7 @@ def _wait_for_share_audio(room_id, bob_id, timeout=45):
         for p in sfu_participants(room_id):
             if p["identity"] == bob_id and tracks_of(p, "SCREEN_SHARE_AUDIO"):
                 return
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError("the share's audio never reached the SFU")
 
 

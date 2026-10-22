@@ -39,13 +39,19 @@ class _FakeClient:
         pass
 
 
+_real_wait = e2e_voice._wait_mute_flags
+
+
+def _short_wait(room, satisfied, why):
+    return _real_wait(room, satisfied, why, timeout=0.3)
+
+
 class MutePropagatesTest(unittest.TestCase):
     def test_unmutes_the_caller_before_returning(self):
         one_muted = [_participant("alice", True), _participant("bob", False)]
         none_muted = [_participant("alice", False), _participant("bob", False)]
         with patch.object(e2e_voice, "sfu_participants",
-                           side_effect=[one_muted, none_muted]), \
-                patch.object(e2e_voice.time, "sleep"):
+                          side_effect=[one_muted, none_muted]):
             a = _FakeClient()
             e2e_voice.mute_propagates(a, _FakeClient(), "room-1")
         self.assertEqual(a.clicks, [L.MUTE, L.UNMUTE])
@@ -53,9 +59,14 @@ class MutePropagatesTest(unittest.TestCase):
     def test_fails_if_the_unmute_never_took(self):
         one_muted = [_participant("alice", True), _participant("bob", False)]
         still_muted = [_participant("alice", True), _participant("bob", False)]
+        states = iter([one_muted])
+        patch_wait = patch.object(
+            e2e_voice, "_wait_mute_flags",
+            side_effect=lambda room, ok, why, timeout=20: _short_wait(
+                room, ok, why))
         with patch.object(e2e_voice, "sfu_participants",
-                           side_effect=[one_muted, still_muted]), \
-                patch.object(e2e_voice.time, "sleep"):
+                          side_effect=lambda room: next(states, still_muted)), \
+                patch_wait:
             with self.assertRaises(AssertionError):
                 e2e_voice.mute_propagates(
                     _FakeClient(), _FakeClient(), "room-1")

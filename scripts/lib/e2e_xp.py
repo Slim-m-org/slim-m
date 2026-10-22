@@ -105,7 +105,7 @@ def wait_remote_audio(client, timeout=60):
     while time.time() < deadline:
         if client.ev(probe):
             return
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"{client.name}: no remote audio track came up")
 
 

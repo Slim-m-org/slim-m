@@ -72,7 +72,7 @@ def participants_with_mics(room_id, expected=2, timeout=25):
         if (len(parts) == expected
                 and all(tracks_of(p, "MICROPHONE") for p in parts)):
             return parts
-        time.sleep(1)
+        time.sleep(0.25)
     return parts
 
 
@@ -95,9 +95,9 @@ def _click_channel_row(client, channel, timeout=90):
         for n in client.nodes():
             if n["t"].lower().startswith(channel.lower()):
                 client.tap(n["x"], n["y"])
-                time.sleep(1.5)
+                client.settle(1.5)
                 return
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(f"{client.name}: no row named {channel!r} found")
 
 
@@ -143,7 +143,7 @@ def _wait_until_gone(client, label, timeout=30):
     while time.time() < deadline:
         if client.find(label) is None:
             return
-        time.sleep(1)
+        time.sleep(0.25)
     client.shot(f"still-there-{label[:20].replace(' ', '-')}")
     raise AssertionError(f"{client.name}: {label!r} never went away")
 
@@ -193,7 +193,7 @@ def share_screen(client, other, room_id):
     now, so a click on Share a screen calls getDisplayMedia directly with no
     further interaction, on web where `screenShareNeedsSource` is false.
     """
-    client.click(L.SHARE_SCREEN, settle=10)
+    client.click(L.SHARE_SCREEN, settle=1)
 
     deadline = time.time() + 45
     shared = None
@@ -204,7 +204,7 @@ def share_screen(client, other, room_id):
                 break
         if shared:
             break
-        time.sleep(2)
+        time.sleep(0.25)
     assert shared, "no screen-share track ever reached the SFU"
     print(f'  {shared["identity"][:13]} is publishing a screen track')
 
@@ -213,17 +213,31 @@ def share_screen(client, other, room_id):
     other.shot("peer-sharing-screen")
     print("  the sharing client says so on screen")
 
-    client.click(L.STOP_SHARING, settle=8)
+    client.click(L.STOP_SHARING, settle=1)
     deadline = time.time() + 30
     while time.time() < deadline:
         live = [p for p in sfu_participants(room_id)
                 if tracks_of(p, "SCREEN_SHARE")]
         if not live:
             break
-        time.sleep(2)
+        time.sleep(0.25)
     assert not [p for p in sfu_participants(room_id)
                 if tracks_of(p, "SCREEN_SHARE")], "the screen track stayed up"
     print("  and stopping it takes the track down")
+
+
+def _mute_flags(room_id):
+    return {p["identity"][:13]: p["tracks"][0].get("muted", False)
+            for p in sfu_participants(room_id) if p.get("tracks")}
+
+
+def _wait_mute_flags(room_id, satisfied, failure, timeout=20):
+    """The SFU's per-participant muted flags once [satisfied] accepts them.
+
+    Polled rather than slept on: the flag lands a round trip after the click.
+    """
+    return e2e_api.wait_until(lambda: _mute_flags(room_id), satisfied,
+                              failure, timeout)
 
 
 def mute_propagates(a, b, room_id):
@@ -238,21 +252,16 @@ def mute_propagates(a, b, room_id):
     same shape leave_call's own trailing leave already does for the rail.
     """
     a.click(L.MUTE)
-    time.sleep(4)
-    muted = {p["identity"][:13]: p["tracks"][0].get("muted", False)
-             for p in sfu_participants(room_id) if p.get("tracks")}
-    assert any(muted.values()), f"no participant reads as muted: {muted}"
+    muted = _wait_mute_flags(room_id, lambda m: any(m.values()),
+                             "no participant reads as muted")
     assert not all(muted.values()), f"both read as muted: {muted}"
     b.shot("peer-muted")
     print(f"  exactly one side muted: {muted}")
 
     a.click(L.UNMUTE)
-    time.sleep(4)
-    unmuted = {p["identity"][:13]: p["tracks"][0].get("muted", False)
-               for p in sfu_participants(room_id) if p.get("tracks")}
-    # The comprehension drops the no-track participant this guards against.
-    assert unmuted, f"nobody is publishing a mic track: {sfu_participants(room_id)}"
-    assert not any(unmuted.values()), f"still reads as muted: {unmuted}"
+    # An empty dict is a dropped track, so it is not accepted as unmuted.
+    _wait_mute_flags(room_id, lambda m: bool(m) and not any(m.values()),
+                     "still reads as muted, or nobody is publishing a mic track")
     print("  and unmuting clears it, so the next call this client joins starts unmuted")
 
 
@@ -326,21 +335,13 @@ def canvas_keeps_call_controls(client, room_id, channel=L.VOICE_CHANNEL):
           f"with the canvas open")
 
     client.click(L.MUTE)
-    time.sleep(3)
-    muted = {p["identity"][:13]: p["tracks"][0].get("muted", False)
-             for p in sfu_participants(room_id) if p.get("tracks")}
-    assert any(muted.values()), \
-        f"muting from inside the canvas's own dock never reached the SFU: {muted}"
+    _wait_mute_flags(room_id, lambda m: any(m.values()),
+                     "muting from inside the canvas's own dock never reached the SFU")
     client.wait_for(L.UNMUTE)
 
     client.click(L.UNMUTE)
-    time.sleep(3)
-    unmuted = {p["identity"][:13]: p["tracks"][0].get("muted", False)
-               for p in sfu_participants(room_id) if p.get("tracks")}
-    # As above: an empty dict satisfies `not any` and hides a dropped track.
-    assert unmuted, f"nobody is publishing a mic track: {sfu_participants(room_id)}"
-    assert not any(unmuted.values()), \
-        f"unmuting from inside the canvas's own dock never reached the SFU: {unmuted}"
+    _wait_mute_flags(room_id, lambda m: bool(m) and not any(m.values()),
+                     "unmuting from inside the canvas's own dock never reached the SFU")
     print(f"  {client.name}: mute still reaches the SFU with the canvas open")
 
 
@@ -361,7 +362,7 @@ def _tap_label(client, label, settle=1.0):
     """
     n = client.wait_for(label)
     client.tap(n["x"], n["y"])
-    time.sleep(settle)
+    client.settle(settle)
 
 
 def leave_call(a, b, room_id=None):
@@ -403,7 +404,7 @@ def _wait_for_empty_room(room_id, timeout):
     deadline = time.time() + timeout
     parts = sfu_participants(room_id)
     while parts and time.time() < deadline:
-        time.sleep(1)
+        time.sleep(0.25)
         parts = sfu_participants(room_id)
     return parts
 
