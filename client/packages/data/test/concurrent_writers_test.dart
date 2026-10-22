@@ -40,6 +40,8 @@ void main() {
 
     final other = sqlite3.open(p.join(dir.path, slimmDatabaseFileName));
     applyDatabaseKey(other, keys.key!);
+    // Every real connection waits on a lock; without it this one's COMMIT can lose to the app's brief read.
+    applyConnectionTuning(other);
     other.execute('BEGIN IMMEDIATE');
     final release = Future<void>.delayed(
       const Duration(milliseconds: 400),
