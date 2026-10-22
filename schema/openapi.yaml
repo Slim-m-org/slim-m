@@ -13553,6 +13553,10 @@ components:
         channel_id:
           type: string
           format: uuid
+        bot_id:
+          type: string
+          format: uuid
+          description: The bot that opened the form. Older servers omit it.
         message_id:
           type: string
           format: uuid

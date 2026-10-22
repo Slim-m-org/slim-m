@@ -138,6 +138,8 @@ pub(super) enum ServerFrame {
     InteractionForm {
         interaction_id: String,
         channel_id: String,
+        /// The bot that opened the form, so the sheet can say who is asking.
+        bot_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         message_id: Option<String>,
         form: crate::components::form::Form,

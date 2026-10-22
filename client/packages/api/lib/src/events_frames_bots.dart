@@ -66,10 +66,14 @@ class InteractionForm extends ServerEvent {
     required this.channelId,
     required this.form,
     this.messageId,
+    this.botId,
   });
 
   final String interactionId;
   final String channelId;
   final String? messageId;
   final BotForm form;
+
+  /// Absent from an older server, which did not say which bot opened the form.
+  final String? botId;
 }
