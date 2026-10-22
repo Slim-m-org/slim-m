@@ -9,9 +9,9 @@ import re
 import subprocess
 import time
 
+from e2e_netem import IMAGE, ensure_image
 from e2e_voice_hide_stream import _set_page_visible
 
-IMAGE = "slimm-netem:local"
 LIVEKIT_CONTAINER = os.environ.get("E2E_LK_CONTAINER", "slimm-e2e-lk")
 # The jitter buffer is what crosses its 160 ms line; the old 20ms 30ms profile sat at 140-190 ms.
 LOSSY = "delay 100ms 200ms loss 20%"
@@ -47,6 +47,7 @@ def _wait_for_minute_line(client, timeout):
 
 
 def _netem(command):
+    ensure_image()
     done = subprocess.run(
         ["docker", "run", "--rm", "--cap-add", "NET_ADMIN", "--network",
          f"container:{LIVEKIT_CONTAINER}", IMAGE, "sh", "-c", command],
