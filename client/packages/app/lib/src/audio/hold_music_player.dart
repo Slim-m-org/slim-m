@@ -44,6 +44,10 @@ abstract class HoldMusicPlayer {
   Future<void> start();
   Future<void> stop();
 
+  /// Holds the track where it is, keeping the native player; [resume] carries on from there.
+  Future<void> pause();
+  Future<void> resume();
+
   /// The loop's progress; back at zero whenever it is stopped.
   ValueListenable<HoldPlayback> get playback;
 
@@ -62,6 +66,8 @@ abstract class HoldMusicPlayer {
 abstract class HoldLoopOutput {
   Future<void> play(String asset);
   Future<void> stop();
+  Future<void> pause();
+  Future<void> resume();
   Future<void> dispose();
   ValueListenable<HoldPlayback> get playback;
   Future<void> setVolume(double volume);
@@ -134,6 +140,16 @@ class _AudioPlayersOutput implements HoldLoopOutput {
   }
 
   @override
+  Future<void> pause() async {
+    if (_player.allocated) await _player.current.pause();
+  }
+
+  @override
+  Future<void> resume() async {
+    if (_player.allocated) await _player.current.resume();
+  }
+
+  @override
   Future<void> stop() {
     _unfollow();
     _playback.value = HoldPlayback.idle;
@@ -188,6 +204,12 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
 
   @override
   Future<void> seek(Duration position) => _output.seek(position);
+
+  @override
+  Future<void> pause() => _output.pause();
+
+  @override
+  Future<void> resume() => _output.resume();
 
   @override
   Future<void> setTrack(LoungeTrack track) async {

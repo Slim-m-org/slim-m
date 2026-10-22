@@ -238,4 +238,70 @@ void main() {
       );
     });
   });
+
+  group('pause', () {
+    test(
+      'pausing holds the track and resuming carries on, never restarting',
+      () {
+        fakeAsync((async) {
+          final rig = _Rig(enabled: true);
+          _settle(async);
+          final controller = rig.container.read(holdMusicControllerProvider);
+
+          controller.pause();
+          async.flushMicrotasks();
+          expect(rig.container.read(holdMusicPausedProvider), isTrue);
+          expect(rig.player.pauseCalls, ['pause']);
+
+          controller.resume();
+          async.flushMicrotasks();
+          expect(rig.container.read(holdMusicPausedProvider), isFalse);
+          expect(rig.player.pauseCalls, ['pause', 'resume']);
+          expect(rig.player.calls, ['start'], reason: 'no stop and no restart');
+        });
+      },
+    );
+
+    test(
+      'someone joining while paused releases the player and clears the pause',
+      () {
+        fakeAsync((async) {
+          final rig = _Rig(enabled: true);
+          _settle(async);
+          rig.container.read(holdMusicControllerProvider).pause();
+          async.flushMicrotasks();
+
+          rig.voice.set(
+            VoiceState(
+              channelId: 'c1',
+              state: VoiceSessionState.connected,
+              participants: [_me, _p('friend')],
+            ),
+          );
+          async.flushMicrotasks();
+          expect(rig.player.calls, ['start', 'stop']);
+          expect(rig.container.read(holdMusicPausedProvider), isFalse);
+        });
+      },
+    );
+
+    test(
+      'a long pause frees the player, and resuming then restarts the track',
+      () {
+        fakeAsync((async) {
+          final rig = _Rig(enabled: true);
+          _settle(async);
+          final controller = rig.container.read(holdMusicControllerProvider);
+          controller.pause();
+          async.elapse(holdMusicPauseRelease + const Duration(seconds: 1));
+          expect(rig.player.calls, ['start', 'stop']);
+          expect(rig.container.read(holdMusicPausedProvider), isTrue);
+
+          controller.resume();
+          async.flushMicrotasks();
+          expect(rig.player.calls, ['start', 'stop', 'start']);
+        });
+      },
+    );
+  });
 }

@@ -17,6 +17,7 @@ import '../../../audio/lounge_tracks.dart';
 import '../../../widgets/context_menu_region.dart';
 import '../providers/call_solo.dart';
 import '../providers/hold_music_actions.dart';
+import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
 
 /// Pins the badge to the bottom-left of a call surface, [bottom] above its edge so it clears the dock.
@@ -55,7 +56,8 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final settings = ref.watch(voiceSettingsControllerProvider);
     final player = ref.watch(holdMusicPlayerProvider);
-    final on = settings.holdMusicEnabled;
+    final paused = ref.watch(holdMusicPausedProvider);
+    final on = settings.holdMusicEnabled && !paused;
     return Semantics(
       container: true,
       label: 'Music player',
@@ -76,6 +78,18 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
         ],
       ),
     );
+  }
+
+  /// Pauses or resumes the track in place; with music turned off it turns it on.
+  void _playOrPause(bool enabled) {
+    final controller = ref.read(holdMusicControllerProvider);
+    if (!enabled) {
+      toggleHoldMusic(ref);
+    } else if (ref.read(holdMusicPausedProvider)) {
+      controller.resume();
+    } else {
+      controller.pause();
+    }
   }
 
   Widget _pill(
@@ -107,7 +121,7 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
           tooltip: on ? 'Pause music' : 'Play music',
           size: AppIconButtonSize.sm,
           iconSize: AppSizes.icon16,
-          onPressed: () => toggleHoldMusic(ref),
+          onPressed: () => _playOrPause(settings.holdMusicEnabled),
         ),
         AppIconButton(
           icon: settings.holdMusicVolume == 0

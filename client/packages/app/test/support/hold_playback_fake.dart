@@ -10,10 +10,15 @@ mixin HoldPlaybackFake {
   final playbackNotifier = ValueNotifier(HoldPlayback.idle);
   final volumes = <double>[];
   final seeks = <Duration>[];
+  final pauseCalls = <String>[];
 
   ValueListenable<HoldPlayback> get playback => playbackNotifier;
 
   Future<void> setVolume(double volume) async => volumes.add(volume);
 
   Future<void> seek(Duration position) async => seeks.add(position);
+
+  Future<void> pause() async => pauseCalls.add('pause');
+
+  Future<void> resume() async => pauseCalls.add('resume');
 }

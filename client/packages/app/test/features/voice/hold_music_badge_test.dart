@@ -17,6 +17,8 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/features/voice/providers/hold_music_controller.dart';
+
 import '../../support/hold_playback_fake.dart';
 
 class _Player with HoldPlaybackFake implements HoldMusicPlayer {
@@ -103,7 +105,8 @@ void main() {
     expect(find.bySemanticsLabel('Play music'), findsNothing);
   });
 
-  testWidgets('play and pause flip the persisted setting', (tester) async {
+  testWidgets('play turns music on; a paused track shows play, keeps the '
+      'setting on, and play resumes it', (tester) async {
     final container = await _pump(tester, player: _Player());
     await tester.tap(find.bySemanticsLabel('Play music'));
     await tester.pump();
@@ -113,13 +116,21 @@ void main() {
     );
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('slimm.voice.hold_music_enabled'), isTrue);
+    expect(find.bySemanticsLabel('Pause music'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Pause music'));
+    container.read(holdMusicPausedProvider.notifier).state = true;
     await tester.pump();
+    expect(find.bySemanticsLabel('Play music'), findsOneWidget);
     expect(
       container.read(voiceSettingsControllerProvider).holdMusicEnabled,
-      isFalse,
+      isTrue,
+      reason: 'pausing is not turning hold music off',
     );
+
+    await tester.tap(find.bySemanticsLabel('Play music'));
+    await tester.pump();
+    expect(container.read(holdMusicPausedProvider), isFalse);
+    expect(find.bySemanticsLabel('Pause music'), findsOneWidget);
   });
 
   testWidgets('the style menu picks a style and starts the music', (
