@@ -14,6 +14,8 @@ import json
 import os
 import sys
 
+import safe_paths
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 APP_DIR = os.path.join(REPO, "client", "packages", "app")
@@ -75,6 +77,7 @@ def seconds_per_file(events):
 
 
 def record(run_path, out_path=DURATIONS_FILE):
+    run_path = safe_paths.home_or_cwd(run_path)
     with open(run_path, encoding="utf-8") as fh:
         events = [json.loads(line) for line in fh if line.startswith("{")]
     rows = seconds_per_file(events)
