@@ -65,7 +65,7 @@ void main() {
     final dock = await _pumpDock(tester);
     expect(find.byTooltip('Switch speaker'), findsNothing);
     expect(find.byTooltip(RegExp('^Deafen')), findsOneWidget);
-    expect(find.byIcon(AppIcons.speaker), findsOneWidget);
+    expect(find.byIcon(AppIcons.headphones), findsOneWidget);
 
     await tester.tap(find.byTooltip(RegExp('^Deafen')));
     await tester.pump();
