@@ -4,6 +4,10 @@ library;
 
 import 'settings_index.dart';
 
+const _metricsPage = 'server-metrics';
+
+const _voicePage = 'space-voice';
+
 const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('reports', 'Reported user', keywords: ['moderation']),
   SettingsEntry('reports', 'Reported message', keywords: ['moderation']),
@@ -132,19 +136,19 @@ const spaceSettingsIndex = <SettingsEntry>[
   SettingsEntry('emoji', 'New emoji', keywords: ['custom emoji', 'upload']),
   SettingsEntry('emoji', 'Emoji (0)', conditional: true),
   SettingsEntry(
-    'space-voice',
+    _voicePage,
     'Strong by default',
     description: 'Also removes keyboards, fans and room noise.',
     keywords: ['noise suppression', 'noise', 'keyboard'],
   ),
   SettingsEntry(
-    'space-voice',
+    _voicePage,
     'Screen share quality',
     description: 'The tallest resolution a share may use.',
     keywords: ['stream', 'resolution'],
   ),
   SettingsEntry(
-    'space-voice',
+    _voicePage,
     'Noise suppression',
     description: 'For members who leave it on Space default.',
     keywords: ['noise', 'keyboard'],
@@ -230,9 +234,9 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['history', 'changes', 'admin', 'log'],
     conditional: true,
   ),
-  SettingsEntry('server-metrics', 'System', keywords: ['cpu', 'memory']),
-  SettingsEntry('server-metrics', 'Request volume by class'),
-  SettingsEntry('server-metrics', 'Slowest routes', keywords: ['latency']),
+  SettingsEntry(_metricsPage, 'System', keywords: ['cpu', 'memory']),
+  SettingsEntry(_metricsPage, 'Request volume by class'),
+  SettingsEntry(_metricsPage, 'Slowest routes', keywords: ['latency']),
   SettingsEntry(
     'dock',
     'Code Blocks',

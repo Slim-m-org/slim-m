@@ -91,14 +91,13 @@ class SettingsDetailRow extends StatelessWidget {
       fontFamily: monoDetail ? AppFonts.mono : null,
     );
     if (meta == null) {
-      return detail == null
-          ? null
-          : Text(
-              detail!,
-              style: style,
-              maxLines: detailMaxLines,
-              overflow: detailMaxLines == null ? null : TextOverflow.ellipsis,
-            );
+      if (detail == null) return null;
+      return Text(
+        detail!,
+        style: style,
+        maxLines: detailMaxLines,
+        overflow: detailMaxLines == null ? null : TextOverflow.ellipsis,
+      );
     }
     return Wrap(
       spacing: AppSpacing.s8,

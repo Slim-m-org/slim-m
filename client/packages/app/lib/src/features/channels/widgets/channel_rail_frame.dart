@@ -193,6 +193,17 @@ class RailConnectionBar extends ConsumerWidget {
   }
 }
 
+VoidCallback? _micAction({
+  required bool inCall,
+  required bool stuck,
+  required VoiceController voiceController,
+}) {
+  if (!inCall) return null;
+  return stuck
+      ? voiceController.resetMicrophone
+      : voiceController.toggleMicrophone;
+}
+
 /// The mic/deafen toggle pair in [RailUserFooter]'s row.
 ///
 /// Takes [VoiceFlags] rather than the full [VoiceState] on purpose: the
@@ -212,11 +223,11 @@ List<Widget> railVoiceToggleButtons({
           : AppIcons.micOff,
       semanticLabel: trouble ?? (voice.microphoneEnabled ? 'Mute' : 'Unmute'),
       tooltip: inCall ? trouble : 'Not in a call',
-      onPressed: !inCall
-          ? null
-          : micStatus == MicStatus.unavailable && trouble != null
-          ? voiceController.resetMicrophone
-          : voiceController.toggleMicrophone,
+      onPressed: _micAction(
+        inCall: inCall,
+        stuck: micStatus == MicStatus.unavailable && trouble != null,
+        voiceController: voiceController,
+      ),
     ),
     // Same icon either way, the toggle carried by `active`: there is no
     // dedicated "deafened" glyph in AppIcons.

@@ -14,6 +14,8 @@ import 'join_policy_row.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 
+const _rowLabel = 'Two-factor authentication';
+
 /// `off` is worded as "nobody new" rather than "off", because it does not turn
 /// an existing factor off and a label saying otherwise would be a lie an
 /// operator acts on.
@@ -64,7 +66,7 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
       children: [
         settings.when(
           loading: () => const AppListRow(
-            label: 'Two-factor authentication',
+            label: _rowLabel,
             leading: Icon(AppIcons.shield),
             meta: 'Loading…',
           ),
@@ -77,7 +79,7 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
             ),
           ),
           data: (loaded) => AppListRow(
-            label: 'Two-factor authentication',
+            label: _rowLabel,
             leading: const Icon(AppIcons.shield),
             meta: _labelFor(loaded.totpPolicy),
             semanticLabel:
@@ -111,7 +113,7 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
   Future<void> _open(BuildContext context, api.SpaceSettings current) async {
     final chosen = await SettingsSelectRow.pick<api.TotpPolicy>(
       context,
-      title: 'Two-factor authentication',
+      title: _rowLabel,
       value: current.totpPolicy,
       choices: _choices,
     );

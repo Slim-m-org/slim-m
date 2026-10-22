@@ -96,6 +96,22 @@ class ChannelSettingsPane extends ConsumerWidget {
   final Channel channel;
   final bool wasOpen;
 
+  List<Widget> _generalRows({
+    required bool canManageRoles,
+    required bool canManageServer,
+  }) {
+    final isDm = channel.kind == 'dm';
+    final isVoice = channel.kind == 'voice';
+    return [
+      if (canManageRoles) ChannelPrivateRow(channel: channel),
+      ChannelSlowModeSection(channel: channel),
+      if (!isDm) ChannelDefaultNotificationSection(channel: channel),
+      if (canManageServer && !isDm) ChannelRetentionRow(channelId: channel.id),
+      if (isVoice) ChannelJoinMutedSection(channel: channel),
+      if (isVoice) ChannelRoomsSection(channel: channel),
+    ];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final permissions = ref.watch(myPermissionsProvider);
@@ -116,18 +132,10 @@ class ChannelSettingsPane extends ConsumerWidget {
         if (canManageChannels)
           ChannelGeneralSection(
             channel: channel,
-            rows: [
-              if (canManageRoles) ChannelPrivateRow(channel: channel),
-              ChannelSlowModeSection(channel: channel),
-              if (channel.kind != 'dm')
-                ChannelDefaultNotificationSection(channel: channel),
-              if (canManageServer && channel.kind != 'dm')
-                ChannelRetentionRow(channelId: channel.id),
-              if (channel.kind == 'voice')
-                ChannelJoinMutedSection(channel: channel),
-              if (channel.kind == 'voice')
-                ChannelRoomsSection(channel: channel),
-            ],
+            rows: _generalRows(
+              canManageRoles: canManageRoles,
+              canManageServer: canManageServer,
+            ),
           ),
         if (canManageRoles)
           ChannelPermissionsPane(initialChannel: channel, lockChannel: true),

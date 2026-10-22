@@ -18,6 +18,8 @@ import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 
+const _rowLabel = 'Who can join';
+
 /// One read for the whole `/space/settings` object, shared with
 /// [TotpPolicyRow], so two rows on the same screen do not each fetch it.
 final spaceSettingsProvider = FutureProvider.autoDispose<api.SpaceSettings>(
@@ -68,7 +70,7 @@ class _JoinPolicyRowState extends ConsumerState<JoinPolicyRow>
       children: [
         settings.when(
           loading: () => const AppListRow(
-            label: 'Who can join',
+            label: _rowLabel,
             leading: Icon(AppIcons.members),
             meta: 'Loading…',
           ),
@@ -83,7 +85,7 @@ class _JoinPolicyRowState extends ConsumerState<JoinPolicyRow>
             ),
           ),
           data: (loaded) => AppListRow(
-            label: 'Who can join',
+            label: _rowLabel,
             leading: const Icon(AppIcons.members),
             meta: _labelFor(loaded.joinPolicy),
             semanticLabel:
@@ -116,7 +118,7 @@ class _JoinPolicyRowState extends ConsumerState<JoinPolicyRow>
   Future<void> _open(BuildContext context, api.JoinPolicy current) async {
     final chosen = await SettingsSelectRow.pick<api.JoinPolicy>(
       context,
-      title: 'Who can join',
+      title: _rowLabel,
       value: current,
       choices: _choices,
     );

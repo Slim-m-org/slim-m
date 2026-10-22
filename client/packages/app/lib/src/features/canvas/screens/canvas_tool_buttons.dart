@@ -15,6 +15,8 @@ import 'canvas_shape_icons.dart';
 import 'canvas_tool_model.dart';
 import 'canvas_tool_options.dart';
 
+const _cannotDrawTooltip = "Can't draw right now";
+
 class CanvasToolButtons extends StatelessWidget {
   const CanvasToolButtons({
     super.key,
@@ -100,7 +102,7 @@ class CanvasToolButtons extends StatelessWidget {
       AppIconButton(
         icon: AppIcons.note,
         semanticLabel: 'Note',
-        tooltip: canDraw ? 'Note (N)' : "Can't draw right now",
+        tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
         active: tool == CanvasTool.note,
         onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
             ? () => _pick(CanvasTool.note)
@@ -114,7 +116,7 @@ class CanvasToolButtons extends StatelessWidget {
           // The armed kind's own glyph, not a generic one - state must be visible, not just remembered.
           icon: canvasShapeKindIcon(shapeKind),
           semanticLabel: 'Shape',
-          tooltip: canDraw ? _shapeHint : "Can't draw right now",
+          tooltip: canDraw ? _shapeHint : _cannotDrawTooltip,
           active: tool == CanvasTool.shape,
           onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
               ? () => _pick(CanvasTool.shape)
@@ -161,7 +163,7 @@ class _PenButton extends StatelessWidget {
       AppIconButton(
         icon: AppIcons.pen,
         semanticLabel: 'Pen',
-        tooltip: canDraw ? 'Pen (P)' : "Can't draw right now",
+        tooltip: canDraw ? 'Pen (P)' : _cannotDrawTooltip,
         active: active,
         onPressed: onPressed,
       ),

@@ -18,6 +18,8 @@ import '../../../routing/routes.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../settings/widgets/settings_danger_card.dart';
 
+const _deleteChannelAction = 'delete the channel';
+
 class ChannelDangerZoneSection extends ConsumerStatefulWidget {
   const ChannelDangerZoneSection({
     super.key,
@@ -70,7 +72,7 @@ class _ChannelDangerZoneSectionState
       // The view behind this screen may still show a channel that no longer exists.
       if (widget.wasOpen) router.go(Routes.channels);
     } on api.ConflictException catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'delete the channel', error, stack);
+      api.reportFailure(api.LogTag.ui, _deleteChannelAction, error, stack);
       // The server's wording is accurate but terse; this feature wants a full sentence.
       if (mounted) {
         setState(
@@ -80,9 +82,9 @@ class _ChannelDangerZoneSectionState
         );
       }
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'delete the channel', e, stack);
+      api.reportFailure(api.LogTag.ui, _deleteChannelAction, e, stack);
       if (mounted) {
-        setState(() => _error = describeApiFailure('delete the channel', e));
+        setState(() => _error = describeApiFailure(_deleteChannelAction, e));
       }
     } finally {
       // Any escape, not just the two catches, must not wedge "Deleting..." on.

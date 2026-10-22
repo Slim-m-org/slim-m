@@ -16,6 +16,8 @@ import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
 
+const _sectionLabel = 'Welcome message';
+
 /// The channel choice for "none".
 const _noChannel = '';
 
@@ -28,7 +30,7 @@ class WelcomeSection extends ConsumerWidget {
     return settings.when(
       loading: () => const SizedBox.shrink(),
       error: (e, _) => SettingsSectionCard(
-        title: 'Welcome message',
+        title: _sectionLabel,
         children: [
           SettingsCardBlock(
             children: [
@@ -109,7 +111,7 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
     ];
     final error = actionError;
     return SettingsSectionCard(
-      title: 'Welcome message',
+      title: _sectionLabel,
       children: [
         SettingsToggleRow(
           label: 'Welcome new members',
@@ -140,7 +142,7 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
                 counterMax: api.InputLimits.welcomeMessage,
                 keyboardType: TextInputType.multiline,
                 errorText: _messageError,
-                semanticLabel: 'Welcome message',
+                semanticLabel: _sectionLabel,
               ),
             ),
             if (error != null)
