@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The Identity card's banner rows: a preview of the band behind your profile
-/// card, the image to put in it or remove, and the profile colour it shows
-/// when there is no image. A gif goes up as picked; a still is cropped to the
+/// The Identity card's banner row: an image tile at the head of the profile
+/// colours, wearing the same selection ring, so an image and a colour read as
+/// two choices of the same thing. A gif goes up as picked; a still is cropped to the
 /// banner shape first.
 library;
 
@@ -20,10 +20,10 @@ import '../../messages/providers/attachment_preview_bytes.dart'
 import '../../messages/widgets/attachment_picker.dart';
 import '../../messages/widgets/image_downscale.dart';
 import 'avatar_crop_sheet.dart';
+import '../../../widgets/color_swatch_row.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import 'identity_row.dart';
 import 'profile_banner.dart';
-import 'profile_colour.dart';
 import 'profile_colour_field.dart';
 
 /// Width over height of the banner on a profile card.
@@ -33,6 +33,12 @@ const double kProfileBannerAspect = 3;
 const int _maxBytes = 2 * 1024 * 1024 - 64 * 1024;
 
 const int _maxEdge = 1280;
+
+/// The image tile's thumbnail, the diameter inside the selection ring.
+const double _thumb = 24;
+
+/// The image tile, the six presets and the custom swatch.
+const int _tiles = 8;
 
 class BannerSettingsRow extends ConsumerStatefulWidget {
   const BannerSettingsRow({super.key});
@@ -85,6 +91,22 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
     if (ok) ref.invalidate(meProvider);
   }
 
+  Widget _imageTile(api.Me me, bool isSet, bool enabled) => SwatchTile(
+    key: const Key('banner-image-tile'),
+    label: 'Profile banner: ${isSet ? 'Change image' : 'Use an image'}',
+    selected: isSet,
+    icon: AppIcons.image,
+    onTap: enabled ? () => unawaited(_choose()) : null,
+    child: isSet
+        ? ProfileBanner(
+            userId: me.id,
+            bannerUpdatedAt: me.bannerUpdatedAt,
+            colour: null,
+            height: _thumb,
+          )
+        : null,
+  );
+
   @override
   Widget build(BuildContext context) {
     final me = ref.watch(meProvider).valueOrNull;
@@ -96,9 +118,8 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         IdentityRow(
-          leading: me == null ? null : _Preview(me: me),
-          title: 'Banner',
-          caption: isSet ? 'Custom image' : 'Your profile colour',
+          title: isSet ? 'Image' : 'Colour',
+          caption: 'Banner',
           trailing: [
             if (isSet)
               AppButton(
@@ -114,16 +135,26 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
                       )
                     : null,
               ),
-            AppButton(
-              label: 'Change',
-              semanticLabel: 'Change profile banner',
-              onPressed: enabled ? () => unawaited(_choose()) : null,
-            ),
           ],
         ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(inset, 0, inset, AppSpacing.s12),
-          child: const ProfileColourField(),
+        LayoutBuilder(
+          builder: (context, box) {
+            // Eight touch tiles do not fit inside the row inset on a phone, so the row uses the card's full width.
+            final spare =
+                (box.maxWidth - ColorSwatchRow.widthOf(context, _tiles)) / 2;
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                spare.clamp(0, inset),
+                0,
+                spare.clamp(0, inset),
+                AppSpacing.s12,
+              ),
+              child: ProfileColourField(
+                imageSet: isSet,
+                leading: me == null ? null : _imageTile(me, isSet, enabled),
+              ),
+            );
+          },
         ),
         if (actionError != null)
           Padding(
@@ -139,39 +170,6 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
             ),
           ),
       ],
-    );
-  }
-}
-
-/// The band as others will see it, at the banner's own proportions.
-class _Preview extends StatelessWidget {
-  const _Preview({required this.me});
-
-  final api.Me me;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    const height = 36.0;
-    return ExcludeSemantics(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.control),
-        child: SizedBox(
-          key: const Key('banner-settings-preview'),
-          width: height * kProfileBannerAspect,
-          child: ProfileBanner(
-            userId: me.id,
-            bannerUpdatedAt: me.bannerUpdatedAt,
-            height: height,
-            colour:
-                profileColourOf(
-                  index: me.profileColor,
-                  rgb: me.profileColorRgb,
-                ) ??
-                tokens.surfaceSunken,
-          ),
-        ),
-      ),
     );
   }
 }
