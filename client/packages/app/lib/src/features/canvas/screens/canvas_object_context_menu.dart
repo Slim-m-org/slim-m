@@ -374,18 +374,20 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     );
   }
 
+  bool _mayLock(String id) =>
+      widget.canManage || widget.document.authorIdOf(id) == widget.selfId;
+
+  bool _isNote(String? id) =>
+      widget.onEditNote != null &&
+      id != null &&
+      widget.document.kindOf(id) == CanvasObjectKind.note;
+
   Widget _objectMenu() {
     final locks = CanvasObjectLocksScope.maybeOf(context);
     final id = _target;
     final locked = id != null && (locks?.isLocked(id) ?? false);
-    final mayLock =
-        locks != null &&
-        id != null &&
-        (widget.canManage || widget.document.authorIdOf(id) == widget.selfId);
-    final isNote =
-        widget.onEditNote != null &&
-        id != null &&
-        widget.document.kindOf(id) == CanvasObjectKind.note;
+    final mayLock = locks != null && id != null && _mayLock(id);
+    final isNote = _isNote(id);
     return AppMenu(
       width: 200,
       children: [

@@ -33,6 +33,7 @@ class ColorSwatchRow extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     this.custom,
+    this.leading,
   }) : assert(colors.length == names.length);
 
   /// What is being chosen, read before each swatch's name, e.g. "Role colour".
@@ -49,6 +50,16 @@ class ColorSwatchRow extends StatelessWidget {
   /// An extra swatch after the presets; selected whenever it holds a colour.
   final CustomSwatch? custom;
 
+  /// A tile ahead of the presets for a choice that is not a colour, such as an image.
+  final Widget? leading;
+
+  /// The width [count] tiles take side by side at the current touch density.
+  static double widthOf(BuildContext context, int count) {
+    final touch = AppTouchTargets.of(context);
+    return count * (touch ? AppSizes.rowTouch : 36.0) +
+        (touch ? 0 : 2 * (count - 1));
+  }
+
   @override
   Widget build(BuildContext context) {
     final touch = AppTouchTargets.of(context);
@@ -58,15 +69,16 @@ class ColorSwatchRow extends StatelessWidget {
       spacing: touch ? 0 : 2,
       runSpacing: touch ? 0 : 2,
       children: [
+        ?leading,
         for (var i = 0; i < colors.length; i++)
-          _ColorSwatch(
+          SwatchTile(
             color: colors[i],
             label: '$label: ${names[i]}',
             selected: selected == i,
             onTap: onSelect == null ? null : () => onSelect(i),
           ),
         if (custom != null)
-          _ColorSwatch(
+          SwatchTile(
             color: custom.colour,
             icon: custom.icon ?? AppIcons.add,
             label: '$label: ${custom.label}',
@@ -78,14 +90,20 @@ class ColorSwatchRow extends StatelessWidget {
   }
 }
 
-class _ColorSwatch extends StatelessWidget {
-  const _ColorSwatch({
-    required this.color,
+/// One round tile in a [ColorSwatchRow]: a colour, a neutral icon, or a [child] such as a thumbnail.
+class SwatchTile extends StatelessWidget {
+  const SwatchTile({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.color,
     this.icon,
+    this.child,
   });
+
+  /// Drawn clipped to the circle in place of a colour or icon.
+  final Widget? child;
 
   /// Null draws the neutral [icon] swatch instead of a fill.
   final Color? color;
@@ -120,7 +138,9 @@ class _ColorSwatch extends StatelessWidget {
                 width: 2,
               ),
             ),
-            child: color == null
+            child: child != null
+                ? ClipOval(child: child)
+                : color == null
                 ? DecoratedBox(
                     decoration: BoxDecoration(
                       color: tokens.surfaceSunken,

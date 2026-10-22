@@ -60,7 +60,7 @@ def _deafen_silences_playback_not_the_mic(a, b, room_id, alice_id, bob_id):
         print(f"  bob receives {flowing} audio bytes in {MEASURE_SECONDS} s before deafening")
         assert flowing > FLOWING_BYTES, f"no inbound audio to measure against: {flowing}"
 
-        b.click("Deafen", settle=2)
+        b.click("Deafen", settle=2, fixed=True)
         received = b_hears.received_over(MEASURE_SECONDS)
         print(f"  deafened: {received} audio bytes arrive in {MEASURE_SECONDS} s")
         assert received < STOPPED_BYTES, \

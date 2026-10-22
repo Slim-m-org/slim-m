@@ -11,7 +11,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:slimm_voice_canvas/src/canvas_painters.dart' show StrokePainter;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../board_fixture.dart';

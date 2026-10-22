@@ -20,15 +20,16 @@ from e2e_api import wait_until
 
 CAMERA_ON = "Turn on camera"
 RESTART_SETTLE_SECONDS = 20
+CANVAS_TITLE = "Canvas,"
 
 
 def _in_canvas(c, channel):
-    if not c.find(L.OPEN_CANVAS) and not c.find("Canvas,"):
+    if not c.find(L.OPEN_CANVAS) and not c.find(CANVAS_TITLE):
         c.click(channel)
         c.wait_for(L.IN_CALL)
-    if not c.find("Canvas,"):
+    if not c.find(CANVAS_TITLE):
         c.click(L.OPEN_CANVAS)
-    c.wait_for("Canvas,")
+    c.wait_for(CANVAS_TITLE)
     fit_to_board_zoom_one(c)
 
 
@@ -46,12 +47,13 @@ def _everyone_sees(clients, needle):
 
 
 def _press_tool(c, label):
-    """A real pointer press on the dock button, not a semantics click."""
-    node = c.wait_for(label)
-    c.gestures(True)
-    c.mouse_click(node["x"], node["y"])
-    c.gestures(False)
-    time.sleep(0.5)
+    """A real pointer press on the dock button, not a semantics click; Pan first, as a second press puts an armed tool down."""
+    for name in ([L.PAN_TOOL] if label != L.PAN_TOOL else []) + [label]:
+        node = c.wait_for(name, exact=True)
+        c.gestures(True)
+        c.mouse_click(node["x"], node["y"])
+        c.gestures(False)
+        time.sleep(0.5)
 
 
 def _restart_server():

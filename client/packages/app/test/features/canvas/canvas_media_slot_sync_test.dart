@@ -126,17 +126,22 @@ void main() {
     });
   });
 
-  test('a failed commit does not throw', () async {
+  test('a failed commit tells the viewer and puts the tile back', () async {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);
     final client = _apiWith((request) async => http.Response('nope', 500));
+    String? explained;
     final sync = CanvasMediaSlotSync(
       channelId: 'c1',
       client: client,
       overrides: overrides,
+      onError: (message) => explained = message,
     );
 
     await sync.commit('camera:alice', const Rect.fromLTWH(0, 0, 1, 1));
+
+    expect(explained, 'That tile change could not be saved.');
+    expect(overrides.stateFor('camera:alice').rect, isNull);
   });
 
   test('applyRemote ignores a frame for a different channel', () {

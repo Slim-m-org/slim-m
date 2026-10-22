@@ -318,7 +318,7 @@ const _voiceCallSurfaces = <String, ({String route, List<String> viewports})>{
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final surface in snapshotSurfaces.entries) {
       for (final viewportName in surface.value.viewports) {
         testWidgets(

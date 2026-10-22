@@ -139,12 +139,14 @@ class ParseConversationTest(unittest.TestCase):
         self.assertEqual(got.turns[2].reply_to, 0)
 
     def test_no_participants_raises(self):
+        raw = _raw([{"speaker": "Alan", "text": "hi"}], participants=[])
         with self.assertRaises(ValueError):
-            seed_conversation.parse_conversation(_raw([{"speaker": "Alan", "text": "hi"}], participants=[]))
+            seed_conversation.parse_conversation(raw)
 
     def test_too_few_turns_raises(self):
+        raw = _raw([{"speaker": "Alan", "text": "hi"}])
         with self.assertRaises(ValueError):
-            seed_conversation.parse_conversation(_raw([{"speaker": "Alan", "text": "hi"}]))
+            seed_conversation.parse_conversation(raw)
 
     def test_mostly_unresolvable_speakers_raises(self):
         raw = _raw([
@@ -157,8 +159,9 @@ class ParseConversationTest(unittest.TestCase):
             seed_conversation.parse_conversation(raw)
 
     def test_a_non_list_turns_field_raises(self):
+        raw = _raw("not a list")
         with self.assertRaises(ValueError):
-            seed_conversation.parse_conversation(_raw("not a list"))
+            seed_conversation.parse_conversation(raw)
 
     def test_blank_text_is_treated_as_unusable(self):
         raw = _raw([

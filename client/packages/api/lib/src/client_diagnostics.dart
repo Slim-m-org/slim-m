@@ -3,6 +3,7 @@ part of 'client.dart';
 
 const _diagnosticsChunk = 64 * 1024;
 const _diagnosticsDeadline = Duration(minutes: 2);
+const _cloudflareRayHeader = 'cf-ray';
 
 /// The connection test's view of this server: the routes a device can take.
 extension SlimmApiDiagnostics on SlimmApi {
@@ -53,7 +54,7 @@ class _ApiProbe implements ConnectionProbe {
       '/diagnostics/ping',
       over: _client,
       onHeaders: (headers) {
-        if (headers.containsKey('cf-ray')) viaCloudflare = true;
+        if (headers.containsKey(_cloudflareRayHeader)) viaCloudflare = true;
       },
     );
     return clock.elapsed;
@@ -72,7 +73,9 @@ class _ApiProbe implements ConnectionProbe {
     );
     final asked = Stopwatch()..start();
     final response = await _api._diagnosticsSend(_client, request);
-    if (response.headers.containsKey('cf-ray')) viaCloudflare = true;
+    if (response.headers.containsKey(_cloudflareRayHeader)) {
+      viaCloudflare = true;
+    }
     if (response.statusCode != 200) {
       throw _api._errorFor(await http.Response.fromStream(response));
     }
@@ -121,7 +124,9 @@ class _ApiProbe implements ConnectionProbe {
       }),
     );
     final response = await _api._diagnosticsSend(_client, request);
-    if (response.headers.containsKey('cf-ray')) viaCloudflare = true;
+    if (response.headers.containsKey(_cloudflareRayHeader)) {
+      viaCloudflare = true;
+    }
     final full = await http.Response.fromStream(response);
     if (full.statusCode != 200) throw _api._errorFor(full);
     return _uploadTiming(full, bytes, clock.elapsed);

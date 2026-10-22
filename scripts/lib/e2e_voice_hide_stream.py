@@ -71,7 +71,7 @@ def _hide_show_and_unseen(a, b, pb, room_id):
     print("  bob decodes alice's share")
 
     ui.open_tile_menu(b, "Alice")
-    b.click(L.HIDE_STREAM, settle=3)
+    b.click(L.HIDE_STREAM, settle=3, fixed=True)
     _assert_nothing_decodes(pb, "hidden stream")
 
     ui.open_tile_menu(b, "Alice")
@@ -86,7 +86,7 @@ def _hide_show_and_unseen(a, b, pb, room_id):
     wait_for_videos(pb, sids, 1)
     print("  and showing the page again resumes it")
 
-    b.click(L.TEXT_CHANNEL, settle=4)
+    b.click(L.TEXT_CHANNEL, settle=4, fixed=True)
     b.wait_for(L.RETURN_TO_CALL)
     wait_for_videos(pb, sids, 1)
     print("  the mini-player carries the share in a text channel")

@@ -116,11 +116,10 @@ void main() {
       expect(steps.length, 2, reason: 'A is not admitted, so parsing stops');
     });
 
-    test('junk between numbers does not throw', () {
-      expect(
-        () => parseScenePathData('M 0 0 L ?? 10 nonsense'),
-        returnsNormally,
-      );
+    test('junk between numbers keeps what came before it', () {
+      final steps = parseScenePathData('M 0 0 L ?? 10 nonsense');
+
+      expect(steps.map((s) => s.kind), [ScenePathKind.move]);
     });
 
     test('an empty or whitespace d parses to nothing', () {

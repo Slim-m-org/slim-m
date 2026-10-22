@@ -305,42 +305,14 @@ pub fn code_only(source: &str) -> String {
     let mut out = vec![b' '; bytes.len()];
     let mut i = 0usize;
     while i < bytes.len() {
-        if bytes[i] == b'r' {
-            let mut hashes = 0usize;
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j] == b'#' {
-                hashes += 1;
-                j += 1;
-            }
-            if j < bytes.len() && bytes[j] == b'"' {
-                let close: Vec<u8> = std::iter::once(b'"')
-                    .chain(std::iter::repeat_n(b'#', hashes))
-                    .collect();
-                let mut k = j + 1;
-                while k < bytes.len() && bytes[k..].get(..close.len()) != Some(close.as_slice()) {
-                    k += 1;
-                }
-                let end = (k + close.len()).min(bytes.len());
-                for idx in i..end {
-                    if bytes[idx] == b'\n' {
-                        out[idx] = b'\n';
-                    }
-                }
-                i = end.max(i + 1);
-                continue;
-            }
+        if let Some(end) = raw_string_end(bytes, i) {
+            keep_newlines(bytes, &mut out, i, end);
+            i = end.max(i + 1);
+            continue;
         }
         if bytes[i] == b'"' {
-            let mut k = i + 1;
-            while k < bytes.len() && bytes[k] != b'"' {
-                k += if bytes[k] == b'\\' { 2 } else { 1 };
-            }
-            let end = (k + 1).min(bytes.len());
-            for idx in i..end {
-                if bytes[idx] == b'\n' {
-                    out[idx] = b'\n';
-                }
-            }
+            let end = plain_string_end(bytes, i);
+            keep_newlines(bytes, &mut out, i, end);
             i = end;
             continue;
         }
@@ -351,16 +323,8 @@ pub fn code_only(source: &str) -> String {
             continue;
         }
         if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
-            let mut k = i + 2;
-            while k < bytes.len() && bytes.get(k..k + 2) != Some(b"*/") {
-                k += 1;
-            }
-            let end = (k + 2).min(bytes.len());
-            for idx in i..end {
-                if bytes[idx] == b'\n' {
-                    out[idx] = b'\n';
-                }
-            }
+            let end = block_comment_end(bytes, i);
+            keep_newlines(bytes, &mut out, i, end);
             i = end;
             continue;
         }
@@ -369,6 +333,55 @@ pub fn code_only(source: &str) -> String {
     }
     String::from_utf8(out)
         .expect("only ever ASCII space/newline or original bytes, so always valid utf-8")
+}
+
+/// Keeps the line breaks of `bytes[from..to]` in `out`, so line numbers survive blanking.
+fn keep_newlines(bytes: &[u8], out: &mut [u8], from: usize, to: usize) {
+    for idx in from..to {
+        if bytes[idx] == b'\n' {
+            out[idx] = b'\n';
+        }
+    }
+}
+
+/// The end of the raw string (`r"..."`, `r#"..."#`, ...) starting at `i`, if one does.
+fn raw_string_end(bytes: &[u8], i: usize) -> Option<usize> {
+    if bytes[i] != b'r' {
+        return None;
+    }
+    let mut hashes = 0usize;
+    let mut j = i + 1;
+    while j < bytes.len() && bytes[j] == b'#' {
+        hashes += 1;
+        j += 1;
+    }
+    if j >= bytes.len() || bytes[j] != b'"' {
+        return None;
+    }
+    let close: Vec<u8> = std::iter::once(b'"')
+        .chain(std::iter::repeat_n(b'#', hashes))
+        .collect();
+    let mut k = j + 1;
+    while k < bytes.len() && bytes[k..].get(..close.len()) != Some(close.as_slice()) {
+        k += 1;
+    }
+    Some((k + close.len()).min(bytes.len()))
+}
+
+fn plain_string_end(bytes: &[u8], i: usize) -> usize {
+    let mut k = i + 1;
+    while k < bytes.len() && bytes[k] != b'"' {
+        k += if bytes[k] == b'\\' { 2 } else { 1 };
+    }
+    (k + 1).min(bytes.len())
+}
+
+fn block_comment_end(bytes: &[u8], i: usize) -> usize {
+    let mut k = i + 2;
+    while k < bytes.len() && bytes.get(k..k + 2) != Some(b"*/") {
+        k += 1;
+    }
+    (k + 2).min(bytes.len())
 }
 
 /// A function's body, from its signature's `marker` to the matching closing

@@ -11,6 +11,7 @@
 /// every other surface built on top of it.
 library;
 
+import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_rtc/rtc.dart';
@@ -23,7 +24,7 @@ import '../../voice/providers/voice_flags.dart';
 
 /// Whether a timeout ending at [until] (Unix milliseconds) still holds.
 bool timeoutActive(int? until) =>
-    until != null && until > DateTime.now().millisecondsSinceEpoch;
+    until != null && until > clock.now().millisecondsSinceEpoch;
 
 /// One viewer's rights over one [profile], and whether they share a call
 /// with them right now.

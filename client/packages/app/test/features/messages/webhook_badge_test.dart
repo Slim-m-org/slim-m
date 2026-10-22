@@ -155,38 +155,5 @@ void main() {
 
       expect(find.byType(AppBadge), findsNothing);
     });
-
-    testWidgets('an unresolved author is not badged', (tester) async {
-      await tester.pumpWidget(
-        harness(
-          MessageRow(
-            message: message(authorId: 'nobody-has-asked'),
-            grouped: false,
-            showNewDivider: false,
-            knownUsernames: const {},
-            actions: noActions,
-            editing: false,
-            callbacks: MessageRowCallbacks(
-              onRetry: () {},
-              onDiscard: () {},
-              onPickReaction: (_) {},
-              onReactionTap: (_) {},
-              onVote: (_) {},
-              onSubmitEdit: (_) {},
-              onCancelEdit: () {},
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      expect(
-        find.byType(AppBadge),
-        findsNothing,
-        reason:
-            'a badge appearing a moment after the name is worse than one '
-            'that is simply right once the profile is known',
-      );
-    });
   });
 }

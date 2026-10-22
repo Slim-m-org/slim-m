@@ -65,7 +65,7 @@ void main() {
     final dock = await _pumpDock(tester);
     expect(find.byTooltip('Switch speaker'), findsNothing);
     expect(find.byTooltip(RegExp('^Deafen')), findsOneWidget);
-    expect(find.byIcon(AppIcons.speaker), findsOneWidget);
+    expect(find.byIcon(AppIcons.headphones), findsOneWidget);
 
     await tester.tap(find.byTooltip(RegExp('^Deafen')));
     await tester.pump();
@@ -168,7 +168,7 @@ void main() {
     expect(chip.color, AppTokens.light.accentSoft);
   });
 
-  testWidgets('alone on a narrow dock the music rides in the mic menu', (
+  testWidgets('alone on a narrow dock the music spills into a row above', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -186,13 +186,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byTooltip(RegExp('music')), findsNothing);
-    final rows = find.byType(FloatingDockCard);
-    expect(tester.getSize(rows).height, lessThan(80), reason: 'one call row');
-
-    await tester.tap(find.byTooltip('Microphone options'));
-    await tester.pumpAndSettle();
-    expect(find.text('MUSIC WHILE ALONE'), findsOneWidget);
-    expect(find.text('Play music'), findsOneWidget);
+    expect(find.byTooltip(RegExp('music')), findsOneWidget);
+    expect(
+      tester.widget<FloatingDockCard>(find.byType(FloatingDockCard)).rows,
+      hasLength(2),
+      reason: 'the call row and the extras above it',
+    );
   });
 }

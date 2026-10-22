@@ -92,7 +92,7 @@ const _routes = {
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final entry in _routes.entries) {
       for (final viewport in phoneAndDesktop) {
         testWidgets('${entry.key} at $viewport ($theme) fits', (tester) async {

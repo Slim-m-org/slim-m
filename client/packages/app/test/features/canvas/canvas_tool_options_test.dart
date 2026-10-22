@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/screens/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -159,12 +159,28 @@ void main() {
       CanvasTool? chosen;
       await pumpCanvasCallDock(
         tester,
-        canvas: buildCanvasDockData(onToolChanged: (t) => chosen = t),
+        canvas: buildCanvasDockData(
+          tool: CanvasTool.pan,
+          onToolChanged: (t) => chosen = t,
+        ),
       );
       await tester.tap(_tool('Pen'));
       await tester.pumpAndSettle();
       expect(chosen, CanvasTool.pen);
       expect(find.byTooltip('Coral'), findsNothing);
+    });
+
+    testWidgets('a second press on the armed tool puts it down, back to Pan', (
+      tester,
+    ) async {
+      CanvasTool? chosen;
+      await pumpCanvasCallDock(
+        tester,
+        canvas: buildCanvasDockData(onToolChanged: (t) => chosen = t),
+      );
+      await tester.tap(_tool('Pen'));
+      await tester.pumpAndSettle();
+      expect(chosen, CanvasTool.pan);
     });
   });
 

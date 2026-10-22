@@ -28,6 +28,25 @@ const canvasPenColors = [
 
 const canvasDefaultPenColorKey = 'annotation';
 
+/// The pen colour nearest [colour] by hue, so a profile colour picks a pen that reads as the same colour; greys keep the default.
+String nearestPenColorKey(Color colour) {
+  final target = HSVColor.fromColor(colour);
+  if (target.saturation < 0.2 || target.value < 0.2) {
+    return canvasDefaultPenColorKey;
+  }
+  var best = canvasDefaultPenColorKey;
+  var bestDistance = double.infinity;
+  for (final pen in canvasPenColors) {
+    final raw = (HSVColor.fromColor(pen.color).hue - target.hue).abs();
+    final distance = raw > 180 ? 360 - raw : raw;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = pen.key;
+    }
+  }
+  return best;
+}
+
 /// What a colour key paints as, handed to the surface so strokes drawn by
 /// anyone render in the colour they were drawn in.
 final canvasPenInkByKey = {

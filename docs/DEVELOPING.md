@@ -94,7 +94,14 @@ Drift's generated code is committed; regenerate it rather than editing it:
 scripts/e2e.sh --keep                    # real LiveKit, the server and two browsers
 E2E_ONLY="reaction" scripts/e2e.sh       # one scenario, or several split by |
 E2E_REBUILD=1 scripts/e2e.sh             # after a client change, or it serves the old web build
+scripts/e2e-parallel.sh                  # the same suite on up to four stacks at once, one combined report
 ```
+
+`scripts/e2e.sh` runs every scenario in turn on one stack and is what CI uses.
+`scripts/e2e-parallel.sh` deals the scenarios across several stacks, each with its own ports, LiveKit container and work directory, and exits non-zero if any scenario fails.
+On the 32-core dev box it finishes in about six minutes instead of half an hour.
+Pick the number of stacks with `--shards N` (default `auto`, at most four, fewer when memory or cores are short), and see the deal first with `--plan`.
+It never touches a stack on the default ports, but two parallel runs at once need `--port-shift` on the second.
 
 See [e2e.md](e2e.md) for how the harness finds controls and what each scenario proves.
 
@@ -102,7 +109,10 @@ A second suite on Playwright Test, with a video of every user for every test, li
 
 ```bash
 (cd e2e && npm ci && npx playwright install chromium && npm test)
+scripts/e2e-playwright-parallel.sh       # one spec file per stack, evidence kept for failures only
 ```
+
+`E2E_EVIDENCE=failure|off` keeps the per-test video, trace and screenshot for failures only, or drops them; CI keeps them all.
 
 ## Load tests and profiling
 
@@ -113,6 +123,14 @@ scripts/load-run.sh --profile http_mix                      # the same, under sa
 
 It refuses any target that is not loopback, so it can never touch the live deployment.
 See [../perf/load/README.md](../perf/load/README.md).
+
+## Git hooks
+
+Run `scripts/install-hooks.sh` once per clone (it sets `core.hooksPath` to the tracked `.githooks/`, which covers every worktree).
+`pre-commit` checks only the staged files in seconds: format, emoji, SPDX headers, comment cap, file budget, and no staged secrets or large binaries.
+`pre-push` runs the heavier checks scoped to what the push changes: the hygiene scripts, `dart analyze`, clippy, the server and client tests for the touched packages and their dependents, and the sqlx, openapi, actionlint and shellcheck gates.
+Both print a summary table; `--no-verify` bypasses them once.
+Set `SLIMM_HOOK_ENV` to a file that exports `CARGO_TARGET_DIR` and `TMPDIR` to share a build cache across worktrees.
 
 ## The gates CI runs, locally
 
@@ -132,7 +150,8 @@ python3 scripts/check-ci-docs.py             # every workflow has a row in docs/
 ```
 
 Read the unittest run's `OK` or `FAILED` summary line, not its last line: some tests print `FAIL` as part of their expected output.
-`actionlint` and `shellcheck` run pinned by image digest in CI; see [ci.md](ci.md) for the digests.
+`scripts/check-actionlint.sh` and `scripts/check-shellcheck.sh` run both linters pinned by image digest, the same way CI does.
+The iOS, orientation, emoji and SPDX checks are `scripts/check-ios-*.sh`, `scripts/check-orientation-lock.sh`, `scripts/check-no-emoji.sh` and `scripts/check-spdx-*.sh`.
 
 ## Conventions
 

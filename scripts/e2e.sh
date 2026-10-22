@@ -20,6 +20,10 @@ WORK="$E2E_WORK"
 SHOTS="$WORK/shots"
 export E2E_WEB_PORT="${E2E_WEB_PORT:-8356}"
 export E2E_API_PORT="${E2E_API_PORT:-8095}"
+export E2E_CDP_BASE="${E2E_CDP_BASE:-9800}"
+export E2E_LK_PORT="${E2E_LK_PORT:-7880}"
+export E2E_LK_CONTAINER="${E2E_LK_CONTAINER:-slimm-e2e-lk}"
+CDP=$E2E_CDP_BASE
 WEB_PORT=$E2E_WEB_PORT
 API_PORT=$E2E_API_PORT
 KEEP=0
@@ -39,8 +43,8 @@ cleanup() {
     return
   fi
   echo "== teardown =="
-  # 9811-9816 are the extra browsers the voice scenarios start for themselves.
-  pkill -f "remote-debugging-port=(980[12]|981[1-6])" 2>/dev/null || true
+  # CDP+11..16 are the extra browsers the voice scenarios start for themselves.
+  pkill -f "remote-debugging-port=($((CDP+1))|$((CDP+2))|$((CDP+11))|$((CDP+13))|$((CDP+14))|$((CDP+15))|$((CDP+16)))( |$)" 2>/dev/null || true
   bash "$ROOT/scripts/e2e-stack.sh" down
   rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw "$WORK"/chrome-vqa "$WORK"/chrome-vqb
   exit $code
@@ -58,7 +62,7 @@ bash "$ROOT/scripts/e2e-stack.sh" up
 source "$WORK/stack.env"
 
 echo "== two browsers =="
-for pair in "9801:alice" "9802:bob"; do
+for pair in "$((CDP+1)):alice" "$((CDP+2)):bob"; do
   port="${pair%%:*}"; who="${pair##*:}"
   profile="$WORK/chrome-$who"; rm -rf "$profile"; mkdir -p "$profile"
   # Detached headless Chrome dies with the launching shell, so each is held open by a sleep it outlives.
@@ -72,7 +76,7 @@ for pair in "9801:alice" "9802:bob"; do
     --auto-select-desktop-capture-source='Entire screen' \
     'http://localhost:$WEB_PORT'" > "$WORK/chrome-$who.log" 2>&1 < /dev/null &
 done
-for port in 9801 9802; do
+for port in $((CDP+1)) $((CDP+2)); do
   for _ in $(seq 40); do
     curl -sf "http://127.0.0.1:$port/json/version" >/dev/null 2>&1 && break
     sleep 1

@@ -15,6 +15,13 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   bool maximized = false;
   bool fullScreen = false;
   bool visible = true;
+
+  /// Mirrors the real port: a query while false is the call that segfaults the plugin.
+  bool queryable = true;
+  int nativeQueryCalls = 0;
+
+  @override
+  bool get windowQueryable => queryable;
   WindowRect bounds = const WindowRect(x: 10, y: 10, width: 1280, height: 720);
 
   int hideCalls = 0;
@@ -41,11 +48,23 @@ class FakeDesktopWindowPort implements DesktopWindowPort {
   Stream<DesktopWindowEventKind> get events => _controller.stream;
 
   @override
-  Future<WindowRect> getBounds() async => bounds;
+  Future<WindowRect> getBounds() async {
+    if (!queryable) nativeQueryCalls++;
+    return bounds;
+  }
+
   @override
-  Future<bool> isMaximized() async => maximized;
+  Future<bool> isMaximized() async {
+    if (!queryable) nativeQueryCalls++;
+    return maximized;
+  }
+
   @override
-  Future<bool> isFullScreen() async => fullScreen;
+  Future<bool> isFullScreen() async {
+    if (!queryable) nativeQueryCalls++;
+    return fullScreen;
+  }
+
   @override
   Future<void> hide() async => hideCalls++;
   @override

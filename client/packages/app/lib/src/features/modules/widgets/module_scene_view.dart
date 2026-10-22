@@ -38,6 +38,8 @@ import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
 import '../../messages/widgets/swipe_to_reply.dart';
 
+const _runActionTask = 'run a module action';
+
 /// Runs one action against the module and returns its raw result. The action
 /// and the current scene state are already packed into [input] as
 /// `{"action":...,"state":...}`.
@@ -192,13 +194,13 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
     try {
       await _runAction(action);
     } on api.RateLimitedException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'run a module action', e, stack);
+      api.reportFailure(api.LogTag.ui, _runActionTask, e, stack);
       await _onRateLimited(e, action, queued: queued);
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'run a module action', e, stack);
+      api.reportFailure(api.LogTag.ui, _runActionTask, e, stack);
       _failWith(describeApiFailure('run this', e));
     } catch (error, stack) {
-      api.reportFailure(api.LogTag.ui, 'run a module action', error, stack);
+      api.reportFailure(api.LogTag.ui, _runActionTask, error, stack);
       _failWith('Could not run this.');
     } finally {
       // A drag queued behind play's own step has nothing else to restart it.

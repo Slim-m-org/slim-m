@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 library;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,8 +67,8 @@ void main() {
   testWidgets('the banner goes away by itself once the timeout expires', (
     tester,
   ) async {
-    // Seconds of headroom, since a loaded CI runner can take well over half a second to pump the first frame.
-    final until = DateTime.now()
+    final until = clock
+        .now()
         .add(const Duration(seconds: 3))
         .millisecondsSinceEpoch;
     await tester.pumpWidget(_harness(me: _me(timedOutUntil: until)));
@@ -75,20 +76,15 @@ void main() {
     await tester.pump();
     expect(find.textContaining('You are timed out'), findsOneWidget);
 
-    // Wall clock moves past the expiry; the widget tree is pumped as a user session would be.
-    final pastExpiry = until - DateTime.now().millisecondsSinceEpoch + 300;
-    await tester.runAsync(
-      () => Future<void>.delayed(Duration(milliseconds: pastExpiry)),
-    );
-    expect(DateTime.now().millisecondsSinceEpoch, greaterThan(until));
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(seconds: 1));
-    }
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.textContaining('You are timed out'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
     expect(
       find.textContaining('You are timed out'),
       findsNothing,
       reason:
-          'timeout expired ${DateTime.now().millisecondsSinceEpoch - until}ms ago',
+          'timeout expired ${clock.now().millisecondsSinceEpoch - until}ms ago',
     );
   });
 }

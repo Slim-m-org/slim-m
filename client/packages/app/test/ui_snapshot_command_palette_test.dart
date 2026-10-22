@@ -104,7 +104,7 @@ Future<void> _openPalette(WidgetTester tester) async {
 
 void main() {
   setUpAll(loadRealFonts);
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final viewport in const ['phone-portrait', 'desktop']) {
       testWidgets('command palette at $viewport ($theme) fits its viewport', (
         tester,

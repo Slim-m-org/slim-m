@@ -254,8 +254,11 @@ class _DockHandleState extends State<_DockHandle> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: tokens.surfaceRaised,
-                  border: Border.all(
-                    color: _focused ? tokens.focusRing : tokens.borderSubtle,
+                  // No bottom edge: the tab joins the dock's top border.
+                  border: Border(
+                    top: _edge(tokens),
+                    left: _edge(tokens),
+                    right: _edge(tokens),
                   ),
                   boxShadow: AppShadows.canvasTile,
                   borderRadius: BorderRadius.vertical(
@@ -274,4 +277,7 @@ class _DockHandleState extends State<_DockHandle> {
       ),
     );
   }
+
+  BorderSide _edge(AppTokens tokens) =>
+      BorderSide(color: _focused ? tokens.focusRing : tokens.borderSubtle);
 }

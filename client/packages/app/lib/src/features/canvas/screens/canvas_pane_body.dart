@@ -28,7 +28,7 @@ import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
 import 'canvas_pane_overlays.dart';
 import 'canvas_pane_surface.dart';
@@ -449,6 +449,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           tileOverrides: widget.tileOverrides,
                           compact: compact,
                         ),
+                      ),
+                      const FocusTraversalOrder(
+                        key: ValueKey('canvas-music-badge'),
+                        order: NumericFocusOrder(5),
+                        child: CanvasMusicBadge(),
                       ),
                     ],
                   ),

@@ -47,7 +47,7 @@ def _tap_lowest(client, label, settle=1.5):
     time.sleep(settle)
 
 
-def share_quality_from_the_share_menu(client, room_id):
+def share_quality_from_the_share_menu(client):
     client.click(L.VOICE_CHANNEL)
     client.wait_for(L.IN_CALL)
     try:

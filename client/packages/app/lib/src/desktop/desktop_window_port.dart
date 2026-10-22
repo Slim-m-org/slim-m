@@ -44,8 +44,21 @@ enum ResizeEdge {
   bottomRight,
 }
 
+/// Thrown instead of reaching a native window that cannot answer.
+class WindowNotQueryable implements Exception {
+  const WindowNotQueryable();
+
+  @override
+  String toString() => 'WindowNotQueryable';
+}
+
 abstract interface class DesktopWindowPort {
   Future<void> ensureInitialized();
+
+  /// False while the native window cannot answer a query: before the plugin is
+  /// initialized, while hidden to the tray, and once a destroy is under way.
+  /// The Linux plugin dereferences its GtkWindow unchecked, so a query then segfaults.
+  bool get windowQueryable;
 
   /// Every event this port ever reports, in arrival order. A real window
   /// manager can fire [DesktopWindowEventKind.resize]/[DesktopWindowEventKind.move]
@@ -112,6 +125,12 @@ class WindowManagerDesktopWindowPort
     with wm.WindowListener
     implements DesktopWindowPort {
   final _events = _EventStream();
+  bool _initialized = false;
+  bool _hidden = false;
+  bool _destroying = false;
+
+  @override
+  bool get windowQueryable => _initialized && !_hidden && !_destroying;
 
   @override
   Stream<DesktopWindowEventKind> get events => _events.stream;
@@ -131,6 +150,7 @@ class WindowManagerDesktopWindowPort
     try {
       await wm.windowManager.ensureInitialized();
       wm.windowManager.addListener(this);
+      _initialized = true;
     } catch (_) {
       _initializing = null;
       rethrow;
@@ -151,7 +171,10 @@ class WindowManagerDesktopWindowPort
   /// Un-minimising emits `restore`, never `show`, and the controller reads
   /// `show` as the window coming back.
   @override
-  void onWindowRestore() => _events.add(DesktopWindowEventKind.show);
+  void onWindowRestore() {
+    _hidden = false;
+    _events.add(DesktopWindowEventKind.show);
+  }
 
   @override
   void onWindowEnterFullScreen() =>
@@ -166,11 +189,14 @@ class WindowManagerDesktopWindowPort
   /// `_methodCallHandler`.
   @override
   void onWindowEvent(String eventName) {
-    if (eventName == 'show') _events.add(DesktopWindowEventKind.show);
+    if (eventName != 'show') return;
+    _hidden = false;
+    _events.add(DesktopWindowEventKind.show);
   }
 
   @override
   Future<WindowRect> getBounds() async {
+    if (!windowQueryable) throw const WindowNotQueryable();
     final bounds = await wm.windowManager.getBounds();
     return WindowRect(
       x: bounds.left,
@@ -199,7 +225,10 @@ class WindowManagerDesktopWindowPort
   Future<void> center() => wm.windowManager.center();
 
   @override
-  Future<bool> isMaximized() => wm.windowManager.isMaximized();
+  Future<bool> isMaximized() async {
+    if (!windowQueryable) throw const WindowNotQueryable();
+    return wm.windowManager.isMaximized();
+  }
 
   @override
   Future<void> maximize() => wm.windowManager.maximize();
@@ -208,17 +237,26 @@ class WindowManagerDesktopWindowPort
   Future<void> unmaximize() => wm.windowManager.unmaximize();
 
   @override
-  Future<bool> isFullScreen() => wm.windowManager.isFullScreen();
+  Future<bool> isFullScreen() async {
+    if (!windowQueryable) throw const WindowNotQueryable();
+    return wm.windowManager.isFullScreen();
+  }
 
   @override
   Future<void> setFullScreen(bool value) =>
       wm.windowManager.setFullScreen(value);
 
   @override
-  Future<void> hide() => wm.windowManager.hide();
+  Future<void> hide() {
+    _hidden = true;
+    return wm.windowManager.hide();
+  }
 
   @override
-  Future<void> show() => wm.windowManager.show();
+  Future<void> show() {
+    _hidden = false;
+    return wm.windowManager.show();
+  }
 
   @override
   Future<void> focus() => wm.windowManager.focus();
@@ -257,7 +295,10 @@ class WindowManagerDesktopWindowPort
       wm.windowManager.startResizing(_toPluginEdge(edge));
 
   @override
-  Future<void> destroy() => wm.windowManager.destroy();
+  Future<void> destroy() {
+    _destroying = true;
+    return wm.windowManager.destroy();
+  }
 
   @override
   bool get canRelaunch => canRelaunchThisProcess();

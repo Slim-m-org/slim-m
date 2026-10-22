@@ -14,10 +14,15 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/camera_switch.dart';
+import '../../voice/providers/hold_music_actions.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../voice/screens/hold_music_dock_toggle.dart';
 import '../../voice/widgets/voice_call_controls.dart';
+
+/// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
+bool soloMusicInDock(BuildContext context, WidgetRef ref) =>
+    ref.watch(callAloneProvider) && !holdMusicBadgeFits(context);
 
 /// One slot's width: the button with its focus-ring reserve, plus the gap before it.
 double dockExtraExtent(BuildContext context) {
@@ -41,20 +46,46 @@ Widget? dockExtras({required bool alone, Widget? toggle}) {
   );
 }
 
+/// What [callRowsWithExtras] lays out beside the call row.
+class CallRowOptions {
+  const CallRowOptions({
+    required this.width,
+    required this.controller,
+    required this.voice,
+    this.toggle,
+    this.toggleSlots = 1,
+    this.toggleMenu = const [],
+    this.spillRow = false,
+  });
+
+  final double width;
+  final VoiceController controller;
+  final VoiceFlags voice;
+  final Widget? toggle;
+  final int toggleSlots;
+  final List<ControlOptionEntry> toggleMenu;
+  final bool spillRow;
+}
+
 /// The card rows for a call: the call row with [toggle] and the music button
 /// inline when [width] allows, otherwise folded into the mic menu ([toggleMenu]
 /// is the toggle's own menu rows) or, with no menu rows, in a row of their own.
+/// [spillRow] skips the menu: the extras always get that row of their own, so they stay visible.
 List<Widget> callRowsWithExtras(
   BuildContext context,
-  WidgetRef ref, {
-  required double width,
-  required VoiceController controller,
-  required VoiceFlags voice,
-  Widget? toggle,
-  int toggleSlots = 1,
-  List<ControlOptionEntry> toggleMenu = const [],
-}) {
-  final alone = ref.watch(callAloneProvider);
+  WidgetRef ref,
+  CallRowOptions options,
+) {
+  final CallRowOptions(
+    :width,
+    :controller,
+    :voice,
+    :toggle,
+    :toggleSlots,
+    :toggleMenu,
+    :spillRow,
+  ) = options;
+  final alone = soloMusicInDock(context, ref);
   final extras = dockExtras(alone: alone, toggle: toggle);
   Widget callRow(
     Widget? extra, {
@@ -80,6 +111,9 @@ List<Widget> callRowsWithExtras(
   if (extras == null) return [callRow(null)];
   final fits = fitsWith((alone ? 1 : 0) + (toggle != null ? toggleSlots : 0));
   if (fits) return [callRow(extras)];
+  if (spillRow) {
+    return [Center(child: extras), callRow(null)];
+  }
   // The one rule of desktop-vs-mobile.md: width decides, so extras fold into the mic menu.
   final music = alone
       ? holdMusicMenuOptions(ref)

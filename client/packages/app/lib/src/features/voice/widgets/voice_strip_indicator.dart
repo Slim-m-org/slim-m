@@ -34,6 +34,8 @@ import 'call_participant_tiles.dart';
 import 'call_strip_press_area.dart';
 import '../../members/widgets/user_avatar.dart';
 
+const _inCallLabel = 'In a call';
+
 /// Whether a call is live and worth surfacing, regardless of which channel is
 /// on screen. The caller decides *where* it renders; this decides *if*.
 class VoiceStripIndicator extends ConsumerWidget {
@@ -111,7 +113,7 @@ class _ReturnToCall extends ConsumerWidget {
         (id == null
             ? null
             : ref.watch(channelByIdProvider(id)).valueOrNull?.name) ??
-        'In a call';
+        _inCallLabel;
     return CallStripPressArea(
       semanticLabel: 'Return to call, $name',
       onPressed: onPressed,
@@ -208,11 +210,11 @@ class CallChannelName extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final id = channelId;
-    if (id == null) return Text('In a call', style: style);
+    if (id == null) return Text(_inCallLabel, style: style);
 
     final name = ref.watch(channelByIdProvider(id)).valueOrNull?.name;
     return Text(
-      name ?? 'In a call',
+      name ?? _inCallLabel,
       overflow: TextOverflow.ellipsis,
       style: style,
     );

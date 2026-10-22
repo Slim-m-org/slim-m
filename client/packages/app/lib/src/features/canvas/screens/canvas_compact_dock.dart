@@ -74,14 +74,16 @@ class CanvasCompactDock extends StatelessWidget {
                   ...callRowsWithExtras(
                     context,
                     ref,
-                    // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
-                    width:
-                        MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
-                    controller: call.controller,
-                    voice: call.voice,
-                    toggle: botCallChipsFor(ref, call.channelId),
-                    toggleSlots: botCallChipCount(ref, call.channelId),
-                    toggleMenu: botCallMenuOptions(ref, call.channelId),
+                    CallRowOptions(
+                      // IntrinsicWidth above rules out a LayoutBuilder; the dock sits inside the pane's s12 margin.
+                      width:
+                          MediaQuery.sizeOf(context).width - 2 * AppSpacing.s12,
+                      controller: call.controller,
+                      voice: call.voice,
+                      toggle: botCallChipsFor(ref, call.channelId),
+                      toggleSlots: botCallChipCount(ref, call.channelId),
+                      toggleMenu: botCallMenuOptions(ref, call.channelId),
+                    ),
                   ),
                 ],
               ),

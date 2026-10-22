@@ -21,12 +21,16 @@ class ReconnectBackoff {
     this.maxAttempt = 6,
     this.maxSeconds = 32,
     this.jitterMs = 1000,
+    this.step = const Duration(seconds: 1),
   }) : _random = random ?? Random();
 
   final Random _random;
   final int maxAttempt;
   final int maxSeconds;
   final int jitterMs;
+
+  /// The length of one backoff "second"; a test shrinks it to skip real waits.
+  final Duration step;
   int _attempt = 0;
 
   /// The delay before the next reconnect attempt. Advances the sequence, so
@@ -35,7 +39,7 @@ class ReconnectBackoff {
     _attempt = (_attempt + 1).clamp(1, maxAttempt);
     final seconds = (1 << (_attempt - 1)).clamp(1, maxSeconds);
     final jitter = Duration(milliseconds: _random.nextInt(jitterMs));
-    return Duration(seconds: seconds) + jitter;
+    return step * seconds + jitter;
   }
 
   Timer? _stableTimer;

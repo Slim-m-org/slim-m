@@ -97,7 +97,8 @@ void main() {
       body = jsonDecode(request.body) as Map<String, dynamic>;
       return http.Response(jsonEncode({'join_policy': 'invite'}), 200);
     });
-    await api.setSpaceSettings(welcomeEnabled: false, welcomeChannelId: '');
+    await api.setSpaceSettings(
+        const SpaceSettingsUpdate(welcomeEnabled: false, welcomeChannelId: ''));
     expect(body, {'welcome_enabled': false, 'welcome_channel_id': ''});
   });
 }

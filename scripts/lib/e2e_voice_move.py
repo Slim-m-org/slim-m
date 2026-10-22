@@ -24,9 +24,9 @@ def _pick_destination(client):
         for n in client.nodes():
             if n["t"] == DESTINATION and n["x"] > 300:
                 client.tap(n["x"], n["y"])
-                time.sleep(1.5)
+                time.sleep(0.5)
                 return
-        time.sleep(0.5)
+        time.sleep(0.25)
     seen = [(n["t"], n["x"], n["y"]) for n in client.nodes()]
     raise AssertionError(f"{client.name}: no {DESTINATION!r} in the Move to list: {seen}")
 
@@ -36,7 +36,7 @@ def _wait_for_room(room, identity, timeout=FOLLOW_TIMEOUT):
     while time.time() < deadline:
         if any(p["identity"] == identity for p in sfu_participants(room)):
             return
-        time.sleep(1)
+        time.sleep(0.25)
     raise AssertionError(f"{identity} never reached {room}")
 
 

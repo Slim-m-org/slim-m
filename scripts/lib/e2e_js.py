@@ -37,6 +37,19 @@ NODES = """
 })()"""
 
 
+# A cheap fingerprint of the tree: a screen that stopped changing from one still redrawing.
+SIGNATURE = """
+(function(){
+  var h=5381,n=0;
+  document.querySelectorAll('flt-semantics').forEach(function(e){
+    n++;
+    var s=(e.getAttribute('aria-label')||'')+'|'+(e.textContent||'').length;
+    for (var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0;
+  });
+  return n+':'+h+':'+location.hash;
+})()"""
+
+
 def click(label_json):
     """Activate a widget the way a screen reader would.
 

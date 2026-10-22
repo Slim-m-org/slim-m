@@ -182,6 +182,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         MicOptionsMenu(
           showCaret: micCaret,
           extraOptions: widget.menuExtras,
+          destructive: _micDestructive(voice, listenOnly),
           child: _micButton(voice, listenOnly, holdOpensOptions: !micCaret),
         ),
         const SizedBox(width: AppSpacing.s8),
@@ -209,6 +210,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
     );
     if (!widget.tight) return primary;
     final spilled = [?switchCamera, ?extra];
+    return _spillColumn(primary, spilled);
+  }
+
+  Widget _spillColumn(Widget primary, List<Widget> spilled) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -251,8 +256,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
             pending: micStatus == MicStatus.reconnecting && trouble != null,
             unavailable: listenOnly != null,
             holdOpensOptions: holdOpensOptions,
-            destructive:
-                (!voice.microphoneEnabled || lost) && listenOnly == null,
+            destructive: _micDestructive(voice, listenOnly),
             level: voice.microphoneEnabled
                 ? ref.watch(localMicLevelProvider)
                 : null,
@@ -263,6 +267,13 @@ class _CallControlsState extends ConsumerState<CallControls> {
         );
       },
     );
+  }
+
+  /// The muted (or lost) danger outline, shared by the mic button and its caret.
+  bool _micDestructive(VoiceFlags voice, String? listenOnly) {
+    final lost =
+        ref.watch(micStatusProvider).valueOrNull == MicStatus.unavailable;
+    return (!voice.microphoneEnabled || lost) && listenOnly == null;
   }
 
   static String _micTooltip(VoiceFlags voice) {
@@ -278,7 +289,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// One click stops all incoming audio, the same toggle as the user panel's headphones; output devices stay in Voice settings.
   Widget _deafenButton(VoiceFlags voice) {
     return CallDockButton(
-      icon: voice.deafened ? AppIcons.speakerOff : AppIcons.speaker,
+      icon: voice.deafened ? AppIcons.headphonesOff : AppIcons.headphones,
       tooltip: labelWithShortcut(
         voice.deafened ? 'Undeafen' : 'Deafen',
         AppAction.toggleDeafenCall,

@@ -20,9 +20,17 @@ import urllib.request
 from e2e_api import Api
 from e2e_client import Client
 
-# Clear of 9801/9802, which e2e.sh owns and pkills by port.
-EXTRA_PORTS = {"carol": 9811, "noisy": 9813, "raw": 9814,
-               "vqa": 9815, "vqb": 9816}
+# Offsets from E2E_CDP_BASE (9800); 1 and 2 are alice and bob, which e2e.sh owns and pkills by port.
+EXTRA_OFFSETS = {"carol": 11, "noisy": 13, "raw": 14, "vqa": 15, "vqb": 16}
+
+
+def cdp_base():
+    """A second stack moves this so its browsers do not collide with the first's."""
+    return int(os.environ.get("E2E_CDP_BASE", "9800"))
+
+
+def extra_port(name):
+    return cdp_base() + EXTRA_OFFSETS[name]
 
 
 def _chrome():
@@ -52,7 +60,7 @@ def _wait_for_debugger(port, timeout=40):
             urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version")
             return
         except OSError:
-            time.sleep(1)
+            time.sleep(0.25)
     raise AssertionError(f"chrome on :{port} never opened its debugger")
 
 
@@ -68,7 +76,7 @@ def _wait_for_page(port, timeout=40):
         if any(t.get("type") == "page" and t.get("url", "").startswith("http")
                for t in tabs):
             return
-        time.sleep(0.5)
+        time.sleep(0.25)
     raise AssertionError(f"chrome on :{port} never opened the app tab")
 
 
@@ -92,7 +100,7 @@ def work_dir():
 @contextlib.contextmanager
 def browser(name, wav, work=None):
     """A headless Chrome on the port reserved for `name`, killed on exit."""
-    port = EXTRA_PORTS[name]
+    port = extra_port(name)
     work = work or work_dir()
     profile = os.path.join(work, f"chrome-{name}")
     shutil.rmtree(profile, ignore_errors=True)
@@ -142,5 +150,5 @@ def dismiss_welcome(client, timeout=20):
         else:
             if client.find("lounge"):
                 return
-        time.sleep(1)
+        time.sleep(0.25)
     client.shot("welcome-stuck")

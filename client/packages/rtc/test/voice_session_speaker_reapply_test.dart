@@ -9,16 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
-class _EmptyRoom extends lk.Room {
-  @override
-  Future<void> connect(
-    String url,
-    String token, {
-    lk.ConnectOptions? connectOptions,
-    lk.RoomOptions? roomOptions,
-    lk.FastConnectOptions? fastConnectOptions,
-  }) async {}
-}
+import 'support/session_fakes.dart';
 
 class _Mic implements MicPort {
   bool published = false;
@@ -89,7 +80,7 @@ void main() {
     final applied = <String>[];
     final mic = _Mic();
     final session = VoiceSession(
-      roomFactory: _EmptyRoom.new,
+      roomFactory: ConnectlessRoom.new,
       micPort: mic,
       audioDevices: _Devices(),
       liveOutput: (room, device) async => applied.add(device.deviceId),

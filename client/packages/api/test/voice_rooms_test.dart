@@ -67,7 +67,7 @@ void main() {
     await api.openVoiceRoom('lobby');
     await api.updateVoiceRoom(channelId: 'room-1', locked: true);
     await api.updateChannel(
-        channelId: 'lobby', createsRooms: true, userLimit: 0);
+        'lobby', const ChannelUpdate(createsRooms: true, userLimit: 0));
     expect(seen[0].method, 'POST');
     expect(seen[0].url.path, '/channels/lobby/voice/room');
     expect(seen[1].method, 'PATCH');

@@ -38,7 +38,10 @@ class _ChannelJoinMutedSectionState
     action: () async {
       final updated = await ref
           .read(apiProvider)
-          .updateChannel(channelId: widget.channel.id, joinMuted: joinMuted);
+          .updateChannel(
+            widget.channel.id,
+            ChannelUpdate(joinMuted: joinMuted),
+          );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([updated]);
     },

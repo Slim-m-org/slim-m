@@ -3,6 +3,7 @@
 import json
 import sys
 import unittest
+import urllib.error
 from pathlib import Path
 import unittest.mock
 from unittest.mock import patch
@@ -118,9 +119,9 @@ class SliderTest(unittest.TestCase):
 
 class BrowserArgsTest(unittest.TestCase):
     def test_the_extra_browsers_avoid_the_two_the_script_owns(self):
-        self.assertFalse({9801, 9802} & set(e2e_browsers.EXTRA_PORTS.values()))
-        self.assertEqual(len(set(e2e_browsers.EXTRA_PORTS.values())),
-                         len(e2e_browsers.EXTRA_PORTS))
+        self.assertFalse({9801, 9802} & set(map(e2e_browsers.extra_port, e2e_browsers.EXTRA_OFFSETS)))
+        self.assertEqual(len(set(map(e2e_browsers.extra_port, e2e_browsers.EXTRA_OFFSETS))),
+                         len(e2e_browsers.EXTRA_OFFSETS))
 
     def test_each_browser_captures_the_wav_it_was_given(self):
         args = e2e_browsers.chrome_args("/p", 9811, "/w/noisy.wav")
@@ -148,8 +149,9 @@ class RegisterTest(unittest.TestCase):
     def test_any_other_refusal_is_an_error(self):
         with patch.object(e2e_browsers, "Api") as api:
             api.return_value.call.side_effect = [self._error(403)]
-            with self.assertRaises(Exception):
-                e2e_browsers.register("http://x", self.Admin(), "carol", "pw")
+            admin = self.Admin()
+            with self.assertRaises(urllib.error.HTTPError):
+                e2e_browsers.register("http://x", admin, "carol", "pw")
 
     def test_registering_sends_the_invite_the_admin_issued(self):
         with patch.object(e2e_browsers, "Api") as api:
@@ -209,10 +211,10 @@ class LiveVideoTest(unittest.TestCase):
         later = (self._frames([40]) + self._frames([40], index=1))
         reads = iter([json.dumps(twice), json.dumps(later)] * 4)
         page = FakePage({"videos()": lambda: next(reads)}, name="carol")
+        probe = e2e_audio.AudioProbe(page)
         with patch.object(multishare.time, "sleep"):
             with self.assertRaisesRegex(AssertionError, "rendered more than once"):
-                multishare.wait_for_videos(
-                    e2e_audio.AudioProbe(page), [self.SID], 2, timeout=5)
+                multishare.wait_for_videos(probe, [self.SID], 2, timeout=5)
 
 
 class BrowserCleanupTest(unittest.TestCase):

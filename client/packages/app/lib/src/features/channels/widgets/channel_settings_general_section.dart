@@ -80,9 +80,8 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
       final updated = await ref
           .read(apiProvider)
           .updateChannel(
-            channelId: widget.channel.id,
-            name: _name.text.trim(),
-            topic: _topic.text,
+            widget.channel.id,
+            api.ChannelUpdate(name: _name.text.trim(), topic: _topic.text),
           );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([updated]);

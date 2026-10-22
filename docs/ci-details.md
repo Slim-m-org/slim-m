@@ -81,6 +81,11 @@ Locally the whole list takes about nine minutes, but a CI runner took 20.6 minut
 The job has no `needs`, so it runs beside the test shards.
 It is not in `verify-client-ci`'s `required_checks`.
 
+### The app shards are dealt by measured time
+
+The twelve `app-N` legs deal `packages/app`'s test files by measured time, not by count: `scripts/lib/client_shards.py deal` puts each file, longest first, on the emptiest shard using the seconds in `scripts/lib/client_durations.json`, and a file missing from it costs a default so a new test is never dropped.
+To refresh the durations after the suite changes a lot, run `flutter test --reporter json --concurrency=2 > run.json` in `client/packages/app`, then `python3 scripts/lib/client_shards.py record run.json`.
+
 ### Where a pull request's time goes, measured 2026-10-02
 
 Over the last 400 runs (2026-10-01 15:33 to 2026-10-02 01:25 UTC, 399 completed, jobs read with `gh run view --json jobs`):

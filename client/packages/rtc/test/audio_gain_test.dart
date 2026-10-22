@@ -7,19 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/session_fakes.dart';
+
 /// A room that connects without an SFU behind it, so a session can be driven
 /// far enough to hold state without any signalling.
-class _EmptyRoom extends lk.Room {
-  @override
-  Future<void> connect(
-    String url,
-    String token, {
-    lk.ConnectOptions? connectOptions,
-    lk.RoomOptions? roomOptions,
-    lk.FastConnectOptions? fastConnectOptions,
-  }) async {}
-}
-
 void main() {
   test('half volume is a clearly quieter -18 dB, full and double stay put', () {
     expect(perceptualParticipantGain(0.5), closeTo(0.125, 1e-9));
@@ -46,7 +37,7 @@ void main() {
   });
 
   test('a session reports the default until something sets one', () async {
-    final session = VoiceSession(roomFactory: _EmptyRoom.new);
+    final session = VoiceSession(roomFactory: ConnectlessRoom.new);
     addTearDown(session.dispose);
 
     expect(session.volumeFor('maya'), kDefaultParticipantVolume);
@@ -62,7 +53,7 @@ void main() {
 
   test('stores clamped, so no caller can stash a value the UI cannot show',
       () async {
-    final session = VoiceSession(roomFactory: _EmptyRoom.new);
+    final session = VoiceSession(roomFactory: ConnectlessRoom.new);
     addTearDown(session.dispose);
 
     await session.setVolumeFor('maya', 99);

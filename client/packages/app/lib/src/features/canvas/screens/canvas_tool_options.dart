@@ -8,7 +8,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_shape_icons.dart';
 
 /// Only the pen and shape have options; the others return an empty list.

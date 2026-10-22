@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.da
 import 'package:slimm_app/src/features/members/widgets/profile_colour_field.dart';
 import 'package:slimm_app/src/features/messages/widgets/reply_quote.dart';
 import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
+import 'package:slimm_app/src/widgets/color_swatch_row.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -163,9 +164,7 @@ void main() {
       const Scaffold(body: SingleChildScrollView(child: ProfileColourField())),
       overrides: [meProvider.overrideWith((ref) => Completer<api.Me>().future)],
     );
-    final swatches = find.byWidgetPredicate(
-      (w) => w.runtimeType.toString() == '_ColorSwatch',
-    );
+    final swatches = find.byWidgetPredicate((w) => w is SwatchTile);
     final count = AppCanvasColors.cursors.length + 1;
     expect(swatches, findsNWidgets(count));
     for (var i = 0; i < count; i++) {

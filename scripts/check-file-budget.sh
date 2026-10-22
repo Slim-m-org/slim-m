@@ -5,6 +5,7 @@
 # Warns at 300; past 500 (or an allowlisted ceiling) it warns within $slack lines
 # and fails beyond, so a file a few lines over gets a split card, not a split mid-feature.
 # Files already past 500 are in scripts/file-budget-allow.txt at their own ceiling.
+# File arguments narrow the scan to those files (the pre-commit hook passes the staged ones).
 # What is excluded and why, and why 300 does not fail, is in docs/ci.md.
 # schema/openapi.yaml is exempt outright: it is the wire contract, guarded by the
 # router contract test and the additive-only oasdiff gate, and no split helps it.
@@ -31,10 +32,18 @@ while IFS= read -r line; do
   ceiling["$path"]=$max
 done <"$allowfile"
 
+list_candidates() {
+  if (($# > 0)); then
+    printf '%s\n' "$@" | grep -E '\.(rs|dart|py|sh|swift|kt|kts|js|sql|yml|yaml|toml|cc|h|gradle)$' || true
+  else
+    git ls-files -- \
+      '*.rs' '*.dart' '*.py' '*.sh' '*.swift' '*.kt' '*.kts' '*.js' \
+      '*.sql' '*.yml' '*.yaml' '*.toml' '*.cc' '*.h' '*.gradle'
+  fi
+}
+
 mapfile -t files < <(
-  git ls-files -- \
-    '*.rs' '*.dart' '*.py' '*.sh' '*.swift' '*.kt' '*.kts' '*.js' \
-    '*.sql' '*.yml' '*.yaml' '*.toml' '*.cc' '*.h' '*.gradle' |
+  list_candidates "$@" |
     grep -v '^node_modules/' |
     grep -v '^\.sqlx/' |
     grep -Fxv 'schema/openapi.yaml' |
@@ -72,16 +81,19 @@ for f in "${files[@]}"; do
   fi
 done
 
-for f in "${!ceiling[@]}"; do
-  n=${hit[$f]:-}
-  if [[ -z $n ]]; then
-    echo "::error file=$allowfile::$f is allowlisted but is not a checked source file any more; remove the entry" >&2
-    fail=1
-  elif [[ $n -le $hard ]]; then
-    echo "::error file=$allowfile::$f is down to $n lines and no longer needs an entry; remove it" >&2
-    fail=1
-  fi
-done
+# A narrowed run sees too few files to tell a stale allowlist entry.
+if (($# == 0)); then
+  for f in "${!ceiling[@]}"; do
+    n=${hit[$f]:-}
+    if [[ -z $n ]]; then
+      echo "::error file=$allowfile::$f is allowlisted but is not a checked source file any more; remove the entry" >&2
+      fail=1
+    elif [[ $n -le $hard ]]; then
+      echo "::error file=$allowfile::$f is down to $n lines and no longer needs an entry; remove it" >&2
+      fail=1
+    fi
+  done
+fi
 
 echo "file budget: ${#files[@]} files checked, $soft_count over $soft, $hard_count over $hard, ${#ceiling[@]} allowlisted"
 exit $fail

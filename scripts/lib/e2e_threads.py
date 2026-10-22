@@ -126,7 +126,7 @@ def open_reply_and_stay_off_the_rail(sender, receiver, channel, admin_api,
         below = [n for n in sender.nodes()
                  if 'open thread.' in n['t'].lower() and n['y'] >= row['y']]
         summary = min(below, key=lambda n: n['y']) if below else None
-        time.sleep(1)
+        time.sleep(0.25)
     assert summary, 'the parent message shows no reply-count affordance'
     assert '1 repl' in summary['t'].lower(), \
         f'the reply-count affordance does not read 1 reply: {summary["t"]!r}'

@@ -16,8 +16,8 @@ import 'rail_drag_lift.dart';
 import 'rail_move_actions.dart';
 import '../../../widgets/hold_then_move_drag.dart';
 
-/// The gap a channel row keeps from the rail's left edge.
-const kRailRowInset = AppSpacing.s8;
+/// The gap a channel row keeps from the rail's left edge; wider than a header's own so rows read as nested under it.
+const kRailRowInset = AppSpacing.s16;
 
 /// One category's ordered channels, `null` for the implicit uncategorised
 /// section, which always renders first.

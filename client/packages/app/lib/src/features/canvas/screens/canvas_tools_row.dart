@@ -21,7 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_overflow_menu.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_tool_buttons.dart';
 
 /// Read by tests to find the tool strip's edge fades without matching on any

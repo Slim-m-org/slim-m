@@ -123,6 +123,28 @@ void main() {
     await tester.pump();
 
     expect(find.text('Priya'), findsOneWidget);
+    expect(find.byIcon(AppIcons.mic), findsOneWidget);
+    expect(find.byIcon(AppIcons.micOff), findsNothing);
+
+    await tester.pumpWidget(
+      _wrap(
+        const CanvasCameraBadge(
+          participant: VoiceParticipant(
+            identity: 'user-priya',
+            name: 'Priya',
+            isSpeaking: false,
+            isMuted: true,
+            isLocal: false,
+            isScreenSharing: false,
+            isCameraOn: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byIcon(AppIcons.micOff), findsOneWidget);
+    expect(find.byIcon(AppIcons.mic), findsNothing);
   });
 
   testWidgets(

@@ -58,12 +58,7 @@ class _MemberPaneSlot extends ConsumerWidget {
               alignment: Alignment.centerLeft,
               child: AppPanelReveal(
                 fromLeft: false,
-                child: AppMemberPane(
-                  channelId: channelId,
-                  onClose: () =>
-                      ref.read(memberPaneVisibleProvider.notifier).state =
-                          false,
-                ),
+                child: AppMemberPane(channelId: channelId),
               ),
             )
           : const SizedBox.shrink(),

@@ -155,55 +155,60 @@ void main() {
 
     await tester.pumpWidget(_scope(container, const AvatarSettingsSection()));
     await tester.pumpAndSettle();
-    expect(find.text('Custom image'), findsOneWidget);
+    expect(find.text('Image'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Remove profile banner'));
     await tester.pumpAndSettle();
 
     expect(calls, contains('DELETE /me/banner'));
-    expect(find.text('Your profile colour'), findsOneWidget);
-    expect(find.text('Custom image'), findsNothing);
+    expect(find.text('Colour'), findsOneWidget);
+    expect(find.text('Image'), findsNothing);
     expect(find.bySemanticsLabel('Remove profile banner'), findsNothing);
   });
 
-  testWidgets('the banner row previews the band and sets the colour', (
-    tester,
-  ) async {
-    final patches = <Map<String, dynamic>>[];
-    final container = ProviderContainer(
-      overrides: [
-        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
-        bannerBytesProvider.overrideWith(
-          (ref, key) async => Uint8List.fromList(_gif),
-        ),
-        mockApiOverride((request) async {
-          if (request.method == 'PATCH' && request.url.path == '/me') {
-            patches.add(jsonDecode(request.body) as Map<String, dynamic>);
-          }
-          return http.Response(
-            jsonEncode(_me(5)),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+  testWidgets(
+    'the banner image tile shows the image and a colour swaps it out',
+    (tester) async {
+      final patches = <Map<String, dynamic>>[];
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+          bannerBytesProvider.overrideWith(
+            (ref, key) async => Uint8List.fromList(_gif),
+          ),
+          mockApiOverride((request) async {
+            if (request.method == 'PATCH' && request.url.path == '/me') {
+              patches.add(jsonDecode(request.body) as Map<String, dynamic>);
+            }
+            return http.Response(
+              jsonEncode(_me(5)),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await tester.pumpWidget(_scope(container, const AvatarSettingsSection()));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_scope(container, const AvatarSettingsSection()));
+      await tester.pumpAndSettle();
 
-    final preview = find.descendant(
-      of: find.byKey(const Key('banner-settings-preview')),
-      matching: find.byType(Image),
-    );
-    expect(preview, findsOneWidget, reason: 'the chosen image is previewed');
+      final preview = find.descendant(
+        of: find.byKey(const Key('banner-image-tile')),
+        matching: find.byType(Image),
+      );
+      expect(
+        preview,
+        findsOneWidget,
+        reason: 'the image tile shows a thumbnail',
+      );
 
-    await tester.tap(find.bySemanticsLabel('Profile colour: Green'));
-    await tester.pumpAndSettle();
-    expect(patches, [
-      {'profile_color': 4},
-    ]);
-  });
+      await tester.tap(find.bySemanticsLabel('Profile colour: Green'));
+      await tester.pumpAndSettle();
+      expect(patches, [
+        {'profile_color': 4},
+      ]);
+    },
+  );
 }

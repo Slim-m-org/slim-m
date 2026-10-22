@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channels (id, name, kind, created_at, category_id) VALUES (?, 'general', 'text', ?,\n             (SELECT id FROM channel_categories WHERE name = 'Text' AND deleted_at IS NULL\n              ORDER BY position LIMIT 1))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "46af9f6ec7c205f3bf324e57cf2c6443c4e7b87bffa8e1caf441ad28a970991e"
+}

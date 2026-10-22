@@ -4,11 +4,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../modules/providers/dock_reservation.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
+import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_collapse.dart';
 import 'canvas_hidden_tiles.dart';
@@ -114,15 +117,14 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
         builder: (context, revealed) => Padding(
           padding: EdgeInsets.fromLTRB(
             AppSpacing.s12,
-            canvas().fullscreen ? AppSpacing.s8 : AppSpacing.s12,
+            // Flush in fullscreen, so the handle tab sits on the dock's top edge.
+            canvas().fullscreen ? 0 : AppSpacing.s12,
             AppSpacing.s12,
             AppSpacing.s12,
           ),
           child: DockHeightReporter(
             foldedHeight: revealed ? null : canvasDockHandleHeight,
-            extraHeight: canvas().fullscreen
-                ? canvasDockHandleHeight + AppSpacing.s8
-                : 0,
+            extraHeight: canvas().fullscreen ? canvasDockHandleHeight : 0,
             // Nothing else here rebuilds for a tile hide or show.
             child: ListenableBuilder(
               listenable: _hidden,
@@ -137,4 +139,18 @@ class _CanvasDockOverlayState extends State<CanvasDockOverlay> {
       ),
     );
   }
+}
+
+/// The music badge, lifted above whatever dock height is currently reserved.
+class CanvasMusicBadge extends ConsumerWidget {
+  const CanvasMusicBadge({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => HoldMusicBadgeOverlay(
+    // The dock's own bottom margin is outside what it reports.
+    bottom:
+        ref.watch(bottomDockReservationProvider) +
+        AppSpacing.s12 +
+        AppSpacing.s8,
+  );
 }

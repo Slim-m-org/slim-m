@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
+import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
 import 'package:slimm_app/src/desktop/startup_screen.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/testing.dart';
@@ -33,6 +34,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(StartupScreen), findsNothing);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
   });
 
   testWidgets('shows the startup screen while not ready, and swaps to the '

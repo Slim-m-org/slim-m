@@ -35,6 +35,7 @@ api.Message alertMessage(
   String content, {
   String? authorId = 'alice',
   String? webhookUsername,
+  bool mentionsMe = false,
 }) => api.Message(
   id: 'm-${content.hashCode}',
   channelId: channelId,
@@ -45,6 +46,7 @@ api.Message alertMessage(
   createdAt: 0,
   editedAt: null,
   webhookUsername: webhookUsername,
+  mentionsMe: mentionsMe,
 );
 
 /// A wired policy over a fake server. [account] is what `/push/preference`
@@ -62,17 +64,13 @@ class AlertRig {
   String account;
   bool accountFails;
 
-  /// The names of the roles this account holds, as its own profile lists them.
-  List<String> roles = const [];
-
   /// When the schedule says the account is snoozed until, or null for none.
   int? snoozeUntil;
   bool scheduleFails = false;
   int scheduleRequests = 0;
 
-  /// Lookups of this account's own profile, and whether they are refused.
+  /// Lookups of this account's own profile, which the policy no longer makes.
   int meRequests = 0;
-  bool meFails = false;
   final Map<String, String> overrides;
   final bool parentFails;
 
@@ -133,22 +131,12 @@ class AlertRig {
     final path = request.url.path;
     if (path == '/me') {
       meRequests++;
-      if (meFails) return alertJson({'error': 'slow down'}, 429);
       return alertJson({
         'id': 'me',
         'username': 'nick',
         'display_name': 'Nick',
         'created_at': 0,
         'permissions': 0,
-      });
-    }
-    if (path == '/users/me') {
-      return alertJson({
-        'id': 'me',
-        'username': 'nick',
-        'display_name': 'Nick',
-        'created_at': 0,
-        'roles': roles,
       });
     }
     if (path == '/push/preference') {

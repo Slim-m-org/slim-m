@@ -8,16 +8,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 import 'support/no_audio_devices.dart';
 
-class _EmptyRoom extends lk.Room {
-  @override
-  Future<void> connect(
-    String url,
-    String token, {
-    lk.ConnectOptions? connectOptions,
-    lk.RoomOptions? roomOptions,
-    lk.FastConnectOptions? fastConnectOptions,
-  }) async {}
-}
+import 'support/session_fakes.dart';
 
 class _FakeMic implements MicPort {
   bool published = false;
@@ -94,7 +85,7 @@ void main() {
     gate = _CountingGate();
     session = VoiceSession(
       audioDevices: const NoAudioDevices(),
-      roomFactory: _EmptyRoom.new,
+      roomFactory: ConnectlessRoom.new,
       micPort: _FakeMic(),
       inputGate: InputGateMonitor(
         interval: _tick,

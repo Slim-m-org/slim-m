@@ -13,6 +13,8 @@ import 'autostart.dart';
 import 'autostart_target.dart';
 import 'install_format.dart';
 
+const _appName = 'slim-m';
+
 /// The app id every Linux package installs its desktop entry and icon under.
 const linuxAppId = 'top.npcserver.slimm';
 
@@ -120,7 +122,7 @@ class FlatpakAutostart implements Autostart {
           DBusDict.stringVariant({
             'reason': const DBusString('Start slim-m when you sign in'),
             'autostart': DBusBoolean(on),
-            'commandline': DBusArray.string(['slim-m', autostartArgument]),
+            'commandline': DBusArray.string([_appName, autostartArgument]),
           }),
         ],
       );
@@ -129,7 +131,7 @@ class FlatpakAutostart implements Autostart {
     }
     if (on) {
       await marker.parent.create(recursive: true);
-      await marker.writeAsString(XdgAutostart.desktopEntry('slim-m'));
+      await marker.writeAsString(XdgAutostart.desktopEntry(_appName));
     } else if (marker.existsSync()) {
       await marker.delete();
     }
@@ -144,7 +146,7 @@ class WindowsRunKeyAutostart implements Autostart {
   final Future<ProcessResult> Function(String, List<String>) run;
 
   static const key = r'HKCU\Software\Microsoft\Windows\CurrentVersion\Run';
-  static const valueName = 'slim-m';
+  static const valueName = _appName;
 
   /// The `reg` arguments that register or remove the login launch.
   static List<String> argumentsFor(bool on, String executable) => on

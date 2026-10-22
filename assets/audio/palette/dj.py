@@ -145,7 +145,7 @@ def call_ring(rng):
     step = 0.175
     x = np.zeros(int(16 * step * SR))
     pat = {0: A5, 2: E5, 3: A5, 5: C6, 7: E5, 8: D6, 10: A5, 11: D6, 13: E6, 15: C6}
-    kw = dict(kind="saw", fc0=3200, fc1=900, ftau=0.05, tau=0.1, detune=7)
+    kw = {"kind": "saw", "fc0": 3200, "fc1": 900, "ftau": 0.05, "tau": 0.1, "detune": 7}
     for s, m in pat.items():
         vel = 1.0 if s % 8 == 0 else 0.75
         place(x, subtractive(hz(m), 0.3, **kw), s * step, vel)

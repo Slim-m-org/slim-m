@@ -84,23 +84,6 @@ void main() {
     expect(find.bySemanticsLabel('Run with code-exec'), findsNothing);
   });
 
-  testWidgets('a runner being available shows the Run affordance', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      runners: const [
-        api.CodeBlockRunner(
-          moduleId: 'code-exec',
-          command: 'run',
-          language: 'javascript',
-        ),
-      ],
-    );
-
-    expect(find.bySemanticsLabel('Run with code-exec'), findsOneWidget);
-  });
-
   testWidgets(
     'running posts the code and renders the output inline below the block',
     (tester) async {

@@ -25,6 +25,9 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 0,
 );
 
+/// One backoff second, shrunk so the loop runs in tenths of the real time.
+const _step = Duration(milliseconds: 200);
+
 class _NoJitter implements Random {
   @override
   int nextInt(int max) => 0;
@@ -56,7 +59,8 @@ void main() {
           sessionProvider.overrideWithValue(api.SessionStore()),
           storeProvider.overrideWith((ref) async => MessageStore(db)),
           syncControllerProvider.overrideWith(
-            (ref) => SyncController(ref, random: _NoJitter()),
+            (ref) =>
+                SyncController(ref, random: _NoJitter(), backoffStep: _step),
           ),
           apiProvider.overrideWith((ref) {
             final client = api.SlimmApi(
@@ -97,10 +101,10 @@ void main() {
           expect(
             await untilState(
               SyncStatus.live,
-              const Duration(milliseconds: 1600),
+              const Duration(milliseconds: 1000),
             ),
             isTrue,
-            reason: 'the first drop retries after one second',
+            reason: 'the first drop retries after one step',
           );
 
           await server.dropSockets();
@@ -111,11 +115,11 @@ void main() {
           expect(
             await untilState(
               SyncStatus.live,
-              const Duration(milliseconds: 1400),
+              const Duration(milliseconds: 250),
             ),
             isFalse,
             reason:
-                'a connection that lasted moments earns no reset: two seconds now',
+                'a connection that lasted moments earns no reset: two steps now',
           );
 
           final lifecycle = container.read(appLifecycleProvider.notifier);
@@ -159,7 +163,8 @@ void main() {
           sessionProvider.overrideWithValue(api.SessionStore()),
           storeProvider.overrideWith((ref) async => MessageStore(db)),
           syncControllerProvider.overrideWith(
-            (ref) => SyncController(ref, random: _NoJitter()),
+            (ref) =>
+                SyncController(ref, random: _NoJitter(), backoffStep: _step),
           ),
           apiProvider.overrideWith((ref) {
             final client = api.SlimmApi(
@@ -187,13 +192,13 @@ void main() {
           expect(tickets, 1);
 
           server.pushEvent({'type': 'error', 'message': 'resync'});
-          await Future<void>.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 100));
           expect(
             tickets,
             1,
             reason: 'a fresh connection that lags waits its backoff',
           );
-          await Future<void>.delayed(const Duration(milliseconds: 1000));
+          await Future<void>.delayed(const Duration(milliseconds: 600));
           expect(tickets, 2);
         });
       } finally {

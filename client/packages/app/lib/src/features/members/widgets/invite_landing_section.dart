@@ -90,7 +90,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     await _run('save the description', () async {
       final updated = await ref
           .read(apiProvider)
-          .setSpaceSettings(description: text);
+          .setSpaceSettings(api.SpaceSettingsUpdate(description: text));
       _saved = updated.description;
       _description.text = updated.description;
     });

@@ -156,15 +156,6 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
             title: 'Picture',
             caption: 'Square images work best.',
             trailing: [
-              if (hasAvatar)
-                AppButton(
-                  label: 'Remove',
-                  variant: AppButtonVariant.ghost,
-                  semanticLabel: 'Remove profile picture',
-                  onPressed: enabled
-                      ? () => unawaited(_removeAndClear())
-                      : null,
-                ),
               AppButton(
                 label: 'Change',
                 semanticLabel: 'Change profile picture',
@@ -220,10 +211,5 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
         ],
       ),
     );
-  }
-
-  Future<void> _removeAndClear() async {
-    clearActionError();
-    await _remove();
   }
 }

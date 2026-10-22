@@ -43,18 +43,42 @@ Future<void> _realRelaunch() async {
 /// and starts the version already installed.
 const startupUpdateDeadline = Duration(minutes: 5);
 
+/// The seams of [runStartupUpdates], each defaulting to the real thing.
+class StartupUpdateDeps {
+  const StartupUpdateDeps({
+    this.check = checkForClientUpdate,
+    this.rpm = const RpmUpdater(),
+    this.relaunch = _realRelaunch,
+    this.format,
+    this.currentVersion,
+    this.selfApplies,
+    this.deadline = startupUpdateDeadline,
+  });
+
+  final CheckForClientUpdate check;
+  final RpmUpdater rpm;
+  final Relaunch relaunch;
+  final InstallFormat? format;
+  final String? currentVersion;
+  final bool? selfApplies;
+  final Duration deadline;
+}
+
 /// The splash's whole update pass. [container] carries the providers the
-/// splash renders from; every other parameter is a seam for tests.
+/// splash renders from; [deps] holds the seams for tests.
 Future<void> runStartupUpdates(
-  ProviderContainer container, {
-  CheckForClientUpdate check = checkForClientUpdate,
-  RpmUpdater rpm = const RpmUpdater(),
-  Relaunch relaunch = _realRelaunch,
-  InstallFormat? format,
-  String? currentVersion,
-  bool? selfApplies,
-  Duration deadline = startupUpdateDeadline,
-}) async {
+  ProviderContainer container, [
+  StartupUpdateDeps deps = const StartupUpdateDeps(),
+]) async {
+  final StartupUpdateDeps(
+    :check,
+    :rpm,
+    :relaunch,
+    :format,
+    :currentVersion,
+    :selfApplies,
+    :deadline,
+  ) = deps;
   if (!isDesktopHost || updateChecksDisabled()) return;
   try {
     final prefs = await container.read(preferencesProvider.future);

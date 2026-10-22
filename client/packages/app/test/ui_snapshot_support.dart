@@ -116,6 +116,11 @@ const phoneAndDesktop = ['phone-portrait', 'desktop'];
 /// boundary every settings and admin screen shares.
 const compactBracket = ['compact-599', 'compact-600'];
 
+/// Passed as `theme` to [renderSurface] to check and capture both themes from
+/// one mount; the snapshot name must then end in this value, which becomes
+/// `dark` and `light` in the two capture names.
+const darkAndLight = 'dark+light';
+
 /// Where PNGs land. Gitignored: these are for looking at, not for diffing.
 const snapshotDir = 'build/ui-snapshots';
 
@@ -408,6 +413,43 @@ Future<void> renderSurface(
   bool allowNoText = false,
   TextScaler? textScaler,
   Future<void> Function(WidgetTester tester)? afterSettle,
+}) => renderSurfaceThemes(
+  tester,
+  route,
+  viewportName,
+  theme == darkAndLight ? const ['dark', 'light'] : [theme],
+  (t) => theme == darkAndLight
+      ? snapshotName.substring(0, snapshotName.length - theme.length) + t
+      : snapshotName,
+  overrides: overrides,
+  settleJoinTransition: settleJoinTransition,
+  settleNestedResolve: settleNestedResolve,
+  knownTransient: knownTransient,
+  allowNoText: allowNoText,
+  textScaler: textScaler,
+  afterSettle: afterSettle,
+);
+
+/// [renderSurface] for several [themes] in one mount: the surface is built and
+/// settled in the first theme, captured, then the theme is switched in place
+/// and settled again before each further capture, so the shell, fonts and
+/// fixture are paid for once per viewport instead of once per theme.
+///
+/// [snapshotNameFor] maps a theme to the capture name, so the files written
+/// are the ones a per-theme [renderSurface] would write.
+Future<void> renderSurfaceThemes(
+  WidgetTester tester,
+  String route,
+  String viewportName,
+  List<String> themes,
+  String Function(String theme) snapshotNameFor, {
+  List<Override> overrides = const [],
+  bool settleJoinTransition = false,
+  bool settleNestedResolve = false,
+  bool knownTransient = false,
+  bool allowNoText = false,
+  TextScaler? textScaler,
+  Future<void> Function(WidgetTester tester)? afterSettle,
 }) async {
   tester.view.physicalSize = viewports[viewportName]!;
   tester.view.devicePixelRatio = 1.0;
@@ -415,17 +457,17 @@ Future<void> renderSurface(
 
   final fixture = await fixtureContainer(extraOverrides: overrides);
   final router = fixtureRouter(route);
-  final app = MaterialApp.router(
-    debugShowCheckedModeBanner: false,
-    theme: theme == 'dark'
-        ? buildTheme(Brightness.dark, AppTokens.dark)
-        : buildTheme(Brightness.light, AppTokens.light),
-    routerConfig: router,
-    // The same wrapper main.dart ships, so density matches the app.
-    builder: appChromeBuilder,
-  );
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
+  Widget build(String theme) {
+    final app = MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      theme: theme == 'dark'
+          ? buildTheme(Brightness.dark, AppTokens.dark)
+          : buildTheme(Brightness.light, AppTokens.light),
+      routerConfig: router,
+      // The same wrapper main.dart ships, so density matches the app.
+      builder: appChromeBuilder,
+    );
+    return UncontrolledProviderScope(
       container: fixture.container,
       child: RepaintBoundary(
         key: snapshotBoundary,
@@ -438,8 +480,10 @@ Future<void> renderSurface(
                 ),
               ),
       ),
-    ),
-  );
+    );
+  }
+
+  await tester.pumpWidget(build(themes.first));
   if (isModalFixtureRoute(route)) {
     // Settle at the base first, then push: see isModalFixtureRoute's doc.
     await tester.pump();
@@ -460,18 +504,29 @@ Future<void> renderSurface(
     await afterSettle(tester);
     await tester.pump(const Duration(milliseconds: 350));
   }
-  // Before writeSnapshot: its own extra pumps could mask what this looks for.
-  await expectSettled(
-    tester,
-    snapshotName,
-    knownTransient: knownTransient,
-    allowNoText: allowNoText,
-  );
+  Object? firstException;
+  for (final theme in themes) {
+    if (theme != themes.first) {
+      await tester.pumpWidget(build(theme));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+    final snapshotName = snapshotNameFor(theme);
+    // Before writeSnapshot: its own extra pumps could mask what this looks for.
+    await expectSettled(
+      tester,
+      snapshotName,
+      knownTransient: knownTransient,
+      allowNoText: allowNoText,
+    );
 
-  await writeSnapshot(tester, snapshotName);
+    await writeSnapshot(tester, snapshotName);
 
-  // pumpWidget already rethrows an overflow, so reaching here is the assertion.
-  expect(tester.takeException(), isNull);
+    // pumpWidget already rethrows an overflow, so reaching here is the assertion.
+    firstException ??= tester.takeException();
+  }
+  // Raised after every theme is captured, so one failing theme still writes the files its own test would.
+  expect(firstException, isNull);
 
   await teardownFixture(tester, fixture.container, fixture.db);
 }

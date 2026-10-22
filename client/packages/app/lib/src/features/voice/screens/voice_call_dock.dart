@@ -42,7 +42,6 @@ import '../providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import '../../canvas/screens/canvas_pane.dart';
 import '../widgets/call_leave_button.dart';
-import '../../../widgets/control_options_menu.dart' show ControlOption;
 import '../../canvas/screens/canvas_dock_toggle.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 
@@ -150,27 +149,15 @@ class _VoiceCallDockState extends State<VoiceCallDock>
             ...callRowsWithExtras(
               context,
               ref,
-              width: constraints.maxWidth,
-              controller: widget.controller,
-              voice: widget.voice,
-              toggle: channelId == null
-                  ? null
-                  : _CanvasToggleButton(channelId: channelId),
-              toggleMenu: [
-                if (channelId != null)
-                  ControlOption(
-                    label: ref.watch(canvasOpenProvider) == channelId
-                        ? 'Close canvas'
-                        : 'Open canvas',
-                    icon: AppIcons.canvas,
-                    onSelected: () =>
-                        ref
-                            .read(canvasOpenProvider.notifier)
-                            .state = ref.read(canvasOpenProvider) == channelId
-                        ? null
-                        : channelId,
-                  ),
-              ],
+              CallRowOptions(
+                width: constraints.maxWidth,
+                controller: widget.controller,
+                voice: widget.voice,
+                toggle: channelId == null
+                    ? null
+                    : _CanvasToggleButton(channelId: channelId),
+                spillRow: true,
+              ),
             ),
           ],
         ),

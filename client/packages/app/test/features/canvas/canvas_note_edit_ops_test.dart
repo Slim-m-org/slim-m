@@ -118,6 +118,23 @@ void main() {
     });
   });
 
+  test('a note regrown at the board edge stays on the board', () {
+    fakeAsync((async) {
+      final h = _Harness();
+      h.document
+        ..setBoard(canvasBoard)
+        ..moveObject('n', 100, 1000, 120, 80);
+      final longText = List.generate(8, (i) => 'paragraph $i\n').join();
+
+      unawaited(h.ops.editNote('n', longText));
+      async.flushMicrotasks();
+
+      final box = h.document.objectBounds('n')!;
+      expect(box.y + box.h, lessThanOrEqualTo(canvasBoard.bottom));
+      expect(h.document.idsOutsideBoard, isEmpty);
+    });
+  });
+
   test('editing shows the text at once and posts one edit op', () {
     fakeAsync((async) {
       final h = _Harness();

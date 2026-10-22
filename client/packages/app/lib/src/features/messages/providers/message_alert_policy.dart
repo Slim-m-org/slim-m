@@ -9,7 +9,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_data/data.dart' show Channel;
 
 import '../../../permissions.dart';
-import '../widgets/message_mentions.dart' show messageMentionsMe;
 import '../../members/providers/blocks_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
@@ -34,13 +33,10 @@ class MessageAlert {
 @visibleForTesting
 var alertStateMaxAge = const Duration(minutes: 1);
 
-/// How long a failed lookup of this account's name and roles waits before the
-/// next message may try again. A `var` so a test can shrink it.
-@visibleForTesting
-var selfLookupRetryAfter = const Duration(seconds: 30);
-
 /// How long an alert waits for that refetch before it uses what it already has.
-const _refreshWait = Duration(seconds: 2);
+/// A `var` so a test can shrink it.
+@visibleForTesting
+var alertRefreshWait = const Duration(seconds: 2);
 
 final messageAlertPolicyProvider = Provider<MessageAlertPolicy>(
   MessageAlertPolicy.new,
@@ -50,18 +46,6 @@ class MessageAlertPolicy {
   MessageAlertPolicy(this._ref);
 
   final Ref _ref;
-
-  /// This account's username and role names, cached against the id they were
-  /// resolved for (so another account signing in on the same device never
-  /// reuses them) and refetched once older than [alertStateMaxAge], since roles
-  /// change.
-  ({String username, List<String> roles})? _self;
-  String? _selfForId;
-  DateTime? _selfAt;
-  DateTime? _selfFailedAt;
-  String? _selfFailedForId;
-  String? _selfLookupForId;
-  Future<({String username, List<String> roles})?>? _selfLookup;
 
   /// Whether this account can post in each channel, for [_canSendIn].
   final Map<String, ({bool value, DateTime at})> _canSend = {};
@@ -86,7 +70,8 @@ class MessageAlertPolicy {
     final store = await _ref.read(storeProvider.future);
     final channel = await store.watchChannelRow(message.channelId).first;
     final isDm = channel?.kind == 'dm';
-    final mentionsSelf = !isDm && await _mentionsSelf(message, selfId);
+    // The server resolves this per viewer, including role and broadcast rights the client cannot see.
+    final mentionsSelf = !isDm && message.mentionsMe;
 
     final overrides = _ref.read(channelNotificationOverridesProvider);
     final parentId = await _parentChannelId(
@@ -124,88 +109,6 @@ class MessageAlertPolicy {
       return null;
     }
     return MessageAlert(isDm: isDm, mentionsSelf: mentionsSelf);
-  }
-
-  Future<bool> _mentionsSelf(api.Message message, String? selfId) async {
-    if (selfId == null) return false;
-    final me = await _resolveSelf(selfId);
-    return me != null &&
-        messageMentionsMe(
-          message.content,
-          username: me.username,
-          roleNames: me.roles,
-        );
-  }
-
-  /// Best-effort: a lookup failure just leaves messages read as not a mention
-  /// until [selfLookupRetryAfter] passes. A burst of messages shares one
-  /// lookup and a failure is not retried per message, since `/me` shares the
-  /// per-user read budget and a 429 there blanks the user panel.
-  Future<({String username, List<String> roles})?> _resolveSelf(String selfId) {
-    final now = DateTime.now();
-    final loadedAt = _selfAt;
-    final fresh =
-        _selfForId == selfId &&
-        loadedAt != null &&
-        now.difference(loadedAt) <= alertStateMaxAge;
-    final failedAt = _selfFailedAt;
-    // Scoped to the account that failed, so signing in as another one looks it up straight away.
-    final backingOff =
-        _selfFailedForId == selfId &&
-        failedAt != null &&
-        now.difference(failedAt) < selfLookupRetryAfter;
-    if (fresh || backingOff) {
-      return Future.value(_selfForId == selfId ? _self : null);
-    }
-    final inFlight = _selfLookup;
-    if (inFlight != null && _selfLookupForId == selfId) return inFlight;
-    _selfLookupForId = selfId;
-    final lookup = _lookUpSelf(selfId);
-    _selfLookup = lookup;
-    return lookup.whenComplete(() {
-      if (identical(_selfLookup, lookup)) _selfLookup = null;
-    });
-  }
-
-  Future<({String username, List<String> roles})?> _lookUpSelf(
-    String selfId,
-  ) async {
-    try {
-      final client = _ref.read(apiProvider);
-      final me = await client.me();
-      _self = (username: me.username, roles: await _roleNames(client, selfId));
-      _selfForId = selfId;
-      _selfAt = DateTime.now();
-      _selfFailedAt = null;
-      _selfFailedForId = null;
-    } on api.ApiException catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.ui,
-        'look up who you are for mention alerts',
-        error,
-        stack,
-      );
-      // Keeps the cache for this account, if there is one.
-      _selfFailedAt = DateTime.now();
-      _selfFailedForId = selfId;
-    }
-    return _selfForId == selfId ? _self : null;
-  }
-
-  /// Only `@[Role]` mentions need these, so a profile that cannot be read
-  /// costs that and nothing else.
-  Future<List<String>> _roleNames(api.SlimmApi client, String selfId) async {
-    try {
-      return (await client.getUser(selfId)).roles;
-    } on Object catch (error, stack) {
-      api.reportFailure(
-        api.LogTag.ui,
-        'look up your roles for mention alerts',
-        error,
-        stack,
-      );
-      return const [];
-    }
   }
 
   /// A channel's own default, or its parent's for a thread: a thread has none
@@ -272,7 +175,7 @@ class MessageAlertPolicy {
       final profile = await _ref
           .read(batchProfilesControllerProvider.notifier)
           .profile(authorId)
-          .timeout(_refreshWait);
+          .timeout(alertRefreshWait);
       return profile != null && (profile.isBot || profile.isWebhook);
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
@@ -298,7 +201,7 @@ class MessageAlertPolicy {
       final perms = await _ref
           .read(apiProvider)
           .getChannelPermissions(channelId)
-          .timeout(_refreshWait);
+          .timeout(alertRefreshWait);
       final value = perms.hasPermission(Perm.sendMessages);
       _canSend[channelId] = (value: value, at: DateTime.now());
       return value;
@@ -338,7 +241,7 @@ class MessageAlertPolicy {
       _loadedAt[provider] = loadedAt;
     }
     try {
-      return await _ref.read(future).timeout(_refreshWait);
+      return await _ref.read(future).timeout(alertRefreshWait);
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,

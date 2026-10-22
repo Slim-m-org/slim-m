@@ -19,47 +19,12 @@ bool messageMentionsUsername(String content, String username) {
   return _mentions(content, username: username);
 }
 
-/// Whether [content] is addressed to this account: its own `@username`, the
-/// broadcast mentions `@everyone` and `@here`, or `@[Role]` for a role in
-/// [roleNames]. What the server pushes for under a mentions-only preference,
-/// less its check of whether the author may broadcast, which the client
-/// cannot see: a message that looks like a mention in the transcript is
-/// treated as one here.
-bool messageMentionsMe(
-  String content, {
-  required String username,
-  Iterable<String> roleNames = const [],
-}) => _mentions(
-  content,
-  username: username,
-  broadcast: true,
-  roleNames: {for (final name in roleNames) name.toLowerCase()},
-);
-
-bool _mentionsUser(
-  String name, {
-  required String target,
-  required bool broadcast,
-}) {
-  if (target.isNotEmpty && name == target) return true;
-  return broadcast && (name == 'everyone' || name == 'here');
-}
-
-bool _mentions(
-  String content, {
-  required String username,
-  bool broadcast = false,
-  Set<String> roleNames = const {},
-}) {
+bool _mentions(String content, {required String username}) {
   final target = username.toLowerCase();
 
   bool hit(InlineNode node) => switch (node) {
-    InlineMention(:final raw) => _mentionsUser(
-      raw.substring(1).toLowerCase(),
-      target: target,
-      broadcast: broadcast,
-    ),
-    InlineRoleMention(:final name) => roleNames.contains(name.toLowerCase()),
+    InlineMention(:final raw) =>
+      target.isNotEmpty && raw.substring(1).toLowerCase() == target,
     InlineBold(:final children) ||
     InlineItalic(:final children) ||
     InlineStrikethrough(:final children) ||
@@ -67,6 +32,7 @@ bool _mentions(
     InlineText() ||
     InlineCode() ||
     InlineEmoji() ||
+    InlineRoleMention() ||
     InlineLink() ||
     InlineMessageLink() ||
     InlineChannelMention() => false,

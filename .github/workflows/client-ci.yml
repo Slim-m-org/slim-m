@@ -110,6 +110,10 @@ jobs:
   # Halving the split trades four more runners' worth of setup for roughly
   # half the test time. The count is worth re-measuring rather than raising
   # on faith: past some point queueing for runners costs more than it saves.
+  # Twelve since 2026-10-22: on a main run the eight shards' test step took
+  # 18-26 minutes against the 30-minute job limit, and one PR shard hit it.
+  # Files are dealt by measured time (scripts/lib/client_shards.py), not by
+  # count, so the slowest shard stays near the mean.
   test-shards:
     name: client tests (${{ matrix.label }})
     runs-on: ubuntu-24.04
@@ -119,21 +123,29 @@ jobs:
       matrix:
         include:
           - label: app-1
-            shard: "--total-shards=8 --shard-index=0"
+            shard: "0"
           - label: app-2
-            shard: "--total-shards=8 --shard-index=1"
+            shard: "1"
           - label: app-3
-            shard: "--total-shards=8 --shard-index=2"
+            shard: "2"
           - label: app-4
-            shard: "--total-shards=8 --shard-index=3"
+            shard: "3"
           - label: app-5
-            shard: "--total-shards=8 --shard-index=4"
+            shard: "4"
           - label: app-6
-            shard: "--total-shards=8 --shard-index=5"
+            shard: "5"
           - label: app-7
-            shard: "--total-shards=8 --shard-index=6"
+            shard: "6"
           - label: app-8
-            shard: "--total-shards=8 --shard-index=7"
+            shard: "7"
+          - label: app-9
+            shard: "8"
+          - label: app-10
+            shard: "9"
+          - label: app-11
+            shard: "10"
+          - label: app-12
+            shard: "11"
           - label: other-packages
             shard: ""
     steps:
@@ -169,7 +181,16 @@ jobs:
       - name: packages/app (sharded)
         if: matrix.label != 'other-packages'
         working-directory: client/packages/app
-        run: flutter test ${{ matrix.shard }}
+        env:
+          SHARDS: "12"
+          SHARD_INDEX: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(python3 ../../../scripts/lib/client_shards.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
+          printf 'shard %s/%s: %d files\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
+          # A failed dealer inside < <(...) escapes set -e, and an empty list makes flutter test run every file.
+          if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
+          flutter test "${files[@]}"
 
       # Every package with a test/ directory EXCEPT app, which the shards above
       # own. The exclusion is by name here and the shards are named explicitly,

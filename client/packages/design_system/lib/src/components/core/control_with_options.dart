@@ -35,6 +35,7 @@ class AppControlWithOptions extends StatelessWidget {
     required this.onOpenOptions,
     required this.optionsLabel,
     this.active = false,
+    this.destructive = false,
     this.touch,
     this.visualHeight = AppSizes.controlMd,
   });
@@ -50,6 +51,9 @@ class AppControlWithOptions extends StatelessWidget {
 
   /// Tints the caret to match an [active] primary control beside it.
   final bool active;
+
+  /// Carries a [destructive] primary's danger outline around the caret, so the pair reads as one muted control.
+  final bool destructive;
 
   /// Null means "whatever this subtree is at", read from [AppTouchTargets].
   final bool? touch;
@@ -86,6 +90,7 @@ class AppControlWithOptions extends StatelessWidget {
             _OptionsCaret(
               label: optionsLabel,
               active: active,
+              destructive: destructive,
               touch: touch ?? AppTouchTargets.of(context),
               visualHeight: visualHeight,
               onPressed: () {
@@ -116,6 +121,7 @@ class _OptionsCaret extends StatelessWidget {
   const _OptionsCaret({
     required this.label,
     required this.active,
+    required this.destructive,
     required this.touch,
     required this.onPressed,
     required this.visualHeight,
@@ -123,6 +129,7 @@ class _OptionsCaret extends StatelessWidget {
 
   final String label;
   final bool active;
+  final bool destructive;
   final bool touch;
   final VoidCallback onPressed;
   final double visualHeight;
@@ -156,9 +163,13 @@ class _OptionsCaret extends StatelessWidget {
                   height: visualHeight,
                   // The left border is the hairline seam between the halves.
                   decoration: BoxDecoration(
-                    color: active ? tokens.accentSoft : tokens.surfaceRaised,
+                    color: _fill(tokens),
                     borderRadius: _caretRadius,
-                    border: Border.all(color: tokens.borderSubtle),
+                    border: Border.all(
+                      color: destructive
+                          ? tokens.dangerBorder
+                          : tokens.borderSubtle,
+                    ),
                   ),
                   foregroundDecoration: appInsetFocusDecoration(
                     context,
@@ -168,7 +179,7 @@ class _OptionsCaret extends StatelessWidget {
                   child: Icon(
                     AppIcons.chevronDown,
                     size: AppSizes.icon16,
-                    color: active ? tokens.accent : tokens.textSecondary,
+                    color: _iconColor(tokens),
                   ),
                 ),
               ),
@@ -177,5 +188,15 @@ class _OptionsCaret extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _fill(AppTokens tokens) {
+    if (destructive) return Colors.transparent;
+    return active ? tokens.accentSoft : tokens.surfaceRaised;
+  }
+
+  Color _iconColor(AppTokens tokens) {
+    if (destructive) return tokens.dangerText;
+    return active ? tokens.accent : tokens.textSecondary;
   }
 }

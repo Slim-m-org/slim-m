@@ -114,7 +114,7 @@ class _SeededPresses extends ButtonPressesController {
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final viewportName in phoneAndDesktop) {
       testWidgets('channel-bot-buttons at $viewportName ($theme) fits', (
         tester,

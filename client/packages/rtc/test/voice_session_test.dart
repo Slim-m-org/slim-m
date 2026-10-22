@@ -13,10 +13,12 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 import 'support/no_audio_devices.dart';
 
+import 'support/session_fakes.dart';
+
 /// A room that fails to connect, standing in for a bad token, an unreachable
 /// SFU, or a network that went away mid-handshake. All three arrive here the
 /// same way.
-class _FailingRoom extends lk.Room {
+class _FailingRoom extends ConnectlessRoom {
   _FailingRoom(this.error);
   final Object error;
 

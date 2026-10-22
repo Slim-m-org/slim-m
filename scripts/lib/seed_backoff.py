@@ -46,7 +46,8 @@ def describe_error(exc):
     if isinstance(exc, urllib.error.HTTPError):
         try:
             detail = exc.read().decode(errors="replace")[:300]
-        except Exception:  # noqa: BLE001 - the body is a bonus, not the point
+        # the body is a bonus, not the point
+        except Exception:  # noqa: BLE001
             detail = ""
         return f"HTTP {exc.code}{': ' + detail if detail else ''}"
     return str(exc)

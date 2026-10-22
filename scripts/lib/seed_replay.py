@@ -21,7 +21,8 @@ def _try(failures, ctx, action_name, action):
     """
     try:
         return True, action()
-    except Exception as exc:  # noqa: BLE001 - a dropped action is reported, never silent
+    # a dropped action is reported, never silent
+    except Exception as exc:  # noqa: BLE001
         failures.append((ctx["username"], action_name, seed_backoff.describe_error(exc)))
         return False, None
 
@@ -63,72 +64,88 @@ def replay(conversation, accounts_by_display, main_channel_id, state, rng,
     since it only changes which prior message a top-level reply points at,
     never which channel the reply itself lands in.
     """
-    stats = collections.Counter()
-    failures = []
-    turn_message_ids = {}
-    turn_channel_ids = {}
-    turn_authors = {}
-    thread_channel_for = {}
-    most_recent_in_channel = {}
-
+    run = _Replay(accounts_by_display, main_channel_id, state)
     for idx, turn in enumerate(conversation.turns):
+        run.play(idx, turn, rng, pace_range)
+    return run.stats, run.failures
+
+
+class _Replay:
+    def __init__(self, accounts_by_display, main_channel_id, state):
+        self.accounts_by_display = accounts_by_display
+        self.main_channel_id = main_channel_id
+        self.state = state
+        self.stats = collections.Counter()
+        self.failures = []
+        self.message_ids = {}
+        self.channel_ids = {}
+        self.authors = {}
+        self.thread_channel_for = {}
+        self.most_recent_in_channel = {}
+
+    def play(self, idx, turn, rng, pace_range):
         if turn.speaker is None:
-            continue
-        ctx = accounts_by_display.get(turn.speaker)
+            return
+        ctx = self.accounts_by_display.get(turn.speaker)
         if ctx is None:
-            stats["conversation_skipped_speaker"] += 1
-            continue
+            self.stats["conversation_skipped_speaker"] += 1
+            return
 
-        target_channel = main_channel_id
+        target_channel = self.main_channel_id
         if turn.in_thread >= 0:
-            target_channel = thread_channel_for.get(turn.in_thread, main_channel_id)
-
-        reply_to_id = None
-        reply_to_author = None
-        if turn.reply_to >= 0:
-            if turn_channel_ids.get(turn.reply_to) == target_channel:
-                reply_to_id = turn_message_ids.get(turn.reply_to)
-                reply_to_author = turn_authors.get(turn.reply_to)
-            elif target_channel in most_recent_in_channel:
-                reply_to_id, reply_to_author = most_recent_in_channel[target_channel]
+            target_channel = self.thread_channel_for.get(
+                turn.in_thread, self.main_channel_id)
+        reply_to_id, reply_to_author = self._reply_target(turn, target_channel)
 
         text = turn.text
         if reply_to_id is not None and reply_to_author and reply_to_author != ctx["username"]:
             text = f"@{reply_to_author} {text}"[:seed_content.MAX_MESSAGE_CHARS]
 
-        ok, msg = _try(failures, ctx, "conversation_message",
+        ok, msg = _try(self.failures, ctx, "conversation_message",
                         lambda ctx=ctx, target_channel=target_channel, text=text,
                         reply_to_id=reply_to_id: _send(ctx, target_channel, text, reply_to_id))
         time.sleep(rng.uniform(*pace_range))
         if not ok:
-            continue
-        stats["conversation_message"] += 1
-        turn_message_ids[idx] = msg["id"]
-        turn_channel_ids[idx] = target_channel
-        turn_authors[idx] = ctx["username"]
-        most_recent_in_channel[target_channel] = (msg["id"], ctx["username"])
+            return
+        self.stats["conversation_message"] += 1
+        self.message_ids[idx] = msg["id"]
+        self.channel_ids[idx] = target_channel
+        self.authors[idx] = ctx["username"]
+        self.most_recent_in_channel[target_channel] = (msg["id"], ctx["username"])
 
-        if target_channel == main_channel_id:
-            state.add_top_message(msg["id"], main_channel_id, ctx["username"])
+        if target_channel == self.main_channel_id:
+            self.state.add_top_message(msg["id"], self.main_channel_id, ctx["username"])
             if turn.thread_root:
-                ok, thread = _try(
-                    failures, ctx, "conversation_open_thread",
-                    lambda ctx=ctx, mid=msg["id"]: _open_thread(ctx, main_channel_id, mid))
-                if ok:
-                    stats["conversation_open_thread"] += 1
-                    thread_channel_for[idx] = thread["id"]
-                    state.add_thread(msg["id"], thread["id"])
+                self._open_thread(idx, ctx, msg["id"])
+        self._react_all(turn, msg["id"])
 
+    def _reply_target(self, turn, target_channel):
+        if turn.reply_to < 0:
+            return None, None
+        if self.channel_ids.get(turn.reply_to) == target_channel:
+            return (self.message_ids.get(turn.reply_to),
+                    self.authors.get(turn.reply_to))
+        if target_channel in self.most_recent_in_channel:
+            return self.most_recent_in_channel[target_channel]
+        return None, None
+
+    def _open_thread(self, idx, ctx, message_id):
+        ok, thread = _try(
+            self.failures, ctx, "conversation_open_thread",
+            lambda: _open_thread(ctx, self.main_channel_id, message_id))
+        if ok:
+            self.stats["conversation_open_thread"] += 1
+            self.thread_channel_for[idx] = thread["id"]
+            self.state.add_thread(message_id, thread["id"])
+
+    def _react_all(self, turn, message_id):
         for emoji, reactor_names in turn.reactions:
             for name in reactor_names:
-                reactor = accounts_by_display.get(name)
+                reactor = self.accounts_by_display.get(name)
                 if reactor is None:
                     continue
                 ok, _result = _try(
-                    failures, reactor, "conversation_react",
-                    lambda reactor=reactor, emoji=emoji, mid=msg["id"]:
-                        _react(reactor, mid, emoji))
+                    self.failures, reactor, "conversation_react",
+                    lambda reactor=reactor, emoji=emoji: _react(reactor, message_id, emoji))
                 if ok:
-                    stats["conversation_react"] += 1
-
-    return stats, failures
+                    self.stats["conversation_react"] += 1

@@ -72,26 +72,28 @@ List<Widget> _screenRows(
   final controller = ref.read(voiceControllerProvider.notifier);
   return shareStageMenuItems(
     close,
-    sharerName: p.name,
-    onPopOut: _popOut(ref, p, FeedKind.screenShare),
-    onStreamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
-        ? () => showParticipantVolumePopover(
-            context,
-            identity: p.identity,
-            name: p.name,
-            controller: controller,
-            screenOnly: true,
-          )
-        : null,
-    onStopWatching: () => watch.stop(p.identity),
-    onFullscreen: withFullscreen
-        ? () => showFullscreenVideo(
-            context,
-            identity: p.identity,
-            label: p.isLocal ? 'Your screen' : "${p.name}'s screen",
-            kind: FullscreenVideoKind.screenShare,
-          )
-        : null,
+    ShareStageMenu(
+      sharerName: p.name,
+      onPopOut: _popOut(ref, p, FeedKind.screenShare),
+      onStreamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
+          ? () => showParticipantVolumePopover(
+              context,
+              identity: p.identity,
+              name: p.name,
+              controller: controller,
+              screenOnly: true,
+            )
+          : null,
+      onStopWatching: () => watch.stop(p.identity),
+      onFullscreen: withFullscreen
+          ? () => showFullscreenVideo(
+              context,
+              identity: p.identity,
+              label: p.isLocal ? 'Your screen' : "${p.name}'s screen",
+              kind: FullscreenVideoKind.screenShare,
+            )
+          : null,
+    ),
   );
 }
 

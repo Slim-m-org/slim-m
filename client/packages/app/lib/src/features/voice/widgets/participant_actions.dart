@@ -20,22 +20,47 @@ enum ParticipantAction {
 
 enum ParticipantSurface { card, menu }
 
+/// What [participantActions] needs to know about one participant and the
+/// surface asking.
+class ParticipantActionContext {
+  const ParticipantActionContext({
+    required this.surface,
+    required this.isSelf,
+    required this.inCallTogether,
+    required this.supportsVolume,
+    required this.hasProfile,
+    required this.showModeration,
+    this.canCall = false,
+    this.canMove = false,
+  });
+
+  final ParticipantSurface surface;
+  final bool isSelf;
+  final bool inCallTogether;
+  final bool supportsVolume;
+  final bool hasProfile;
+  final bool showModeration;
+  final bool canCall;
+  final bool canMove;
+}
+
 /// The actions [surface] offers, in the order both show them.
 ///
 /// The card is itself the profile, so it never lists [ParticipantAction
 /// .viewProfile]. Volume and mute are call-only and local to this listener;
 /// Call is the reverse, offered only to someone you are not already in a call
 /// with, and only where the caller says calling them is possible.
-List<ParticipantAction> participantActions({
-  required ParticipantSurface surface,
-  required bool isSelf,
-  required bool inCallTogether,
-  required bool supportsVolume,
-  required bool hasProfile,
-  required bool showModeration,
-  bool canCall = false,
-  bool canMove = false,
-}) {
+List<ParticipantAction> participantActions(ParticipantActionContext context) {
+  final ParticipantActionContext(
+    :surface,
+    :isSelf,
+    :inCallTogether,
+    :supportsVolume,
+    :hasProfile,
+    :showModeration,
+    :canCall,
+    :canMove,
+  ) = context;
   if (isSelf) return const [];
   return [
     if (inCallTogether && supportsVolume) ParticipantAction.volume,

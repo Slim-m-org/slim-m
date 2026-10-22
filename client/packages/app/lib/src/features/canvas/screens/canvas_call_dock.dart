@@ -51,14 +51,13 @@ import '../../voice/widgets/bot_call_controls.dart';
 import '../../voice/widgets/call_leave_button.dart';
 import '../../modules/screens/dock_solo_controls.dart';
 import '../../voice/widgets/voice_call_controls.dart';
-import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
 import '../../../widgets/floating_dock_card.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_dock_toggle.dart';
 import 'canvas_dock_tools.dart';
-import 'canvas_pen_style.dart';
+import '../providers/canvas_pen_style.dart';
 import 'canvas_tools_row.dart';
 
 /// The call half of the dock: exactly what `CallControls` already needs.
@@ -239,15 +238,17 @@ class CanvasCallDock extends ConsumerWidget {
             ...callRowsWithExtras(
               context,
               ref,
-              width: constraints.maxWidth,
-              controller: call.controller,
-              voice: call.voice,
+              CallRowOptions(
+                width: constraints.maxWidth,
+                controller: call.controller,
+                voice: call.voice,
+              ),
             ),
           ],
         ),
       );
     }
-    final alone = ref.watch(callAloneProvider);
+    final alone = soloMusicInDock(context, ref);
     final extra = alone ? dockExtraExtent(context) : 0.0;
     return LayoutBuilder(
       key: const ValueKey('call-and-canvas'),

@@ -110,6 +110,6 @@ def wait_exact(client, label, timeout=20):
         node = exact(client, label)
         if node:
             return node
-        time.sleep(0.5)
+        time.sleep(0.25)
     client.shot(f"missing-exact-{label[:20].replace(' ', '-')}")
     raise AssertionError(f"{client.name}: never saw exactly {label!r}")

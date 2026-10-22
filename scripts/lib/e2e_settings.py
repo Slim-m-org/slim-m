@@ -84,7 +84,7 @@ def change_status(client, api):
         status = row['status'] if row else None
         if status == 'dnd':
             break
-        time.sleep(1)
+        time.sleep(0.25)
     assert status == 'dnd', f'the server still reports status {status!r}'
     print('  status changed to do-not-disturb, and the server agrees')
 
@@ -106,7 +106,7 @@ def upload_avatar(client, api, path):
         if me.get('avatar_updated_at'):
             served = me
             break
-        time.sleep(2)
+        time.sleep(0.5)
     assert served, 'the server recorded no avatar'
     body = api.call('GET', f'/users/{served["id"]}/avatar')
     assert body and len(body) > 100, 'the avatar served back empty'
@@ -142,7 +142,7 @@ def change_join_policy(client, api):
     while time.time() < deadline:
         if api.space_settings()['join_policy'] == 'open':
             break
-        time.sleep(2)
+        time.sleep(0.5)
     after = api.space_settings()['join_policy']
     assert after == 'open', f'join policy is {after!r}, not open'
     assert after != before, 'the join policy did not change'
@@ -158,7 +158,7 @@ def change_join_policy(client, api):
     while time.time() < deadline:
         if api.space_settings()['join_policy'] == 'invite':
             break
-        time.sleep(2)
+        time.sleep(0.5)
     assert api.space_settings()['join_policy'] == 'invite', \
         'the Space was left open'
     print('  and back to invite-only, so the run leaves nothing open')

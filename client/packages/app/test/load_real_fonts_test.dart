@@ -19,13 +19,16 @@ void main() {
     );
   });
 
-  test('a colour emoji face that cannot be found warns rather than failing '
-      'the whole render, since it is a system font and not ours to ship', () {
-    expect(
-      loadEmojiFont(pathsOverride: const ['/definitely/not/an/emoji/font']),
-      completes,
-    );
-  });
+  test(
+    'a colour emoji face that cannot be found does not fail the whole render, '
+    'since it is a system font and not ours to ship',
+    () {
+      expect(
+        loadEmojiFont(pathsOverride: const ['/definitely/not/an/emoji/font']),
+        completes,
+      );
+    },
+  );
 
   test('the machine writing snapshots has a colour emoji face, so a reaction '
       'in a captured render is the real glyph rather than a tofu box', () {

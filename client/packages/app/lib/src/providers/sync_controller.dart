@@ -107,9 +107,12 @@ SyncStatus displaySyncStatus(SyncStatus status, bool hasFailedSinceLive) {
 /// rotation in between, so a routine access-token refresh mid-session does
 /// not drop and reconnect the socket for no reason.
 class SyncController extends StateNotifier<SyncStatus> {
-  SyncController(this._ref, {Random? random})
-    : _backoff = ReconnectBackoff(random: random),
-      super(SyncStatus.offline) {
+  SyncController(
+    this._ref, {
+    Random? random,
+    Duration backoffStep = const Duration(seconds: 1),
+  }) : _backoff = ReconnectBackoff(random: random, step: backoffStep),
+       super(SyncStatus.offline) {
     final session = _ref.read(sessionProvider);
     // Subscribe before reading the current value, so a change landing between the two is never missed.
     _sessionSubscription = session.changes.listen((tokens) {

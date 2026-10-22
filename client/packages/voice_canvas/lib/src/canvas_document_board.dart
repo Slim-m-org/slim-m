@@ -95,9 +95,24 @@ extension CanvasDocumentBoard on CanvasDocument {
     if (board != null) setCamera(boardFitCamera(board, _fitView));
   }
 
-  /// Fits the camera to the drawn objects above the dock; the whole board when nothing is drawn.
+  /// The union of the parts of live objects that lie on the board, or null when none do.
+  ui.Rect? get boardContentBounds {
+    final board = _board;
+    if (board == null) return contentBounds;
+    ui.Rect? bounds;
+    for (final stroke in _strokes) {
+      if (stroke == null || !stroke.alive) continue;
+      final box = ui.Rect.fromLTWH(stroke.x, stroke.y, stroke.w, stroke.h);
+      if (!box.overlaps(board)) continue;
+      final onBoard = box.intersect(board);
+      bounds = bounds?.expandToInclude(onBoard) ?? onBoard;
+    }
+    return bounds;
+  }
+
+  /// Fits the camera to the drawn objects on the board above the dock; the whole board when none are.
   void fitContent() {
-    final bounds = contentBounds;
+    final bounds = boardContentBounds;
     if (bounds == null || _viewport.isEmpty) return fitBoard();
     setCamera(cameraToFit(bounds, _fitView));
   }

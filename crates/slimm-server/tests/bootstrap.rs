@@ -102,6 +102,20 @@ async fn first_account_claims_the_deployment_and_can_message() {
     let channels = channels.as_array().unwrap();
     assert_eq!(channels.len(), 1);
     assert_eq!(channels[0]["name"], "general");
+    let categories = json_body(
+        app.clone()
+            .oneshot(request("GET", "/categories", Some(&admin), None))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let text = categories
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Text")
+        .expect("default Text category");
+    assert_eq!(channels[0]["category_id"], text["id"]);
     let channel_id = channels[0]["id"].as_str().unwrap().to_owned();
 
     // And can send into it end to end, which is the flow a fresh deployment

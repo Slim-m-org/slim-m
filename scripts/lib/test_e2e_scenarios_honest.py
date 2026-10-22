@@ -99,8 +99,9 @@ class AttachScenarioTest(unittest.TestCase):
         client = FakeClient("a", tree=[L.REMOVE_ATTACHMENT])
         api = FakeApi([{"id": "old", "content": "older",
                         "attachments": [{"id": "old"}]}])
+        other = FakeClient("b")
         with self.assertRaises(AssertionError):
-            e2e_messaging.attach(client, FakeClient("b"), "general", "f.png", api)
+            e2e_messaging.attach(client, other, "general", "f.png", api)
 
     def test_a_new_attachment_message_is_the_one_returned(self):
         client = FakeClient("a", tree=[L.REMOVE_ATTACHMENT])

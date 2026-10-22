@@ -274,7 +274,7 @@ mixin VoiceSessionMicRecovery {
     }
     final defaultMoved = await _defaultInputMoved();
     final line = 'Audio devices changed; the chosen microphone is '
-        '${inputDropped ? 'gone' : inputChanged ? 'back' : 'still there'}'
+        '${_inputChangeWord(dropped: inputDropped, changed: inputChanged)}'
         '${defaultMoved ? ', and the system default moved' : ''}';
     if (line != _lastDeviceChangeLine) _logMic(line);
     _lastDeviceChangeLine = line;
@@ -293,6 +293,11 @@ mixin VoiceSessionMicRecovery {
     } on Object catch (e) {
       _logMic('Could not list microphones: $e', level: LogLevel.warning);
     }
+  }
+
+  String _inputChangeWord({required bool dropped, required bool changed}) {
+    if (dropped) return 'gone';
+    return changed ? 'back' : 'still there';
   }
 
   /// A capture that follows the system default has to move when that changes.
