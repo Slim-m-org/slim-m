@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/settings/providers/autostart_setting.dart';
 import 'package:slimm_app/src/widgets/start_on_login_row.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -45,6 +46,13 @@ Future<void> _pump(WidgetTester tester, Autostart? autostart) async {
 
 bool _switchValue(WidgetTester tester) =>
     tester.widget<AppToggle>(find.byType(AppToggle)).value;
+
+class _Records implements LogSink {
+  final records = <LogRecord>[];
+
+  @override
+  void write(LogRecord record) => records.add(record);
+}
 
 void main() {
   testWidgets('it shows the system state and turning it on registers', (
@@ -92,13 +100,19 @@ void main() {
   });
 
   test(
-    'a host with no login launch repairs nothing and does not throw',
+    'a host with no login launch repairs nothing and logs no swallowed error',
     () async {
       final container = ProviderContainer(
         overrides: [autostartProvider.overrideWith((ref) async => null)],
       );
       addTearDown(container.dispose);
+      final sink = _Records();
+      AppLog.install(sink);
+      addTearDown(() => AppLog.install(null));
+
       await repairAutostart(container);
+
+      expect(sink.records.where((r) => r.message.contains('repair')), isEmpty);
     },
   );
 }

@@ -24,6 +24,7 @@ library;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
+import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_api/api.dart' as api;
@@ -100,6 +101,7 @@ void main() {
       }
       await tester.pumpAndSettle();
 
+      expect(find.byType(HomeShell), findsOneWidget);
       await teardown(tester, s.container, s.db);
     },
   );

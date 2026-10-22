@@ -143,7 +143,7 @@ void main() {
     );
   });
 
-  testWidgets('page size sits in Media and cache and persists', (tester) async {
+  testWidgets('choosing a page size persists it', (tester) async {
     await pumpSection(tester, const PerformanceSettingsSection());
 
     await tester.tap(find.byType(SettingsSelectRow<MessagePageSize>));

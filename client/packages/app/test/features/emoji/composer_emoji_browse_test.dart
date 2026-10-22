@@ -225,9 +225,10 @@ void main() {
     String? picked;
     await tester.pumpWidget(_harness((emoji) => picked = emoji));
 
+    final leading = tester.widget<EmojiCell>(find.byType(EmojiCell).first);
     await tester.tap(find.byType(EmojiCell).first);
     await tester.pump();
 
-    expect(picked, isNotNull);
+    expect(picked, leading.emoji.token);
   });
 }

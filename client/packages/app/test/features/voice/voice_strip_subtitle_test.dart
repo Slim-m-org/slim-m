@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -65,7 +66,9 @@ void main() {
         connectedAt: DateTime.now(),
       ),
     );
-    expect(_texts(tester), contains(' - audio only'));
+    final timer = tester.getRect(find.byType(CallDuration));
+    final subtitle = tester.getRect(find.text(' - audio only'));
+    expect(subtitle.left, greaterThanOrEqualTo(timer.right));
     await tester.pumpWidget(const SizedBox());
   });
 }

@@ -93,28 +93,36 @@ void main() {
 
   group('a stroke whose props carry the wrong types', () {
     // A hostile or buggy poster can store any json object as props, and rows already stored are served back as is.
-    final poisoned = <String, Map<String, dynamic>>{
-      'non-string color': {
-        'points': [0, 0, 1, 1],
-        'color': 5,
-      },
-      'non-number width': {
-        'points': [0, 0, 1, 1],
-        'width': 'x',
-      },
-      'non-list points': {'points': 'abc'},
-      'mixed points': {
-        'points': [0, 'a', null, 1, 2],
-      },
+    final poisoned = <String, (Map<String, dynamic>, List<double>?)>{
+      'non-string color': (
+        {
+          'points': [0, 0, 1, 1],
+          'color': 5,
+        },
+        [0, 0, 1, 1],
+      ),
+      'non-number width': (
+        {
+          'points': [0, 0, 1, 1],
+          'width': 'x',
+        },
+        [0, 0, 1, 1],
+      ),
+      'non-list points': ({'points': 'abc'}, null),
+      'mixed points': (
+        {
+          'points': [0, 'a', null, 1, 2],
+        },
+        [0, 1, 2],
+      ),
     };
     for (final entry in poisoned.entries) {
-      test('${entry.key} never throws', () {
-        expect(
-          () => canvasStrokeInputFrom(
-            _object(kind: 'stroke', props: entry.value),
-          ),
-          returnsNormally,
+      test('${entry.key} reads as the numbers it holds, or nothing', () {
+        final input = canvasStrokeInputFrom(
+          _object(kind: 'stroke', props: entry.value.$1),
         );
+
+        expect(input?.points, entry.value.$2);
       });
     }
 

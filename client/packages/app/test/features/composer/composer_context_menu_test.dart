@@ -309,27 +309,40 @@ void main() {
     setUp(() => SharedPreferences.setMockInitialValues({}));
     tearDown(() => _mock(null));
 
-    testWidgets(
-      'the field carries a contextMenuBuilder rather than the default null '
-      '(regression guard: this is what makes the fix reachable at all)',
-      (tester) async {
-        _mock((call) async => call.method == 'hasImage');
-        final controller = TextEditingController();
-        addTearDown(controller.dispose);
+    testWidgets('the field offers its own formatting items in the menu', (
+      tester,
+    ) async {
+      _mock((call) async => call.method == 'hasImage');
+      final controller = TextEditingController(text: 'hello');
+      addTearDown(controller.dispose);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(
-          composerHarness(
-            controller: controller,
-            sends: Sends(),
-            platform: TargetPlatform.iOS,
-          ),
-        );
+      await tester.pumpWidget(
+        composerHarness(
+          controller: controller,
+          sends: Sends(),
+          platform: TargetPlatform.iOS,
+        ),
+      );
+      controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 5,
+      );
+      await tester.pump();
 
-        expect(
-          tester.widget<TextField>(find.byType(TextField)).contextMenuBuilder,
-          isNotNull,
-        );
-      },
-    );
+      final state = tester.state<EditableTextState>(find.byType(EditableText));
+      final builder = tester
+          .widget<TextField>(find.byType(TextField))
+          .contextMenuBuilder!;
+      final menu =
+          builder(state.context, state) as AdaptiveTextSelectionToolbar;
+
+      expect(
+        menu.buttonItems!.map((item) => item.label),
+        containsAll(['Bold', 'Italic']),
+      );
+    });
   });
 }

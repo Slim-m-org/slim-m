@@ -128,8 +128,11 @@ void main() {
 
   test('applyInitialGeometry swallows a throwing native call rather than '
       'letting it strand main() before runApp', () async {
+    final container = _container();
     DesktopWindowShell.debugPort = _ThrowingPort();
 
     await DesktopWindowShell.applyInitialGeometry();
+
+    expect(_loggedFromDesktop(container), isTrue);
   });
 }

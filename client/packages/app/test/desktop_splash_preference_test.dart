@@ -155,10 +155,13 @@ void main() {
     test('every other choice is its own duration', () {
       expect(
         splashFloorFor(SplashDuration.brief),
-        SplashDuration.brief.duration,
+        const Duration(milliseconds: 500),
       );
       expect(splashFloorFor(SplashDuration.standard), minSplashDuration);
-      expect(splashFloorFor(SplashDuration.long), SplashDuration.long.duration);
+      expect(
+        splashFloorFor(SplashDuration.long),
+        const Duration(milliseconds: 1500),
+      );
     });
   });
 }

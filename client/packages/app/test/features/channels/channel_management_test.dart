@@ -59,6 +59,10 @@ void main() {
       );
 
       expect(find.text('Text'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Text')).dy,
+        lessThan(tester.getTopLeft(find.text('general')).dy),
+      );
     });
 
     testWidgets('an empty category is hidden from a member: migration 0031 '
@@ -293,7 +297,7 @@ void main() {
       expect(find.text('Remove from category'), findsNothing);
     });
 
-    testWidgets('a manager keeps the empty category, as a drop target', (
+    testWidgets('a manager keeps the header of an empty category', (
       tester,
     ) async {
       await tester.pumpWidget(
