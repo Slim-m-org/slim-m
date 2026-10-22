@@ -109,7 +109,10 @@ A second suite on Playwright Test, with a video of every user for every test, li
 
 ```bash
 (cd e2e && npm ci && npx playwright install chromium && npm test)
+scripts/e2e-playwright-parallel.sh       # one spec file per stack, evidence kept for failures only
 ```
+
+`E2E_EVIDENCE=failure|off` keeps the per-test video, trace and screenshot for failures only, or drops them; CI keeps them all.
 
 ## Load tests and profiling
 
