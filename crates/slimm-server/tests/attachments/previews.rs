@@ -131,6 +131,9 @@ pub(crate) async fn fetch(
     (parts.status, parts.headers, bytes.to_vec())
 }
 
+/// Three decodes and encodes of a full-size photo in a debug build on a busy runner; the shared wait is sized for cheap effects.
+const PREVIEW_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
+
 #[tokio::test]
 async fn a_large_photo_is_served_as_a_smaller_upright_preview_without_exif() {
     let original = with_orientation(&jpeg(&photo(2000, 1500), 92), 6);
@@ -256,8 +259,12 @@ async fn a_far_smaller_preview_keeps_the_picture_s_shape_and_brightness() {
 async fn an_upload_is_previewed_at_every_size_before_anyone_asks() {
     let r = ready("fresh.jpg", jpeg(&photo(2000, 1500), 92)).await;
 
-    crate::support::wait::wait_until_async("one preview file per size bucket", || async {
+    let all_three = crate::support::wait::holds_within_async(PREVIEW_BUDGET, || async {
         r.media.previews().files().await.unwrap().len() == 3
     })
     .await;
+    assert!(
+        all_three,
+        "one preview file per size bucket never appeared within {PREVIEW_BUDGET:?}"
+    );
 }
