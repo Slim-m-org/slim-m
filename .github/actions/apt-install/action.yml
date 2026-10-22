@@ -13,11 +13,15 @@ inputs:
 runs:
   using: composite
   steps:
+    # The image vars are process env on the runner, not in the expression context, so a step reads them.
+    - id: image
+      shell: bash
+      run: echo "version=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
     # Keyed on the runner image so a new image resolves its own dependency versions instead of installing stale ones.
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ runner.temp }}/apt-debs
-        key: apt-debs-${{ runner.os }}-${{ env.ImageOS }}-${{ env.ImageVersion }}-${{ inputs.packages }}-v1
+        key: apt-debs-${{ runner.os }}-${{ steps.image.outputs.version }}-${{ inputs.packages }}-v1
     - shell: bash
       env:
         PACKAGES: ${{ inputs.packages }}
