@@ -240,6 +240,26 @@ void main() {
   });
 
   group('pause', () {
+    test('pausing during the start grace holds the start, and resuming '
+        'starts at once', () {
+      fakeAsync((async) {
+        final rig = _Rig(enabled: true);
+        async.flushMicrotasks();
+        final controller = rig.container.read(holdMusicControllerProvider);
+        controller.pause();
+        async.elapse(holdMusicGrace * 2);
+        expect(
+          rig.player.calls,
+          isEmpty,
+          reason: 'a paused start never begins',
+        );
+
+        controller.resume();
+        async.flushMicrotasks();
+        expect(rig.player.calls, ['start']);
+      });
+    });
+
     test(
       'pausing holds the track and resuming carries on, never restarting',
       () {
