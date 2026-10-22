@@ -30,6 +30,10 @@ have() { command -v "$1" >/dev/null 2>&1; }
 step() {
   local name=$1
   shift
+  if [ -n "${SLIMM_HOOK_SKIP:-}" ] && grep -Eq -e "$SLIMM_HOOK_SKIP" <<<"$name"; then
+    skip "$name" "SLIMM_HOOK_SKIP"
+    return 0
+  fi
   if [ "$FAILED" -ne 0 ] && [ "${SLIMM_HOOK_KEEP_GOING:-0}" != 1 ]; then
     record "$name" "not run" 0
     return 0
