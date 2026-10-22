@@ -14,7 +14,9 @@ const _farAway = Offset(780, 580);
 Widget _list(ScrollController controller, {bool reduceMotion = false}) {
   return MaterialApp(
     builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
+      data: MediaQueryData.fromView(
+        View.of(context),
+      ).copyWith(disableAnimations: reduceMotion),
       child: child!,
     ),
     home: Scaffold(
