@@ -17,6 +17,7 @@ Future<void> _pump(
   VoidCallback? onOpenOptions,
   VoidCallback? onPressed,
   bool touch = false,
+  bool destructive = false,
 }) {
   return tester.pumpWidget(
     MaterialApp(
@@ -25,6 +26,7 @@ Future<void> _pump(
         body: Center(
           child: AppControlWithOptions(
             touch: touch,
+            destructive: destructive,
             optionsLabel: _caretLabel,
             onOpenOptions: onOpenOptions,
             child: AppIconButton(
@@ -213,6 +215,32 @@ void main() {
       find.ancestor(of: _caret, matching: find.byType(InkWell)),
     );
     expect(caret.left, primary.right);
+  });
+
+  Border caretBorder(WidgetTester tester) {
+    final box = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.byIcon(AppIcons.chevronDown),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    return (box.decoration! as BoxDecoration).border! as Border;
+  }
+
+  testWidgets('a destructive pair carries the danger outline around its caret',
+      (
+    tester,
+  ) async {
+    await _pump(tester, onOpenOptions: () {}, destructive: true);
+    expect(caretBorder(tester).top.color, AppTokens.light.dangerBorder);
+    expect(caretBorder(tester).right.color, AppTokens.light.dangerBorder);
+  });
+
+  testWidgets('a plain pair keeps the subtle caret outline', (tester) async {
+    await _pump(tester, onOpenOptions: () {});
+    expect(caretBorder(tester).top.color, AppTokens.light.borderSubtle);
   });
 }
 

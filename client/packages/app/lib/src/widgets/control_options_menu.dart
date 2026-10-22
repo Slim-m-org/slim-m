@@ -49,6 +49,7 @@ class ControlOptionsMenu extends StatefulWidget {
     required this.options,
     required this.optionsLabel,
     this.active = false,
+    this.destructive = false,
     this.caretHeight = AppSizes.controlMd,
     this.opensAbove = true,
     this.showCaret = true,
@@ -63,6 +64,9 @@ class ControlOptionsMenu extends StatefulWidget {
   final List<ControlOptionEntry> options;
   final String optionsLabel;
   final bool active;
+
+  /// Draws the caret in the danger outline of a destructive primary, such as a muted mic.
+  final bool destructive;
 
   /// The caret's drawn height, matching a primary shorter than a full chip.
   final double caretHeight;
@@ -114,6 +118,7 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
               groupId: _group,
               child: AppControlWithOptions(
                 active: widget.active,
+                destructive: widget.destructive,
                 visualHeight: widget.caretHeight,
                 optionsLabel: widget.optionsLabel,
                 onOpenOptions: () => _region.currentState?.toggle(),
