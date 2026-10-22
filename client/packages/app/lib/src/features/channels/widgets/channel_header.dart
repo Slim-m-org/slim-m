@@ -23,7 +23,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
 import 'channel_topic_text.dart';
-import '../../members/widgets/member_pane.dart';
+import '../../members/widgets/member_list_toggle.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
 import '../../messages/widgets/threads_sheet.dart';
 
@@ -92,14 +92,9 @@ class ChannelHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final membersVisible = memberPaneWanted(ref, MediaQuery.sizeOf(context));
     // The pane only docks where LayoutClass.fitsMemberPane says there is
     // room; a toggle shown past that would sit lit over a pane that never appears.
-    final canToggleMembers =
-        !isDm &&
-        LayoutClass.of(
-          context,
-        ).fitsMemberPane(MediaQuery.sizeOf(context).width);
+    final canToggleMembers = !isDm && MemberListToggle.fits(context);
     // Medium widths too narrow to dock the pane open the roster as a drawer.
     final scaffold = Scaffold.maybeOf(context);
     final opensMemberDrawer =
@@ -217,17 +212,7 @@ class ChannelHeader extends ConsumerWidget {
           ],
           if (canToggleMembers) ...[
             const SizedBox(width: AppSpacing.s4),
-            AppIconButton(
-              icon: AppIcons.members,
-              semanticLabel: 'Toggle member list',
-              active: membersVisible,
-              onPressed: () {
-                ref.read(memberPaneVisibleProvider.notifier).state =
-                    !membersVisible;
-                ref.read(memberPaneOpenedByHandProvider.notifier).state =
-                    !membersVisible;
-              },
-            ),
+            const MemberListToggle(),
           ],
         ],
       ),

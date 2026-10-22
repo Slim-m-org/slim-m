@@ -22,11 +22,14 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../channels/providers/channel_by_id_provider.dart';
+import '../../members/widgets/member_list_toggle.dart';
 import '../../voice/widgets/call_header_facts.dart';
 
-class CanvasBar extends StatelessWidget {
+class CanvasBar extends ConsumerWidget {
   const CanvasBar({super.key, required this.channelId, this.trailing});
 
   final String channelId;
@@ -35,13 +38,21 @@ class CanvasBar extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final trailing = this.trailing;
+    final isDm =
+        ref.watch(channelByIdProvider(channelId)).valueOrNull?.kind == 'dm';
+    final phoneControls = this.trailing;
+    // The member list docks beside the canvas too, so its toggle lives here as it does on the channel header.
+    final trailing =
+        phoneControls ??
+        (!isDm && MemberListToggle.fits(context)
+            ? const MemberListToggle()
+            : null);
     final line = CallHeaderLine(
       channelId: channelId,
       mode: 'Canvas',
-      stacked: trailing != null,
+      stacked: phoneControls != null,
       leading: Padding(
         padding: const EdgeInsets.only(right: AppSpacing.s8),
         child: Icon(
@@ -52,7 +63,7 @@ class CanvasBar extends StatelessWidget {
       ),
     );
     return Container(
-      height: trailing == null
+      height: phoneControls == null
           ? AppSizes.headerBar
           : AppSizes.rowTouch + AppSpacing.s8,
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.paneGutter),
