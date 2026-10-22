@@ -220,7 +220,12 @@ async fn a_manager_creates_a_channel_with_a_default_and_it_lists_back() {
         .iter()
         .find(|c| c["name"] == "quiet");
     assert_eq!(quiet.unwrap()["default_notification"], "nothing");
-    assert_eq!(rows[0]["default_notification"], "everything");
+    let general = rows
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "general");
+    assert_eq!(general.unwrap()["default_notification"], "everything");
 }
 
 #[tokio::test]

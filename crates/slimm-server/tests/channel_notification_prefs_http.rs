@@ -38,7 +38,7 @@ async fn general_channel_id(store: &Store) -> ChannelId {
         .await
         .unwrap()
         .into_iter()
-        .next()
+        .find(|c| c.name == "general")
         .expect("bootstrap seeds a general channel")
         .id
 }

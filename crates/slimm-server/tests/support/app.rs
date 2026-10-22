@@ -222,7 +222,7 @@ pub async fn general_channel_id(store: &Store) -> String {
         .await
         .unwrap()
         .into_iter()
-        .next()
+        .find(|c| c.name == "general")
         .expect("bootstrap seeds a general channel")
         .id
         .to_string()
