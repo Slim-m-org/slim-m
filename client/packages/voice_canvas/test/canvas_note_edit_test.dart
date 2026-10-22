@@ -7,7 +7,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 CanvasStrokeInput _note(String id, String text, CanvasObjectKind kind) =>

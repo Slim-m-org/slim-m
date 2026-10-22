@@ -188,6 +188,8 @@ jobs:
           set -euo pipefail
           mapfile -t files < <(python3 ../../../scripts/lib/client_shards.py deal --shards "$SHARDS" --index "$SHARD_INDEX")
           printf 'shard %s/%s: %d files\n' "$SHARD_INDEX" "$SHARDS" "${#files[@]}"
+          # A failed dealer inside < <(...) escapes set -e, and an empty list makes flutter test run every file.
+          if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
           flutter test "${files[@]}"
 
       # Every package with a test/ directory EXCEPT app, which the shards above

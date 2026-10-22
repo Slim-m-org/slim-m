@@ -7,7 +7,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 import 'package:slimm_voice_canvas/src/selection_painter.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 

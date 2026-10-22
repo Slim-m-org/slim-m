@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 import 'package:slimm_voice_canvas/src/note_label_cache.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 

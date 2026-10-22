@@ -14,7 +14,6 @@ import 'dart:io';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_voice_canvas/src/canvas_painters.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 /// Records every `drawPath` call's [Paint] and every `drawRRect` call's
