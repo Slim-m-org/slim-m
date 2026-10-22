@@ -10,6 +10,7 @@ says where the board starts on the page whatever the zoom is.
 import time
 
 import e2e_labels as L
+import e2e_png
 
 BOARD_W = 1920
 BOARD_H = 1080
@@ -50,34 +51,43 @@ def clear_window(client):
     time.sleep(0.8)
 
 
-# The zoom pill's gap above the dock: a 12 lift plus the safe area's 12 minimum.
-_PILL_GAP_ABOVE_DOCK = 24
-_PILL_HEIGHT = 28
+_EDGE_DELTA = 3
 
 
-def _dock_inset(client, rect):
-    """How much of the surface's foot the floating dock covers.
+def _first_change(client, rect, vertical):
+    """Offset of the first pixel along a one-pixel strip that differs from the strip's first.
 
-    The board is fitted above the dock (`CanvasDocument.setBottomInset`), so
-    the surface's own box is taller than the area the board centres in. The
-    dock's height is not a node of its own; the zoom pill is lifted by exactly
-    that height, so it is read back from there.
+    The letterbox is a flat colour and the board edge is the first thing that
+    is not, so this finds where the board starts without knowing the dock's
+    height or where the zoom pill sits, both of which have moved before.
     """
-    pill = client.find("Fit view, zoom")
-    if not pill:
-        return 0
-    pill_bottom = pill["y"] + _PILL_HEIGHT / 2
-    return max(0, rect["y"] + rect["height"] - pill_bottom - _PILL_GAP_ABOVE_DOCK)
+    if vertical:
+        strip = {"x": rect["x"] + rect["width"] * 0.6, "y": rect["y"],
+                 "width": 1, "height": rect["height"]}
+    else:
+        strip = {"x": rect["x"], "y": rect["y"] + rect["height"] * 0.6,
+                 "width": rect["width"], "height": 1}
+    width, height, rows, channels = e2e_png.decode(client.region_png(strip))
+    if vertical:
+        pixels = [tuple(rows[y][:3]) for y in range(height)]
+    else:
+        pixels = [tuple(rows[0][x * channels:x * channels + 3])
+                  for x in range(width)]
+    for offset, pixel in enumerate(pixels):
+        if max(abs(a - b) for a, b in zip(pixel, pixels[0])) > _EDGE_DELTA:
+            return offset
+    return 0
 
 
 def board_frame(client):
-    """The fitted board on the page: (left, top, zoom)."""
+    """The fitted board on the page: (left, top, zoom), read off the pixels."""
     rect = client.canvas_rect()
-    height = rect["height"] - _dock_inset(client, rect)
-    zoom = min(rect["width"] / BOARD_W, height / BOARD_H)
-    left = rect["x"] + (rect["width"] - BOARD_W * zoom) / 2
-    top = rect["y"] + (height - BOARD_H * zoom) / 2
-    return left, top, zoom
+    # An edge hairline reads a pixel in; a board that fills the width starts at the surface.
+    left = _first_change(client, rect, vertical=False)
+    left = 0 if left <= 1 else left
+    top = _first_change(client, rect, vertical=True)
+    zoom = (rect["width"] - 2 * left) / BOARD_W
+    return rect["x"] + left, rect["y"] + top, zoom
 
 
 def board_point(client, world):
