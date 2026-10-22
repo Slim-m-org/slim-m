@@ -19,11 +19,10 @@ while IFS= read -r f; do
   fi
 done < <(git diff --cached --name-only --diff-filter=ACM)
 
-if git diff --cached --diff-filter=ACM -U0 --no-color |
-  grep -E '^\+[^+]' | grep -Eq "$secret_pattern"; then
+added=$(git diff --cached --diff-filter=ACM -U0 --no-color | grep -E '^(\+\+\+ b/|\+[^+])' || true)
+if grep -Eq -e "$secret_pattern" <<<"$added"; then
   echo "::error::a staged line looks like a private key or API token"
-  git diff --cached --diff-filter=ACM -U0 --no-color |
-    grep -E '^(\+\+\+ b/|\+[^+])' | grep -E -B1 "$secret_pattern" | grep -E '^\+\+\+ b/' | sed 's/^+++ b\//  in: /'
+  awk -v pat="$secret_pattern" '/^\+\+\+ b\// {file=substr($0, 7)} $0 ~ pat && !/^\+\+\+ / {print "  in: " file}' <<<"$added" | sort -u
   status=1
 fi
 

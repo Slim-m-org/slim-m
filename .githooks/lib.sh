@@ -36,13 +36,13 @@ step() {
   fi
   local log="$HOOK_LOG_DIR/$((${#NAMES[@]})).log" start end
   printf '  ... %s\n' "$name" >&2
-  start=$(date +%s)
+  start=${EPOCHREALTIME/./}
   if "$@" >"$log" 2>&1; then
-    end=$(date +%s)
-    record "$name" "pass" $((end - start))
+    end=${EPOCHREALTIME/./}
+    record "$name" "pass" $(((end - start) / 1000))
   else
-    end=$(date +%s)
-    record "$name" "FAIL" $((end - start))
+    end=${EPOCHREALTIME/./}
+    record "$name" "FAIL" $(((end - start) / 1000))
     FAILED=1
     printf '\n----- %s failed -----\n' "$name" >&2
     tail -n 60 "$log" >&2
@@ -60,15 +60,17 @@ record() {
   TIMES+=("$3")
 }
 
+fmt_ms() { printf '%d.%01d' $(($1 / 1000)) $((($1 % 1000) / 100)); }
+
 summary() {
   local i total=0
   printf '\n%-52s %-22s %6s\n' "check" "result" "secs" >&2
   printf '%-52s %-22s %6s\n' "-----" "------" "----" >&2
   for i in "${!NAMES[@]}"; do
-    printf '%-52s %-22s %6s\n' "${NAMES[$i]}" "${RESULTS[$i]}" "${TIMES[$i]}" >&2
+    printf '%-52s %-22s %6s\n' "${NAMES[$i]}" "${RESULTS[$i]}" "$(fmt_ms "${TIMES[$i]}")" >&2
     total=$((total + TIMES[i]))
   done
-  printf '%-52s %-22s %6s\n' "total" "" "$total" >&2
+  printf '%-52s %-22s %6s\n' "total" "" "$(fmt_ms "$total")" >&2
   if [ "$FAILED" -ne 0 ]; then
     printf '\n%s blocked. Fix the failure above, or bypass once with --no-verify.\n' "$HOOK_NAME" >&2
     return 1
