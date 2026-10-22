@@ -265,7 +265,8 @@ def run_account(ctx, actions_count, pace_range, actions=None):
         try:
             HANDLERS[resolved](ctx)
             stats[resolved] += 1
-        except Exception as exc:  # noqa: BLE001 - a dropped action is reported, never silent
+        # a dropped action is reported, never silent
+        except Exception as exc:  # noqa: BLE001
             failures.append((ctx.username, resolved, seed_backoff.describe_error(exc)))
         time.sleep(ctx.rng.uniform(*pace_range))
     return stats, failures

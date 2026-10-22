@@ -3,6 +3,7 @@
 import json
 import sys
 import unittest
+import urllib.error
 from pathlib import Path
 import unittest.mock
 from unittest.mock import patch
@@ -148,8 +149,9 @@ class RegisterTest(unittest.TestCase):
     def test_any_other_refusal_is_an_error(self):
         with patch.object(e2e_browsers, "Api") as api:
             api.return_value.call.side_effect = [self._error(403)]
-            with self.assertRaises(Exception):
-                e2e_browsers.register("http://x", self.Admin(), "carol", "pw")
+            admin = self.Admin()
+            with self.assertRaises(urllib.error.HTTPError):
+                e2e_browsers.register("http://x", admin, "carol", "pw")
 
     def test_registering_sends_the_invite_the_admin_issued(self):
         with patch.object(e2e_browsers, "Api") as api:
@@ -209,10 +211,10 @@ class LiveVideoTest(unittest.TestCase):
         later = (self._frames([40]) + self._frames([40], index=1))
         reads = iter([json.dumps(twice), json.dumps(later)] * 4)
         page = FakePage({"videos()": lambda: next(reads)}, name="carol")
+        probe = e2e_audio.AudioProbe(page)
         with patch.object(multishare.time, "sleep"):
             with self.assertRaisesRegex(AssertionError, "rendered more than once"):
-                multishare.wait_for_videos(
-                    e2e_audio.AudioProbe(page), [self.SID], 2, timeout=5)
+                multishare.wait_for_videos(probe, [self.SID], 2, timeout=5)
 
 
 class BrowserCleanupTest(unittest.TestCase):

@@ -56,7 +56,8 @@ async def _run_slice(specs, base_url, ws_url, ready, stop, results):
 def _worker(specs, base_url, ws_url, ready, stop, results):
     try:
         asyncio.run(_run_slice(specs, base_url, ws_url, ready, stop, results))
-    except Exception as exc:  # noqa: BLE001 - reported, never silent
+    # reported, never silent
+    except Exception as exc:  # noqa: BLE001
         ready.put(("died", os.getpid(), 0, len(specs)))
         results.put({"pid": os.getpid(), "connected": 0,
                      "attempted": len(specs), "seen": {}, "resyncs": 0,

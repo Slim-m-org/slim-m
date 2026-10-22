@@ -82,8 +82,8 @@ class CheckReleaseTagLagTest(unittest.TestCase):
                                "0.32.1", 1000)
         result = self._run(now_epoch=1000 + 901, grace_seconds=900)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("::error::", result.stdout)
-        self.assertIn("client-v0.32.1 was never cut", result.stdout)
+        self.assertIn("::error::", result.stderr)
+        self.assertIn("client-v0.32.1 was never cut", result.stderr)
 
     def test_both_packages_are_checked_independently(self):
         self._commit_manifest(".release-please-manifest.server.json",
@@ -93,8 +93,8 @@ class CheckReleaseTagLagTest(unittest.TestCase):
                                "0.32.1", 1000)
         result = self._run(now_epoch=1000 + 901, grace_seconds=900)
         self.assertEqual(result.returncode, 1)
-        self.assertNotIn("server-v0.33.1 was never cut", result.stdout)
-        self.assertIn("client-v0.32.1 was never cut", result.stdout)
+        self.assertNotIn("server-v0.33.1 was never cut", result.stderr)
+        self.assertIn("client-v0.32.1 was never cut", result.stderr)
 
     def test_an_absent_manifest_file_is_not_an_error(self):
         """Neither manifest exists yet in a repo this bare; the script must
@@ -110,7 +110,7 @@ class CheckReleaseTagLagTest(unittest.TestCase):
                                "0.33.1", 1000)
         result = self._run(now_epoch=1000 + 901, grace_seconds=900)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("server-v0.33.1 was never cut", result.stdout)
+        self.assertIn("server-v0.33.1 was never cut", result.stderr)
 
     def test_a_missing_schema_tag_is_reported_on_its_own(self):
         self._commit_manifest(".release-please-manifest.server.json",
@@ -118,8 +118,8 @@ class CheckReleaseTagLagTest(unittest.TestCase):
         self._tag("server-v0.76.0")
         result = self._run(now_epoch=1000 + 901, grace_seconds=900)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("schema-v0.76.0 was never cut", result.stdout)
-        self.assertNotIn("server-v0.76.0 was never cut", result.stdout)
+        self.assertIn("schema-v0.76.0 was never cut", result.stderr)
+        self.assertNotIn("server-v0.76.0 was never cut", result.stderr)
 
     def test_a_present_schema_tag_is_fine(self):
         self._commit_manifest(".release-please-manifest.server.json",

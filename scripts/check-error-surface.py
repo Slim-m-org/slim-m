@@ -173,9 +173,7 @@ FALLBACK_EXCEPTION_NAMES = ("ApiException",)
 BARE_CATCH_HEADER = re.compile(
     r"^(?P<indent>[ \t]*)(?:\}[ \t]*)?catch[ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
 )
-CATCH_ERROR_HEADER = re.compile(
-    r"^(?P<indent>[ \t]*)(?:\S[^\n]*)?\.catchError\([ \t]*\([^)]*\)[ \t]*\{[ \t]*$"
-)
+CATCH_ERROR_TAIL = re.compile(r"\.catchError\([ \t]*\([^)]*\)[ \t]*\{[ \t]*$")
 SHOWS_SNACKBAR = re.compile(r"ScaffoldMessenger|SnackBar\(|showAppSnackbar\(")
 
 
@@ -264,6 +262,16 @@ def catch_header_pattern(root: Path) -> re.Pattern[str]:
     )
 
 
+def header_indent(line: str, catch_header: re.Pattern[str]) -> str | None:
+    for pattern in (catch_header, BARE_CATCH_HEADER):
+        match = pattern.match(line)
+        if match:
+            return match.group("indent")
+    if CATCH_ERROR_TAIL.search(line):
+        return line[: len(line) - len(line.lstrip(" \t"))]
+    return None
+
+
 def catch_blocks(lines: list[str], catch_header: re.Pattern[str]):
     """Yields (1-based header line, body lines) for each caught-exception block.
 
@@ -276,14 +284,9 @@ def catch_blocks(lines: list[str], catch_header: re.Pattern[str]):
     brace this project has no AST tool handy for in a plain hygiene step.
     """
     for i, line in enumerate(lines):
-        header = (
-            catch_header.match(line)
-            or BARE_CATCH_HEADER.match(line)
-            or CATCH_ERROR_HEADER.match(line)
-        )
-        if not header:
+        indent = header_indent(line, catch_header)
+        if indent is None:
             continue
-        indent = header.group("indent")
         body: list[str] = []
         j = i + 1
         while j < len(lines):

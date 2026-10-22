@@ -60,14 +60,18 @@ class _User:
             return server.ops_page(int(query["after_seq"][0]),
                                    int(query.get("limit", [0])[0]))
         if method == "POST" and route == "objects":
-            op = server._append("place", actor=self.name)
-            server.objects[body["id"]] = {
-                "id": body["id"], "author": self.name, "deleted": False,
-                "seq": op["seq"]}
-            return {"id": body["id"], "seq": op["seq"], "x": 0, "y": 0}
+            return self._place(body)
         if method == "POST" and route == "ops":
             return self._submit(body)
         raise AssertionError(f"unmodelled request {method} {path}")
+
+    def _place(self, body):
+        server = self.server
+        op = server._append("place", actor=self.name)
+        server.objects[body["id"]] = {
+            "id": body["id"], "author": self.name, "deleted": False,
+            "seq": op["seq"]}
+        return {"id": body["id"], "seq": op["seq"], "x": 0, "y": 0}
 
     def _submit(self, body):
         server = self.server

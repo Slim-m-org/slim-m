@@ -60,9 +60,10 @@ class SaveCacheTest(CacheDirTest):
             handle.write("[")
             raise KeyboardInterrupt
 
+        replacement = rows(2)
         with mock.patch.object(LA.json, "dump", dump_then_die):
             with self.assertRaises(KeyboardInterrupt):
-                LA._save_cache(self.path, rows(2))
+                LA._save_cache(self.path, replacement)
         self.assertEqual(len(LA._load_cache(self.path)), 5)
         self.assertEqual([p.name for p in self.dir.iterdir()],
                          [self.path.name])

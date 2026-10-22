@@ -29,7 +29,8 @@ def _status(callable_):
     except urllib.error.HTTPError as exc:
         try:
             detail = exc.read().decode(errors="replace")[:200]
-        except Exception:  # noqa: BLE001 - the body is a bonus, not the point
+        # the body is a bonus, not the point
+        except Exception:  # noqa: BLE001
             detail = ""
         return exc.code, detail
 

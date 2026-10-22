@@ -131,16 +131,18 @@ class RunTest(unittest.TestCase):
 class RefusalTest(unittest.TestCase):
     def test_a_guard_refusal_exits_before_any_account_is_registered(self):
         import seed_guard
+        args = _args()
         with patch("seed_guard.guard", side_effect=seed_guard.GuardError("no")), \
              patch("seed_accounts.register_accounts") as register:
             with self.assertRaises(SystemExit):
-                seed_run.run(_args())
+                seed_run.run(args)
         register.assert_not_called()
 
     def test_zero_accounts_is_refused(self):
+        args = _args(accounts=0)
         with patch("seed_guard.guard", return_value="http://local"), \
              self.assertRaises(SystemExit):
-            seed_run.run(_args(accounts=0))
+            seed_run.run(args)
 
 
 if __name__ == "__main__":

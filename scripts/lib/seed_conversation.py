@@ -181,6 +181,23 @@ def _parse_reactions(raw, name_by_lower, participants, speaker):
     return out
 
 
+def _parse_turn(item, name_by_lower, participants):
+    unusable = Turn(None, "", -1, False, -1, [])
+    if not isinstance(item, dict):
+        return unusable
+    text = str(item.get("text") or "").strip()[:seed_content.MAX_MESSAGE_CHARS]
+    speaker = _resolve_speaker(item.get("speaker"), name_by_lower, participants)
+    if not text or speaker is None:
+        return unusable
+    return Turn(
+        speaker=speaker, text=text,
+        reply_to=_safe_int(item.get("reply_to")),
+        thread_root=bool(item.get("thread_root")),
+        in_thread=_safe_int(item.get("in_thread")),
+        reactions=_parse_reactions(
+            item.get("reactions"), name_by_lower, participants, speaker))
+
+
 def parse_conversation(raw):
     """A validated `Conversation`, or raises `ValueError` for one not worth
     replaying - the caller (`build_conversations`) catches this and drops
@@ -200,25 +217,8 @@ def parse_conversation(raw):
         raise ValueError("fewer than the minimum usable turns")
 
     name_by_lower = {p.lower(): p for p in participants}
-    turns = []
-    usable = 0
-    for item in raw_turns:
-        if not isinstance(item, dict):
-            turns.append(Turn(None, "", -1, False, -1, []))
-            continue
-        text = str(item.get("text") or "").strip()[:seed_content.MAX_MESSAGE_CHARS]
-        speaker = _resolve_speaker(item.get("speaker"), name_by_lower, participants)
-        if not text or speaker is None:
-            turns.append(Turn(None, "", -1, False, -1, []))
-            continue
-        usable += 1
-        turns.append(Turn(
-            speaker=speaker, text=text,
-            reply_to=_safe_int(item.get("reply_to")),
-            thread_root=bool(item.get("thread_root")),
-            in_thread=_safe_int(item.get("in_thread")),
-            reactions=_parse_reactions(
-                item.get("reactions"), name_by_lower, participants, speaker)))
+    turns = [_parse_turn(item, name_by_lower, participants) for item in raw_turns]
+    usable = sum(1 for turn in turns if turn.speaker is not None)
 
     if usable < _MIN_TURNS or usable < len(turns) * _MIN_SPEAKER_MATCH_RATE:
         raise ValueError(

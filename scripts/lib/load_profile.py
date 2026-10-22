@@ -63,7 +63,8 @@ def _frame_names(thread, libs, symbols):
     """One display name per frame row of a thread."""
     frames, funcs, resources = thread["frameTable"], thread["funcTable"], thread["resourceTable"]
     names = []
-    for row in range(frames["length"]):
+    rows = min(frames["length"], len(frames["func"]), len(frames["address"]))
+    for row in range(rows):
         resource = funcs["resource"][frames["func"][row]]
         lib_index = resources["lib"][resource] if resource is not None and resource >= 0 else None
         if lib_index is None:

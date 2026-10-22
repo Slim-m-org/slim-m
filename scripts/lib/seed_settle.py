@@ -152,7 +152,8 @@ def _try(failures, ctx, action_name, action):
     """
     try:
         return True, action()
-    except Exception as exc:  # noqa: BLE001 - a dropped action is reported, never silent
+    # a dropped action is reported, never silent
+    except Exception as exc:  # noqa: BLE001
         failures.append((ctx.username, action_name, seed_backoff.describe_error(exc)))
         return False, None
 
