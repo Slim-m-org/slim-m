@@ -118,8 +118,8 @@ class SliderTest(unittest.TestCase):
 
 class BrowserArgsTest(unittest.TestCase):
     def test_the_extra_browsers_avoid_the_two_the_script_owns(self):
-        self.assertFalse({9801, 9802} & set(e2e_browsers.EXTRA_PORTS.values()))
-        self.assertEqual(len(set(e2e_browsers.EXTRA_PORTS.values())),
+        self.assertFalse({9801, 9802} & set(map(e2e_browsers.extra_port, e2e_browsers.EXTRA_OFFSETS)))
+        self.assertEqual(len(set(map(e2e_browsers.extra_port, e2e_browsers.EXTRA_OFFSETS))),
                          len(e2e_browsers.EXTRA_PORTS))
 
     def test_each_browser_captures_the_wav_it_was_given(self):

@@ -37,7 +37,8 @@ def sfu_participants(room):
         "video": {"roomAdmin": True, "room": room}}).encode())
     sig = b64(hmac.new(secret, f"{header}.{payload}".encode(),
                        hashlib.sha256).digest())
-    url = os.environ.get("LIVEKIT_HTTP", "http://localhost:7880")
+    url = os.environ.get(
+        "LIVEKIT_HTTP", f"http://localhost:{os.environ.get('E2E_LK_PORT', '7880')}")
     # e2e_api.py's Cloudflare UA workaround applies here too, if ever pointed off-localhost.
     req = urllib.request.Request(
         f"{url}/twirp/livekit.RoomService/ListParticipants",

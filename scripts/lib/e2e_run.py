@@ -8,6 +8,7 @@ running order and nothing else.
 
 Called by scripts/e2e.sh, which owns the stack this talks to.
 """
+import json
 import os
 import sys
 import tempfile
@@ -58,6 +59,7 @@ import e2e_voice_network
 import e2e_video_quality
 import e2e_voice_rejoin
 import e2e_api
+import e2e_browsers
 from e2e_api import Api
 from e2e_client import Client
 
@@ -359,13 +361,22 @@ def scenarios(a, b, admin, member, room_id, server, secret):
     ]
 
 
+def write_results(results):
+    """Per-scenario outcome and duration for a caller that merges several runs."""
+    path = os.environ.get("E2E_RESULTS")
+    if path:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(results, fh, indent=1)
+
+
 def main():
     server, room_id, secret = sys.argv[1], sys.argv[2], sys.argv[3]
     # One name fragment, or several split by |.
     only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]
 
-    a = Client("alice", 9801)
-    b = Client("bob", 9802)
+    base = e2e_browsers.cdp_base()
+    a = Client("alice", base + 1)
+    b = Client("bob", base + 2)
     admin = Api(server)
     admin.login("alice", secret, device="e2e-admin")
     member = Api(server)
@@ -379,6 +390,7 @@ def main():
     sign_in(b, server, "bob", secret)
 
     failures = []
+    results = []
     for name, run in scenarios(a, b, admin, member, room_id, server, secret):
         if only and not any(o in name for o in only):
             continue
@@ -391,14 +403,19 @@ def main():
             go_home(b)
             began = time.time()
             run()
-            print(f"  ({time.time() - began:.0f}s)")
+            took = time.time() - began
+            results.append({"name": name, "ok": True, "seconds": round(took, 1)})
+            print(f"  ({took:.0f}s)")
         except Exception:
+            results.append({"name": name, "ok": False,
+                            "seconds": round(time.time() - began, 1)})
             # Kept going rather than stopped: one broken scenario should not
             # hide the state of every one after it, and the run still fails.
             failures.append(name)
             traceback.print_exc()
             print(f"  FAILED: {name}")
 
+    write_results(results)
     print("\n== what this run actually touched ==")
     touched = set(e2e_api.TOUCHED)
     for client in (a, b):

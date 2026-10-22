@@ -4,12 +4,13 @@
 Needs `voice: two clients in one call` to have run first, and leaves the call up.
 """
 import json
+import os
 import re
 import subprocess
 import time
 
 IMAGE = "slimm-netem:local"
-LIVEKIT_CONTAINER = "slimm-e2e-lk"
+LIVEKIT_CONTAINER = os.environ.get("E2E_LK_CONTAINER", "slimm-e2e-lk")
 # The jitter buffer is what crosses its 160 ms line; the old 20ms 30ms profile sat at 140-190 ms.
 LOSSY = "delay 100ms 200ms loss 20%"
 HINT = "connection is unstable"
