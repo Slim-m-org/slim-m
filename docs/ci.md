@@ -71,7 +71,7 @@ Details, in [ci-details.md](ci-details.md#server-ci): The Rust compiler is pinne
 
 Path-gated so a server-only or schema-only change never triggers the Flutter client build.
 
-Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; Runner labels are pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
+Details, in [ci-details.md](ci-details.md#client-ci): The web bundle budget; The app shards are dealt by measured time; Native build hooks are cached, and explain their own failures; Logic tests also run as JavaScript; Where a pull request's time goes, measured 2026-10-02; Runner labels are pinned; Goldens are not a separate job; The iOS unit-test job, and why it is its own workflow; The registration and release-configuration checks, and why PR #292 needed both.
 
 ## schema-ci
 
