@@ -255,5 +255,5 @@ Settles the open `message.post` attribution question and the owner's 2026-10-14 
   A bidi override or zero-width mark is refused with `content contains hidden characters`; an emoji joiner sequence is fine.
 - Reports, blocks and timeouts on a person-run post still land on the person.
   That is the cost of the owner's choice; the marker is what lets a moderator see the text was the module's.
-- Rows from before migration 0146 have no stored name, so they read as `via_module: null` and keep the footer embed they were stored with.
+- Rows from before migration 0145 have no stored name, so they read as `via_module: null` and keep the footer embed they were stored with.
 
