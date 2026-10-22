@@ -302,6 +302,23 @@ void main() {
     );
   });
 
+  testWidgets('showing the folded dock in full screen leaves the view where it '
+      'was: the dock floats over the board', (tester) async {
+    await _pump(tester);
+    await _focusTheShare(tester);
+    final document = surfaceDocument(tester);
+    final before = document.camera;
+    final insetBefore = document.bottomInset;
+
+    await tester.tap(find.byTooltip('Show controls'));
+    await tester.pumpAndSettle();
+
+    expect(document.bottomInset, insetBefore);
+    expect(document.camera.x, before.x);
+    expect(document.camera.y, before.y);
+    expect(document.camera.zoom, before.zoom);
+  });
+
   testWidgets('focusing a tile holds the OS window fullscreen until the '
       'share ends', (tester) async {
     final port = FakeDesktopWindowPort();
