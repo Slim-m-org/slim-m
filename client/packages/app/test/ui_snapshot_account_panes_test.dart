@@ -90,7 +90,7 @@ void main() {
     'sr-reports': (pane: 'Report status', paths: {}),
   };
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final entry in surfaces.entries) {
       for (final viewport in const ['phone-portrait', 'desktop']) {
         testWidgets('${entry.key} at $viewport ($theme)', (tester) async {

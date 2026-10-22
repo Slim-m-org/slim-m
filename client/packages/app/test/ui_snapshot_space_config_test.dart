@@ -38,7 +38,7 @@ final _emoji = [
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final tab in const ['Members', 'Display']) {
       testWidgets('roles $tab tab at desktop ($theme)', (tester) async {
         await renderSurface(

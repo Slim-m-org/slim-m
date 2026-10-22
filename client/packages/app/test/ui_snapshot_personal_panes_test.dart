@@ -30,25 +30,34 @@ const _panes = <String, String>{
   'about': 'About slim-m',
 };
 
+/// Panes whose own real-time work (a version lookup, the mic probe) lands
+/// between two captures, so a second theme in the same mount would show a later state.
+const _realTimePanes = {'about', 'voice'};
+
+final _idleVoice = voiceControllerProvider.overrideWith(
+  (ref) => SnapshotVoiceController(ref, const VoiceState()),
+);
+
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
-    testWidgets('settings menu at phone-portrait ($theme)', (tester) async {
-      await renderSurface(
-        tester,
-        '/settings',
-        'phone-portrait',
-        theme,
-        'settings-menu-phone-portrait-$theme',
-        overrides: [
-          voiceControllerProvider.overrideWith(
-            (ref) => SnapshotVoiceController(ref, const VoiceState()),
-          ),
-        ],
-      );
-    });
-    for (final pane in _panes.entries) {
+  testWidgets('settings menu at phone-portrait ($darkAndLight)', (
+    tester,
+  ) async {
+    await renderSurface(
+      tester,
+      '/settings',
+      'phone-portrait',
+      darkAndLight,
+      'settings-menu-phone-portrait-$darkAndLight',
+      overrides: [_idleVoice],
+    );
+  });
+  for (final pane in _panes.entries) {
+    final themes = _realTimePanes.contains(pane.key)
+        ? const ['dark', 'light']
+        : const [darkAndLight];
+    for (final theme in themes) {
       for (final viewport in phoneAndDesktop) {
         testWidgets('settings pane ${pane.key} at $viewport ($theme)', (
           tester,
@@ -59,11 +68,7 @@ void main() {
             viewport,
             theme,
             'settings-pane-${pane.key}-$viewport-$theme',
-            overrides: [
-              voiceControllerProvider.overrideWith(
-                (ref) => SnapshotVoiceController(ref, const VoiceState()),
-              ),
-            ],
+            overrides: [_idleVoice],
             afterSettle: (tester) async {
               await tester.tap(find.text(pane.value).first);
               await tester.pump();

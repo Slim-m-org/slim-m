@@ -58,7 +58,7 @@ api.SlimmApi _grid(Ref ref) => testApi((request) async {
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final viewport in phoneAndDesktop) {
       testWidgets('channel-permissions-grid at $viewport ($theme) fits', (
         tester,

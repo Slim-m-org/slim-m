@@ -11,7 +11,7 @@ void main() {
   setUpAll(loadRealFonts);
 
   for (final viewport in const ['desktop', 'phone-portrait']) {
-    for (final theme in const ['light', 'dark']) {
+    for (final theme in const [darkAndLight]) {
       testWidgets('rail chrome at $viewport ($theme)', (tester) async {
         await renderSurface(
           tester,

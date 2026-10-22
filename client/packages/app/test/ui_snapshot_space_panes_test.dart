@@ -32,7 +32,7 @@ const _panes = <String>[
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final pane in _panes) {
       testWidgets('space settings pane $pane at desktop ($theme)', (
         tester,

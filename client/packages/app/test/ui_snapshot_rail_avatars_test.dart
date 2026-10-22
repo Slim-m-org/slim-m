@@ -88,7 +88,7 @@ void main() {
   setUpAll(loadRealFonts);
 
   for (final viewport in const ['desktop', 'phone-portrait']) {
-    for (final theme in const ['light', 'dark']) {
+    for (final theme in const [darkAndLight]) {
       testWidgets('rail avatars at $viewport ($theme)', (tester) async {
         final png = (await tester.runAsync(_patternPng))!;
         final route = viewport == 'desktop'
