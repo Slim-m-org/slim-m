@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import 'dart:io' show Platform;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -107,4 +109,17 @@ void main() {
 
     expect(types, ['screen']);
   });
+
+  test(
+    'the diagnostics probe re-arms the portal guard before it lists',
+    () async {
+      final calls = _mockPlugin(resetSupported: true);
+
+      final result = await const MediaCapabilities().screenCapture();
+
+      expect(result.supported, isTrue);
+      expect(calls, ['resetDesktopSources', 'getDesktopSources']);
+    },
+    skip: !Platform.isLinux,
+  );
 }

@@ -49,6 +49,36 @@ void main() {
     expect(bounds.bottom, 940);
   });
 
+  test('fitContent frames only the on-board part of the content', () {
+    final document = CanvasDocument()..setBoard(canvasBoard);
+    addTearDown(document.dispose);
+    document.setViewport(const Size(960, 540));
+    document
+      ..applyPlaced(_box('on', x: 100, y: 100))
+      ..applyPlaced(_box('edge', x: 1900, y: 100))
+      ..applyPlaced(_box('far', x: 9000, y: 9000));
+
+    final bounds = document.boardContentBounds!;
+    expect(bounds.left, 100);
+    expect(bounds.right, 1920);
+    expect(bounds.bottom, 140);
+
+    document.fitContent();
+    expect(canvasBoard.overlaps(document.worldView), isTrue);
+    expect(document.worldView.right, lessThanOrEqualTo(canvasBoard.right + 1));
+  });
+
+  test('fitContent falls back to the whole board with nothing on it', () {
+    final document = CanvasDocument()..setBoard(canvasBoard);
+    addTearDown(document.dispose);
+    document.setViewport(const Size(960, 540));
+    document.applyPlaced(_box('far', x: 9000, y: 9000));
+
+    expect(document.boardContentBounds, isNull);
+    document.fitContent();
+    expect(document.isFitted, isTrue);
+  });
+
   test(
       'cameraToFit falls back to the origin with no bounds or no measured '
       'viewport', () {

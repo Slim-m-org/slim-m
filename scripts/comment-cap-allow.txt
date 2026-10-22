@@ -147,7 +147,6 @@ client/packages/platform/test/host_platform_test.dart 1
 client/packages/platform/test/local_notifications_test.dart 1
 client/packages/platform/test/persistent_key_store_test.dart 3
 client/packages/platform/test/platform_test.dart 4
-client/packages/rtc/lib/src/media_capabilities.dart 1
 client/packages/rtc/lib/src/voice_session.dart 1
 client/packages/rtc/test/broadcast_bridge_test.dart 2
 client/packages/rtc/test/media_capabilities_test.dart 2
