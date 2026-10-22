@@ -178,7 +178,7 @@ DebugLog _populatedDebugLog() => DebugLog()
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final surface in _surfaces.entries) {
       for (final viewportName in surface.value.viewports) {
         testWidgets(

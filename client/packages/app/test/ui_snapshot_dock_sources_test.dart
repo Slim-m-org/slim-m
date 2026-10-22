@@ -93,7 +93,7 @@ api.SlimmApi _dock(Ref ref) => testApi((request) async {
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     for (final viewport in phoneAndDesktop) {
       testWidgets('dock-sources at $viewport ($theme) fits', (tester) async {
         await renderSurface(

@@ -86,7 +86,7 @@ api.SlimmApi _roster(Ref ref) => testApi((request) async {
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
+  for (final theme in const [darkAndLight]) {
     testWidgets('member-roster-roles at desktop ($theme) fits', (tester) async {
       await renderSurface(
         tester,

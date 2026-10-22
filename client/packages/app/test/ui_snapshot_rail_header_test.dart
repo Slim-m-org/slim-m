@@ -49,7 +49,6 @@ class _RailBackdrop extends StatelessWidget {
 Future<void> _capture(
   WidgetTester tester,
   String viewport,
-  String theme,
   SyncStatus status,
   String? icon,
 ) async {
@@ -84,26 +83,26 @@ Future<void> _capture(
       }),
     ],
   );
-  await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: RepaintBoundary(
-        key: snapshotBoundary,
-        child: MaterialApp(
-          debugShowCheckedModeBanner: false,
-          theme: theme == 'dark'
-              ? buildTheme(Brightness.dark, AppTokens.dark)
-              : buildTheme(Brightness.light, AppTokens.light),
-          home: const Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: _RailBackdrop(child: RailHeader()),
-            ),
+  Widget build(String theme) => UncontrolledProviderScope(
+    container: container,
+    child: RepaintBoundary(
+      key: snapshotBoundary,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: theme == 'dark'
+            ? buildTheme(Brightness.dark, AppTokens.dark)
+            : buildTheme(Brightness.light, AppTokens.light),
+        home: const Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: _RailBackdrop(child: RailHeader()),
           ),
         ),
       ),
     ),
   );
+
+  await tester.pumpWidget(build('dark'));
   // Only an icon loads from the network; with none there is nothing to wait for.
   for (var i = 0; icon != null && i < 4; i++) {
     await tester.runAsync(
@@ -111,11 +110,17 @@ Future<void> _capture(
     );
     await tester.pump(const Duration(milliseconds: 200));
   }
-  await writeSnapshot(
-    tester,
-    'rail-header-${icon ?? 'none'}-${status.name}-$viewport-$theme',
-  );
-  expect(tester.takeException(), isNull);
+  for (final theme in const ['dark', 'light']) {
+    if (theme == 'light') {
+      await tester.pumpWidget(build(theme));
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+    await writeSnapshot(
+      tester,
+      'rail-header-${icon ?? 'none'}-${status.name}-$viewport-$theme',
+    );
+    expect(tester.takeException(), isNull);
+  }
 
   container.dispose();
   await tester.pumpWidget(const SizedBox());
@@ -125,19 +130,17 @@ Future<void> _capture(
 void main() {
   setUpAll(loadRealFonts);
 
-  for (final theme in const ['dark', 'light']) {
-    for (final viewport in phoneAndDesktop) {
-      // Phone draws the same row larger, so one icon there covers it.
-      final icons = viewport == phoneAndDesktop.first
-          ? const ['colour']
-          : const [null, 'colour', 'pale'];
-      for (final icon in icons) {
-        for (final status in SyncStatus.values) {
-          testWidgets(
-            'rail header, ${icon ?? 'no icon'}, ${status.name}, at $viewport ($theme)',
-            (tester) => _capture(tester, viewport, theme, status, icon),
-          );
-        }
+  for (final viewport in phoneAndDesktop) {
+    // Phone draws the same row larger, so one icon there covers it.
+    final icons = viewport == phoneAndDesktop.first
+        ? const ['colour']
+        : const [null, 'colour', 'pale'];
+    for (final icon in icons) {
+      for (final status in SyncStatus.values) {
+        testWidgets(
+          'rail header, ${icon ?? 'no icon'}, ${status.name}, at $viewport (dark+light)',
+          (tester) => _capture(tester, viewport, status, icon),
+        );
       }
     }
   }
