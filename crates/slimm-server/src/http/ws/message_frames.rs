@@ -11,14 +11,14 @@
 use super::super::apps::AppSurfaceDto;
 use super::super::embeds;
 use super::super::link_preview::LinkPreviews;
-use super::super::message_dto::{CallDto, CodeRunDto};
+use super::super::message_dto::{CallDto, CodeRunDto, ViaModuleDto};
 use super::super::polls::PollDto;
 use super::{AttachmentDto, MessageDto, frames::ServerFrame};
 use crate::hub::Event;
 use crate::ids::UserId;
 use crate::store::{
     AppSurface, AttachmentSummary, CallRecord, CodeRunSummary, Embed, ForwardSummary, Message,
-    Poll, Store,
+    ModuleOrigin, Poll, Store,
 };
 
 /// Everything about a freshly created message that the bare row cannot
@@ -78,7 +78,7 @@ pub(super) async fn created_from_event(
         (*message).clone(),
         extras,
         facts.mentioned.contains(&viewer),
-        facts.webhook_username.clone(),
+        (facts.webhook_username.clone(), facts.module_origin.clone()),
     ))
 }
 
@@ -90,7 +90,7 @@ fn created(
     message: Message,
     extras: MessageExtras,
     mentions_me: bool,
-    webhook_username: Option<String>,
+    (webhook_username, module_origin): (Option<String>, Option<ModuleOrigin>),
 ) -> ServerFrame {
     let channel_id = message.channel_id.to_string();
     let seq = message.seq.0;
@@ -119,6 +119,7 @@ fn created(
     }
     dto.mentions_me = mentions_me;
     dto.webhook_username = webhook_username;
+    dto.via_module = module_origin.map(ViaModuleDto::from);
     // Without this a call arrives blank until the next cold read.
     dto.call = extras.call.map(CallDto::from);
     ServerFrame::MessageCreated {
@@ -146,6 +147,11 @@ pub(super) async fn edited(
         .webhook_message_username(message_id)
         .await
         .map_err(|_| ())?;
+    dto.via_module = store
+        .module_origin(message_id)
+        .await
+        .map_err(|_| ())?
+        .map(ViaModuleDto::from);
     dto.mentions_me = store
         .is_mentioned(message_id, viewer)
         .await

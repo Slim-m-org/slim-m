@@ -23,6 +23,7 @@ pub(in crate::store) mod row;
 mod send;
 
 use self::message_forwards::ForwardOrigin;
+use self::message_module_origins::ModuleStamp;
 use self::message_ops::insert_message_op;
 use self::message_reads::fetch_message;
 use super::attachments::{LinkError, release_message_attachments};
@@ -35,6 +36,7 @@ pub(super) mod message_embeds;
 pub(super) mod message_forwards;
 pub(super) mod message_history;
 pub(super) mod message_mentions;
+pub(super) mod message_module_origins;
 pub(super) mod message_ops;
 pub(super) mod message_reads;
 pub(super) mod message_retention;

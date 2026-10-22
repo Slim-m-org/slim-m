@@ -186,10 +186,10 @@ async fn slash_output_is_posted_as_the_member_but_labelled_as_the_modules() {
         .unwrap();
     assert_eq!(message.author_id, Some(w.user.id));
     assert_eq!(message.content, "hello from a module");
-    let embeds = w.store.embeds_for_messages(&[id]).await.unwrap();
+    let origin = w.store.module_origin(id).await.unwrap().unwrap();
     assert_eq!(
-        embeds[0].1[0].footer_text.as_deref(),
-        Some("via Scorekeeper")
+        (origin.module_name.as_str(), origin.background),
+        ("Scorekeeper", false)
     );
 }
 

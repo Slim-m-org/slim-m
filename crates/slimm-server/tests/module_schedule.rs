@@ -112,6 +112,12 @@ async fn an_approved_schedule_posts_as_the_module_on_its_interval() {
         "posted as the module, not a person"
     );
     assert_eq!(landed[0].content, "tick");
+    let origin = w.store.module_origin(landed[0].id).await.unwrap().unwrap();
+    assert_eq!(
+        (origin.module_id.as_str(), origin.background),
+        ("ticker", true),
+        "a run nobody invoked is marked as the module's own"
+    );
 
     assert_eq!(
         run_scheduled_modules(&w.state, 5 * MINUTE - 1)

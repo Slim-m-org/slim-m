@@ -15,11 +15,12 @@ use crate::store::Store;
 pub struct CreatedLookups(OnceCell<CreatedFacts>);
 
 /// The per-message facts a frame needs: who it mentions, and a webhook post's
-/// display label. Both are written with the message, before it is published.
+/// display label and the module that posted it. Both are written with the message, before it is published.
 #[derive(Debug)]
 pub struct CreatedFacts {
     pub mentioned: HashSet<UserId>,
     pub webhook_username: Option<String>,
+    pub module_origin: Option<crate::store::ModuleOrigin>,
 }
 
 impl CreatedLookups {
@@ -31,6 +32,7 @@ impl CreatedLookups {
                 Ok(CreatedFacts {
                     mentioned: store.mentioned_user_ids(message_id).await?,
                     webhook_username: store.webhook_message_username(message_id).await?,
+                    module_origin: store.module_origin(message_id).await?,
                 })
             })
             .await

@@ -39,19 +39,68 @@ async fn a_post_lands_as_the_invoking_user_and_names_the_module() {
     assert_eq!(message.author_id, Some(w.user.id));
     assert_eq!(message.channel_id, channel.id);
     assert_eq!(message.content, "hello from a module");
-    let mut conn = sqlx::SqliteConnection::connect(&format!("sqlite://{}", w.db_path))
-        .await
-        .unwrap();
-    let origin: Option<String> =
-        sqlx::query_scalar("SELECT module_id FROM module_message_origins WHERE message_id = ?")
-            .bind(id)
-            .fetch_optional(&mut conn)
-            .await
-            .unwrap();
-    assert_eq!(origin.as_deref(), Some("announcer"));
+    let origin = w.store.module_origin(id).await.unwrap().unwrap();
+    assert_eq!(origin.module_id, "announcer");
+    assert_eq!(origin.module_name, "Scorekeeper");
+    assert!(!origin.background, "a person ran it");
     let embeds = w.store.embeds_for_messages(&[id]).await.unwrap();
-    let footer = embeds[0].1[0].footer_text.as_deref();
-    assert_eq!(footer, Some("via Scorekeeper"));
+    assert!(
+        embeds.is_empty(),
+        "the marker is a field, not a module-named embed"
+    );
+}
+
+#[tokio::test]
+async fn the_marker_reaches_readers_on_the_wire() {
+    let w = world("slimm-modcap-post-wire").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let post = post_request(&channel.id.to_string(), "hello from a module");
+    w.install(Install {
+        id: "announcer",
+        wasm: host_call_loop_wasm(&post, 1),
+        declared: &["message.post"],
+        approved_host: &["message.post"],
+    })
+    .await;
+    let id = message_id_in(&w.answer_in("announcer", Some(channel.id)).await);
+    let page = w.list_messages_json(channel.id).await;
+    let posted = page
+        .iter()
+        .find(|m| m["id"] == json!(id.to_string()))
+        .expect("the post is listed");
+    assert_eq!(
+        posted["via_module"],
+        json!({"id": "announcer", "name": "Scorekeeper", "background": false})
+    );
+    assert!(posted["embeds"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_post_hiding_text_is_refused_but_line_breaks_are_not() {
+    let w = world("slimm-modcap-post-hidden").await;
+    let channel = w.store.create_channel("general", "text").await.unwrap();
+    let bidi = post_request(&channel.id.to_string(), "safe \u{202E}gnp.exe");
+    w.install(Install {
+        id: "announcer",
+        wasm: host_call_loop_wasm(&bidi, 1),
+        declared: &["message.post"],
+        approved_host: &["message.post"],
+    })
+    .await;
+    assert_eq!(
+        w.answer_in("announcer", Some(channel.id)).await,
+        "{'error':'content contains hidden characters','ok':false}"
+    );
+    let lines = post_request(&channel.id.to_string(), "one\ntwo");
+    w.install(Install {
+        id: "liner",
+        wasm: host_call_loop_wasm(&lines, 1),
+        declared: &["message.post"],
+        approved_host: &["message.post"],
+    })
+    .await;
+    let answer = w.answer_in("liner", Some(channel.id)).await;
+    assert!(answer.starts_with("{'message_id':'"), "{answer}");
 }
 
 #[tokio::test]

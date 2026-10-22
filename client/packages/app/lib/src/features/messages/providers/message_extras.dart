@@ -28,6 +28,7 @@ class MessageExtras {
     this.call,
     this.embeds = const [],
     this.webhookUsername,
+    this.viaModule,
     this.components = const [],
     this.threadChannelId,
     this.threadReplyCount,
@@ -45,6 +46,9 @@ class MessageExtras {
 
   /// A webhook post's own username label; fixed once the message exists.
   final String? webhookUsername;
+
+  /// The module that posted the message; fixed once it exists.
+  final api.ViaModule? viaModule;
 
   /// A bot's buttons. A bot can replace or clear them, so a REST fetch and a
   /// `message.components` frame both replace the list, where a bare live
@@ -106,6 +110,7 @@ class MessageExtras {
     call: call ?? this.call,
     embeds: embeds ?? this.embeds,
     webhookUsername: webhookUsername,
+    viaModule: viaModule,
     components: components ?? this.components,
     threadChannelId: threadChannelId ?? this.threadChannelId,
     threadReplyCount: threadReplyCount ?? this.threadReplyCount,
@@ -218,6 +223,7 @@ class MessageExtrasController
     // Same rule as components: a bot can replace or clear them, so a REST fetch replaces.
     embeds: _list(message.embeds, existing?.embeds, replace: authoritative),
     webhookUsername: message.webhookUsername ?? existing?.webhookUsername,
+    viaModule: message.viaModule ?? existing?.viaModule,
     // Same rule as reactions: a REST fetch replaces, so buttons a bot cleared while this client was away go.
     components: _list(
       message.components,

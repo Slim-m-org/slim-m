@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_message_origins (message_id, module_id, module_name, background) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "bbecda83285c75f5b47868b1fe88541154e12b068a4dcd39c2239923033a970b"
+}

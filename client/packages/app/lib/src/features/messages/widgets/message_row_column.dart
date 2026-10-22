@@ -23,6 +23,7 @@ import 'embed_card.dart';
 import 'forwarded_message_card.dart';
 import 'link_preview_card.dart';
 import 'message_buttons.dart';
+import 'module_marker.dart';
 import 'message_context_menu.dart';
 import 'message_edit_field.dart';
 import 'message_row_callbacks.dart';
@@ -184,6 +185,7 @@ class MessageRowColumn extends ConsumerWidget {
     if (!editing && message.content.isNotEmpty)
       LinkPreviewList(urls: extractLinkPreviewUrls(message.content)),
     if (!editing && extras.embeds.isNotEmpty) EmbedList(embeds: extras.embeds),
+    if (extras.viaModule case final module?) ModuleMarker(module: module),
     if (!editing && extras.components.isNotEmpty)
       MessageButtons(
         channelId: message.channelId,
