@@ -315,7 +315,7 @@ After a run that changes how long things take, `--record` rewrites that file fro
 A new scenario that needs state from another goes in that scenario's group; one that does not needs no entry.
 
 Each shard writes `E2E_RESULTS`, a JSON list of name, outcome and seconds, and the runner merges them into one report with the slowest scenarios and a non-zero exit if any scenario failed or never reported.
-Each shard's full log is `shard-N.log` in `E2E_PAR_WORK` (default `/tmp/e2e-par`).
+Each shard's full log is `shard-N.log` in `E2E_PAR_WORK` (default `~/.cache/slimm-e2e/par`).
 `E2E_ONLY_FILE` selects scenarios by exact name from a JSON list, which is how a shard is given its share; `E2E_ONLY` still works for a fragment.
 
 ## How the client waits

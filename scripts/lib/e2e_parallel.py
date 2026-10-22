@@ -19,6 +19,9 @@ import e2e_groups
 import e2e_run
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DEFAULT_WORK = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"),
+    "slimm-e2e", "par")
 OPT_IN = "(opt in with E2E_ONLY)"
 # Ports per shard sit below the kernel's ephemeral range, clear of the serial defaults.
 API, WEB, LK, RTC_TCP, RTC_UDP, CDP = 28100, 28200, 28300, 28400, 28500, 29000
@@ -70,6 +73,15 @@ def auto_shards():
         free_gb = 8
     # About 2.5 GB and 6 cores per stack: two to five browsers, a server and an SFU.
     return max(1, min(4, int(free_gb // 2.5), cores // 6))
+
+
+def safe_work_dir(path):
+    """The resolved work dir; shards write and clear trees under it, so it must sit inside the home dir or the repo."""
+    real = os.path.realpath(path)
+    bases = (os.path.realpath(os.path.expanduser("~")), os.path.realpath(ROOT))
+    if real not in bases and any(os.path.commonpath([real, b]) == b for b in bases):
+        return real
+    raise SystemExit(f"--work must be a directory inside your home or the repo, not {path}")
 
 
 def start(index, env, names, log_dir):
@@ -153,7 +165,7 @@ def record_durations(rows):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shards", default=os.environ.get("E2E_SHARDS", "auto"))
-    parser.add_argument("--work", default=os.environ.get("E2E_PAR_WORK", "/tmp/e2e-par"))
+    parser.add_argument("--work", default=os.environ.get("E2E_PAR_WORK") or DEFAULT_WORK)
     parser.add_argument("--port-shift", type=int,
                         default=int(os.environ.get("E2E_PORT_SHIFT", "0")),
                         help="move every shard's ports, to run beside another parallel run")
@@ -161,6 +173,7 @@ def main(argv=None):
                         help="rewrite e2e_durations.json from this run's passes")
     parser.add_argument("--plan", action="store_true", help="print the deal and stop")
     args = parser.parse_args(argv)
+    args.work = safe_work_dir(args.work)
 
     names = [n for n in e2e_run.scenario_names() if OPT_IN not in n]
     only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]

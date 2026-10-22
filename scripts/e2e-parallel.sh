@@ -12,11 +12,11 @@
 #   --port-shift  move every port, to run beside another parallel run
 #
 # Environment: E2E_ONLY, E2E_REBUILD as for e2e.sh; E2E_PAR_WORK for the shards'
-# directories (default /tmp/e2e-par). Exit status is non-zero if any scenario fails.
+# directories (default ~/.cache/slimm-e2e/par). Exit status is non-zero if any scenario fails.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK="${E2E_PAR_WORK:-/tmp/e2e-par}"
+WORK="${E2E_PAR_WORK:-${XDG_CACHE_HOME:-$HOME/.cache}/slimm-e2e/par}"
 export E2E_PAR_WORK="$WORK"
 
 for arg in "$@"; do
@@ -29,7 +29,8 @@ echo "== server =="
 echo "== web build =="
 WEB_DIR="$ROOT/client/packages/app/build/web"
 bash "$ROOT/client/packages/app/tool/fetch_web_assets.sh"
-if [[ ! -f "$WEB_DIR/main.dart.js" || -n "${E2E_REBUILD:-}" ]]; then
+# A bundle built before the sqlite3.wasm fetch cannot open the local store, so it is rebuilt too.
+if [[ ! -f "$WEB_DIR/main.dart.js" || ! -f "$WEB_DIR/sqlite3.wasm" || -n "${E2E_REBUILD:-}" ]]; then
   rm -rf "$WEB_DIR"
   ( cd "$ROOT/client/packages/app" && flutter build web --release --no-web-resources-cdn )
 fi

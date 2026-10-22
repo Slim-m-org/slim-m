@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """How the parallel e2e run deals scenarios across stacks."""
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -87,3 +88,19 @@ class ShardEnvTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WorkDirTest(unittest.TestCase):
+    def test_the_default_is_not_a_shared_temp_dir(self):
+        self.assertFalse(e2e_parallel.DEFAULT_WORK.startswith("/tmp"))
+        self.assertTrue(e2e_parallel.safe_work_dir(e2e_parallel.DEFAULT_WORK))
+
+    def test_a_dir_outside_home_and_the_repo_is_refused(self):
+        for bad in ("/tmp/e2e-par", "/etc", "~/..", "/"):
+            with self.assertRaises(SystemExit, msg=bad):
+                e2e_parallel.safe_work_dir(os.path.expanduser(bad))
+
+    def test_home_and_the_repo_themselves_are_refused(self):
+        for bad in (os.path.expanduser("~"), e2e_parallel.ROOT):
+            with self.assertRaises(SystemExit, msg=bad):
+                e2e_parallel.safe_work_dir(bad)
