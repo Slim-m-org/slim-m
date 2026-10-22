@@ -20,6 +20,8 @@
 # scripts/comment-cap-allow.txt at each file's count when it was listed, and
 # this fails if a file exceeds its own number. Fixing a file lowers its entry;
 # a file not listed must be clean.
+#
+# File arguments narrow the scan to those files (the pre-commit hook passes the staged ones).
 
 set -euo pipefail
 
@@ -109,12 +111,20 @@ while IFS= read -r file; do
       echo "::error file=$allowfile::$file has no multi-line comment runs left; drop the line" >&2
     fi
   fi
-done < <(git ls-files '*.dart' '*.rs' '*.py' '*.sh' '*.yml' '*.yaml' '*.toml')
+done < <(
+  if (($# > 0)); then
+    printf '%s\n' "$@" | grep -E '\.(dart|rs|py|sh|yml|yaml|toml)$' || true
+  else
+    git ls-files '*.dart' '*.rs' '*.py' '*.sh' '*.yml' '*.yaml' '*.toml'
+  fi
+)
 
-# A stale allowlist entry (deleted or renamed file) is only a warning.
-for path in "${!ceiling[@]}"; do
-  [[ -n ${seen[$path]:-} ]] || echo "::warning file=$allowfile::'$path' is listed but no longer exists; drop the line"
-done
+# A stale allowlist entry (deleted or renamed file) is only a warning; a narrowed run cannot tell.
+if (($# == 0)); then
+  for path in "${!ceiling[@]}"; do
+    [[ -n ${seen[$path]:-} ]] || echo "::warning file=$allowfile::'$path' is listed but no longer exists; drop the line"
+  done
+fi
 
 echo "comment cap: $checked files checked, $over over their ceiling, ${#ceiling[@]} allowlisted"
 exit $status

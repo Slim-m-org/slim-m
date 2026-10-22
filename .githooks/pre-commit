@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Fast checks on the staged files only, aimed at under ten seconds. The heavier checks run in pre-push.
+# Enable with scripts/install-hooks.sh. Bypass once with `git commit --no-verify`.
+set -o pipefail
+
+HOOK_NAME=pre-commit
+# shellcheck source=.githooks/lib.sh
+. "$(git rev-parse --show-toplevel)/.githooks/lib.sh"
+
+mapfile -t CHANGED < <(git diff --cached --name-only --diff-filter=ACMR)
+[ "${#CHANGED[@]}" -gt 0 ] || exit 0
+
+mapfile -t dart_files < <(pick '^client/.*\.dart$' | grep -Ev '\.(g|freezed)\.dart$')
+mapfile -t rust_files < <(pick '^crates/.*\.rs$')
+mapfile -t ui_files < <(pick '^client/.*\.(dart|ya?ml|arb)$')
+
+if [ "${#dart_files[@]}" -gt 0 ]; then
+  if have dart && [ -f client/.dart_tool/package_config.json ]; then
+    FIX="dart format ${dart_files[*]}"
+    step "dart format (staged)" dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+  else
+    # Without a resolved package config dart format guesses the language version and flags files that are fine.
+    skip "dart format (staged)" "run flutter pub get in client/"
+  fi
+fi
+
+if [ "${#rust_files[@]}" -gt 0 ]; then
+  if have rustfmt; then
+    FIX="rustfmt --edition 2024 ${rust_files[*]}"
+    step "rustfmt (staged)" rustfmt --check --edition 2024 "${rust_files[@]}"
+  else
+    skip "rustfmt (staged)" "rustfmt not installed"
+  fi
+fi
+
+if [ "${#ui_files[@]}" -gt 0 ]; then
+  FIX="replace the emoji with a Lucide icon, or a \\u{...} escape in test data"
+  step "no emoji in UI source (staged)" bash scripts/check-no-emoji.sh "${ui_files[@]}"
+fi
+
+if [ "${#dart_files[@]}" -gt 0 ]; then
+  FIX="make 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0' the first line"
+  step "SPDX header, Dart (staged)" bash scripts/check-spdx-dart.sh "${dart_files[@]}"
+fi
+if [ "${#rust_files[@]}" -gt 0 ]; then
+  FIX="make 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0' the first line"
+  step "SPDX header, Rust (staged)" bash scripts/check-spdx-rust.sh "${rust_files[@]}"
+fi
+
+FIX="make plain comments one line; lower the entry in scripts/comment-cap-allow.txt if you fixed a listed file"
+step "comment cap (staged)" bash scripts/check-comment-cap.sh "${CHANGED[@]}"
+FIX="split the file, or file a Planka card to; see scripts/file-budget-allow.txt"
+step "file budget (staged)" bash scripts/check-file-budget.sh "${CHANGED[@]}"
+
+FIX="unstage it (git restore --staged <file>) or, for a deliberate large asset, SLIMM_ALLOW_LARGE=1 git commit"
+step "no secrets or large binaries (staged)" bash .githooks/check-staged-safety.sh
+
+summary

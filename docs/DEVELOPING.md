@@ -114,6 +114,14 @@ scripts/load-run.sh --profile http_mix                      # the same, under sa
 It refuses any target that is not loopback, so it can never touch the live deployment.
 See [../perf/load/README.md](../perf/load/README.md).
 
+## Git hooks
+
+Run `scripts/install-hooks.sh` once per clone (it sets `core.hooksPath` to the tracked `.githooks/`, which covers every worktree).
+`pre-commit` checks only the staged files in seconds: format, emoji, SPDX headers, comment cap, file budget, and no staged secrets or large binaries.
+`pre-push` runs the heavier checks scoped to what the push changes: the hygiene scripts, `dart analyze`, clippy, the server and client tests for the touched packages and their dependents, and the sqlx, openapi, actionlint and shellcheck gates.
+Both print a summary table; `--no-verify` bypasses them once.
+Set `SLIMM_HOOK_ENV` to a file that exports `CARGO_TARGET_DIR` and `TMPDIR` to share a build cache across worktrees.
+
 ## The gates CI runs, locally
 
 Each of these fails a pull request in `hygiene.yml`, and each has a local script.
@@ -132,7 +140,8 @@ python3 scripts/check-ci-docs.py             # every workflow has a row in docs/
 ```
 
 Read the unittest run's `OK` or `FAILED` summary line, not its last line: some tests print `FAIL` as part of their expected output.
-`actionlint` and `shellcheck` run pinned by image digest in CI; see [ci.md](ci.md) for the digests.
+`scripts/check-actionlint.sh` and `scripts/check-shellcheck.sh` run both linters pinned by image digest, the same way CI does.
+The iOS, orientation, emoji and SPDX checks are `scripts/check-ios-*.sh`, `scripts/check-orientation-lock.sh`, `scripts/check-no-emoji.sh` and `scripts/check-spdx-*.sh`.
 
 ## Conventions
 
