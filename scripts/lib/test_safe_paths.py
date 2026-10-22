@@ -13,8 +13,9 @@ import safe_paths  # noqa: E402
 
 class ConfinedTest(unittest.TestCase):
     def setUp(self):
-        self.base = tempfile.mkdtemp(dir=os.path.expanduser("~/.cache"))
-        self.addCleanup(os.rmdir, self.base)
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        self.base = scratch.name
 
     def test_a_path_inside_the_base_resolves(self):
         inside = os.path.join(self.base, "shots")
@@ -35,7 +36,6 @@ class ConfinedTest(unittest.TestCase):
     def test_a_symlink_out_of_the_base_is_refused(self):
         link = os.path.join(self.base, "out")
         os.symlink("/etc", link)
-        self.addCleanup(os.remove, link)
         with self.assertRaises(SystemExit):
             safe_paths.confined(os.path.join(link, "passwd"), self.base)
 
