@@ -60,6 +60,33 @@ void main() {
     expect(document.contentBounds!.overlaps(document.worldView), isTrue);
   });
 
+  testWidgets('the zoom chip\'s fit ignores objects outside the board', (
+    tester,
+  ) async {
+    final fixture = CanvasPaneFixture()
+      ..objects = [
+        canvasNoteJson('note', x: 1500),
+        canvasNoteJson('far', x: 9000, seq: 2),
+      ];
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true);
+    await tester.pumpAndSettle();
+    final document = surfaceDocument(tester);
+
+    await tester.tap(find.byTooltip('Fit view'));
+    await tester.pumpAndSettle();
+
+    final bounds = document.boardContentBounds!;
+    expect(bounds.right, lessThan(document.board!.right));
+    expect(document.board!.contains(bounds.bottomRight), isTrue);
+    expect(
+      document.worldView.right,
+      lessThanOrEqualTo(document.board!.right + 1),
+    );
+  });
+
   /// The desktop convention every other drawing surface honours: Delete or
   /// Backspace over the current Move-tool selection, not only the overflow
   /// menu's own "Delete" item.

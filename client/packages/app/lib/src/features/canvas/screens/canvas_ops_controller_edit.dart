@@ -82,7 +82,13 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     if (bounds == null) return;
     final box = noteBoxFor(text, width: bounds.w, minHeight: bounds.h);
     if (box.height <= bounds.h) return;
-    final to = (x: bounds.x, y: bounds.y, w: bounds.w, h: box.height);
+    final to = document.boxOnBoard(
+      objectId,
+      bounds.x,
+      bounds.y,
+      bounds.w,
+      box.height,
+    );
     document.moveObject(objectId, to.x, to.y, to.w, to.h);
     document.refresh();
     await _commitBounds(
