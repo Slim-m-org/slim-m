@@ -28,20 +28,50 @@ class MessageToolbarAnchor extends StatefulWidget {
   State<MessageToolbarAnchor> createState() => _MessageToolbarAnchorState();
 }
 
-class _MessageToolbarAnchorState extends State<MessageToolbarAnchor> {
+class _MessageToolbarAnchorState extends State<MessageToolbarAnchor>
+    with SingleTickerProviderStateMixin {
   final _portal = OverlayPortalController();
+  late final AnimationController _fade = AnimationController(vsync: this)
+    ..addStatusListener(_onFadeStatus);
   bool _attached = false;
 
   @override
   void initState() {
     super.initState();
     _attachWhenNeeded();
+    _fade.value = widget.show ? 1 : 0;
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(MessageToolbarAnchor oldWidget) {
     super.didUpdateWidget(oldWidget);
     _attachWhenNeeded();
+    if (oldWidget.show != widget.show) _runFade();
+  }
+
+  void _runFade() {
+    final target = widget.show ? 1.0 : 0.0;
+    final duration = AppMotion.reduced(context, AppMotion.fast);
+    if (duration == Duration.zero) {
+      _fade.value = target;
+      return;
+    }
+    _fade.duration = duration;
+    _fade.animateTo(target, curve: AppMotion.entrance);
+  }
+
+  // The fade-out leaves the plate mounted; this drops it once it is gone.
+  void _onFadeStatus(AnimationStatus status) {
+    final done =
+        status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed;
+    if (done && !widget.show && mounted) setState(() {});
   }
 
   // Rows that are never hovered never pay for an overlay child.
@@ -59,7 +89,7 @@ class _MessageToolbarAnchorState extends State<MessageToolbarAnchor> {
     return OverlayPortal.overlayChildLayoutBuilder(
       controller: _portal,
       overlayChildBuilder: (overlayContext, info) {
-        if (!widget.show) return const SizedBox.shrink();
+        if (!widget.show && _fade.value == 0) return const SizedBox.shrink();
         final rowTopRight = MatrixUtils.transformPoint(
           info.childPaintTransform,
           Offset(info.childSize.width, 0),
@@ -70,7 +100,13 @@ class _MessageToolbarAnchorState extends State<MessageToolbarAnchor> {
         return Positioned(
           top: rowTopRight.dy,
           right: info.overlaySize.width - rowTopRight.dx + AppSizes.paneGutter,
-          child: _KeepsRowHovered(child: widget.toolbar),
+          child: IgnorePointer(
+            ignoring: !widget.show,
+            child: FadeTransition(
+              opacity: _fade,
+              child: _KeepsRowHovered(child: widget.toolbar),
+            ),
+          ),
         );
       },
       child: widget.child,

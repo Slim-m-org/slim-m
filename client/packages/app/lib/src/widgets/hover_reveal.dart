@@ -7,7 +7,12 @@
 /// files were reaching in for [HoverRevealScope] before this existed.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+/// How long the list's offset must hold still before hover is allowed again.
+const kScrollSettle = Duration(milliseconds: 120);
 
 /// Tracks pointer hover for one subtree.
 ///
@@ -15,7 +20,20 @@ import 'package:flutter/material.dart';
 /// has a dozen fields, and converting it wholesale to carry one bool would
 /// touch every reference in that file.
 class HoverReveal extends StatefulWidget {
-  const HoverReveal({super.key, required this.builder});
+  const HoverReveal({
+    super.key,
+    required this.builder,
+    this.enterDelay = Duration.zero,
+    this.calmWhileScrolling = false,
+  });
+
+  /// How long the pointer must rest on the subtree before it reads as hovered.
+  /// Leaving is always immediate, so a sweep across rows lights none of them.
+  final Duration enterDelay;
+
+  /// Whether hover is withheld while the enclosing list scrolls, and shown
+  /// again once it settles if the pointer is still over the subtree.
+  final bool calmWhileScrolling;
 
   /// [hovered] is true for a mouse over the row or a pinned popup - the
   /// original, narrower purpose (see [HoverRevealScope.pin]'s own doc).
@@ -40,11 +58,76 @@ class HoverReveal extends StatefulWidget {
 }
 
 class _HoverRevealState extends State<HoverReveal> {
+  bool _pointerOver = false;
   bool _hovered = false;
+  Timer? _enterTimer;
+  ScrollPosition? _position;
+  Timer? _settleTimer;
+  bool _calm = false;
+  double? _lastPixels;
   bool _pinned = false;
   bool _menuOpen = false;
   bool _focusWithin = false;
   bool _overlayHovered = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.calmWhileScrolling) return;
+    final next = Scrollable.maybeOf(context)?.position;
+    if (next == _position) return;
+    _position?.removeListener(_onScrolled);
+    _position = next?..addListener(_onScrolled);
+    _lastPixels = next != null && next.hasPixels ? next.pixels : null;
+  }
+
+  @override
+  void dispose() {
+    _enterTimer?.cancel();
+    _settleTimer?.cancel();
+    _position?.removeListener(_onScrolled);
+    super.dispose();
+  }
+
+  // Watches the offset itself: a mouse wheel moves it without ever marking the position as scrolling.
+  void _onScrolled() {
+    final position = _position!;
+    final pixels = position.hasPixels ? position.pixels : null;
+    if (pixels == _lastPixels) return;
+    _lastPixels = pixels;
+    _calm = true;
+    _settleTimer?.cancel();
+    _settleTimer = Timer(kScrollSettle, () {
+      _calm = false;
+      _settleHover();
+    });
+    if (_pointerOver || _hovered) _settleHover();
+  }
+
+  void _onPointer(bool over) {
+    _pointerOver = over;
+    _settleHover();
+  }
+
+  // Leaving and scrolling clear hover at once; entering waits out the intent delay.
+  void _settleHover() {
+    if (!mounted) return;
+    if (!_pointerOver || _calm) {
+      _enterTimer?.cancel();
+      _enterTimer = null;
+      if (_hovered) setState(() => _hovered = false);
+      return;
+    }
+    if (_hovered || _enterTimer != null) return;
+    if (widget.enterDelay == Duration.zero) {
+      setState(() => _hovered = true);
+      return;
+    }
+    _enterTimer = Timer(widget.enterDelay, () {
+      _enterTimer = null;
+      if (mounted && _pointerOver && !_calm) setState(() => _hovered = true);
+    });
+  }
 
   void _onFocusChange(bool focused) {
     final visible =
@@ -69,8 +152,8 @@ class _HoverRevealState extends State<HoverReveal> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onEnter: (_) => _onPointer(true),
+      onExit: (_) => _onPointer(false),
       child: HoverRevealScope(
         pin: _pin,
         reportMenuOpen: _reportMenuOpen,
