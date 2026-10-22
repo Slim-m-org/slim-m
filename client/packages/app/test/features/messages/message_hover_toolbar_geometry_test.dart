@@ -176,7 +176,23 @@ void main() {
               controller: controller,
               children: [
                 hoverRow(message(id: 'a', content: 'head')),
-                for (final id in const ['b', 'c', 'd', 'e', 'f'])
+                for (final id in const [
+                  'b',
+                  'c',
+                  'd',
+                  'e',
+                  'f',
+                  'g',
+                  'h',
+                  'i',
+                  'j',
+                  'k',
+                  'l',
+                  'm',
+                  'n',
+                  'o',
+                  'p',
+                ])
                   hoverRow(message(id: id, content: 'line $id'), grouped: true),
               ],
             ),
@@ -191,9 +207,9 @@ void main() {
 
       controller.jumpTo(6);
       await tester.pump();
-      await tester.pump(AppMotion.fast * 2);
+      await tester.pump(AppMotion.fast + const Duration(milliseconds: 5));
       expect(hoverPlate, findsNothing, reason: 'hover is calm while scrolling');
-      await tester.pump(kScrollSettle + kRowHoverIntent);
+      await tester.pump(kScrollSettle + kRowHoverIntent * 3);
       await tester.pumpAndSettle();
       expect(tester.getTopLeft(row).dy, lessThan(300));
       expect(tester.getTopLeft(hoverPlate).dy, tester.getTopLeft(row).dy);

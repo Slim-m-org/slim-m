@@ -64,6 +64,7 @@ class _HoverRevealState extends State<HoverReveal> {
   ScrollPosition? _position;
   Timer? _settleTimer;
   bool _calm = false;
+  double? _lastPixels;
   bool _pinned = false;
   bool _menuOpen = false;
   bool _focusWithin = false;
@@ -77,6 +78,7 @@ class _HoverRevealState extends State<HoverReveal> {
     if (next == _position) return;
     _position?.removeListener(_onScrolled);
     _position = next?..addListener(_onScrolled);
+    _lastPixels = next != null && next.hasPixels ? next.pixels : null;
   }
 
   @override
@@ -89,6 +91,10 @@ class _HoverRevealState extends State<HoverReveal> {
 
   // Watches the offset itself: a mouse wheel moves it without ever marking the position as scrolling.
   void _onScrolled() {
+    final position = _position!;
+    final pixels = position.hasPixels ? position.pixels : null;
+    if (pixels == _lastPixels) return;
+    _lastPixels = pixels;
     _calm = true;
     _settleTimer?.cancel();
     _settleTimer = Timer(kScrollSettle, () {
