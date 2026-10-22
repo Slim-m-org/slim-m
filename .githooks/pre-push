@@ -29,6 +29,9 @@ changed_files() {
 }
 
 mapfile -t CHANGED < <(changed_files | sort -u)
+
+# Hooks inherit the pushing repository's variables, and tests that build their own repositories must not.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_QUARANTINE_PATH
 [ "${#CHANGED[@]}" -gt 0 ] || exit 0
 
 touched() { printf '%s\n' "${CHANGED[@]}" | grep -Eq "$1"; }
@@ -64,8 +67,11 @@ step "ios purpose strings" bash scripts/check-ios-purpose-strings.sh
 step "ios broadcast extension wired" bash scripts/check-ios-broadcast-wired.sh
 step "ios notification extension wired" bash scripts/check-ios-nse-wired.sh
 step "orientation locked on phones only" bash scripts/check-orientation-lock.sh
+# The backup and restore tests fsync SQLite databases and dominate the suite, so they run only when what they cover changed.
+backup_touched=0
+touched '^(scripts/(backup|restore-drill)\.py|scripts/lib/[a-z_]*(backup|restore)|crates/slimm-server/migrations/)' && backup_touched=1
 FIX="cd scripts/lib && python3 -m unittest discover -p 'test_*.py' -v"
-step "scripts/lib unittests" bash -c "cd scripts/lib && python3 -m unittest discover -p 'test_*.py'"
+step "scripts/lib unittests" bash -c "cd scripts/lib && modules=\$(ls test_*.py | { if [ $backup_touched = 1 ]; then cat; else grep -Ev 'backup|restore'; fi; } | sed 's/\.py\$//') && python3 -m unittest \$modules"
 
 if [ "$workflows" = 1 ]; then
   if have docker; then
