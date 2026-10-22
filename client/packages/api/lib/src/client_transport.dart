@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'client.dart';
 
+const _contentTypeHeader = 'content-type';
+
 /// The only code in this package that speaks HTTP.
 ///
 /// Every typed method in every other part of [SlimmApi] is a wrapper over
@@ -99,10 +101,10 @@ extension SlimmApiTransport on SlimmApi {
     if (bytes != null) {
       // An upload (an attachment or an avatar): the request body is the raw
       // bytes, never JSON, though the response below still is.
-      request.headers['content-type'] = 'application/octet-stream';
+      request.headers[_contentTypeHeader] = 'application/octet-stream';
       request.bodyBytes = bytes;
     } else if (body != null) {
-      request.headers['content-type'] = 'application/json';
+      request.headers[_contentTypeHeader] = 'application/json';
       request.body = jsonEncode(body);
     }
     if (authenticated) {
@@ -164,7 +166,7 @@ extension SlimmApiTransport on SlimmApi {
       return FetchedBytes(
         bytes: response.bodyBytes,
         contentType:
-            response.headers['content-type'] ?? 'application/octet-stream',
+            response.headers[_contentTypeHeader] ?? 'application/octet-stream',
       );
     }
     throw _errorFor(response);
