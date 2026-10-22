@@ -87,7 +87,7 @@ def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
             client.mouse_click(aim, y + h / 2)
         finally:
             client.gestures(False)
-        time.sleep(0.8)
+        time.sleep(0.3)
     shown = slider_percent(client, label)
     assert abs(shown - percent) <= tolerance, \
         f"{client.name}: {label!r} would not reach {percent}%, stuck at {shown}%"

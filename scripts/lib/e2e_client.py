@@ -343,7 +343,7 @@ class Client:
                       {"type": kind, "x": x, "y": y, "button": button,
                        "clickCount": 1})
             time.sleep(hold)
-        time.sleep(1.0)
+        self.settle(1.0)
 
     def watch_for_file_input(self):
         """Catch the picker's <input> at the moment it is made.
