@@ -39,6 +39,7 @@ api.Message _message({
   required String authorId,
   required String channelId,
   required String content,
+  bool mentionsMe = false,
 }) => api.Message(
   id: id,
   channelId: channelId,
@@ -48,6 +49,7 @@ api.Message _message({
   content: content,
   createdAt: 0,
   editedAt: null,
+  mentionsMe: mentionsMe,
 );
 
 http.Response _json(Object body) => http.Response(
@@ -172,6 +174,7 @@ void main() {
           authorId: 'alice',
           channelId: 'group-1',
           content: 'hey @nick look',
+          mentionsMe: true,
         ),
       ),
     );
@@ -212,6 +215,7 @@ void main() {
           authorId: 'alice',
           channelId: 'group-1',
           content: 'hey @nick look',
+          mentionsMe: true,
         ),
       ),
     );

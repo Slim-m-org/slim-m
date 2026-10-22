@@ -6,10 +6,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/features/messages/providers/message_alert_policy.dart';
-import 'package:slimm_app/src/providers/providers.dart';
 import 'support/message_alert_policy_rig.dart';
 
 void main() {
@@ -38,7 +36,10 @@ void main() {
           isFalse,
         );
         expect(
-          await alertsFor(rig, alertMessage('group-1', 'hi @nick')),
+          await alertsFor(
+            rig,
+            alertMessage('group-1', 'hi @nick', mentionsMe: true),
+          ),
           isTrue,
         );
       },
@@ -77,7 +78,13 @@ void main() {
         AlertRig(account: 'nothing', overrides: {'group-1': 'mentions'}),
       );
 
-      expect(await alertsFor(rig, alertMessage('group-1', 'hi @nick')), isTrue);
+      expect(
+        await alertsFor(
+          rig,
+          alertMessage('group-1', 'hi @nick', mentionsMe: true),
+        ),
+        isTrue,
+      );
     });
   });
 
@@ -97,7 +104,10 @@ void main() {
       );
 
       expect(
-        await alertsFor(rig, alertMessage('thread-1', 'hey @nick')),
+        await alertsFor(
+          rig,
+          alertMessage('thread-1', 'hey @nick', mentionsMe: true),
+        ),
         isTrue,
       );
       expect(
@@ -216,106 +226,53 @@ void main() {
     });
   });
 
-  group('a mention that is not the username', () {
-    test('@everyone gets through a channel narrowed to mentions', () async {
+  group('the server decides what mentions this account', () {
+    test(
+      'a flagged message gets through a channel narrowed to mentions',
+      () async {
+        await wire(AlertRig(overrides: {'group-1': 'mentions'}));
+
+        final reply = alertMessage('group-1', 'thanks', mentionsMe: true);
+        expect(await alertsFor(rig, reply), isTrue);
+      },
+    );
+
+    test('a role mention the server flagged alerts', () async {
       await wire(AlertRig(overrides: {'group-1': 'mentions'}));
 
-      expect(
-        await alertsFor(rig, alertMessage('group-1', '@everyone standup')),
-        isTrue,
+      final ping = alertMessage(
+        'group-1',
+        'ping @[Core Team]',
+        mentionsMe: true,
       );
-      expect(
-        await alertsFor(rig, alertMessage('group-1', 'quick q @here')),
-        isTrue,
-      );
+      expect(await alertsFor(rig, ping), isTrue);
     });
 
-    test('a role the account holds does too', () async {
-      final holder = AlertRig(overrides: {'group-1': 'mentions'})
-        ..roles = ['Core Team'];
-      await wire(holder);
-
-      expect(
-        await alertsFor(rig, alertMessage('group-1', 'ping @[Core Team]')),
-        isTrue,
-      );
-    });
-
-    test('a role it does not hold stays quiet', () async {
+    test('mention text the server did not flag stays quiet', () async {
       await wire(AlertRig(overrides: {'group-1': 'mentions'}));
 
-      expect(
-        await alertsFor(rig, alertMessage('group-1', 'ping @[Core Team]')),
-        isFalse,
-      );
-    });
-
-    test('an unreadable profile costs only the role mentions', () async {
-      await wire(AlertRig(overrides: {'group-1': 'mentions'}));
-
-      expect(await alertsFor(rig, alertMessage('group-1', 'hi @nick')), isTrue);
-    });
-  });
-
-  group('looking up this account', () {
-    test('a burst of messages shares one lookup', () async {
-      await wire(AlertRig(overrides: {'group-1': 'mentions'}));
-
-      await Future.wait([
-        for (var i = 0; i < 10; i++)
-          alertsFor(rig, alertMessage('group-1', 'm $i')),
-      ]);
-
-      expect(rig.meRequests, 1);
-    });
-
-    test('a refused lookup is not retried for every message', () async {
-      await wire(AlertRig(overrides: {'group-1': 'mentions'})..meFails = true);
-
-      for (var i = 0; i < 5; i++) {
-        await alertsFor(rig, alertMessage('group-1', 'hi @nick $i'));
-      }
-
-      expect(rig.meRequests, 1);
-    });
-
-    test('a refused lookup does not hold back another account', () async {
-      await wire(AlertRig(overrides: {'group-1': 'mentions'})..meFails = true);
+      final unflagged = alertMessage('group-1', '@everyone standup');
+      expect(await alertsFor(rig, unflagged), isFalse);
       expect(
         await alertsFor(rig, alertMessage('group-1', 'hi @nick')),
         isFalse,
       );
-
-      rig.meFails = false;
-      rig.container
-          .read(sessionProvider)
-          .set(
-            const api.TokenPair(
-              userId: 'other',
-              accessToken: 'access-2',
-              refreshToken: 'refresh-2',
-              accessExpiresAt: 0,
-            ),
-          );
-
-      expect(await alertsFor(rig, alertMessage('group-1', 'hi @nick')), isTrue);
-      expect(rig.meRequests, 2);
     });
 
-    test('a refused lookup is tried again once the wait passes', () async {
-      final saved = selfLookupRetryAfter;
-      selfLookupRetryAfter = Duration.zero;
-      addTearDown(() => selfLookupRetryAfter = saved);
-      await wire(AlertRig(overrides: {'group-1': 'mentions'})..meFails = true);
+    test('a flagged message is a mention for the chime', () async {
+      await wire(AlertRig());
 
-      expect(
-        await alertsFor(rig, alertMessage('group-1', 'hi @nick')),
-        isFalse,
+      final alert = await rig.policy.evaluate(
+        alertMessage('group-1', 'hi', mentionsMe: true),
       );
-      rig.meFails = false;
+      expect(alert?.mentionsSelf, isTrue);
+    });
 
-      expect(await alertsFor(rig, alertMessage('group-1', 'hi @nick')), isTrue);
-      expect(rig.meRequests, 2);
+    test('asking never touches /me', () async {
+      await wire(AlertRig(overrides: {'group-1': 'mentions'}));
+
+      await alertsFor(rig, alertMessage('group-1', 'hi', mentionsMe: true));
+      expect(rig.meRequests, 0);
     });
   });
 }

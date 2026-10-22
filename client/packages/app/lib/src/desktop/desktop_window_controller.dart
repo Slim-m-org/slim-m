@@ -149,9 +149,11 @@ class DesktopWindowController {
   /// persistence: the splash is deliberately smaller than the floor.
   Future<void> _holdMinimumSize() async {
     if (!_geometryPersistenceEnabled || _holdingMinimum) return;
+    if (!port.windowQueryable) return;
     _holdingMinimum = true;
     try {
       if (await port.isMaximized() || await port.isFullScreen()) return;
+      if (!port.windowQueryable) return;
       final bounds = await port.getBounds();
       const floor = WindowGeometry.minimumWindowSize;
       if (bounds.width >= floor.width && bounds.height >= floor.height) return;
@@ -190,11 +192,13 @@ class DesktopWindowController {
   /// Null when the window is still at the splash's size: that is never a size
   /// the user chose, and saving it would overwrite the real one.
   Future<WindowGeometry?> _currentGeometry() async {
+    if (!port.windowQueryable) return null;
     final keepPosition = _positionSupported();
     final previous = (store.read() ?? WindowGeometry.fallback).copyWith(
       clearPosition: !keepPosition,
     );
     final maximized = await port.isMaximized();
+    if (!port.windowQueryable) return null;
     final fullscreen = await port.isFullScreen();
     // A video or canvas tile holding the window fullscreen is not a state to reopen in.
     if (fullscreen && WindowFullscreenHold.anyHeld) return null;
@@ -205,6 +209,7 @@ class DesktopWindowController {
             : WindowRunState.maximized,
       );
     }
+    if (!port.windowQueryable) return null;
     final bounds = await port.getBounds();
     final size = WindowSize(width: bounds.width, height: bounds.height);
     if (looksLikeSplashSize(size)) return null;

@@ -26,7 +26,13 @@ void main() {
         await alertsFor(rig, alertMessage('group-1', 'new article')),
         isFalse,
       );
-      expect(await alertsFor(rig, alertMessage('group-1', 'hi @nick')), isTrue);
+      expect(
+        await alertsFor(
+          rig,
+          alertMessage('group-1', 'hi @nick', mentionsMe: true),
+        ),
+        isTrue,
+      );
     });
 
     test('an override for the channel still gets every post', () async {
@@ -55,7 +61,12 @@ void main() {
       await wire(AlertRig()..automated = {'feedbot': 'bot'});
 
       final plain = alertMessage('group-1', 'new article', authorId: 'feedbot');
-      final mention = alertMessage('group-1', 'hi @nick', authorId: 'feedbot');
+      final mention = alertMessage(
+        'group-1',
+        'hi @nick',
+        authorId: 'feedbot',
+        mentionsMe: true,
+      );
       expect(await alertsFor(rig, plain), isFalse);
       expect(await alertsFor(rig, mention), isTrue);
     });
