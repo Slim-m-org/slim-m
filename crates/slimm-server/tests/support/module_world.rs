@@ -151,6 +151,20 @@ impl World {
         self.send(request).await
     }
 
+    /// The channel's messages as the list route answers them, newest first.
+    pub async fn list_messages_json(&self, channel: ChannelId) -> Vec<Value> {
+        let request = Request::builder()
+            .uri(format!("/channels/{channel}/messages"))
+            .header("authorization", format!("Bearer {}", self.token))
+            .body(Body::empty())
+            .unwrap();
+        self.send(request)
+            .await
+            .as_array()
+            .cloned()
+            .expect("a message list")
+    }
+
     pub async fn send(&self, request: Request<Body>) -> Value {
         let response = self.router.clone().oneshot(request).await.unwrap();
         let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)

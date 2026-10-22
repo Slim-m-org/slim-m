@@ -53,8 +53,8 @@ mod member_gate;
 mod members_bulk;
 mod messages;
 use messages::{
-    message_embeds, message_forwards, message_history, message_ops, message_retention,
-    message_search, messages_bulk,
+    message_embeds, message_forwards, message_history, message_module_origins, message_ops,
+    message_retention, message_search, messages_bulk,
 };
 mod moderation_audit;
 mod moderation_history;
@@ -170,6 +170,7 @@ pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};
 pub use message_forwards::{ForwardOrigin, ForwardSource, ForwardSummary};
 pub use message_history::MessageRevision;
+pub use message_module_origins::{ModuleOrigin, ModuleStamp};
 pub use message_ops::{MessageOpEntry, MessageOpKind, MessageOpsPage};
 pub use message_retention::{MAX_MESSAGE_RETENTION_DAYS, PrunedMessage, SweptMessageRetention};
 pub use message_search::{MessageSearchFilters, SearchError};

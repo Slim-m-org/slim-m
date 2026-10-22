@@ -25,7 +25,7 @@ use crate::module_runtime::{
 };
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
-use crate::store::{InstalledModule, KvSetError, NewMessage, Store};
+use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
@@ -72,20 +72,18 @@ pub(crate) fn surface_for(
     user_id: UserId,
     channel: Option<ChannelId>,
 ) -> CapabilitySurface {
-    let footer = format!("via {}", module.name);
-    surface_posting_as(state, module, user_id, channel, footer)
+    surface_posting_as(state, module, user_id, channel, false)
 }
 
 /// The surface for a scheduled run: it posts as the module's own principal
-/// into the channel the admin chose, marked as the module's.
+/// into the channel the admin chose, marked as a background post.
 pub(crate) fn scheduled_surface(
     state: &AppState,
     module: &InstalledModule,
     bot: UserId,
     channel: ChannelId,
 ) -> CapabilitySurface {
-    let footer = format!("{} module", module.name);
-    surface_posting_as(state, module, bot, Some(channel), footer)
+    surface_posting_as(state, module, bot, Some(channel), true)
 }
 
 fn surface_posting_as(
@@ -93,7 +91,7 @@ fn surface_posting_as(
     module: &InstalledModule,
     user_id: UserId,
     channel: Option<ChannelId>,
-    footer: String,
+    background: bool,
 ) -> CapabilitySurface {
     let approved: Vec<String> = effective_capabilities(module)
         .into_iter()
@@ -125,7 +123,8 @@ fn surface_posting_as(
         state: state.clone(),
         handle,
         module_id: module.id.clone(),
-        footer,
+        module_name: module.name.clone(),
+        background,
         user_id,
         channel,
         reply_to: None,
@@ -144,13 +143,21 @@ pub(crate) async fn post_command_output(
         state: state.clone(),
         handle: Handle::current(),
         module_id: module.id.clone(),
-        footer: format!("via {}", module.name),
+        module_name: module.name.clone(),
+        background: false,
         user_id,
         channel,
         reply_to,
     }
     .post_async(None, content)
     .await
+}
+
+/// Line breaks and tabs are ordinary text; any other invisible character is not.
+fn hides_text(content: &str) -> bool {
+    content
+        .split(['\n', '\r', '\t'])
+        .any(crate::hidden_chars::hides_text_outside_emoji)
 }
 
 struct SqliteKv {
@@ -199,8 +206,10 @@ struct ChannelPoster {
     state: AppState,
     handle: Handle,
     module_id: String,
-    /// The attribution line under each post.
-    footer: String,
+    /// Recorded with each post so clients can mark it; the module cannot choose it.
+    module_name: String,
+    /// No person invoked the run, so the post is the module's own.
+    background: bool,
     user_id: UserId,
     /// The one channel this run may post into: where the command was invoked.
     channel: ChannelId,
@@ -250,6 +259,9 @@ impl ChannelPoster {
         self.charge_rate_limits()?;
         let content = validate_content(content, false)
             .map_err(|_| PostRefused("content is empty or too long"))?;
+        if hides_text(content) {
+            return Err(PostRefused("content contains hidden characters"));
+        }
         let slow_mode_window_ms = enforce_slow_mode(state, channel_id, self.user_id)
             .await
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;
@@ -257,14 +269,14 @@ impl ChannelPoster {
         let id = MessageId::generate();
         let mut message = NewMessage::plain(channel_id, self.user_id, id, content);
         message.reply_to_id = self.reply_to;
+        let stamp = ModuleStamp {
+            module_id: &self.module_id,
+            module_name: &self.module_name,
+            background: self.background,
+        };
         let sent = state
             .store
-            .send_module_message_with_slow_mode(
-                message,
-                &self.module_id,
-                &self.footer,
-                slow_mode_window_ms,
-            )
+            .send_module_message_with_slow_mode(message, &stamp, slow_mode_window_ms)
             .await
             .map_err(|_| PostRefused("message.post is unavailable"))?;
 

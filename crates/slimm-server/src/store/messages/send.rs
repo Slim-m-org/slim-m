@@ -3,7 +3,7 @@
 //! in-transaction slow-mode check. Edit and delete live in [`super`].
 
 use super::row::{IdProbe, NewRow, insert_message_row, probe_id};
-use super::{NewMessage, SendError, Sent};
+use super::{ModuleStamp, NewMessage, SendError, Sent};
 use crate::ids::ChannelId;
 use crate::store::attachments::link_attachments;
 use crate::store::{Store, now_ms};
@@ -46,18 +46,16 @@ impl Store {
             .await
     }
 
-    /// [`Store::send_message`] for a message a module posted: the origin row and
-    /// the footer embed commit in the same transaction as the message, so a
-    /// failure leaves either all three or none. A retry of an id that already
-    /// landed returns the stored message without stamping it again.
+    /// [`Store::send_message`] for a message a module posted: the origin row
+    /// commits in the same transaction as the message, so a failure leaves both
+    /// or neither. A retry of an id that already landed returns the stored
+    /// message without stamping it again.
     pub async fn send_module_message(
         &self,
         msg: NewMessage<'_>,
-        module_id: &str,
-        footer: &str,
+        stamp: &ModuleStamp<'_>,
     ) -> Result<Sent, SendError> {
-        self.send_message_stamped(msg, Some((module_id, footer)), None)
-            .await
+        self.send_message_stamped(msg, Some(stamp), None).await
     }
 
     /// [`Store::send_module_message`] with the in-transaction slow-mode check of
@@ -65,18 +63,17 @@ impl Store {
     pub async fn send_module_message_with_slow_mode(
         &self,
         msg: NewMessage<'_>,
-        module_id: &str,
-        footer: &str,
+        stamp: &ModuleStamp<'_>,
         slow_mode_window_ms: Option<i64>,
     ) -> Result<Sent, SendError> {
-        self.send_message_stamped(msg, Some((module_id, footer)), slow_mode_window_ms)
+        self.send_message_stamped(msg, Some(stamp), slow_mode_window_ms)
             .await
     }
 
     async fn send_message_stamped(
         &self,
         msg: NewMessage<'_>,
-        stamp: Option<(&str, &str)>,
+        stamp: Option<&ModuleStamp<'_>>,
         slow_mode_window_ms: Option<i64>,
     ) -> Result<Sent, SendError> {
         let NewMessage {
@@ -163,19 +160,16 @@ impl Store {
             crate::store::messages::message_forwards::insert_forward(&mut tx, id, origin).await?;
         }
 
-        if let Some((module_id, footer)) = stamp {
+        if let Some(stamp) = stamp {
             sqlx::query!(
-                "INSERT INTO module_message_origins (message_id, module_id) VALUES (?, ?)",
+                "INSERT INTO module_message_origins (message_id, module_id, module_name, background) VALUES (?, ?, ?, ?)",
                 id,
-                module_id
+                stamp.module_id,
+                stamp.module_name,
+                stamp.background
             )
             .execute(&mut *tx)
             .await?;
-            let embed = crate::store::NewEmbed {
-                footer_text: Some(footer.to_owned()),
-                ..crate::store::NewEmbed::default()
-            };
-            crate::store::messages::message_embeds::insert_embeds(&mut tx, id, &[embed]).await?;
         }
 
         tx.commit().await?;

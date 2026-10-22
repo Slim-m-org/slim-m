@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT module_id, module_name, background AS \"background: bool\"\n               FROM module_message_origins WHERE message_id = ? AND module_name <> ''",
+  "describe": {
+    "columns": [
+      {
+        "name": "module_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "module_name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "background: bool",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5c046ea18811e7e6a3ac6222770a0a3a62fc55fabe88acf9a79f66c851b9cb5e"
+}

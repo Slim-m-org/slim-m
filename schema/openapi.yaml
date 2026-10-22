@@ -14916,6 +14916,22 @@ components:
             A webhook post's own `username` label, or null on every other
             message. A label only: `author_display_name` stays the webhook's
             name and clients keep the Webhook badge beside it.
+        via_module:
+          type: [object, "null"]
+          description: >-
+            The module that posted this message, or null on every other one.
+            Written by the host when the post lands, so a module can neither
+            choose nor remove it. A run a person started keeps that person as
+            the author with `background` false; a run nobody invoked is
+            authored by the module's own principal with `background` true.
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            background:
+              type: boolean
+          required: [id, name, background]
         embeds:
           type: array
           description: >-
