@@ -255,6 +255,10 @@ async fn the_confirming_code_cannot_be_replayed_at_sign_in() {
 }
 
 /// Sleeps until the clock is well inside a step, so a test that makes several requests does not straddle a step edge.
+fn collides_with_window(secret: &str, code: &str, at_ms: i64) -> bool {
+    (-1..=1).any(|step| totp::code_at(secret, at_ms + step * STEP_MS).unwrap() == code)
+}
+
 async fn wait_for_mid_step() {
     let into_step = now_ms().rem_euclid(STEP_MS);
     if !(5_000..=15_000).contains(&into_step) {
@@ -280,6 +284,11 @@ async fn a_code_just_outside_the_window_is_refused() {
         for _ in 0..5 {
             let started = now_ms();
             let code = totp::code_at(&secret, started + offset).unwrap();
+            // Six digits repeat: an out-of-window code equal to an in-window one proves nothing, so wait for the next step.
+            if collides_with_window(&secret, &code, started) {
+                tokio::time::sleep(std::time::Duration::from_millis(STEP_MS as u64)).await;
+                continue;
+            }
             let challenge = login_for_challenge(&app, "ada").await;
             status = verify(&app, &challenge, &code).await.status();
             if now_ms() / STEP_MS == started / STEP_MS {
