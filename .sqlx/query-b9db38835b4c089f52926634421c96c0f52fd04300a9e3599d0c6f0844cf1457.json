@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules SET enabled = 0 WHERE id = ? AND enabled = 1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "b9db38835b4c089f52926634421c96c0f52fd04300a9e3599d0c6f0844cf1457"
+}

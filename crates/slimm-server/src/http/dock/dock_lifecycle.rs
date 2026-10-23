@@ -103,7 +103,10 @@ async fn apply_enabled(
         .installed_module(id)
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
-    Ok(Json(InstalledModuleDto::from(installed)))
+    let health = state.store.module_health().await?.remove(id);
+    Ok(Json(
+        InstalledModuleDto::from(installed).with_health(health.unwrap_or_default()),
+    ))
 }
 
 pub(in crate::http) async fn list_installed(
@@ -116,13 +119,17 @@ pub(in crate::http) async fn list_installed(
     let modules = state.store.list_installed_modules().await?;
     let mut stats = state.store.module_run_stats().await?;
     let usage = state.store.module_storage_usage().await?;
+    let mut health = state.store.module_health().await?;
     Ok(Json(
         modules
             .into_iter()
             .map(|m| {
                 let stats = stats.remove(&m.id).unwrap_or_default();
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
-                InstalledModuleDto::from(m).with_activity(stats, usage)
+                let health = health.remove(&m.id).unwrap_or_default();
+                InstalledModuleDto::from(m)
+                    .with_activity(stats, usage)
+                    .with_health(health)
             })
             .collect(),
     ))

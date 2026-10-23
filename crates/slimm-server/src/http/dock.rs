@@ -37,7 +37,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
-use super::module_host;
+use super::{module_events, module_host};
 use crate::config::Config;
 use crate::media::to_hex;
 use crate::ratelimit::Class;
@@ -504,7 +504,9 @@ async fn install(
             },
         )
         .await?;
-    let installed = if module_host::schedule_approved(&installed) {
+    let installed = if module_host::schedule_approved(&installed)
+        || module_events::events_approved(&installed)
+    {
         state
             .store
             .ensure_module_bot(&installed.id, &installed.name)

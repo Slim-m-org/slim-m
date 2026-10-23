@@ -17,6 +17,7 @@ mod sliced;
 #[doc(hidden)]
 pub use crate::net_guard::treat_loopback_as_lan_for_tests;
 pub use capabilities::CapabilitySurface;
+pub use gate::RunLane;
 pub use host::{ModuleHost, RunError};
 pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
 pub use limits::{

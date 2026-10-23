@@ -8,7 +8,8 @@ use serde::Serialize;
 use super::manifest::{IndexEntry, Manifest, ManifestExtensionPoint};
 use crate::module_runtime::{MAX_ENTRIES, MAX_TOTAL_BYTES};
 use crate::store::{
-    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleRunStat, StorageUsage,
+    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHealth, ModuleRunStat,
+    StorageUsage,
 };
 
 #[derive(Serialize)]
@@ -251,6 +252,13 @@ pub(in crate::http) struct InstalledModuleDto {
     /// What its `kv.store` holds against the limits; only the installed listing carries it.
     #[serde(skip_serializing_if = "Option::is_none")]
     storage: Option<StorageDto>,
+    /// Failed events or scheduled runs in a row; five turn the module off.
+    consecutive_failures: i64,
+    /// Why the host turned the module off, until an admin enables it again.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    disabled_reason: Option<String>,
+    /// Pushed events its queue dropped because it fell behind.
+    events_dropped: i64,
     #[serde(flatten)]
     platform: PlatformDto,
 }
@@ -311,6 +319,14 @@ impl From<StorageUsage> for StorageDto {
 }
 
 impl InstalledModuleDto {
+    /// Adds the breaker's count, its stated reason and the dropped-event count.
+    pub(in crate::http) fn with_health(mut self, health: ModuleHealth) -> Self {
+        self.consecutive_failures = health.consecutive_failures;
+        self.disabled_reason = health.disabled_reason;
+        self.events_dropped = health.events_dropped;
+        self
+    }
+
     /// Adds what the admin's installed list shows beside the module itself.
     pub(in crate::http) fn with_activity(
         mut self,
@@ -350,6 +366,9 @@ impl From<InstalledModule> for InstalledModuleDto {
             schedule_channel_id: m.schedule_channel_id.map(|id| id.to_string()),
             run_stats: None,
             storage: None,
+            consecutive_failures: 0,
+            disabled_reason: None,
+            events_dropped: 0,
             platform: PlatformDto {
                 addon_api: m.addon_api,
                 subscriptions: m.subscriptions,

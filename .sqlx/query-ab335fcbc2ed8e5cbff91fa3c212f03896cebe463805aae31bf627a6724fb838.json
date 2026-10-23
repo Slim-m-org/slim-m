@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT module_id AS \"module_id!\", consecutive_failures AS \"consecutive_failures!\",\n                      disabled_reason, events_dropped AS \"events_dropped!\"\n               FROM module_health",
+  "describe": {
+    "columns": [
+      {
+        "name": "module_id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "consecutive_failures!",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "disabled_reason",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "events_dropped!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "ab335fcbc2ed8e5cbff91fa3c212f03896cebe463805aae31bf627a6724fb838"
+}

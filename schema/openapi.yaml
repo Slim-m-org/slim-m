@@ -12253,6 +12253,19 @@ components:
             $ref: "#/components/schemas/DockRunStat"
         storage:
           $ref: "#/components/schemas/DockStorage"
+        consecutive_failures:
+          type: integer
+          format: int64
+          description: >
+            Failed event or scheduled runs in a row. At five the host turns
+            the module off; a success or an admin enabling it resets the count.
+        disabled_reason:
+          type: string
+          description: Why the host turned the module off; absent until it did.
+        events_dropped:
+          type: integer
+          format: int64
+          description: Pushed events its queue dropped because it fell behind.
     DockRunStat:
       type: object
       required:

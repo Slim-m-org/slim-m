@@ -39,6 +39,9 @@ pub mod images;
 #[allow(dead_code)]
 pub mod canvas;
 
+/// Installing a module that subscribes to pushed events, and reading back what it recorded.
+#[allow(dead_code)]
+pub mod module_events_world;
 /// A one-member deployment plus helpers to install and run a wasm module.
 #[allow(dead_code)]
 pub mod module_world;

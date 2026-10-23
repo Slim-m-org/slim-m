@@ -14,7 +14,7 @@ use wasmi::{
 
 use super::capabilities::CapabilitySurface;
 use super::compiled::{cached_module, compiled_module, shared_engine};
-use super::gate;
+use super::gate::{self, RunLane};
 use super::limits::{MAX_RESPONSE_BYTES, RunLimits, store_limits};
 use super::sliced::{FuelBudget, call_sliced};
 use crate::media::to_hex;
@@ -119,6 +119,20 @@ impl ModuleHost {
     /// module never touches its stored bytes.
     pub async fn run_loading<F, Fut>(
         sha256: &str,
+        run: (RunLimits, Vec<u8>, CapabilitySurface),
+        load: F,
+    ) -> Result<Vec<u8>, RunError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
+    {
+        Self::run_loading_in(RunLane::Member, sha256, run, load).await
+    }
+
+    /// As [`run_loading`](Self::run_loading), drawing its slot from `lane`.
+    pub async fn run_loading_in<F, Fut>(
+        lane: RunLane,
+        sha256: &str,
         (limits, input, surface): (RunLimits, Vec<u8>, CapabilitySurface),
         load: F,
     ) -> Result<Vec<u8>, RunError>
@@ -126,7 +140,7 @@ impl ModuleHost {
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
     {
-        let permit = gate::shared().acquire().await?;
+        let permit = gate::shared(lane).acquire().await?;
         let module = match cached_module(sha256) {
             Some(module) => module,
             None => {
