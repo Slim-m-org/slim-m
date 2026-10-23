@@ -3,7 +3,7 @@
 //! Like the kv backend, it `block_on`s the async store from the run's blocking thread.
 //! Rows are limited to channels the module's principal can view when the read happens.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tokio::runtime::Handle;
 
@@ -29,14 +29,13 @@ impl SqliteLogs {
         let Some(principal) = self.principal else {
             return Ok(seen);
         };
-        for s in sessions {
-            if !seen.contains_key(&s.channel_id) {
-                let sees = self
-                    .store
-                    .has_permission(principal, s.channel_id, Permissions::VIEW_CHANNEL)
-                    .await?;
-                seen.insert(s.channel_id, sees);
-            }
+        let channels: HashSet<ChannelId> = sessions.iter().map(|s| s.channel_id).collect();
+        for channel in channels {
+            let sees = self
+                .store
+                .has_permission(principal, channel, Permissions::VIEW_CHANNEL)
+                .await?;
+            seen.insert(channel, sees);
         }
         Ok(seen)
     }

@@ -51,7 +51,7 @@ async fn flush_drops(state: &AppState, queues: &Queues) {
 
 /// Whether a job's module can still be sent it, read fresh since an admin can change any of it.
 enum Standing {
-    Receives(InstalledModule),
+    Receives(Box<InstalledModule>),
     /// Enabled and approved, but no longer subscribed to this kind.
     Unsubscribed,
     Gone,
@@ -71,7 +71,7 @@ async fn standing(state: &AppState, job: &Job) -> Standing {
         return Standing::Gone;
     }
     if module.subscriptions.iter().any(|s| s == job.kind) {
-        Standing::Receives(module)
+        Standing::Receives(Box::new(module))
     } else {
         Standing::Unsubscribed
     }
