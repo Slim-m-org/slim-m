@@ -337,3 +337,59 @@ async fn a_larger_cap_or_a_new_table_with_the_same_artifact_asks_for_data_store_
     h.serve_with("0.1.2", &more, BOTH);
     assert_eq!(h.reinstall_carrying("0.1.2").await, ["events"]);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn making_a_column_unique_over_repeated_values_is_refused_before_it_installs() {
+    let h = harness("slimm-dockdata-dupes").await;
+    let loose = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
+        { "name": "user_id", "type": "text" }] }] });
+    h.serve("0.1.0", &loose);
+    h.install("0.1.0", &["data.store"]).await;
+    let mut rig = Rig::attach(&h.dir, "scores", &["data.store"]);
+    for _ in 0..2 {
+        rig.ok(json!({ "op": "insert", "table": "xp", "values": { "user_id": "same" } }));
+    }
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": {} }));
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": {} }));
+
+    let strict = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
+        { "name": "user_id", "type": "text", "unique": true }] }] });
+    h.serve("0.2.0", &strict);
+    let (status, body) = h.install("0.2.0", &["data.store"]).await;
+    assert_eq!(status, StatusCode::BAD_GATEWAY, "{body}");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap()
+            .contains("cannot become unique"),
+        "{body}"
+    );
+    let (_, installed) = h.call("GET", "/space/dock/installed", Value::Null).await;
+    assert_eq!(
+        installed[0]["version"],
+        json!("0.1.0"),
+        "the old build stays installed"
+    );
+
+    rig.renew();
+    let rows = rig.ok(json!({ "op": "count", "table": "xp" }));
+    assert_eq!(rows["count"], json!(4));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn making_a_column_unique_over_distinct_values_installs() {
+    let h = harness("slimm-dockdata-distinct").await;
+    let loose = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
+        { "name": "user_id", "type": "text" }] }] });
+    h.serve("0.1.0", &loose);
+    h.install("0.1.0", &["data.store"]).await;
+    let mut rig = Rig::attach(&h.dir, "scores", &["data.store"]);
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": { "user_id": "a" } }));
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": {} }));
+    rig.ok(json!({ "op": "insert", "table": "xp", "values": {} }));
+    let strict = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
+        { "name": "user_id", "type": "text", "unique": true }] }] });
+    h.serve("0.2.0", &strict);
+    let (status, body) = h.install("0.2.0", &["data.store"]).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+}

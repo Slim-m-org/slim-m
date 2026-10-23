@@ -76,26 +76,42 @@ impl Store {
             .ok()?
             .as_str()?
             .to_owned();
-        self.reseal_module_secret(module_id, key, &plaintext).await;
+        self.seal_legacy_module_secret(module_id, key, &stored)
+            .await;
         Some(plaintext)
     }
 
-    async fn reseal_module_secret(&self, module_id: &str, key: &str, plaintext: &str) {
+    /// Seals the plaintext `stored` in place, only while the row still holds exactly that,
+    /// so an admin's newer value is never overwritten. Whether the row was sealed.
+    pub async fn seal_legacy_module_secret(
+        &self,
+        module_id: &str,
+        key: &str,
+        stored: &str,
+    ) -> bool {
         let context = setting_context(module_id, key);
+        let Some(plaintext) = serde_json::from_str::<Value>(stored)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_owned))
+        else {
+            return false;
+        };
         let Ok(sealed) = self
             .data_key
-            .seal_prefixed(SEALED_SETTING, &context, plaintext)
+            .seal_prefixed(SEALED_SETTING, &context, &plaintext)
         else {
-            return;
+            return false;
         };
-        let _ = sqlx::query!(
-            "UPDATE module_settings SET value = ? WHERE module_id = ? AND key = ?",
+        sqlx::query!(
+            "UPDATE module_settings SET value = ? WHERE module_id = ? AND key = ? AND value = ?",
             sealed,
             module_id,
-            key
+            key,
+            stored
         )
         .execute(&self.pool)
-        .await;
+        .await
+        .is_ok_and(|done| done.rows_affected() == 1)
     }
 
     /// Applies already-validated changes in one transaction: `Some` sets, `None` clears.

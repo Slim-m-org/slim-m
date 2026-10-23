@@ -18,7 +18,7 @@ use sqlx::{ConnectOptions, Connection, Row, SqlitePool};
 use tokio::runtime::Handle;
 
 use super::data::{DataBackend, DataError, Outcome};
-use super::data_migrate::plan;
+use super::data_migrate::{newly_unique, plan};
 use super::data_schema::{ColumnType, DataSchema};
 use super::data_sql::{Bind, Shape, Statement};
 
@@ -117,7 +117,11 @@ impl SqliteData {
     pub async fn check_schema(&self, module_id: &str, schema: &DataSchema) -> Result<(), String> {
         let path = self.path_for(module_id)?;
         let old = stored_schema(&path).await?;
-        plan(old.as_ref(), schema).map(|_| ())
+        plan(old.as_ref(), schema)?;
+        match old {
+            Some(old) => refuse_duplicates(&path, &newly_unique(&old, schema)).await,
+            None => Ok(()),
+        }
     }
 
     /// Removes the module's file and its journal files; a missing file is fine.
@@ -287,6 +291,35 @@ async fn run_ddl(path: &Path, ddl: &[String], schema: &DataSchema) -> Result<(),
         .await?;
     tx.commit().await?;
     conn.close().await
+}
+
+/// Refuses a new unique index over a column whose rows already repeat a value; NULLs may repeat.
+async fn refuse_duplicates(path: &Path, columns: &[(String, String)]) -> Result<(), String> {
+    if columns.is_empty() {
+        return Ok(());
+    }
+    let mut conn = options(path).connect().await.map_err(unreadable)?;
+    let mut result = Ok(());
+    for (table, column) in columns {
+        let sql = format!(
+            "SELECT 1 FROM \"{table}\" WHERE \"{column}\" IS NOT NULL GROUP BY \"{column}\" HAVING COUNT(*) > 1 LIMIT 1"
+        );
+        match sqlx::query(&sql).fetch_optional(&mut conn).await {
+            Ok(None) => {}
+            Ok(Some(_)) => {
+                result = Err(format!(
+                    "column {table}.{column} already holds repeated values, so it cannot become unique"
+                ));
+                break;
+            }
+            Err(_) => {
+                result = Err(unreadable(()));
+                break;
+            }
+        }
+    }
+    let _ = conn.close().await;
+    result
 }
 
 fn classify(err: &sqlx::Error) -> DataError {

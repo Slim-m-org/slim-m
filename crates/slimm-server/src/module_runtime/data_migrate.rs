@@ -20,6 +20,23 @@ pub fn plan(old: Option<&DataSchema>, new: &DataSchema) -> Result<Vec<String>, S
     Ok(ddl)
 }
 
+/// Columns of tables that already exist which `new` makes unique and `old` did not: a unique
+/// index over rows that already repeat a value would fail halfway through an install.
+pub fn newly_unique(old: &DataSchema, new: &DataSchema) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for table in &new.tables {
+        let Some(before) = old.table(&table.name) else {
+            continue;
+        };
+        for column in &table.columns {
+            if column.unique && before.column(&column.name).is_some_and(|c| !c.unique) {
+                out.push((table.name.clone(), column.name.clone()));
+            }
+        }
+    }
+    out
+}
+
 fn refuse_destructive(old: &DataSchema, new: &DataSchema) -> Result<(), String> {
     for before in &old.tables {
         let Some(after) = new.table(&before.name) else {
