@@ -121,7 +121,11 @@ async fn no_ceiling_configured_refuses_nothing() {
     let app = app(store.clone(), None);
 
     for tag in 1..=3u8 {
-        let response = app.clone().oneshot(upload(&token, png(tag))).await.unwrap();
+        let response = app
+            .clone()
+            .oneshot(upload(&token, blob(tag)))
+            .await
+            .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
     }
     assert!(store.total_attachment_bytes().await.unwrap() > 0);
@@ -288,4 +292,172 @@ async fn a_report_reason_is_capped_too() {
         "a report must still say why, unlike a moderation verb"
     );
     assert_eq!(file("x".repeat(2000)).await, StatusCode::OK);
+}
+
+/// Incompressible bytes, so the compressor keeps them and a stored size is the uploaded size.
+fn blob(tag: u8) -> Vec<u8> {
+    let mut state = u32::from(tag) + 1;
+    (0..4096)
+        .map(|_| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 24) as u8
+        })
+        .collect()
+}
+
+fn media_with(ceiling: u64) -> slimm_server::media::Media {
+    slimm_server::media::Media::for_tests().with_total_ceiling(Some(ceiling))
+}
+
+fn app_on(store: Store, media: slimm_server::media::Media) -> Router {
+    support::app::builder(store).media(media).router()
+}
+
+fn open_session(token: &str, size: usize) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri("/attachments/uploads")
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "application/json")
+        .body(Body::from(
+            json!({"filename": "big.bin", "size": size}).to_string(),
+        ))
+        .unwrap()
+}
+
+async fn status_of(app: &Router, request: Request<Body>) -> (StatusCode, serde_json::Value) {
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, serde_json::from_slice(&bytes).unwrap_or_default())
+}
+
+/// Open sessions hold their declared size, so a second one that would not fit
+/// beside the first is refused up front, and discarding the first frees it.
+#[tokio::test]
+async fn open_resumable_sessions_count_against_the_ceiling_until_released() {
+    let (store, _guard) = new_store("slimm-ceiling-sessions").await;
+    let (_admin, token) = admin(&store, "root").await;
+    let app = app_on(store, media_with(1000));
+
+    let (status, first) = status_of(&app, open_session(&token, 600)).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let (status, _) = status_of(&app, open_session(&token, 600)).await;
+    assert_eq!(status, StatusCode::INSUFFICIENT_STORAGE, "600 + 600 > 1000");
+
+    let discard = Request::builder()
+        .method("DELETE")
+        .uri(format!(
+            "/attachments/uploads/{}",
+            first["id"].as_str().unwrap()
+        ))
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(status_of(&app, discard).await.0, StatusCode::NO_CONTENT);
+    let (status, _) = status_of(&app, open_session(&token, 600)).await;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "the discarded share is free again"
+    );
+}
+
+/// A session past its time-to-live no longer holds anything, swept or not.
+#[tokio::test]
+async fn an_expired_session_releases_its_reservation() {
+    let (store, _guard) = new_store("slimm-ceiling-expired").await;
+    let (admin_id, token) = admin(&store, "root").await;
+    let media = media_with(1000);
+    let stale = slimm_server::media::UploadMeta {
+        user_id: admin_id.0.to_string(),
+        filename: "old.bin".to_owned(),
+        size: 600,
+        created_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+            - slimm_server::media::UPLOAD_SESSION_TTL.as_millis() as i64
+            - 1000,
+    };
+    media.uploads().create(stale).await.unwrap();
+    let app = app_on(store, media);
+
+    let (status, _) = status_of(&app, open_session(&token, 600)).await;
+    assert_eq!(status, StatusCode::CREATED);
+}
+
+/// A session reserves room that a direct upload may not take.
+#[tokio::test]
+async fn a_direct_upload_cannot_take_room_an_open_session_holds() {
+    let (store, _guard) = new_store("slimm-ceiling-session-vs-direct").await;
+    let (_admin, token) = admin(&store, "root").await;
+    let app = app_on(store, media_with(1000));
+    let (status, _) = status_of(&app, open_session(&token, 900)).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let (status, _) = status_of(&app, upload(&token, png(4))).await;
+    assert_eq!(status, StatusCode::INSUFFICIENT_STORAGE);
+}
+
+/// A session that fits finishes: its own reservation is not charged twice.
+#[tokio::test]
+async fn completing_a_session_that_fits_is_not_double_counted() {
+    let (store, _guard) = new_store("slimm-ceiling-complete").await;
+    let (_admin, token) = admin(&store, "root").await;
+    let bytes = png(5);
+    let app = app_on(store.clone(), media_with(bytes.len() as u64 + 10));
+    let (status, session) = status_of(&app, open_session(&token, bytes.len())).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let id = session["id"].as_str().unwrap();
+    let put = Request::builder()
+        .method("PUT")
+        .uri(format!("/attachments/uploads/{id}?offset=0"))
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::from(bytes.clone()))
+        .unwrap();
+    assert_eq!(status_of(&app, put).await.0, StatusCode::OK);
+    let done = Request::builder()
+        .method("POST")
+        .uri(format!("/attachments/uploads/{id}/complete"))
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    assert_eq!(status_of(&app, done).await.0, StatusCode::CREATED);
+    assert_eq!(
+        store.total_attachment_bytes().await.unwrap(),
+        bytes.len() as i64
+    );
+}
+
+/// Uploads racing for the last bytes: the check and the claim are one step, so
+/// only as many as fit land, however many were in flight together.
+#[tokio::test]
+async fn concurrent_uploads_cannot_all_pass_a_check_made_before_any_lands() {
+    let (store, _guard) = new_store("slimm-ceiling-concurrent").await;
+    let (_admin, token) = admin(&store, "root").await;
+    let one = blob(0).len() as u64;
+    let ceiling = one * 2 + 10;
+    let app = app_on(store.clone(), media_with(ceiling));
+
+    let mut tasks = Vec::new();
+    for tag in 10..26u8 {
+        let (app, token) = (app.clone(), token.clone());
+        tasks.push(tokio::spawn(async move {
+            app.oneshot(upload(&token, blob(tag)))
+                .await
+                .unwrap()
+                .status()
+        }));
+    }
+    let mut created = 0;
+    for task in tasks {
+        if task.await.unwrap() == StatusCode::CREATED {
+            created += 1;
+        }
+    }
+    assert_eq!(created, 2, "exactly two fit under the ceiling");
+    assert!(store.total_attachment_bytes().await.unwrap() as u64 <= ceiling);
 }

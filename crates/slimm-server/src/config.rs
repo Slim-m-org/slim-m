@@ -72,7 +72,8 @@ pub struct Config {
     pub attachment_max_bytes: u64,
 
     /// Most bytes the deployment will hold in stored attachments and custom
-    /// emoji together, or `None` for no ceiling.
+    /// emoji together, or `None` for no ceiling. Open resumable upload sessions
+    /// count at their declared size until they finish, are discarded or expire.
     ///
     /// `None` is the default because the right number is the operator's disk,
     /// not ours, and a guess would either refuse a legitimate upload on a large

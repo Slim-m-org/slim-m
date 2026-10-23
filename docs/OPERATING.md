@@ -110,7 +110,9 @@ Generate one with `openssl rand -base64 32`.
 A wrong password counts against the account as well as against the caller's address, so a guesser who rotates addresses is still slowed.
 After 10 wrong passwords in a row each further one doubles a delay that starts at 15 seconds and never passes 15 minutes.
 While the delay runs, sign-in for that account answers 401 like any wrong password, even with the right one, and takes as long as one that was checked, so it does not reveal whether the account exists.
-A correct password clears the count, and so does 15 minutes without a wrong one.
+A second count per account, across every address, allows 30 wrong passwords before the account itself is slowed, with the same doubling delay capped at 5 minutes.
+A correct password clears both counts, and so does 15 minutes without a wrong one.
+If `SLIMM_TRUST_PROXY_HOPS` looks wrong for the traffic, the server logs one warning the first time it sees it.
 The delay is capped on purpose: somebody who knows a username can slow its owner down but cannot lock them out for good.
 
 ### When someone loses their authenticator

@@ -24,7 +24,7 @@ WORKDIR /build/client
 RUN flutter pub get --enforce-lockfile
 WORKDIR /build/client/packages/app
 RUN bash tool/fetch_web_assets.sh \
-    && flutter build web --release --base-href /app/ --pwa-strategy=none \
+    && flutter build web --release --base-href /app/ --pwa-strategy=none --no-web-resources-cdn \
         --dart-define=SLIMM_WEB_BUILD="${SHA}" \
         --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
     && sed -i "s|flutter_bootstrap.js|flutter_bootstrap.js?v=${SHA}|" build/web/index.html \
@@ -35,6 +35,7 @@ RUN bash tool/fetch_web_assets.sh \
 
 FROM nginxinc/nginx-unprivileged:1-alpine@sha256:26b0bf6fbf07297983cb341998d79c831508787de26627dd2a112321b9c3a4af
 COPY docker/web-nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/web-security-headers.conf /etc/nginx/web-security-headers.conf
 COPY --from=builder /build/client/packages/app/build/web /usr/share/nginx/html
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO /dev/null http://127.0.0.1:8080/version.json || exit 1
 EXPOSE 8080

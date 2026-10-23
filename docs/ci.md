@@ -291,7 +291,7 @@ The deadline covers queueing, not running: client 0.23.0 timed out at the old th
 
 ## web-image
 
-Builds `docker/web.Dockerfile` into `ghcr.io/<owner>/slim-m-web`: `flutter build web --release --base-href /app/` at the pinned Flutter version, behind the unprivileged nginx image (`docker/web-nginx.conf`), which runs as a non-root user on port 8080.
+Builds `docker/web.Dockerfile` into `ghcr.io/<owner>/slim-m-web`: `flutter build web --release --base-href /app/ --no-web-resources-cdn` at the pinned Flutter version (CanvasKit is served from the image, not gstatic), behind the unprivileged nginx image (`docker/web-nginx.conf`, with a CSP, frame and nosniff headers from `docker/web-security-headers.conf`), which runs as a non-root user on port 8080.
 It is a reusable workflow with one input, the newline-separated tags for the merged manifest, and it has the same shape as `server-image` and `server-image-merge`: one image per architecture on a native runner, pushed by digest with an SBOM and provenance, then merged and cosign-signed keylessly.
 The merge job checks it got two digests, so a failed arch cannot ship a single-arch manifest.
 
