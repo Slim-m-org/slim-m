@@ -6,6 +6,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -65,6 +66,7 @@ http.Response _refreshed() => http.Response(
 );
 
 void main() {
+  lockedAndBackgroundTests();
   test('nothing is requested until someone listens', () async {
     final rig = _Rig();
     await rig.signIn();
@@ -160,5 +162,105 @@ void main() {
     final count = rig.requests.length;
     await Future<void>.delayed(const Duration(milliseconds: 60));
     expect(rig.requests.length, count);
+  });
+}
+
+class _LockedKeys extends InMemoryKeyStore {
+  bool locked = true;
+
+  @override
+  Future<String?> read(KeyHandle handle) async {
+    if (locked) {
+      throw PlatformException(
+        code: 'Unexpected security result code',
+        message: 'Code: -25308, Message: User interaction is not allowed.',
+      );
+    }
+    return super.read(handle);
+  }
+}
+
+void lockedAndBackgroundTests() {
+  test('a locked keychain skips the poll quietly and recovers', () async {
+    final keys = _LockedKeys();
+    final store = SpotifyTokenStore(keys);
+    keys.locked = false;
+    await store.save(
+      SpotifyTokens(
+        accessToken: 'a',
+        refreshToken: 'r',
+        expiresAt: _now.add(const Duration(hours: 1)),
+      ),
+    );
+    keys.locked = true;
+    final source = SpotifyNowPlayingSource(
+      client: SpotifyClient(
+        client: MockClient((_) async => http.Response(_playing, 200)),
+        clientId: 'id',
+        now: () => _now,
+      ),
+      store: store,
+      pollInterval: const Duration(milliseconds: 10),
+      now: () => _now,
+    );
+    final seen = <NowPlaying?>[];
+    final sub = source.watch().listen(seen.add);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(seen, isEmpty);
+    keys.locked = false;
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await sub.cancel();
+    expect(seen.single?.title, 'Song');
+  });
+
+  test('a backgrounded phone makes no read at all', () async {
+    final requests = <String>[];
+    var foreground = false;
+    final store = SpotifyTokenStore(InMemoryKeyStore());
+    await store.save(
+      SpotifyTokens(
+        accessToken: 'a',
+        refreshToken: 'r',
+        expiresAt: _now.add(const Duration(hours: 1)),
+      ),
+    );
+    final source = SpotifyNowPlayingSource(
+      client: SpotifyClient(
+        client: MockClient((r) async {
+          requests.add(r.url.host);
+          return http.Response(_playing, 200);
+        }),
+        clientId: 'id',
+        now: () => _now,
+      ),
+      store: store,
+      pollInterval: const Duration(milliseconds: 10),
+      now: () => _now,
+      isForeground: () => foreground,
+    );
+    final sub = source.watch().listen((_) {});
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(requests, isEmpty);
+    foreground = true;
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await sub.cancel();
+    expect(requests, isNotEmpty);
+  });
+
+  test('tokens in the old store move to the first-unlock store', () async {
+    final legacy = InMemoryKeyStore();
+    final background = InMemoryKeyStore();
+    await SpotifyTokenStore(legacy).save(
+      SpotifyTokens(
+        accessToken: 'a',
+        refreshToken: 'r',
+        expiresAt: _now.add(const Duration(hours: 1)),
+      ),
+    );
+    final store = SpotifyTokenStore(legacy, background: background);
+    expect((await store.load())?.accessToken, 'a');
+    expect(await legacy.read(spotifyTokensHandle), isNull);
+    expect(await background.read(spotifyBackgroundTokensHandle), isNotNull);
+    expect((await store.load())?.accessToken, 'a');
   });
 }

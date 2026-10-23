@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
 
@@ -16,6 +17,8 @@ import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 const _defaultPollInterval = Duration(seconds: 10);
 const _refreshMargin = Duration(seconds: 60);
 
+bool _always() => true;
+
 class SpotifyNowPlayingSource implements NowPlayingSource {
   SpotifyNowPlayingSource({
     required SpotifyClient client,
@@ -23,7 +26,9 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
     Duration pollInterval = _defaultPollInterval,
     DateTime Function()? now,
     Future<void> Function()? onRevoked,
-  }) : _client = client,
+    bool Function()? isForeground,
+  }) : _isForeground = isForeground ?? _always,
+       _client = client,
        _store = store,
        _onRevoked = onRevoked,
        _pollInterval = pollInterval,
@@ -34,6 +39,7 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
   final Duration _pollInterval;
   final DateTime Function() _now;
   final Future<void> Function()? _onRevoked;
+  final bool Function() _isForeground;
   DateTime? _backoffUntil;
 
   @override
@@ -41,6 +47,7 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       polledStream<NowPlaying>(interval: _pollInterval, read: _read);
 
   Future<NowPlaying?> _read() async {
+    if (!_isForeground()) throw const PollSkip();
     final until = _backoffUntil;
     if (until != null && _now().isBefore(until)) throw const PollSkip();
     try {
@@ -49,6 +56,9 @@ class SpotifyNowPlayingSource implements NowPlayingSource {
       throw const PollSkip();
     } on TimeoutException {
       throw const PollSkip();
+    } on PlatformException catch (error) {
+      if (isKeychainLocked(error)) throw const PollSkip();
+      rethrow;
     }
   }
 

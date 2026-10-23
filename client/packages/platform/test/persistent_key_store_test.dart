@@ -193,6 +193,15 @@ void main() {
 
   /// The push key alone, because the Notification Service Extension reads it
   /// from a separate process while the phone is locked.
+  group('SecureKeyStore.forBackgroundRead', () {
+    test('it is readable after first unlock, device-bound, default group', () {
+      final options = SecureKeyStore.forBackgroundRead().debugStorage.iOptions;
+      expect(options.accessibility,
+          KeychainAccessibility.first_unlock_this_device);
+      expect(options.groupId, isNull);
+    });
+  });
+
   group('SecureKeyStore.forPushKey', () {
     test(
         'it is in the group the extension claims, and not the app default '

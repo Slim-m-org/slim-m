@@ -20,6 +20,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
+import 'background_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
 import 'space_scoped_preferences.dart';
@@ -250,6 +251,8 @@ Future<void> restoreSession(
       // A second store on iOS; see [pushKeyStoreProvider].
       final pushKeys = container.read(pushKeyStoreProvider);
       if (!identical(pushKeys, keyStore)) await pushKeys.clear();
+      final backgroundKeys = container.read(backgroundKeyStoreProvider);
+      if (!identical(backgroundKeys, keyStore)) await backgroundKeys.clear();
       await prefs.setBool(hasLaunchedBeforeKey, true);
       container.read(isFreshInstallProvider.notifier).state = true;
       return;
