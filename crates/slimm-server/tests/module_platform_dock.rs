@@ -146,7 +146,7 @@ fn platform_manifest() -> Value {
     json!({
         "addon_api": 1,
         "subscriptions": [{"event": "voice.session.closed"}],
-        "data": {"max_mb": 8, "tables": [{"name": "xp", "columns": []}]},
+        "data": {"max_mb": 8, "tables": [{"name": "xp", "columns": [{"name": "user_id", "type": "text"}]}]},
         "settings": [{"key": "xp_per_minute", "type": "int", "label": "XP per minute", "default": 5}],
         "slots": [{"kind": "member.badge", "name": "level"}],
     })

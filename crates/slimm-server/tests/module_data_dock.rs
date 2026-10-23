@@ -26,7 +26,7 @@ use support::{TestDbGuard, TestDirGuard};
 
 fn manifest(version: &str, data: &Value, wasm: &[u8]) -> Value {
     json!({
-        "schema": 1, "id": "scores", "name": "Scores", "version": version,
+        "schema": 1, "addon_api": 1, "id": "scores", "name": "Scores", "version": version,
         "summary": "keeps score",
         "artifact": {"kind": "wasm", "path": "modules/scores/module.wasm", "sha256": sha256_hex(wasm)},
         "runtime": {"backend": "wasm"},

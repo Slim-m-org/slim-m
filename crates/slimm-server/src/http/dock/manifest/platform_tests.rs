@@ -109,7 +109,7 @@ fn at_most_eight_subscriptions() {
 
 #[test]
 fn data_needs_the_data_store_capability_and_is_kept_as_given() {
-    let data = json!({"max_mb": 8, "tables": [{"name": "xp", "columns": []}], "future": [1]});
+    let data = json!({"max_mb": 8, "tables": [{"name": "xp", "columns": [{"name": "user_id", "type": "text"}]}]});
     let declared = json!({"addon_api": 1, "data": data});
     assert!(refusal(&manifest_with(declared.clone(), &[])).contains("data.store"));
     assert_eq!(ok(declared, &["data.store"]).platform.data_schema, data);
