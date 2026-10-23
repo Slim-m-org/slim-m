@@ -62,6 +62,18 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
         json!({ "values": { "xp_per_minute": 7, "api_key": "contract-secret" } }),
     )
     .await;
+    c.get(
+        "getMemberProfileSlots",
+        &format!("/space/dock/slots/profile/{admin_id}"),
+        root,
+    )
+    .await;
+    c.get(
+        "getMemberBadgeSlots",
+        &format!("/space/dock/slots/badges?ids={admin_id}"),
+        root,
+    )
+    .await;
     c.bare(
         "enableDockModule",
         "POST",

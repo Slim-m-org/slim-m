@@ -74,6 +74,7 @@ const MAX_MODULE_ID_LEN: usize = 64;
 #[derive(Clone)]
 pub struct Dock {
     inner: Option<Arc<Enabled>>,
+    slot_cache: super::module_slot_cache::SlotCache,
 }
 
 struct Enabled {
@@ -89,6 +90,11 @@ struct Enabled {
 }
 
 impl Dock {
+    /// Slot results held for a few seconds; see `module_slots`.
+    pub(super) fn slot_cache(&self) -> &super::module_slot_cache::SlotCache {
+        &self.slot_cache
+    }
+
     /// Always enabled: unlike link previews, the Dock has no deployment-wide
     /// off switch - `MANAGE_SERVER` alone gates it. Only the repo it points
     /// at is configurable.
@@ -139,6 +145,7 @@ impl Dock {
             .expect("the source root always has a host")
             .to_owned();
         Self {
+            slot_cache: super::module_slot_cache::SlotCache::default(),
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -154,7 +161,10 @@ impl Dock {
     /// in the Dock: every one of its routes would need a real fetch, so
     /// nothing exercises it by accident.
     pub fn disabled() -> Self {
-        Self { inner: None }
+        Self {
+            inner: None,
+            slot_cache: super::module_slot_cache::SlotCache::default(),
+        }
     }
 
     /// Whether the operator turned the local `dev` source on.
@@ -504,6 +514,7 @@ async fn install(
             },
         )
         .await?;
+    state.dock.slot_cache().invalidate_module(&installed.id);
     let installed = if module_host::schedule_approved(&installed) {
         state
             .store
