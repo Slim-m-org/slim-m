@@ -29,6 +29,7 @@ import 'member_profile_identity.dart';
 import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
 import 'member_profile_sections.dart';
+import 'module_profile_slots.dart';
 import 'profile_banner.dart';
 import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
@@ -106,6 +107,7 @@ class SelfMemberCard extends ConsumerWidget {
           roles: profile.roles,
           createdAt: profile.createdAt,
         ),
+        ModuleProfileSlots(profile.id),
         const _Rule(),
         _Section([
           AppMenuItem(
@@ -220,6 +222,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             until: profile.timedOutUntil!,
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
+        ModuleProfileSlots(profile.id),
         const _Rule(),
         if (canMessage || !hasNote) _messageRow(canMessage, canCall, hasNote),
         if (hasNote || _noteRevealed)

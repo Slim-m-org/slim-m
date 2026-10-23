@@ -16,11 +16,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_presence.dart';
+import '../providers/module_badges.dart';
 import '../providers/member_selection.dart';
 import '../providers/presence_activity.dart';
 import '../providers/presence_view.dart';
 import '../providers/status_text.dart';
 import 'member_profile.dart';
+import 'module_row_badges.dart';
 import '../../voice/providers/member_voice_channel.dart';
 import 'member_voice_chip.dart';
 import 'user_avatar.dart';
@@ -124,6 +126,16 @@ class MemberRow extends ConsumerWidget {
     );
     // One slot only in a 236px pane; bot beats a role, whose names are a tap away.
     final badge = _badgeLabel(displayed);
+    ref.read(moduleBadgesProvider.notifier).request(profile.id);
+    // Scoped to this member's own entry, and null while empty, so neither another member's badge nor a bare answer rebuilds this row.
+    final moduleBadges = visibleModuleBadges(
+      ref.watch(
+        moduleBadgesProvider.select((m) {
+          final own = m[profile.id];
+          return own == null || own.isEmpty ? null : own;
+        }),
+      ),
+    );
 
     // Scoped to this row's two facts: the set is a new object per toggle, so watching it rebuilds every row.
     final (selecting, selected) = ref.watch(
@@ -165,6 +177,7 @@ class MemberRow extends ConsumerWidget {
         stateDescription: status.word,
         trailing: _trailing(
           badge,
+          moduleBadges,
           displayed.isBot,
           box.maxWidth,
           inVoice: inVoice,
@@ -208,6 +221,7 @@ class MemberRow extends ConsumerWidget {
   /// away on the card; a Bot tag stays, since it is what marks a bot.
   Widget? _trailing(
     String? label,
+    List<api.ModuleBadge> moduleBadges,
     bool isBot,
     double rowWidth, {
     required bool inVoice,
@@ -215,7 +229,7 @@ class MemberRow extends ConsumerWidget {
   }) {
     final badge = inVoice && !isBot && rowWidth < _badgeAndChipMinRow
         ? null
-        : _badge(label, isBot, rowWidth);
+        : _badge(label, moduleBadges, isBot, rowWidth);
     if (!inVoice) return badge;
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -238,14 +252,31 @@ class MemberRow extends ConsumerWidget {
     );
   }
 
-  Widget? _badge(String? label, bool isBot, double rowWidth) {
-    if (label == null) return null;
+  Widget? _badge(
+    String? label,
+    List<api.ModuleBadge> moduleBadges,
+    bool isBot,
+    double rowWidth,
+  ) {
+    if (label == null && moduleBadges.isEmpty) return null;
+    final chip = label == null
+        ? null
+        : AppBadge(
+            variant: isBot ? AppBadgeVariant.tag : AppBadgeVariant.role,
+            label: label,
+          );
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: rowWidth * 0.4),
-      child: AppBadge(
-        variant: isBot ? AppBadgeVariant.tag : AppBadgeVariant.role,
-        label: label,
-      ),
+      child: moduleBadges.isEmpty
+          ? chip
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: AppSpacing.s4,
+              children: [
+                if (chip != null) Flexible(child: chip),
+                Flexible(child: ModuleRowBadges(moduleBadges)),
+              ],
+            ),
     );
   }
 }
