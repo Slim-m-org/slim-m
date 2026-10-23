@@ -257,15 +257,13 @@ class MessageExtrasController
     List<api.ReactionTally> tallies,
   ) {
     final known = extrasFor(messageId).reactions;
-    const unknown = api.ReactionSummary(emoji: '', count: 0, reacted: false);
+    // any() rather than firstWhere(orElse:): a covariant List<Never> here threw on the orElse closure (iOS log, 2026-10-22).
     final next = [
       for (final tally in tallies)
         api.ReactionSummary(
           emoji: tally.emoji,
           count: tally.count,
-          reacted: known
-              .firstWhere((r) => r.emoji == tally.emoji, orElse: () => unknown)
-              .reacted,
+          reacted: known.any((r) => r.emoji == tally.emoji && r.reacted),
         ),
     ];
     _set(messageId, extrasFor(messageId).copyWith(reactions: next));
