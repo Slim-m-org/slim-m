@@ -68,6 +68,7 @@ class CanvasDocument extends ChangeNotifier {
   int _contentRevision = 0;
   double _maxStrokeWidth = 0;
   ui.Rect? _board;
+  ui.Rect? _sharedArea;
   bool _atFit = true;
 
   /// True for exactly as long as [setCamera] is actively pinning the camera
@@ -160,9 +161,7 @@ class CanvasDocument extends ChangeNotifier {
     if (next == _bottomInset) return;
     _bottomInset = next;
     final board = _board;
-    _camera = board != null && _atFit
-        ? boardFitCamera(board, _fitView)
-        : _clamp(_camera);
+    _camera = board != null && _atFit ? _sharedCamera(board) : _clamp(_camera);
     _reculled();
   }
 

@@ -17,7 +17,7 @@ class _Harness {
   var audience = true;
 
   late final relay = CanvasViewRelay(
-    board: canvasBoard,
+    board: canvasSharedArea,
     send: (view, {required summon}) => sent.add((view, summon)),
     showView: shown.add,
     isBlocked: blocked.contains,
@@ -46,7 +46,7 @@ void main() {
   test('following someone who never moved shows the whole board', () {
     final h = _Harness();
     h.relay.follow('amy');
-    expect(h.shown, [canvasBoard]);
+    expect(h.shown, [canvasSharedArea]);
   });
 
   test('a view from somebody else is ignored while following another', () {

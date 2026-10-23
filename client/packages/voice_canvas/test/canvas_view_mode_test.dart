@@ -18,7 +18,7 @@ void main() {
 
   setUp(() {
     document = CanvasDocument()
-      ..setBoard(canvasBoard)
+      ..setBoard(canvasBoard, sharedArea: canvasSharedArea)
       ..setViewport(_viewport);
     tiles = CanvasPresenceTileOverrides()..board = canvasBoard;
     mode = CanvasViewMode(document: document, tiles: tiles);
@@ -218,7 +218,8 @@ void main() {
     });
 
     test('a camera restored before the pane has a size waits for one', () {
-      final bare = CanvasDocument()..setBoard(canvasBoard);
+      final bare = CanvasDocument()
+        ..setBoard(canvasBoard, sharedArea: canvasSharedArea);
       final bareTiles = CanvasPresenceTileOverrides()..board = canvasBoard;
       final bareMode = CanvasViewMode(document: bare, tiles: bareTiles);
       addTearDown(() {

@@ -359,6 +359,6 @@ void main() {
       ..setViewport(const Size(400, 225))
       ..setBoard(canvasBoard);
 
-    expect(document.zoomFloor, closeTo(400 / 1920, 1e-9));
+    expect(document.zoomFloor, closeTo(400 / 3840, 1e-9));
   });
 }

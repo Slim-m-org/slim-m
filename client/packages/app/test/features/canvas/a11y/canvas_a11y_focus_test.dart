@@ -67,7 +67,7 @@ void main() {
         objects: [
           canvasObjectJson('s1'),
           canvasNoteJson('n1', x: 100),
-          // Past the 1920 wide board, so the outside-the-board pill is on screen.
+          // Past the board edge (2880), so the outside-the-board pill is on screen.
           canvasObjectJson('far', x: 3000, seq: 3),
         ],
       );

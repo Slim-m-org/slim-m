@@ -19,7 +19,7 @@ import '../../canvas/providers/canvas_pen_style.dart';
 /// How big the snapshot is drawn before it is stretched behind the call: the blur hides the low resolution.
 const loungeGlowSize = Size(480, 270);
 
-/// The blurred board for [channelId], read each time a call view opens; null when it is empty or cannot be read.
+/// The blurred shared area for [channelId], read each time a call view opens; null when it is empty or cannot be read.
 final loungeCanvasGlowProvider = FutureProvider.autoDispose
     .family<ui.Image?, String>((ref, channelId) async {
       final client = ref.read(apiProvider);
@@ -28,10 +28,10 @@ final loungeCanvasGlowProvider = FutureProvider.autoDispose
         page = await client.canvasViewport(
           channelId,
           region: api.CanvasRect(
-            minX: canvasBoard.left,
-            minY: canvasBoard.top,
-            maxX: canvasBoard.right,
-            maxY: canvasBoard.bottom,
+            minX: canvasSharedArea.left,
+            minY: canvasSharedArea.top,
+            maxX: canvasSharedArea.right,
+            maxY: canvasSharedArea.bottom,
           ),
           limit: 500,
         );
@@ -40,7 +40,7 @@ final loungeCanvasGlowProvider = FutureProvider.autoDispose
       }
       final document = CanvasDocument();
       try {
-        document.setBoard(canvasBoard);
+        document.setBoard(canvasBoard, sharedArea: canvasSharedArea);
         for (final object in page.objects) {
           final input = canvasStrokeInputFrom(object);
           if (input != null) document.applyPlaced(input, overwrite: true);

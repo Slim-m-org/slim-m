@@ -13,7 +13,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_pane_harness.dart';
 
 void main() {
-  testWidgets('opens on the pan tool with the whole board fitted', (
+  testWidgets('opens on the pan tool with the shared area fitted', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 800);
@@ -29,13 +29,15 @@ void main() {
     final document = surfaceDocument(tester);
     expect(document.isFitted, isTrue);
     expect(
-      document.worldView.inflate(1e-6).contains(canvasBoard.topLeft),
+      document.worldView.inflate(1e-6).contains(canvasSharedArea.topLeft),
       isTrue,
     );
     expect(
-      document.worldView.inflate(1e-6).contains(canvasBoard.bottomRight),
+      document.worldView.inflate(1e-6).contains(canvasSharedArea.bottomRight),
       isTrue,
     );
+    expect(document.camera.zoom, closeTo(document.sharedFitZoom, 1e-9));
+    expect(document.worldView.width, lessThan(canvasBoard.width));
     final surface = tester.widget<CanvasSurface>(find.byType(CanvasSurface));
     expect(surface.tool, CanvasTool.pan);
   });

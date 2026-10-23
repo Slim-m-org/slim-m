@@ -4,18 +4,40 @@ part of 'canvas_document.dart';
 /// The shared board's view of [CanvasDocument]: where it sits, whether the
 /// whole of it is in view, and what may be placed on it. Decision 0073.
 extension CanvasDocumentBoard on CanvasDocument {
-  /// Fixes the shared board: the camera then never leaves it and opens fitted.
-  /// Null lifts the constraint.
-  void setBoard(ui.Rect? board) {
-    if (board == _board) return;
+  /// Fixes the shared board: the camera then never leaves it and opens on
+  /// [sharedArea] (the whole board when omitted). Null lifts the constraint.
+  void setBoard(ui.Rect? board, {ui.Rect? sharedArea}) {
+    if (board == _board && sharedArea == _sharedArea) return;
     _board = board;
+    _sharedArea = sharedArea;
     _atFit = true;
     _retrackAllOutside();
-    _camera = board == null ? _clamp(_camera) : boardFitCamera(board, _fitView);
+    _camera = board == null ? _clamp(_camera) : _sharedCamera(board);
     _reculled();
   }
 
   ui.Rect? get board => _board;
+
+  /// The region every viewer frames in the shared view; null when no board is set.
+  ui.Rect? get sharedArea => _board == null ? null : _sharedArea ?? _board;
+
+  /// The zoom at which the shared area fills the view, 100% on the zoom pill.
+  double get sharedFitZoom {
+    final shared = sharedArea;
+    return shared == null ? 1 : boardFitZoom(shared, _fitView);
+  }
+
+  ui.Rect get _sharedRect => _sharedArea ?? _board!;
+
+  Camera _sharedCamera(ui.Rect board) =>
+      sharedAreaCamera(_sharedRect, board, _fitView);
+
+  bool _isSharedCamera(Camera camera, ui.Rect board) {
+    final shared = _sharedCamera(board);
+    return (camera.zoom - shared.zoom).abs() <= 1e-9 &&
+        (camera.x - shared.x).abs() <= 1e-6 &&
+        (camera.y - shared.y).abs() <= 1e-6;
+  }
 
   /// Whether [world] may start a new mark: always without a board, else inside it.
   bool acceptsPlacementAt(ui.Offset world) =>
@@ -86,13 +108,13 @@ extension CanvasDocumentBoard on CanvasDocument {
     outsideBoardCount.value = _outsideIds.length;
   }
 
-  /// Whether the whole board is in view, as opposed to a temporary zoom.
+  /// Whether the camera sits on the shared area, as opposed to a pan or zoom away from it.
   bool get isFitted => _board != null && _atFit;
 
-  /// Brings the whole board back into view.
+  /// Brings the shared area back into view.
   void fitBoard() {
     final board = _board;
-    if (board != null) setCamera(boardFitCamera(board, _fitView));
+    if (board != null) setCamera(_sharedCamera(board));
   }
 
   /// The union of the parts of live objects that lie on the board, or null when none do.
@@ -117,10 +139,11 @@ extension CanvasDocumentBoard on CanvasDocument {
     setCamera(cameraToFit(bounds, _fitView));
   }
 
-  /// The part of the board in view, or null when no board is set.
+  /// The part of the board in view, or null when no board is set; the shared area while fitted.
   ui.Rect? get visibleBoard {
     final board = _board;
-    return board == null ? null : visibleBoardPart(worldView, board);
+    if (board == null) return null;
+    return isFitted ? sharedArea : visibleBoardPart(worldView, board);
   }
 
   /// Shows [view] (a board rectangle) fitted to this viewport's own aspect.

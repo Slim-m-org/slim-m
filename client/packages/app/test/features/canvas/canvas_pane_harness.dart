@@ -271,6 +271,17 @@ class CanvasPaneFixture {
             );
           }
           postedOps.add(body);
+          if (body['kind'] == 'move') {
+            for (final o in objects.where(
+              (o) => o['id'] == body['object_id'],
+            )) {
+              o
+                ..['x'] = body['x']
+                ..['y'] = body['y']
+                ..['w'] = body['w']
+                ..['h'] = body['h'];
+            }
+          }
           _opSeq++;
           final seq = max(_opSeq, objects.length + postedOps.length);
           if (body['kind'] == 'clear') {

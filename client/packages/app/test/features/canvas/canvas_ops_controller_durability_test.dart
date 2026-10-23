@@ -235,7 +235,7 @@ void main() {
       rig.place('drawn');
       rig.ops.recordDraw(['drawn']);
       for (var i = 0; i < 40; i++) {
-        rig.place('far$i', kind: CanvasObjectKind.shape, x: 1800);
+        rig.place('far$i', kind: CanvasObjectKind.shape, x: 3000);
       }
 
       final result = await rig.ops.bringIntoBoard(
@@ -259,7 +259,7 @@ void main() {
   test('bring-in retries a throttled move instead of stopping', () async {
     final rig = _Rig(
       reply: (body, n) => n == 1 ? _status(429, {'retry-after': '0'}) : null,
-    )..place('far', kind: CanvasObjectKind.shape, x: 1800);
+    )..place('far', kind: CanvasObjectKind.shape, x: 3000);
 
     final result = await rig.ops.bringIntoBoard(
       manageCanvas: false,

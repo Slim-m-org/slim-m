@@ -145,6 +145,7 @@ extension _FuzzActions on CanvasGestureFuzz {
         ..['h'] = 80.0;
       _log('live place $id');
       _server.livePlaced(json);
+      rig.fixture.objects.add(json);
       rig.fixture.events.add(
         api.CanvasObjectPlaced(
           channelId: 'c1',
@@ -155,6 +156,7 @@ extension _FuzzActions on CanvasGestureFuzz {
       final id = alive[_rng.nextInt(alive.length)];
       _log('live remove $id');
       _server.liveRemoved(id);
+      rig.fixture.objects.removeWhere((o) => o['id'] == id);
       rig.fixture.events.add(
         api.CanvasObjectsRemoved(
           channelId: 'c1',
@@ -173,6 +175,13 @@ extension _FuzzActions on CanvasGestureFuzz {
         100,
       );
       _server.liveMoved(id, box);
+      for (final o in rig.fixture.objects.where((o) => o['id'] == id)) {
+        o
+          ..['x'] = box.left
+          ..['y'] = box.top
+          ..['w'] = box.width
+          ..['h'] = box.height;
+      }
       rig.fixture.events.add(
         api.CanvasObjectMoved(
           channelId: 'c1',

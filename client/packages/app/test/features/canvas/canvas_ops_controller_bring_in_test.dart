@@ -69,7 +69,7 @@ void main() {
   test(
     'it moves what the caller placed and a later undo puts it back',
     () async {
-      final rig = _Rig()..place('far', 1800);
+      final rig = _Rig()..place('far', 2800);
 
       final result = await rig.ops.bringIntoBoard(
         manageCanvas: false,
@@ -79,7 +79,7 @@ void main() {
       expect(result.moved, 1);
       expect(
         rig.document.objectBounds('far')!.x + 300,
-        lessThanOrEqualTo(1920),
+        lessThanOrEqualTo(canvasBoard.right),
       );
       expect(rig.ops.canUndo, isTrue);
     },
@@ -88,7 +88,7 @@ void main() {
   test(
     'it leaves another member\'s object alone without manage rights',
     () async {
-      final rig = _Rig()..place('theirs', 1800, authorId: 'them');
+      final rig = _Rig()..place('theirs', 2800, authorId: 'them');
 
       final result = await rig.ops.bringIntoBoard(
         manageCanvas: false,
@@ -101,7 +101,7 @@ void main() {
   );
 
   test('an unknown caller is never taken for an unknown author', () async {
-    final rig = _Rig()..place('orphan', 1800, authorId: null);
+    final rig = _Rig()..place('orphan', 2800, authorId: null);
 
     final result = await rig.ops.bringIntoBoard(
       manageCanvas: false,
@@ -113,7 +113,7 @@ void main() {
   });
 
   test('it leaves a locked object alone even with manage rights', () async {
-    final rig = _Rig(locked: {'far'})..place('far', 1800);
+    final rig = _Rig(locked: {'far'})..place('far', 2800);
 
     final result = await rig.ops.bringIntoBoard(
       manageCanvas: true,
@@ -126,9 +126,9 @@ void main() {
 
   test('it stops at the first refusal and tells the viewer once', () async {
     final rig = _Rig(failOn: 1)
-      ..place('a', 1800)
-      ..place('b', 1850)
-      ..place('c', 1900);
+      ..place('a', 2800)
+      ..place('b', 2850)
+      ..place('c', 2900);
 
     final result = await rig.ops.bringIntoBoard(
       manageCanvas: false,
@@ -139,7 +139,7 @@ void main() {
     expect(result.moved, 0);
     expect(rig.requests, hasLength(1));
     expect(rig.errors, hasLength(1));
-    expect(rig.document.objectBounds('a')!.x, 1800, reason: 'rolled back');
+    expect(rig.document.objectBounds('a')!.x, 2800, reason: 'rolled back');
   });
 
   test(
@@ -154,8 +154,8 @@ void main() {
             zIndex: 1,
             x: 0,
             y: 0,
-            w: 3000,
-            h: 2000,
+            w: 5000,
+            h: 3000,
             points: [],
             width: 0,
             colorKey: '',
@@ -175,7 +175,7 @@ void main() {
       await rig.ops.endSelect();
 
       final shown = rig.document.objectBounds('huge')!;
-      expect(shown.w, lessThanOrEqualTo(1920));
+      expect(shown.w, lessThanOrEqualTo(canvasBoard.width));
       expect(rig.requests.single['w'], shown.w);
       expect(rig.requests.single['h'], shown.h);
     },

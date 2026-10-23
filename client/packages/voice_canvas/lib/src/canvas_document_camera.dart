@@ -11,7 +11,7 @@ extension CanvasDocumentCamera on CanvasDocument {
     worldEdgeHit.value =
         board == null && (clamped.x != next.x || clamped.y != next.y);
     if (board != null && !_viewport.isEmpty) {
-      _atFit = clamped.zoom <= boardFitZoom(board, _fitView) + 1e-9;
+      _atFit = _isSharedCamera(clamped, board);
     }
     if (clamped == _camera) return;
     _camera = clamped;
@@ -22,11 +22,9 @@ extension CanvasDocumentCamera on CanvasDocument {
     if (size == _viewport) return;
     _viewport = size;
     final board = _board;
-    _camera = board != null && _atFit
-        ? boardFitCamera(board, _fitView)
-        : _clamp(_camera);
+    _camera = board != null && _atFit ? _sharedCamera(board) : _clamp(_camera);
     if (board != null && !size.isEmpty) {
-      _atFit = _camera.zoom <= boardFitZoom(board, _fitView) + 1e-9;
+      _atFit = _isSharedCamera(_camera, board);
     }
     _reculled();
   }

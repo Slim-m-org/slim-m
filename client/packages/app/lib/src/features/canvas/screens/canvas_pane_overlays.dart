@@ -60,7 +60,7 @@ class CanvasPeerControls extends StatelessWidget {
         selfId: selfId,
         canBringEveryone: !(viewMode?.personal ?? false),
         onBringEveryone: () =>
-            relay.summonEveryone(document.visibleBoard ?? canvasBoard),
+            relay.summonEveryone(document.visibleBoard ?? canvasSharedArea),
       ),
     );
   }

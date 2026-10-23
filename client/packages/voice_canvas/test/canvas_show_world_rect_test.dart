@@ -12,7 +12,7 @@ void main() {
 
   test('on a board the rect fills the limiting axis and is centred', () {
     final document = CanvasDocument()
-      ..setBoard(canvasBoard)
+      ..setBoard(canvasBoard, sharedArea: canvasSharedArea)
       ..setViewport(const Size(1280, 800));
     addTearDown(document.dispose);
 
@@ -37,7 +37,8 @@ void main() {
   });
 
   test('nothing happens before the viewport is measured', () {
-    final document = CanvasDocument()..setBoard(canvasBoard);
+    final document = CanvasDocument()
+      ..setBoard(canvasBoard, sharedArea: canvasSharedArea);
     addTearDown(document.dispose);
     final before = document.camera;
 

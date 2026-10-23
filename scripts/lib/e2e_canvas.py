@@ -73,7 +73,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import e2e_labels as L
 from e2e_api import wait_until
-from e2e_board_frame import BOARD_H, BOARD_W, board_frame, clear_window, fit_to_board_zoom_one
+from e2e_board_frame import SHARED_H, SHARED_W, board_frame, clear_window, fit_to_board_zoom_one
 
 # Offsets from the canvas's own top-left; the midpoint is the eraser's target.
 STROKE_START = (60, 280)
@@ -98,7 +98,7 @@ def at_frac(client, fx, fy):
     why a note or a shape needs this and a pen stroke does not.
     """
     left, top, zoom = board_frame(client)
-    return left + BOARD_W * zoom * fx, top + BOARD_H * zoom * fy
+    return left + SHARED_W * zoom * fx, top + SHARED_H * zoom * fy
 
 
 def wait_for_summary(client, needle, timeout=30):

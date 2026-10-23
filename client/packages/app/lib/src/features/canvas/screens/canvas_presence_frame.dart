@@ -59,8 +59,8 @@ class CanvasPresenceFrameResolver {
     final keys = presenceTileKeys(participants);
     if (keys.isEmpty) return CanvasPresenceFrame.empty;
     final byIdentity = {for (final p in participants) p.identity: p};
-    // World units when the board is fixed, so every viewer gets the same untouched layout.
-    final frame = document.board?.size ?? document.viewport;
+    // World units of the shared area when the board is fixed, so every viewer gets the same untouched layout.
+    final frame = document.sharedArea?.size ?? document.viewport;
     final onCanvas = presenceOnCanvasRects(
       keys: keys,
       layout: layout.withMaxRowWidth(frame.width),
