@@ -25,13 +25,24 @@ use support::wasm_fixtures::{canned_ok_wasm, sha256_hex};
 use support::{TestDbGuard, TestDirGuard};
 
 fn manifest(version: &str, data: &Value, wasm: &[u8]) -> Value {
+    manifest_with(version, data, wasm, (&["data.store"], &[]))
+}
+
+fn manifest_with(
+    version: &str,
+    data: &Value,
+    wasm: &[u8],
+    (capabilities, events): (&[&str], &[&str]),
+) -> Value {
+    let subscriptions: Vec<Value> = events.iter().map(|e| json!({ "event": e })).collect();
     json!({
         "schema": 1, "addon_api": 1, "id": "scores", "name": "Scores", "version": version,
         "summary": "keeps score",
         "artifact": {"kind": "wasm", "path": "modules/scores/module.wasm", "sha256": sha256_hex(wasm)},
         "runtime": {"backend": "wasm"},
         "permissions": [{"key": "run", "name": "Run", "description": "run"}],
-        "capabilities": ["data.store"],
+        "capabilities": capabilities,
+        "subscriptions": subscriptions,
         "data": data,
         "extension_points": [{"kind": "command", "name": "show", "description": "show", "permission": "run"}]
     })
@@ -142,6 +153,29 @@ impl Harness {
             json!({"version": version, "approved_host_capabilities": approved}),
         )
         .await
+    }
+
+    fn serve_with(&self, version: &str, data: &Value, wants: (&[&str], &[&str])) {
+        *self.served.manifest.lock().unwrap() =
+            manifest_with(version, data, &self.served.wasm, wants);
+    }
+
+    /// Installs with no approvals named, so what the earlier install approved is carried.
+    async fn reinstall_carrying(&self, version: &str) -> Vec<String> {
+        let (status, body) = self
+            .call(
+                "POST",
+                "/space/dock/modules/scores/install",
+                json!({ "version": version }),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        body["approved_host_capabilities"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c.as_str().unwrap().to_owned())
+            .collect()
     }
 
     fn serve(&self, version: &str, data: &Value) {
@@ -255,4 +289,51 @@ async fn uninstall_keeps_the_data_file_unless_asked_to_delete_it() {
     assert_eq!(status, StatusCode::NO_CONTENT);
     let leftovers: Vec<_> = std::fs::read_dir(&h.dir).unwrap().flatten().collect();
     assert!(leftovers.is_empty(), "{leftovers:?}");
+}
+
+const BOTH: (&[&str], &[&str]) = (&["data.store", "events"], &["message.created"]);
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_unchanged_manifest_carries_events_and_data_store() {
+    let h = harness("slimm-dockdata-carry").await;
+    h.serve_with("0.1.0", &xp_schema(), BOTH);
+    h.install("0.1.0", &["data.store", "events"]).await;
+    h.serve_with("0.1.1", &xp_schema(), BOTH);
+    let mut carried = h.reinstall_carrying("0.1.1").await;
+    carried.sort();
+    assert_eq!(carried, ["data.store", "events"]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_subscription_with_the_same_artifact_asks_for_events_again() {
+    let h = harness("slimm-dockdata-subs").await;
+    h.serve_with("0.1.0", &xp_schema(), BOTH);
+    h.install("0.1.0", &["data.store", "events"]).await;
+    let wider = (
+        &["data.store", "events"][..],
+        &["message.created", "member.joined"][..],
+    );
+    h.serve_with("0.1.1", &xp_schema(), wider);
+    assert_eq!(h.reinstall_carrying("0.1.1").await, ["data.store"]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_larger_cap_or_a_new_table_with_the_same_artifact_asks_for_data_store_again() {
+    let h = harness("slimm-dockdata-wider").await;
+    h.serve_with("0.1.0", &xp_schema(), BOTH);
+    h.install("0.1.0", &["data.store", "events"]).await;
+
+    let mut bigger = xp_schema();
+    bigger["max_mb"] = json!(16);
+    h.serve_with("0.1.1", &bigger, BOTH);
+    assert_eq!(h.reinstall_carrying("0.1.1").await, ["events"]);
+
+    h.install("0.1.1", &["data.store", "events"]).await;
+    let mut more = bigger.clone();
+    more["tables"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "name": "log", "columns": [{ "name": "line", "type": "text" }] }));
+    h.serve_with("0.1.2", &more, BOTH);
+    assert_eq!(h.reinstall_carrying("0.1.2").await, ["events"]);
 }
