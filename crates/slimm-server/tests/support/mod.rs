@@ -39,6 +39,10 @@ pub mod images;
 #[allow(dead_code)]
 pub mod canvas;
 
+/// A module's `data.store` surface over a real file.
+#[allow(dead_code)]
+pub mod data_rig;
+
 /// A one-member deployment plus helpers to install and run a wasm module.
 #[allow(dead_code)]
 pub mod module_world;

@@ -22,6 +22,7 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::data::{self, DataBackend};
 use super::kv::{self, KvBackend};
 use super::net::{self, HttpFetcher, SecretSource};
 use super::post::{self, MessagePoster};
@@ -67,6 +68,8 @@ pub enum CapabilitySurface {
         /// Remaining host calls of any kind, refused ones included, so a loop
         /// of bad requests is bounded by more than the wall clock.
         calls_remaining: u32,
+        /// Runs `data.store` statements; `None` leaves it unavailable.
+        data: Option<Arc<dyn DataBackend>>,
     },
 }
 
@@ -90,7 +93,16 @@ impl CapabilitySurface {
             secrets: Arc::new(net::NoSecrets),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
             calls_remaining: MAX_HOST_CALLS_PER_RUN,
+            data: None,
         }
+    }
+
+    /// Makes `data.store` available through `backend`. A no-op on a disabled surface.
+    pub fn with_data(mut self, backend: Arc<dyn DataBackend>) -> Self {
+        if let CapabilitySurface::Enabled { data, .. } = &mut self {
+            *data = Some(backend);
+        }
+        self
     }
 
     /// Makes `net.fetch` available through `fetcher`, to `hosts` only. A
@@ -157,6 +169,7 @@ impl CapabilitySurface {
             secrets,
             fetches_remaining,
             calls_remaining,
+            data,
         } = self
         else {
             return refusal("the capability surface is off");
@@ -174,6 +187,10 @@ impl CapabilitySurface {
         }
         match parsed.capability.as_str() {
             "kv.store" => kv::handle(kv.as_ref(), module_id, kv_calls_remaining, request),
+            "data.store" => match data {
+                Some(data) => data::handle(data.as_ref(), module_id, kv_calls_remaining, request),
+                None => refusal("data.store is not available to this run"),
+            },
             "message.post" => match poster {
                 Some(poster) => post::handle(poster.as_ref(), posts_remaining, request),
                 None => refusal("message.post needs a channel"),

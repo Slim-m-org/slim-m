@@ -21,8 +21,8 @@ struct Reviewed<'a> {
     limits: (Option<u64>, Option<u64>, Option<u64>),
     #[serde(skip_serializing_if = "Vec::is_empty")]
     subscriptions: Vec<&'a str>,
-    #[serde(skip_serializing_if = "serde_json::Value::is_null")]
-    data: &'a serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<&'a crate::module_runtime::DataSchema>,
 }
 
 fn sorted<'a>(items: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
@@ -53,7 +53,7 @@ impl Manifest {
             permissions: sorted(self.permissions.iter().map(|p| p.key.as_str())),
             limits: (limits.memory_mb, limits.wall_ms, limits.fuel),
             subscriptions: sorted(self.platform.subscriptions.iter().map(String::as_str)),
-            data: &self.platform.data_schema,
+            data: self.data.as_ref(),
         };
         let json = serde_json::to_vec(&reviewed).unwrap_or_default();
         to_hex(&Sha256::digest(json))

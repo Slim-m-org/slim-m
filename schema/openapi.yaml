@@ -9379,10 +9379,20 @@ paths:
         Removes the install, its registered permissions, and every role
         grant of them - nothing dangles. A scheduled module's own principal
         is removed too, with its overwrite in the channel it posted to; its
-        earlier messages stay, still marked as the module's.
+        earlier messages stay, still marked as the module's. The module's
+        data file (decision 0091) is kept unless delete_data is true.
+      parameters:
+        - name: delete_data
+          in: query
+          required: false
+          description: Also delete the module's data file.
+          schema:
+            type: boolean
       responses:
         "204":
           description: The module was uninstalled.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

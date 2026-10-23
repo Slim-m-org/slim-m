@@ -23,6 +23,7 @@ To set one of those you need a compose override file that adds it to the `server
 | `SLIMM_DATA_KEY_ALLOW_NEW` | unset | Set to `1` to let a server with sealed two-factor secrets and no key start with a fresh one. Only after every factor was cleared; see [The data key](#the-data-key). | no |
 | `SLIMM_DATA_KEY` | unset | Base64 of 32 random bytes: the key that seals two-factor secrets. Unset, the server keeps the key in `slimm-data.key` beside the database, created on first start with mode 0600. See [The data key](#the-data-key). | no |
 | `SLIMM_ATTACHMENTS_DIR` | `data/media` | Where attachment and avatar bytes live, beside the database. | no, the image sets `/data/media` |
+| `SLIMM_MODULES_DIR` | a `modules` directory beside the database | One small SQLite file per installed module that keeps structured data, named `<module id>.db`. Created on first use, owner-only. Uninstalling keeps a module's file unless you ask to delete its data. | no, the image keeps it in `/data/modules` |
 | `SLIMM_ATTACHMENT_MAX_BYTES` | `1073741824` (1 GiB) | Largest single upload. Over it is a 413. | no |
 | `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES` | unset, no ceiling | Most bytes held in attachments and custom emoji together. Over it is a 507. Avatars are outside it. | yes, example sets 2 GiB |
 | `SLIMM_HASH_CONCURRENCY` | `4` | How many Argon2id password hashes run at once, about 19 MiB each while running. | no |
@@ -222,10 +223,10 @@ A bot cannot create another bot.
 
 ## Backups and restore
 
-Two things need backing up: the SQLite database and the attachment directory.
+Three things need backing up: the SQLite database, the attachment directory and the module data files.
 Litestream, if you enable it, streams only the database.
-`scripts/backup.py` takes a consistent snapshot of the database and mirrors the attachment and avatar files it references, with `--keep N` to prune old snapshots.
-`scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, and checks every referenced file exists with a matching hash.
+`scripts/backup.py` takes a consistent snapshot of the database, mirrors the attachment and avatar files it references, and copies each module data file with `VACUUM INTO`, with `--keep N` to prune old database snapshots.
+`scripts/restore-drill.py` restores the newest snapshot to a scratch path, runs `PRAGMA integrity_check`, checks every referenced file exists with a matching hash, and runs `PRAGMA integrity_check` on every module data file in the mirror.
 It exits non-zero on any problem.
 Neither script backs up `.env`, which holds your LiveKit and Litestream secrets, or `slimm-data.key`, the key that opens the stored two-factor secrets (see [The data key](#the-data-key)).
 The commands, the container invocation and the sensitivity of a snapshot are in [deploy/README.md](../deploy/README.md#backups-optional).

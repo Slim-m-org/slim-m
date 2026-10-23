@@ -109,7 +109,7 @@ The host runs a consumer that subscribes to the hub, filters per module and queu
 One host call:
 
 ```json
-{ "cap": "log.read", "log": "voice.sessions", "after": 0, "limit": 100 }
+{ "capability": "log.read", "log": "voice.sessions", "after": 0, "limit": 100 }
 ```
 
 The reply is `{ "ok": true, "rows": [...], "next": 123 }`, where `next` is the cursor to send as `after` next time.
@@ -129,7 +129,7 @@ Only a module with an approved `log.read` can read them, and the consent line sa
 ## `data.store` host call
 
 ```json
-{ "cap": "data.store", "op": "query", "table": "xp",
+{ "capability": "data.store", "op": "query", "table": "xp",
   "where": [{ "col": "xp", "op": "gt", "val": 100 }],
   "order": [{ "col": "xp", "dir": "desc" }], "limit": 10, "offset": 0 }
 ```
@@ -144,6 +144,8 @@ Operations:
 
 `where` is a list ANDed together with ops `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `like`.
 Replies are `{ok:true, rows, changed, count}` or `{ok:false, error}`.
+`count` and `sum` return their number in `count`, and `insert` returns `rows: [{_id}]`.
+`upsert` takes a single unique column in `on`.
 Limits: 64 calls per run (shared with `kv.store`), 200 rows per query, 4 KB per text value, and the file cap from `max_mb`.
 The file is `<modules_dir>/<module id>.db`, where `modules_dir` is `SLIMM_MODULES_DIR` and defaults beside the main database.
 Statements are built by the host, parameterised, and run on a connection that has `max_page_count` set.

@@ -58,6 +58,7 @@ use messages::{
 };
 mod moderation_audit;
 mod moderation_history;
+mod module_data_dir;
 mod modules;
 use modules::{module_kv, module_permissions, module_stats};
 mod data_exports;
@@ -439,6 +440,8 @@ pub struct Store {
     /// Seals the secrets read back later (two-factor). A bare [`Store::new`] holds a throwaway
     /// key, so a process that should keep them must call [`Store::with_data_key`].
     data_key: Arc<crate::data_key::DataKey>,
+    /// Where module data files live; see [`Store::modules_dir`].
+    modules_dir: Option<Arc<std::path::PathBuf>>,
 }
 
 impl Store {
@@ -447,6 +450,7 @@ impl Store {
             pool,
             canvas_op_clock: Arc::default(),
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
+            modules_dir: None,
         }
     }
 
