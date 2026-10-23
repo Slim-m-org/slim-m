@@ -22,6 +22,14 @@ void main() {
     expect(harnessChannel(const []), isNull);
   });
 
+  test('the volume file flag is read from the arguments', () {
+    expect(
+      harnessVolumeFile(const ['--voice-harness-volume-file=/tmp/v']),
+      '/tmp/v',
+    );
+    expect(harnessVolumeFile(const ['--voice-harness-channel=abc']), isNull);
+  });
+
   test('only a call that ended in failure is a failed join', () {
     expect(
       failedJoin(const VoiceState(state: VoiceSessionState.connected)),

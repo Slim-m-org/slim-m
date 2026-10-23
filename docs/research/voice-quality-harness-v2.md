@@ -59,6 +59,31 @@ The two client builds differ, the server does not.
   The compressor and limiter stay at their default (on).
 - `voice_noise.py` aligns the recording to the sent speech and reports, in dB: the hum floor in clean gaps, the change of each noise event, the speech level change, how far noise over speech sits above speech alone, and how many word onsets lose 30 ms or more in their first 200 ms.
 
+### Desktop playback volume
+
+Owner, 2026-10-23: the per-person volume slider on the Linux desktop "isn't changing someone's volume enough".
+`e2e_voice_desktop_volume.py` (opt in with `E2E_ONLY="volume slider on the desktop"`) measures what the real client plays at each slider value.
+A browser sends a steady tone, the harness build joins with `vqb` set to a slider value, and the level on the client's sink monitor is read as the 90th percentile of 50 ms windows.
+`E2E_DESKTOP_LIVE=1` launches once and moves the slider through `--voice-harness-volume-file=<path>`, which is the path a listener takes; without it each value is seeded into the saved preferences and the client is relaunched.
+After the sweep it sets 50% again and checks the level survives the sender muting and unmuting, and leaving and rejoining.
+The run fails when a level is more than 1.5 dB from the gain the slider asks for, or when 0% is not silent.
+It runs inside `private_pulse.py`, a PipeWire, wireplumber and pipewire-pulse of its own: the owner's session routes streams by application name into real sinks (a first run played the test tone into the headset), and keeps per-stream volumes of its own.
+
+Measured 2026-10-23 on the Fedora dev box, harness build of `b21/voice` (flutter-webrtc `be844bc`), tone at -20 dBFS:
+
+| Slider | Heard (dBFS) | From 100% (dB) | Asked for (dB) |
+|---|---|---|---|
+| 0% | -120.0 | silent | silent |
+| 25% | -58.7 | -36.2 | -36.1 |
+| 50% | -40.5 | -18.1 | -18.1 |
+| 100% | -22.5 | 0.0 | 0.0 |
+| 150% | -18.9 | +3.5 | +3.5 |
+| 200% | -16.4 | +6.1 | +6.0 |
+
+The live path gave the same numbers within 0.1 dB, and 50% held at -40.5 to -40.6 dBFS across a mute and a rejoin.
+So the native gain is exact; the slider reaches only +6 dB above normal, and everything is relative to the stream volume the desktop's own mixer holds for the app.
+A deliberate regression (the old linear mapping) read -28.5 dBFS at 50%, 6.0 dB from 100% against the 18.1 asked for, and the run failed on it.
+
 ## Method for the before and after comparison
 
 - BEFORE is `origin/main` at 274ba3b8e (client 0.114.0 plus the pipe fix, flutter-webrtc c4026c6).
