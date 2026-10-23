@@ -19,11 +19,11 @@ class ProbeTransfer {
   final Duration elapsed;
 
   /// Infinite for an instant transfer; [capSpeed] puts a ceiling on what is shown.
-  double get bitsPerSecond => bytes <= 0
-      ? 0
-      : elapsed.inMicroseconds <= 0
-          ? double.infinity
-          : bytes * 8 * 1e6 / elapsed.inMicroseconds;
+  double get bitsPerSecond {
+    if (bytes <= 0) return 0;
+    if (elapsed.inMicroseconds <= 0) return double.infinity;
+    return bytes * 8 * 1e6 / elapsed.inMicroseconds;
+  }
 }
 
 /// What the test needs from one route; a seam for tests, which have no network.

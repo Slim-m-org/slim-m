@@ -145,16 +145,24 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
     }
     setState(() => _volume = volume);
     final controller = widget.controller;
-    final applied = !commit
-        ? controller.dragVolumeFor(
-            widget.identity,
-            volume,
-            channel: widget.channel,
-          )
-        : _screen
-        ? controller.setScreenVolumeFor(widget.identity, volume)
-        : controller.setVolumeFor(widget.identity, volume);
+    final applied = _applyVolume(controller, volume, commit: commit);
     unawaited(applied.then((_) => _syncFailure()));
+  }
+
+  Future<void> _applyVolume(
+    VoiceController controller,
+    double volume, {
+    required bool commit,
+  }) {
+    if (!commit) {
+      return controller.dragVolumeFor(
+        widget.identity,
+        volume,
+        channel: widget.channel,
+      );
+    }
+    if (_screen) return controller.setScreenVolumeFor(widget.identity, volume);
+    return controller.setVolumeFor(widget.identity, volume);
   }
 
   void _syncFailure() {

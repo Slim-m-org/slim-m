@@ -18,6 +18,7 @@ const (
 	appExecutable   = "slimm_app.exe"
 	versionPrefix   = "app-"
 	maxFailedStarts = 2
+	pendingTries    = "pending.tries"
 )
 
 func read(root, name string) string {
@@ -93,11 +94,11 @@ func choose(root string, relaunch bool) (string, error) {
 	if !relaunch && instanceRunning(root) {
 		return versionDir(root, current), nil
 	}
-	tries, _ := strconv.Atoi(read(root, "pending.tries"))
+	tries, _ := strconv.Atoi(read(root, pendingTries))
 	if tries >= maxFailedStarts && isComplete(root, read(root, "previous")) {
 		return rollBack(root, current)
 	}
-	if err := write(root, "pending.tries", strconv.Itoa(tries+1)); err != nil {
+	if err := write(root, pendingTries, strconv.Itoa(tries+1)); err != nil {
 		return "", err
 	}
 	return versionDir(root, current), nil
@@ -114,7 +115,7 @@ func rollBack(root, failed string) (string, error) {
 		return "", err
 	}
 	_ = write(root, "rolled-back", failed)
-	remove(root, "pending", "pending.tries", "previous")
+	remove(root, "pending", pendingTries, "previous")
 	return versionDir(root, previous), nil
 }
 

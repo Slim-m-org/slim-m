@@ -23,12 +23,14 @@ readonly CACHE_OPTS
 # apt leaves partial/ private to its sandbox user, which the unprivileged cache save cannot read.
 open_cache() {
   [[ -z "$DEB_CACHE" ]] || sudo chmod -R a+rX "$DEB_CACHE" || true
+  return 0
 }
 trap open_cache EXIT
 
 attempt() {
   timeout "$UPDATE_LIMIT" sudo apt-get "${APT_OPTS[@]}" update &&
     timeout "$INSTALL_LIMIT" sudo apt-get "${APT_OPTS[@]}" "${CACHE_OPTS[@]}" install -y --no-install-recommends "$@"
+  return
 }
 
 # A cache hit installs with no mirror at all; anything it cannot satisfy falls through to the network.
@@ -50,6 +52,7 @@ use_fallback_mirror() {
     [[ -f "$file" ]] || continue
     sudo sed -i -E "s#https?://[a-z0-9.-]*\.archive\.ubuntu\.com/ubuntu/?#${FALLBACK}/#g" "$file"
   done
+  return 0
 }
 
 if attempt "$@"; then

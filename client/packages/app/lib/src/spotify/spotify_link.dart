@@ -30,6 +30,8 @@ import 'spotify_source.dart';
 import 'spotify_token_store.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag, reportFailure;
 
+const _linkSpotifyTask = 'link Spotify';
+
 const shareSpotifyKey = 'slimm.presence.share_spotify';
 const _exchangeTimeout = Duration(seconds: 20);
 
@@ -228,7 +230,7 @@ class SpotifyLinker {
       await _ref.read(shareSpotifyProvider.notifier).markLinked();
       return true;
     } on SpotifyAuthException catch (e, stack) {
-      reportFailure(LogTag.ui, 'link Spotify', e, stack);
+      reportFailure(LogTag.ui, _linkSpotifyTask, e, stack);
       _fail('Spotify did not link: ${e.message}.');
     } on TimeoutException catch (error, stack) {
       AppLog.swallowed(
@@ -239,10 +241,10 @@ class SpotifyLinker {
       );
       _fail('Spotify took too long to answer. Try again.');
     } on http.ClientException catch (error, stack) {
-      reportFailure(LogTag.ui, 'link Spotify', error, stack);
+      reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
       _fail('Could not reach Spotify. Check the connection and retry.');
     } on Object catch (error, stack) {
-      reportFailure(LogTag.ui, 'link Spotify', error, stack);
+      reportFailure(LogTag.ui, _linkSpotifyTask, error, stack);
       _fail('Spotify sent a reply this app could not read. Try again.');
     }
     return false;

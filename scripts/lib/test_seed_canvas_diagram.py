@@ -6,7 +6,6 @@ is exercised with a fake api object rather than skipped - the geometry is
 the point of this module, and a fake that just echoes the placement back
 is enough to prove it without a server.
 """
-import random
 import unittest
 
 import seed_canvas_diagram as diagram
@@ -51,7 +50,6 @@ class ClusterBoundsTest(unittest.TestCase):
 
 class DiagramRunTest(unittest.TestCase):
     def test_places_three_notes_and_three_shapes(self):
-        rng = random.Random(1)
         apis = [FakeApi(), FakeApi(), FakeApi(), FakeApi(), FakeApi()]
         centers = [(0, 0), (3000, -2000), (-3000, 1800)]
         weights = [1.0, 0.4, 0.1]
@@ -59,7 +57,7 @@ class DiagramRunTest(unittest.TestCase):
             {"id": "seed-a", "x": -200, "y": -150, "w": 60, "h": 60},
             {"id": "seed-b", "x": 150, "y": 100, "w": 30, "h": 30},
         ]
-        result = diagram.run(apis, "chan", centers, weights, placed, rng)
+        result = diagram.run(apis, "chan", centers, weights, placed)
         kinds = [row["kind"] for row in result]
         self.assertEqual(kinds.count("note"), 3)
         self.assertEqual(kinds.count("shape"), 3)
@@ -68,11 +66,10 @@ class DiagramRunTest(unittest.TestCase):
         self.assertEqual(shape_kinds, {"rectangle", "arrow", "line"})
 
     def test_spreads_authorship_across_accounts(self):
-        rng = random.Random(2)
         apis = [FakeApi(), FakeApi(), FakeApi(), FakeApi(), FakeApi()]
         centers = [(0, 0), (2000, 2000)]
         weights = [1.0, 0.2]
-        result = diagram.run(apis, "chan", centers, weights, [], rng)
+        result = diagram.run(apis, "chan", centers, weights, [])
         self.assertEqual({row["author_index"] for row in result},
                           {0, 1, 2, 3, 4})
 
@@ -82,11 +79,10 @@ class DiagramRunTest(unittest.TestCase):
         places from the cluster's rectangle to its callout note only
         renders pointing at the note if the note is down and to the right
         of the rectangle - see the module's own doc comment."""
-        rng = random.Random(3)
         apis = [FakeApi() for _ in range(5)]
         centers = [(0, 0)]
         weights = [1.0]
-        result = diagram.run(apis, "chan", centers, weights, [], rng)
+        result = diagram.run(apis, "chan", centers, weights, [])
         arrow = next(row for row in result
                      if row["kind"] == "shape"
                      and row["props"]["shape"] == "arrow")
@@ -97,11 +93,10 @@ class DiagramRunTest(unittest.TestCase):
         self.assertGreaterEqual(arrow["y"], rectangle["y"] + rectangle["h"])
 
     def test_every_placed_box_has_nonnegative_extent(self):
-        rng = random.Random(4)
         apis = [FakeApi() for _ in range(5)]
         centers = [(0, 0), (3500, -2200), (-3200, 2100), (1500, 3000)]
         weights = [1.0, 0.6, 0.3, 0.1]
-        result = diagram.run(apis, "chan", centers, weights, [], rng)
+        result = diagram.run(apis, "chan", centers, weights, [])
         for row in result:
             self.assertGreaterEqual(row["w"], 0)
             self.assertGreaterEqual(row["h"], 0)

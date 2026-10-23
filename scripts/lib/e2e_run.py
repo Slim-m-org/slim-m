@@ -279,8 +279,7 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          lambda: e2e_canvas_board.follow_and_bring_everyone(a, b)),
         ("canvas: closing it", lambda: e2e_canvas.close_on_both(a, b)),
         ("voice: share resolution and frame rate change from the share menu and persist",
-         lambda: e2e_video_quality.share_quality_from_the_share_menu(
-             a, room_id)),
+         lambda: e2e_video_quality.share_quality_from_the_share_menu(a)),
         ("voice: two clients in one call", lambda: e2e_voice.join_call(
             a, b, room_id)),
         ("voice: audio actually arrives",

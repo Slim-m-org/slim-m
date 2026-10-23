@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 # A plain message and a failing exit code, not a stack trace; install.cmd pauses on it.
 function Stop-Install($message) {
   if ($unpack -and (Test-Path $unpack)) {
-    try { Remove-Item -Recurse -Force $unpack -ErrorAction Stop } catch { }
+    try { Remove-Item -Recurse -Force $unpack -ErrorAction Stop } catch { Write-Verbose "could not clear ${unpack}: $_" }
   }
   Write-Host $message -ForegroundColor Red
   exit 1

@@ -345,7 +345,7 @@ impl Uploads {
                 let path = entry?.path();
                 let id = path
                     .file_name()
-                    .and_then(|n| n.to_str())
+                    .and_then(std::ffi::OsStr::to_str)
                     .and_then(|n| Uuid::parse_str(n).ok());
                 let busy = id.is_some_and(|id| {
                     in_flight

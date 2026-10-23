@@ -66,8 +66,8 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
       final updated = await ref
           .read(apiProvider)
           .updateChannel(
-            channelId: widget.channel.id,
-            slowModeSeconds: seconds,
+            widget.channel.id,
+            ChannelUpdate(slowModeSeconds: seconds),
           );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([updated]);

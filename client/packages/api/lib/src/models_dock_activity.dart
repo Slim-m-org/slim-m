@@ -5,6 +5,9 @@
 /// budget.
 library;
 
+/// The host capability that lets a module send requests to the sites it names.
+const kNetFetchCapability = 'net.fetch';
+
 /// How one command of an installed module has run lately, from
 /// `GET /space/dock/installed`.
 class DockRunStat {
@@ -96,7 +99,7 @@ class ModuleInfo {
   /// The sites `net.fetch` may reach.
   final List<String> networkHosts;
 
-  bool get reachesNetwork => capabilities.contains('net.fetch');
+  bool get reachesNetwork => capabilities.contains(kNetFetchCapability);
   bool get posts => capabilities.contains('message.post');
   bool get runsOnItsOwn => capabilities.contains('schedule');
 

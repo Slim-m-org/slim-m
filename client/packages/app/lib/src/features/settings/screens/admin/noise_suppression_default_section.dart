@@ -32,8 +32,9 @@ class _NoiseSuppressionDefaultSectionState
   Future<void> _set(bool enabled) => saveOptimistic(
     enabled,
     whatFailed: 'change the default noise suppression',
-    action: () =>
-        ref.read(apiProvider).setSpaceSettings(strongNoiseSuppression: enabled),
+    action: () => ref
+        .read(apiProvider)
+        .setSpaceSettings(SpaceSettingsUpdate(strongNoiseSuppression: enabled)),
     refresh: spaceSettingsProvider,
   );
 

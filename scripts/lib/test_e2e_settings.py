@@ -61,8 +61,9 @@ class ChangeThemeTest(unittest.TestCase):
 
     def test_fails_when_nothing_durable_recorded_the_choice(self):
         # The control still relabelled; storage never saw the write.
+        client = _FakeClient(stored_theme=None)
         with self.assertRaises(AssertionError):
-            e2e_settings.change_theme(_FakeClient(stored_theme=None))
+            e2e_settings.change_theme(client)
 
 
 class ChangeStatusTest(unittest.TestCase):
@@ -92,13 +93,14 @@ class ChangeStatusTest(unittest.TestCase):
         self.assertEqual(client.clicks, [L.CHANGE_STATUS, L.DND])
 
     def test_fails_when_the_server_never_saw_the_change(self):
+        client = _FakeClient(stored_theme=None)
+        api = _FakeApi(status='online')
         # time.time is stubbed so the 20-second poll below is not real time.
         with patch.object(
             e2e_settings.time, 'time', side_effect=[0, 5, 25]
         ), patch.object(e2e_settings.time, 'sleep'):
             with self.assertRaises(AssertionError):
-                e2e_settings.change_status(
-                    _FakeClient(stored_theme=None), _FakeApi(status='online'))
+                e2e_settings.change_status(client, api)
 
 
 if __name__ == '__main__':

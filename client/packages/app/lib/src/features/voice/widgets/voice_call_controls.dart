@@ -210,6 +210,10 @@ class _CallControlsState extends ConsumerState<CallControls> {
     );
     if (!widget.tight) return primary;
     final spilled = [?switchCamera, ?extra];
+    return _spillColumn(primary, spilled);
+  }
+
+  Widget _spillColumn(Widget primary, List<Widget> spilled) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

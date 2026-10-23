@@ -87,21 +87,31 @@ List<ScenePathStep> parseScenePathData(String d) {
     }
     if (command == null) return steps;
 
-    final needed = _argumentCount(command);
-    if (needed == 0) return steps;
-    final args = _numbers(tokens, i, needed);
-    if (args == null) return steps;
-    i += needed;
-    final relative = command == command.toLowerCase();
-    final upper = command.toUpperCase();
-
-    final step = pen.draw(upper, relative, args);
-    if (step == null) return steps;
-    steps.add(step);
-    // A repeated coordinate pair after M is an implicit L, as in SVG.
-    if (upper == 'M') command = relative ? 'l' : 'L';
+    final run = _drawRun(pen, command, tokens, i);
+    if (run == null) return steps;
+    steps.add(run.step);
+    i += run.consumed;
+    command = run.next;
   }
   return steps;
+}
+
+typedef _PathRun = ({ScenePathStep step, int consumed, String next});
+
+/// The step [command] draws from the numbers at [i], or null when they run out.
+_PathRun? _drawRun(_Pen pen, String command, List<Object> tokens, int i) {
+  final needed = _argumentCount(command);
+  if (needed == 0) return null;
+  final args = _numbers(tokens, i, needed);
+  if (args == null) return null;
+  final relative = command == command.toLowerCase();
+  final upper = command.toUpperCase();
+  final step = pen.draw(upper, relative, args);
+  if (step == null) return null;
+  // A repeated coordinate pair after M is an implicit L, as in SVG.
+  var next = command;
+  if (upper == 'M') next = relative ? 'l' : 'L';
+  return (step: step, consumed: needed, next: next);
 }
 
 /// The pen, and the subpath start that close returns it to.

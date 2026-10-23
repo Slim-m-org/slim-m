@@ -40,6 +40,8 @@ export 'src/client.dart'
         SpaceAnalytics,
         SpaceRules,
         SpaceSettings,
+        SpaceSettingsUpdate,
+        ChannelUpdate,
         JoinGate,
         SpaceStorage,
         SweepStatus,

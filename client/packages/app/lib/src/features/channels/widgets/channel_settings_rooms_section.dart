@@ -60,9 +60,8 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
       final updated = await ref
           .read(apiProvider)
           .updateChannel(
-            channelId: widget.channel.id,
-            createsRooms: createsRooms,
-            userLimit: userLimit,
+            widget.channel.id,
+            ChannelUpdate(createsRooms: createsRooms, userLimit: userLimit),
           );
       final store = await ref.read(storeProvider.future);
       await store.upsertChannels([updated]);

@@ -5,7 +5,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show InputLimits, SlimmApiSpace;
+import 'package:slimm_api/api.dart'
+    show InputLimits, SlimmApiSpace, SpaceSettingsUpdate;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
@@ -45,7 +46,7 @@ class _SpaceNameFieldState extends ConsumerState<SpaceNameField>
       action: () async {
         final updated = await ref
             .read(apiProvider)
-            .setSpaceSettings(name: text);
+            .setSpaceSettings(SpaceSettingsUpdate(name: text));
         _saved = updated.name;
         _name.text = updated.name;
       },

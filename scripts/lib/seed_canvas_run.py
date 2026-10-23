@@ -108,7 +108,7 @@ def _seed(admin_candidate, api_by_index, channel_id, args, rng, scratch):
 
     # Placed after history, and never handed to it, so it stays exactly as drawn - see its own module doc.
     diagram_placed = diagram.run(api_by_index, channel_id, centers, weights,
-                                  placed, rng)
+                                  placed)
 
     probe_target = _place_probe_target(api_by_index[0], channel_id, rng)
     member_api = _pick_member_api(api_by_index, admin_api)

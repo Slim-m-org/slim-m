@@ -457,46 +457,49 @@ class _Nav extends StatelessWidget {
     );
   }
 
-  Widget _list(BuildContext context) {
-    return rail
-        ? SettingsRailFade(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                for (final (index, group) in groups.indexed) ...[
-                  if (group.label case final label?)
-                    _GroupLabel(label, first: index == 0)
-                  else
-                    const SizedBox(height: AppSpacing.s20),
-                  for (final pane in group.panes) _row(context, pane),
-                ],
-              ],
-            ),
-          )
-        // Compact: each group a raised card on the page, the same two tones the wide nav and its panes show.
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s16,
-              0,
-              AppSpacing.s16,
-              AppSpacing.s16,
-            ),
-            children: [
-              for (final (index, group) in groups.indexed)
-                SettingsSectionCard(
-                  title: group.label,
-                  topGap: index == 0 ? AppSpacing.s8 : kSettingsSectionTopGap,
-                  children: [
-                    for (final pane in group.panes) _row(context, pane),
-                  ],
-                ),
-              if (footer != null)
-                SettingsSectionCard(
-                  topGap: kSettingsSectionTopGap,
-                  children: [footer!],
-                ),
-            ],
-          );
+  Widget _list(BuildContext context) =>
+      rail ? _railList(context) : _compactList(context);
+
+  Widget _railList(BuildContext context) {
+    return SettingsRailFade(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          for (final (index, group) in groups.indexed) ...[
+            if (group.label case final label?)
+              _GroupLabel(label, first: index == 0)
+            else
+              const SizedBox(height: AppSpacing.s20),
+            for (final pane in group.panes) _row(context, pane),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Each group a raised card on the page, the same two tones the wide nav and its panes show.
+  Widget _compactList(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        0,
+        AppSpacing.s16,
+        AppSpacing.s16,
+      ),
+      children: [
+        for (final (index, group) in groups.indexed)
+          SettingsSectionCard(
+            title: group.label,
+            topGap: index == 0 ? AppSpacing.s8 : kSettingsSectionTopGap,
+            children: [for (final pane in group.panes) _row(context, pane)],
+          ),
+        if (footer != null)
+          SettingsSectionCard(
+            topGap: kSettingsSectionTopGap,
+            children: [footer!],
+          ),
+      ],
+    );
   }
 
   Widget _row(BuildContext context, SettingsPane pane) {

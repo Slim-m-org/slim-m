@@ -47,6 +47,8 @@ part 'voice_controller_rejoin.dart';
 part 'voice_controller_share.dart';
 part 'voice_controller_video.dart';
 
+const _joinCallTask = 'join the call';
+
 class VoiceController extends StateNotifier<VoiceState>
     with
         VoiceControllerInputMixin,
@@ -257,13 +259,13 @@ class VoiceController extends StateNotifier<VoiceState>
       );
       _failJoin(superseded, 'This Space has no voice configured.');
     } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, 'join the call', error, stack);
+      api.reportFailure(api.LogTag.voice, _joinCallTask, error, stack);
       _failJoin(superseded, 'You do not have permission to join this channel.');
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.voice, 'join the call', e, stack);
+      api.reportFailure(api.LogTag.voice, _joinCallTask, e, stack);
       _failJoin(
         superseded,
-        describeApiFailure('join the call', e),
+        describeApiFailure(_joinCallTask, e),
         retryable: true,
       );
     } catch (e) {

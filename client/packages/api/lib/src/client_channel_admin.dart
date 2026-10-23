@@ -1,6 +1,28 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 part of 'client.dart';
 
+/// The channel fields one [SlimmApiChannelAdmin.updateChannel] call changes;
+/// a null field is left alone.
+class ChannelUpdate {
+  const ChannelUpdate({
+    this.name,
+    this.topic,
+    this.slowModeSeconds,
+    this.joinMuted,
+    this.defaultNotification,
+    this.createsRooms,
+    this.userLimit,
+  });
+
+  final String? name;
+  final String? topic;
+  final int? slowModeSeconds;
+  final bool? joinMuted;
+  final NotificationPreference? defaultNotification;
+  final bool? createsRooms;
+  final int? userLimit;
+}
+
 /// Channel renaming, deletion and reordering, plus channel-category CRUD:
 /// the rest of the `channels` tag that [SlimmApi.listChannels] and
 /// [SlimmApi.createChannel] do not cover. See
@@ -8,24 +30,24 @@ part of 'client.dart';
 extension SlimmApiChannelAdmin on SlimmApi {
   /// Renames a channel, replaces its topic, and/or sets its slow-mode
   /// interval. Requires MANAGE_CHANNELS at the deployment level, the same
-  /// check creating a channel uses. At least one of [name], [topic],
-  /// [slowModeSeconds], [joinMuted] and [defaultNotification] must be given; a blank or whitespace-only [topic]
+  /// check creating a channel uses. At least one of [ChannelUpdate.name], [ChannelUpdate.topic],
+  /// [ChannelUpdate.slowModeSeconds], [ChannelUpdate.joinMuted] and [ChannelUpdate.defaultNotification] must be given; a blank or whitespace-only [ChannelUpdate.topic]
   /// clears it back to none rather than storing an empty string.
-  /// [slowModeSeconds] of 0 turns slow mode off; the server refuses, rather
-  /// than clamps, a value outside 0 to 21600 (six hours). [joinMuted] sets
+  /// [ChannelUpdate.slowModeSeconds] of 0 turns slow mode off; the server refuses, rather
+  /// than clamps, a value outside 0 to 21600 (six hours). [ChannelUpdate.joinMuted] sets
   /// whether joining a voice channel starts with the mic off.
-  /// [defaultNotification] sets what members with no choice of their own get;
+  /// [ChannelUpdate.defaultNotification] sets what members with no choice of their own get;
   /// their own choices are never rewritten.
-  Future<Channel> updateChannel({
-    required String channelId,
-    String? name,
-    String? topic,
-    int? slowModeSeconds,
-    bool? joinMuted,
-    NotificationPreference? defaultNotification,
-    bool? createsRooms,
-    int? userLimit,
-  }) async {
+  Future<Channel> updateChannel(String channelId, ChannelUpdate update) async {
+    final ChannelUpdate(
+      :name,
+      :topic,
+      :slowModeSeconds,
+      :joinMuted,
+      :defaultNotification,
+      :createsRooms,
+      :userLimit,
+    ) = update;
     final json = await _send(
       'PATCH',
       '/channels/$channelId',
@@ -106,7 +128,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
     return ChannelCategory.fromJson(json as Map<String, dynamic>);
   }
 
-  /// Renames and/or repositions a category. At least one of [name] and
+  /// Renames and/or repositions a category. At least one of [ChannelUpdate.name] and
   /// [position] must be given. Requires MANAGE_CHANNELS.
   Future<ChannelCategory> updateCategory({
     required String categoryId,

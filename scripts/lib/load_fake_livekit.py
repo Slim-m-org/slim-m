@@ -41,7 +41,7 @@ class Handler(BaseHTTPRequestHandler):
             out.write(f"{calls}\n")
 
     def log_message(self, *_):
-        pass
+        return  # a load run would drown in a line per request
 
 
 def main():

@@ -182,4 +182,29 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       WhatsNewPoint('Catppuccin is in Appearance as a fourth theme.'),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.116.0',
+    headline: 'Hold music you can pause, and tidier profiles',
+    points: [
+      WhatsNewPoint(
+        'Alone in a call, a small player plays hold music with a timeline, '
+        'pause and volume, and pause picks up where it left off.',
+      ),
+      WhatsNewPoint(
+        'The call view shows a soft glimpse of the channel\'s canvas, or '
+        'colour from everyone\'s profile when the board is empty.',
+      ),
+      WhatsNewPoint(
+        'Profiles put the name below the banner and show presence once, '
+        'and a banner image sits in the same row as the colours.',
+      ),
+      WhatsNewPoint(
+        'On a phone, the canvas and music buttons sit right on the call dock.',
+      ),
+      WhatsNewPoint(
+        'Fit view frames what is on the board, and tapping an armed canvas '
+        'tool again puts it down.',
+      ),
+    ],
+  ),
 ];

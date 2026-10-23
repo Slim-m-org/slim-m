@@ -238,9 +238,11 @@ class CanvasCallDock extends ConsumerWidget {
             ...callRowsWithExtras(
               context,
               ref,
-              width: constraints.maxWidth,
-              controller: call.controller,
-              voice: call.voice,
+              CallRowOptions(
+                width: constraints.maxWidth,
+                controller: call.controller,
+                voice: call.voice,
+              ),
             ),
           ],
         ),

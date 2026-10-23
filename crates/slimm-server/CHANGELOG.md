@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.100.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.99.0...server-v0.100.0) (2026-10-23)
+
+
+### Features
+
+* v116, call and canvas polish, profile and phone dock fixes, test suite cleanup, sonar cleanup, local test hooks and parallel e2e ([#2288](https://github.com/Slim-m-org/slim-m/issues/2288)) ([19790f1](https://github.com/Slim-m-org/slim-m/commit/19790f1748dec3b433c46630f4f9f264a8cbfc34))
+
 ## [0.99.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.98.0...server-v0.99.0) (2026-10-21)
 
 

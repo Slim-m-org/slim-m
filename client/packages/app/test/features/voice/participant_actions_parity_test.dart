@@ -180,12 +180,14 @@ void _expectSurfaceMatchesList(
 
 List<ParticipantAction> _listFor(ParticipantSurface surface, int permissions) =>
     participantActions(
-      surface: surface,
-      isSelf: false,
-      inCallTogether: true,
-      supportsVolume: true,
-      hasProfile: true,
-      showModeration: permissions != 0,
+      ParticipantActionContext(
+        surface: surface,
+        isSelf: false,
+        inCallTogether: true,
+        supportsVolume: true,
+        hasProfile: true,
+        showModeration: permissions != 0,
+      ),
     );
 
 void main() {
@@ -237,13 +239,15 @@ void main() {
       required bool inCallTogether,
       required bool canCall,
     }) => participantActions(
-      surface: ParticipantSurface.card,
-      isSelf: false,
-      inCallTogether: inCallTogether,
-      supportsVolume: true,
-      hasProfile: true,
-      showModeration: false,
-      canCall: canCall,
+      ParticipantActionContext(
+        surface: ParticipantSurface.card,
+        isSelf: false,
+        inCallTogether: inCallTogether,
+        supportsVolume: true,
+        hasProfile: true,
+        showModeration: false,
+        canCall: canCall,
+      ),
     );
 
     test('is offered to someone you are not in a call with', () {
@@ -270,12 +274,14 @@ void main() {
 
   test('no action is offered against yourself', () {
     final list = participantActions(
-      surface: ParticipantSurface.menu,
-      isSelf: true,
-      inCallTogether: true,
-      supportsVolume: true,
-      hasProfile: true,
-      showModeration: true,
+      const ParticipantActionContext(
+        surface: ParticipantSurface.menu,
+        isSelf: true,
+        inCallTogether: true,
+        supportsVolume: true,
+        hasProfile: true,
+        showModeration: true,
+      ),
     );
     expect(list, isEmpty);
   });

@@ -33,8 +33,9 @@ class _MemberInvitesSectionState extends ConsumerState<MemberInvitesSection>
     await saveOptimistic(
       enabled,
       whatFailed: 'change who can invite',
-      action: () =>
-          ref.read(apiProvider).setSpaceSettings(membersCanInvite: enabled),
+      action: () => ref
+          .read(apiProvider)
+          .setSpaceSettings(SpaceSettingsUpdate(membersCanInvite: enabled)),
       refresh: spaceSettingsProvider,
     );
     ref.invalidate(serverInfoProvider);

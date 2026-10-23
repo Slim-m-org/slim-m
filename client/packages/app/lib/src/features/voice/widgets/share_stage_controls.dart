@@ -6,18 +6,39 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+/// The rows one stream's context menu can offer; a null callback drops its row.
+class ShareStageMenu {
+  const ShareStageMenu({
+    required this.sharerName,
+    this.onPopOut,
+    this.onStreamVolume,
+    this.onFocus,
+    this.focused = false,
+    this.onStopWatching,
+    this.onFullscreen,
+  });
+
+  final String sharerName;
+  final VoidCallback? onPopOut;
+  final VoidCallback? onStreamVolume;
+  final VoidCallback? onFocus;
+  final bool focused;
+  final VoidCallback? onStopWatching;
+  final VoidCallback? onFullscreen;
+}
+
 /// The context-menu rows for one stream, shared by the share tile and the
-/// participant menus; a null callback drops its row.
-List<Widget> shareStageMenuItems(
-  VoidCallback close, {
-  required String sharerName,
-  VoidCallback? onPopOut,
-  VoidCallback? onStreamVolume,
-  VoidCallback? onFocus,
-  bool focused = false,
-  VoidCallback? onStopWatching,
-  VoidCallback? onFullscreen,
-}) {
+/// participant menus.
+List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
+  final ShareStageMenu(
+    :sharerName,
+    :onPopOut,
+    :onStreamVolume,
+    :onFocus,
+    :focused,
+    :onStopWatching,
+    :onFullscreen,
+  ) = menu;
   Widget row(String label, IconData icon, VoidCallback act) => AppMenuItem(
     label: label,
     leading: icon,

@@ -106,8 +106,8 @@ void main() {
           return http.Response(jsonEncode(_channelJson(name: 'renamed')), 200);
         }),
       );
-      final updated =
-          await api.updateChannel(channelId: 'chan-1', name: 'renamed');
+      final updated = await api.updateChannel(
+          'chan-1', const ChannelUpdate(name: 'renamed'));
       expect(sentBody, {'name': 'renamed'});
       expect(updated.name, 'renamed');
     });
@@ -124,7 +124,8 @@ void main() {
           return http.Response(jsonEncode(_channelJson()), 200);
         }),
       );
-      await api.updateChannel(channelId: 'chan-1', name: 'general', topic: '');
+      await api.updateChannel(
+          'chan-1', const ChannelUpdate(name: 'general', topic: ''));
       expect(sentBody, {'name': 'general', 'topic': ''});
     });
 
@@ -141,11 +142,8 @@ void main() {
           );
         }),
       );
-      final updated = await api.updateChannel(
-        channelId: 'chan-1',
-        name: 'general',
-        topic: 'announcements only',
-      );
+      final updated = await api.updateChannel('chan-1',
+          const ChannelUpdate(name: 'general', topic: 'announcements only'));
       expect(sentBody, {'name': 'general', 'topic': 'announcements only'});
       expect(updated.topic, 'announcements only');
     });
@@ -165,9 +163,7 @@ void main() {
         }),
       );
       final updated = await api.updateChannel(
-        channelId: 'chan-1',
-        slowModeSeconds: 30,
-      );
+          'chan-1', const ChannelUpdate(slowModeSeconds: 30));
       expect(sentBody, {'slow_mode_seconds': 30});
       expect(updated.slowModeSeconds, 30);
     });
@@ -187,9 +183,7 @@ void main() {
         }),
       );
       final updated = await api.updateChannel(
-        channelId: 'chan-1',
-        joinMuted: true,
-      );
+          'chan-1', const ChannelUpdate(joinMuted: true));
       expect(sentBody, {'join_muted': true});
       expect(updated.joinMuted, isTrue);
     });
@@ -208,9 +202,9 @@ void main() {
         }),
       );
       final updated = await api.updateChannel(
-        channelId: 'chan-1',
-        defaultNotification: NotificationPreference.nothing,
-      );
+          'chan-1',
+          const ChannelUpdate(
+              defaultNotification: NotificationPreference.nothing));
       expect(sentBody, {'default_notification': 'nothing'});
       expect(updated.defaultNotification, NotificationPreference.nothing);
     });

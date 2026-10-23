@@ -183,13 +183,15 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     final canIssueReset = gates.canIssueReset;
     final canEject = gates.canEject;
     final actions = participantActions(
-      surface: ParticipantSurface.card,
-      isSelf: isSelf,
-      inCallTogether: inCallTogether,
-      supportsVolume: controller.supportsParticipantVolume,
-      hasProfile: true,
-      showModeration: gates.showModeration,
-      canCall: !profile.isBot,
+      ParticipantActionContext(
+        surface: ParticipantSurface.card,
+        isSelf: isSelf,
+        inCallTogether: inCallTogether,
+        supportsVolume: controller.supportsParticipantVolume,
+        hasProfile: true,
+        showModeration: gates.showModeration,
+        canCall: !profile.isBot,
+      ),
     );
 
     // Captured before onDone, whose Navigator.pop disposes this element.
