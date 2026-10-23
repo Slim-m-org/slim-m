@@ -9300,7 +9300,9 @@ paths:
       summary: Read a module's full manifest before installing it. Requires MANAGE_SERVER.
       description: >
         Shows every permission the module will register and every capability
-        it asks for, so an admin reviews both before installing.
+        it asks for, so an admin reviews both before installing. A manifest
+        the server cannot accept is answered with 502, naming the rule it
+        broke (for example a data column named with an SQLite keyword).
       responses:
         "200":
           description: The module's manifest.
@@ -9339,9 +9341,10 @@ paths:
         Re-fetches the module's manifest, refuses if its version no longer
         matches the one requested, refuses (409) an id another source already
         owns (decision 0046), and records the install, its declared
-        permissions, and its approved capabilities. No runtime executes the
-        module; see docs/decisions/0021's phasing. Off (disabled) by default -
-        a separate enable call turns it on.
+        permissions, and its approved capabilities. Off (disabled) by default -
+        a separate enable call turns it on. Once enabled, the module runs
+        sandboxed on demand, on its schedule and for the events it
+        subscribed to, and only with the capabilities approved here.
       requestBody:
         required: true
         content:
@@ -12250,13 +12253,15 @@ components:
             type: string
           description: >
             The host capabilities the admin approved after seeing them listed
-            (kv.store, message.post, net.fetch, schedule; decision 0023). Each must be declared in
+            (kv.store, message.post, net.fetch, schedule, events, data.store
+            and log.read; decisions 0023 and 0091). Each must be declared in
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
-            longer declares, message.post, net.fetch and schedule when the
-            artifact changed, net.fetch when its hosts changed and schedule
-            when its commands or intervals did, and never adds one.
+            longer declares, message.post, net.fetch, schedule, events,
+            data.store and log.read when the artifact changed, net.fetch when
+            its hosts changed and schedule when its commands or intervals did,
+            and never adds one.
         approve_local_network:
           type: boolean
           description: >
@@ -12459,7 +12464,7 @@ components:
           type: array
           description: >
             The host capabilities an admin approved (kv.store, message.post,
-            net.fetch, schedule).
+            net.fetch, schedule, events, data.store, log.read).
           items:
             type: string
         network_hosts:

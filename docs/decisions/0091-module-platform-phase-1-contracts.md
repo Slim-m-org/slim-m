@@ -66,6 +66,7 @@ Direct message content is never delivered.
 Column types are `int`, `real`, `text` and `bool`.
 Limits: 8 tables, 16 columns each, `max_mb` at most 64 (default 8).
 The host adds an integer primary key `_id` to every table.
+Table and column names are 1 to 32 lowercase letters, digits or underscores, starting with a letter, and may not be an SQLite keyword (`key`, `index`, `order`, `values` and so on), `rowid`, `oid` or start with `sqlite`.
 A newer manifest may add tables and columns and may not remove or retype one in the first version.
 
 ### `settings`
@@ -146,7 +147,7 @@ Operations:
 Replies are `{ok:true, rows, changed, count}` or `{ok:false, error}`.
 `count` and `sum` return their number in `count`, and `insert` returns `rows: [{_id}]`.
 `upsert` takes a single unique column in `on`.
-Limits: 64 calls per run (shared with `kv.store`), 200 rows per query, 4 KB per text value, and the file cap from `max_mb`.
+Limits: 64 calls per run (shared with `kv.store`, inside the 128 host calls of any kind a run may make), 200 rows per query, 4 KB per text value, and the file cap from `max_mb`.
 The file is `<modules_dir>/<module id>.db`, where `modules_dir` is `SLIMM_MODULES_DIR` and defaults beside the main database.
 Statements are built by the host, parameterised, and run on a connection that has `max_page_count` set.
 
@@ -162,9 +163,9 @@ Routes, both behind `MANAGE_SERVER`:
 
 ## Slots: `slot/1`
 
-The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids"}`.
+The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids","viewer_id"}`, and `caller.id` is the viewer's.
 The module returns `{"$slim":"slot/1","items":{"<user_id>":{ "nodes":[...], "fallback":"..." }}}`.
-Responses are cached 30 seconds per module, slot and member.
+Responses are cached 30 seconds per module, slot, viewer and member, an empty answer included.
 Routes, for any signed-in member:
 
 - `GET /space/dock/slots/profile/{user_id}` returns `{sections:[{module_id, name, title, nodes, fallback}]}`.

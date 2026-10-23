@@ -137,7 +137,9 @@ fn check_identifier(name: &str, what: &str) -> Result<(), String> {
         ));
     }
     if name.starts_with("sqlite") || KEYWORDS.contains(&name) {
-        return Err(format!("{what} name {name:?} is reserved"));
+        return Err(format!(
+            "{what} name {name:?} is reserved: SQLite keywords (such as key, index, order, values), rowid, oid and names starting with sqlite cannot be used, so pick another name"
+        ));
     }
     Ok(())
 }
