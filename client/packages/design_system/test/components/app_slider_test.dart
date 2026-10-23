@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_design_system/src/components/forms/slider_shapes.dart';
@@ -22,6 +23,37 @@ Widget _wrap(Widget child) {
 
 void main() {
   group('AppSlider', () {
+    testWidgets('a click shows no focus ring; the keyboard does',
+        (tester) async {
+      Color? ring() => tester
+          .widgetList<Container>(find.descendant(
+              of: find.byType(AppSlider), matching: find.byType(Container)))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => (d.border as Border?)?.top.color)
+          .firstWhere((c) => c != null, orElse: () => null);
+
+      await tester.pumpWidget(_wrap(SizedBox(
+          width: 200, child: AppSlider(value: 20, onChanged: (_) {}))));
+      await tester.tap(find.byType(Slider));
+      // A desktop click focuses the slider; the test binding does not, so focus it under pointer mode.
+      tester
+          .widgetList<Focus>(find.descendant(
+              of: find.byType(Slider), matching: find.byType(Focus)))
+          .firstWhere((f) => f.focusNode != null)
+          .focusNode!
+          .requestFocus();
+      await tester.pump();
+      expect(FocusManager.instance.highlightMode, FocusHighlightMode.touch);
+      expect(ring(), Colors.transparent);
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(ring(), isNot(Colors.transparent));
+    });
+
     testWidgets('reports value changes through onChanged', (tester) async {
       double? reported;
 
