@@ -62,6 +62,7 @@ JOBS=(
   "voice-idle|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_voice_idle_test.dart"
   "input-gate|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_input_gate_test.dart"
   "image-menu|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_image_menu_test.dart"
+  "module-slots|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_module_slots_test.dart"
   "member-roster|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_member_roster_test.dart"
   "message-row|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_row_test.dart"
   "message-toolbar|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_message_toolbar_test.dart"
