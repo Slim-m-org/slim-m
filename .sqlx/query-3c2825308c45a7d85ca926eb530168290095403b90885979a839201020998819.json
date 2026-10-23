@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE refresh_tokens SET successor_hash = ? WHERE token_hash = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3c2825308c45a7d85ca926eb530168290095403b90885979a839201020998819"
+}

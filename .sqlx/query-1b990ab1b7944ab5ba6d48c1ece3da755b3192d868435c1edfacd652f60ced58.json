@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE refresh_tokens SET retired_at = COALESCE(retired_at, ?) WHERE token_hash = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1b990ab1b7944ab5ba6d48c1ece3da755b3192d868435c1edfacd652f60ced58"
+}
