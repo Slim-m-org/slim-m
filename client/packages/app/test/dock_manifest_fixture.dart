@@ -11,6 +11,7 @@ Map<String, dynamic> dockManifestJson(
   Map<String, dynamic>? network,
   List<Map<String, dynamic>>? schedules,
   String? reviewDigest,
+  Map<String, dynamic> extras = const {},
 }) => {
   'id': id,
   'name': id,
@@ -31,4 +32,5 @@ Map<String, dynamic> dockManifestJson(
   'network': ?network,
   'schedules': ?schedules,
   'review_digest': ?reviewDigest,
+  ...extras,
 };

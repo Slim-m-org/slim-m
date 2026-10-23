@@ -9,6 +9,7 @@
 library;
 
 import 'models_dock_activity.dart';
+import 'models_dock_platform.dart';
 
 /// One row of the marketplace's index: enough to list a module, not enough
 /// to install it. `GET /space/dock/modules`.
@@ -301,12 +302,17 @@ class DockManifest {
     this.network,
     this.schedules = const [],
     this.changelog = const [],
+    this.subscriptions = const [],
+    this.dataMaxMb,
     this.reviewDigest,
   });
 
+  /// Event kinds it subscribes to and its data store cap in MB.
+  final List<String> subscriptions;
+  final int? dataMaxMb;
+
   /// Sent back with the install so consent is for exactly this manifest.
   final String? reviewDigest;
-
   final String id;
   final String name;
   final String version;
@@ -379,6 +385,8 @@ class DockManifest {
             : DockNetwork.fromJson(json['network'] as Map<String, dynamic>),
         schedules: _schedules(json['schedules']),
         changelog: _changelog(json['changelog']),
+        subscriptions: dockSubscriptions(json['subscriptions']),
+        dataMaxMb: dockDataMaxMb(json['data']),
         reviewDigest: json['review_digest'] as String?,
       );
 }
@@ -404,7 +412,11 @@ class InstalledDockModule {
     this.scheduleChannelId,
     this.runStats,
     this.storage,
+    this.declaresSettings = false,
   });
+
+  /// Whether it declares settings an admin can fill.
+  final bool declaresSettings;
 
   /// How each command has run lately; only `GET /space/dock/installed` fills it.
   final List<DockRunStat>? runStats;
@@ -483,5 +495,6 @@ class InstalledDockModule {
         storage: json['storage'] == null
             ? null
             : DockStorage.fromJson(json['storage'] as Map<String, dynamic>),
+        declaresSettings: dockDeclaresSettings(json['settings']),
       );
 }

@@ -61,6 +61,7 @@ Future<List<Map<String, dynamic>>> _pump(
   String? installedVersion,
   List<String> installedHad = const [],
   Size size = const Size(420, 1400),
+  Map<String, dynamic> extras = const {},
 }) async {
   final installs = <Map<String, dynamic>>[];
   final client = MockClient((request) async {
@@ -83,7 +84,9 @@ Future<List<Map<String, dynamic>>> _pump(
       ]);
     }
     if (path == '/space/dock/modules/ladder') {
-      return _json(dockManifestJson('ladder', version, capabilities: asks));
+      return _json(
+        dockManifestJson('ladder', version, capabilities: asks, extras: extras),
+      );
     }
     if (path == '/space/dock/modules/ladder/install') {
       installs.add(jsonDecode(request.body) as Map<String, dynamic>);
@@ -144,6 +147,10 @@ Finder _pageButton(String label) => find.text(label);
 
 bool _sheetButtonDisabled(WidgetTester tester, String label) =>
     tester.widget<AppButton>(find.widgetWithText(AppButton, label)).disabled;
+
+/// Text in the consent sheet only; the page behind repeats some sentences.
+Finder _inSheet(String text) =>
+    find.descendant(of: find.byType(BottomSheet), matching: find.text(text));
 
 Finder get _verifiedBadge => find.byType(DockVerifiedBadge);
 
@@ -338,5 +345,83 @@ void main() {
     await tester.tap(_pageButton('Install v1.0.0'));
     await tester.pumpAndSettle();
     await writeSnapshot(tester, 'dock-consent-unverified-desktop');
+  });
+
+  group('platform capabilities', () {
+    const extras = {
+      'subscriptions': [
+        {'event': 'message.created'},
+        {'event': 'member.joined'},
+        {'event': 'member.left'},
+        {'event': 'voice.session.closed'},
+      ],
+      'data': {'max_mb': 16},
+    };
+
+    testWidgets('each new capability gets its plain line', (tester) async {
+      await _pump(
+        tester,
+        community: true,
+        asks: ['events', 'data.store', 'log.read'],
+        extras: extras,
+      );
+      await tester.tap(_pageButton('Install v1.0.0'));
+      await tester.pumpAndSettle();
+      expect(
+        _inSheet(
+          'Can be told when messages are posted, members join or leave, '
+          'and voice calls end.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        _inSheet('Can keep its own data on your server, up to 16 MB.'),
+        findsOneWidget,
+      );
+      expect(
+        _inSheet('Can see when members join and leave voice calls.'),
+        findsOneWidget,
+      );
+      expect(_sheetButtonDisabled(tester, 'Install'), isTrue);
+    });
+
+    testWidgets('an update that adds one asks again and blocks Update', (
+      tester,
+    ) async {
+      final installs = await _pump(
+        tester,
+        community: true,
+        version: '2.0.0',
+        installedVersion: '1.0.0',
+        installedHad: ['kv.store'],
+        asks: ['kv.store', 'log.read'],
+        extras: extras,
+      );
+      await tester.tap(_pageButton('Update to v2.0.0'));
+      await tester.pumpAndSettle();
+      expect(
+        _inSheet('Can see when members join and leave voice calls.'),
+        findsOneWidget,
+      );
+      expect(_sheetButtonDisabled(tester, 'Update'), isTrue);
+      expect(installs, isEmpty);
+    });
+
+    testWidgets('an update that adds none goes straight through', (
+      tester,
+    ) async {
+      final installs = await _pump(
+        tester,
+        community: true,
+        version: '2.0.0',
+        installedVersion: '1.0.0',
+        installedHad: ['events'],
+        asks: ['events'],
+        extras: extras,
+      );
+      await tester.tap(_pageButton('Update to v2.0.0'));
+      await tester.pumpAndSettle();
+      expect(installs, hasLength(1));
+    });
   });
 }

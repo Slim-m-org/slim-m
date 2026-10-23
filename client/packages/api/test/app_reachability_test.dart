@@ -45,12 +45,6 @@ const Map<String, String> _allowlist = {
   'moduleBadges':
       'used by the module slots UI, added in the next slice (2026-10-23); '
           'remove this entry when it lands',
-  'moduleSettings':
-      'used by the module settings UI, added in the next slice (2026-10-23); '
-          'remove this entry when it lands',
-  'saveModuleSettings':
-      'used by the module settings UI, added in the next slice (2026-10-23); '
-          'remove this entry when it lands',
   'getExport': 'one export by id, for API clients and scripts that follow a '
       'single job; the app holds at most one job per kind and polls the short '
       'list from listExports instead (2026-10-20)',
