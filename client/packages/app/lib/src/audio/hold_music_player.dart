@@ -41,6 +41,31 @@ class HoldPlayback {
   int get hashCode => Object.hash(position, duration);
 }
 
+/// Where the loop is, for the badge's timeline; [duration] is null until the file reports it.
+class HoldPlayback {
+  const HoldPlayback({this.position = Duration.zero, this.duration});
+
+  static const idle = HoldPlayback();
+
+  final Duration position;
+  final Duration? duration;
+
+  HoldPlayback copyWith({Duration? position, Duration? duration}) =>
+      HoldPlayback(
+        position: position ?? this.position,
+        duration: duration ?? this.duration,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is HoldPlayback &&
+      other.position == position &&
+      other.duration == duration;
+
+  @override
+  int get hashCode => Object.hash(position, duration);
+}
+
 abstract class HoldMusicPlayer {
   Future<void> start();
   Future<void> stop();
