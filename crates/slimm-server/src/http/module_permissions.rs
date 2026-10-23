@@ -24,8 +24,10 @@ use super::error::ApiError;
 use super::extract::require_manage_roles;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::messages::parse_uuid;
+use super::roles::caller_granted;
 use crate::hub::Event;
-use crate::ids::RoleId;
+use crate::ids::{RoleId, UserId};
+use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{GrantModulePermissionError, GrantedModulePermission, ModulePermission};
 
@@ -108,6 +110,38 @@ async fn list_role_grants(
     ))
 }
 
+/// Refuses unless the caller may change `perm_key` on `role`: an administrator always may;
+/// anyone else must hold the permission themselves and outrank the role, so MANAGE_ROLES
+/// alone can neither mint a module permission nor reach a role above its holder.
+async fn authorize_change(
+    state: &AppState,
+    caller: UserId,
+    role: &crate::store::Role,
+    module_perm: (&str, &str),
+) -> Result<(), ApiError> {
+    if caller_granted(state, caller)
+        .await?
+        .contains(Permissions::ADMINISTRATOR)
+    {
+        return Ok(());
+    }
+    let ceiling = state
+        .store
+        .highest_role_position(caller)
+        .await?
+        .unwrap_or(0);
+    let (module_id, perm_key) = module_perm;
+    if role.position >= ceiling
+        || !state
+            .store
+            .user_has_module_permission(caller, module_id, perm_key)
+            .await?
+    {
+        return Err(ApiError::Forbidden);
+    }
+    Ok(())
+}
+
 async fn grant(
     Authed(ctx): Authed,
     parts: Parts,
@@ -117,11 +151,12 @@ async fn grant(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_roles(&state, ctx.user_id).await?;
     let role_id = RoleId(parse_uuid(&role_id)?);
-    state
+    let role = state
         .store
         .role(role_id)
         .await?
         .ok_or(ApiError::NotFound("role not found"))?;
+    authorize_change(&state, ctx.user_id, &role, (&module_id, &perm_key)).await?;
 
     match state
         .store
@@ -148,6 +183,10 @@ async fn revoke(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_roles(&state, ctx.user_id).await?;
     let role_id = RoleId(parse_uuid(&role_id)?);
+    // A missing role is skipped, not 404ed: revoking from it stays the idempotent no-op it was.
+    if let Some(role) = state.store.role(role_id).await? {
+        authorize_change(&state, ctx.user_id, &role, (&module_id, &perm_key)).await?;
+    }
 
     state
         .store
