@@ -20,8 +20,11 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
+import 'background_key_store.dart';
 import 'live_events.dart';
 import 'preference_controller.dart';
+export 'session_provider.dart';
+import 'session_provider.dart';
 import 'space_scoped_preferences.dart';
 
 /// The server the user picked, with null meaning one has never been picked on
@@ -125,78 +128,6 @@ const hasLaunchedBeforeKey = 'slimm.has_launched_before';
 /// that happened before the install existed.
 final isFreshInstallProvider = StateProvider<bool>((ref) => false);
 
-/// The session, shared by everything that talks to the server so a refresh in
-/// one place is seen everywhere.
-///
-/// Every change is written straight to the key store: a login or a refresh
-/// persists the new pair (with the server it belongs to), and a sign-out or a
-/// rejected refresh deletes it. [restoreSession] does the other half, reading
-/// it back on the next launch.
-///
-/// Writes are chained, not fired in parallel, inside [SessionStore] itself: a
-/// burst of rapid session changes (a restore immediately followed by a
-/// refresh) must land on disk in the order they happened, or a slow write can
-/// finish after a faster later one and leave a stale value as the persisted
-/// state. [SessionStore.settled] is what lets a rotation wait for its own
-/// write to land before anything relies on it being durable.
-final sessionProvider = Provider<SessionStore>((ref) {
-  final keyStore = ref.read(keyStoreProvider);
-  final slot = ref.read(accountSlotProvider);
-  final store = SessionStore(
-    onChange: (tokens) async {
-      final serverUrl = tokens == null ? null : ref.read(serverUrlProvider);
-      // An account's session is filed under its own handle; its server lives in the index.
-      final handle = slot == null
-          ? sessionTokenHandle
-          : slot.accountFor(ref.read(serverUrlProvider)).sessionHandle;
-      try {
-        await _persistSession(
-          keyStore,
-          handle,
-          tokens,
-          slot == null ? serverUrl : null,
-        );
-      } catch (error, stack) {
-        reportFailure(LogTag.auth, 'save the sign-in', error, stack);
-
-        /// The server rotates refresh tokens with reuse detection: a write that
-        /// failed here may have left a stale, already-spent token on disk, and
-        /// replaying that on the next launch reads as reuse and revokes the
-        /// whole family. Dropping the stored session outright degrades to a
-        /// fresh sign-in instead of that false replay.
-        if (tokens != null) {
-          await keyStore
-              .delete(handle)
-              .catchError(
-                ignoreError(
-                  LogTag.auth,
-                  'Could not delete an old saved sign-in',
-                ),
-              );
-        }
-      }
-    },
-  );
-  ref.onDispose(store.dispose);
-  return store;
-});
-
-Future<void> _persistSession(
-  KeyStore keyStore,
-  String handle,
-  TokenPair? tokens,
-  Uri? serverUrl,
-) async {
-  if (tokens == null) {
-    await keyStore.delete(handle);
-    return;
-  }
-  await keyStore.put(handle, jsonEncode(tokens.toJson()));
-  if (serverUrl != null) {
-    await keyStore.put(serverUrlHandle, serverUrl.toString());
-  }
-}
-
 /// Restores a persisted session from local storage before the router makes
 /// its first signed-in/signed-out decision, so a relaunch does not flash
 /// sign-in and then jump to channels, and restores the server address that
@@ -250,6 +181,8 @@ Future<void> restoreSession(
       // A second store on iOS; see [pushKeyStoreProvider].
       final pushKeys = container.read(pushKeyStoreProvider);
       if (!identical(pushKeys, keyStore)) await pushKeys.clear();
+      final backgroundKeys = container.read(backgroundKeyStoreProvider);
+      if (!identical(backgroundKeys, keyStore)) await backgroundKeys.clear();
       await prefs.setBool(hasLaunchedBeforeKey, true);
       container.read(isFreshInstallProvider.notifier).state = true;
       return;
@@ -486,7 +419,15 @@ const themeChoiceKey = 'slimm.appearance.theme';
 /// deliberately resolves to the ordinary dark palette, never to true black:
 /// true black is a choice made for a specific OLED panel, and no OS setting
 /// reports one.
-enum AppThemeChoice { system, light, dark, trueBlack, catppuccin }
+enum AppThemeChoice {
+  system,
+  light,
+  dark,
+  trueBlack,
+  catppuccin,
+  softDark,
+  forest,
+}
 
 /// The stored appearance choice.
 ///

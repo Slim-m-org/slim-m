@@ -29,6 +29,9 @@ class _RecordingRoute implements DirectRoute {
   void retryNow() {}
 
   @override
+  void invalidate() {}
+
+  @override
   http.Client? pinnedClient({required bool direct}) => null;
 
   @override

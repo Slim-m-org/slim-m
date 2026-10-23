@@ -33,6 +33,7 @@ import 'package:slimm_app/src/features/settings/providers/notification_sound_con
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
+import 'support/fake_mic_preview.dart' show quietMicPreview;
 import 'package:slimm_app/src/features/settings/screens/admin/account_recovery_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
@@ -121,6 +122,14 @@ const compactBracket = ['compact-599', 'compact-600'];
 /// `dark` and `light` in the two capture names.
 const darkAndLight = 'dark+light';
 
+/// The palettes a capture can be named for; the plain `dark` and `light` are the matrix's own pair.
+final snapshotThemes = <String, ({Brightness brightness, AppTokens tokens})>{
+  'dark': (brightness: Brightness.dark, tokens: AppTokens.dark),
+  'light': (brightness: Brightness.light, tokens: AppTokens.light),
+  'soft': (brightness: Brightness.dark, tokens: AppTokens.soft),
+  'forest': (brightness: Brightness.dark, tokens: AppTokens.forest),
+};
+
 /// Where PNGs land. Gitignored: these are for looking at, not for diffing.
 const snapshotDir = 'build/ui-snapshots';
 
@@ -155,6 +164,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> fixtureContainer({
         api.SessionStore(tokens: fixtureTokens),
       ),
       syncControllerProvider.overrideWith(NoopSyncController.new),
+      quietMicPreview,
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),
@@ -460,9 +470,10 @@ Future<void> renderSurfaceThemes(
   Widget build(String theme) {
     final app = MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      theme: theme == 'dark'
-          ? buildTheme(Brightness.dark, AppTokens.dark)
-          : buildTheme(Brightness.light, AppTokens.light),
+      theme: buildTheme(
+        snapshotThemes[theme]!.brightness,
+        snapshotThemes[theme]!.tokens,
+      ),
       routerConfig: router,
       // The same wrapper main.dart ships, so density matches the app.
       builder: appChromeBuilder,

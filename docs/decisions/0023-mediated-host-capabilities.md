@@ -201,7 +201,7 @@ The per-module approval below is the switch, and a module with none stays on the
 ### What is still not built
 
 Reactive events (phase E) and the `on_event` export.
-The `via` footer is an embed, not a dedicated badge field on the message.
+The `via` footer was an embed; see the 2026-10-22 amendment, which replaced it with a host-written field.
 
 ## Amendment, 2026-10-15: `net.fetch`
 
@@ -237,4 +237,23 @@ The third power from the owner's 2026-10-14 decision: a module acts on its own t
 
 The Dock screens now exist: `schedule` is an approval switch like the others, and the installed module's page has a "Posts in" channel picker with the schedules in plain words.
 
-Still to do: a dedicated module badge in the transcript in place of the footer.
+The dedicated marker is the 2026-10-22 amendment below.
+
+## Amendment, 2026-10-22: who a module post belongs to, and how it is marked
+
+Settles the open `message.post` attribution question and the owner's 2026-10-14 "background posts as the module, badged" decision.
+
+- A run a person started keeps posting as that person, the owner's call, because the person chose to run it and holds the permission it needs.
+  A run nobody invoked (a `schedule` tick) posts as the module's own principal.
+- Either way the host writes the marker with the message, in the same transaction: `module_message_origins` now stores the module id, the module's name as installed, and whether the run was a background one.
+  The wire message carries it as `via_module: {id, name, background}`, set by the read enrichment and the live frames like `webhook_username`.
+  It replaces the `via <name>` footer embed, so there is nothing for a module to rename, restyle or leave out, and no embed for a member to mistake for the message's own.
+- The name is the manifest name the admin approved at install, copied at post time so it outlives an uninstall.
+  A module cannot change it per post.
+- The client draws it under every row of the run, including a grouped continuation: "via <name>" for a person-run post, "<name> module" for a background one.
+- `message.post` content now goes through the hidden-character classifier (`hides_text_outside_emoji`, line breaks and tabs allowed).
+  A bidi override or zero-width mark is refused with `content contains hidden characters`; an emoji joiner sequence is fine.
+- Reports, blocks and timeouts on a person-run post still land on the person.
+  That is the cost of the owner's choice; the marker is what lets a moderator see the text was the module's.
+- Rows from before migration 0145 have no stored name, so they read as `via_module: null` and keep the footer embed they were stored with.
+

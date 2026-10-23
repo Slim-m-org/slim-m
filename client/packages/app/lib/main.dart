@@ -118,7 +118,13 @@ Future<void> main([List<String> args = const []]) async {
   runApp(AccountRoot(host: host));
   final harnessTarget = kVoiceHarness ? harnessChannel(args) : null;
   if (harnessTarget != null) {
-    unawaited(joinHarnessChannel(() => host.active!.container, harnessTarget));
+    unawaited(
+      joinHarnessChannel(
+        () => host.active!.container,
+        harnessTarget,
+        volumeFile: harnessVolumeFile(args),
+      ),
+    );
   }
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
@@ -450,7 +456,9 @@ ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.light => ThemeMode.light,
   AppThemeChoice.dark ||
   AppThemeChoice.trueBlack ||
-  AppThemeChoice.catppuccin => ThemeMode.dark,
+  AppThemeChoice.catppuccin ||
+  AppThemeChoice.softDark ||
+  AppThemeChoice.forest => ThemeMode.dark,
 };
 
 /// The dark-family choices are palettes, not modes: each is the dark theme
@@ -458,5 +466,7 @@ ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
 AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.trueBlack => AppTokens.trueBlack,
   AppThemeChoice.catppuccin => AppTokens.mocha,
+  AppThemeChoice.softDark => AppTokens.soft,
+  AppThemeChoice.forest => AppTokens.forest,
   _ => AppTokens.dark,
 };

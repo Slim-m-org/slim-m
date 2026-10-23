@@ -98,3 +98,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0086](0086-avatar-tiles-leave-the-board.md) | Avatar tiles leave the board, the roster moves to the dock, and ink paints above tiles | accepted |
 | [0087](0087-sequenced-canvas-reducer-and-paged-first-read.md) | One sequenced canvas reducer, and a paged first read | accepted |
 | [0088](0088-catppuccin-mocha-theme.md) | Catppuccin Mocha is the fourth app theme | accepted |
+| [0089](0089-soft-dark-and-forest-themes.md) | Soft dark and Forest are the fifth and sixth app themes | accepted |

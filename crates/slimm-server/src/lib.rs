@@ -134,6 +134,10 @@ pub async fn run() -> anyhow::Result<()> {
     forward_backfill::spawn_forward_backfill(store.clone(), media.clone());
     let auth = auth::Auth::new(config.hash_concurrency)?;
     let hub = hub::Hub::new();
+    tracing::info!(
+        trust_proxy_hops = config.trust_proxy_hops,
+        "rate limits key on the TCP peer unless SLIMM_TRUST_PROXY_HOPS names the proxies in front"
+    );
     let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;

@@ -15,6 +15,9 @@ extension SlimmApiDirectRoute on SlimmApi {
     ]);
   }
 
+  /// Drops pooled LAN connections after the device may have changed network.
+  void routeMayHaveChanged() => _route?.invalidate();
+
   /// Tries the server's own network again at once; see [DirectRoute.retryNow].
   void _retryDirectRoute() => _route?.retryNow();
 }

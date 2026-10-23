@@ -24,7 +24,7 @@ class CanvasViewRelay {
     this.canSend,
   });
 
-  /// The whole shared board, which is every member's view until they move.
+  /// The shared area, which is every member's view until they move.
   final Rect board;
 
   /// Sends this device's view onward; a summon asks everyone to jump to it.

@@ -62,3 +62,15 @@ Selection handles are drawn larger on touch (18 px, still screen-constant), the 
 
 - A personal view toggle: see [0082](0082-personal-canvas-view.md).
 - Tiles and content past the board edge: see [0080](0080-board-containment.md).
+
+## Revision: a bigger board, a shared area
+
+The owner found the whole-board fit left nothing to pan: "it starts us as maxed out as possible and it makes it impossible to move around nicely, start more zoomed in".
+The board is now 3840 by 2160 (`canvasBoard`), grown around the old frame, which stays as the shared area (`canvasSharedArea`, 1920 by 1080 at the origin).
+Old drawings keep their world coordinates and sit in the middle quarter.
+
+- Opening a canvas, the shared view, Fit with nothing drawn, a summon from a fitted viewer and the focused tile fit all show the shared area at the old fit zoom.
+  The zoom chip reads 100% there.
+- A viewer can pan from there and zoom out as far as the whole board.
+- Default tile layout and the follow fallback view stay in shared-area units, so untouched tiles land where they always did.
+- The server never knew the board size, so nothing is migrated.

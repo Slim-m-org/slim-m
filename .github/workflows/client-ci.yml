@@ -192,6 +192,15 @@ jobs:
           if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
           flutter test "${files[@]}"
 
+      # Capture mode builds the real mic preview and runs timers on real time; it rotted unseen for 12 tests once.
+      - name: packages/app UI snapshots in capture mode
+        if: matrix.label == 'other-packages'
+        timeout-minutes: 10
+        working-directory: client/packages/app
+        env:
+          SLIMM_UI_SNAPSHOTS: "1"
+        run: flutter test test/ui_snapshot_*_test.dart
+
       # Every package with a test/ directory EXCEPT app, which the shards above
       # own. The exclusion is by name here and the shards are named explicitly,
       # so a new package joins this leg automatically rather than being silently
@@ -361,12 +370,12 @@ jobs:
       # linux-compiles builds with -dev packages on its own runner; this job only downloads the binary, so it needs the matching runtime libs named explicitly.
       # libmpv2 and libepoxy0 are new with media_kit_video: its own plugin links against both (confirmed via readelf on the built .so), so the app cannot even load its plugins - never mind play a video - without them present.
       - name: xvfb, window-manipulation tools, dbus, and the binary's runtime libs
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils \
-            libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon \
-            libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0 \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils
+            libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon
+            libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0
             libmpv2 libepoxy0
 
       - name: chmod the downloaded binary

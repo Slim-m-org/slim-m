@@ -573,10 +573,11 @@ Posts a message as the person who ran the module, into the channel they ran it f
 ```
 
 - The invoker needs view and send permission there, and slow mode and rate limits apply as for any send.
-- A run may attempt three posts, and a message carries a `via <module name>` footer.
+- A run may attempt three posts, and the host marks the message with your module's installed name (`via_module`), which you can neither choose nor remove, and refuses text that hides characters (bidi overrides, zero-width marks).
 - Runs started from a code block (`code-block-runner`) get no `message.post`, because the input there is whoever wrote the message, not whoever clicked Run.
-- The text a slash command *returns* is posted the same way: the client asks the host to post it, and it carries the same `via <module name>` footer and origin record.
+- The text a slash command *returns* is posted the same way: the client asks the host to post it, and it carries the same host-written marker.
   A module cannot make its output pass for the member's own words, whether it posts with `message.post` or just prints.
+  A run nobody started (a `schedule` tick) posts as the module's own principal and is marked as the module's own.
 
 ### `net.fetch`
 

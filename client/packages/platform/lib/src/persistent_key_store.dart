@@ -79,6 +79,17 @@ class SecureKeyStore implements KeyStore {
               ),
             );
 
+  /// For secrets a background poll reads: readable after the first unlock
+  /// rather than only while unlocked, still device-bound. The default group,
+  /// so the push extension never sees it.
+  SecureKeyStore.forBackgroundRead({FlutterSecureStorage? storage})
+      : _storage = storage ??
+            const FlutterSecureStorage(
+              iOptions: IOSOptions(
+                accessibility: KeychainAccessibility.first_unlock_this_device,
+              ),
+            );
+
   final FlutterSecureStorage _storage;
 
   /// Exposed only so a test can assert on the configured options without a
@@ -414,3 +425,11 @@ bool get pushKeyHasItsOwnStore => isIOSHost;
 /// `DevicePushKeys` does the one-time move rather than silently generating a
 /// second keypair and orphaning every envelope sealed to the first.
 KeyStore createPushKeyStore() => SecureKeyStore.forPushKey();
+
+/// Whether secrets a background poll reads live in their own store. iOS only:
+/// the keychain refuses a read while locked unless it was written readable
+/// after first unlock, and accessibility is part of the lookup, so an item
+/// cannot change it in place.
+bool get backgroundKeyHasItsOwnStore => isIOSHost;
+
+KeyStore createBackgroundKeyStore() => SecureKeyStore.forBackgroundRead();

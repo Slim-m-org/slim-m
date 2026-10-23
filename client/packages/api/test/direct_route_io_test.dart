@@ -5,6 +5,7 @@
 @TestOn('vm')
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -255,6 +256,79 @@ void main() {
 
     r.retryNow();
     expect(await get(r, '/c'), 'direct');
+    expect(r.active, isTrue);
+  });
+
+  group('an address that never answers', () {
+    late List<String> dials;
+    late IoDirectRoute r;
+
+    setUp(() {
+      dials = [];
+      r = IoDirectRoute(
+        Uri.parse('https://$_host:$_port'),
+        context: _trusting,
+        connectPublic: (host, port) =>
+            Socket.connect(InternetAddress.loopbackIPv4, public.port),
+        connectDirect: (host, port) {
+          dials.add(host);
+          return Completer<Socket>().future;
+        },
+        clock: () => now,
+      );
+      addTearDown(r.httpClient.close);
+      r.advertise(['10.0.0.100:$_port']);
+    });
+
+    test('times out, goes public, and is not dialled by the next request',
+        () async {
+      final watch = Stopwatch()..start();
+      expect(await get(r, '/a'), 'public');
+      expect(watch.elapsed, lessThan(const Duration(seconds: 3)));
+      expect(dials, hasLength(1));
+      expect(r.active, isFalse);
+
+      expect(await get(r, '/b'), 'public');
+      expect(dials, hasLength(1), reason: 'the route is marked down');
+    });
+
+    test('is probed again once the back-off has passed', () async {
+      await get(r, '/a');
+      now = now.add(const Duration(seconds: 30));
+      await get(r, '/b');
+      expect(dials, hasLength(1));
+
+      now = now.add(const Duration(minutes: 2));
+      await get(r, '/c');
+      expect(dials, hasLength(2));
+    });
+  });
+
+  test('invalidate drops a pooled LAN connection so the next request redials',
+      () async {
+    final (direct, _) = await _server('direct', _host);
+    var dials = 0;
+    final r = IoDirectRoute(
+      Uri.parse('https://$_host:$_port'),
+      context: _trusting,
+      connectPublic: (host, port) =>
+          Socket.connect(InternetAddress.loopbackIPv4, public.port),
+      connectDirect: (host, port) {
+        dials++;
+        return Socket.connect(InternetAddress.loopbackIPv4, direct.port);
+      },
+      clock: () => now,
+    );
+    addTearDown(r.httpClient.close);
+    r.advertise(['10.0.0.100:$_port']);
+    await get(r, '/a');
+    await get(r, '/b');
+    expect(dials, 1, reason: 'the second request reuses the pooled socket');
+
+    r.invalidate();
+    expect(r.active, isFalse);
+    await get(r, '/c');
+    expect(dials, 2);
     expect(r.active, isTrue);
   });
 

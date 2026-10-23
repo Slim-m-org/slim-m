@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM login_throttle WHERE user_id = ? AND source IN (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "13d57a6a9a14775243bb6eb40ce899a17ddce718ada6182e4e7dca3ba523998f"
+}

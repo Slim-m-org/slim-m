@@ -11,7 +11,28 @@ use super::super::apps::AppSurfaceDto;
 use super::super::embeds::EmbedDto;
 use super::super::polls::PollDto;
 use super::message_forwards::ForwardedDto;
-use crate::store::{AttachmentSummary, CallRecord as StoreCallRecord, Message, MessageRevision};
+use crate::store::{
+    AttachmentSummary, CallRecord as StoreCallRecord, Message, MessageRevision, ModuleOrigin,
+};
+
+/// Which module posted a message; see [`MessageDto::via_module`].
+#[derive(Serialize, Clone)]
+pub(crate) struct ViaModuleDto {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    /// True when no person ran the module: it posted as itself on its own timer.
+    pub(crate) background: bool,
+}
+
+impl From<ModuleOrigin> for ViaModuleDto {
+    fn from(origin: ModuleOrigin) -> Self {
+        Self {
+            id: origin.module_id,
+            name: origin.module_name,
+            background: origin.background,
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub(crate) struct MessageDto {
@@ -133,6 +154,11 @@ pub(crate) struct MessageDto {
     /// client keeps the webhook badge beside it. Set by the read enrichment
     /// and the live frames, never by this conversion.
     pub(crate) webhook_username: Option<String>,
+    /// The module that posted this message, `null` for every other one. Written
+    /// by the host when the post lands, so a module can neither choose nor
+    /// drop it. Set by the read enrichment and the live frames, never by this
+    /// conversion.
+    pub(crate) via_module: Option<ViaModuleDto>,
     /// Buttons a bot attached; see decision 0039. A bot may replace them.
     #[serde(default)]
     pub(crate) components: Vec<crate::components::ComponentRow>,
@@ -270,6 +296,7 @@ impl From<Message> for MessageDto {
             mentions_me: false,
             embeds: Vec::new(),
             webhook_username: None,
+            via_module: None,
             components: Vec::new(),
         }
     }

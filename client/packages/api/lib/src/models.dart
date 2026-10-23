@@ -55,6 +55,7 @@ export 'models_roles.dart';
 export 'models_saved.dart';
 export 'models_uploads.dart';
 export 'models_users.dart';
+export 'models_via_module.dart';
 export 'models_totp.dart';
 export 'models_version.dart';
 
@@ -70,6 +71,7 @@ import 'models_forwards.dart';
 import 'models_message_ops.dart';
 import 'models_polls.dart';
 import 'models_reactions.dart';
+import 'models_via_module.dart';
 
 /// A session's credentials. The tokens are secrets: never log this.
 class TokenPair {
@@ -156,6 +158,7 @@ class Message {
     this.mentionsMe = false,
     this.embeds = const [],
     this.webhookUsername,
+    this.viaModule,
     this.components = const [],
   });
 
@@ -259,6 +262,9 @@ class Message {
   /// beside the webhook badge, never in place of it.
   final String? webhookUsername;
 
+  /// The module that posted this message, null on every other one.
+  final ViaModule? viaModule;
+
   /// Buttons a bot attached, in rows. A bot can replace them later, so a live
   /// `message.components` frame, not this field on an edit, is what changes
   /// them; `message.embeds` does the same for embeds.
@@ -313,6 +319,9 @@ class Message {
                 .toList(growable: false) ??
             const [],
         webhookUsername: json['webhook_username'] as String?,
+        viaModule: json['via_module'] == null
+            ? null
+            : ViaModule.fromJson(json['via_module'] as Map<String, dynamic>),
         components: ComponentRow.listFromJson(json['components']),
       );
 }

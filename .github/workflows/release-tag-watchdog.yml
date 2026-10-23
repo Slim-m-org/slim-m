@@ -17,6 +17,7 @@ jobs:
   check:
     name: release bookkeeping matches reality
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
@@ -40,6 +41,7 @@ jobs:
   redispatch:
     name: redispatch a release stalled by a verify timeout
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       actions: write
       checks: read

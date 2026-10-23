@@ -43,6 +43,8 @@ const _themes = <String, AppTokens>{
   'dark': AppTokens.dark,
   'true_black': AppTokens.trueBlack,
   'mocha': AppTokens.mocha,
+  'soft': AppTokens.soft,
+  'forest': AppTokens.forest,
 };
 
 /// Text scales. 2.0 is the accessibility ceiling the roadmap commits to.

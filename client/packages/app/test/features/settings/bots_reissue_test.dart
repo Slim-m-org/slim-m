@@ -73,6 +73,9 @@ Future<List<String>> _pump(
               ? _json({'bot': _bot(), 'token': _newToken})
               : _json({'error': 'no such bot'}, reissueStatus);
         }
+        if (request.method == 'POST' && request.url.path == '/bots') {
+          return _json({'bot': _bot(suffix: '2'), 'token': _newToken}, 201);
+        }
         if (request.method == 'GET' && request.url.path == '/bots') {
           return _json([
             for (var i = 0; i < botCount; i++)
@@ -202,5 +205,21 @@ void main() {
       find.widgetWithText(AppButton, 'Re-issue token'),
     );
     expect(buttons.every((b) => b.onPressed == null), isTrue);
+  });
+
+  testWidgets('a second bot waits until the first token is dismissed', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.enterText(find.byType(TextField).first, 'helper2');
+    await tester.tap(find.widgetWithText(AppButton, 'Create bot'));
+    await tester.pumpAndSettle();
+    final create = find.widgetWithText(AppButton, 'Create bot');
+    expect(tester.widget<AppButton>(create).onPressed, isNull);
+    expect(find.text('Copy or dismiss the token above first.'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(AppButton, 'Done'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AppButton>(create).onPressed, isNotNull);
   });
 }

@@ -109,6 +109,7 @@ const _timing = MicRecoveryTiming(
   silence: Duration(milliseconds: 60),
   silentCooldown: Duration(milliseconds: 30),
   maxSilentRestarts: 2,
+  recoveredAfter: Duration(milliseconds: 50),
   deviceDebounce: Duration(milliseconds: 20),
   senderPoll: Duration(milliseconds: 5),
 );

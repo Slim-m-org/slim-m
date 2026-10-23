@@ -18,6 +18,7 @@ import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'package:slimm_app/src/features/voice/providers/hold_music_controller.dart';
+import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
 
 import '../../support/hold_playback_fake.dart';
 
@@ -49,6 +50,8 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required _Player player,
   double width = 1280,
+  double dockWidth = 0,
+  double? dockHeight,
 }) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = Size(width, 800);
@@ -58,6 +61,7 @@ Future<ProviderContainer> _pump(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       holdMusicPlayerProvider.overrideWithValue(player),
+      bottomDockWidthProvider.overrideWith((ref) => dockWidth),
       voiceParticipantsProvider.overrideWith((ref) => ref.watch(_roster)),
     ],
   )..read(preferencesProvider);
@@ -67,8 +71,12 @@ Future<ProviderContainer> _pump(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
-          body: Stack(children: [HoldMusicBadgeOverlay(bottom: 88)]),
+        home: Scaffold(
+          body: Stack(
+            children: [
+              HoldMusicBadgeOverlay(fallbackBottom: 88, dockHeight: dockHeight),
+            ],
+          ),
         ),
       ),
     ),
@@ -89,6 +97,35 @@ void main() {
     expect(find.bySemanticsLabel(RegExp('^Music style')), findsOneWidget);
     expect(find.bySemanticsLabel('Music volume'), findsWidgets);
     expect(find.text('0:00 / -:--'), findsOneWidget);
+  });
+
+  testWidgets('it shares the dock row, centred on it, when there is room', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      player: _Player(),
+      width: 1600,
+      dockWidth: 560,
+      dockHeight: 64,
+    );
+    final badge = tester.getRect(find.byType(HoldMusicBadge));
+    expect(badge.center.dy, closeTo(800 - 12 - 32, 1));
+    expect(badge.right, lessThan((1600 - 560) / 2));
+  });
+
+  testWidgets('it sits above the dock when the row has no room', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      player: _Player(),
+      width: 1000,
+      dockWidth: 800,
+      dockHeight: 64,
+    );
+    final badge = tester.getRect(find.byType(HoldMusicBadge));
+    expect(badge.bottom, closeTo(800 - 88, 1));
   });
 
   testWidgets('a compact window keeps the dock entries instead', (

@@ -19,23 +19,85 @@ import '../providers/call_solo.dart';
 import '../providers/hold_music_actions.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
+import '../../modules/providers/dock_reservation.dart';
 
 /// Pins the badge to the bottom-left of a call surface, [bottom] above its edge so it clears the dock.
-class HoldMusicBadgeOverlay extends ConsumerWidget {
-  const HoldMusicBadgeOverlay({super.key, required this.bottom});
+/// Sits in the dock's own row when the window leaves room beside it, else above the dock.
+class HoldMusicBadgeOverlay extends ConsumerStatefulWidget {
+  const HoldMusicBadgeOverlay({
+    super.key,
+    required this.fallbackBottom,
+    this.dockHeight,
+    this.dockWidth,
+    this.dockMargin = AppSpacing.s12,
+  });
 
-  final double bottom;
+  /// Where the badge sits when it cannot share the dock's row.
+  final double fallbackBottom;
+
+  /// The dock's measured height, or null before it has been laid out.
+  final double? dockHeight;
+
+  /// The dock's measured width; the shared dock's published width when null.
+  final double? dockWidth;
+
+  /// The gap between the dock and the bottom edge.
+  final double dockMargin;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final shown = ref.watch(callAloneProvider) && holdMusicBadgeFits(context);
+  ConsumerState<HoldMusicBadgeOverlay> createState() =>
+      _HoldMusicBadgeOverlayState();
+}
+
+class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
+  final _badgeKey = GlobalKey();
+  double? _badgeWidth;
+
+  void _measure() {
+    final width = _badgeKey.currentContext?.size?.width;
+    if (mounted && width != null && width != _badgeWidth) {
+      setState(() => _badgeWidth = width);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shown =
+        ref.watch(holdMusicAvailableProvider) &&
+        ref.watch(callAloneProvider) &&
+        holdMusicBadgeFits(context);
     if (!shown) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.bottomLeft,
-      child: Padding(
-        padding: EdgeInsets.only(left: AppSpacing.s12, bottom: bottom),
-        child: const HoldMusicBadge(),
-      ),
+    final sharedDockWidth = ref.watch(bottomDockWidthProvider);
+    final double dockWidth = widget.dockWidth ?? sharedDockWidth;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+    final badge = KeyedSubtree(key: _badgeKey, child: const HoldMusicBadge());
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dockHeight = widget.dockHeight;
+        final badgeWidth = _badgeWidth;
+        final room = (constraints.maxWidth - dockWidth) / 2;
+        final beside =
+            dockHeight != null &&
+            dockHeight > 0 &&
+            dockWidth > 0 &&
+            badgeWidth != null &&
+            room >= badgeWidth + AppSpacing.s12 * 2;
+        return Align(
+          alignment: Alignment.bottomLeft,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.s12,
+              bottom: beside ? widget.dockMargin : widget.fallbackBottom,
+            ),
+            child: beside
+                ? SizedBox(
+                    height: dockHeight,
+                    child: Align(alignment: Alignment.centerLeft, child: badge),
+                  )
+                : badge,
+          ),
+        );
+      },
     );
   }
 }

@@ -99,12 +99,23 @@ class _AppSliderState extends State<AppSlider> {
   void initState() {
     super.initState();
     _focusNode.addListener(_handleFocusChange);
+    FocusManager.instance.addHighlightModeListener(_onHighlightModeChange);
   }
 
   void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);
 
+  void _onHighlightModeChange(FocusHighlightMode _) {
+    if (mounted) setState(() {});
+  }
+
+  // Like FocusableTapTarget: the ring answers the keyboard, never a click or a drag.
+  bool get _ringShown =>
+      _focused &&
+      FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+
   @override
   void dispose() {
+    FocusManager.instance.removeHighlightModeListener(_onHighlightModeChange);
     _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     super.dispose();
@@ -271,7 +282,7 @@ class _AppSliderState extends State<AppSlider> {
         padding: const EdgeInsets.all(focusRingGap),
         decoration: BoxDecoration(
           border: Border.all(
-            color: _focused ? tokens.focusRing : Colors.transparent,
+            color: _ringShown ? tokens.focusRing : Colors.transparent,
             width: focusRingWidth,
           ),
           borderRadius: BorderRadius.circular(AppRadii.full),

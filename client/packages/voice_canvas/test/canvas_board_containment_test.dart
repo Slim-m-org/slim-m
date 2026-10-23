@@ -252,9 +252,9 @@ void main() {
       ..applyPlaced(_shape('shape', const Rect.fromLTWH(100, 100, 300, 200)));
     addTearDown(document.dispose);
 
-    document.moveObject('shape', 2500, 100, 300, 200);
+    document.moveObject('shape', 3000, 100, 300, 200);
 
-    expect(document.objectBounds('shape')!.x, 2500);
+    expect(document.objectBounds('shape')!.x, 3000);
     expect(document.idsOutsideBoard, ['shape']);
   });
 
@@ -262,7 +262,7 @@ void main() {
       () {
     final document = CanvasDocument()
       ..setBoard(canvasBoard)
-      ..applyPlaced(_shape('out', const Rect.fromLTWH(2500, 100, 300, 200)))
+      ..applyPlaced(_shape('out', const Rect.fromLTWH(3000, 100, 300, 200)))
       ..applyPlaced(_shape('in', const Rect.fromLTWH(100, 100, 300, 200)));
     addTearDown(document.dispose);
     expect(document.outsideBoardCount.value, 1);
@@ -283,11 +283,11 @@ void main() {
     expect(dragged.bottom, lessThanOrEqualTo(canvasBoard.bottom));
     overrides.applyServer(
       'camera:b',
-      rect: const Rect.fromLTWH(-300, -300, 220, 160),
+      rect: const Rect.fromLTWH(-2000, -2000, 220, 160),
       locked: false,
       sentToBack: false,
     );
-    expect(overrides.stateFor('camera:b').rect!.topLeft, Offset.zero);
+    expect(overrides.stateFor('camera:b').rect!.topLeft, canvasBoard.topLeft);
   });
 
   test('every screen sees objects at the same place on the board', () {
@@ -311,6 +311,6 @@ void main() {
       );
       document.dispose();
     }
-    expect(seen, {const Offset(250, 250)});
+    expect(seen, {const Offset(375, 375)});
   });
 }

@@ -13,7 +13,7 @@ import e2e_labels as L
 import e2e_png
 from e2e_input import _modifier_key
 from e2e_api import wait_until
-from e2e_board_frame import (BOARD_H, BOARD_W, board_frame, board_point,
+from e2e_board_frame import (SHARED_H, SHARED_W, board_frame, board_point,
                              fit_to_board_zoom_one, set_window)
 from e2e_canvas import wait_for_summary
 
@@ -40,7 +40,7 @@ def _relative_centre(client, rect, pixels):
     left, top, zoom = board_frame(client)
     cx = rect["x"] + sum(p[0] for p in pixels) / len(pixels)
     cy = rect["y"] + sum(p[1] for p in pixels) / len(pixels)
-    return (cx - left) / (BOARD_W * zoom), (cy - top) / (BOARD_H * zoom)
+    return (cx - left) / (SHARED_W * zoom), (cy - top) / (SHARED_H * zoom)
 
 
 def same_relative_position_on_different_windows(a, b, admin_api, channel_id):
@@ -66,8 +66,8 @@ def same_relative_position_on_different_windows(a, b, admin_api, channel_id):
 
     stroke = [o for o in admin_api.canvas_objects(channel_id)
               if o["kind"] == "stroke"][-1]
-    want = ((stroke["x"] + stroke["w"] / 2) / BOARD_W,
-            (stroke["y"] + stroke["h"] / 2) / BOARD_H)
+    want = ((stroke["x"] + stroke["w"] / 2) / SHARED_W,
+            (stroke["y"] + stroke["h"] / 2) / SHARED_H)
     for c in (a, b):
         after = c.region_png(rects[c.name])
         pixels = e2e_png.changed_pixels(before[c.name], after, PIXEL_DELTA)

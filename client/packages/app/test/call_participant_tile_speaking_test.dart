@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/members/widgets/user_avatar.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -54,4 +55,22 @@ void main() {
     final border = await _border(tester, _who(speaking: false, camera: true));
     expect(border!.top.color, AppTokens.dark.borderSubtle);
   });
+
+  testWidgets(
+    'a speaking tile without a camera glows as a whole, not its avatar',
+    (tester) async {
+      final border = await _border(tester, _who(speaking: true, camera: false));
+      expect(border!.top.color, AppTokens.dark.accent);
+      final glow = tester
+          .widgetList<DecoratedBox>(find.byType(DecoratedBox))
+          .map((d) => d.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.boxShadow != null && d.boxShadow!.isNotEmpty);
+      expect(glow, isNotEmpty);
+      expect(
+        tester.widget<UserAvatar>(find.byType(UserAvatar)).speaking,
+        isFalse,
+      );
+    },
+  );
 }

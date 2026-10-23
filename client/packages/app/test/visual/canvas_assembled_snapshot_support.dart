@@ -54,6 +54,8 @@ const canvasAssembledThemes =
       'dark': (brightness: Brightness.dark, tokens: AppTokens.dark),
       'true-black': (brightness: Brightness.dark, tokens: AppTokens.trueBlack),
       'mocha': (brightness: Brightness.dark, tokens: AppTokens.mocha),
+      'soft': (brightness: Brightness.dark, tokens: AppTokens.soft),
+      'forest': (brightness: Brightness.dark, tokens: AppTokens.forest),
     };
 
 /// Widths worth a look: a phone, the exact pixel the dock's own one/two-row

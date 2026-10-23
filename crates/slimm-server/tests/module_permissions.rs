@@ -233,3 +233,151 @@ async fn module_permissions_round_trip_over_the_roles_api() {
         .unwrap();
     assert_eq!(revoke_response.status(), StatusCode::NO_CONTENT);
 }
+
+/// Roles ordered top, senior, junior; a member who holds only `senior`, which has MANAGE_ROLES.
+struct Ladder {
+    top: slimm_server::ids::RoleId,
+    senior: slimm_server::ids::RoleId,
+    junior: slimm_server::ids::RoleId,
+    manager_token: String,
+    admin_token: String,
+}
+
+async fn ladder(s: &Store) -> Ladder {
+    let (admin, _member) = deployment(s).await;
+    install_code_exec(s).await;
+    let top = s
+        .create_role("top", Permissions::NONE, false)
+        .await
+        .unwrap();
+    let senior = s
+        .create_role("senior", Permissions::MANAGE_ROLES, false)
+        .await
+        .unwrap();
+    let junior = s
+        .create_role("junior", Permissions::NONE, false)
+        .await
+        .unwrap();
+    let admin_role = s
+        .list_roles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.name == "admin")
+        .unwrap()
+        .id;
+    s.reorder_roles(&[admin_role, top, senior, junior])
+        .await
+        .unwrap();
+    let manager = s.create_user("max", "Max").await.unwrap();
+    s.assign_role(manager.id, senior).await.unwrap();
+    Ladder {
+        top,
+        senior,
+        junior,
+        manager_token: s.open_session(manager.id, "pc").await.unwrap().access_token,
+        admin_token: s.open_session(admin.id, "pc").await.unwrap().access_token,
+    }
+}
+
+fn uri(role: slimm_server::ids::RoleId) -> String {
+    format!("/roles/{role}/module-permissions/code-exec/run")
+}
+
+async fn status(
+    router: &axum::Router,
+    method: &str,
+    role: slimm_server::ids::RoleId,
+    token: &str,
+) -> StatusCode {
+    router
+        .clone()
+        .oneshot(req(method, &uri(role), token))
+        .await
+        .unwrap()
+        .status()
+}
+
+#[tokio::test]
+async fn manage_roles_alone_cannot_grant_or_revoke_a_module_permission_it_lacks() {
+    let (s, _guard) = store("slimm-module-perm-lacks").await;
+    let l = ladder(&s).await;
+    s.grant_module_permission(l.junior, "code-exec", "run")
+        .await
+        .unwrap();
+    let router = app(s.clone());
+
+    assert_eq!(
+        status(&router, "PUT", l.junior, &l.manager_token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        status(&router, "DELETE", l.junior, &l.manager_token).await,
+        StatusCode::FORBIDDEN
+    );
+    let still_granted = s.role_module_permissions(l.junior).await.unwrap();
+    assert_eq!(still_granted.len(), 1, "the refused revoke changed nothing");
+}
+
+#[tokio::test]
+async fn a_manager_can_change_only_roles_below_their_own_and_only_permissions_they_hold() {
+    let (s, _guard) = store("slimm-module-perm-hierarchy").await;
+    let l = ladder(&s).await;
+    s.grant_module_permission(l.senior, "code-exec", "run")
+        .await
+        .unwrap();
+    let router = app(s.clone());
+
+    assert_eq!(
+        status(&router, "PUT", l.top, &l.manager_token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        status(&router, "PUT", l.senior, &l.manager_token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        status(&router, "PUT", l.junior, &l.manager_token).await,
+        StatusCode::NO_CONTENT
+    );
+    assert_eq!(s.role_module_permissions(l.junior).await.unwrap().len(), 1);
+    assert_eq!(
+        status(&router, "DELETE", l.junior, &l.manager_token).await,
+        StatusCode::NO_CONTENT
+    );
+    assert!(
+        s.role_module_permissions(l.junior)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    s.grant_module_permission(l.top, "code-exec", "run")
+        .await
+        .unwrap();
+    assert_eq!(
+        status(&router, "DELETE", l.top, &l.manager_token).await,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(s.role_module_permissions(l.top).await.unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn an_administrator_can_change_any_role_without_holding_the_permission() {
+    let (s, _guard) = store("slimm-module-perm-admin").await;
+    let l = ladder(&s).await;
+    let router = app(s.clone());
+
+    for role in [l.top, l.senior, l.junior] {
+        assert_eq!(
+            status(&router, "PUT", role, &l.admin_token).await,
+            StatusCode::NO_CONTENT
+        );
+    }
+    for role in [l.top, l.senior, l.junior] {
+        assert_eq!(
+            status(&router, "DELETE", role, &l.admin_token).await,
+            StatusCode::NO_CONTENT
+        );
+    }
+}

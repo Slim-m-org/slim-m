@@ -142,7 +142,8 @@ serve_web() {
   if curl -sf -o /dev/null "http://localhost:$WEB_PORT/" 2>/dev/null; then
     echo "port $WEB_PORT is already serving something; stop that first"; exit 1
   fi
-  setsid python3 -m http.server "$WEB_PORT" --directory "$web_dir" >/dev/null 2>&1 < /dev/null &
+  # Served with the web image's own CSP, so a policy that breaks a flow fails e2e rather than prod.
+  setsid python3 "$ROOT/scripts/lib/e2e_web_server.py" "$WEB_PORT" "$web_dir" >/dev/null 2>&1 < /dev/null &
   echo $! > "$PIDS/web.pid"
   # Every file the app reaches for at runtime, not just the ones a build emits.
   for asset in main.dart.js flutter_bootstrap.js sqlite3.wasm drift_worker.js; do

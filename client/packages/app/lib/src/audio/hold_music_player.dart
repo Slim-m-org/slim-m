@@ -9,11 +9,12 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show isIOSHost;
 
 import 'lounge_tracks.dart';
 import 'releasable_player.dart';
 import 'sound_output_router.dart';
-import 'notification_sound.dart' show AudioPlayersSoundPlayer;
+import 'sound_audio_context.dart';
 
 /// Where the loop is, for the badge's timeline; [duration] is null until the file reports it.
 class HoldPlayback {
@@ -98,10 +99,12 @@ class _AudioPlayersOutput implements HoldLoopOutput {
     _playback.value = HoldPlayback.idle;
     _follow(player);
     await player.setReleaseMode(ReleaseMode.loop);
-    await player.play(
-      AssetSource(asset),
-      volume: _volume,
-      ctx: AudioPlayersSoundPlayer.sharedAmbientContext,
+    await playQuietly(
+      () => player.play(
+        AssetSource(asset),
+        volume: _volume,
+        ctx: soundAudioContext,
+      ),
     );
     unawaited(_afterPlay?.call());
   }
@@ -225,6 +228,9 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
     await _output.dispose();
   }
 }
+
+/// False on iOS: audioplayers there resets the call's own audio session category and deactivates it when the loop stops.
+final holdMusicAvailableProvider = Provider<bool>((ref) => !isIOSHost);
 
 final holdMusicPlayerProvider = Provider<HoldMusicPlayer>((ref) {
   final router = ref.read(soundOutputRouterProvider);

@@ -33,6 +33,7 @@ use uuid::Uuid;
 pub mod compress;
 mod memory_budget;
 pub use memory_budget::MemoryBudget;
+mod admission;
 mod content_type;
 mod exports;
 mod image_header;
@@ -44,6 +45,7 @@ mod preview_derive;
 mod preview_scale;
 mod stream;
 mod upload_session;
+pub use admission::Reservation;
 pub use content_type::{GENERIC_BINARY, attachment_content_type, is_inline, sniff_content_type};
 pub use image_header::{
     ImageHeader, ImageProblem, MAX_EMOJI_SIDE, MAX_IMAGE_PIXELS, MAX_PROFILE_IMAGE_SIDE, Motion,
@@ -90,6 +92,10 @@ pub struct Media {
     max_total_attachment_bytes: Option<u64>,
     upload_timeout: Duration,
     uploads: Uploads,
+    /// Serializes ceiling checks, so two uploads cannot both read the same stale total.
+    admission: Arc<tokio::sync::Mutex<()>>,
+    /// Bytes reserved by [`Media::reserve`] and not yet released.
+    reserved: Arc<std::sync::atomic::AtomicU64>,
     /// Held while bytes are placed with their row, or a row's absence is
     /// checked and its bytes unlinked; see `crate::blobs`.
     blobs: Arc<tokio::sync::Mutex<()>>,
@@ -133,6 +139,8 @@ impl Media {
         let memory = MemoryBudget::for_limit(crate::hub::memory_limit_bytes());
         Ok(Self {
             uploads: Uploads::new(uploads_dir, attachments_dir.clone()),
+            admission: Arc::default(),
+            reserved: Arc::default(),
             blobs: Arc::default(),
             memory: memory.clone(),
             attachments_dir,
@@ -182,6 +190,23 @@ impl Media {
 
     pub fn max_total_attachment_bytes(&self) -> Option<u64> {
         self.max_total_attachment_bytes
+    }
+
+    /// Held across a ceiling check and the step that makes it count.
+    pub async fn admission_gate(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.admission.lock().await
+    }
+
+    /// Holds `bytes` against the ceiling until the returned guard drops.
+    pub fn reserve(&self, bytes: u64) -> Reservation {
+        Reservation::new(self.reserved.clone(), bytes)
+    }
+
+    /// Reservations plus open resumable sessions other than `exclude`.
+    pub async fn pending_bytes(&self, exclude: Option<Uuid>, now_ms: i64) -> std::io::Result<u64> {
+        let sessions = self.uploads.reserved_bytes(exclude, now_ms).await?;
+        let held = self.reserved.load(std::sync::atomic::Ordering::SeqCst);
+        Ok(sessions.saturating_add(held))
     }
 
     /// Overrides the total upload time, so a test of the cut need not wait

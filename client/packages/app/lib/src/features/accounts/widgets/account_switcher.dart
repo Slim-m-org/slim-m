@@ -88,7 +88,7 @@ class _AccountSwitcherTriggerState
                     child: AccountUnreadBadge(unread: elsewhere),
                   ),
                 Icon(
-                  AppIcons.chevronDown,
+                  AppIcons.serverSwitcher,
                   size: AppSizes.icon16,
                   color: tokens.textSecondary,
                 ),

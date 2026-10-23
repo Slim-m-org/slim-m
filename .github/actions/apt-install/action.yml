@@ -13,19 +13,23 @@ inputs:
 runs:
   using: composite
   steps:
-    # The image vars are process env on the runner, not in the expression context, so a step reads them.
+    # Image vars are runner env, so a step reads them; one deb directory per package list, since a shared one made a second install reuse the first's debs.
     - id: image
       shell: bash
-      run: echo "version=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        echo "version=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "dir=$RUNNER_TEMP/apt-debs-$(printf '%s' "$PACKAGES" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
     # Keyed on the runner image so a new image resolves its own dependency versions instead of installing stale ones.
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
-        path: ${{ runner.temp }}/apt-debs
+        path: ${{ steps.image.outputs.dir }}
         key: apt-debs-${{ runner.os }}-${{ steps.image.outputs.version }}-${{ inputs.packages }}-v1
     - shell: bash
       env:
         PACKAGES: ${{ inputs.packages }}
-        APT_DEB_CACHE: ${{ runner.temp }}/apt-debs
+        APT_DEB_CACHE: ${{ steps.image.outputs.dir }}
       run: |
         read -ra pkgs <<<"$PACKAGES"
         "$GITHUB_WORKSPACE/scripts/apt-install.sh" "${pkgs[@]}"

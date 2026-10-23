@@ -51,6 +51,7 @@ import e2e_voice_share
 import e2e_share_quality
 import e2e_voice_noise
 import e2e_voice_desktop
+import e2e_voice_desktop_volume
 import e2e_voice_experience
 import e2e_voice_latency
 import e2e_voice_quality
@@ -58,6 +59,7 @@ import e2e_voice_volume
 import e2e_voice_network
 import e2e_video_quality
 import e2e_voice_rejoin
+import e2e_tabs
 import e2e_api
 import e2e_browsers
 from e2e_api import Api
@@ -362,6 +364,12 @@ def scenarios(a, b, admin, member, room_id, server, secret):
          "(opt in with E2E_ONLY)",
          lambda: e2e_voice_desktop.run_if_selected(
              server, secret, admin, sign_in)),
+        ("volume slider on the desktop: the Linux client's playback level per slider "
+         "value (opt in with E2E_ONLY)",
+         lambda: e2e_voice_desktop_volume.run_if_selected(
+             server, secret, admin, sign_in)),
+        ("account: two tabs share one token refresh and both stay signed in",
+         lambda: e2e_tabs.two_tabs_survive_rotations(server, admin, sign_in)),
         # Last, because it wipes bob's browser storage and signs him in again.
         ("account: usernames ignore case, registering and signing in",
          lambda: e2e_accounts.usernames_ignore_case(

@@ -18,6 +18,8 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../providers/providers.dart';
 import '../../messages/widgets/attachment_picker.dart';
 import '../../messages/widgets/image_drop_zone.dart';
+import '../../messages/widgets/image_downscale.dart'
+    show canDecodeImage, unreadableImageMessage;
 import 'avatar_crop_sheet.dart';
 import 'avatar_photo_menu.dart';
 import 'banner_settings_row.dart';
@@ -91,12 +93,25 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
       return;
     }
     if (file == null) return;
-    // readAsBytes streams from disk, since eager loading OOMs on a large pick.
-    await _crop(await file.readAsBytes());
+    final Uint8List bytes;
+    try {
+      // readAsBytes streams from disk, since eager loading OOMs on a large pick.
+      bytes = await file.readAsBytes();
+    } catch (e, stack) {
+      reportFailure(LogTag.media, 'read an avatar file', e, stack);
+      setActionError('Could not open that photo.');
+      return;
+    }
+    await _crop(bytes);
   }
 
   Future<void> _crop(Uint8List? picked) async {
     if (picked == null || !mounted) return;
+    if (!await canDecodeImage(picked)) {
+      setActionError(unreadableImageMessage);
+      return;
+    }
+    if (!mounted) return;
 
     // Cropped before upload, not after: the server caps an avatar at 2 MB and
     // a phone photo is routinely past that, so the raw pick simply failed.

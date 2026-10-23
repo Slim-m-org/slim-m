@@ -22,16 +22,18 @@ class ThemeChoiceCards extends StatelessWidget {
 
   static const _order = [
     AppThemeChoice.dark,
+    AppThemeChoice.softDark,
     AppThemeChoice.light,
     AppThemeChoice.trueBlack,
     AppThemeChoice.catppuccin,
+    AppThemeChoice.forest,
     AppThemeChoice.system,
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Width decides (desktop-vs-mobile.md, the one rule): five across crowd a phone.
-    final narrow = MediaQuery.sizeOf(context).width < kCompactWidth;
+    // Width decides (desktop-vs-mobile.md, the one rule): seven across crowd any pane.
+    final columns = MediaQuery.sizeOf(context).width < kCompactWidth ? 2 : 4;
     final cards = [
       for (final choice in _order)
         _ThemeCard(
@@ -40,29 +42,21 @@ class ThemeChoiceCards extends StatelessWidget {
           onTap: () => onChanged(choice),
         ),
     ];
-    if (narrow) {
-      return Column(
-        spacing: AppSpacing.s16,
-        children: [
-          for (var i = 0; i < cards.length; i += 2)
-            Row(
-              spacing: 10,
-              children: [
-                Expanded(child: cards[i]),
-                // An odd last card keeps a column's width, not the full row.
+    return Column(
+      spacing: AppSpacing.s16,
+      children: [
+        for (var i = 0; i < cards.length; i += columns)
+          Row(
+            spacing: 10,
+            children: [
+              for (var j = i; j < i + columns; j++)
+                // A short last row keeps every card a column's width.
                 Expanded(
-                  child: i + 1 < cards.length
-                      ? cards[i + 1]
-                      : const SizedBox.shrink(),
+                  child: j < cards.length ? cards[j] : const SizedBox.shrink(),
                 ),
-              ],
-            ),
-        ],
-      );
-    }
-    return Row(
-      spacing: 10,
-      children: [for (final card in cards) Expanded(child: card)],
+            ],
+          ),
+      ],
     );
   }
 }
@@ -84,6 +78,8 @@ class _ThemeCard extends StatelessWidget {
     AppThemeChoice.dark => 'Dark',
     AppThemeChoice.trueBlack => 'True black',
     AppThemeChoice.catppuccin => 'Catppuccin',
+    AppThemeChoice.softDark => 'Soft dark',
+    AppThemeChoice.forest => 'Forest',
   };
 
   @override
@@ -175,6 +171,8 @@ class _Thumbnail extends StatelessWidget {
                   AppThemeChoice.dark => AppTokens.dark,
                   AppThemeChoice.trueBlack => AppTokens.trueBlack,
                   AppThemeChoice.catppuccin => AppTokens.mocha,
+                  AppThemeChoice.softDark => AppTokens.soft,
+                  AppThemeChoice.forest => AppTokens.forest,
                   AppThemeChoice.system => throw StateError(
                     'system is drawn as a split, not a window',
                   ),

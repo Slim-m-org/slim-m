@@ -356,6 +356,7 @@ class _InCallState extends ConsumerState<_InCall> {
   /// The dock's real height, which bot controls and the call row make vary;
   /// null until measured.
   double? _dockHeight;
+  double? _dockWidth;
 
   String get channelId => widget.channelId;
   bool get isDm => widget.isDm;
@@ -364,12 +365,21 @@ class _InCallState extends ConsumerState<_InCall> {
     if (mounted && _dockHeight != height) setState(() => _dockHeight = height);
   }
 
+  void _onDockWidth(double width) {
+    if (mounted && _dockWidth != width) setState(() => _dockWidth = width);
+  }
+
+  /// The margin [SafeArea] keeps below the dock.
+  double _dockMargin(BuildContext context) {
+    final inset = MediaQuery.paddingOf(context).bottom;
+    return inset > AppSpacing.s12 ? inset : AppSpacing.s12;
+  }
+
   /// Dock plus the margin [SafeArea] keeps below it.
   double? _clearance(BuildContext context) {
     final height = _dockHeight;
     if (height == null) return null;
-    final inset = MediaQuery.paddingOf(context).bottom;
-    return height + (inset > AppSpacing.s12 ? inset : AppSpacing.s12);
+    return height + _dockMargin(context);
   }
 
   @override
@@ -414,6 +424,7 @@ class _InCallState extends ConsumerState<_InCall> {
               offset: 0,
               child: DockHeightReporter(
                 onHeight: _onDockHeight,
+                onWidth: _onDockWidth,
                 child: VoiceCallDock(
                   controller: controller,
                   voice: VoiceFlags.from(voice),
@@ -425,7 +436,11 @@ class _InCallState extends ConsumerState<_InCall> {
           ),
         ),
         HoldMusicBadgeOverlay(
-          bottom: (_clearance(context) ?? defaultDockClearance) + AppSpacing.s8,
+          fallbackBottom:
+              (_clearance(context) ?? defaultDockClearance) + AppSpacing.s8,
+          dockHeight: _dockHeight,
+          dockWidth: _dockWidth ?? 0,
+          dockMargin: _dockMargin(context),
         ),
       ],
     );

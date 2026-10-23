@@ -312,6 +312,12 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "DELETE FROM category_overwrites WHERE target_type = 'role' AND target_id = ?",
+            role_id
+        )
+        .execute(&mut *tx)
+        .await?;
         // member_roles cascades away on the role's own foreign key.
         sqlx::query!("DELETE FROM roles WHERE id = ?", role_id)
             .execute(&mut *tx)

@@ -1,20 +1,28 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 """Where the shared board sits on a client's page.
 
-The canvas is one fixed 1920x1080 world frame fitted to the surface and
-letterboxed (docs/decisions/0073-shared-canvas-board.md). Most canvas
+A canvas opens on the 1920x1080 shared area at the zoom that fits it, inside a
+board twice that size (docs/decisions/0073-shared-canvas-board.md). Most canvas
 scenarios think in world pixels at zoom 1, so [fit_to_board_zoom_one] sizes
-the window until the surface is exactly the board's width, and [board_frame]
-says where the board starts on the page whatever the zoom is.
+the window until the surface is exactly the shared area's width, and
+[board_frame] says where the shared area starts on the page.
+
+The shared area has no visible edge, so its top is found from the board's top
+edge in a window tall enough to show it, which also gives the height the dock
+takes from the surface.
 """
+import json
 import time
 
 import e2e_labels as L
 import e2e_png
 
-BOARD_W = 1920
-BOARD_H = 1080
+SHARED_W = 1920
+SHARED_H = 1080
 _TALL = 1500
+_BOARD_H = 2 * SHARED_H
+_FULL_BOARD_WINDOW_H = 2700
+_dock_insets = {}
 _WIDE_START = 2600
 
 
@@ -35,14 +43,16 @@ def fit_to_board_zoom_one(client):
         client.click(L.MEMBER_LIST)
     _metrics(client, _WIDE_START, _TALL)
     rect = client.canvas_rect()
-    _metrics(client, _WIDE_START - (rect["width"] - BOARD_W), _TALL)
+    _metrics(client, _WIDE_START - (rect["width"] - SHARED_W), _TALL)
     rect = client.canvas_rect()
-    assert abs(rect["width"] - BOARD_W) < 1 and rect["height"] >= BOARD_H, \
-        f"{client.name}: surface is {rect['width']}x{rect['height']}, not the board"
+    assert abs(rect["width"] - SHARED_W) < 1 and rect["height"] >= SHARED_H, \
+        f"{client.name}: surface is {rect['width']}x{rect['height']}, not the shared area"
+    _dock_insets.pop(client.name, None)
 
 
 def set_window(client, width, height):
     _metrics(client, width, height)
+    _dock_insets.pop(client.name, None)
 
 
 def clear_window(client):
@@ -78,18 +88,45 @@ def _first_change(client, rect, vertical):
     return 0
 
 
+def _window_size(client):
+    width, height = json.loads(client.ev("JSON.stringify([innerWidth, innerHeight])"))
+    return width, height
+
+
+def _dock_inset(client):
+    """What the dock takes from the surface's foot, read once per window size.
+
+    A window tall enough to show the whole board puts the board's top edge on
+    the page; the board is centred in the view, so that edge gives the height
+    the view really has.
+    """
+    if client.name not in _dock_insets:
+        width, height = _window_size(client)
+        _metrics(client, width, _FULL_BOARD_WINDOW_H)
+        rect = client.canvas_rect()
+        zoom = rect["width"] / SHARED_W
+        top = _first_change(client, rect, vertical=True)
+        assert top > 1, f"{client.name}: the board's top edge is not on screen in a {width}x{_FULL_BOARD_WINDOW_H} window"
+        view = 2 * top + _BOARD_H * zoom
+        _metrics(client, width, height)
+        _dock_insets[client.name] = max(0.0, rect["height"] - view)
+    return _dock_insets[client.name]
+
+
 def board_frame(client):
-    """The fitted board on the page: (left, top, zoom), read off the pixels."""
+    """The shared area on the page: (left, top, zoom).
+
+    The area is fitted by its width, so it starts at the surface's left, and it
+    sits centred in the surface above the dock.
+    """
+    inset = _dock_inset(client)
     rect = client.canvas_rect()
-    # An edge hairline reads a pixel in; a board that fills the width starts at the surface.
-    left = _first_change(client, rect, vertical=False)
-    left = 0 if left <= 1 else left
-    top = _first_change(client, rect, vertical=True)
-    zoom = (rect["width"] - 2 * left) / BOARD_W
-    return rect["x"] + left, rect["y"] + top, zoom
+    zoom = rect["width"] / SHARED_W
+    top = (rect["height"] - inset - SHARED_H * zoom) / 2
+    return rect["x"], rect["y"] + top, zoom
 
 
 def board_point(client, world):
-    """Where a board point is on [client]'s page."""
+    """Where a shared-area point is on [client]'s page."""
     left, top, zoom = board_frame(client)
     return left + world[0] * zoom, top + world[1] * zoom

@@ -89,9 +89,13 @@ jobs:
       # default, so a perfectly valid SVG fails export with "Format not
       # recognized". Checked directly against packages.ubuntu.com for
       # noble/amd64, not assumed. See packaging/flatpak/README.md.
+      - name: install flatpak and its build tools
+        uses: ./.github/actions/apt-install
+        with:
+          packages: flatpak flatpak-builder elfutils librsvg2-common
+
       - name: build flatpak
         run: |
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils librsvg2-common
           mkdir -p dist
           flatpak remote-add --user --if-not-exists flathub \
             https://flathub.org/repo/flathub.flatpakrepo
@@ -149,9 +153,13 @@ jobs:
       # (a portal or D-Bus service genuinely absent here, not a missing
       # shared library), loosen this exit-code assertion then, not the two
       # grep patterns, which are the actual defect this exists to catch.
+      - name: install xvfb and dbus for the headless launch
+        uses: ./.github/actions/apt-install
+        with:
+          packages: xvfb dbus-daemon
+
       - name: attempt a headless launch and check for a missing shared library
         run: |
-          sudo apt-get install -y --no-install-recommends xvfb dbus-daemon
           set +e
           timeout 20 dbus-run-session -- xvfb-run -a \
             flatpak run top.npcserver.slimm > flatpak-run.log 2>&1

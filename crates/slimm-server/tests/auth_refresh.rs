@@ -190,17 +190,10 @@ async fn stale_refresh_reuse_revokes_the_family() {
     );
 }
 
-/// Two genuinely concurrent refreshes of the same token resolve cleanly: both
-/// rotate, neither errors, and the session lives. Under confirm-before-retire
-/// the loser is no longer denied - it presents a token that is spent but not
-/// yet retired, which is indistinguishable from an honest retry and is
-/// answered as one.
-///
-/// The property that matters is that the client is never stranded, whichever
-/// response it kept. Only the last rotation's access token survives, because
-/// rotation still drops the session's prior one - so the earlier pair's access
-/// token is dead on arrival. That pair's *refresh* token is still good, which
-/// is what makes the difference an extra round trip rather than a sign-out.
+/// Two genuinely concurrent refreshes of the same token both rotate and
+/// neither errors, but the later claim supersedes the earlier child: one chain
+/// stays live and the other is reuse if presented. A single-flight client never
+/// does this; the thief-and-owner race it stands in for must end with one chain.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn concurrent_refresh_of_same_token_never_errors() {
     let (store, _auth, user_id, _guard) = with_alice().await;
@@ -226,24 +219,29 @@ async fn concurrent_refresh_of_same_token_never_errors() {
     }
     assert_eq!(issued.len(), 2);
 
-    // Either pair can be the one the client kept, so neither may strand it.
-    for tokens in &issued {
-        let live = store
-            .authenticate(&tokens.access_token)
-            .await
-            .unwrap()
-            .is_some();
-        if live {
-            continue;
+    // The second claim superseded the first child, so exactly one pair is live.
+    let (live, superseded): (Vec<_>, Vec<_>) = {
+        let mut live = Vec::new();
+        let mut superseded = Vec::new();
+        for tokens in &issued {
+            match store.authenticate(&tokens.access_token).await.unwrap() {
+                Some(_) => live.push(tokens),
+                None => superseded.push(tokens),
+            }
         }
-        assert!(
-            matches!(
-                store.rotate_refresh(&tokens.refresh_token).await.unwrap(),
-                RefreshOutcome::Rotated(_)
-            ),
-            "a superseded pair must still refresh its way back to a session"
-        );
-    }
+        (live, superseded)
+    };
+    assert_eq!((live.len(), superseded.len()), (1, 1));
+    assert!(
+        matches!(
+            store
+                .rotate_refresh(&superseded[0].refresh_token)
+                .await
+                .unwrap(),
+            RefreshOutcome::Reused
+        ),
+        "the superseded pair is a second chain, and presenting it is reuse"
+    );
 }
 
 /// Reuse detection no longer rides on elapsed time, so this pins the property
@@ -345,4 +343,100 @@ async fn rotation_stores_no_plaintext_token() {
             "a token's plaintext must never reach the database"
         );
     }
+}
+
+/// Rotates `token` and keeps the result, panicking if it is anything but a rotation.
+async fn rotate(store: &Store, token: &str) -> slimm_server::store::IssuedTokens {
+    match store.rotate_refresh(token).await.unwrap() {
+        RefreshOutcome::Rotated(tokens) => tokens,
+        other => panic!("expected a rotation: {}", outcome_name(&other)),
+    }
+}
+
+/// A thief and the real client each rotate the one pending token: the earlier
+/// child is superseded, so only the later chain is live.
+#[tokio::test]
+async fn two_claimants_of_one_pending_token_end_with_one_live_chain() {
+    let (store, _auth, user_id, _guard) = with_alice().await;
+    let original = store.open_session(user_id, "laptop").await.unwrap();
+
+    let thief = rotate(&store, &original.refresh_token).await;
+    let real = rotate(&store, &original.refresh_token).await;
+
+    assert!(
+        store
+            .authenticate(&real.access_token)
+            .await
+            .unwrap()
+            .is_some(),
+        "the later claimant holds the live session"
+    );
+    let next = rotate(&store, &real.refresh_token).await;
+    assert!(
+        store
+            .authenticate(&next.access_token)
+            .await
+            .unwrap()
+            .is_some(),
+        "and its chain keeps rotating"
+    );
+    assert!(
+        matches!(
+            store.rotate_refresh(&thief.refresh_token).await.unwrap(),
+            RefreshOutcome::Reused
+        ),
+        "the earlier claimant's chain is not a second live chain"
+    );
+}
+
+/// Presenting the superseded child is reuse, so the real client is signed out
+/// with the thief: nobody is left holding a credential for the stolen family.
+#[tokio::test]
+async fn using_the_superseded_child_kills_the_family() {
+    let (store, _auth, user_id, _guard) = with_alice().await;
+    let original = store.open_session(user_id, "laptop").await.unwrap();
+
+    let thief = rotate(&store, &original.refresh_token).await;
+    let real = rotate(&store, &original.refresh_token).await;
+
+    assert!(matches!(
+        store.rotate_refresh(&thief.refresh_token).await.unwrap(),
+        RefreshOutcome::Reused
+    ));
+    assert!(
+        store
+            .authenticate(&real.access_token)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(matches!(
+        store.rotate_refresh(&real.refresh_token).await.unwrap(),
+        RefreshOutcome::Denied
+    ));
+}
+
+/// The thief rotated further before the real client retried: the whole branch
+/// it grew is retired, not only its first link.
+#[tokio::test]
+async fn a_retry_also_retires_what_the_earlier_claimant_rotated_onward() {
+    let (store, _auth, user_id, _guard) = with_alice().await;
+    let original = store.open_session(user_id, "laptop").await.unwrap();
+
+    let first = rotate(&store, &original.refresh_token).await;
+    let onward = rotate(&store, &first.refresh_token).await;
+    store
+        .authenticate(&onward.access_token)
+        .await
+        .unwrap()
+        .expect("the thief confirms its own chain");
+    let _real = rotate(&store, &original.refresh_token).await;
+
+    assert!(
+        matches!(
+            store.rotate_refresh(&onward.refresh_token).await.unwrap(),
+            RefreshOutcome::Reused
+        ),
+        "the branch grown from the superseded child is dead too"
+    );
 }

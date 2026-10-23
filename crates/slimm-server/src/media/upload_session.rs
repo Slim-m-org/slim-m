@@ -204,6 +204,24 @@ impl Uploads {
         .await
     }
 
+    /// Declared bytes of every unexpired session except `exclude`.
+    pub async fn reserved_bytes(&self, exclude: Option<Uuid>, now_ms: i64) -> io::Result<u64> {
+        let dir = self.dir.clone();
+        let cutoff = now_ms - UPLOAD_SESSION_TTL.as_millis() as i64;
+        blocking(move || {
+            Ok(list_sessions(&dir)?
+                .filter(|(path, meta)| {
+                    let own = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .and_then(|n| Uuid::parse_str(n).ok());
+                    meta.created_at >= cutoff && (own.is_none() || own != exclude)
+                })
+                .fold(0u64, |sum, (_, meta)| sum.saturating_add(meta.size)))
+        })
+        .await
+    }
+
     /// Appends `body` at `offset`, returning the new length. Refuses a part
     /// that does not start exactly where the data ends, so a retried part can
     /// never be written twice.

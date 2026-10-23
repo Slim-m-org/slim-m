@@ -171,6 +171,14 @@ class IoDirectRoute implements DirectRoute {
   }
 
   @override
+  void invalidate() {
+    if (!_active) return;
+    _isActive = false;
+    _skipUntil = null;
+    _penalty = _firstPenalty;
+  }
+
+  @override
   bool get hasAddresses => _addresses.isNotEmpty;
 
   @override

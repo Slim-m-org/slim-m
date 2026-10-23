@@ -21,6 +21,7 @@ class DockHeightReporter extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.onHeight,
+    this.onWidth,
     this.reservation,
     this.foldedHeight,
     this.extraHeight = 0,
@@ -38,6 +39,9 @@ class DockHeightReporter extends ConsumerStatefulWidget {
   /// Told the measured height instead of the shared reservation, for a dock
   /// whose only reader is its own screen and not the shell's snackbars.
   final ValueChanged<double>? onHeight;
+
+  /// Told the measured width, for a screen that keeps its dock's footprint to itself.
+  final ValueChanged<double>? onWidth;
 
   /// Where the height is published; the shared dock reservation when null.
   final StateProvider<double>? reservation;
@@ -81,6 +85,7 @@ class _DockHeightReporterState extends ConsumerState<DockHeightReporter> {
 
   /// Only the shared dock publishes a width; a dock that keeps its height to itself keeps this too.
   void _reportWidth(double width) {
+    widget.onWidth?.call(width);
     if (widget.onHeight != null || widget.reservation != null) return;
     if (width == _lastWidth) return;
     _lastWidth = width;

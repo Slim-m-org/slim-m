@@ -18,11 +18,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::AppState;
-use super::attachments::{effective_attachment_max, room_for, sniffable};
+use super::attachments::{effective_attachment_max, sniffable};
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, AuthedLimited, Json, Query, UPLOAD, WRITE};
 use super::message_dto::AttachmentDto;
 use super::messages::parse_uuid;
+use super::storage_room::{ensure_room, reserve_room};
 use crate::ids::{ChannelId, UserId};
 use crate::media::{
     self, AppendError, MAX_OPEN_SESSIONS_PER_USER, UPLOAD_PART_MAX_BYTES, UPLOAD_SESSION_TTL,
@@ -126,8 +127,9 @@ async fn create(
     if req.size > effective_attachment_max(&state).await? {
         return Err(ApiError::PayloadTooLarge);
     }
-    room_for(&state, i64::try_from(req.size).unwrap_or(i64::MAX)).await?;
     let uploads = state.media.uploads();
+    let gate = state.media.admission_gate().await;
+    ensure_room(&state, i64::try_from(req.size).unwrap_or(i64::MAX), None).await?;
     if uploads
         .open_sessions_for(ctx.user_id.0.to_string())
         .await
@@ -143,6 +145,7 @@ async fn create(
         created_at: now_ms(),
     };
     let id = uploads.create(meta.clone()).await.map_err(io_error)?;
+    drop(gate);
     Ok((
         StatusCode::CREATED,
         Json(UploadSessionDto::new(id, &meta, 0)),
@@ -212,10 +215,13 @@ async fn complete(
         .ok_or(ApiError::Conflict("upload is not complete"))?;
     let content_type = media::attachment_content_type(sniffable(&finished.sniff_prefix));
     let size = i64::try_from(finished.size).unwrap_or(i64::MAX);
-    if let Err(err) = room_for(&state, size).await {
-        uploads.discard(id).await.ok();
-        return Err(err);
-    }
+    let mut reservation = match reserve_room(&state, size, Some(id)).await {
+        Ok(reservation) => reservation,
+        Err(err) => {
+            uploads.discard(id).await.ok();
+            return Err(err);
+        }
+    };
     if let Some(replacement) = super::attachment_compress::prepare(
         &state,
         &uploads.data_path(id),
@@ -226,6 +232,10 @@ async fn complete(
     .await?
     {
         let received = super::attachment_compress::Received::Session(uploads.clone(), id);
+        drop(std::mem::replace(
+            &mut reservation,
+            media::Reservation::none(),
+        ));
         let summary = replacement.store(&state, ctx.user_id, received).await?;
         return Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))));
     }
@@ -248,6 +258,7 @@ async fn complete(
         )
         .await?;
     drop(placing);
+    drop(reservation);
     state.media.prewarm_preview(&finished.hex_id, content_type);
     Ok((
         StatusCode::CREATED,

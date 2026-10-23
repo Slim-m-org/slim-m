@@ -22,6 +22,8 @@ export 'src/client.dart'
     show
         SlimmApi,
         SessionStore,
+        SessionSync,
+        SessionStoreTabs,
         AnalyticsDayCount,
         AnalyticsMemorySample,
         AnalyticsStats,

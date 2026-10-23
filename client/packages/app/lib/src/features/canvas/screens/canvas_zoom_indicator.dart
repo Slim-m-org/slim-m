@@ -102,9 +102,8 @@ class CanvasZoomIndicator extends StatelessWidget {
   Widget _zoomPill() => ListenableBuilder(
     listenable: document,
     builder: (context, _) {
-      // 100% is the whole board fitted, whatever the screen.
-      final board = document.board;
-      final fit = board == null ? 1.0 : boardFitZoom(board, document.viewport);
+      // 100% is the shared area fitted, whatever the screen.
+      final fit = document.sharedFitZoom;
       final percent = (document.camera.zoom / fit * 100).round();
       // Its own node: merged into the surface's, it made the whole canvas a button that swallowed every drag on web.
       return Semantics(

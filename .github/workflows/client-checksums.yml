@@ -33,6 +33,7 @@ jobs:
   sums:
     name: client checksums
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     # write, not read: the last step attaches SHA256SUMS to the github release.
     permissions:
       contents: write

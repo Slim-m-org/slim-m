@@ -169,6 +169,11 @@ async fn a_bot_opens_a_form_for_the_presser_and_the_answers_reach_only_that_bot(
         .expect("the presser is shown the form");
     assert_eq!(shown["form"]["title"], "Remind me");
     assert_eq!(shown["interaction_id"], press_id);
+    assert_eq!(
+        shown["bot_id"],
+        w.bot.0.to_string(),
+        "the sheet can name the bot"
+    );
     assert!(
         frame_of_kind(&mut bob, "interaction.form").await.is_none(),
         "nobody else sees it"

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
+import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/messages/providers/bot_forms.dart';
 import 'package:slimm_app/src/features/messages/widgets/bot_form_gate.dart';
 import 'package:slimm_app/src/features/messages/widgets/bot_form_sheet.dart';
@@ -53,6 +54,7 @@ Future<_Harness> _pump(
   WidgetTester tester, {
   int status = 200,
   double width = 1280,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1.0;
@@ -63,6 +65,7 @@ Future<_Harness> _pump(
   final paths = <String>[];
   final container = ProviderContainer(
     overrides: [
+      ...overrides,
       liveEventsProvider.overrideWithValue(events.stream),
       apiProvider.overrideWith((ref) {
         final client = testApi(
@@ -256,6 +259,33 @@ void main() {
     await _open(tester, h);
     expect(find.textContaining('opened by a bot'), findsOneWidget);
     expect(find.textContaining('not to slim-m'), findsOneWidget);
+  });
+
+  testWidgets('the form names the bot that opened it', (tester) async {
+    final h = await _pump(
+      tester,
+      overrides: [
+        userProfileProvider('b1').overrideWith(
+          (ref) async => const api.UserProfile(
+            id: 'b1',
+            username: 'reminders',
+            displayName: 'Reminders',
+            createdAt: 0,
+          ),
+        ),
+      ],
+    );
+    h.events.add(
+      const api.InteractionForm(
+        interactionId: 'i1',
+        channelId: 'c1',
+        botId: 'b1',
+        form: _form,
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('opened by Reminders'), findsOneWidget);
   });
 
   testWidgets('a form the server no longer has is explained inline', (

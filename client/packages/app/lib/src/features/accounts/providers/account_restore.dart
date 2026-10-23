@@ -11,6 +11,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
 import '../../../providers/providers.dart';
+import '../../../providers/background_key_store.dart';
 import 'account_host.dart';
 import 'account_store.dart';
 
@@ -27,6 +28,8 @@ Future<bool> wipeKeychainOnFreshInstall(ProviderContainer container) async {
     await keyStore.clear();
     final pushKeys = container.read(pushKeyStoreProvider);
     if (!identical(pushKeys, keyStore)) await pushKeys.clear();
+    final backgroundKeys = container.read(backgroundKeyStoreProvider);
+    if (!identical(backgroundKeys, keyStore)) await backgroundKeys.clear();
     await prefs.setBool(hasLaunchedBeforeKey, true);
     container.read(isFreshInstallProvider.notifier).state = true;
     return true;

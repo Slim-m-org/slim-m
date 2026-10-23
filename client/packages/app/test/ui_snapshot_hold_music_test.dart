@@ -16,6 +16,7 @@ import 'package:slimm_app/src/features/settings/widgets/settings_toggle_row.dart
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import 'support/fake_mic_preview.dart' show quietMicPreview;
 import 'ui_snapshot_support.dart';
 import 'features/voice/voice_settings_screen_harness.dart' show FakeSession;
 
@@ -33,6 +34,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+            quietMicPreview,
             voiceControllerProvider.overrideWith(
               (ref) => VoiceController(ref, session: FakeSession()),
             ),

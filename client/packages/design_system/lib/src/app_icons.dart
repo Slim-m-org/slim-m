@@ -54,6 +54,9 @@ abstract final class AppIcons {
   static const IconData localNetwork = LucideIcons.plug300;
   static const IconData chevronDown = LucideIcons.chevronDown300;
   static const IconData chevronUp = LucideIcons.chevronUp300;
+
+  /// Opens the server switcher; up-down so it never reads as the space menu's chevron beside it.
+  static const IconData serverSwitcher = LucideIcons.chevronsUpDown300;
   static const IconData pin = LucideIcons.pin300;
 
   /// Keeping a message in your own private list, distinct from [pin],

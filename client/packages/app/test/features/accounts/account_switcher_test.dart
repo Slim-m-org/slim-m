@@ -40,6 +40,26 @@ void main() {
     expect(find.byKey(AccountSwitcherTrigger.triggerKey), findsNothing);
   });
 
+  testWidgets('the trigger uses the up-down icon, not the space menu chevron', (
+    tester,
+  ) async {
+    final h = await twoServers(tester);
+    await tester.pumpWidget(HostRoot(host: h.host, child: _header()));
+
+    final trigger = find.byKey(AccountSwitcherTrigger.triggerKey);
+    expect(
+      find.descendant(
+        of: trigger,
+        matching: find.byIcon(AppIcons.serverSwitcher),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: trigger, matching: find.byIcon(AppIcons.chevronDown)),
+      findsNothing,
+    );
+  });
+
   testWidgets('lists every server with the current one marked', (tester) async {
     final h = await twoServers(tester);
     await tester.pumpWidget(HostRoot(host: h.host, child: _header()));

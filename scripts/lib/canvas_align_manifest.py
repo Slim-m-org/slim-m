@@ -3,7 +3,7 @@
 
 Every object sits at a board coordinate chosen here, so a client's screenshot
 can be compared with where each marker should be. The board is the fixed
-1920x1080 frame of decision 0073, top-left at the world origin.
+1920x1080 shared area of decision 0073, top-left at the world origin.
 """
 import struct
 import zlib

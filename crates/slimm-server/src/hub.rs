@@ -44,10 +44,12 @@ use crate::typing::TypingTracker;
 mod created_lookups;
 mod event;
 mod event_util;
+mod handshake;
 mod memory_guard;
 mod moderation_seq;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
+pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
@@ -95,6 +97,7 @@ pub struct Hub {
     idle_poll_interval: Duration,
     memory_guard: Arc<MemoryGuard>,
     moderation: Arc<ModerationClock>,
+    handshake: handshake::Handshake,
 }
 
 /// Default value of [`Hub::idle_poll_interval`]: how often a live connection
@@ -296,6 +299,7 @@ impl Hub {
             idle_poll_interval: IDLE_POLL_INTERVAL,
             memory_guard: Arc::new(MemoryGuard::new()),
             moderation: Arc::new(ModerationClock::new()),
+            handshake: handshake::Handshake::new(),
         }
     }
 

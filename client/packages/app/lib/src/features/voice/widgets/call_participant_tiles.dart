@@ -185,7 +185,6 @@ class CallParticipantTile extends StatelessWidget {
               name: participant.name,
               userId: participant.identity,
               size: avatarSize,
-              speaking: participant.isSpeaking,
             ),
           ),
         ),
@@ -224,8 +223,8 @@ class CallParticipantTile extends StatelessWidget {
     );
     // This build's own context, so a popover anchors to this tile - see [onTap]'s doc.
     final onTapHere = onTap == null ? null : () => onTap!(context);
-    // A camera hides the avatar that carries the speaking ring, so the tile takes it.
-    final ringsTile = _showsCamera && participant.isSpeaking;
+    // The whole tile carries speaking, camera or not, so it reads from across a busy grid.
+    final ringsTile = participant.isSpeaking;
     Widget tile = Stack(
       clipBehavior: Clip.none,
       children: [
@@ -241,25 +240,41 @@ class CallParticipantTile extends StatelessWidget {
                 duration: AppMotion.reducedSize(context, AppMotion.base),
                 curve: AppMotion.entrance,
                 alignment: Alignment.topCenter,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: _showsCamera ? const Color(0xFF000000) : null,
-                      border: ringsTile
-                          ? Border.all(color: tokens.accent, width: 2)
-                          : Border.all(color: tokens.borderSubtle),
-                      borderRadius: BorderRadius.circular(AppRadii.card),
-                    ),
-                    child: SizedBox(
-                      width: width,
-                      height: height,
-                      child: _showsCamera
-                          ? _face(tokens.textPrimary, avatarSize)
-                          : CallTileBackdrop(
-                              identity: participant.identity,
-                              builder: (_, onFace) => _face(onFace, avatarSize),
+                child: DecoratedBox(
+                  // Outside the clip below, which would cut the glow off at the tile's edge.
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    boxShadow: ringsTile
+                        ? [
+                            BoxShadow(
+                              color: tokens.accent.withValues(alpha: 0.55),
+                              blurRadius: 16,
+                              spreadRadius: 1,
                             ),
+                          ]
+                        : null,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: _showsCamera ? const Color(0xFF000000) : null,
+                        border: ringsTile
+                            ? Border.all(color: tokens.accent, width: 2)
+                            : Border.all(color: tokens.borderSubtle),
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                      ),
+                      child: SizedBox(
+                        width: width,
+                        height: height,
+                        child: _showsCamera
+                            ? _face(tokens.textPrimary, avatarSize)
+                            : CallTileBackdrop(
+                                identity: participant.identity,
+                                builder: (_, onFace) =>
+                                    _face(onFace, avatarSize),
+                              ),
+                      ),
                     ),
                   ),
                 ),

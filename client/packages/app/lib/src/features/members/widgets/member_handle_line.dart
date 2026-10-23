@@ -42,7 +42,16 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
 
   @override
   Widget build(BuildContext context) {
-    final visible = _hovered || _focused || AppTouchTargets.of(context);
+    final touch = AppTouchTargets.of(context);
+    final visible = _hovered || _focused || touch;
+    final button = AppIconButton(
+      icon: AppIcons.copy,
+      semanticLabel: 'Copy username',
+      tooltip: 'Copy username',
+      size: AppIconButtonSize.sm,
+      iconSize: AppSizes.icon16,
+      onPressed: _copy,
+    );
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -66,14 +75,7 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
               opacity: visible ? 1 : 0,
               // A hidden icon is still the way a screen reader copies the handle.
               alwaysIncludeSemantics: true,
-              child: AppIconButton(
-                icon: AppIcons.copy,
-                semanticLabel: 'Copy username',
-                tooltip: 'Copy username',
-                size: AppIconButtonSize.sm,
-                iconSize: AppSizes.icon16,
-                onPressed: _copy,
-              ),
+              child: touch ? button : _lineHigh(button),
             ),
           ),
           if (widget.extras.isNotEmpty)
@@ -90,3 +92,16 @@ class _MemberHandleLineState extends ConsumerState<MemberHandleLine> {
     );
   }
 }
+
+/// With a mouse the copy button is drawn at full size but lays out no taller than the handle, so the card's lines stay together.
+Widget _lineHigh(Widget button) => SizedBox(
+  width: AppSizes.controlSm,
+  height: _handleLineHeight,
+  child: OverflowBox(
+    maxWidth: AppSizes.controlSm,
+    maxHeight: AppSizes.controlSm,
+    child: button,
+  ),
+);
+
+const double _handleLineHeight = AppSizes.icon16 + AppSpacing.s4;

@@ -19,8 +19,8 @@ import 'features/canvas/canvas_pane_harness.dart';
 
 void main() {
   /// The one route back once a temporary zoom has gone somewhere: the whole
-  /// shared board when nothing is drawn.
-  testWidgets('the zoom chip\'s fit brings the whole board back when empty', (
+  /// shared area when nothing is drawn.
+  testWidgets('the zoom chip\'s fit brings the shared area back when empty', (
     tester,
   ) async {
     final fixture = CanvasPaneFixture();
@@ -38,7 +38,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(document.isFitted, isTrue);
-    expect(document.visibleBoard, canvasBoard);
+    expect(document.visibleBoard, canvasSharedArea);
   });
 
   testWidgets('the zoom chip\'s fit frames what is drawn', (tester) async {

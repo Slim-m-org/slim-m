@@ -6,11 +6,12 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api show Me;
-import 'package:slimm_api/api.dart' show SlimmApiUsers;
+import 'package:slimm_api/api.dart' show LogTag, SlimmApiUsers, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
@@ -52,24 +53,22 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
   bool _busy = false;
 
   Future<void> _choose() async {
-    final file = await ref.read(
-      attachmentPickerProvider(AttachmentSource.photoLibrary),
-    )();
-    if (file == null || !mounted) return;
-    var bytes = await file.readAsBytes();
+    clearActionError();
+    final bytes = await _pickBytes();
+    if (bytes == null || !mounted) return;
+    var cropped = bytes;
     if (!looksAnimated(bytes)) {
-      if (!mounted) return;
-      final cropped = await showAvatarCropSheet(
+      final result = await showAvatarCropSheet(
         context,
         bytes,
         circular: false,
         aspect: kProfileBannerAspect,
       );
-      if (cropped == null || !mounted) return;
-      bytes = cropped;
+      if (result == null || !mounted) return;
+      cropped = result;
     }
     final fitted = await downscaledToFit(
-      bytes,
+      cropped,
       maxEdge: _maxEdge,
       maxBytes: _maxBytes,
     );
@@ -77,6 +76,27 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
       'upload the banner',
       () => ref.read(apiProvider).uploadBanner(fitted),
     );
+  }
+
+  /// The picked photo's bytes, or null after a cancel or a failure that has been shown.
+  Future<Uint8List?> _pickBytes() async {
+    try {
+      final file = await ref.read(
+        attachmentPickerProvider(AttachmentSource.photoLibrary),
+      )();
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return null;
+      if (!await canDecodeImage(bytes)) {
+        setActionError(unreadableImageMessage);
+        return null;
+      }
+      return bytes;
+    } catch (e, stack) {
+      reportFailure(LogTag.media, 'pick a banner photo', e, stack);
+      setActionError('Could not open that photo.');
+      return null;
+    }
   }
 
   Future<void> _run(

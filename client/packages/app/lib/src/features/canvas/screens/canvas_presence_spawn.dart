@@ -21,7 +21,7 @@ Set<String> presenceStartedByMe(
   ).difference(presenceTileKeys(before.where((p) => p.isLocal).toList()));
 }
 
-/// The rect for a new tile of [key]: centred on the viewport (or the board when no viewport is known), held to the board, nudged off [taken] where that is cheap.
+/// The rect for a new tile of [key]: centred on the viewport (or the shared area when no viewport is known), held to the board, nudged off [taken] where that is cheap.
 Rect? presenceSpawnRect(
   String key,
   CanvasDocument document, {
@@ -29,7 +29,7 @@ Rect? presenceSpawnRect(
 }) {
   final size = presenceTileSize(key);
   final Offset? centre = document.viewport.isEmpty
-      ? document.board?.center
+      ? document.sharedArea?.center
       : document.worldView.center;
   if (centre == null) return null;
   const step = 48.0;

@@ -40,7 +40,7 @@ void main() {
     await pumpCanvasPane(tester, container, board: true, tool: null);
     final document = surfaceDocument(tester)
       ..applyPlaced(
-        _legacyShape('far', const Rect.fromLTWH(2400, 1300, 300, 200)),
+        _legacyShape('far', const Rect.fromLTWH(3000, 1800, 300, 200)),
       )
       ..refresh();
     await tester.pump();
@@ -77,8 +77,8 @@ void main() {
           id: 'theirs',
           seq: 1,
           zIndex: 1,
-          x: 2400,
-          y: 1300,
+          x: 3000,
+          y: 1800,
           w: 300,
           h: 200,
           points: [],

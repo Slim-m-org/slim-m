@@ -211,6 +211,10 @@ void main() {
       );
     });
 
+    test('never plays where hold music is unavailable', () {
+      expect(shouldPlayHoldMusic(_alone, on, available: false), isFalse);
+    });
+
     test('never plays before the call has connected', () {
       expect(
         shouldPlayHoldMusic(

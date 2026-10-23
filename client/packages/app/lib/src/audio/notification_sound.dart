@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 
 import 'releasable_player.dart';
+import 'sound_audio_context.dart';
 
 /// Which chime to play.
 enum NotificationSound {
@@ -76,7 +77,11 @@ abstract class SoundPlayer {
 /// session, route, or focus a live call already holds - see the library
 /// doc comment above for why that is this package's whole reason to exist.
 class AudioPlayersSoundPlayer implements SoundPlayer {
-  AudioPlayersSoundPlayer({this.afterPlay});
+  AudioPlayersSoundPlayer({this.afterPlay, bool Function()? inCall})
+    : inCall = inCall ?? (() => false);
+
+  /// Whether a call holds the audio session right now.
+  final bool Function() inCall;
 
   /// Runs once a sound has started, to route its stream to the chosen speaker.
   final Future<void> Function()? afterPlay;
@@ -119,36 +124,35 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
   /// Public (not `_context`) because `scene_sound_player.dart` plays a
   /// module's sound under this identical configuration - a module's cue
   /// must be exactly as unable to steal a call's audio as a chime is.
-  static final sharedAmbientContext = AudioContext(
-    iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
-    android: const AudioContextAndroid(
-      contentType: AndroidContentType.sonification,
-      usageType: AndroidUsageType.notificationEvent,
-      audioFocus: AndroidAudioFocus.none,
-    ),
-  );
+  static final sharedAmbientContext = soundAudioContext;
 
   @override
   Future<void> play(NotificationSound sound) async {
+    if (callOwnsSoundSession(inCall: inCall())) return;
     // Stopped first, or two overlapping `play()` calls would race.
     await _player.stop();
-    await _player.play(
-      AssetSource(sound._playerPath),
-      volume: playbackVolume,
-      ctx: sharedAmbientContext,
+    await playQuietly(
+      () => _player.play(
+        AssetSource(sound._playerPath),
+        volume: playbackVolume,
+        ctx: sharedAmbientContext,
+      ),
     );
     unawaited(afterPlay?.call());
   }
 
   @override
   Future<void> loop(NotificationSound sound) async {
+    if (callOwnsSoundSession(inCall: inCall())) return;
     final player = _loopPlayer.current;
     await player.stop();
     await player.setReleaseMode(ReleaseMode.loop);
-    await player.play(
-      AssetSource(sound._playerPath),
-      volume: playbackVolume,
-      ctx: sharedAmbientContext,
+    await playQuietly(
+      () => player.play(
+        AssetSource(sound._playerPath),
+        volume: playbackVolume,
+        ctx: sharedAmbientContext,
+      ),
     );
     unawaited(afterPlay?.call());
   }

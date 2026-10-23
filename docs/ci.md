@@ -56,6 +56,13 @@ Two rows had omitted `workflow_dispatch` before this existed.
 
 It checks every workflow yields at least one trigger kind, per file rather than in aggregate: a workflow whose `on:` block drifts out of the parser's reach would otherwise be silently exempt while the other twenty keep the suite green.
 
+## Job timeouts
+
+Every job sets `timeout-minutes`, sized at roughly two to three times its slowest recent successful run, so a hung apt mirror or simulator cannot hold a required check, a release or a macOS runner for GitHub's six hour default.
+A job that calls a reusable workflow cannot carry the key; the callee's jobs do.
+`scripts/lib/test_every_workflow_job_has_a_timeout.py` fails when a job has none.
+Raise a job's limit when its real runtime grows toward it, rather than removing it.
+
 ## server-ci
 
 Path-gated so a client-only change never triggers a server build.
@@ -284,7 +291,7 @@ The deadline covers queueing, not running: client 0.23.0 timed out at the old th
 
 ## web-image
 
-Builds `docker/web.Dockerfile` into `ghcr.io/<owner>/slim-m-web`: `flutter build web --release --base-href /app/` at the pinned Flutter version, behind the unprivileged nginx image (`docker/web-nginx.conf`), which runs as a non-root user on port 8080.
+Builds `docker/web.Dockerfile` into `ghcr.io/<owner>/slim-m-web`: `flutter build web --release --base-href /app/ --no-web-resources-cdn` at the pinned Flutter version (CanvasKit is served from the image, not gstatic), behind the unprivileged nginx image (`docker/web-nginx.conf`, with a CSP, frame and nosniff headers from `docker/web-security-headers.conf`), which runs as a non-root user on port 8080.
 It is a reusable workflow with one input, the newline-separated tags for the merged manifest, and it has the same shape as `server-image` and `server-image-merge`: one image per architecture on a native runner, pushed by digest with an SBOM and provenance, then merged and cosign-signed keylessly.
 The merge job checks it got two digests, so a failed arch cannot ship a single-arch manifest.
 

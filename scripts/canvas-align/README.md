@@ -6,7 +6,7 @@ This tool checks the promise end to end.
 
 ## The scene
 
-`seed` places four objects through the real canvas API, all at known board coordinates (1920x1080 board, top-left at the origin):
+`seed` places four objects through the real canvas API, all at known board coordinates (the 1920x1080 shared area, top-left at the origin):
 
 - an image covering the whole board, with a flat cream field, a 100 unit grid and four coloured 80x80 corner markers
 - a 300x300 square shape at (1300, 200)
@@ -32,7 +32,7 @@ scripts/canvas-align/canvas-align.py capture-web --base-url https://host --web-u
 scripts/canvas-align/canvas-align.py measure --manifest manifest.json --annotate-dir diffs phone.png desktop.png
 ```
 
-`measure` finds the board in the screenshot from the reference image's cream field (the client clips the image to the board), maps each marker's centre to board coordinates, and prints its offset from the manifest in pixels and board units.
+`measure` finds the board in the screenshot from the reference image's cream field (the image is the shared area, inside a larger board), maps each marker's centre to board coordinates, and prints its offset from the manifest in pixels and board units.
 It exits non-zero when a marker is missing or more than 1 px away (`--tolerance` changes that), or when the board is too hidden to measure.
 `--annotate-dir` saves each screenshot with the board outline, the expected marker positions (white crosses) and the found ones (red circles).
 `capture-web` writes `web-<w>x<h>.png` and the annotated diffs under `diff/` in `--out-dir`.

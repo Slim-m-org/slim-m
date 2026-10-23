@@ -12,11 +12,14 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_platform/platform.dart';
 
 import '../features/members/providers/activity_sharing_settings.dart';
+import '../providers/background_key_store.dart';
 import '../providers/providers.dart';
 import 'spotify_client.dart';
 import 'spotify_config.dart';
@@ -33,7 +36,10 @@ const shareSpotifyKey = 'slimm.presence.share_spotify';
 const _exchangeTimeout = Duration(seconds: 20);
 
 final spotifyTokenStoreProvider = Provider<SpotifyTokenStore>(
-  (ref) => SpotifyTokenStore(ref.read(keyStoreProvider)),
+  (ref) => SpotifyTokenStore(
+    ref.read(keyStoreProvider),
+    background: ref.read(backgroundKeyStoreProvider),
+  ),
 );
 
 final spotifyClientProvider = Provider<SpotifyClient>((ref) {
@@ -50,12 +56,21 @@ final spotifyClientProvider = Provider<SpotifyClient>((ref) {
 /// next when that one goes; a revoked grant is told to every container.
 final _spotifyOwners = <Ref>[];
 
+/// Phones stop polling while backgrounded or locked; desktop has no such state.
+bool _appInForeground() {
+  // Only phones suspend a backgrounded app; a desktop window or a web tab keeps polling.
+  if (!isIOSHost && !isAndroidHost) return true;
+  final state = WidgetsBinding.instance.lifecycleState;
+  return state == null || state == AppLifecycleState.resumed;
+}
+
 final _spotifyShared = SharedStream<NowPlaying>(() {
   if (_spotifyOwners.isEmpty) return const Stream<NowPlaying?>.empty();
   final owner = _spotifyOwners.first;
   return SpotifyNowPlayingSource(
     client: owner.read(spotifyClientProvider),
     store: owner.read(spotifyTokenStoreProvider),
+    isForeground: _appInForeground,
     onRevoked: () async {
       for (final each in _spotifyOwners.toList()) {
         await each.read(spotifyLinkerProvider).revoked();
@@ -102,8 +117,13 @@ final spotifyLinkStatusProvider =
       final controller = SpotifyLinkStatusController(const SpotifyUnlinked());
       final store = ref.read(spotifyTokenStoreProvider);
       unawaited(() async {
-        if (await store.load() == null) return;
-        controller.set(SpotifyConnected(await store.loadAccount()));
+        try {
+          if (await store.load() == null) return;
+          controller.set(SpotifyConnected(await store.loadAccount()));
+        } on PlatformException catch (error, stack) {
+          if (!isKeychainLocked(error)) rethrow;
+          AppLog.swallowed(LogTag.ui, 'Keychain locked', error, stack);
+        }
       }());
       return controller;
     });

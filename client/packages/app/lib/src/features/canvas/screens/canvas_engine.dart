@@ -133,7 +133,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       }
     });
     // No fetch here: CanvasSurface's first setViewport call reaches _onCameraMoved below and fetches the real region, not a wasted one against a zero viewport.
-    document.setBoard(canvasBoard);
+    document.setBoard(canvasBoard, sharedArea: canvasSharedArea);
     document.addListener(_onCameraMoved);
     document.addListener(_follower.onViewMoved);
     viewMode.addListener(_follower.onViewModeChanged);
@@ -297,7 +297,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
 
   CanvasViewRelay? _viewRelay;
   CanvasViewRelay get viewRelay => _viewRelay ??= CanvasViewRelay(
-    board: canvasBoard,
+    board: canvasSharedArea,
     send: (view, {required summon}) =>
         _ref.read(syncControllerProvider.notifier).notifyCanvasView(channelId, (
           x: view.left,

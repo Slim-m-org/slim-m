@@ -14,6 +14,7 @@ jobs:
   e2e:
     name: e2e has not been red for several runs in a row
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     # Scoped to the job, not the workflow: least privilege, one job needs it.
     permissions:
       contents: read
@@ -31,6 +32,7 @@ jobs:
   main-builds:
     name: main-builds has not been red for several runs in a row
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
       contents: read
       issues: write

@@ -9,9 +9,13 @@ import 'dart:ui';
 
 import 'canvas_stroke.dart';
 
-/// The board's frame in world units; 16:9 so it fills a laptop and a monitor
-/// and letterboxes a portrait phone. Decision 0073.
-const Rect canvasBoard = Rect.fromLTWH(0, 0, 1920, 1080);
+/// The shared area in world units: the 16:9 frame every viewer opens on, and
+/// the region the board's first version held. Decision 0073.
+const Rect canvasSharedArea = Rect.fromLTWH(0, 0, 1920, 1080);
+
+/// The board's bounds in world units: the shared area grown to twice its size
+/// around its centre, so older drawings keep their coordinates.
+const Rect canvasBoard = Rect.fromLTWH(-960, -540, 3840, 2160);
 
 /// The zoom at which [board] exactly fits [viewport], the lowest a viewer can go.
 double boardFitZoom(Rect board, Size viewport) {
@@ -25,6 +29,10 @@ Camera boardFitCamera(Rect board, Size viewport) => clampCameraToBoard(
       board,
       viewport,
     );
+
+/// The camera that shows [shared] at its fit zoom, held to [board].
+Camera sharedAreaCamera(Rect shared, Rect board, Size viewport) =>
+    clampCameraToBoard(boardFitCamera(shared, viewport), board, viewport);
 
 /// [next] with its zoom held between the fit and [maxZoom] and its view kept
 /// over the board: the board is centred on an axis it does not fill, and

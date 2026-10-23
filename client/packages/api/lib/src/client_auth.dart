@@ -109,7 +109,16 @@ extension SlimmApiAuth on SlimmApi {
   /// wait existed at all.
   static const Duration _persistDeadline = Duration(seconds: 5);
 
-  Future<TokenPair> _refreshOnce() async {
+  Future<TokenPair> _refreshOnce() {
+    final sync = session.sync;
+    if (sync == null) return _rotate();
+    return sync.exclusive(() async {
+      final adopted = await session.adoptStoredRotation();
+      return adopted ?? await _rotate();
+    });
+  }
+
+  Future<TokenPair> _rotate() async {
     final current = session.tokens;
     if (current == null) {
       throw const UnauthorizedException('not signed in');

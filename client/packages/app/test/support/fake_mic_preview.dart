@@ -3,6 +3,8 @@
 /// level without a native audio stack.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_app/src/features/voice/providers/mic_preview.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -37,3 +39,19 @@ Override fakeMicPreview(FakeMicSource source) =>
         interval: const Duration(milliseconds: 10),
       ),
     );
+
+/// No native capture: the preview never opens, so a snapshot render that lets real time pass cannot reach the WebRTC plugin.
+final quietMicPreview = micPreviewFactoryProvider.overrideWithValue(
+  () => MicPreview(source: _NeverOpens(), openTimeout: null),
+);
+
+class _NeverOpens implements MicPreviewSource {
+  @override
+  Future<void> open(String? deviceId) => Completer<void>().future;
+
+  @override
+  Future<({double levelDb, bool voice})?> read() async => null;
+
+  @override
+  Future<void> close() async {}
+}

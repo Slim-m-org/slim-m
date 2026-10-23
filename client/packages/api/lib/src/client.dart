@@ -23,6 +23,7 @@ import 'upload_source.dart';
 part 'client_admin.dart';
 part 'client_attachments.dart';
 part 'client_auth.dart';
+part 'client_session_sync.dart';
 part 'client_bot_commands.dart';
 part 'client_bot_ui.dart';
 part 'client_watch_session.dart';
@@ -71,9 +72,15 @@ const _notASlimServer = 'that address is not a slim-m server';
 /// in tests) can vary without the client knowing, and so a refresh performed by
 /// one call is visible to every other.
 class SessionStore {
-  SessionStore({TokenPair? tokens, Future<void> Function(TokenPair?)? onChange})
-      : _tokens = tokens,
+  SessionStore({
+    TokenPair? tokens,
+    Future<void> Function(TokenPair?)? onChange,
+    this.sync,
+  })  : _tokens = tokens,
         _onChange = onChange;
+
+  /// How this session coordinates with other tabs sharing its storage; null where one process owns it.
+  final SessionSync? sync;
 
   TokenPair? _tokens;
   final Future<void> Function(TokenPair?)? _onChange;
