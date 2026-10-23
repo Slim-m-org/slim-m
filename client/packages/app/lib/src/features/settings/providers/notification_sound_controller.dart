@@ -66,6 +66,7 @@ class NotificationSoundController {
            player ??
            AudioPlayersSoundPlayer(
              afterPlay: _ref.read(soundOutputRouterProvider).followChosenOutput,
+             inCall: () => _ref.read(voiceControllerProvider).channelId != null,
            ),
        _messageHaptic = messageHaptic ?? AppHaptics.selection,
        _callRingHaptic = callRingHaptic ?? AppHaptics.impact,
