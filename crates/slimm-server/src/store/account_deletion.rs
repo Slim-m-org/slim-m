@@ -443,6 +443,12 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         sqlx::query!(
+            "DELETE FROM category_overwrites WHERE target_type = 'member' AND target_id = ?",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
             "DELETE FROM password_reset_codes WHERE user_id = ?",
             user_id
         )
