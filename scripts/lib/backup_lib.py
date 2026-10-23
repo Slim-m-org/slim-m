@@ -46,6 +46,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
+import backup_modules
 import path_guard
 
 
@@ -72,6 +73,12 @@ def parse_args(argv):
         default=_default("SLIMM_ATTACHMENTS_DIR", "data/media"),
         help="the media root holding attachments/ and avatars/ "
         "(default: $SLIMM_ATTACHMENTS_DIR or data/media)",
+    )
+    parser.add_argument(
+        "--modules-dir",
+        default=os.environ.get("SLIMM_MODULES_DIR"),
+        help="the per-module data files "
+        "(default: $SLIMM_MODULES_DIR, else a modules directory beside the database)",
     )
     parser.add_argument(
         "--backup-root", required=True, help="where snapshots and the media mirror live"
@@ -214,6 +221,8 @@ def run(args):
 
     attachments = sync_attachments(dest_db, args.media_dir, backup_root)
     avatars = sync_avatars(dest_db, args.media_dir, backup_root)
+    modules_dir = getattr(args, "modules_dir", None) or str(source_db.parent / "modules")
+    modules = backup_modules.backup_modules(modules_dir, backup_root)
     removed = prune_snapshots(db_dir, args.keep)
 
     manifest = {
@@ -224,6 +233,7 @@ def run(args):
         "snapshot_bytes": snapshot_bytes,
         "attachments": attachments,
         "avatars": avatars,
+        "modules": modules,
         "pruned_snapshots": removed,
         "not_covered": [
             "operator secrets in deploy/.env (LiveKit, Litestream, ACME)",
@@ -250,6 +260,9 @@ def run(args):
         print(f"  MISSING SOURCE FILE  avatars/{name}", file=sys.stderr)
     for reason in avatars["malformed"]:
         print(f"  MALFORMED ID  avatars: {reason}", file=sys.stderr)
+    print(f"modules: {len(modules['copied'])}/{modules['total']} data files copied")
+    for reason in modules["failed"]:
+        print(f"  FAILED  modules/{reason}", file=sys.stderr)
     if removed:
         print(f"pruned {len(removed)} older snapshot(s): {', '.join(removed)}")
 
@@ -260,6 +273,9 @@ def run(args):
             "report the same gap",
             file=sys.stderr,
         )
+        return 1
+    if modules["failed"]:
+        print("backup completed, but a module data file could not be copied", file=sys.stderr)
         return 1
     if attachments["malformed"] or avatars["malformed"]:
         print(
