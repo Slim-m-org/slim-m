@@ -220,4 +220,23 @@ void main() {
       expect(calls, 0);
     });
   });
+
+  group('platform fields on manifests', () {
+    test('subscriptions, the data cap and declared settings are read', () {
+      expect(
+        dockSubscriptions([
+          'message.created',
+          {'event': 'member.left'},
+          7,
+        ]),
+        ['message.created', 'member.left'],
+      );
+      expect(dockDataMaxMb({'max_mb': 16}), 16);
+      expect(dockDataMaxMb({'tables': <Object>[]}), 8);
+      expect(dockDataMaxMb(null), isNull);
+      expect(dockDeclaresSettings([<String, Object?>{}]), isTrue);
+      expect(dockDeclaresSettings(const []), isFalse);
+      expect(dockDeclaresSettings(null), isFalse);
+    });
+  });
 }
