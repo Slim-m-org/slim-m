@@ -122,7 +122,7 @@ async fn upload(
     enforce(&state, &parts, Some(&ctx), Class::Upload)?;
     require_manage_server(&state, ctx.user_id).await?;
 
-    super::attachments::room_for(&state, body.len() as i64).await?;
+    super::storage_room::room_for(&state, body.len() as i64).await?;
     let created = emoji::add_emoji(
         &state.store,
         &state.media,
@@ -193,7 +193,7 @@ async fn bulk_upload(
         return Err(ApiError::BadRequest("too much image data in one request"));
     }
 
-    super::attachments::room_for(&state, total_bytes as i64).await?;
+    super::storage_room::room_for(&state, total_bytes as i64).await?;
 
     let created = bulk::add_emoji_bulk(&state.store, &state.media, items, Some(ctx.user_id))
         .await

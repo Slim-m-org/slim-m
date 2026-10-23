@@ -26,6 +26,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, Json, Query, UPLOAD};
 use super::message_dto::AttachmentDto;
+use super::storage_room::{reserve_room, room_for};
 use crate::media::{self, StreamError};
 use crate::store::AttachmentSummary;
 
@@ -124,10 +125,13 @@ async fn upload(
     // Decided from the bytes only; `sniffable` guards the streamed-prefix seam.
     let content_type = media::attachment_content_type(sniffable(pending.sniff_prefix()));
     // The true streamed size no Content-Length can hide; a refusal drops the temp.
-    if let Err(err) = room_for(&state, pending.size() as i64).await {
-        pending.abandon().await.ok();
-        return Err(err);
-    }
+    let mut reservation = match reserve_room(&state, pending.size() as i64, None).await {
+        Ok(reservation) => reservation,
+        Err(err) => {
+            pending.abandon().await.ok();
+            return Err(err);
+        }
+    };
 
     let filename = media::sanitize_display_filename(params.filename.as_deref().unwrap_or("file"));
     if let Some(replacement) = super::attachment_compress::prepare(
@@ -140,6 +144,10 @@ async fn upload(
     .await?
     {
         let received = super::attachment_compress::Received::Pending(pending);
+        drop(std::mem::replace(
+            &mut reservation,
+            media::Reservation::none(),
+        ));
         let summary = replacement.store(&state, ctx.user_id, received).await?;
         return Ok((StatusCode::CREATED, Json(AttachmentDto::from(summary))));
     }
@@ -158,6 +166,7 @@ async fn upload(
         .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
         .await?;
     drop(placing);
+    drop(reservation);
     state.media.prewarm_preview(&hex_id, content_type);
 
     Ok((
@@ -369,19 +378,6 @@ pub(super) fn content_disposition(kind: &str, filename: &str) -> HeaderValue {
     HeaderValue::from_str(&disposition).unwrap_or_else(|_| HeaderValue::from_static("attachment"))
 }
 
-/// Refuses the upload if storing `incoming` bytes would put the deployment over
-/// `SLIMM_MAX_TOTAL_ATTACHMENT_BYTES`.
-///
-/// Checked before the bytes are written, never after, so a refusal leaves
-/// nothing on disk to reclaim - the same ordering the per-upload size limit
-/// above it uses.
-///
-/// Two things it deliberately is not. It is not a reservation: two uploads
-/// racing the last few bytes can both pass and land slightly over, which costs
-/// at most one attachment's worth and is the right trade against serialising
-/// every upload behind a write lock. And it is not a quota per account, which
-/// would need a policy answer about who gets how much that nobody has asked
-/// for; this is the disk, and the disk is shared.
 /// The operator's ceiling, lowered by the admin's Space setting when one is set.
 pub(super) async fn effective_attachment_max(state: &AppState) -> Result<u64, ApiError> {
     let ceiling = state.media.max_attachment_bytes();
@@ -389,17 +385,6 @@ pub(super) async fn effective_attachment_max(state: &AppState) -> Result<u64, Ap
         0 => ceiling,
         admin => admin.min(ceiling),
     })
-}
-
-pub(super) async fn room_for(state: &AppState, incoming: i64) -> Result<(), ApiError> {
-    let Some(ceiling) = state.media.max_total_attachment_bytes() else {
-        return Ok(());
-    };
-    let held = state.store.total_attachment_bytes().await?;
-    if held.saturating_add(incoming) as u64 > ceiling {
-        return Err(ApiError::InsufficientStorage);
-    }
-    Ok(())
 }
 
 #[cfg(test)]

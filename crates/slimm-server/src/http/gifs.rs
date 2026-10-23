@@ -61,10 +61,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::AppState;
-use super::attachments::room_for;
 use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, GIF, Json, Query};
 use super::message_dto::AttachmentDto;
+use super::storage_room::room_for;
 use crate::config::Config;
 use crate::media;
 use crate::permissions::Permissions;

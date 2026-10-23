@@ -9,8 +9,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::AppState;
-use super::attachments::room_for;
 use super::error::ApiError;
+use super::storage_room::reserve_room;
 use crate::ids::UserId;
 use crate::media::compress::{self, Compressed, Policy};
 use crate::media::{self, PendingAttachment, Uploads};
@@ -188,10 +188,13 @@ impl Replacement {
         } = self;
         let size = i64::try_from(compressed.bytes.len()).unwrap_or(i64::MAX);
         let kept = original.as_ref().map_or(0, |o| o.size);
-        if let Err(err) = room_for(state, size.saturating_add(kept)).await {
-            received.discard().await.ok();
-            return Err(err);
-        }
+        let _reservation = match reserve_room(state, size.saturating_add(kept), None).await {
+            Ok(reservation) => reservation,
+            Err(err) => {
+                received.discard().await.ok();
+                return Err(err);
+            }
+        };
         let sha256 = media::from_hex(&hex_id).expect("a hex id from sha256 is well-formed hex");
         let placing = state.media.blob_guard().await;
         let stored = async {
