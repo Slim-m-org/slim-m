@@ -4,6 +4,8 @@
 //! ([`super::data_sql`]); a [`DataBackend`] only runs what it is handed, against
 //! that module's own file. Every path fails closed with `{ok:false,error}`.
 
+use std::time::Duration;
+
 use serde_json::{Map, Value, json};
 
 use super::data_schema::DataSchema;
@@ -18,9 +20,14 @@ pub enum DataError {
     Conflict,
     /// The module has declared no data.
     NoSchema,
+    /// The statement ran past its time budget and was interrupted.
+    TooSlow,
     /// The store failed; the module sees a refusal, never the cause.
     Unavailable,
 }
+
+/// The longest one statement may run, however much of the run's wall clock is left.
+pub const MAX_CALL_TIME: Duration = Duration::from_millis(250);
 
 /// What a statement produced; the handler shapes it into the reply.
 #[derive(Debug, Default)]
@@ -34,16 +41,22 @@ pub struct Outcome {
 pub trait DataBackend: Send + Sync {
     /// The schema the module's file was last migrated to.
     fn schema(&self, module_id: &str) -> Result<DataSchema, DataError>;
-    fn execute(&self, module_id: &str, statement: &Statement) -> Result<Outcome, DataError>;
+    /// Runs `statement`, interrupting it once `budget` has passed.
+    fn execute(
+        &self,
+        module_id: &str,
+        statement: &Statement,
+        budget: Duration,
+    ) -> Result<Outcome, DataError>;
 }
 
 /// Dispatches one `data.store` request for `module_id`, spending one call of
-/// the run's budget shared with `kv.store`.
+/// the run's budget shared with `kv.store`; `budget` bounds the statement's own time.
 pub fn handle(
     backend: &dyn DataBackend,
     module_id: &str,
     calls_remaining: &mut u32,
-    request: &[u8],
+    (request, budget): (&[u8], Duration),
 ) -> Vec<u8> {
     if *calls_remaining == 0 {
         return refusal("data.store call budget for this run is exhausted");
@@ -57,7 +70,10 @@ pub fn handle(
         Ok(statement) => statement,
         Err(message) => return refusal(&message),
     };
-    match backend.execute(module_id, &statement) {
+    if budget.is_zero() {
+        return refusal(error_text(&DataError::TooSlow));
+    }
+    match backend.execute(module_id, &statement, budget) {
         Ok(outcome) => reply(&statement.shape, outcome),
         Err(err) => refusal(error_text(&err)),
     }
@@ -67,6 +83,7 @@ fn error_text(err: &DataError) -> &'static str {
     match err {
         DataError::Full => "data.store is full for this module",
         DataError::Conflict => "a unique column already holds that value",
+        DataError::TooSlow => "data call took too long",
         DataError::NoSchema => "this module declared no data",
         DataError::Unavailable => "data.store is unavailable",
     }

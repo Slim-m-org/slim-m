@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE module_settings SET value = ? WHERE module_id = ? AND key = ? AND value = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "346d48401c4ea547d41c74f795457c8ba3713165f2266e6ab98194c38a321d60"
+}

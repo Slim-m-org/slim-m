@@ -438,3 +438,24 @@ async fn non_secret_values_stay_plain_and_readable() {
     assert_eq!(values.get("mode"), Some(&json!("quiet")));
     assert!(!values.contains_key("api_key"));
 }
+
+#[tokio::test]
+async fn a_reseal_never_overwrites_a_value_an_admin_saved_since_it_was_read() {
+    slimm_server::module_runtime::treat_loopback_as_lan_for_tests(true);
+    let w = world("slimm-settings-secret-reseal-race").await;
+    let port = header_echo_upstream().await;
+    install_fetcher(&w, port, "api_key").await;
+    let token = admin_token(&w).await;
+    put_secret(&w, &token, json!("placeholder")).await;
+    set_raw(&w, "api_key", "\"legacy-token\"").await;
+
+    // The admin saves a new value after the legacy one was read but before it is sealed.
+    put_secret(&w, &token, json!("fresh-token")).await;
+    let sealed = w
+        .store
+        .seal_legacy_module_secret(MODULE, "api_key", "\"legacy-token\"")
+        .await;
+    assert!(!sealed, "a stale read must not seal");
+    let sent = w.answer(MODULE).await;
+    assert!(sent.contains("'body':'fresh-token'"), "{sent}");
+}

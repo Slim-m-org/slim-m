@@ -21,6 +21,12 @@ pub(super) const MAX_BACKGROUND_RUNS: usize = 2;
 /// How long a background run waits for its lane; long, since it is queued work and not a person.
 pub(super) const BACKGROUND_QUEUE_WAIT: Duration = Duration::from_secs(60);
 
+/// Slot fills (profile sections, member badges) that may execute at once, in a lane of their own
+/// so neither members' commands nor events wait on them, nor they on events.
+pub(super) const MAX_SLOT_RUNS: usize = 2;
+/// A slot fill is decoration on a page someone is loading, so it gives up quickly and shows nothing.
+pub(super) const SLOT_QUEUE_WAIT: Duration = Duration::from_secs(2);
+
 /// Which pool of run slots a run draws from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunLane {
@@ -28,6 +34,8 @@ pub enum RunLane {
     Member,
     /// The host started the run: a pushed event or a schedule.
     Background,
+    /// A slot fill for a member viewing a profile or member list.
+    Slot,
 }
 
 pub(super) struct RunGate {
@@ -56,11 +64,13 @@ impl RunGate {
 pub(super) fn shared(lane: RunLane) -> &'static RunGate {
     static MEMBER: OnceLock<RunGate> = OnceLock::new();
     static BACKGROUND: OnceLock<RunGate> = OnceLock::new();
+    static SLOT: OnceLock<RunGate> = OnceLock::new();
     match lane {
         RunLane::Member => MEMBER.get_or_init(|| RunGate::new(MAX_CONCURRENT_RUNS, QUEUE_WAIT)),
         RunLane::Background => {
             BACKGROUND.get_or_init(|| RunGate::new(MAX_BACKGROUND_RUNS, BACKGROUND_QUEUE_WAIT))
         }
+        RunLane::Slot => SLOT.get_or_init(|| RunGate::new(MAX_SLOT_RUNS, SLOT_QUEUE_WAIT)),
     }
 }
 

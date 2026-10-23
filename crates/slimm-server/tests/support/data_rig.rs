@@ -64,6 +64,14 @@ impl Rig {
         serde_json::from_slice(&reply).expect("a JSON reply")
     }
 
+    /// As [`raw`](Self::raw), with the run's wall-clock `deadline`.
+    pub fn raw_before(&mut self, request: &Value, deadline: std::time::Instant) -> Value {
+        let bytes = request.to_string().into_bytes();
+        let reply =
+            tokio::task::block_in_place(|| self.surface.dispatch_before(&bytes, Some(deadline)));
+        serde_json::from_slice(&reply).expect("a JSON reply")
+    }
+
     pub fn store(&mut self, mut request: Value) -> Value {
         request["capability"] = json!("data.store");
         self.raw(&request)

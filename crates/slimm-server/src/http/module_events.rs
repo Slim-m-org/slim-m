@@ -17,7 +17,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 
 use self::build::{ReactionTally, build, classify};
-use self::queue::{QUEUE_CAPACITY, Queues};
+use self::queue::{Origin, QUEUE_CAPACITY, Queues};
 use self::wire::ModuleEvent;
 use super::AppState;
 use crate::hub::Event;
@@ -111,7 +111,7 @@ async fn enqueue(
             None => true,
         };
         if sees {
-            receivers.push(candidate.module_id);
+            receivers.push((candidate.module_id, candidate.bot_user_id));
         }
     }
     if receivers.is_empty() {
@@ -125,8 +125,17 @@ async fn enqueue(
             data: built.data,
         })?
         .into();
-        for module_id in &receivers {
-            queues.push(module_id, kind.name, body.clone());
+        let origin = Origin {
+            channel: kind.channel,
+            created_message: built.created.map(|(message, _)| message),
+        };
+        for (module_id, bot) in &receivers {
+            let own = built
+                .created
+                .is_some_and(|(_, author)| author == Some(*bot));
+            if !own {
+                queues.push(module_id, (kind.name, origin), body.clone());
+            }
         }
     }
     Ok(())

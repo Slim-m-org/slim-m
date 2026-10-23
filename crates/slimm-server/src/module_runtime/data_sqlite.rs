@@ -8,8 +8,9 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
@@ -17,7 +18,7 @@ use sqlx::{ConnectOptions, Connection, Row, SqlitePool};
 use tokio::runtime::Handle;
 
 use super::data::{DataBackend, DataError, Outcome};
-use super::data_migrate::plan;
+use super::data_migrate::{newly_unique, plan};
 use super::data_schema::{ColumnType, DataSchema};
 use super::data_sql::{Bind, Shape, Statement};
 
@@ -35,9 +36,43 @@ pub fn valid_file_id(id: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
+/// SQLite instructions between checks of the running statement's deadline.
+const PROGRESS_OPS: i32 = 1000;
+
+/// The deadline of the statement a connection is running, read by its progress handler.
+struct Interrupt {
+    base: Instant,
+    until_ms: AtomicU64,
+}
+
+impl Interrupt {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            base: Instant::now(),
+            until_ms: AtomicU64::new(u64::MAX),
+        })
+    }
+
+    fn set(&self, budget: Duration) {
+        let until = self.base.elapsed().saturating_add(budget).as_millis();
+        self.until_ms
+            .store(u64::try_from(until).unwrap_or(u64::MAX), Ordering::Relaxed);
+    }
+
+    fn clear(&self) {
+        self.until_ms.store(u64::MAX, Ordering::Relaxed);
+    }
+
+    fn within_budget(&self) -> bool {
+        let now = u64::try_from(self.base.elapsed().as_millis()).unwrap_or(u64::MAX);
+        now < self.until_ms.load(Ordering::Relaxed)
+    }
+}
+
 struct Opened {
     pool: SqlitePool,
     schema: DataSchema,
+    interrupt: Arc<Interrupt>,
 }
 
 pub struct SqliteData {
@@ -82,7 +117,11 @@ impl SqliteData {
     pub async fn check_schema(&self, module_id: &str, schema: &DataSchema) -> Result<(), String> {
         let path = self.path_for(module_id)?;
         let old = stored_schema(&path).await?;
-        plan(old.as_ref(), schema).map(|_| ())
+        plan(old.as_ref(), schema)?;
+        match old {
+            Some(old) => refuse_duplicates(&path, &newly_unique(&old, schema)).await,
+            None => Ok(()),
+        }
     }
 
     /// Removes the module's file and its journal files; a missing file is fine.
@@ -127,8 +166,18 @@ impl DataBackend for SqliteData {
         self.with_opened(module_id, |o| Ok(o.schema.clone()))
     }
 
-    fn execute(&self, module_id: &str, statement: &Statement) -> Result<Outcome, DataError> {
-        self.with_opened(module_id, |o| self.handle.block_on(run(&o.pool, statement)))
+    fn execute(
+        &self,
+        module_id: &str,
+        statement: &Statement,
+        budget: Duration,
+    ) -> Result<Outcome, DataError> {
+        self.with_opened(module_id, |o| {
+            o.interrupt.set(budget);
+            let outcome = self.handle.block_on(run(&o.pool, statement));
+            o.interrupt.clear();
+            outcome
+        })
     }
 }
 
@@ -200,13 +249,27 @@ async fn open_existing(path: &Path) -> Result<Option<Opened>, DataError> {
         return Ok(None);
     };
     let pages = u64::from(schema.max_mb) * 1024 * 1024 / PAGE_BYTES;
+    let interrupt = Interrupt::new();
+    let watched = Arc::clone(&interrupt);
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
+        .after_connect(move |conn, _| {
+            let watched = Arc::clone(&watched);
+            Box::pin(async move {
+                let mut handle = conn.lock_handle().await?;
+                handle.set_progress_handler(PROGRESS_OPS, move || watched.within_budget());
+                Ok(())
+            })
+        })
         .acquire_timeout(BUSY_TIMEOUT * 2)
         .connect_with(options(path).pragma("max_page_count", pages.to_string()))
         .await
         .map_err(|_| DataError::Unavailable)?;
-    Ok(Some(Opened { pool, schema }))
+    Ok(Some(Opened {
+        pool,
+        schema,
+        interrupt,
+    }))
 }
 
 async fn run_ddl(path: &Path, ddl: &[String], schema: &DataSchema) -> Result<(), sqlx::Error> {
@@ -230,12 +293,42 @@ async fn run_ddl(path: &Path, ddl: &[String], schema: &DataSchema) -> Result<(),
     conn.close().await
 }
 
+/// Refuses a new unique index over a column whose rows already repeat a value; NULLs may repeat.
+async fn refuse_duplicates(path: &Path, columns: &[(String, String)]) -> Result<(), String> {
+    if columns.is_empty() {
+        return Ok(());
+    }
+    let mut conn = options(path).connect().await.map_err(unreadable)?;
+    let mut result = Ok(());
+    for (table, column) in columns {
+        let sql = format!(
+            "SELECT 1 FROM \"{table}\" WHERE \"{column}\" IS NOT NULL GROUP BY \"{column}\" HAVING COUNT(*) > 1 LIMIT 1"
+        );
+        match sqlx::query(&sql).fetch_optional(&mut conn).await {
+            Ok(None) => {}
+            Ok(Some(_)) => {
+                result = Err(format!(
+                    "column {table}.{column} already holds repeated values, so it cannot become unique"
+                ));
+                break;
+            }
+            Err(_) => {
+                result = Err(unreadable(()));
+                break;
+            }
+        }
+    }
+    let _ = conn.close().await;
+    result
+}
+
 fn classify(err: &sqlx::Error) -> DataError {
     let Some(db) = err.as_database_error() else {
         return DataError::Unavailable;
     };
     match db.code().as_deref() {
         Some("13") => DataError::Full,
+        Some("9") => DataError::TooSlow,
         Some("2067" | "1555") => DataError::Conflict,
         _ if db.message().contains("database or disk is full") => DataError::Full,
         _ => DataError::Unavailable,

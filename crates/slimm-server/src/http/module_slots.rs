@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE, Query};
-use super::module_run::{RunRequest, run_installed};
+use super::module_run::{RunKind, RunRequest, run_installed};
 use super::module_slot_cache::SlotKey;
 use super::module_slot_nodes::{SlotItem, parse_response};
 use crate::ids::UserId;
@@ -206,10 +206,13 @@ async fn items_for(
     if missing.is_empty() {
         return found;
     }
-    let mut fresh = run_slot(state, module, slot, viewer, &missing).await;
+    let generation = cache.generation(&module.id);
+    let Some(mut fresh) = run_slot(state, module, slot, viewer, &missing).await else {
+        return found;
+    };
     for member in missing {
         let item = fresh.remove(&member);
-        cache.put(key(member), item.clone(), Instant::now());
+        cache.put(key(member), item.clone(), (Instant::now(), generation));
         if let Some(item) = item {
             found.insert(member, item);
         }
@@ -228,31 +231,34 @@ fn slot_input(slot: &ModuleSlot, members: &[UserId], viewer: UserId) -> String {
     .to_string()
 }
 
-/// Runs the module for `members` through the same gate as a member's command; any failure yields nothing.
+/// Runs the module for `members` in the slot lane; a failure yields nothing to cache.
+/// `None` means it never ran (the viewer has a fill going, or the lane was full), so nothing is cached either.
 async fn run_slot(
     state: &AppState,
     module: &InstalledModule,
     slot: &ModuleSlot,
     viewer: UserId,
     members: &[UserId],
-) -> HashMap<UserId, SlotItem> {
+) -> Option<HashMap<UserId, SlotItem>> {
+    let _fill = state.dock.slot_cache().begin_fill(viewer)?;
     let input = slot_input(slot, members, viewer);
     let surface = super::module_host::surface_for(state, module, viewer, None);
-    // Scheduled-style accounting, so a module answering ok:false counts as a failed run.
     let request = RunRequest {
         caller: viewer,
         command: SLOT_COMMAND,
         input: &input,
-        scheduled: true,
+        kind: RunKind::Slot,
     };
-    let Ok(outcome) = run_installed(state, module, &request, surface).await else {
-        return HashMap::new();
+    let outcome = match run_installed(state, module, &request, surface).await {
+        Ok(outcome) if super::module_breaker::was_turned_away(&outcome) => return None,
+        Ok(outcome) => outcome,
+        Err(_) => return Some(HashMap::new()),
     };
     if !outcome.ok {
-        return HashMap::new();
+        return Some(HashMap::new());
     }
     if let Some(items) = parse_response(&outcome.payload, members) {
-        return items;
+        return Some(items);
     }
     let junk = RunResult::Failed("the module's slot response was not slot/1".into());
     if let Err(err) = state
@@ -262,7 +268,7 @@ async fn run_slot(
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
     }
-    HashMap::new()
+    Some(HashMap::new())
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 //! A short memory of what modules returned for a slot, so a profile opened
 //! twice or a member list scrolled past does not run a module each time.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -23,43 +23,90 @@ pub(crate) struct SlotKey {
     pub(crate) member: UserId,
 }
 
-type Entries = HashMap<SlotKey, (Instant, Option<SlotItem>)>;
+#[derive(Default)]
+struct Inner {
+    entries: HashMap<SlotKey, (Instant, Option<SlotItem>)>,
+    /// Bumped on every invalidation, so a run that began before one cannot store its answer after it.
+    generations: HashMap<String, u64>,
+    /// Viewers with a slot fill in flight; one at a time keeps a member from filling the lane.
+    filling: HashSet<UserId>,
+}
 
 #[derive(Clone, Default)]
 pub struct SlotCache {
-    entries: Arc<Mutex<Entries>>,
+    inner: Arc<Mutex<Inner>>,
+}
+
+/// Holds a viewer's place as the one with a slot fill in flight, until dropped.
+pub(crate) struct ViewerFill {
+    cache: SlotCache,
+    viewer: UserId,
+}
+
+impl Drop for ViewerFill {
+    fn drop(&mut self) {
+        self.cache.lock().filling.remove(&self.viewer);
+    }
 }
 
 impl SlotCache {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Inner> {
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     /// `Some(None)` is a cached "nothing to show"; `None` is a miss.
     pub(crate) fn get(&self, key: &SlotKey, now: Instant) -> Option<Option<SlotItem>> {
-        let entries = self.entries.lock().ok()?;
-        let (at, item) = entries.get(key)?;
+        let inner = self.lock();
+        let (at, item) = inner.entries.get(key)?;
         (now.saturating_duration_since(*at) < TTL).then(|| item.clone())
     }
 
-    pub(crate) fn put(&self, key: SlotKey, item: Option<SlotItem>, now: Instant) {
-        let Ok(mut entries) = self.entries.lock() else {
+    /// Where a module's cache stands; pass it to [`Self::put`] with what a run that began now returns.
+    pub(crate) fn generation(&self, module_id: &str) -> u64 {
+        self.lock().generations.get(module_id).copied().unwrap_or(0)
+    }
+
+    /// Stores `item` unless the module was invalidated since `generation` was read.
+    pub(crate) fn put(
+        &self,
+        key: SlotKey,
+        item: Option<SlotItem>,
+        (now, generation): (Instant, u64),
+    ) {
+        let mut inner = self.lock();
+        if inner.generations.get(&key.module_id).copied().unwrap_or(0) != generation {
             return;
-        };
-        if entries.len() >= MAX_ENTRIES {
-            entries.retain(|_, (at, _)| now.saturating_duration_since(*at) < TTL);
         }
-        if entries.len() < MAX_ENTRIES {
-            entries.insert(key, (now, item));
+        if inner.entries.len() >= MAX_ENTRIES {
+            inner
+                .entries
+                .retain(|_, (at, _)| now.saturating_duration_since(*at) < TTL);
+        }
+        if inner.entries.len() < MAX_ENTRIES {
+            inner.entries.insert(key, (now, item));
         }
     }
 
-    /// Dropped when a module is disabled, updated or uninstalled.
+    /// Dropped when a module is disabled, updated, reconfigured or uninstalled.
     pub(crate) fn invalidate_module(&self, module_id: &str) {
-        if let Ok(mut entries) = self.entries.lock() {
-            entries.retain(|key, _| key.module_id != module_id);
-        }
+        let mut inner = self.lock();
+        inner.entries.retain(|key, _| key.module_id != module_id);
+        *inner.generations.entry(module_id.to_owned()).or_default() += 1;
+    }
+
+    /// The viewer's place, or `None` while another of their fills is still running.
+    pub(crate) fn begin_fill(&self, viewer: UserId) -> Option<ViewerFill> {
+        self.lock().filling.insert(viewer).then(|| ViewerFill {
+            cache: self.clone(),
+            viewer,
+        })
     }
 
     #[cfg(test)]
     fn len(&self) -> usize {
-        self.entries.lock().map_or(0, |e| e.len())
+        self.lock().entries.len()
     }
 }
 
@@ -84,7 +131,7 @@ mod tests {
         let k = key("xp", UserId::generate());
         let t0 = Instant::now();
         assert_eq!(cache.get(&k, t0), None);
-        cache.put(k.clone(), None, t0);
+        cache.put(k.clone(), None, (t0, 0));
         assert_eq!(cache.get(&k, t0 + Duration::from_secs(29)), Some(None));
         assert_eq!(cache.get(&k, t0 + Duration::from_secs(30)), None);
     }
@@ -97,8 +144,8 @@ mod tests {
             key("other", UserId::generate()),
         );
         let now = Instant::now();
-        cache.put(xp.clone(), None, now);
-        cache.put(other.clone(), None, now);
+        cache.put(xp.clone(), None, (now, 0));
+        cache.put(other.clone(), None, (now, 0));
         cache.invalidate_module("xp");
         assert_eq!(cache.get(&xp, now), None);
         assert_eq!(cache.get(&other, now), Some(None));
@@ -109,12 +156,36 @@ mod tests {
         let cache = SlotCache::default();
         let t0 = Instant::now();
         for _ in 0..MAX_ENTRIES {
-            cache.put(key("xp", UserId::generate()), None, t0);
+            cache.put(key("xp", UserId::generate()), None, (t0, 0));
         }
-        cache.put(key("xp", UserId::generate()), None, t0);
+        cache.put(key("xp", UserId::generate()), None, (t0, 0));
         assert_eq!(cache.len(), MAX_ENTRIES, "full and fresh: not stored");
         let later = t0 + Duration::from_secs(31);
-        cache.put(key("xp", UserId::generate()), None, later);
+        cache.put(key("xp", UserId::generate()), None, (later, 0));
         assert_eq!(cache.len(), 1, "expired entries made room");
+    }
+
+    #[test]
+    fn an_answer_from_before_an_invalidation_is_not_stored_after_it() {
+        let cache = SlotCache::default();
+        let k = key("xp", UserId::generate());
+        let now = Instant::now();
+        let began = cache.generation("xp");
+        cache.invalidate_module("xp");
+        cache.put(k.clone(), None, (now, began));
+        assert_eq!(cache.get(&k, now), None, "the stale run was not stored");
+        cache.put(k.clone(), None, (now, cache.generation("xp")));
+        assert_eq!(cache.get(&k, now), Some(None));
+    }
+
+    #[test]
+    fn a_viewer_has_one_fill_in_flight_at_a_time() {
+        let cache = SlotCache::default();
+        let (ada, bob) = (UserId::generate(), UserId::generate());
+        let first = cache.begin_fill(ada).expect("the first fill");
+        assert!(cache.begin_fill(ada).is_none());
+        assert!(cache.begin_fill(bob).is_some(), "others are not held up");
+        drop(first);
+        assert!(cache.begin_fill(ada).is_some());
     }
 }

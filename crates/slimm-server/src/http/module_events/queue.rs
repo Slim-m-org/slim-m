@@ -8,8 +8,19 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::Notify;
 
+use crate::ids::{ChannelId, MessageId};
+
 /// Events held per module before the oldest is dropped.
 pub(super) const QUEUE_CAPACITY: usize = 256;
+
+/// What delivery re-checks before the rendered body is handed over.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct Origin {
+    /// The channel the module must still be able to view.
+    pub(super) channel: Option<ChannelId>,
+    /// The message a `message.created` event carries, which must still exist.
+    pub(super) created_message: Option<MessageId>,
+}
 
 /// One event for one module, already rendered as the run's input text.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,11 +28,14 @@ pub(super) struct Job {
     pub(super) module_id: String,
     pub(super) kind: &'static str,
     pub(super) body: Arc<str>,
+    pub(super) origin: Origin,
 }
+
+type Pending = (&'static str, Arc<str>, Origin);
 
 #[derive(Default)]
 struct State {
-    queues: HashMap<String, VecDeque<(&'static str, Arc<str>)>>,
+    queues: HashMap<String, VecDeque<Pending>>,
     /// Modules with something queued and nothing in flight, in service order.
     ready: VecDeque<String>,
     running: HashSet<String>,
@@ -44,7 +58,12 @@ impl Queues {
     }
 
     /// Queues `body` for `module_id`; returns true when the oldest event was dropped to fit it.
-    pub(super) fn push(&self, module_id: &str, kind: &'static str, body: Arc<str>) -> bool {
+    pub(super) fn push(
+        &self,
+        module_id: &str,
+        (kind, origin): (&'static str, Origin),
+        body: Arc<str>,
+    ) -> bool {
         let mut guard = self.lock();
         let state = &mut *guard;
         let queue = state.queues.entry(module_id.to_owned()).or_default();
@@ -53,7 +72,7 @@ impl Queues {
         if dropped {
             queue.pop_front();
         }
-        queue.push_back((kind, body));
+        queue.push_back((kind, body, origin));
         if dropped {
             *state.dropped.entry(module_id.to_owned()).or_default() += 1;
         } else if was_empty && !state.running.contains(module_id) {
@@ -68,12 +87,13 @@ impl Queues {
     pub(super) fn take(&self) -> Option<Job> {
         let mut state = self.lock();
         let module_id = state.ready.pop_front()?;
-        let (kind, body) = state.queues.get_mut(&module_id)?.pop_front()?;
+        let (kind, body, origin) = state.queues.get_mut(&module_id)?.pop_front()?;
         state.running.insert(module_id.clone());
         Some(Job {
             module_id,
             kind,
             body,
+            origin,
         })
     }
 
@@ -92,6 +112,19 @@ impl Queues {
         let mut state = self.lock();
         state.queues.remove(module_id);
         state.ready.retain(|m| m != module_id);
+    }
+
+    /// Drops only the events of `kind` queued for a module no longer subscribed to it.
+    pub(super) fn clear_kind(&self, module_id: &str, kind: &str) {
+        let mut state = self.lock();
+        let Some(queue) = state.queues.get_mut(module_id) else {
+            return;
+        };
+        queue.retain(|(k, _, _)| *k != kind);
+        if queue.is_empty() {
+            state.queues.remove(module_id);
+            state.ready.retain(|m| m != module_id);
+        }
     }
 
     /// Drops counted since the last call, to be stored.
@@ -126,7 +159,9 @@ mod tests {
     #[test]
     fn a_full_queue_drops_the_oldest_and_counts_it() {
         let queues = Queues::new(3);
-        let dropped: Vec<bool> = (0..5).map(|n| queues.push("m", "k", body(n))).collect();
+        let dropped: Vec<bool> = (0..5)
+            .map(|n| queues.push("m", ("k", Origin::default()), body(n)))
+            .collect();
         assert_eq!(dropped, [false, false, false, true, true]);
         assert_eq!(queues.len("m"), 3);
         assert_eq!(queues.take_dropped(), vec![("m".to_owned(), 2)]);
@@ -138,8 +173,8 @@ mod tests {
     #[test]
     fn a_module_runs_one_event_at_a_time_and_in_order() {
         let queues = Queues::new(8);
-        queues.push("m", "k", body(1));
-        queues.push("m", "k", body(2));
+        queues.push("m", ("k", Origin::default()), body(1));
+        queues.push("m", ("k", Origin::default()), body(2));
         let first = queues.take().expect("first");
         assert_eq!(&*first.body, "1");
         assert!(queues.take().is_none(), "second waits for the first");
@@ -151,9 +186,9 @@ mod tests {
     fn modules_take_turns() {
         let queues = Queues::new(8);
         for n in 0..3 {
-            queues.push("a", "k", body(n));
+            queues.push("a", ("k", Origin::default()), body(n));
         }
-        queues.push("b", "k", body(9));
+        queues.push("b", ("k", Origin::default()), body(9));
         let order: Vec<String> = (0..2)
             .map(|_| {
                 let job = queues.take().expect("job");
@@ -167,8 +202,21 @@ mod tests {
     #[test]
     fn clearing_a_module_forgets_its_events() {
         let queues = Queues::new(8);
-        queues.push("a", "k", body(1));
+        queues.push("a", ("k", Origin::default()), body(1));
         queues.clear("a");
         assert!(queues.take().is_none());
+    }
+
+    #[test]
+    fn clearing_one_kind_keeps_the_modules_other_events() {
+        let queues = Queues::new(8);
+        queues.push("a", ("gone", Origin::default()), body(1));
+        queues.push("a", ("kept", Origin::default()), body(2));
+        queues.clear_kind("a", "gone");
+        assert_eq!(&*queues.take().expect("the other kind").body, "2");
+        queues.finish("a");
+        queues.push("a", ("gone", Origin::default()), body(3));
+        queues.clear_kind("a", "gone");
+        assert!(queues.take().is_none(), "an emptied queue is not ready");
     }
 }

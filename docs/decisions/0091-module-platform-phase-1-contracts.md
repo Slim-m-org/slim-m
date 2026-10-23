@@ -95,9 +95,11 @@ At most 4 entries.
 The host runs a consumer that subscribes to the hub, filters per module and queues per module.
 
 - The queue holds 256 events per module and drops the oldest first, counting drops in `module_run_stats`.
+- Visibility is checked again at delivery: an event for a channel the module's principal can no longer view is dropped, and so is a `message.created` whose message was deleted while it waited. `message.deleted` is still delivered.
+- A module is never sent a `message.created` for a message its own principal wrote.
 - Delivery is a normal module run with `command: "@event"` and `input` set to the JSON text `{"event","id","at_ms","data"}`.
   No ABI change: a module that does not handle `@event` returns `{ok:false}` and counts as a failure.
-- `id` is minted by the host and stable for the same occurrence: `message:<id>`, `voice-session:<id>`, `member-join:<user>:<ms>`.
+- `id` is minted once per delivered event, and the host never redelivers: `message:<id>`, `voice-session:<id>`, `member-join:<user>:<ms>`.
 - The run's `caller.id` is the module's principal, never the event's author.
 - Events and schedules share their own lane of 2 concurrent runs, separate from the 4 slots members' commands use.
 - A circuit breaker counts consecutive failed runs (trap, timeout, fuel, `ok:false`).
@@ -155,7 +157,8 @@ An `update` with `add` runs `column = column + n` in the same statement as any `
 All rows are validated first and written in one statement, so one bad row writes none.
 A multi-row `insert` or an `add` is still one call of the run's budget.
 A non-numeric or unknown `add` column, an `add` amount above 2^53, an empty or oversized `rows`, and `add` or `rows` on any other op are refused.
-Limits: 64 calls per run (shared with `kv.store`, inside the 128 host calls of any kind a run may make), 200 rows per query, 4 KB per text value, and the file cap from `max_mb`.
+Limits: 64 calls per run (shared with `kv.store`, inside the 128 host calls of any kind a run may make), 200 rows per query, an `offset` of at most 10,000, 4 KB per text value, a `like` pattern of at most 256 bytes (1 KB across one statement), and the file cap from `max_mb`.
+Each statement is also interrupted after 250 ms, or sooner when less of the run's wall clock is left, and the module sees `{ok:false,error:"data call took too long"}`.
 The file is `<modules_dir>/<module id>.db`, where `modules_dir` is `SLIMM_MODULES_DIR` and defaults beside the main database.
 Statements are built by the host, parameterised, and run on a connection that has `max_page_count` set.
 
@@ -174,6 +177,7 @@ Routes, both behind `MANAGE_SERVER`:
 The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids","viewer_id"}`, and `caller.id` is the viewer's.
 The module returns `{"$slim":"slot/1","items":{"<user_id>":{ "nodes":[...], "fallback":"..." }}}`.
 Responses are cached 30 seconds per module, slot, viewer and member, an empty answer included.
+Slot runs have a lane of their own (2 at a time, waiting at most 2 seconds, then showing nothing and caching nothing), one fill per viewer at a time, and never count toward the circuit breaker; a failed or malformed reply is a failed run in `module_run_stats` only.
 Routes, for any signed-in member:
 
 - `GET /space/dock/slots/profile/{user_id}` returns `{sections:[{module_id, name, title, nodes, fallback}]}`.

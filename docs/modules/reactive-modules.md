@@ -57,7 +57,7 @@ The events:
 | `voice.session.closed` | `session_id`, `user_id`, `channel_id`, `joined_at_ms`, `left_at_ms`, `alone_ms` | `voice-session:<session id>` |
 
 `reaction.changed` is sent once for each emoji whose count moved, with the new count (0 when the last reaction was removed).
-`id` is minted by the host and is the same for the same occurrence, so use it to ignore a repeat.
+`id` is minted once per delivered event and the host never redelivers, so it names that delivery.
 `at_ms` is the occurrence time where the event has one and the time the host saw it otherwise.
 
 Who receives what:
@@ -71,6 +71,8 @@ Who receives what:
 How delivery behaves:
 
 - Each module has its own queue of 256 events.
+- Access is checked again when an event is delivered, so one for a channel the bot can no longer view, or a new message deleted while it waited, is dropped.
+- A module is not sent the messages its own bot wrote.
   When it is full the oldest event is dropped and the drop is counted.
 - A module gets one event at a time, in the order queued.
   Events and schedules share a lane of 2 concurrent runs across all modules, separate from the 4 slots members' commands use.
@@ -204,7 +206,9 @@ Rows carry `_id` and every declared column.
   A condition value cannot be null.
 - `update` and `delete` with no `where` affect every row.
 - `order` has at most 4 entries, each `{col, dir}` with `dir` of `asc` or `desc`.
-- `limit` is 1 to 200 and defaults to 200, and `offset` is at most 1,000,000.
+- `limit` is 1 to 200 and defaults to 200, and `offset` is at most 10,000.
+- A `like` pattern is at most 256 bytes, and one statement carries at most 1 KB of them.
+- A statement is interrupted after 250 ms, or sooner when the run has less wall clock left, and the call returns `{ok:false,error:"data call took too long"}`.
 - A `text` value is at most 4 KB, a `bool` column takes `true` or `false`, and a value must match its column's type.
 - `increment` adds `by` (default 1 for an int column, within plus or minus 2^53) and treats an empty value as 0.
   It is atomic, so use it instead of read, add, write.
@@ -304,8 +308,9 @@ A run that fails, or an output that is not `slot/1`, shows nothing and counts as
 **The 30 second cache.**
 The host remembers the answer for 30 seconds for each module, slot, viewer and member.
 That includes the empty answer: a member you left out stays empty for 30 seconds even if they earn something a moment later.
-Updating, disabling or uninstalling the module drops its cache.
+Updating, disabling, uninstalling or changing the settings of the module drops its cache.
 Do not expect a slot to change faster than that, and do not do work in a slot run that you cannot afford once per viewer per half minute.
+Slot runs use a lane of their own (2 at a time, 2 seconds of waiting), one fill per member at a time, and a failed one never counts toward the circuit breaker.
 
 ### The `slot/1` vocabulary
 

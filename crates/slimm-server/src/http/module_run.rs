@@ -56,15 +56,25 @@ struct ModuleWireResponse {
     error: Option<String>,
 }
 
-/// One gated run: who asked, for which command, and whether the timer did.
+/// Who started a run, which decides its lane and how it is held to account.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RunKind {
+    /// A member invoked a command and waits for the answer.
+    Command,
+    /// The host started it (schedule or pushed event): it draws on the
+    /// background lane, `ok:false` counts as failed, and the circuit breaker watches it.
+    Background,
+    /// A slot fill: its own lane, `ok:false` counts as failed in the stats,
+    /// but a member viewing profiles can never trip the breaker.
+    Slot,
+}
+
+/// One gated run: who asked, for which command, and what started it.
 pub(crate) struct RunRequest<'a> {
     pub(crate) caller: UserId,
     pub(crate) command: &'a str,
     pub(crate) input: &'a str,
-    /// A run the host started (schedule or pushed event): it draws on the
-    /// background lane, a command that answers `ok:false` counts as failed,
-    /// and the circuit breaker watches it.
-    pub(crate) scheduled: bool,
+    pub(crate) kind: RunKind,
 }
 
 /// Runs an already-gated command on `module`, with `surface` as its
@@ -78,8 +88,15 @@ pub(crate) async fn run_installed(
 ) -> Result<CommandOutcome, ApiError> {
     let started = Instant::now();
     let ran = run_checked(state, module, request, surface).await;
+    if request.kind == RunKind::Slot
+        && ran
+            .as_ref()
+            .is_ok_and(super::module_breaker::was_turned_away)
+    {
+        return ran;
+    }
     let result = match &ran {
-        Ok(outcome) if outcome.host_failed || (!outcome.ok && request.scheduled) => {
+        Ok(outcome) if outcome.host_failed || (!outcome.ok && request.kind != RunKind::Command) => {
             RunResult::Failed(outcome.payload.clone())
         }
         Ok(_) => RunResult::Ok,
@@ -100,7 +117,7 @@ pub(crate) async fn run_installed(
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
     }
-    if request.scheduled {
+    if request.kind == RunKind::Background {
         super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
@@ -148,10 +165,10 @@ async fn run_checked(
     .map_err(|_| ApiError::Internal)?;
 
     let store = state.store.clone();
-    let lane = if request.scheduled {
-        RunLane::Background
-    } else {
-        RunLane::Member
+    let lane = match request.kind {
+        RunKind::Command => RunLane::Member,
+        RunKind::Background => RunLane::Background,
+        RunKind::Slot => RunLane::Slot,
     };
     let ran = ModuleHost::run_loading_in(
         lane,

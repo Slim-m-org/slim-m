@@ -4,6 +4,7 @@
 //! exactly once. Each wasm fixture drives `slim.host_call` for real.
 
 use serde_json::{Value, json};
+use slimm_server::permissions::Permissions;
 use slimm_server::store::SessionScope;
 
 mod support;
@@ -23,6 +24,7 @@ async fn read(w: &World, approved: &[&str], request: &str) -> Value {
         approved_host: approved,
     })
     .await;
+    w.store.ensure_module_bot("reader", "Reader").await.unwrap();
     let answer = w.answer("reader").await;
     serde_json::from_str(&answer.replace('\'', "\"")).unwrap_or_else(|_| json!(answer))
 }
@@ -60,9 +62,20 @@ impl Calls {
     /// Opens a session at 1s, closes it at `closed_at` if given; returns its id
     /// (ids are handed out in order, starting at 1).
     async fn session(&self, sid: &str, by_other: bool, closed_at: Option<i64>) -> i64 {
+        self.session_in(self.channel, sid, by_other, closed_at)
+            .await
+    }
+
+    async fn session_in(
+        &self,
+        channel: slimm_server::ids::ChannelId,
+        sid: &str,
+        by_other: bool,
+        closed_at: Option<i64>,
+    ) -> i64 {
         let user = if by_other { self.other } else { self.w.user.id };
         let s = &self.w.store;
-        s.open_voice_session(self.channel, user, sid, 1_000)
+        s.open_voice_session(channel, user, sid, 1_000)
             .await
             .unwrap();
         if let Some(at) = closed_at {
@@ -171,4 +184,58 @@ async fn an_unknown_log_is_refused_cleanly() {
         reply,
         json!({ "ok": false, "error": "unknown log: messages" })
     );
+}
+
+async fn hide_from_everyone(c: &Calls, channel: slimm_server::ids::ChannelId) {
+    c.w.store
+        .set_role_overwrite(
+            channel,
+            c.w.everyone,
+            Permissions::NONE,
+            Permissions::VIEW_CHANNEL,
+        )
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_private_channels_sessions_are_never_returned_and_never_block_the_cursor() {
+    let c = calls("slimm-logread-private").await;
+    let secret =
+        c.w.store
+            .create_channel("secret", "voice")
+            .await
+            .unwrap()
+            .id;
+    hide_from_everyone(&c, secret).await;
+    let hidden = c.session_in(secret, "h", false, Some(2_000)).await;
+    let shown = c.session("s", true, Some(2_500)).await;
+    let hidden_last = c.session_in(secret, "h2", true, Some(3_000)).await;
+
+    let reply = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
+    assert_eq!(ids(&reply), vec![shown]);
+    assert_eq!(
+        reply["next"], hidden_last,
+        "the cursor passes the hidden tail"
+    );
+
+    let only_hidden = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 1)).await;
+    assert!(ids(&only_hidden).is_empty(), "{only_hidden}");
+    assert_eq!(
+        only_hidden["next"], hidden,
+        "a hidden row does not stall the reader"
+    );
+}
+
+#[tokio::test]
+async fn a_channel_that_turns_private_is_excluded_on_the_next_read() {
+    let c = calls("slimm-logread-turns-private").await;
+    let id = c.session("a", false, Some(2_000)).await;
+    let before = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
+    assert_eq!(ids(&before), vec![id]);
+
+    hide_from_everyone(&c, c.channel).await;
+    let after = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
+    assert!(ids(&after).is_empty(), "{after}");
+    assert_eq!(after["next"], id);
 }
