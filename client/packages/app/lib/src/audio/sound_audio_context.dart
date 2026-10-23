@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The audio session a chime asks `audioplayers` for. audioplayers calls
-/// `setCategory` on iOS for every play, and during a call the WebRTC session
-/// already holds play-and-record, so switching it to ambient is refused with
-/// "!pri" (insufficient priority). In a call the sound asks for that same
-/// category, mixing with the call, instead of a different one.
+/// How a chime may play while a call holds the device's audio.
+///
+/// On iOS audioplayers sets the shared session's category on every play and
+/// deactivates the session when its last player stops. During a call that
+/// session is WebRTC's, so a chime there could switch the mic off, move the
+/// call to the speaker, or stop its audio; it is skipped instead.
 library;
 
 import 'dart:async';
@@ -12,35 +13,19 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
-const _androidSoundContext = AudioContextAndroid(
-  contentType: AndroidContentType.sonification,
-  usageType: AndroidUsageType.notificationEvent,
-  audioFocus: AndroidAudioFocus.none,
+/// The context every sound plays under: ambient on iOS, no focus on Android.
+final soundAudioContext = AudioContext(
+  iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+  android: const AudioContextAndroid(
+    contentType: AndroidContentType.sonification,
+    usageType: AndroidUsageType.notificationEvent,
+    audioFocus: AndroidAudioFocus.none,
+  ),
 );
 
-/// [ios] and [inCall] are parameters so a test can pick either side; Android
-/// and desktop get the same context whatever they are.
-AudioContext soundAudioContext({bool? ios, bool inCall = false}) {
-  final onIOS = ios ?? isIOSHost;
-  if (!onIOS || !inCall) {
-    return AudioContext(
-      iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
-      android: _androidSoundContext,
-    );
-  }
-  return AudioContext(
-    iOS: AudioContextIOS(
-      category: AVAudioSessionCategory.playAndRecord,
-      options: const {
-        AVAudioSessionOptions.mixWithOthers,
-        AVAudioSessionOptions.defaultToSpeaker,
-        AVAudioSessionOptions.allowBluetooth,
-        AVAudioSessionOptions.allowBluetoothA2DP,
-      },
-    ),
-    android: _androidSoundContext,
-  );
-}
+/// Whether a sound must stay silent so the call keeps its iOS audio session.
+bool callOwnsSoundSession({required bool inCall, bool? ios}) =>
+    inCall && (ios ?? isIOSHost);
 
 /// Runs [play], logging an audio session refusal at debug level: a chime that
 /// cannot play is not worth an error.

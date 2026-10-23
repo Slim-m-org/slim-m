@@ -20,6 +20,9 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'package:slimm_app/src/audio/hold_music_player.dart'
+    show holdMusicAvailableProvider;
+
 import 'voice_settings_screen_harness.dart';
 
 const _speaker1 = AudioDevice(id: 'spk-1', label: 'Built-in speakers');
@@ -108,6 +111,23 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(prefs.getString('slimm.voice.hold_music_track'), 'jazz');
+  });
+
+  testWidgets('hold music settings are hidden where it cannot play', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const VoiceSettingsBody(),
+        overrides: [
+          ...ungatedSession(),
+          holdMusicAvailableProvider.overrideWithValue(false),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Music while alone'), findsNothing);
+    expect(find.text('Music style'), findsNothing);
   });
 
   testWidgets('Call stats opens its route from Troubleshooting, not Voice', (

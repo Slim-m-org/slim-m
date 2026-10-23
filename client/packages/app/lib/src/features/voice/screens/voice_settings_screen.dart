@@ -23,6 +23,7 @@ import '../widgets/input_sensitivity_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
+import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
 import '../../../audio/lounge_tracks.dart';
 import '../widgets/voice_shortcuts_section.dart';
 import '../../settings/widgets/settings_select_row.dart';
@@ -206,31 +207,33 @@ class _SoundsSection extends ConsumerWidget {
               .read(voiceSettingsControllerProvider.notifier)
               .setCallRingSoundEnabled(value),
         ),
-        SettingsToggleRow(
-          label: 'Music while alone',
-          value: settings.holdMusicEnabled,
-          semanticLabel: 'Play hold music while alone in a call',
-          onChanged: (value) => ref
-              .read(voiceSettingsControllerProvider.notifier)
-              .setHoldMusicEnabled(value),
-        ),
-        if (settings.holdMusicEnabled)
-          SettingsSelectRow<LoungeTrack>(
-            sub: true,
-            label: 'Music style',
-            value: settings.holdMusicTrack,
-            sheetTitle: 'Music style',
-            choices: [
-              for (final track in LoungeTrack.values)
-                SettingsChoice(
-                  value: track,
-                  label: '${track.style} - ${track.title}',
-                ),
-            ],
-            onChanged: (track) => ref
+        if (ref.watch(holdMusicAvailableProvider)) ...[
+          SettingsToggleRow(
+            label: 'Music while alone',
+            value: settings.holdMusicEnabled,
+            semanticLabel: 'Play hold music while alone in a call',
+            onChanged: (value) => ref
                 .read(voiceSettingsControllerProvider.notifier)
-                .setHoldMusicTrack(track),
+                .setHoldMusicEnabled(value),
           ),
+          if (settings.holdMusicEnabled)
+            SettingsSelectRow<LoungeTrack>(
+              sub: true,
+              label: 'Music style',
+              value: settings.holdMusicTrack,
+              sheetTitle: 'Music style',
+              choices: [
+                for (final track in LoungeTrack.values)
+                  SettingsChoice(
+                    value: track,
+                    label: '${track.style} - ${track.title}',
+                  ),
+              ],
+              onChanged: (track) => ref
+                  .read(voiceSettingsControllerProvider.notifier)
+                  .setHoldMusicTrack(track),
+            ),
+        ],
       ],
     );
   }

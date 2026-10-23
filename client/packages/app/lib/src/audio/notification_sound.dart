@@ -124,20 +124,18 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
   /// Public (not `_context`) because `scene_sound_player.dart` plays a
   /// module's sound under this identical configuration - a module's cue
   /// must be exactly as unable to steal a call's audio as a chime is.
-  static final sharedAmbientContext = soundAudioContext(ios: false);
-
-  /// The context for this moment: in a call on iOS it matches the call's session.
-  AudioContext get _context => soundAudioContext(inCall: inCall());
+  static final sharedAmbientContext = soundAudioContext;
 
   @override
   Future<void> play(NotificationSound sound) async {
+    if (callOwnsSoundSession(inCall: inCall())) return;
     // Stopped first, or two overlapping `play()` calls would race.
     await _player.stop();
     await playQuietly(
       () => _player.play(
         AssetSource(sound._playerPath),
         volume: playbackVolume,
-        ctx: _context,
+        ctx: sharedAmbientContext,
       ),
     );
     unawaited(afterPlay?.call());
@@ -145,6 +143,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
 
   @override
   Future<void> loop(NotificationSound sound) async {
+    if (callOwnsSoundSession(inCall: inCall())) return;
     final player = _loopPlayer.current;
     await player.stop();
     await player.setReleaseMode(ReleaseMode.loop);
@@ -152,7 +151,7 @@ class AudioPlayersSoundPlayer implements SoundPlayer {
       () => player.play(
         AssetSource(sound._playerPath),
         volume: playbackVolume,
-        ctx: _context,
+        ctx: sharedAmbientContext,
       ),
     );
     unawaited(afterPlay?.call());

@@ -62,7 +62,10 @@ class _HoldMusicBadgeOverlayState extends ConsumerState<HoldMusicBadgeOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    final shown = ref.watch(callAloneProvider) && holdMusicBadgeFits(context);
+    final shown =
+        ref.watch(holdMusicAvailableProvider) &&
+        ref.watch(callAloneProvider) &&
+        holdMusicBadgeFits(context);
     if (!shown) return const SizedBox.shrink();
     final sharedDockWidth = ref.watch(bottomDockWidthProvider);
     final double dockWidth = widget.dockWidth ?? sharedDockWidth;

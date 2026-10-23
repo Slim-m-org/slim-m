@@ -57,7 +57,7 @@ class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
   /// heard: each new cue replaces the last rather than layering on top of it.
   @override
   Future<void> playNotes(List<SceneNote> notes) async {
-    if (notes.isEmpty) return;
+    if (notes.isEmpty || callOwnsSoundSession(inCall: inCall())) return;
     final wav = await compute(_renderWav, [
       for (final note in notes) [note.frequency, note.start, note.seconds],
     ]);
@@ -66,7 +66,7 @@ class AudioPlayersModuleSoundPlayer implements ModuleSoundPlayer {
       () => _player.play(
         BytesSource(wav, mimeType: 'audio/wav'),
         volume: AudioPlayersSoundPlayer.playbackVolume,
-        ctx: soundAudioContext(inCall: inCall()),
+        ctx: soundAudioContext,
       ),
     );
     unawaited(afterPlay?.call());

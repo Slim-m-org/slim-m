@@ -31,7 +31,9 @@ bool shouldPlayHoldMusic(
   VoiceState voice,
   VoiceSettingsState settings, {
   bool backgrounded = false,
+  bool available = true,
 }) =>
+    available &&
     !backgrounded &&
     settings.holdMusicEnabled &&
     voice.state == VoiceSessionState.connected &&
@@ -130,6 +132,7 @@ class HoldMusicController {
     final want = shouldPlayHoldMusic(
       _ref.read(voiceControllerProvider),
       _ref.read(voiceSettingsControllerProvider),
+      available: _ref.read(holdMusicAvailableProvider),
       backgrounded:
           _mobile &&
           isBackgroundedOnPhone(_ref.read(appLifecycleProvider), mobile: true),

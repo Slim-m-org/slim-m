@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
 import '../../../widgets/control_swatch_row.dart' show ControlOptionEntry;
 import '../../voice/providers/call_solo.dart';
 import '../../voice/providers/camera_switch.dart';
@@ -22,7 +23,9 @@ import '../../voice/widgets/voice_call_controls.dart';
 
 /// Whether the music button belongs in the dock: alone in the call and too narrow for the floating badge.
 bool soloMusicInDock(BuildContext context, WidgetRef ref) =>
-    ref.watch(callAloneProvider) && !holdMusicBadgeFits(context);
+    ref.watch(holdMusicAvailableProvider) &&
+    ref.watch(callAloneProvider) &&
+    !holdMusicBadgeFits(context);
 
 /// One slot's width: the button with its focus-ring reserve, plus the gap before it.
 double dockExtraExtent(BuildContext context) {

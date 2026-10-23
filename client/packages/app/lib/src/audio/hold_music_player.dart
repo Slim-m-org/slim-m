@@ -9,6 +9,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_platform/platform.dart' show isIOSHost;
 
 import 'lounge_tracks.dart';
 import 'releasable_player.dart';
@@ -102,7 +103,7 @@ class _AudioPlayersOutput implements HoldLoopOutput {
       () => player.play(
         AssetSource(asset),
         volume: _volume,
-        ctx: soundAudioContext(inCall: true),
+        ctx: soundAudioContext,
       ),
     );
     unawaited(_afterPlay?.call());
@@ -227,6 +228,9 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
     await _output.dispose();
   }
 }
+
+/// False on iOS: audioplayers there resets the call's own audio session category and deactivates it when the loop stops.
+final holdMusicAvailableProvider = Provider<bool>((ref) => !isIOSHost);
 
 final holdMusicPlayerProvider = Provider<HoldMusicPlayer>((ref) {
   final router = ref.read(soundOutputRouterProvider);

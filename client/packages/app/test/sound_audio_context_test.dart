@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The iOS session a chime asks for: ambient when idle, the call's own
-/// play-and-record category, mixing, while a call holds the session.
+/// A sound never touches the iOS audio session while a call holds it.
 library;
 
 import 'package:audioplayers/audioplayers.dart';
@@ -10,25 +9,17 @@ import 'package:slimm_app/src/audio/notification_sound.dart';
 import 'package:slimm_app/src/audio/sound_audio_context.dart';
 
 void main() {
-  test('idle on iOS stays ambient', () {
-    final ios = soundAudioContext(ios: true).iOS;
-    expect(ios.category, AVAudioSessionCategory.ambient);
+  test('only an iOS call keeps sounds silent', () {
+    expect(callOwnsSoundSession(inCall: true, ios: true), isTrue);
+    expect(callOwnsSoundSession(inCall: false, ios: true), isFalse);
+    expect(callOwnsSoundSession(inCall: true, ios: false), isFalse);
+    expect(callOwnsSoundSession(inCall: false, ios: false), isFalse);
   });
 
-  test('in a call on iOS it joins play-and-record and mixes', () {
-    final ios = soundAudioContext(ios: true, inCall: true).iOS;
-    expect(ios.category, AVAudioSessionCategory.playAndRecord);
-    expect(ios.options, contains(AVAudioSessionOptions.mixWithOthers));
-    expect(ios.options, contains(AVAudioSessionOptions.defaultToSpeaker));
-    expect(ios.options, contains(AVAudioSessionOptions.allowBluetooth));
-  });
-
-  test('Android and desktop get the same context in a call or not', () {
-    final idle = soundAudioContext(ios: false);
-    final call = soundAudioContext(ios: false, inCall: true);
-    expect(call, idle);
-    expect(idle.android.audioFocus, AndroidAudioFocus.none);
-    expect(AudioPlayersSoundPlayer.sharedAmbientContext, idle);
+  test('every sound plays ambient on iOS and without focus on Android', () {
+    expect(soundAudioContext.iOS.category, AVAudioSessionCategory.ambient);
+    expect(soundAudioContext.android.audioFocus, AndroidAudioFocus.none);
+    expect(AudioPlayersSoundPlayer.sharedAmbientContext, soundAudioContext);
   });
 
   test('a refused audio session is swallowed, anything else is not', () async {
