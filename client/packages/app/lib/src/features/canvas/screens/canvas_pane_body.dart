@@ -33,6 +33,7 @@ import 'canvas_pane_hints.dart';
 import 'canvas_pane_overlays.dart';
 import 'canvas_pane_surface.dart';
 import 'canvas_pane_surface_actions.dart';
+import 'canvas_short_toggle.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_speaking_sync.dart';
@@ -348,7 +349,10 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
+    final size = MediaQuery.sizeOf(context);
+    final compact = size.width < kCompactWidth;
+    // A short window gives the header's height to the board; the dock repeats its controls and the member toggle floats.
+    final shortWindow = size.height < kShortHeight && !compact;
     // No AppBar sits above CanvasBar, so this pane insets itself for top/bottom; left stays unconsumed because a rail, not this pane, ever occupies the true left edge.
     return Container(
       color: tokens.surfaceBase,
@@ -357,7 +361,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
         child: Column(
           children: [
             // Fullscreen can drop the header whole without taking an action with it: its controls are the dock's, repeated.
-            if (!widget.fullscreen)
+            if (!widget.fullscreen && !shortWindow)
               CanvasBar(
                 channelId: widget.channelId,
                 // Rebuilt when the hidden set changes, so a tile hidden later gets its Show row here too.
@@ -450,6 +454,12 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           compact: compact,
                         ),
                       ),
+                      if (shortWindow && !widget.fullscreen)
+                        FocusTraversalOrder(
+                          key: const ValueKey('canvas-short-toggle'),
+                          order: const NumericFocusOrder(3),
+                          child: CanvasShortToggle(channelId: widget.channelId),
+                        ),
                       const FocusTraversalOrder(
                         key: ValueKey('canvas-music-badge'),
                         order: NumericFocusOrder(5),
