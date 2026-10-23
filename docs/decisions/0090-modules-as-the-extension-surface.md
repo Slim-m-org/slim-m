@@ -62,16 +62,22 @@ Its worked cases still stand as provider choices: a Jellyfin watch party is a co
 
 Each is one bounded contract with its own review, added in the order under "Phasing".
 
-### 1. Event subscribers
+### 1. Event subscribers and durable logs
 
-The host delivers events to a module after they commit.
+The host pushes events to a module after they commit.
 A subscriber cannot block or change anything.
-Delivery is at least once with a stable event id the module can dedupe on, and durable events already carry a per-scope `Seq` that can serve as that id.
+Push is best-effort: the hub is an in-memory broadcast, so a restart or a lagging queue can lose events, and the contract says so.
+Each push carries a stable id the host mints, so a module can dedupe a repeat.
 A module declares the events and fields it needs in its manifest, so the consent screen shows them and an update that asks for more prompts again.
-The queue is bounded per module, with a stated drop policy.
+The queue is bounded per module, drops the oldest first, and counts what it dropped.
+
+Anything that must not be lost is read instead of pushed.
+The host exposes durable logs (voice sessions first) that a module reads with a cursor, so after a restart it catches up exactly once.
+A durable outbox written in the same transaction as every action was considered and declined for now: it touches every message, edit and voice write path.
 
 Voice time needs sessions.
-The host records voice sessions (user, channel, joined, left) as one generic table, so every module that wants voice time reads the same truth and none measures it itself.
+`voice_call_events` (migration 0108) is only a join and leave log pruned at 30 days.
+The host adds a voice sessions table (user, channel, joined, left, time alone) built from the same webhook path, closed on a missed leave, a room ending, a stale heartbeat or a restart, and the durable log reads from it.
 
 ### 2. Interceptors
 
@@ -96,14 +102,18 @@ It uses the same budget, breaker and fail-open default.
 
 ### 3. Ticks
 
-A timer source that calls a module on a schedule the module declares and the admin can see.
-It is a subscriber with a clock, and shares its budget and breaker.
+These already exist: a manifest `schedules` list with the `schedule` capability, a 5 minute minimum, at most 8 per module, run by a 60 second sweep as the module's own principal.
+Phase 1 does not change them.
+A faster tick, or a tick that does not post, is a later gap-fill.
 
 ### 4. A data store per module
 
-Each module gets its own SQLite file under the data directory, with a size cap, numbered migrations the module ships, and a small host-call API for parameterised statements.
-There is no `ATTACH`, no path access and no read of another module's file.
-Uninstall deletes the file after confirmation, and backups include them.
+Each module gets its own SQLite file under the data directory, with a size cap.
+The manifest declares tables and typed columns, and the module calls structured operations (insert, upsert, update, delete, get, query with filter, order and limit, count, sum, increment).
+The host builds the SQL itself, so a module cannot inject SQL, attach another database or open a path, and no `unsafe` code is needed.
+Schema changes are additive only in the first version.
+Raw SQL behind a SQLite authorizer can be added later without breaking a module written against this API.
+Uninstall keeps the file unless the admin chooses to delete it, and backups include the files.
 `kv.store` stays for simple cases.
 
 ### 5. A settings schema
@@ -159,6 +169,9 @@ Slack retiring its app steps with no migration path, and Rocket.Chat's runtime c
 | Interceptor failure | Fail open, the admin can switch a hook to fail-closed | Fail closed everywhere; manifest-only choice |
 | Module data | A SQLite file per module | Tables in the main database; a larger key-value store |
 | Pixel-heavy UI | Data only, plus tile types added to the client over time | A sandboxed web surface; deciding later |
+| Event delivery | Best-effort push, plus durable logs read with a cursor | A durable outbox for every event; push only |
+| Module run lane | Events and schedules get their own small concurrency cap, apart from members' commands | Sharing the global gate; raising it |
+| Data API | A structured operation API, raw SQL later | Raw SQL behind an authorizer (needs `unsafe`); raw SQL behind a hand-written filter (easy to bypass) |
 
 ## Requirements for host-run connectors
 
@@ -178,7 +191,7 @@ These are conditions on building it, not a description of something built.
 
 Each phase ships with a proof module in the add-ons repository, so the contracts are judged by a real use.
 
-1. **Reactive modules.** Event subscribers, ticks, the data store, the settings schema, voice sessions, and the profile section and member badge slots.
+1. **Reactive modules.** Event subscribers and durable logs, the data store, the settings schema, voice sessions, and the profile section and member badge slots.
    Proof: an XP module that earns XP from voice time, keeps it in its own store, takes its rates from settings and shows a bar on the profile.
 2. **Interceptors.** The interceptor chain for pre-send and pre-edit, the deny-only permission hook, ordering, budgets, the breaker and the admin order screen.
    Proof: a word and regex filter module.
