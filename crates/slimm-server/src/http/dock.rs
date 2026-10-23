@@ -450,6 +450,7 @@ async fn install(
     state.dock.slot_cache().invalidate_module(&installed.id);
     let installed = if module_host::schedule_approved(&installed)
         || module_events::events_approved(&installed)
+        || module_host::logs_approved(&installed)
     {
         state
             .store

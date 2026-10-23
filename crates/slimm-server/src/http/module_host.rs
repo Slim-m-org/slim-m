@@ -67,6 +67,13 @@ pub(crate) fn schedule_approved(module: &InstalledModule) -> bool {
         .any(|c| c == "schedule")
 }
 
+/// Whether an admin approved `module` to read the durable logs, which it does as its own principal.
+pub(crate) fn logs_approved(module: &InstalledModule) -> bool {
+    effective_capabilities(module)
+        .iter()
+        .any(|c| c == "log.read")
+}
+
 /// The capability surface for one run of `module`, invoked by `user_id`.
 /// Must be called from inside the tokio runtime that will drive the run.
 ///
@@ -127,6 +134,7 @@ pub(super) fn surface_posting_as(
         surface = surface.with_logs(Arc::new(super::module_logs::SqliteLogs {
             store: state.store.clone(),
             handle: handle.clone(),
+            principal: module.bot_user_id,
         }));
     }
     if fetches {

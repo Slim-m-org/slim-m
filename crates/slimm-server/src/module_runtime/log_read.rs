@@ -25,10 +25,18 @@ pub struct VoiceSessionRow {
     pub alone_ms: i64,
 }
 
+/// One page of a log: the rows the reader may see, and where to resume.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogPage {
+    pub rows: Vec<VoiceSessionRow>,
+    /// The id of the last row scanned, including rows left out, so a reader never stalls on one.
+    pub next: i64,
+}
+
 /// Where the logs live; a trait seam like [`super::KvBackend`].
 pub trait LogBackend: Send + Sync {
-    /// Closed sessions with an id above `after`, in id order, at most `limit`.
-    fn voice_sessions(&self, after: i64, limit: i64) -> Result<Vec<VoiceSessionRow>, LogError>;
+    /// Scans closed sessions with an id above `after`, in id order, at most `limit`.
+    fn voice_sessions(&self, after: i64, limit: i64) -> Result<LogPage, LogError>;
 }
 
 /// The backing store failed; the module sees a refusal, never the cause.
@@ -57,14 +65,15 @@ pub fn handle(backend: &dyn LogBackend, request: &[u8]) -> Vec<u8> {
     let after = req.after.unwrap_or(0).max(0);
     let limit = req.limit.unwrap_or(DEFAULT_ROWS).clamp(1, MAX_ROWS);
     match backend.voice_sessions(after, limit) {
-        Ok(rows) => reply(after, &rows),
+        Ok(page) => reply(&page),
         Err(LogError) => refusal("log.read is unavailable"),
     }
 }
 
-fn reply(after: i64, rows: &[VoiceSessionRow]) -> Vec<u8> {
-    let next = rows.last().map_or(after, |row| row.id);
-    let rows: Vec<Value> = rows
+fn reply(page: &LogPage) -> Vec<u8> {
+    let next = page.next;
+    let rows: Vec<Value> = page
+        .rows
         .iter()
         .map(|r| {
             json!({
@@ -96,9 +105,12 @@ mod tests {
     struct Recording(Mutex<Vec<(i64, i64)>>);
 
     impl LogBackend for Recording {
-        fn voice_sessions(&self, after: i64, limit: i64) -> Result<Vec<VoiceSessionRow>, LogError> {
+        fn voice_sessions(&self, after: i64, limit: i64) -> Result<LogPage, LogError> {
             self.0.lock().unwrap().push((after, limit));
-            Ok(Vec::new())
+            Ok(LogPage {
+                rows: Vec::new(),
+                next: after,
+            })
         }
     }
 
