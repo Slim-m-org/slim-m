@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Turning a hub event into the module events it stands for, and minting
-//! their ids: the same occurrence always gets the same id.
+//! their ids; an id is minted once per delivered event.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 use super::wire::EventData;
 use crate::hub::Event;
-use crate::ids::{ChannelId, MessageId};
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::Store;
 
 /// Messages whose last reaction tally is remembered, to tell which emoji moved.
@@ -35,6 +35,8 @@ pub(super) fn classify(event: &Event) -> Option<Kind> {
 /// One module event, ready to render.
 pub(super) struct Built {
     pub(super) id: String,
+    /// The message and its author when this is a `message.created`.
+    pub(super) created: Option<(MessageId, Option<UserId>)>,
     pub(super) at_ms: i64,
     pub(super) data: EventData,
 }
@@ -84,6 +86,7 @@ pub(super) async fn build(
             };
             vec![Built {
                 id: format!("message:{}", message.id),
+                created: Some((message.id, message.author_id)),
                 at_ms: message.created_at,
                 data: EventData::MessageCreated {
                     message_id: message.id.to_string(),
@@ -101,6 +104,7 @@ pub(super) async fn build(
             ..
         } => vec![Built {
             id: format!("message-deleted:{message_id}"),
+            created: None,
             at_ms: now_ms,
             data: EventData::MessageDeleted {
                 message_id: message_id.to_string(),
@@ -121,6 +125,7 @@ pub(super) async fn build(
                 .into_iter()
                 .map(|(emoji, count)| Built {
                     id: format!("reaction:{message_id}:{emoji}:{now_ms}"),
+                    created: None,
                     at_ms: now_ms,
                     data: EventData::ReactionChanged {
                         message_id: message_id.to_string(),
@@ -142,6 +147,7 @@ pub(super) async fn build(
             alone_ms,
         } => vec![Built {
             id: format!("voice-session:{session_id}"),
+            created: None,
             at_ms: *left_at_ms,
             data: EventData::VoiceSessionClosed {
                 session_id: *session_id,
@@ -156,9 +162,10 @@ pub(super) async fn build(
     })
 }
 
-fn member(prefix: &str, user: crate::ids::UserId, now_ms: i64) -> Built {
+fn member(prefix: &str, user: UserId, now_ms: i64) -> Built {
     Built {
         id: format!("{prefix}:{user}:{now_ms}"),
+        created: None,
         at_ms: now_ms,
         data: EventData::Member {
             user_id: user.to_string(),

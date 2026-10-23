@@ -95,6 +95,8 @@ At most 4 entries.
 The host runs a consumer that subscribes to the hub, filters per module and queues per module.
 
 - The queue holds 256 events per module and drops the oldest first, counting drops in `module_run_stats`.
+- Visibility is checked again at delivery: an event for a channel the module's principal can no longer view is dropped, and so is a `message.created` whose message was deleted while it waited. `message.deleted` is still delivered.
+- A module is never sent a `message.created` for a message its own principal wrote.
 - Delivery is a normal module run with `command: "@event"` and `input` set to the JSON text `{"event","id","at_ms","data"}`.
   No ABI change: a module that does not handle `@event` returns `{ok:false}` and counts as a failure.
 - `id` is minted once per delivered event, and the host never redelivers: `message:<id>`, `voice-session:<id>`, `member-join:<user>:<ms>`.

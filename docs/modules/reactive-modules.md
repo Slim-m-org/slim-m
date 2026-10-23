@@ -71,6 +71,8 @@ Who receives what:
 How delivery behaves:
 
 - Each module has its own queue of 256 events.
+- Access is checked again when an event is delivered, so one for a channel the bot can no longer view, or a new message deleted while it waited, is dropped.
+- A module is not sent the messages its own bot wrote.
   When it is full the oldest event is dropped and the drop is counted.
 - A module gets one event at a time, in the order queued.
   Events and schedules share a lane of 2 concurrent runs across all modules, separate from the 4 slots members' commands use.
