@@ -47,7 +47,7 @@ final _sections = [
           'type': 'row',
           'children': [
             {'type': 'badge', 'text': 'Veteran', 'icon': 'list'},
-            {'type': 'badge', 'text': 'Streak 4', 'tone': 'accent'},
+            {'type': 'badge', 'text': 'Admin', 'tone': 'accent'},
             {'type': 'icon', 'name': 'play'},
           ],
         },
@@ -163,7 +163,8 @@ void main() {
             {'text': 'Third'},
           ],
           'c': [
-            {'text': 'LV 3'},
+            {'text': 'Admin', 'tone': 'accent'},
+            {'text': 'Streak 4', 'tone': 'muted'},
           ],
         };
         await _theme(

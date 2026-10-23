@@ -61,7 +61,10 @@ class _Section extends StatelessWidget {
             style: AppText.label.copyWith(color: tokens.textSecondary),
           ),
         ),
-        SizedBox(width: double.infinity, child: ModuleSlotView(section.item)),
+        SizedBox(
+          width: double.infinity,
+          child: ModuleSlotView(section.item, source: section.moduleId),
+        ),
       ],
     );
   }

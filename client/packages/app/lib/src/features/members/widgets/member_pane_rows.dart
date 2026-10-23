@@ -269,13 +269,19 @@ class MemberRow extends ConsumerWidget {
       constraints: BoxConstraints(maxWidth: rowWidth * 0.4),
       child: moduleBadges.isEmpty
           ? chip
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: AppSpacing.s4,
-              children: [
-                if (chip != null) Flexible(child: chip),
-                Flexible(child: ModuleRowBadges(moduleBadges)),
-              ],
+          : LayoutBuilder(
+              // A non-flex child is laid out unbounded, so cap the chip to the room itself.
+              builder: (context, box) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (chip != null)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: box.maxWidth),
+                      child: chip,
+                    ),
+                  Flexible(child: ModuleRowBadges(moduleBadges)),
+                ],
+              ),
             ),
     );
   }

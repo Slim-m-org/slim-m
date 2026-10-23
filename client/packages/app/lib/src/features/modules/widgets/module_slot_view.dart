@@ -13,10 +13,18 @@ import 'module_slot_icons.dart';
 import 'module_slot_progress.dart';
 
 /// [inline] lays the top-level nodes out in one row, for a badge slot.
+/// [source] is the module's id from the server, never text the module drew;
+/// badges name it so they cannot pass for a built-in chip.
 class ModuleSlotView extends StatelessWidget {
-  const ModuleSlotView(this.item, {super.key, this.inline = false});
+  const ModuleSlotView(
+    this.item, {
+    required this.source,
+    super.key,
+    this.inline = false,
+  });
 
   final api.ModuleSlotItem item;
+  final String source;
   final bool inline;
 
   @override
@@ -28,23 +36,26 @@ class ModuleSlotView extends StatelessWidget {
         api.ModuleSlotText(fallback, tone: api.ModuleSlotTone.muted),
       );
     }
-    return inline ? _SlotRow(item.nodes) : _SlotStack(item.nodes);
+    return inline
+        ? _SlotRow(item.nodes, source)
+        : _SlotStack(item.nodes, source);
   }
 }
 
-Widget _draw(api.ModuleSlotNode node) => switch (node) {
+Widget _draw(api.ModuleSlotNode node, String source) => switch (node) {
   api.ModuleSlotText() => _SlotText(node),
   api.ModuleSlotIcon() => _SlotIcon(node.name),
-  api.ModuleSlotBadge() => _SlotBadge(node),
+  api.ModuleSlotBadge() => _SlotBadge(node, source),
   api.ModuleSlotProgress() => ModuleSlotProgressBar(node),
-  api.ModuleSlotRow() => _SlotRow(node.children),
-  api.ModuleSlotStack() => _SlotStack(node.children),
+  api.ModuleSlotRow() => _SlotRow(node.children, source),
+  api.ModuleSlotStack() => _SlotStack(node.children, source),
 };
 
 class _SlotStack extends StatelessWidget {
-  const _SlotStack(this.nodes);
+  const _SlotStack(this.nodes, this.source);
 
   final List<api.ModuleSlotNode> nodes;
+  final String source;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -54,16 +65,17 @@ class _SlotStack extends StatelessWidget {
     children: [
       for (final node in nodes)
         node is api.ModuleSlotProgress
-            ? SizedBox(width: double.infinity, child: _draw(node))
-            : _draw(node),
+            ? SizedBox(width: double.infinity, child: _draw(node, source))
+            : _draw(node, source),
     ],
   );
 }
 
 class _SlotRow extends StatelessWidget {
-  const _SlotRow(this.nodes);
+  const _SlotRow(this.nodes, this.source);
 
   final List<api.ModuleSlotNode> nodes;
+  final String source;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -71,7 +83,9 @@ class _SlotRow extends StatelessWidget {
     spacing: AppSpacing.s8,
     children: [
       for (final node in nodes)
-        node is api.ModuleSlotIcon ? _draw(node) : Flexible(child: _draw(node)),
+        node is api.ModuleSlotIcon
+            ? _draw(node, source)
+            : Flexible(child: _draw(node, source)),
     ],
   );
 }
@@ -118,20 +132,33 @@ class _SlotIcon extends StatelessWidget {
 }
 
 class _SlotBadge extends StatelessWidget {
-  const _SlotBadge(this.node);
+  const _SlotBadge(this.node, this.source);
 
   final api.ModuleSlotBadge node;
+  final String source;
 
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    widthFactor: 1,
-    child: AppBadge(
-      variant: node.tone == api.ModuleSlotTone.accent
-          ? AppBadgeVariant.role
-          : AppBadgeVariant.tag,
-      label: node.text,
-      icon: moduleSlotIcon(node.icon),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final origin = 'From $source';
+    return Align(
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      child: Tooltip(
+        message: origin,
+        excludeFromSemantics: true,
+        triggerMode: TooltipTriggerMode.longPress,
+        child: AppBadge(
+          variant: switch (node.tone) {
+            api.ModuleSlotTone.accent => AppBadgeVariant.moduleAccent,
+            api.ModuleSlotTone.muted => AppBadgeVariant.moduleMuted,
+            api.ModuleSlotTone.normal => AppBadgeVariant.module,
+          },
+          label: node.text,
+          markerIcon: AppIcons.dock,
+          icon: moduleSlotIcon(node.icon),
+          semanticLabel: '${node.text}, ${origin.toLowerCase()}',
+        ),
+      ),
+    );
+  }
 }

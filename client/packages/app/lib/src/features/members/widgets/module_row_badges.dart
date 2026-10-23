@@ -19,18 +19,41 @@ List<api.ModuleBadge> visibleModuleBadges(List<api.ModuleBadge>? badges) =>
         .toList(growable: false) ??
     const [];
 
+/// The least room a module badge gets; one that cannot have it is dropped.
+const double moduleBadgeMinWidth = 40;
+
+/// Drawn in the room a real role chip leaves, so module badges shrink or drop
+/// first. Carries its own leading gap so a dropped set leaves no gap behind.
 class ModuleRowBadges extends StatelessWidget {
   const ModuleRowBadges(this.badges, {super.key});
 
   final List<api.ModuleBadge> badges;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    spacing: AppSpacing.s4,
-    children: [
-      for (final badge in badges)
-        Flexible(child: ModuleSlotView(badge.item, inline: true)),
-    ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = AppSpacing.s4;
+      final room = ((constraints.maxWidth) / (moduleBadgeMinWidth + gap))
+          .floor();
+      final shown = badges.take(room).toList(growable: false);
+      if (shown.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(left: AppSpacing.s4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: AppSpacing.s4,
+          children: [
+            for (final badge in shown)
+              Flexible(
+                child: ModuleSlotView(
+                  badge.item,
+                  source: badge.moduleId,
+                  inline: true,
+                ),
+              ),
+          ],
+        ),
+      );
+    },
   );
 }

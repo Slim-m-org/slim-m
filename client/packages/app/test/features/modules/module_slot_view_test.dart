@@ -26,7 +26,7 @@ Future<void> _pump(
         alignment: Alignment.topLeft,
         child: SizedBox(
           width: width,
-          child: ModuleSlotView(item, inline: inline),
+          child: ModuleSlotView(item, source: 'xp', inline: inline),
         ),
       ),
     ),
