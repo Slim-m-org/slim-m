@@ -19,5 +19,6 @@ mod delivery;
 mod harness;
 mod missed_call;
 mod reply_ping;
+mod ring_refusals;
 #[path = "../support/mod.rs"]
 mod support;

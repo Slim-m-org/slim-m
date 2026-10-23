@@ -46,7 +46,7 @@ jobs:
       - name: install samply
         if: ${{ inputs.profile }}
         run: |
-          cargo install --locked samply
+          cargo install --locked samply@0.13.1
           sudo sysctl -w kernel.perf_event_paranoid=1
       - name: run the scenario
         run: |

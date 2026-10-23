@@ -38,6 +38,7 @@ jobs:
   windows-compiles:
     name: windows desktop compiles
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       # firebase_cpp_sdk_windows vendors a pre-3.5 cmake_minimum_required CMake 4.x (windows-latest's default) refuses outright; this is CMake's own documented escape hatch, not a slim-m bug.
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -95,6 +96,7 @@ jobs:
     name: windows tester build (artifact)
     if: github.event_name == 'workflow_dispatch' && inputs.tester_build
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
       CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"

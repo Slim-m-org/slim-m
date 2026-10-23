@@ -42,6 +42,7 @@ jobs:
   windows-client:
     name: windows tester build
     runs-on: windows-latest
+    timeout-minutes: 45
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
     # write, not read: the last step attaches the zip and setup to the github release.
@@ -136,6 +137,7 @@ jobs:
   macos-client:
     name: macos tester build (ad-hoc signed)
     runs-on: macos-latest
+    timeout-minutes: 30
     # Named for the same reason release.yml's publish jobs are: this is tag-triggered, so a reviewer gate on `release` should hold it too.
     environment: release
     # write, not read: the last step attaches the zip and setup to the github release.

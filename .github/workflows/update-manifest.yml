@@ -47,6 +47,7 @@ jobs:
   sign:
     name: sign update manifest
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     # write, not read: the last step attaches the manifest and signature to the github release.
     permissions:
       contents: write
