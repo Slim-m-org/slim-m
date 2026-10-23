@@ -75,6 +75,10 @@ abstract final class AppRadii {
 /// and the hit targets cannot drift apart.
 const double kCompactWidth = 600;
 
+/// The window height below which vertical chrome has to give way to content,
+/// which is a landscape phone and not a desktop window of any width.
+const double kShortHeight = 480;
+
 /// Minimum interactive sizes.
 ///
 /// [rowPointer] and [rowTouch] are the same row at two input classes, not two
