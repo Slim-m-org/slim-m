@@ -161,3 +161,11 @@ fn escape_wat_string(bytes: &[u8]) -> String {
     }
     out
 }
+
+/// A module that answers every run with `{"ok":true,"output":<slot_response as text>}`,
+/// the shape a `@slot` run returns.
+#[allow(dead_code)]
+pub fn canned_slot_wasm(slot_response: &serde_json::Value) -> Vec<u8> {
+    let wire = serde_json::json!({ "ok": true, "output": slot_response.to_string() });
+    canned_raw_wasm(wire.to_string().as_bytes())
+}

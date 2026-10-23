@@ -42,6 +42,7 @@ pub(in crate::http) async fn uninstall(
             .await
             .map_err(|_| ApiError::Internal)?;
     }
+    state.dock.slot_cache().invalidate_module(&id);
     if let Some(module) = module {
         retire_principal(&state, &module).await;
     }
@@ -113,6 +114,7 @@ async fn apply_enabled(
     if !state.store.set_module_enabled(id, enabled).await? {
         return Err(ApiError::NotFound("module not installed"));
     }
+    state.dock.slot_cache().invalidate_module(id);
     let installed = state
         .store
         .installed_module(id)

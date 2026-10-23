@@ -9614,6 +9614,67 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/slots/profile/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMemberProfileSlots
+      tags: [space]
+      summary: Read what installed modules show on a member's profile.
+      description: >
+        Asks every enabled module that declares a `profile.section` slot, and
+        returns the sections that came back valid. A module that fails or
+        answers badly is left out. A member who does not exist, or was
+        deleted, answers an empty list. Results are cached for 30 seconds per
+        module, slot, viewer and member.
+      responses:
+        "200":
+          description: The sections to show, in module order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileSlots"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/slots/badges:
+    get:
+      operationId: getMemberBadgeSlots
+      tags: [space]
+      summary: Read what installed modules show next to members' names.
+      description: >
+        Asks every enabled module that declares a `member.badge` slot, once
+        for all the members requested, and returns the badges that came back
+        valid, keyed by member id. A member with nothing to show, or who does
+        not exist, is absent from the map.
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated member ids, at most 100.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The badges to show per member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadgeSlots"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/sources:
     get:
       operationId: listDockSources
@@ -12101,6 +12162,59 @@ components:
             suit its declared type, range and choices, and every key must be
             declared.
           additionalProperties: {}
+    SlotNodes:
+      type: array
+      description: >
+        Display nodes, each an object with a `type` of `text`, `icon`, `badge`,
+        `progress`, `row` or `stack` (see decision 0091). A client skips a type
+        it does not know and shows `fallback` when every node was skipped.
+      items:
+        type: object
+        additionalProperties: true
+    ProfileSlotSection:
+      type: object
+      required: [module_id, name, nodes]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        nodes:
+          $ref: "#/components/schemas/SlotNodes"
+        fallback:
+          type: string
+    ProfileSlots:
+      type: object
+      required: [sections]
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileSlotSection"
+    BadgeSlot:
+      type: object
+      required: [module_id, name, nodes]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        nodes:
+          $ref: "#/components/schemas/SlotNodes"
+        fallback:
+          type: string
+    BadgeSlots:
+      type: object
+      required: [badges]
+      properties:
+        badges:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/BadgeSlot"
     DockChangelogEntry:
       type: object
       required: [version, changes]
