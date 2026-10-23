@@ -178,7 +178,7 @@ These are conditions on building it, not a description of something built.
 
 Each phase ships with a proof module in the add-ons repository, so the contracts are judged by a real use.
 
-1. **Reactive modules.** Event subscribers, the data store, the settings schema, voice sessions, and the profile section and member badge slots.
+1. **Reactive modules.** Event subscribers, ticks, the data store, the settings schema, voice sessions, and the profile section and member badge slots.
    Proof: an XP module that earns XP from voice time, keeps it in its own store, takes its rates from settings and shows a bar on the profile.
 2. **Interceptors.** The interceptor chain for pre-send and pre-edit, the deny-only permission hook, ordering, budgets, the breaker and the admin order screen.
    Proof: a word and regex filter module.
