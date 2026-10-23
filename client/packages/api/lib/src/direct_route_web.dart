@@ -23,6 +23,9 @@ class _BrowserRoute implements DirectRoute {
   void retryNow() {}
 
   @override
+  void invalidate() {}
+
+  @override
   bool get hasAddresses => false;
 
   @override

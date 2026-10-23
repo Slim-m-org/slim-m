@@ -42,6 +42,11 @@ abstract interface class DirectRoute {
   /// probing, such as the start of a large upload.
   void retryNow();
 
+  /// Drops connections kept alive over the advertised address. Called when the
+  /// device may have changed network, since a pooled LAN socket then stalls
+  /// until a request deadline instead of failing.
+  void invalidate();
+
   /// Whether the server advertised an address a connection test can pin to.
   bool get hasAddresses;
 
