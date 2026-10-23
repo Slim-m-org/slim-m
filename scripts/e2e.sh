@@ -44,9 +44,9 @@ cleanup() {
   fi
   echo "== teardown =="
   # CDP+11..16 are the extra browsers the voice scenarios start for themselves.
-  pkill -f "remote-debugging-port=($((CDP+1))|$((CDP+2))|$((CDP+11))|$((CDP+13))|$((CDP+14))|$((CDP+15))|$((CDP+16)))( |$)" 2>/dev/null || true
+  pkill -f "remote-debugging-port=($((CDP+1))|$((CDP+2))|$((CDP+11))|$((CDP+13))|$((CDP+14))|$((CDP+15))|$((CDP+16))|$((CDP+17)))( |$)" 2>/dev/null || true
   bash "$ROOT/scripts/e2e-stack.sh" down
-  rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw "$WORK"/chrome-vqa "$WORK"/chrome-vqb
+  rm -rf "$WORK/chrome-alice" "$WORK/chrome-bob" "$WORK"/chrome-carol "$WORK"/chrome-noisy "$WORK"/chrome-raw "$WORK"/chrome-vqa "$WORK"/chrome-vqb "$WORK"/chrome-tabs
   exit $code
 }
 trap cleanup EXIT

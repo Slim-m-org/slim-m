@@ -50,9 +50,10 @@ def shots_dir():
 class Client:
     """One browser, addressed over the Chrome DevTools Protocol."""
 
-    def __init__(self, name, port):
+    def __init__(self, name, port, target=None):
         self.name = name
         self.port = port
+        self.target = target
         self._ws = None
         self._id = 0
         self._log = []
@@ -62,7 +63,8 @@ class Client:
 
         targets = json.load(urllib.request.urlopen(
             f"http://127.0.0.1:{self.port}/json/list"))
-        page = next(t for t in targets if t["type"] == "page")
+        page = next(t for t in targets if t["type"] == "page"
+                    and self.target in (None, t["id"]))
         self._ws = create_connection(page["webSocketDebuggerUrl"],
                                      suppress_origin=True, timeout=30)
         for domain in ("Log", "Runtime"):
