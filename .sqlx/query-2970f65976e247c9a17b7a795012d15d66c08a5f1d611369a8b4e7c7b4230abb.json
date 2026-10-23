@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM category_overwrites WHERE target_type = 'role' AND target_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "2970f65976e247c9a17b7a795012d15d66c08a5f1d611369a8b4e7c7b4230abb"
+}

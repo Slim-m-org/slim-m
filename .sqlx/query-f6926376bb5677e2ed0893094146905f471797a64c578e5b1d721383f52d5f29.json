@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM category_overwrites WHERE target_type = 'member' AND target_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f6926376bb5677e2ed0893094146905f471797a64c578e5b1d721383f52d5f29"
+}
