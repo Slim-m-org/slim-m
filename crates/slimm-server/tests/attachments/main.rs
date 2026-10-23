@@ -29,6 +29,7 @@ mod shared_staging;
 mod slow_upload;
 mod spoilers;
 mod stills;
+mod upload_session_channel;
 mod upload_sessions;
 mod uploading;
 
