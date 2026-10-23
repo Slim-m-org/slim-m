@@ -135,6 +135,7 @@ const _deviceKeys = <String>{
   'slimm.spotify.account',
   'slimm.spotify.pending',
   'slimm.spotify.tokens',
+  'slimm.spotify.tokens.bg',
   'slimm.update.dismissed_version',
   'slimm.updates.automatic',
   'slimm.voice.activity_sensitivity',
