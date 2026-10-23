@@ -21,6 +21,7 @@ use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
 use crate::store::{SessionScope, VoiceEventKind};
 use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
+use crate::voice_session_sweeps::publish_closed;
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/voice/webhook", post(receive))
@@ -76,7 +77,7 @@ async fn track_session(state: &AppState, event: &WebhookEvent) {
         store
             .close_voice_sessions(SessionScope::Channel(channel_id), at)
             .await
-            .map(drop)
+            .map(|closed| publish_closed(&state.hub, &closed))
     } else {
         let Some(participant) = &event.participant else {
             return;
@@ -86,13 +87,13 @@ async fn track_session(state: &AppState, event: &WebhookEvent) {
         };
         match event.event.as_str() {
             "participant_joined" => store
-                .open_voice_session(channel_id, user_id, &participant.sid, at)
+                .open_voice_session_closing(channel_id, user_id, &participant.sid, at)
                 .await
-                .map(drop),
+                .map(|(_, closed)| publish_closed(&state.hub, &closed)),
             "participant_left" => store
                 .close_voice_sessions(SessionScope::Sid(user_id, &participant.sid), at)
                 .await
-                .map(drop),
+                .map(|closed| publish_closed(&state.hub, &closed)),
             _ => return,
         }
     };

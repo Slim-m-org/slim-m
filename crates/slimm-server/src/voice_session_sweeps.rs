@@ -2,20 +2,36 @@
 //! Housekeeping for voice sessions (decision 0091): ending the ones a missed
 //! leave left open, and deleting closed ones past retention.
 
+use crate::hub::{Event, Hub};
 use crate::ids::{ChannelId, UserId};
-use crate::store::{self, SessionScope, Store};
+use crate::store::{self, SessionScope, Store, VoiceSession};
 use crate::sweeps::spawn_sweep;
 
 /// How often voice sessions past their retention are deleted.
 const SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60 * 60);
 
+/// Tells subscribed modules that these sessions have ended.
+pub fn publish_closed(hub: &Hub, closed: &[VoiceSession]) {
+    for session in closed {
+        hub.publish(Event::VoiceSessionClosed {
+            session_id: session.id,
+            user_id: session.user_id,
+            channel_id: session.channel_id,
+            joined_at_ms: session.joined_at,
+            left_at_ms: session.left_at.unwrap_or(session.joined_at),
+            alone_ms: session.alone_ms,
+        });
+    }
+}
+
 /// Ends the voice sessions of members whose heartbeat went stale.
-pub async fn close_stale_sessions(store: &Store, stale: &[(UserId, ChannelId)]) {
+pub async fn close_stale_sessions(store: &Store, hub: &Hub, stale: &[(UserId, ChannelId)]) {
     let at = store::now_ms();
     for (user_id, channel_id) in stale {
         let scope = SessionScope::Member(*user_id, *channel_id);
-        if let Err(err) = store.close_voice_sessions(scope, at).await {
-            tracing::warn!(%err, "could not close a stale voice session");
+        match store.close_voice_sessions(scope, at).await {
+            Ok(closed) => publish_closed(hub, &closed),
+            Err(err) => tracing::warn!(%err, "could not close a stale voice session"),
         }
     }
 }

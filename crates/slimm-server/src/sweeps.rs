@@ -200,7 +200,7 @@ pub(crate) fn spawn_call_sweep(store: store::Store, voice: voice::VoiceService, 
         let hub = hub.clone();
         async move {
             let stale = sweep_stale_voice_calls(&voice, &hub).await;
-            crate::voice_session_sweeps::close_stale_sessions(&store, &stale).await;
+            crate::voice_session_sweeps::close_stale_sessions(&store, &hub, &stale).await;
         }
     });
 }

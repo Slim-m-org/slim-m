@@ -25,6 +25,7 @@ struct World {
     store: Store,
     pool: sqlx::SqlitePool,
     voice: VoiceService,
+    hub: Hub,
     channel: ChannelId,
     user: UserId,
     other: UserId,
@@ -35,8 +36,10 @@ async fn world(prefix: &str) -> World {
     let (store, pool, guard) = support::new_store_with_pool(prefix).await;
     // An address nothing listens on: removal calls fail quietly.
     let voice = VoiceService::for_test("http://127.0.0.1:1", API_KEY, API_SECRET);
+    let hub = Hub::new();
     let app = support::app::builder(store.clone())
         .voice(voice.clone())
+        .hub(hub.clone())
         .router();
     let user = store.create_user("nia", "Nia").await.unwrap().id;
     store.bootstrap_deployment(user).await.unwrap();
@@ -47,6 +50,7 @@ async fn world(prefix: &str) -> World {
         store,
         pool,
         voice,
+        hub,
         channel,
         user,
         other,
@@ -82,6 +86,60 @@ impl World {
             })
             .collect()
     }
+}
+
+/// The members whose `VoiceSessionClosed` events are waiting on `events`.
+fn closed_users(
+    events: &mut tokio::sync::broadcast::Receiver<slimm_server::hub::Event>,
+) -> Vec<UserId> {
+    let mut users = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let slimm_server::hub::Event::VoiceSessionClosed { user_id, .. } = event {
+            users.push(user_id);
+        }
+    }
+    users
+}
+
+#[tokio::test]
+async fn closing_a_session_tells_subscribed_modules() {
+    let w = world("slimm-vs-event").await;
+    let mut events = w.hub.subscribe();
+    w.deliver("participant_joined", Some((w.user, "PA_1")))
+        .await;
+    assert!(
+        closed_users(&mut events).is_empty(),
+        "a join closes nothing"
+    );
+    w.deliver("participant_left", Some((w.user, "PA_1"))).await;
+    assert_eq!(closed_users(&mut events), vec![w.user]);
+}
+
+#[tokio::test]
+async fn a_finished_room_publishes_one_event_per_session() {
+    let w = world("slimm-vs-event-room").await;
+    let mut events = w.hub.subscribe();
+    w.deliver("participant_joined", Some((w.user, "PA_1")))
+        .await;
+    w.deliver("participant_joined", Some((w.other, "PA_2")))
+        .await;
+    w.deliver("room_finished", None).await;
+    let mut users = closed_users(&mut events);
+    users.sort_by_key(|u| u.to_string());
+    let mut expected = vec![w.user, w.other];
+    expected.sort_by_key(|u| u.to_string());
+    assert_eq!(users, expected);
+}
+
+#[tokio::test]
+async fn rejoining_under_a_new_sid_publishes_the_session_it_ended() {
+    let w = world("slimm-vs-event-rejoin").await;
+    let mut events = w.hub.subscribe();
+    w.deliver("participant_joined", Some((w.user, "PA_1")))
+        .await;
+    w.deliver("participant_joined", Some((w.user, "PA_2")))
+        .await;
+    assert_eq!(closed_users(&mut events), vec![w.user]);
 }
 
 #[tokio::test]
@@ -159,13 +217,12 @@ async fn a_stale_heartbeat_sweep_closes_that_members_session() {
     let start = Instant::now();
     w.voice
         .record_heartbeat_at_for_test(w.user, w.channel, start);
-    let stale = slimm_server::sweep_stale_voice_calls_at(
-        &w.voice,
-        &Hub::new(),
-        start + Duration::from_secs(41),
-    )
-    .await;
-    slimm_server::close_stale_sessions(&w.store, &stale).await;
+    let stale =
+        slimm_server::sweep_stale_voice_calls_at(&w.voice, &w.hub, start + Duration::from_secs(41))
+            .await;
+    let mut events = w.hub.subscribe();
+    slimm_server::close_stale_sessions(&w.store, &w.hub, &stale).await;
+    assert_eq!(closed_users(&mut events), vec![w.user]);
 
     let rows = w.sessions().await;
     assert!(

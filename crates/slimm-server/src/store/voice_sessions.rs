@@ -44,6 +44,20 @@ impl Store {
         sid: &str,
         at: i64,
     ) -> anyhow::Result<bool> {
+        Ok(self
+            .open_voice_session_closing(channel, user, sid, at)
+            .await?
+            .0)
+    }
+
+    /// [`Self::open_voice_session`], also returning the earlier sessions it closed.
+    pub async fn open_voice_session_closing(
+        &self,
+        channel: ChannelId,
+        user: UserId,
+        sid: &str,
+        at: i64,
+    ) -> anyhow::Result<(bool, Vec<VoiceSession>)> {
         let stale = sqlx::query_scalar!(
             r#"SELECT id AS "id!: i64" FROM voice_sessions
                WHERE user_id = ? AND left_at IS NULL AND sid <> ?"#,
@@ -52,7 +66,7 @@ impl Store {
         )
         .fetch_all(&self.pool)
         .await?;
-        self.close_voice_session_ids(&stale, at).await?;
+        let closed = self.close_voice_session_ids(&stale, at).await?;
         let inserted = sqlx::query!(
             "INSERT INTO voice_sessions (user_id, channel_id, sid, joined_at)
              SELECT ?, ?, ?, ?
@@ -69,7 +83,7 @@ impl Store {
         .execute(&self.pool)
         .await?
         .rows_affected();
-        Ok(inserted == 1)
+        Ok((inserted == 1, closed))
     }
 
     /// Closes the open sessions in `scope` at `at`, returning each as closed.
