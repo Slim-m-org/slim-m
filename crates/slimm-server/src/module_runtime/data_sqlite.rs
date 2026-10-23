@@ -265,6 +265,18 @@ async fn run(pool: &SqlitePool, statement: &Statement) -> Result<Outcome, DataEr
                 ..Outcome::default()
             })
         }
+        Shape::Returning(columns) => {
+            let rows = query.fetch_all(pool).await.map_err(map)?;
+            let rows: Vec<_> = rows
+                .iter()
+                .map(|row| decode_row(row, columns))
+                .collect::<Result<_, _>>()?;
+            Ok(Outcome {
+                changed: rows.len() as u64,
+                rows,
+                scalar: None,
+            })
+        }
         Shape::Insert => {
             let done = query.execute(pool).await.map_err(map)?;
             let mut row = Map::new();
