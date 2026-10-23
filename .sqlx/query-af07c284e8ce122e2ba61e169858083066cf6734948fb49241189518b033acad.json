@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO voice_sessions (user_id, channel_id, sid, joined_at)\n             SELECT ?, ?, ?, ?\n             WHERE NOT EXISTS (\n                 SELECT 1 FROM voice_sessions WHERE user_id = ? AND sid = ? AND left_at IS NULL\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "af07c284e8ce122e2ba61e169858083066cf6734948fb49241189518b033acad"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT joined_at AS \"joined_at!: i64\", left_at\n               FROM voice_sessions\n               WHERE channel_id = ? AND id <> ? AND joined_at < ?\n                 AND (left_at IS NULL OR left_at > ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "joined_at!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "left_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "2272378380073375aae0140d7f89647e2755ff8a11edff0b1e81d22d8819e845"
+}
