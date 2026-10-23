@@ -80,12 +80,16 @@ impl Store {
     /// that never reached the server at all, which this system must tolerate
     /// regardless, and it buys back the sign-out.
     ///
-    /// `refresh_tokens.successor_hash` (migration 0071) is deliberately never
-    /// written. Revoking the previous successor when a pending token rotates
-    /// again would strand a client whose two concurrent refreshes raced and
-    /// that kept the earlier response; the server cannot tell that apart from
-    /// a lost response, and `concurrent_refresh_of_same_token_never_errors`
-    /// holds the line on never stranding it.
+    /// A pending token rotating again supersedes what its earlier rotation
+    /// issued: `refresh_tokens.successor_hash` (migration 0071) names that
+    /// child, and [`retire_superseded_chain`] retires it and anything rotated
+    /// from it. Otherwise a thief and the real client could each rotate the
+    /// same pending token into a live chain of their own, and reuse detection
+    /// would never fire. The retry of a lost response is unaffected, since the
+    /// child it never received is the one retired. A client that kept the
+    /// earlier response of two concurrent refreshes of one token presents a
+    /// retired token and is signed out; the client refreshes single-flight,
+    /// so only a second process sharing its credentials can do that.
     ///
     /// The claim is still the transaction's first statement, so it takes the
     /// write lock up front and a concurrent rotation waits on the lock rather
@@ -114,7 +118,8 @@ impl Store {
             r#"UPDATE refresh_tokens SET used_at = COALESCE(used_at, ?)
                WHERE token_hash = ? AND retired_at IS NULL AND revoked_at IS NULL AND expires_at > ?
                RETURNING session_id AS "session_id!: SessionId",
-                         family_id AS "family_id!: FamilyId""#,
+                         family_id AS "family_id!: FamilyId",
+                         successor_hash"#,
             now,
             presented,
             now
@@ -140,6 +145,7 @@ impl Store {
             return Ok(RefreshOutcome::Denied);
         }
 
+        retire_superseded_chain(&mut tx, claimed.successor_hash, now).await?;
         super::safety::touch_device(&mut tx, session.device_id, now).await?;
         if client_kind.is_some() || client_version.is_some() {
             sqlx::query!(
@@ -169,6 +175,13 @@ impl Store {
             claimed.family_id,
             now,
             refresh_expires_at
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE refresh_tokens SET successor_hash = ? WHERE token_hash = ?",
+            refresh_hash,
+            presented
         )
         .execute(&mut *tx)
         .await?;
@@ -204,6 +217,39 @@ impl Store {
             known_install: false,
         }))
     }
+}
+
+/// Retires the child a pending token issued earlier, and every token rotated
+/// from it, so a later use of any of them is a replay of a retired token.
+///
+/// Bounded because a chain this deep means a loop in the data, not a client.
+async fn retire_superseded_chain(
+    conn: &mut SqliteConnection,
+    first: Option<String>,
+    now: i64,
+) -> anyhow::Result<()> {
+    const MAX_CHAIN: usize = 64;
+    let mut next = first;
+    for _ in 0..MAX_CHAIN {
+        let Some(hash) = next else {
+            break;
+        };
+        sqlx::query!(
+            "UPDATE refresh_tokens SET retired_at = COALESCE(retired_at, ?) WHERE token_hash = ?",
+            now,
+            hash
+        )
+        .execute(&mut *conn)
+        .await?;
+        next = sqlx::query_scalar!(
+            "SELECT successor_hash FROM refresh_tokens WHERE token_hash = ?",
+            hash
+        )
+        .fetch_optional(&mut *conn)
+        .await?
+        .flatten();
+    }
+    Ok(())
 }
 
 /// Sorts out why a refresh claim matched no row: unknown, revoked, expired, or

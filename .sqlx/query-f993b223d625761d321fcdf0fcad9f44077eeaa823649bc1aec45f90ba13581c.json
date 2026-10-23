@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT successor_hash FROM refresh_tokens WHERE token_hash = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "successor_hash",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "f993b223d625761d321fcdf0fcad9f44077eeaa823649bc1aec45f90ba13581c"
+}
