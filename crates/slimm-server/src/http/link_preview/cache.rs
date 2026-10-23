@@ -23,6 +23,9 @@ use super::video::VideoInfo;
 const CACHE_TTL_MS: i64 = 30 * 60 * 1000;
 const MAX_ENTRIES: usize = 5_000;
 
+/// Total image bytes held at once; the count bound alone allowed 5 MiB x 5000.
+const MAX_IMAGE_BYTES: usize = 64 * 1024 * 1024;
+
 /// How long a URL that yielded no preview is answered from memory, so a dead
 /// link pasted into a busy channel costs one outbound fetch, not one per reader.
 const MISS_TTL_MS: i64 = 60 * 1000;
@@ -202,6 +205,9 @@ impl Cache {
     /// Records the fetched bytes for an image token, so the next viewer of
     /// the same card is served from memory rather than a fresh outbound fetch.
     pub(super) fn store_image_bytes(&self, token: &str, bytes: Bytes) {
+        if bytes.len() > MAX_IMAGE_BYTES {
+            return;
+        }
         let now = now_ms();
         let mut images = lock(&self.images);
         sweep(&mut images, |c| c.inserted_at, now);
@@ -212,6 +218,27 @@ impl Cache {
                 inserted_at: now,
             },
         );
+        evict_over_byte_budget(&mut images);
+    }
+}
+
+/// Drops the oldest images until the held bytes fit [`MAX_IMAGE_BYTES`].
+fn evict_over_byte_budget(images: &mut HashMap<String, CachedImage>) {
+    let mut total: usize = images.values().map(|c| c.bytes.len()).sum();
+    if total <= MAX_IMAGE_BYTES {
+        return;
+    }
+    let mut by_age: Vec<(String, i64, usize)> = images
+        .iter()
+        .map(|(k, v)| (k.clone(), v.inserted_at, v.bytes.len()))
+        .collect();
+    by_age.sort_by_key(|(_, at, _)| *at);
+    for (key, _, len) in by_age {
+        if total <= MAX_IMAGE_BYTES {
+            break;
+        }
+        images.remove(&key);
+        total -= len;
     }
 }
 
@@ -370,5 +397,57 @@ mod tests {
             after.image_url(&token).as_deref(),
             Some("https://cdn.example.com/a.png")
         );
+    }
+
+    fn image_at(len: usize, inserted_at: i64) -> CachedImage {
+        CachedImage {
+            bytes: Bytes::from(vec![0u8; len]),
+            inserted_at,
+        }
+    }
+
+    #[test]
+    fn images_past_the_byte_budget_evict_the_oldest_first() {
+        let chunk = 5 * 1024 * 1024;
+        let mut images = HashMap::new();
+        for i in 0..14 {
+            images.insert(format!("t{i}"), image_at(chunk, now_ms() + i));
+        }
+        evict_over_byte_budget(&mut images);
+        let held: usize = images.values().map(|c| c.bytes.len()).sum();
+        assert!(held <= MAX_IMAGE_BYTES);
+        assert!(!images.contains_key("t0") && !images.contains_key("t1"));
+        assert!(images.contains_key("t13"), "the newest survives");
+        assert_eq!(images.len(), MAX_IMAGE_BYTES / chunk);
+    }
+
+    #[test]
+    fn a_single_image_larger_than_the_budget_is_not_cached() {
+        let cache = Cache::new([7; 32]);
+        cache.store_image_bytes("small", Bytes::from(vec![0u8; 10]));
+        cache.store_image_bytes("huge", Bytes::from(vec![0u8; MAX_IMAGE_BYTES + 1]));
+        assert!(cache.image_bytes("huge").is_none());
+        assert!(cache.image_bytes("small").is_some(), "others are untouched");
+    }
+
+    #[test]
+    fn storing_past_the_budget_keeps_the_held_bytes_bounded() {
+        let cache = Cache::new([7; 32]);
+        let chunk = 5 * 1024 * 1024;
+        for i in 0..20 {
+            cache.store_image_bytes(&format!("t{i}"), Bytes::from(vec![0u8; chunk]));
+        }
+        let held: usize = lock(&cache.images).values().map(|c| c.bytes.len()).sum();
+        assert!(held <= MAX_IMAGE_BYTES);
+        assert!(cache.image_bytes("t19").is_some());
+    }
+
+    #[test]
+    fn the_entry_count_bound_still_applies_to_images() {
+        let cache = Cache::new([7; 32]);
+        for i in 0..MAX_ENTRIES + 10 {
+            cache.store_image_bytes(&format!("t{i}"), Bytes::from_static(&[1]));
+        }
+        assert!(lock(&cache.images).len() <= MAX_ENTRIES);
     }
 }
