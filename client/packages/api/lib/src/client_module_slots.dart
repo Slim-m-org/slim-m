@@ -31,18 +31,23 @@ extension SlimmApiModuleSlots on SlimmApi {
         '/space/dock/slots/badges',
         query: {'ids': ids.sublist(i, end).join(',')},
       );
-      final badges = json is Map ? json['badges'] : null;
-      if (badges is! Map) continue;
-      for (final entry in badges.entries) {
-        final list = entry.value;
-        if (entry.key is! String || list is! List) continue;
-        final parsed = list
-            .map(ModuleBadge.tryParse)
-            .whereType<ModuleBadge>()
-            .toList(growable: false);
-        if (parsed.isNotEmpty) out[entry.key as String] = parsed;
-      }
+      _collectBadges(json, out);
     }
     return out;
+  }
+
+  /// Adds the badges in one `badges` answer to [out], skipping anything malformed.
+  static void _collectBadges(Object? json, Map<String, List<ModuleBadge>> out) {
+    final badges = json is Map ? json['badges'] : null;
+    if (badges is! Map) return;
+    for (final entry in badges.entries) {
+      final list = entry.value;
+      if (entry.key is! String || list is! List) continue;
+      final parsed = list
+          .map(ModuleBadge.tryParse)
+          .whereType<ModuleBadge>()
+          .toList(growable: false);
+      if (parsed.isNotEmpty) out[entry.key as String] = parsed;
+    }
   }
 }

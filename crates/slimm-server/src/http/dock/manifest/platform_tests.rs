@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 
 use super::tests::GOOD_MANIFEST;
-use super::*;
+use super::{Manifest, ManifestError, parse_manifest, platform};
 
 fn manifest_with(extra: Value, caps: &[&str]) -> String {
     let mut m: Value = serde_json::from_str(GOOD_MANIFEST).unwrap();

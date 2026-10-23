@@ -259,12 +259,10 @@ class MemberRow extends ConsumerWidget {
     double rowWidth,
   ) {
     if (label == null && moduleBadges.isEmpty) return null;
+    final variant = isBot ? AppBadgeVariant.tag : AppBadgeVariant.role;
     final chip = label == null
         ? null
-        : AppBadge(
-            variant: isBot ? AppBadgeVariant.tag : AppBadgeVariant.role,
-            label: label,
-          );
+        : AppBadge(variant: variant, label: label);
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: rowWidth * 0.4),
       child: moduleBadges.isEmpty

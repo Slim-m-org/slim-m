@@ -3,8 +3,12 @@
 //! approved host, refused when unset, and never shown in a debug print.
 
 use std::sync::Mutex;
+use std::time::Duration;
 
-use super::*;
+use super::{
+    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_FETCHES_PER_RUN, SecretSource,
+    handle, handle_with_secrets,
+};
 
 #[derive(Default)]
 struct Vault {

@@ -99,38 +99,63 @@ class _ModuleSettingsFormState extends State<ModuleSettingsForm> {
   Map<String, Object?> _changes() {
     final out = <String, Object?>{};
     for (final e in widget.doc.settings) {
-      final key = e.def.key;
-      final original = _original(e);
-      final text = _controllers[key]?.text ?? '';
-      switch (e.def.type) {
-        case api.ModuleSettingType.boolean:
-          if (_values[key] != (original == true)) out[key] = _values[key];
-        case api.ModuleSettingType.integer when _bounded(e.def):
-          final was = original is num ? original.round() : null;
-          if (_values[key] != (was ?? e.def.min)) out[key] = _values[key];
-        case api.ModuleSettingType.integer:
-          final was = original is num ? '${original.round()}' : '';
-          if (text.trim() != was) out[key] = int.tryParse(text.trim());
-        case api.ModuleSettingType.string:
-          if (text != (original is String ? original : '')) {
-            // Empty text drops the stored value, back to the default.
-            out[key] = text.isEmpty ? null : text;
-          }
-        case api.ModuleSettingType.choice:
-          if (_values[key] != (original is String ? original : null)) {
-            out[key] = _values[key];
-          }
-        case api.ModuleSettingType.secret:
-          if (_cleared.contains(key)) {
-            out[key] = null;
-          } else if (text.isNotEmpty) {
-            out[key] = text;
-          }
-        case api.ModuleSettingType.unknown:
-          break;
-      }
+      final change = _changeOf(e);
+      if (change != null) out[e.def.key] = change.value;
     }
     return out;
+  }
+
+  /// This setting's new value (null clears it) when it differs from what is stored.
+  ({Object? value})? _changeOf(api.ModuleSettingEntry e) {
+    final key = e.def.key;
+    final original = _original(e);
+    final text = _controllers[key]?.text ?? '';
+    return switch (e.def.type) {
+      api.ModuleSettingType.boolean => _boolChange(key, original),
+      api.ModuleSettingType.integer when _bounded(e.def) => _sliderChange(
+        key,
+        original,
+        e.def,
+      ),
+      api.ModuleSettingType.integer => _numberChange(text, original),
+      api.ModuleSettingType.string => _stringChange(text, original),
+      api.ModuleSettingType.choice => _choiceChange(key, original),
+      api.ModuleSettingType.secret => _secretChange(key, text),
+      api.ModuleSettingType.unknown => null,
+    };
+  }
+
+  ({Object? value})? _boolChange(String key, Object? original) =>
+      _values[key] != (original == true) ? (value: _values[key]) : null;
+
+  ({Object? value})? _sliderChange(
+    String key,
+    Object? original,
+    api.ModuleSettingDef def,
+  ) {
+    final was = original is num ? original.round() : null;
+    return _values[key] != (was ?? def.min) ? (value: _values[key]) : null;
+  }
+
+  ({Object? value})? _numberChange(String text, Object? original) {
+    final was = original is num ? '${original.round()}' : '';
+    return text.trim() != was ? (value: int.tryParse(text.trim())) : null;
+  }
+
+  ({Object? value})? _stringChange(String text, Object? original) {
+    if (text == (original is String ? original : '')) return null;
+    // Empty text drops the stored value, back to the default.
+    return (value: text.isEmpty ? null : text);
+  }
+
+  ({Object? value})? _choiceChange(String key, Object? original) =>
+      _values[key] != (original is String ? original : null)
+      ? (value: _values[key])
+      : null;
+
+  ({Object? value})? _secretChange(String key, String text) {
+    if (_cleared.contains(key)) return (value: null);
+    return text.isNotEmpty ? (value: text) : null;
   }
 
   String? _problem(Map<String, Object?> changes) {
