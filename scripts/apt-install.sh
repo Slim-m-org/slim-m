@@ -42,7 +42,13 @@ install_from_cache() {
   timeout "$INSTALL_LIMIT" sudo DEBIAN_FRONTEND=noninteractive dpkg -i "${debs[@]}"
 }
 
-if install_from_cache; then
+# A cache that installed cleanly but missed a requested package is not a hit.
+all_installed() {
+  local installed
+  installed=$(dpkg-query -W -f='${Status}\n' "$@" 2>/dev/null | grep -c "install ok installed")
+  [[ "$installed" -eq $# ]]
+}
+if install_from_cache && all_installed "$@"; then
   exit 0
 fi
 
