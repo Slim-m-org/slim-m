@@ -234,22 +234,22 @@ void main() {
       _wrap(_layer(document, const [_cameraOff, other], overrides)),
     );
     await tester.pump();
-    // Both untouched: paints in the roster's own order, [_cameraOff, other].
-    expect(tileOrder(), ['camera:user-noor', 'camera:user-avery']);
+    // Both untouched: paints by key, the same on every viewer whatever order their roster lists.
+    expect(tileOrder(), ['camera:user-avery', 'camera:user-noor']);
 
     // Touch the tile that already paints first, so a real move is the only way the order below could change.
     overrides.setRect(
-      'camera:user-noor',
+      'camera:user-avery',
       const Rect.fromLTWH(500, 500, 140, 140),
     );
     await tester.pump();
 
     expect(
       tileOrder(),
-      ['camera:user-avery', 'camera:user-noor'],
+      ['camera:user-noor', 'camera:user-avery'],
       reason:
           'the tile just touched paints last - on top - regardless of '
-          'its own roster order',
+          'its own key',
     );
   });
 
