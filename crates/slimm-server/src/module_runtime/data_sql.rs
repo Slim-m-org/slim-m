@@ -13,7 +13,10 @@ use super::data_sql_write as write;
 pub const MAX_TEXT_BYTES: usize = 4 * 1024;
 /// Most rows one `query` returns.
 pub const MAX_ROWS: i64 = 200;
-const MAX_OFFSET: i64 = 1_000_000;
+const MAX_OFFSET: i64 = 10_000;
+/// Longest `like` pattern, and the most pattern bytes one statement may carry.
+const MAX_LIKE_BYTES: usize = 256;
+const MAX_LIKE_TOTAL: usize = 1024;
 const MAX_CONDITIONS: usize = 16;
 const MAX_IN_VALUES: usize = 100;
 const MAX_ORDER: usize = 4;
@@ -263,6 +266,7 @@ pub(super) fn where_clause(
         return Err("too many where conditions".to_owned());
     }
     let mut parts = Vec::new();
+    let mut like_bytes = 0;
     for cond in filters {
         let ty = column_type(table, &cond.col)?;
         let col = quote(&cond.col);
@@ -281,6 +285,12 @@ pub(super) fn where_clause(
             let bind = to_bind(ty, &cond.val)?;
             if bind == Bind::Null {
                 return Err("where values cannot be null".to_owned());
+            }
+            if let (Bind::Text(pattern), "like") = (&bind, cond.op.as_str()) {
+                like_bytes += pattern.len();
+                if pattern.len() > MAX_LIKE_BYTES || like_bytes > MAX_LIKE_TOTAL {
+                    return Err("like patterns are too long".to_owned());
+                }
             }
             binds.push(bind);
         }

@@ -201,7 +201,17 @@ impl CapabilitySurface {
         match parsed.capability.as_str() {
             "kv.store" => kv::handle(kv.as_ref(), module_id, kv_calls_remaining, request),
             "data.store" => match data {
-                Some(data) => data::handle(data.as_ref(), module_id, kv_calls_remaining, request),
+                Some(data) => {
+                    let remaining = deadline.map_or(data::MAX_CALL_TIME, |d| {
+                        d.saturating_duration_since(Instant::now())
+                    });
+                    data::handle(
+                        data.as_ref(),
+                        module_id,
+                        kv_calls_remaining,
+                        (request, remaining.min(data::MAX_CALL_TIME)),
+                    )
+                }
                 None => refusal("data.store is not available to this run"),
             },
             "message.post" => match poster {

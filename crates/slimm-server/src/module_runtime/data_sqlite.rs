@@ -8,8 +8,9 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow};
@@ -35,9 +36,43 @@ pub fn valid_file_id(id: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
+/// SQLite instructions between checks of the running statement's deadline.
+const PROGRESS_OPS: i32 = 1000;
+
+/// The deadline of the statement a connection is running, read by its progress handler.
+struct Interrupt {
+    base: Instant,
+    until_ms: AtomicU64,
+}
+
+impl Interrupt {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            base: Instant::now(),
+            until_ms: AtomicU64::new(u64::MAX),
+        })
+    }
+
+    fn set(&self, budget: Duration) {
+        let until = self.base.elapsed().saturating_add(budget).as_millis();
+        self.until_ms
+            .store(u64::try_from(until).unwrap_or(u64::MAX), Ordering::Relaxed);
+    }
+
+    fn clear(&self) {
+        self.until_ms.store(u64::MAX, Ordering::Relaxed);
+    }
+
+    fn within_budget(&self) -> bool {
+        let now = u64::try_from(self.base.elapsed().as_millis()).unwrap_or(u64::MAX);
+        now < self.until_ms.load(Ordering::Relaxed)
+    }
+}
+
 struct Opened {
     pool: SqlitePool,
     schema: DataSchema,
+    interrupt: Arc<Interrupt>,
 }
 
 pub struct SqliteData {
@@ -127,8 +162,18 @@ impl DataBackend for SqliteData {
         self.with_opened(module_id, |o| Ok(o.schema.clone()))
     }
 
-    fn execute(&self, module_id: &str, statement: &Statement) -> Result<Outcome, DataError> {
-        self.with_opened(module_id, |o| self.handle.block_on(run(&o.pool, statement)))
+    fn execute(
+        &self,
+        module_id: &str,
+        statement: &Statement,
+        budget: Duration,
+    ) -> Result<Outcome, DataError> {
+        self.with_opened(module_id, |o| {
+            o.interrupt.set(budget);
+            let outcome = self.handle.block_on(run(&o.pool, statement));
+            o.interrupt.clear();
+            outcome
+        })
     }
 }
 
@@ -200,13 +245,27 @@ async fn open_existing(path: &Path) -> Result<Option<Opened>, DataError> {
         return Ok(None);
     };
     let pages = u64::from(schema.max_mb) * 1024 * 1024 / PAGE_BYTES;
+    let interrupt = Interrupt::new();
+    let watched = Arc::clone(&interrupt);
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
+        .after_connect(move |conn, _| {
+            let watched = Arc::clone(&watched);
+            Box::pin(async move {
+                let mut handle = conn.lock_handle().await?;
+                handle.set_progress_handler(PROGRESS_OPS, move || watched.within_budget());
+                Ok(())
+            })
+        })
         .acquire_timeout(BUSY_TIMEOUT * 2)
         .connect_with(options(path).pragma("max_page_count", pages.to_string()))
         .await
         .map_err(|_| DataError::Unavailable)?;
-    Ok(Some(Opened { pool, schema }))
+    Ok(Some(Opened {
+        pool,
+        schema,
+        interrupt,
+    }))
 }
 
 async fn run_ddl(path: &Path, ddl: &[String], schema: &DataSchema) -> Result<(), sqlx::Error> {
@@ -236,6 +295,7 @@ fn classify(err: &sqlx::Error) -> DataError {
     };
     match db.code().as_deref() {
         Some("13") => DataError::Full,
+        Some("9") => DataError::TooSlow,
         Some("2067" | "1555") => DataError::Conflict,
         _ if db.message().contains("database or disk is full") => DataError::Full,
         _ => DataError::Unavailable,

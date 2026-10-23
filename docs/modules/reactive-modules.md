@@ -57,7 +57,7 @@ The events:
 | `voice.session.closed` | `session_id`, `user_id`, `channel_id`, `joined_at_ms`, `left_at_ms`, `alone_ms` | `voice-session:<session id>` |
 
 `reaction.changed` is sent once for each emoji whose count moved, with the new count (0 when the last reaction was removed).
-`id` is minted by the host and is the same for the same occurrence, so use it to ignore a repeat.
+`id` is minted once per delivered event and the host never redelivers, so it names that delivery.
 `at_ms` is the occurrence time where the event has one and the time the host saw it otherwise.
 
 Who receives what:
@@ -204,7 +204,9 @@ Rows carry `_id` and every declared column.
   A condition value cannot be null.
 - `update` and `delete` with no `where` affect every row.
 - `order` has at most 4 entries, each `{col, dir}` with `dir` of `asc` or `desc`.
-- `limit` is 1 to 200 and defaults to 200, and `offset` is at most 1,000,000.
+- `limit` is 1 to 200 and defaults to 200, and `offset` is at most 10,000.
+- A `like` pattern is at most 256 bytes, and one statement carries at most 1 KB of them.
+- A statement is interrupted after 250 ms, or sooner when the run has less wall clock left, and the call returns `{ok:false,error:"data call took too long"}`.
 - A `text` value is at most 4 KB, a `bool` column takes `true` or `false`, and a value must match its column's type.
 - `increment` adds `by` (default 1 for an int column, within plus or minus 2^53) and treats an empty value as 0.
   It is atomic, so use it instead of read, add, write.
