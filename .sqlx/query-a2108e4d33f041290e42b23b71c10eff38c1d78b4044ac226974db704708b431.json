@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT user_id AS \"user_id!: UserId\", channel_id AS \"channel_id!: ChannelId\",\n                      sid AS \"sid!\", joined_at AS \"joined_at!: i64\"\n               FROM voice_sessions WHERE id = ? AND left_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sid!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "joined_at!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a2108e4d33f041290e42b23b71c10eff38c1d78b4044ac226974db704708b431"
+}

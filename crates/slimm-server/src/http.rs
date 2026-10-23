@@ -86,6 +86,7 @@ mod metrics;
 mod module_caller;
 mod module_commands;
 mod module_host;
+mod module_logs;
 mod module_net;
 mod module_run;
 mod module_schedule;

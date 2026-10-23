@@ -107,6 +107,7 @@ mod user_notes;
 mod users;
 mod voice_call_events;
 mod voice_rooms;
+mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
@@ -232,6 +233,7 @@ pub use users::ProfileUpdate;
 pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
+pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };

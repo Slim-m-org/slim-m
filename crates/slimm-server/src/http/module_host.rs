@@ -115,12 +115,19 @@ fn surface_posting_as(
     });
     let fetches = approved.iter().any(|c| c == "net.fetch");
     let stores_data = approved.iter().any(|c| c == "data.store");
+    let logs = approved.iter().any(|c| c == "log.read");
     let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
     if stores_data {
         surface = surface.with_data(Arc::new(SqliteData::new(
             state.store.modules_dir(),
             handle.clone(),
         )));
+    }
+    if logs {
+        surface = surface.with_logs(Arc::new(super::module_logs::SqliteLogs {
+            store: state.store.clone(),
+            handle: handle.clone(),
+        }));
     }
     if fetches {
         surface = surface.with_fetcher(

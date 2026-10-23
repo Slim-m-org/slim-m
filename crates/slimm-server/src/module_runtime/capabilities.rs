@@ -24,6 +24,7 @@ use serde_json::json;
 
 use super::data::{self, DataBackend};
 use super::kv::{self, KvBackend};
+use super::log_read::{self, LogBackend};
 use super::net::{self, HttpFetcher, SecretSource};
 use super::post::{self, MessagePoster};
 
@@ -65,6 +66,8 @@ pub enum CapabilitySurface {
         secrets: Arc<dyn SecretSource>,
         /// Remaining `net.fetch` attempts this run may make.
         fetches_remaining: u32,
+        /// The durable logs `log.read` reads; `None` leaves it unavailable.
+        logs: Option<Arc<dyn LogBackend>>,
         /// Remaining host calls of any kind, refused ones included, so a loop
         /// of bad requests is bounded by more than the wall clock.
         calls_remaining: u32,
@@ -92,6 +95,7 @@ impl CapabilitySurface {
             network_hosts: Vec::new(),
             secrets: Arc::new(net::NoSecrets),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
+            logs: None,
             calls_remaining: MAX_HOST_CALLS_PER_RUN,
             data: None,
         }
@@ -125,6 +129,14 @@ impl CapabilitySurface {
     pub fn with_secrets(mut self, source: Arc<dyn SecretSource>) -> Self {
         if let CapabilitySurface::Enabled { secrets, .. } = &mut self {
             *secrets = source;
+        }
+        self
+    }
+
+    /// Makes `log.read` available through `logs`. A no-op on a disabled surface.
+    pub fn with_logs(mut self, new_logs: Arc<dyn LogBackend>) -> Self {
+        if let CapabilitySurface::Enabled { logs, .. } = &mut self {
+            *logs = Some(new_logs);
         }
         self
     }
@@ -168,6 +180,7 @@ impl CapabilitySurface {
             network_hosts,
             secrets,
             fetches_remaining,
+            logs,
             calls_remaining,
             data,
         } = self
@@ -209,6 +222,10 @@ impl CapabilitySurface {
                 }
                 None => refusal("net.fetch is not available to this run"),
             },
+            "log.read" => logs.as_ref().map_or_else(
+                || refusal("log.read is not available to this run"),
+                |logs| log_read::handle(logs.as_ref(), request),
+            ),
             // Approved, but the host implements no such capability; it fails closed.
             other => refusal(&format!("capability not available: {other}")),
         }

@@ -1,0 +1,56 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: i64\", user_id AS \"user_id!: UserId\",\n                      channel_id AS \"channel_id!: ChannelId\", sid AS \"sid!\",\n                      joined_at AS \"joined_at!: i64\", left_at AS \"left_at!: i64\",\n                      alone_ms AS \"alone_ms!: i64\"\n               FROM voice_sessions\n               WHERE id > ? AND left_at IS NOT NULL\n                 AND id < COALESCE((SELECT MIN(id) FROM voice_sessions WHERE left_at IS NULL), 9223372036854775807)\n               ORDER BY id LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 2,
+        "type_info": "Blob"
+      },
+      {
+        "name": "sid!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "joined_at!: i64",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "left_at!: i64",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "alone_ms!: i64",
+        "ordinal": 6,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c966e8db6d83a2328037a84bf884d004c0c5ba4969af7cf0543cb81ea71e3fe8"
+}

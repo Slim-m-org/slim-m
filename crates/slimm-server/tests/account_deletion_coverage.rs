@@ -187,6 +187,7 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("users", "id", OnDelete::Keep("the tombstone itself")),
     ("voice_call_events", "user_id", OnDelete::Purge),
+    ("voice_sessions", "user_id", OnDelete::Purge),
     ("watch_sessions", "bot_user_id", OnDelete::Purge),
     ("watch_sessions", "controller_user_id", OnDelete::Anonymize),
     ("webhooks", "created_by", OnDelete::Anonymize),

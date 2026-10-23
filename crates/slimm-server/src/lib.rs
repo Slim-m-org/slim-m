@@ -45,12 +45,14 @@ pub mod store;
 mod sweeps;
 pub mod totp;
 pub mod voice;
+mod voice_session_sweeps;
 
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
     sweep_stale_call_rings, sweep_stale_call_rings_at, sweep_stale_voice_calls,
     sweep_stale_voice_calls_at,
 };
+pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 
 use std::net::SocketAddr;
 
@@ -145,7 +147,9 @@ pub async fn run() -> anyhow::Result<()> {
     let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
-    sweeps::spawn_call_sweep(voice.clone(), hub.clone());
+    voice_session_sweeps::reconcile_on_startup(&store).await;
+    sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
+    voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());
     sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
