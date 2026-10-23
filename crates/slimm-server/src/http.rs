@@ -37,6 +37,7 @@ mod bot_ui;
 mod bots;
 pub mod build_id;
 mod canvas;
+mod proxy_hint;
 mod storage_room;
 use canvas::{canvas_media_slots, canvas_object_locks, canvas_purge};
 pub mod capability;

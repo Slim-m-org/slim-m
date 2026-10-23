@@ -8,7 +8,10 @@ use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::auth::Auth;
 use slimm_server::ratelimit::RateLimiter;
-use slimm_server::store::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS, Store};
+use slimm_server::store::{
+    ACCOUNT_FREE_FAILURES, ACCOUNT_MAX_DELAY_MS, FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS,
+    Store,
+};
 use tower::ServiceExt;
 
 mod support;
@@ -211,5 +214,93 @@ async fn stale_throttle_rows_are_swept() {
         .unwrap();
     assert_eq!(store.sweep_login_throttle_at(start + 1).await.unwrap(), 0);
     let later = start + FORGET_AFTER_MS + 1;
-    assert_eq!(store.sweep_login_throttle_at(later).await.unwrap(), 1);
+    assert_eq!(
+        store.sweep_login_throttle_at(later).await.unwrap(),
+        2,
+        "the caller's row and the account-wide row"
+    );
+}
+
+#[tokio::test]
+async fn guessing_from_many_addresses_spends_the_account_budget() {
+    let (store, auth, _guard) = new_store("slimm-login-throttle-distributed").await;
+    let router = app(store.clone(), auth.clone());
+    member(&store, &auth, "alice").await;
+
+    // One wrong guess per address never trips an address's own budget.
+    for ip in 0..=ACCOUNT_FREE_FAILURES as usize {
+        let (status, _) = login_from(&router, ip, "alice", "wrong-password-2").await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
+    let (status, _) = login_from(&router, 200, "alice", PASSWORD).await;
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "the account itself is slowed, whatever address asks"
+    );
+}
+
+#[tokio::test]
+async fn the_account_budget_is_not_spent_by_a_few_honest_typos() {
+    let (store, auth, _guard) = new_store("slimm-login-throttle-typos").await;
+    let router = app(store.clone(), auth.clone());
+    member(&store, &auth, "alice").await;
+    for ip in 0..ACCOUNT_FREE_FAILURES as usize {
+        login_from(&router, ip, "alice", "wrong-password-2").await;
+    }
+    let (status, _) = login_from(&router, 200, "alice", PASSWORD).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn the_owner_signs_in_after_the_account_delay_and_that_ends_the_guessing() {
+    let (store, auth, _guard) = new_store("slimm-login-throttle-account-recover").await;
+    let router = app(store.clone(), auth.clone());
+    member(&store, &auth, "alice").await;
+    let alice = store
+        .live_user_id_by_username("alice")
+        .await
+        .unwrap()
+        .unwrap();
+
+    let start = now_ms() - ACCOUNT_MAX_DELAY_MS - 10_000;
+    for i in 0..200 {
+        let source = format!("ip:203.0.113.{}", i % 250);
+        store
+            .record_login_failure_at(alice, &source, start + i)
+            .await
+            .unwrap();
+    }
+    let fresh = "ip:198.51.100.1";
+    assert!(
+        store
+            .login_throttled_at(alice, fresh, start + 200)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !store
+            .login_throttled_at(alice, fresh, start + 200 + ACCOUNT_MAX_DELAY_MS + 1)
+            .await
+            .unwrap(),
+        "the account delay is bounded and short"
+    );
+
+    let (status, _) = login_from(&router, 1, "alice", PASSWORD).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !store
+            .login_throttled_at(alice, fresh, now_ms())
+            .await
+            .unwrap()
+    );
+    for ip in 0..=FREE_FAILURES as usize {
+        login_from(&router, ip, "alice", "wrong-password-2").await;
+    }
+    let (status, _) = login_from(&router, 201, "alice", PASSWORD).await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "the correct password reset the count"
+    );
 }

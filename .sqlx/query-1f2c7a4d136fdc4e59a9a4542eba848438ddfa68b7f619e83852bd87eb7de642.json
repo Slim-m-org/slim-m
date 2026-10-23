@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT 1 AS \"one!: i64\" FROM login_throttle WHERE user_id = ? AND source = ?",
+  "query": "SELECT 1 AS \"one!: i64\" FROM login_throttle\n             WHERE user_id = ? AND source IN (?, ?) AND locked_until > ?",
   "describe": {
     "columns": [
       {
@@ -10,11 +10,11 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 4
     },
     "nullable": [
       null
     ]
   },
-  "hash": "6c84174554d37ae5c4407b2ecea0a9674743b6f1c3df82e6a59675d13d9ca493"
+  "hash": "1f2c7a4d136fdc4e59a9a4542eba848438ddfa68b7f619e83852bd87eb7de642"
 }

@@ -164,7 +164,9 @@ pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
-pub use login_throttle::{FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS};
+pub use login_throttle::{
+    ACCOUNT_FREE_FAILURES, ACCOUNT_MAX_DELAY_MS, FORGET_AFTER_MS, FREE_FAILURES, MAX_DELAY_MS,
+};
 pub use media_compression::{MediaCompression, MediaCompressionUpdate, default_extensions};
 pub use member_gate::{JoinGate, MAX_RULES_CHARS, MemberGate};
 pub use message_embeds::{Embed, EmbedField, NewEmbed, NewEmbedField};

@@ -82,6 +82,7 @@ pub(crate) fn limit_key(
     if let Some(ctx) = ctx {
         return format!("u:{}", ctx.user_id);
     }
+    super::proxy_hint::observe(parts, trusted_hops);
     if trusted_hops > 0
         && let Some(addr) = forwarded_for(parts, trusted_hops)
     {
