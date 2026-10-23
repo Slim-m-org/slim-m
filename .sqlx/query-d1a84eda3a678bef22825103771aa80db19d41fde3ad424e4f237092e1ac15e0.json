@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_health (module_id, consecutive_failures) VALUES (?, 1)\n               ON CONFLICT (module_id) DO UPDATE SET consecutive_failures = consecutive_failures + 1\n               RETURNING consecutive_failures AS \"streak!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "streak!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d1a84eda3a678bef22825103771aa80db19d41fde3ad424e4f237092e1ac15e0"
+}

@@ -180,7 +180,9 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::InteractionAnswered { .. }
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
-        | Event::VoiceMoved { .. } => false,
+        | Event::VoiceMoved { .. }
+        // Internal to the module event consumer; it moves no permission.
+        | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => moves_permissions(event),
     }
 }
@@ -272,7 +274,8 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::ReadStateChanged { .. }
         | Event::NotificationOverrideChanged { .. }
         | Event::NewDeviceSignIn { .. }
-        | Event::VoiceMoved { .. } => false,
+        | Event::VoiceMoved { .. }
+        | Event::VoiceSessionClosed { .. } => false,
         Event::Stamped { event, .. } => is_ephemeral(event),
     }
 }

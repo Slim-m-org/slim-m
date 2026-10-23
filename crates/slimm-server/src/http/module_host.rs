@@ -94,7 +94,7 @@ pub(crate) fn scheduled_surface(
     surface_posting_as(state, module, bot, Some(channel), true)
 }
 
-fn surface_posting_as(
+pub(super) fn surface_posting_as(
     state: &AppState,
     module: &InstalledModule,
     user_id: UserId,

@@ -60,7 +60,7 @@ mod moderation_audit;
 mod moderation_history;
 mod module_data_dir;
 mod modules;
-use modules::{module_kv, module_permissions, module_stats};
+use modules::{module_health, module_kv, module_permissions, module_stats};
 mod data_exports;
 mod export_capacity;
 mod export_member;
@@ -181,6 +181,7 @@ pub use message_search::{MessageSearchFilters, SearchError};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use moderation_history::{AuditLogEntry, HistoryCursor, ModerationHistoryItem};
+pub use module_health::{EventCandidate, ModuleHealth};
 pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,

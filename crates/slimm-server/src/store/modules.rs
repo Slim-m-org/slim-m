@@ -17,6 +17,7 @@ use super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 
 pub(super) mod module_artifacts;
+pub(super) mod module_health;
 pub(super) mod module_kv;
 pub(super) mod module_permissions;
 pub(super) mod module_schedule;
@@ -370,6 +371,9 @@ impl Store {
         .execute(&self.pool)
         .await?
         .rows_affected();
+        if enabled && affected > 0 {
+            self.reset_module_breaker(id).await?;
+        }
         Ok(affected > 0)
     }
 

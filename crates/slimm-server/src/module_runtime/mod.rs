@@ -27,6 +27,7 @@ pub use data::{DataBackend, DataError, Outcome};
 pub use data_schema::{DataSchema, validate as validate_data_schema};
 pub use data_sql::{Bind, Shape, Statement};
 pub use data_sqlite::{SqliteData, valid_file_id};
+pub use gate::RunLane;
 pub use host::{ModuleHost, RunError};
 pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
 pub use limits::{

@@ -15,7 +15,7 @@ use super::error::ApiError;
 use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
 use crate::ids::UserId;
-use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLimits};
+use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLane, RunLimits};
 use crate::store::{InstalledModule, RunResult, now_ms};
 
 #[derive(Serialize)]
@@ -61,6 +61,9 @@ pub(crate) struct RunRequest<'a> {
     pub(crate) caller: UserId,
     pub(crate) command: &'a str,
     pub(crate) input: &'a str,
+    /// A run the host started (schedule or pushed event): it draws on the
+    /// background lane, a command that answers `ok:false` counts as failed,
+    /// and the circuit breaker watches it.
     pub(crate) scheduled: bool,
 }
 
@@ -96,6 +99,9 @@ pub(crate) async fn run_installed(
         .await
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
+    }
+    if request.scheduled {
+        super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
 }
@@ -142,7 +148,13 @@ async fn run_checked(
     .map_err(|_| ApiError::Internal)?;
 
     let store = state.store.clone();
-    let ran = ModuleHost::run_loading(
+    let lane = if request.scheduled {
+        RunLane::Background
+    } else {
+        RunLane::Member
+    };
+    let ran = ModuleHost::run_loading_in(
+        lane,
         &module.artifact_sha256,
         (limits, request_json, surface),
         || async move {

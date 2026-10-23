@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE module_health SET disabled_reason = ? WHERE module_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "93e753f54418c296d9dd565b26f65ea6adac142389793849eb59606dd535cc42"
+}

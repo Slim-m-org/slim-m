@@ -174,6 +174,7 @@ pub async fn run() -> anyhow::Result<()> {
         code_runner,
     };
     sweeps::spawn_module_schedule_sweep(state.clone());
+    let _module_events = http::spawn_module_events(state.clone());
     let mut router = http::router(state);
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));
