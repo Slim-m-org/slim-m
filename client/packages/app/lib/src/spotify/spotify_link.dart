@@ -58,7 +58,8 @@ final _spotifyOwners = <Ref>[];
 
 /// Phones stop polling while backgrounded or locked; desktop has no such state.
 bool _appInForeground() {
-  if (isDesktopHost) return true;
+  // Only phones suspend a backgrounded app; a desktop window or a web tab keeps polling.
+  if (!isIOSHost && !isAndroidHost) return true;
   final state = WidgetsBinding.instance.lifecycleState;
   return state == null || state == AppLifecycleState.resumed;
 }
