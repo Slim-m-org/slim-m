@@ -15,6 +15,7 @@ mod capabilities;
 mod fetch;
 pub(super) mod keywords;
 mod manifest;
+mod module_data;
 mod sources;
 mod ssrf;
 mod testing;
@@ -444,6 +445,7 @@ async fn install(
             .map(|e| e.name.as_str());
         ensure_slash_keywords_free(&state, &id, keywords).await?;
     }
+    module_data::check(&state, &manifest, &approved_host).await?;
     let artifact = fetch_artifact(dock, &origin, &manifest).await?;
 
     let permissions: Vec<ModulePermissionSpec> = manifest
@@ -493,6 +495,7 @@ async fn install(
             },
         )
         .await?;
+    module_data::apply(&state, &manifest, &approved_host).await?;
     let installed = if module_host::schedule_approved(&installed) {
         state
             .store

@@ -63,6 +63,8 @@ struct RawManifest {
     schedules: Vec<schedule::RawSchedule>,
     #[serde(default)]
     changelog: Vec<changelog::RawChangelogEntry>,
+    #[serde(default)]
+    data: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -180,6 +182,7 @@ pub(super) struct Manifest {
     pub(super) network: ManifestNetwork,
     pub(super) schedules: Vec<ManifestSchedule>,
     pub(super) changelog: Vec<ChangelogEntry>,
+    pub(super) data: Option<crate::module_runtime::DataSchema>,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
@@ -257,6 +260,12 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         network: network::validate_network(raw.network, &capabilities)?,
         schedules: schedule::validate_schedules(raw.schedules, &capabilities, &command_names)?,
         changelog: changelog::validate_changelog(raw.changelog)?,
+        data: raw
+            .data
+            .as_ref()
+            .map(crate::module_runtime::validate_data_schema)
+            .transpose()
+            .map_err(|e| malformed(&e))?,
         capabilities,
         extension_points,
     })

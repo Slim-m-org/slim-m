@@ -9,23 +9,38 @@ use axum::http::request::Parts;
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, Json, Query, enforce};
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
+use crate::module_runtime::SqliteData;
 use crate::ratelimit::Class;
 use crate::store::{DeleteAccountError, InstalledModule};
+
+/// Module data files are kept on uninstall unless the admin asks for them gone.
+#[derive(serde::Deserialize)]
+pub(in crate::http) struct UninstallQuery {
+    #[serde(default)]
+    delete_data: bool,
+}
 
 pub(in crate::http) async fn uninstall(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
     Path(id): Path<String>,
+    Query(query): Query<UninstallQuery>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     let module = state.store.installed_module(&id).await?;
     if !state.store.uninstall_module(&id).await? {
         return Err(ApiError::NotFound("module not installed"));
+    }
+    if query.delete_data {
+        SqliteData::new(state.store.modules_dir(), tokio::runtime::Handle::current())
+            .delete_data(&id)
+            .await
+            .map_err(|_| ApiError::Internal)?;
     }
     if let Some(module) = module {
         retire_principal(&state, &module).await;
