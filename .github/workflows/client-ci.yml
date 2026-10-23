@@ -361,12 +361,12 @@ jobs:
       # linux-compiles builds with -dev packages on its own runner; this job only downloads the binary, so it needs the matching runtime libs named explicitly.
       # libmpv2 and libepoxy0 are new with media_kit_video: its own plugin links against both (confirmed via readelf on the built .so), so the app cannot even load its plugins - never mind play a video - without them present.
       - name: xvfb, window-manipulation tools, dbus, and the binary's runtime libs
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils \
-            libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon \
-            libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0 \
+        uses: ./.github/actions/apt-install
+        with:
+          packages: >-
+            xvfb fluxbox wmctrl xdotool x11-utils libgl1-mesa-dri mesa-utils
+            libgtk-3-0 libsecret-1-0 libgstreamer1.0-0 dbus-daemon
+            libgstreamer-plugins-base1.0-0 libayatana-appindicator3-1 libpulse0
             libmpv2 libepoxy0
 
       - name: chmod the downloaded binary

@@ -37,6 +37,7 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -87,6 +88,7 @@ jobs:
     needs: [build]
     if: inputs.publish && needs.build.result == 'success'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
       packages: write

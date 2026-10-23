@@ -56,6 +56,13 @@ Two rows had omitted `workflow_dispatch` before this existed.
 
 It checks every workflow yields at least one trigger kind, per file rather than in aggregate: a workflow whose `on:` block drifts out of the parser's reach would otherwise be silently exempt while the other twenty keep the suite green.
 
+## Job timeouts
+
+Every job sets `timeout-minutes`, sized at roughly two to three times its slowest recent successful run, so a hung apt mirror or simulator cannot hold a required check, a release or a macOS runner for GitHub's six hour default.
+A job that calls a reusable workflow cannot carry the key; the callee's jobs do.
+`scripts/lib/test_every_workflow_job_has_a_timeout.py` fails when a job has none.
+Raise a job's limit when its real runtime grows toward it, rather than removing it.
+
 ## server-ci
 
 Path-gated so a client-only change never triggers a server build.

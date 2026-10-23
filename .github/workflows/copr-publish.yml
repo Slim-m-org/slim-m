@@ -15,6 +15,7 @@ jobs:
   # Snapshot build submitted to the same COPR project `dnf upgrade` already tracks on the owner's Fedora desktop.
   submit:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     container: fedora:44
     permissions:
       contents: read

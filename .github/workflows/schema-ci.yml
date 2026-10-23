@@ -29,6 +29,7 @@ jobs:
   lint:
     name: lint openapi schema
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -48,6 +49,7 @@ jobs:
     # for instead - not lint, which only checks syntax, never additive-only-ness.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       # The head commit explicitly, not the default merge-ref, so HEAD below is
       # exactly the schema the PR proposes with no merge commit in between.
@@ -91,6 +93,7 @@ jobs:
     name: breaking-change gate (additive-only, push to main)
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       # Two commits, not one: HEAD~1 needs its parent present locally, and a
       # push event's own checkout otherwise fetches only the pushed commit.
