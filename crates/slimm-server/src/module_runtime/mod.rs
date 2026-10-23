@@ -10,6 +10,7 @@ mod gate;
 mod host;
 mod kv;
 mod limits;
+mod log_read;
 mod net;
 mod post;
 mod sliced;
@@ -22,6 +23,7 @@ pub use kv::{InMemoryKv, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES};
 pub use limits::{
     MAX_FETCH_MS, MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, NET_FETCH_WALL_FLOOR_MS, RunLimits,
 };
+pub use log_read::{LogBackend, LogError, MAX_ROWS as MAX_LOG_ROWS, VoiceSessionRow};
 pub use net::{
     FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES, host_allowed,
 };

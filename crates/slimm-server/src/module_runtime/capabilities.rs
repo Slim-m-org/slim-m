@@ -23,6 +23,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::kv::{self, KvBackend};
+use super::log_read::{self, LogBackend};
 use super::net::{self, HttpFetcher};
 use super::post::{self, MessagePoster};
 
@@ -62,6 +63,8 @@ pub enum CapabilitySurface {
         network_hosts: Vec<String>,
         /// Remaining `net.fetch` attempts this run may make.
         fetches_remaining: u32,
+        /// The durable logs `log.read` reads; `None` leaves it unavailable.
+        logs: Option<Arc<dyn LogBackend>>,
         /// Remaining host calls of any kind, refused ones included, so a loop
         /// of bad requests is bounded by more than the wall clock.
         calls_remaining: u32,
@@ -86,6 +89,7 @@ impl CapabilitySurface {
             fetcher: None,
             network_hosts: Vec::new(),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
+            logs: None,
             calls_remaining: MAX_HOST_CALLS_PER_RUN,
         }
     }
@@ -101,6 +105,14 @@ impl CapabilitySurface {
         {
             *fetcher = Some(new_fetcher);
             *network_hosts = hosts;
+        }
+        self
+    }
+
+    /// Makes `log.read` available through `logs`. A no-op on a disabled surface.
+    pub fn with_logs(mut self, new_logs: Arc<dyn LogBackend>) -> Self {
+        if let CapabilitySurface::Enabled { logs, .. } = &mut self {
+            *logs = Some(new_logs);
         }
         self
     }
@@ -143,6 +155,7 @@ impl CapabilitySurface {
             fetcher,
             network_hosts,
             fetches_remaining,
+            logs,
             calls_remaining,
         } = self
         else {
@@ -179,6 +192,10 @@ impl CapabilitySurface {
                 }
                 None => refusal("net.fetch is not available to this run"),
             },
+            "log.read" => logs.as_ref().map_or_else(
+                || refusal("log.read is not available to this run"),
+                |logs| log_read::handle(logs.as_ref(), request),
+            ),
             // Approved, but the host implements no such capability; it fails closed.
             other => refusal(&format!("capability not available: {other}")),
         }
