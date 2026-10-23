@@ -89,6 +89,32 @@ class SpaceSettings {
       );
 }
 
+/// The space settings one [SlimmApiSpace.setSpaceSettings] call writes; a null
+/// field is omitted. An empty [welcomeChannelId] clears the welcome channel.
+class SpaceSettingsUpdate {
+  const SpaceSettingsUpdate({
+    this.name,
+    this.joinPolicy,
+    this.totpPolicy,
+    this.description,
+    this.strongNoiseSuppression,
+    this.membersCanInvite,
+    this.welcomeEnabled,
+    this.welcomeChannelId,
+    this.welcomeMessage,
+  });
+
+  final String? name;
+  final JoinPolicy? joinPolicy;
+  final TotpPolicy? totpPolicy;
+  final String? description;
+  final bool? strongNoiseSuppression;
+  final bool? membersCanInvite;
+  final bool? welcomeEnabled;
+  final String? welcomeChannelId;
+  final String? welcomeMessage;
+}
+
 /// Deployment-wide settings. The writes require MANAGE_SERVER.
 extension SlimmApiSpace on SlimmApi {
   Future<SpaceSettings> spaceSettings() async {
@@ -102,17 +128,18 @@ extension SlimmApiSpace on SlimmApi {
   /// to change it: the server writes only what is present, so a screen holding
   /// a stale snapshot cannot overwrite the operator's other choice. At least
   /// one is required. An empty [welcomeChannelId] clears the welcome channel.
-  Future<SpaceSettings> setSpaceSettings({
-    String? name,
-    JoinPolicy? joinPolicy,
-    TotpPolicy? totpPolicy,
-    String? description,
-    bool? strongNoiseSuppression,
-    bool? membersCanInvite,
-    bool? welcomeEnabled,
-    String? welcomeChannelId,
-    String? welcomeMessage,
-  }) async {
+  Future<SpaceSettings> setSpaceSettings(SpaceSettingsUpdate update) async {
+    final SpaceSettingsUpdate(
+      :name,
+      :joinPolicy,
+      :totpPolicy,
+      :description,
+      :strongNoiseSuppression,
+      :membersCanInvite,
+      :welcomeEnabled,
+      :welcomeChannelId,
+      :welcomeMessage,
+    ) = update;
     assert(
       name != null ||
           joinPolicy != null ||

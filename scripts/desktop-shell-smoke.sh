@@ -46,6 +46,7 @@
 set -euo pipefail
 
 readonly APP_NAME="slim-m"
+readonly END_GROUP="::endgroup::"
 # Read from the Dart constant itself, so a resized splash cannot leave this check looking for the old size.
 splash_source="$(dirname "$0")/../client/packages/app/lib/src/desktop/window_geometry.dart"
 SPLASH_WIDTH="$(sed -nE 's/^const kSplashWindowSize = WindowSize\(width: ([0-9]+), height: [0-9]+\);$/\1/p' "$splash_source")"
@@ -202,7 +203,7 @@ APP_PID=$!
 track_to_settled_size 1280 720 50
 assert_splash_seen
 echo "observed size sequence: ${SIZES[*]}"
-echo "::endgroup::"
+echo "$END_GROUP"
 
 echo "::group::resize past the debounce, then kill mid-session"
 xdotool windowsize "$(window_id)" 900 650
@@ -210,7 +211,7 @@ xdotool windowsize "$(window_id)" 900 650
 sleep 3
 kill -9 "$APP_PID"
 wait "$APP_PID" 2>/dev/null || true
-echo "::endgroup::"
+echo "$END_GROUP"
 
 echo "::group::relaunch starts in the splash shape again, then settles into the geometry saved mid-session, not the default"
 start_event_log
@@ -219,7 +220,7 @@ APP_PID=$!
 track_to_settled_size 900 650 50
 assert_splash_seen
 echo "observed size sequence: ${SIZES[*]}"
-echo "::endgroup::"
+echo "$END_GROUP"
 
 echo "::group::a close request no longer terminates the process, and the window stays reachable"
 sleep 3
@@ -234,7 +235,7 @@ if ! wmctrl -l | grep -q "$APP_NAME"; then
   exit 1
 fi
 echo "process still running and its window still reachable after close, as decision 0012's fallback expects"
-echo "::endgroup::"
+echo "$END_GROUP"
 
 echo "::group::a second launch hands off to the first process instead of spawning a new one"
 "$BIN" &
@@ -261,7 +262,7 @@ if ! kill -0 "$APP_PID" 2>/dev/null; then
   exit 1
 fi
 echo "the second launch exited after handing off, exactly one window remains, and it is still the original process's"
-echo "::endgroup::"
+echo "$END_GROUP"
 
 echo "::group::Ctrl+Q quits for real, with no tray host reachable on this bus at all"
 xdotool windowactivate "$(window_id)"
@@ -277,4 +278,4 @@ while kill -0 "$APP_PID" 2>/dev/null; do
   fi
 done
 echo "Ctrl+Q ended the process - a real quit path with no tray menu to hold the only one"
-echo "::endgroup::"
+echo "$END_GROUP"

@@ -46,7 +46,7 @@ bool _widened(
   }
   final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
   return switch (capability) {
-    'net.fetch' =>
+    api.kNetFetchCapability =>
       newBuild ||
           !dockSameHosts(
             installed.networkHosts,
@@ -67,12 +67,12 @@ List<String> dockConsentChanges(
   if (installed == null) return const [];
   final hosts = manifest.network?.hosts ?? const <String>[];
   return [
-    if (installed.approvedHostCapabilities.contains('net.fetch') &&
+    if (installed.approvedHostCapabilities.contains(api.kNetFetchCapability) &&
         !dockSameHosts(installed.networkHosts, hosts))
       'Now reaches ${hosts.join(', ')}, was ${installed.networkHosts.join(', ')}.',
     if (installed.approvedHostCapabilities.contains('schedule'))
       ...dockScheduleChanges(manifest, installed),
-    if ((installed.approvedHostCapabilities.contains('net.fetch') ||
+    if ((installed.approvedHostCapabilities.contains(api.kNetFetchCapability) ||
             installed.approvedHostCapabilities.contains('schedule')) &&
         installed.artifactSha256 != manifest.artifact.sha256)
       'This is a new build of the module code.',
@@ -261,7 +261,8 @@ class _ConsentSheetState extends State<_ConsentSheet> {
             )!,
             verified: widget.verified,
           ),
-        if (widget.localNetwork && widget.capabilities.contains('net.fetch'))
+        if (widget.localNetwork &&
+            widget.capabilities.contains(api.kNetFetchCapability))
           _CapabilityLine(
             text: dockLocalNetworkWarning,
             verified: widget.verified,

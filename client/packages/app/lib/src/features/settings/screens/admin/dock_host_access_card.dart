@@ -39,7 +39,7 @@ final dockHostCapabilities = <String, DockCapability>{
         'Can post messages in your space as whoever runs it, marked as '
         'this module.',
   ),
-  'net.fetch': (
+  api.kNetFetchCapability: (
     label: 'Reach the internet',
     description: 'Sends requests to the sites it names.',
     warning: _networkWarning,
@@ -72,7 +72,9 @@ String _networkWarning(List<String> hosts) {
 List<String> dockCapabilityDetails(
   api.DockManifest manifest,
   String capability,
-) => capability == 'net.fetch' ? manifest.network?.hosts ?? const [] : const [];
+) => capability == api.kNetFetchCapability
+    ? manifest.network?.hosts ?? const []
+    : const [];
 
 /// The consent sentence for [capability], or null when this client has none.
 String? dockCapabilityWarning(
@@ -158,7 +160,8 @@ class DockHostAccessCard extends StatelessWidget {
 
   /// The local switch exists only while its parent switch is on.
   bool get showsLocalNetwork =>
-      (manifest.network?.local ?? false) && approved.contains('net.fetch');
+      (manifest.network?.local ?? false) &&
+      approved.contains(api.kNetFetchCapability);
 
   String _description(String capability) {
     final details = dockCapabilityDetails(manifest, capability);

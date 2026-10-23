@@ -240,20 +240,7 @@ class LocalAudioState {
     final forward = !silence && volume > 0;
 
     final forwardFailure = await _setForwarding(ref, forward);
-    if (silence) {
-      Object? failure = forwardFailure;
-      if (audible) {
-        try {
-          await ref.disable();
-        } catch (e, stack) {
-          reportFailure(LogTag.voice, "mute a participant's audio", e, stack);
-          failure = e;
-        }
-      }
-      // Whatever was believed about gain stops being true once it is silent.
-      _applied[ref.track] = null;
-      return failure;
-    }
+    if (silence) return _silence(ref, forwardFailure, audible: audible);
 
     final last = _applied[ref.track];
     if (audible &&
@@ -263,6 +250,35 @@ class LocalAudioState {
       return null;
     }
 
+    final here = await _enableAt(ref, volume, forwardFailure);
+    here == null ? _failures.remove(key) : _failures[key] = here;
+    return here;
+  }
+
+  Future<Object?> _silence(
+    LocalAudioRef ref,
+    Object? forwardFailure, {
+    required bool audible,
+  }) async {
+    Object? failure = forwardFailure;
+    if (audible) {
+      try {
+        await ref.disable();
+      } catch (e, stack) {
+        reportFailure(LogTag.voice, "mute a participant's audio", e, stack);
+        failure = e;
+      }
+    }
+    // Whatever was believed about gain stops being true once it is silent.
+    _applied[ref.track] = null;
+    return failure;
+  }
+
+  Future<Object?> _enableAt(
+    LocalAudioRef ref,
+    double volume,
+    Object? forwardFailure,
+  ) async {
     Object? here = forwardFailure;
     try {
       await ref.enable();
@@ -281,7 +297,6 @@ class LocalAudioState {
     // Remembered only if it both went cleanly and can be seen to have landed.
     _applied[ref.track] =
         here == null && ref.isAudible() ? _AppliedAudio(volume: volume) : null;
-    here == null ? _failures.remove(key) : _failures[key] = here;
     return here;
   }
 

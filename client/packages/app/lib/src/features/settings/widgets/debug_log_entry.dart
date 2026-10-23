@@ -113,6 +113,11 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
           child: child,
         );
 
+  int? _messageMaxLines(bool compact) {
+    if (_open) return null;
+    return compact ? 2 : 1;
+  }
+
   Widget _line(AppTokens tokens, String message, bool hovered, bool compact) {
     final entry = widget.entry;
     final mono = AppText.micro.copyWith(
@@ -139,7 +144,7 @@ class _DebugLogEntryState extends ConsumerState<DebugLogEntry> {
         Expanded(
           child: Text(
             message,
-            maxLines: _open ? null : (compact ? 2 : 1),
+            maxLines: _messageMaxLines(compact),
             overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
             style: AppText.caption.copyWith(color: tokens.textPrimary),
           ),

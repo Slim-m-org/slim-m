@@ -44,6 +44,24 @@ struct HandlerFn {
     body: String,
 }
 
+/// The `{ ... }` block opening at `start`, or an empty string when it never closes.
+fn braced_block(scrubbed: &str, start: usize) -> String {
+    let mut depth = 0i32;
+    for (offset, byte) in scrubbed.as_bytes()[start..].iter().enumerate() {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return scrubbed[start..=start + offset].to_owned();
+                }
+            }
+            _ => {}
+        }
+    }
+    String::new()
+}
+
 /// Every top-level `fn`/`async fn` definition in `scrubbed`, keyed by name.
 /// Operates on already comment/string-stripped text (via [support::code_only])
 /// so a doc comment or string literal that merely mentions `fn foo(` can
@@ -90,25 +108,7 @@ fn functions_in(scrubbed: &str) -> BTreeMap<String, HandlerFn> {
             j += 1;
         }
         let body = if j < bytes.len() && bytes[j] == b'{' {
-            let mut depth = 0i32;
-            let start = j;
-            let mut end = None;
-            let mut k = j;
-            while k < bytes.len() {
-                match bytes[k] {
-                    b'{' => depth += 1,
-                    b'}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            end = Some(k);
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                k += 1;
-            }
-            end.map_or_else(String::new, |e| scrubbed[start..=e].to_owned())
+            braced_block(scrubbed, j)
         } else {
             String::new()
         };

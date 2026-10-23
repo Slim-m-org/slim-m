@@ -28,6 +28,8 @@ import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_empty.dart';
 import '../../settings/widgets/settings_section_header.dart';
 
+const _reportIdLabel = 'Report ID';
+
 class ReportStatusSection extends ConsumerWidget {
   const ReportStatusSection({super.key});
 
@@ -216,7 +218,7 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
           gap: 6,
           children: [
             Text(
-              'Report ID',
+              _reportIdLabel,
               style: AppText.caption.copyWith(
                 color: tokens.textPrimary,
                 fontWeight: AppWeights.medium,
@@ -228,8 +230,8 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
                 Expanded(
                   child: AppInput(
                     controller: _idController,
-                    placeholder: 'Report ID',
-                    semanticLabel: 'Report ID',
+                    placeholder: _reportIdLabel,
+                    semanticLabel: _reportIdLabel,
                     mono: true,
                     onSubmitted: (_) => _check(),
                   ),

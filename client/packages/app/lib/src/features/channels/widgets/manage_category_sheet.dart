@@ -24,6 +24,8 @@ import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 
+const _deleteCategoryAction = 'delete the category';
+
 /// The one confirmation for deleting a category, asked the same way wherever
 /// the delete was started from.
 ///
@@ -74,7 +76,7 @@ Future<void> confirmAndDeleteCategory(
 ) async {
   if (!await confirmCategoryDeletion(context, category)) return;
   final failure = await runGuarded(
-    whatFailed: 'delete the category',
+    whatFailed: _deleteCategoryAction,
     action: () => deleteCategoryAndForget(ref, category),
   );
   if (failure != null && context.mounted) showAppSnackbar(context, failure);
@@ -189,9 +191,9 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
       await deleteCategoryAndForget(ref, widget.category);
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'delete the category', e, stack);
+      api.reportFailure(api.LogTag.ui, _deleteCategoryAction, e, stack);
       if (mounted) {
-        setState(() => _error = describeApiFailure('delete the category', e));
+        setState(() => _error = describeApiFailure(_deleteCategoryAction, e));
       }
     } finally {
       if (mounted) setState(() => _deleting = false);

@@ -149,18 +149,22 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.overrides != overrides) return;
       for (final key in started) {
-        final state = overrides.stateFor(key);
-        if (state.locked || state.hidden) continue;
-        final taken = [
-          for (final e in _resolver.lastOnCanvas.entries)
-            if (e.key != key) e.value,
-        ];
-        final rect = presenceSpawnRect(key, widget.document, taken: taken);
-        if (rect == null) continue;
-        overrides.setRect(key, rect);
-        widget.onCommit(key, rect);
+        _placeStartedTile(overrides, key);
       }
     });
+  }
+
+  void _placeStartedTile(CanvasPresenceTileOverrides overrides, String key) {
+    final state = overrides.stateFor(key);
+    if (state.locked || state.hidden) return;
+    final taken = [
+      for (final e in _resolver.lastOnCanvas.entries)
+        if (e.key != key) e.value,
+    ];
+    final rect = presenceSpawnRect(key, widget.document, taken: taken);
+    if (rect == null) return;
+    overrides.setRect(key, rect);
+    widget.onCommit(key, rect);
   }
 
   @override
@@ -294,12 +298,15 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       child: IgnorePointer(
         child: MediaLabelChip(
           icon: isScreen ? AppIcons.screenShare : AppIcons.camera,
-          label: isScreen
-              ? presenceScreenLabel(participant)
-              : (participant.isLocal ? 'Your camera' : participant.name),
+          label: _mediaChipLabel(isScreen, participant),
         ),
       ),
     );
+  }
+
+  String _mediaChipLabel(bool isScreen, VoiceParticipant participant) {
+    if (isScreen) return presenceScreenLabel(participant);
+    return participant.isLocal ? 'Your camera' : participant.name;
   }
 
   Widget? _tile(

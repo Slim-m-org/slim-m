@@ -43,9 +43,10 @@ class ChangedPixels(unittest.TestCase):
         self.assertEqual(e2e_png.changed_pixels(plain, filtered, 0), [])
 
     def test_mismatched_sizes_are_an_error(self):
+        small = _png(2, 2, lambda x, y: (0, 0, 0))
+        large = _png(3, 2, lambda x, y: (0, 0, 0))
         with self.assertRaises(ValueError):
-            e2e_png.changed_pixels(_png(2, 2, lambda x, y: (0, 0, 0)),
-                                   _png(3, 2, lambda x, y: (0, 0, 0)), 0)
+            e2e_png.changed_pixels(small, large, 0)
 
 
 if __name__ == "__main__":

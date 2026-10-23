@@ -86,7 +86,7 @@ class _PollOptionRowState extends State<PollOptionRow> {
   bool _focused = false;
 
   void _activate() {
-    if (widget.onTap != null) widget.onTap!();
+    widget.onTap?.call();
   }
 
   @override

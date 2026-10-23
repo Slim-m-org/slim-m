@@ -60,6 +60,7 @@ class MutePropagatesTest(unittest.TestCase):
         one_muted = [_participant("alice", True), _participant("bob", False)]
         still_muted = [_participant("alice", True), _participant("bob", False)]
         states = iter([one_muted])
+        first, second = _FakeClient(), _FakeClient()
         patch_wait = patch.object(
             e2e_voice, "_wait_mute_flags",
             side_effect=lambda room, ok, why, timeout=20: _short_wait(
@@ -68,8 +69,7 @@ class MutePropagatesTest(unittest.TestCase):
                           side_effect=lambda room: next(states, still_muted)), \
                 patch_wait:
             with self.assertRaises(AssertionError):
-                e2e_voice.mute_propagates(
-                    _FakeClient(), _FakeClient(), "room-1")
+                e2e_voice.mute_propagates(first, second, "room-1")
 
 
 if __name__ == "__main__":

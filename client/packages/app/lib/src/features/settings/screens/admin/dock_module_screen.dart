@@ -88,7 +88,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     Set<String> approved,
   ) {
     if (!(manifest.network?.local ?? false) ||
-        !approved.contains('net.fetch')) {
+        !approved.contains(api.kNetFetchCapability)) {
       return false;
     }
     final carried =
@@ -110,7 +110,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
     return switch (capability) {
       'message.post' => newBuild,
-      'net.fetch' =>
+      api.kNetFetchCapability =>
         newBuild ||
             !dockSameHosts(
               installed.networkHosts,
@@ -143,7 +143,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     setState(() {
       final next = {..._approvedFor(manifest, installed)};
       approved ? next.add(capability) : next.remove(capability);
-      if (capability == 'net.fetch') _localNetwork = false;
+      if (capability == api.kNetFetchCapability) _localNetwork = false;
       _hostApproved = next;
     });
   }

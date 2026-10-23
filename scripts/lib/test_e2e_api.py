@@ -120,8 +120,9 @@ class ListShapeTest(unittest.TestCase):
         for method, args, key in self.LISTS:
             with self.subTest(method=method):
                 api = self._api_returning({key: [{"id": "x"}]})
+                list_call = getattr(api, method)
                 with self.assertRaises(AssertionError):
-                    getattr(api, method)(*args)
+                    list_call(*args)
 
     def test_canvas_objects_and_slots_stay_wrapped(self):
         api = self._api_returning({"objects": [1], "slots": [2]})

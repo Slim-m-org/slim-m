@@ -47,22 +47,30 @@ class VoiceChannelIdle extends ConsumerWidget {
   /// Now, in epoch milliseconds; a test pins it.
   final int Function()? clock;
 
+  static List<api.VoiceCall> _finishedCalls(List<api.VoiceCall>? calls) => [
+    for (final call in calls ?? const <api.VoiceCall>[])
+      if (!call.ongoing) call,
+  ];
+
+  static api.VoiceCall? _selectedCall(
+    List<api.VoiceCall> finished,
+    int? selectedAt,
+  ) {
+    if (finished.isEmpty) return null;
+    return finished.firstWhere(
+      (c) => c.startedAt == selectedAt,
+      orElse: () => finished.first,
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     final now = (clock ?? () => DateTime.now().millisecondsSinceEpoch)();
     final history = ref.watch(voiceCallHistoryProvider(channelId));
-    final finished = [
-      for (final call in history.valueOrNull?.calls ?? const <api.VoiceCall>[])
-        if (!call.ongoing) call,
-    ];
+    final finished = _finishedCalls(history.valueOrNull?.calls);
     final selectedAt = ref.watch(selectedVoiceCallProvider(channelId));
-    final shown = finished.isEmpty
-        ? null
-        : finished.firstWhere(
-            (c) => c.startedAt == selectedAt,
-            orElse: () => finished.first,
-          );
+    final shown = _selectedCall(finished, selectedAt);
     final ended = recap;
     final sections = <Widget>[
       if (ended != null && ended.isWorthShowing)

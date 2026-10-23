@@ -44,7 +44,7 @@ DRIFT_PATTERNS = (
     re.compile(r"\bextends\s+DataClass\b"),
     re.compile(r"\bimplements\s+Insertable\b"),
     re.compile(r"\bCompanion\b"),
-    re.compile(r"(?<![A-Za-z0-9_])Value\s*[<(]"),
+    re.compile(r"(?<!\w)Value\s*[<(]"),
 )
 
 

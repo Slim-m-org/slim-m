@@ -170,17 +170,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   void _move(PointerMoveEvent event) {
     widget.onPointerMoved?.call(_toWorld(event.localPosition));
     if (_panning.value) {
-      // An unrelated pointer moving (a second finger, say) must not steer someone else's grab.
-      if (event.pointer != _panPointer) return;
-      if (_isPanButton(event.buttons)) {
-        _updatePan(event.localPosition);
-        return;
-      }
-      // The grab button itself let go, but this pointer still holds another - resume the tool right here rather than staying stuck panning until the whole pointer lifts.
-      _endPan();
-      if (_totalPointers == 1 && widget.enabled) {
-        _startGesture(event);
-      }
+      _movePanning(event);
       return;
     }
     if (_isPanButton(event.buttons) &&
@@ -192,6 +182,24 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     final gesture = _gesture;
     if (gesture == null || gesture.pointer != event.pointer) return;
     if (_totalPointers != 1 || !widget.enabled) return;
+    _moveTool(gesture, event);
+  }
+
+  void _movePanning(PointerMoveEvent event) {
+    // An unrelated pointer moving (a second finger, say) must not steer someone else's grab.
+    if (event.pointer != _panPointer) return;
+    if (_isPanButton(event.buttons)) {
+      _updatePan(event.localPosition);
+      return;
+    }
+    // The grab button itself let go, but this pointer still holds another - resume the tool right here rather than staying stuck panning until the whole pointer lifts.
+    _endPan();
+    if (_totalPointers == 1 && widget.enabled) {
+      _startGesture(event);
+    }
+  }
+
+  void _moveTool(_Gesture gesture, PointerMoveEvent event) {
     final screen = event.localPosition;
     final world = _toWorld(screen);
     switch (gesture.tool) {

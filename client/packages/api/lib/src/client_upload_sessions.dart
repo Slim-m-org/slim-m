@@ -9,6 +9,8 @@ const kUploadPartBytes = 16 * 1024 * 1024;
 
 const _uploadSessionCapability = 'upload_sessions';
 const _partSendDeadline = Duration(minutes: 5);
+const _discardFailedMessage =
+    'Could not discard an unfinished upload on the server; it will expire on its own';
 
 /// How long an upload keeps retrying without moving forward. Long enough to
 /// ride out a redeploy, a router restart or a laptop changing networks.
@@ -119,8 +121,8 @@ extension SlimmApiUploadSessions on SlimmApi {
   void abandonUpload(String resumeKey) {
     final id = _resumableUploads.remove(resumeKey);
     if (id == null) return;
-    unawaited(_discardUploadSession(id).catchError(ignoreError(LogTag.net,
-        'Could not discard an unfinished upload on the server; it will expire on its own')));
+    unawaited(_discardUploadSession(id)
+        .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
   }
 
   /// Runs [action], retrying a failure that could recover until [stallLimit].
@@ -195,15 +197,13 @@ extension SlimmApiUploadSessions on SlimmApi {
       if (resumeKey != null && _classify(e) == _PartFailure.transient) {
         _resumableUploads[resumeKey] = session.id;
       } else {
-        unawaited(_discardUploadSession(session.id).catchError(ignoreError(
-            LogTag.net,
-            'Could not discard an unfinished upload on the server; it will expire on its own')));
+        unawaited(_discardUploadSession(session.id)
+            .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
       }
       rethrow;
     } catch (_) {
-      unawaited(_discardUploadSession(session.id).catchError(ignoreError(
-          LogTag.net,
-          'Could not discard an unfinished upload on the server; it will expire on its own')));
+      unawaited(_discardUploadSession(session.id)
+          .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
       rethrow;
     } finally {
       await source.close();
@@ -228,8 +228,8 @@ extension SlimmApiUploadSessions on SlimmApi {
             error,
             stack);
       }
-      unawaited(_discardUploadSession(kept).catchError(ignoreError(LogTag.net,
-          'Could not discard an unfinished upload on the server; it will expire on its own')));
+      unawaited(_discardUploadSession(kept)
+          .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
     }
     return create();
   }

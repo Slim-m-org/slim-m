@@ -141,21 +141,26 @@ pub fn strip_comments(source: &str) -> String {
             continue;
         }
         if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
-            let mut k = i + 2;
-            while k < bytes.len() && bytes.get(k..k + 2) != Some(b"*/") {
-                k += 1;
-            }
-            let end = (k + 2).min(bytes.len());
-            for idx in i..end {
-                out[idx] = if bytes[idx] == b'\n' { b'\n' } else { b' ' };
-            }
-            i = end;
+            i = blank_block_comment(bytes, &mut out, i);
             continue;
         }
         i += 1;
     }
     String::from_utf8(out)
         .expect("comments were only ever replaced with ascii space/newline, so always valid utf-8")
+}
+
+/// Blanks the `/* ... */` comment at `i` in `out`, keeping line breaks, and returns where it ends.
+fn blank_block_comment(bytes: &[u8], out: &mut [u8], i: usize) -> usize {
+    let mut k = i + 2;
+    while k < bytes.len() && bytes.get(k..k + 2) != Some(b"*/") {
+        k += 1;
+    }
+    let end = (k + 2).min(bytes.len());
+    for idx in i..end {
+        out[idx] = if bytes[idx] == b'\n' { b'\n' } else { b' ' };
+    }
+    end
 }
 
 pub fn matching_close_paren(bytes: &[u8], open: usize) -> Option<usize> {
@@ -256,7 +261,7 @@ fn family_files(http_dir: &Path) -> Vec<PathBuf> {
     let mut found = Vec::new();
     for dir in fs::read_dir(http_dir).into_iter().flatten().flatten() {
         let dir = dir.path();
-        let Some(stem) = dir.file_name().and_then(|n| n.to_str()) else {
+        let Some(stem) = dir.file_name().and_then(std::ffi::OsStr::to_str) else {
             continue;
         };
         if !dir.is_dir() {
@@ -266,7 +271,10 @@ fn family_files(http_dir: &Path) -> Vec<PathBuf> {
         let singular = format!("{}_", stem.strip_suffix('s').unwrap_or(stem));
         for file in fs::read_dir(&dir).into_iter().flatten().flatten() {
             let file = file.path();
-            let named = file.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let named = file
+                .file_name()
+                .and_then(std::ffi::OsStr::to_str)
+                .unwrap_or("");
             if named.ends_with(".rs")
                 && (named.starts_with(&plural) || named.starts_with(&singular))
             {
@@ -374,6 +382,33 @@ pub struct SchemaRoute {
     pub line: usize,
 }
 
+/// Scans the operation block under `lines[at]` for its `operationId` and a documented "429".
+///
+/// Returns both, plus the index of the first line past the block.
+fn scan_operation_block(lines: &[&str], at: usize) -> (Option<String>, bool, usize) {
+    let mut operation_id = None;
+    let mut has_429 = false;
+    let mut j = at + 1;
+    while j < lines.len() {
+        let l = lines[j];
+        if l.trim().is_empty() {
+            j += 1;
+            continue;
+        }
+        if l.len() - l.trim_start().len() <= 4 {
+            break;
+        }
+        let t = l.trim();
+        if let Some(id) = t.strip_prefix("operationId:") {
+            operation_id = Some(id.trim().to_owned());
+        } else if t == "\"429\":" {
+            has_429 = true;
+        }
+        j += 1;
+    }
+    (operation_id, has_429, j)
+}
+
 /// Extracts every `(method, path)` documented under `paths:` in
 /// schema/openapi.yaml, along with each operation's `operationId` and
 /// whether it documents a `"429"` response.
@@ -440,29 +475,7 @@ pub fn extract_schema_routes(repo_root: &Path) -> Vec<SchemaRoute> {
                 )
             });
 
-            // Scan the operation's own block for its operationId and a documented "429".
-            let mut operation_id = None;
-            let mut has_429 = false;
-            let mut j = i + 1;
-            while j < lines.len() {
-                let l = lines[j];
-                if l.trim().is_empty() {
-                    j += 1;
-                    continue;
-                }
-                let ind = l.len() - l.trim_start().len();
-                if ind <= 4 {
-                    break;
-                }
-                let t = l.trim();
-                if let Some(id) = t.strip_prefix("operationId:") {
-                    operation_id = Some(id.trim().to_owned());
-                } else if t == "\"429\":" {
-                    has_429 = true;
-                }
-                j += 1;
-            }
-
+            let (operation_id, has_429, j) = scan_operation_block(&lines, i);
             routes.push(SchemaRoute {
                 method,
                 path,

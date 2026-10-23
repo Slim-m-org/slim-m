@@ -155,7 +155,7 @@ def snare(rng, vel=1.0):
     return vel * (0.55 * noise(rng, 0.3, 1200, 6500, 0.075) + 0.5 * body)
 
 
-def saw_stack(m, dur, spread=(-9, 0, 9), harmonics=26, lp=None):
+def saw_stack(m, dur, spread=(-9, 0, 9), harmonics=26):
     f0 = hz(m)
     t = tt(dur)
     out = np.zeros_like(t)

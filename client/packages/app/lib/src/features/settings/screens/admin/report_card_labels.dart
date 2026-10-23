@@ -14,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
+const _loadingLabel = 'Loading...';
+
 /// A label above a value, so a card names what it is showing rather than
 /// leaning on position and weight to disambiguate it.
 class ReportLabeledValue extends StatelessWidget {
@@ -60,7 +62,7 @@ class ReportLabeledValue extends StatelessWidget {
 /// card does not describe one unresolved id two different ways.
 String reporterLabel(String? id, Map<String, api.UserProfile?> profiles) {
   if (id == null) return 'a deleted account';
-  if (!profiles.containsKey(id)) return 'Loading...';
+  if (!profiles.containsKey(id)) return _loadingLabel;
   return profiles[id]?.displayName ?? 'a deleted account';
 }
 
@@ -73,7 +75,7 @@ String reporterLabel(String? id, Map<String, api.UserProfile?> profiles) {
 /// share that verb, or a moderator reads it as the report already being
 /// resolved.
 String subjectHeadline(String id, Map<String, api.UserProfile?> profiles) {
-  if (!profiles.containsKey(id)) return 'Loading...';
+  if (!profiles.containsKey(id)) return _loadingLabel;
   return profiles[id]?.displayName ?? 'Deleted account';
 }
 
@@ -86,6 +88,6 @@ String subjectHeadline(String id, Map<String, api.UserProfile?> profiles) {
 /// rather than "Resolving...".
 String authorHeadline(String? id, Map<String, api.UserProfile?> profiles) {
   if (id == null) return 'Author no longer on this Space';
-  if (!profiles.containsKey(id)) return 'Loading...';
+  if (!profiles.containsKey(id)) return _loadingLabel;
   return profiles[id]?.displayName ?? 'Deleted account';
 }

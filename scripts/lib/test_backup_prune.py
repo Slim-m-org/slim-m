@@ -92,9 +92,10 @@ class HalfWrittenSnapshotTest(PruneTestCase):
             Path(dest).write_bytes(b"SQLite format 3\0truncated")
             raise OSError("disk full")
 
+        args = self._args(None)
         with mock.patch.object(backup_lib, "vacuum_into", dying_vacuum):
             with self.assertRaises(OSError):
-                backup_lib.run(self._args(None))
+                backup_lib.run(args)
         self.assertEqual(self._snapshots(), [])
         self.assertEqual(list(self.db_dir.iterdir()), [])
 

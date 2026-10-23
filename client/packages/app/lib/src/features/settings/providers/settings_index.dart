@@ -13,6 +13,8 @@ import 'settings_index_gates.dart';
 export 'settings_index_gates.dart' show SettingsGate;
 export 'settings_index_space.dart';
 
+const _devicesPage = 'account-devices';
+
 /// One searchable setting.
 class SettingsEntry {
   const SettingsEntry(
@@ -98,7 +100,7 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['game', 'steam', 'playing'],
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Connections',
     description: 'Accounts shown on your profile.',
     keywords: ['discord', 'link', 'linked accounts'],
@@ -107,20 +109,20 @@ const personalSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Discord',
     keywords: ['connections', 'link', 'unlink'],
     conditional: true,
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Spotify',
     keywords: ['connections', 'link', 'unlink', 'music'],
     gate: SettingsGate.spotifyConfigured,
     conditional: true,
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Show my Spotify track',
     description: 'Shows your track even when you play on another device.',
     keywords: ['listening', 'music', 'now playing', 'song', 'spotify'],
@@ -128,13 +130,13 @@ const personalSettingsIndex = <SettingsEntry>[
     conditional: true,
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Devices',
     description: 'Everywhere this account is signed in.',
     keywords: ['sessions', 'sign out', 'logout', 'version'],
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Your data',
     description: 'A copy of what you wrote and uploaded.',
     keywords: [
@@ -146,19 +148,19 @@ const personalSettingsIndex = <SettingsEntry>[
     ],
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Download my data',
     description: 'Messages, reactions, saved items, notes and uploads.',
     keywords: ['export', 'archive', 'backup', 'portability'],
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Sign-in',
     description: "How you prove it's you on a new device.",
     keywords: ['2fa', 'two factor', 'totp', 'authenticator', 'security'],
   ),
   SettingsEntry(
-    'account-devices',
+    _devicesPage,
     'Password',
     description: 'Changing it signs out your other devices.',
     keywords: ['change password', 'security'],
