@@ -17,9 +17,10 @@
 use std::time::Duration;
 
 use axum::Router;
-use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::{FromRequestParts, State};
 use axum::http::StatusCode;
+use axum::http::request::Parts;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use futures_util::stream::{SplitSink, SplitStream};
@@ -31,8 +32,9 @@ use super::AppState;
 use super::PROTOCOL_VERSION;
 use super::canvas::CanvasObjectDto;
 use super::channels::ChannelDto;
+use super::extract::limit_key;
 use super::messages::{AttachmentDto, MessageDto};
-use crate::hub::Event;
+use crate::hub::{Event, PendingGuard};
 use crate::store::SessionContext;
 use authorization::{Authorization, authorize};
 use client_frames::ClientFrame;
@@ -55,10 +57,6 @@ mod permission_cache;
 mod signals;
 mod signals_canvas;
 
-/// How long a freshly connected socket has to send its `hello` before it is
-/// dropped, so unauthenticated sockets cannot linger.
-const AUTH_DEADLINE: Duration = Duration::from_secs(10);
-
 /// How long a single send may block before the peer is treated as dead. Without
 /// this a peer that completes the handshake and then stops reading could wedge
 /// its connection task indefinitely.
@@ -76,7 +74,25 @@ pub fn routes() -> Router<AppState> {
     Router::new().route("/ws", get(connect))
 }
 
-async fn connect(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
+/// The address key an unauthenticated socket is counted under, from the same trusted-hops logic as rate limits.
+struct PendingKey(String);
+
+impl FromRequestParts<AppState> for PendingKey {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        Ok(Self(limit_key(parts, None, state.limiter.trusted_hops())))
+    }
+}
+
+async fn connect(
+    ws: WebSocketUpgrade,
+    PendingKey(address): PendingKey,
+    State(state): State<AppState>,
+) -> Response {
     // Checked before the connection-count slot: cheaper to refuse here than to claim and release one.
     if !state.hub.admit_memory() {
         return (
@@ -90,16 +106,29 @@ async fn connect(ws: WebSocketUpgrade, State(state): State<AppState>) -> Respons
     let Some(permit) = state.hub.try_connect() else {
         return (StatusCode::SERVICE_UNAVAILABLE, "too many connections").into_response();
     };
+    // Held until the hello is accepted, so one address cannot park every slot behind the auth deadline.
+    let Some(pending) = state.hub.try_hold_pending(&address) else {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            "too many pending connections",
+        )
+            .into_response();
+    };
     // tungstenite zero-fills its whole read buffer on every read; 128 KiB by default was most of fan-out's CPU (#2239).
     ws.max_message_size(MAX_FRAME_BYTES)
         .max_frame_size(MAX_FRAME_BYTES)
         .read_buffer_size(MAX_FRAME_BYTES)
-        .on_upgrade(move |socket| serve(socket, state, permit))
+        .on_upgrade(move |socket| serve(socket, state, permit, pending))
 }
 
 // --- Connection ---
 
-async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit) {
+async fn serve(
+    socket: WebSocket,
+    state: AppState,
+    _permit: OwnedSemaphorePermit,
+    pending: PendingGuard,
+) {
     let (mut sink, mut stream) = socket.split();
 
     // Subscribed before the ticket is redeemed, so a revocation published during the handshake is buffered.
@@ -110,6 +139,7 @@ async fn serve(socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit
         Some(opened) => opened,
         None => return,
     };
+    drop(pending);
 
     // Per connection, and dropped with it; see `permission_cache`.
     let mut cache = PermissionCache::new();
@@ -373,7 +403,7 @@ async fn authenticate(
     stream: &mut Stream,
     state: &AppState,
 ) -> Option<(SessionContext, Option<bool>)> {
-    let opening = tokio::time::timeout(AUTH_DEADLINE, stream.next()).await;
+    let opening = tokio::time::timeout(state.hub.auth_deadline(), stream.next()).await;
     let text = match opening {
         Ok(Some(Ok(Message::Text(text)))) => text,
         _ => return reject(sink, "expected a hello frame").await,
