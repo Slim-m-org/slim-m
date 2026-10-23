@@ -21,7 +21,8 @@ use super::messages::validate_content;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::module_runtime::{
-    CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster, PostRefused,
+    CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster,
+    PostRefused, SqliteData,
 };
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -29,8 +30,13 @@ use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 4] =
-    ["kv.store", "message.post", "net.fetch", "schedule"];
+pub(crate) const HOST_CAPABILITIES: [&str; 5] = [
+    "kv.store",
+    "message.post",
+    "net.fetch",
+    "schedule",
+    "data.store",
+];
 
 /// Approved like the others, but a permission to be run, not a host call.
 const NOT_HOST_CALLS: [&str; 1] = ["schedule"];
@@ -106,7 +112,14 @@ fn surface_posting_as(
         handle: handle.clone(),
     });
     let fetches = approved.iter().any(|c| c == "net.fetch");
+    let stores_data = approved.iter().any(|c| c == "data.store");
     let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    if stores_data {
+        surface = surface.with_data(Arc::new(SqliteData::new(
+            state.store.modules_dir(),
+            handle.clone(),
+        )));
+    }
     if fetches {
         surface = surface.with_fetcher(
             Arc::new(super::module_net::ReqwestFetcher::new(

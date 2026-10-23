@@ -122,6 +122,10 @@ pub async fn run() -> anyhow::Result<()> {
         allow_new_key,
     )?;
     let store = store.with_data_key(data_key);
+    let store = match &config.modules_dir {
+        Some(dir) => store.with_modules_dir(dir.into()),
+        None => store,
+    };
     store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
