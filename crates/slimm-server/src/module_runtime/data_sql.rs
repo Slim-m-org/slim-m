@@ -7,6 +7,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use super::data_schema::{ColumnType, DataSchema, Table};
+use super::data_sql_write as write;
 
 /// Longest text value a module may store or compare, in bytes.
 pub const MAX_TEXT_BYTES: usize = 4 * 1024;
@@ -16,8 +17,8 @@ const MAX_OFFSET: i64 = 1_000_000;
 const MAX_CONDITIONS: usize = 16;
 const MAX_IN_VALUES: usize = 100;
 const MAX_ORDER: usize = 4;
-const MAX_INCREMENT: i64 = 1 << 53;
-const ID: &str = "_id";
+pub(super) const MAX_INCREMENT: i64 = 1 << 53;
+pub(super) const ID: &str = "_id";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Bind {
@@ -34,6 +35,8 @@ pub enum Shape {
     Rows(Vec<(String, ColumnType)>),
     /// The id of the inserted row.
     Insert,
+    /// Rows a write returned, with these columns; `changed` is their count.
+    Returning(Vec<(String, ColumnType)>),
     /// Only the number of rows changed.
     Changed,
     /// A single number of this type.
@@ -48,15 +51,19 @@ pub struct Statement {
 }
 
 #[derive(Deserialize)]
-struct Request {
+pub(super) struct Request {
     op: String,
     table: String,
     #[serde(default)]
-    values: Option<Map<String, Value>>,
+    pub(super) values: Option<Map<String, Value>>,
     #[serde(default)]
-    on: Option<Value>,
+    pub(super) rows: Option<Vec<Map<String, Value>>>,
+    #[serde(default)]
+    pub(super) add: Option<Map<String, Value>>,
+    #[serde(default)]
+    pub(super) on: Option<Value>,
     #[serde(default, rename = "where")]
-    filters: Vec<Condition>,
+    pub(super) filters: Vec<Condition>,
     #[serde(default)]
     order: Vec<Order>,
     #[serde(default)]
@@ -70,7 +77,7 @@ struct Request {
 }
 
 #[derive(Deserialize)]
-struct Condition {
+pub(super) struct Condition {
     col: String,
     op: String,
     val: Value,
@@ -90,10 +97,16 @@ pub fn build(schema: &DataSchema, request: &[u8]) -> Result<Statement, String> {
         .table(&req.table)
         .ok_or_else(|| "unknown table".to_owned())?;
     let q = Quoted(&table.name);
+    if req.add.is_some() && !matches!(req.op.as_str(), "upsert" | "update") {
+        return Err("add is for upsert and update".to_owned());
+    }
+    if req.rows.is_some() && req.op != "insert" {
+        return Err("rows is for insert".to_owned());
+    }
     match req.op.as_str() {
-        "insert" => insert(table, &q, &req),
-        "upsert" => upsert(table, &q, &req),
-        "update" => update(table, &q, &req),
+        "insert" => write::insert(table, &q, &req),
+        "upsert" => write::upsert(table, &q, &req),
+        "update" => write::update(table, &q, &req),
         "delete" => delete(table, &q, &req),
         "get" => select(table, &q, &req, true),
         "query" => select(table, &q, &req, false),
@@ -104,13 +117,13 @@ pub fn build(schema: &DataSchema, request: &[u8]) -> Result<Statement, String> {
     }
 }
 
-struct Quoted<'a>(&'a str);
+pub(super) struct Quoted<'a>(pub(super) &'a str);
 
-fn quote(identifier: &str) -> String {
+pub(super) fn quote(identifier: &str) -> String {
     format!("\"{identifier}\"")
 }
 
-fn column_type(table: &Table, name: &str) -> Result<ColumnType, String> {
+pub(super) fn column_type(table: &Table, name: &str) -> Result<ColumnType, String> {
     if name == ID {
         return Ok(ColumnType::Int);
     }
@@ -120,7 +133,7 @@ fn column_type(table: &Table, name: &str) -> Result<ColumnType, String> {
         .ok_or_else(|| "unknown column".to_owned())
 }
 
-fn to_bind(ty: ColumnType, value: &Value) -> Result<Bind, String> {
+pub(super) fn to_bind(ty: ColumnType, value: &Value) -> Result<Bind, String> {
     match (ty, value) {
         (_, Value::Null) => Ok(Bind::Null),
         (ColumnType::Int, Value::Number(n)) => n
@@ -139,104 +152,6 @@ fn to_bind(ty: ColumnType, value: &Value) -> Result<Bind, String> {
         (ColumnType::Text, Value::String(_)) => Err("text value is too large".to_owned()),
         _ => Err("value does not match the column type".to_owned()),
     }
-}
-
-/// Column names and bound values of `values`, in a stable order.
-fn assignments(table: &Table, values: &Map<String, Value>) -> Result<Vec<(String, Bind)>, String> {
-    let mut out = Vec::new();
-    for (name, value) in values {
-        if name == ID {
-            return Err("_id cannot be set".to_owned());
-        }
-        out.push((name.clone(), to_bind(column_type(table, name)?, value)?));
-    }
-    out.sort_by(|a, b| a.0.cmp(&b.0));
-    Ok(out)
-}
-
-fn required_values(req: &Request) -> Result<&Map<String, Value>, String> {
-    req.values
-        .as_ref()
-        .ok_or_else(|| "this op needs values".to_owned())
-}
-
-fn insert_head(q: &Quoted, cols: &[(String, Bind)]) -> String {
-    if cols.is_empty() {
-        return format!("INSERT INTO {} DEFAULT VALUES", quote(q.0));
-    }
-    let names: Vec<String> = cols.iter().map(|c| quote(&c.0)).collect();
-    let marks = vec!["?"; cols.len()].join(",");
-    format!(
-        "INSERT INTO {} ({}) VALUES ({marks})",
-        quote(q.0),
-        names.join(",")
-    )
-}
-
-fn insert(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, String> {
-    let cols = assignments(table, required_values(req)?)?;
-    Ok(Statement {
-        sql: insert_head(q, &cols),
-        binds: cols.into_iter().map(|c| c.1).collect(),
-        shape: Shape::Insert,
-    })
-}
-
-fn upsert_key(table: &Table, req: &Request) -> Result<String, String> {
-    let name = match &req.on {
-        Some(Value::String(s)) => s.clone(),
-        Some(Value::Array(a)) if a.len() == 1 => a[0]
-            .as_str()
-            .map(str::to_owned)
-            .ok_or_else(|| "on must name a column".to_owned())?,
-        _ => return Err("upsert needs on: one unique column".to_owned()),
-    };
-    match table.column(&name) {
-        Some(c) if c.unique => Ok(name),
-        _ => Err("upsert on must be a declared unique column".to_owned()),
-    }
-}
-
-fn upsert(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, String> {
-    let key = upsert_key(table, req)?;
-    let cols = assignments(table, required_values(req)?)?;
-    if !cols.iter().any(|c| c.0 == key) {
-        return Err("upsert values must include the on column".to_owned());
-    }
-    let sets: Vec<String> = cols
-        .iter()
-        .filter(|c| c.0 != key)
-        .map(|c| format!("{0}=excluded.{0}", quote(&c.0)))
-        .collect();
-    let conflict = if sets.is_empty() {
-        "DO NOTHING".to_owned()
-    } else {
-        format!("DO UPDATE SET {}", sets.join(","))
-    };
-    Ok(Statement {
-        sql: format!(
-            "{} ON CONFLICT({}) {conflict}",
-            insert_head(q, &cols),
-            quote(&key)
-        ),
-        binds: cols.into_iter().map(|c| c.1).collect(),
-        shape: Shape::Changed,
-    })
-}
-
-fn update(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, String> {
-    let cols = assignments(table, required_values(req)?)?;
-    if cols.is_empty() {
-        return Err("update needs at least one value".to_owned());
-    }
-    let sets: Vec<String> = cols.iter().map(|c| format!("{}=?", quote(&c.0))).collect();
-    let mut binds: Vec<Bind> = cols.into_iter().map(|c| c.1).collect();
-    let clause = where_clause(table, &req.filters, &mut binds)?;
-    Ok(Statement {
-        sql: format!("UPDATE {} SET {}{clause}", quote(q.0), sets.join(",")),
-        binds,
-        shape: Shape::Changed,
-    })
 }
 
 fn delete(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, String> {
@@ -339,7 +254,7 @@ fn increment(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, Stri
     })
 }
 
-fn where_clause(
+pub(super) fn where_clause(
     table: &Table,
     filters: &[Condition],
     binds: &mut Vec<Bind>,

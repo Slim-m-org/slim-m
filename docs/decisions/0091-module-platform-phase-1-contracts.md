@@ -137,9 +137,9 @@ Only a module with an approved `log.read` can read them, and the consent line sa
 
 Operations:
 
-- `insert` with `values`.
-- `upsert` with `values` and `on` (the unique columns).
-- `update` and `delete` with `where`, and `update` with `values`.
+- `insert` with `values`, or with `rows` for up to 50 rows.
+- `upsert` with `values` and `on` (the unique columns), and optionally `add`.
+- `update` and `delete` with `where`, and `update` with `values`, `add`, or both.
 - `get` (first match) and `query` (rows).
 - `count`, `sum` with `col`, and `increment` with `col`, `by`, `where`.
 
@@ -147,6 +147,14 @@ Operations:
 Replies are `{ok:true, rows, changed, count}` or `{ok:false, error}`.
 `count` and `sum` return their number in `count`, and `insert` returns `rows: [{_id}]`.
 `upsert` takes a single unique column in `on`.
+`add` is a map of `{column: number}` over `int` or `real` columns, and a column cannot be in both `values` and `add`.
+An `upsert` with `add` is one atomic statement: a new row gets the added amounts, and an existing one gets `column = column + n`.
+The other `values` columns of that upsert still update to the new value, and the reply returns the resulting row in `rows`.
+An `update` with `add` runs `column = column + n` in the same statement as any `values`, so concurrent callers never lose an update.
+`rows` on `insert` cannot be combined with `values`, every row must set the same columns, and the reply is `rows: [{_id}, ...]` in order.
+All rows are validated first and written in one statement, so one bad row writes none.
+A multi-row `insert` or an `add` is still one call of the run's budget.
+A non-numeric or unknown `add` column, an `add` amount above 2^53, an empty or oversized `rows`, and `add` or `rows` on any other op are refused.
 Limits: 64 calls per run (shared with `kv.store`, inside the 128 host calls of any kind a run may make), 200 rows per query, 4 KB per text value, and the file cap from `max_mb`.
 The file is `<modules_dir>/<module id>.db`, where `modules_dir` is `SLIMM_MODULES_DIR` and defaults beside the main database.
 Statements are built by the host, parameterised, and run on a connection that has `max_page_count` set.

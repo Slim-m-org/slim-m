@@ -10,6 +10,7 @@ mod data;
 mod data_migrate;
 mod data_schema;
 mod data_sql;
+mod data_sql_write;
 mod data_sqlite;
 mod gate;
 mod host;
