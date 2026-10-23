@@ -192,6 +192,15 @@ jobs:
           if [ "${#files[@]}" -eq 0 ]; then echo "::error::the dealer gave shard $SHARD_INDEX no files"; exit 1; fi
           flutter test "${files[@]}"
 
+      # Capture mode builds the real mic preview and runs timers on real time; it rotted unseen for 12 tests once.
+      - name: packages/app UI snapshots in capture mode
+        if: matrix.label == 'other-packages'
+        timeout-minutes: 10
+        working-directory: client/packages/app
+        env:
+          SLIMM_UI_SNAPSHOTS: "1"
+        run: flutter test test/ui_snapshot_*_test.dart
+
       # Every package with a test/ directory EXCEPT app, which the shards above
       # own. The exclusion is by name here and the shards are named explicitly,
       # so a new package joins this leg automatically rather than being silently
