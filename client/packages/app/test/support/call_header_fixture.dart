@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/channels/providers/channel_by_id_provider.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/features/members/providers/presence_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -20,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../ui_snapshot_support.dart' show snapshotBoundary;
+import 'fake_sync.dart';
 import '../features/voice/voice_controller_harness.dart';
 
 const callMe = VoiceParticipant(
@@ -128,7 +130,11 @@ Future<CallFixture> joinCall(
   final controller = harness.controllerWith(
     session,
     voiceApi(),
-    extraOverrides: callPeople(members, online),
+    extraOverrides: [
+      ...callPeople(members, online),
+      // A real sync would fail against no server and leave a retry timer behind once a render lets real time pass.
+      syncControllerProvider.overrideWith(NoopSyncController.new),
+    ],
   );
   addTearDown(harness.dispose);
   await tester.pumpWidget(

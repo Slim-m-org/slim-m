@@ -33,6 +33,7 @@ import 'package:slimm_app/src/features/settings/providers/notification_sound_con
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/routing/modal_page.dart';
+import 'support/fake_mic_preview.dart' show quietMicPreview;
 import 'package:slimm_app/src/features/settings/screens/admin/account_recovery_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/analytics_screen.dart';
 import 'package:slimm_app/src/features/settings/screens/admin/channel_permissions_screen.dart';
@@ -163,6 +164,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> fixtureContainer({
         api.SessionStore(tokens: fixtureTokens),
       ),
       syncControllerProvider.overrideWith(NoopSyncController.new),
+      quietMicPreview,
       apiProvider.overrideWith((ref) {
         final client = api.SlimmApi(
           baseUrl: Uri.parse('http://localhost:8080'),

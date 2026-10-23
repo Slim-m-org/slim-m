@@ -17,6 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'support/fake_mic_preview.dart' show quietMicPreview;
 import 'ui_snapshot_support.dart';
 import 'features/voice/voice_settings_screen_harness.dart';
 
@@ -42,6 +43,7 @@ void main() {
           final container = ProviderContainer(
             overrides: [
               keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+              quietMicPreview,
               sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
               apiProvider.overrideWith((ref) {
                 final api = SlimmApi(
