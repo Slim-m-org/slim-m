@@ -21,7 +21,7 @@ from e2e_api import Api
 from e2e_client import Client
 
 # Offsets from E2E_CDP_BASE (9800); 1 and 2 are alice and bob, which e2e.sh owns and pkills by port.
-EXTRA_OFFSETS = {"carol": 11, "noisy": 13, "raw": 14, "vqa": 15, "vqb": 16}
+EXTRA_OFFSETS = {"carol": 11, "noisy": 13, "raw": 14, "vqa": 15, "vqb": 16, "tabs": 17}
 
 
 def cdp_base():
