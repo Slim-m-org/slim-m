@@ -207,4 +207,27 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.117.0',
+    headline: 'Two new themes and a roomier canvas',
+    points: [
+      WhatsNewPoint('Soft dark and Forest join the themes in Appearance.'),
+      WhatsNewPoint(
+        'The canvas board is twice as big and opens on the middle at full '
+        'size, with room to pan in every direction.',
+      ),
+      WhatsNewPoint(
+        'Whoever is talking lights up their whole tile, and hold music sits '
+        'right beside the call dock.',
+      ),
+      WhatsNewPoint(
+        'A module\'s posts say which module made them, and a bot\'s form '
+        'names the bot.',
+      ),
+      WhatsNewPoint(
+        'Web tabs no longer sign each other out, and a photo that will not '
+        'open says why.',
+      ),
+    ],
+  ),
 ];
