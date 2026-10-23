@@ -125,9 +125,9 @@ async fn a_finished_room_publishes_one_event_per_session() {
         .await;
     w.deliver("room_finished", None).await;
     let mut users = closed_users(&mut events);
-    users.sort_by_key(|u| u.to_string());
+    users.sort_by_key(ToString::to_string);
     let mut expected = vec![w.user, w.other];
-    expected.sort_by_key(|u| u.to_string());
+    expected.sort_by_key(ToString::to_string);
     assert_eq!(users, expected);
 }
 

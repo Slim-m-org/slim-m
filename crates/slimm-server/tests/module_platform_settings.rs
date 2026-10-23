@@ -342,3 +342,99 @@ async fn only_a_declared_secret_setting_can_be_named_in_a_header() {
     let refused = w.answer(MODULE).await;
     assert!(refused.contains("not set: xp_per_minute"), "{refused}");
 }
+
+async fn stored_api_key(w: &World) -> Option<String> {
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite:{}", w.db_path))
+        .await
+        .unwrap();
+    sqlx::query_scalar("SELECT value FROM module_settings WHERE key = 'api_key'")
+        .fetch_optional(&pool)
+        .await
+        .unwrap()
+}
+
+async fn set_raw(w: &World, key: &str, value: &str) {
+    let pool = sqlx::SqlitePool::connect(&format!("sqlite:{}", w.db_path))
+        .await
+        .unwrap();
+    sqlx::query("UPDATE module_settings SET value = ? WHERE key = ?")
+        .bind(value)
+        .bind(key)
+        .execute(&pool)
+        .await
+        .unwrap();
+}
+
+async fn put_secret(w: &World, token: &str, value: Value) {
+    let put = json!({ "values": { "api_key": value } });
+    let (status, _) = call(w, "PUT", token, Some(put)).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn a_secret_is_sealed_in_the_column_and_still_sent_as_a_header() {
+    slimm_server::module_runtime::treat_loopback_as_lan_for_tests(true);
+    let w = world("slimm-settings-secret-sealed").await;
+    let port = header_echo_upstream().await;
+    install_fetcher(&w, port, "api_key").await;
+    let token = admin_token(&w).await;
+    put_secret(&w, &token, json!("hunter2-token")).await;
+
+    let stored = stored_api_key(&w).await.expect("a row");
+    assert!(stored.starts_with("msec1:"), "{stored}");
+    assert!(!stored.contains("hunter2-token"), "{stored}");
+    let sent = w.answer(MODULE).await;
+    assert!(sent.contains("'body':'hunter2-token'"), "{sent}");
+
+    put_secret(&w, &token, Value::Null).await;
+    assert!(stored_api_key(&w).await.is_none());
+    let cleared = w.answer(MODULE).await;
+    assert!(cleared.contains("not set: api_key"), "{cleared}");
+}
+
+#[tokio::test]
+async fn a_tampered_sealed_secret_is_treated_as_unset() {
+    slimm_server::module_runtime::treat_loopback_as_lan_for_tests(true);
+    let w = world("slimm-settings-secret-tampered").await;
+    let port = header_echo_upstream().await;
+    install_fetcher(&w, port, "api_key").await;
+    let token = admin_token(&w).await;
+    put_secret(&w, &token, json!("hunter2-token")).await;
+
+    let stored = stored_api_key(&w).await.unwrap();
+    let flipped = if stored.ends_with('A') { 'B' } else { 'A' };
+    let tampered = format!("{}{flipped}", &stored[..stored.len() - 1]);
+    set_raw(&w, "api_key", &tampered).await;
+    let answer = w.answer(MODULE).await;
+    assert!(answer.contains("not set: api_key"), "{answer}");
+    assert!(!answer.contains("hunter2-token"), "{answer}");
+}
+
+#[tokio::test]
+async fn a_plain_stored_secret_is_resealed_on_first_use() {
+    slimm_server::module_runtime::treat_loopback_as_lan_for_tests(true);
+    let w = world("slimm-settings-secret-legacy").await;
+    let port = header_echo_upstream().await;
+    install_fetcher(&w, port, "api_key").await;
+    let token = admin_token(&w).await;
+    put_secret(&w, &token, json!("placeholder")).await;
+    set_raw(&w, "api_key", "\"legacy-token\"").await;
+
+    let sent = w.answer(MODULE).await;
+    assert!(sent.contains("'body':'legacy-token'"), "{sent}");
+    let stored = stored_api_key(&w).await.unwrap();
+    assert!(stored.starts_with("msec1:"), "{stored}");
+    assert!(!stored.contains("legacy-token"), "{stored}");
+}
+
+#[tokio::test]
+async fn non_secret_values_stay_plain_and_readable() {
+    let w = world("slimm-settings-plain").await;
+    install_with_settings(&w, schema()).await;
+    let token = admin_token(&w).await;
+    let put = json!({ "values": { "mode": "quiet", "api_key": "hunter2-token" } });
+    call(&w, "PUT", &token, Some(put)).await;
+    let values = w.store.module_setting_values(MODULE).await.unwrap();
+    assert_eq!(values.get("mode"), Some(&json!("quiet")));
+    assert!(!values.contains_key("api_key"));
+}

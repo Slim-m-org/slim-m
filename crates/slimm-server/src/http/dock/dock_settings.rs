@@ -59,7 +59,10 @@ pub(in crate::http) async fn put_settings(
     require_manage_server(&state, ctx.user_id).await?;
     let module = installed(&state, &id).await?;
     let changes = validated_changes(&module.settings_schema, req.values)?;
-    state.store.apply_module_settings(&id, &changes).await?;
+    state
+        .store
+        .apply_module_settings(&id, &module.settings_schema, &changes)
+        .await?;
     Ok(Json(view(&state, &module).await?))
 }
 
@@ -95,12 +98,13 @@ fn validated_changes(
 
 async fn view(state: &AppState, module: &InstalledModule) -> Result<SettingsResponse, ApiError> {
     let stored = state.store.module_setting_values(&module.id).await?;
+    let set = state.store.module_setting_keys_set(&module.id).await?;
     let settings = module
         .settings_schema
         .iter()
         .map(|def| {
             let value = if def.kind == SettingKind::Secret {
-                Some(json!({ "set": stored.contains_key(&def.key) }))
+                Some(json!({ "set": set.contains(&def.key) }))
             } else {
                 stored.get(&def.key).or(def.default.as_ref()).cloned()
             };

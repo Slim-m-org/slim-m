@@ -205,11 +205,8 @@ impl crate::module_runtime::SecretSource for StoredSecrets {
         if !is_secret {
             return None;
         }
-        let value = self
-            .handle
-            .block_on(self.store.module_setting_value(&self.module_id, key))
-            .ok()??;
-        value.as_str().map(str::to_owned)
+        self.handle
+            .block_on(self.store.module_secret(&self.module_id, key))
     }
 }
 
