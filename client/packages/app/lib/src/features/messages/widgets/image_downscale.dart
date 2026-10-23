@@ -102,3 +102,11 @@ Future<({int width, int height, bool animated})?> _decoded(
     return null;
   }
 }
+
+/// What to tell someone whose pick [canDecodeImage] rejected.
+const unreadableImageMessage =
+    'That image format is not supported. Try a JPEG or PNG.';
+
+/// Whether the engine can decode [bytes] at all, which a HEIC or truncated pick can fail.
+Future<bool> canDecodeImage(Uint8List bytes) async =>
+    await _decoded(bytes) != null;

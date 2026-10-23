@@ -133,6 +133,7 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
   final _boundary = GlobalKey();
   final _controller = TransformationController();
   bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -154,27 +155,32 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
   ///
   /// Both buttons are disabled while this runs, so a throw anywhere in the
   /// raster-and-encode path used to leave the sheet on "Working..." with no way
-  /// out and an unhandled async error behind it. It pops with nothing instead,
-  /// which reads to the caller exactly like a cancel - the picture is still on
-  /// disk and the whole step is repeatable. A reduction that fails separately
-  /// falls back to the captured bytes, which are a correct picture, just the
+  /// out. It stays open with an error instead of popping like a cancel, which
+  /// left the owner on iPhone with a sheet that closed and changed nothing.
+  /// A reduction that fails separately falls back to the captured bytes, which are a correct picture, just the
   /// softer one this change exists to improve on.
   Future<void> _confirm() async {
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     final object = _boundary.currentContext?.findRenderObject();
-    if (object is! RenderRepaintBoundary) {
-      if (mounted) Navigator.of(context).pop();
-      return;
-    }
     Uint8List? out;
-    try {
-      out = await _capture(object);
-    } catch (error, stack) {
-      reportFailure(LogTag.media, 'crop the avatar', error, stack);
-      // Raster and encode are the one unrecoverable step here; see the doc.
-      out = null;
+    if (object is RenderRepaintBoundary) {
+      try {
+        out = await _capture(object);
+      } catch (error, stack) {
+        reportFailure(LogTag.media, 'crop the avatar', error, stack);
+      }
     }
     if (!mounted) return;
+    if (out == null) {
+      setState(() {
+        _busy = false;
+        _error = 'Could not crop this picture. Try another one.';
+      });
+      return;
+    }
     Navigator.of(context).pop(out);
   }
 
@@ -273,6 +279,13 @@ class _AvatarCropSheetState extends State<_AvatarCropSheet> {
             const SizedBox(height: AppSpacing.s16),
             picture,
             const SizedBox(height: AppSpacing.s16),
+            if (_error != null) ...[
+              AppErrorState(
+                message: _error!,
+                onDismiss: () => setState(() => _error = null),
+              ),
+              const SizedBox(height: AppSpacing.s16),
+            ],
             Row(
               children: [
                 Expanded(
