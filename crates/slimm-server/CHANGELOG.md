@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.101.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.100.0...server-v0.101.0) (2026-10-23)
+
+
+### Features
+
+* v117, themes, bigger canvas, bot and module polish, voice and phone fixes, audit hardening ([#2290](https://github.com/Slim-m-org/slim-m/issues/2290)) ([2bdf255](https://github.com/Slim-m-org/slim-m/commit/2bdf255e9d80faf15c5f3d76d06999fe91143c1e))
+
 ## [0.100.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.99.0...server-v0.100.0) (2026-10-23)
 
 
