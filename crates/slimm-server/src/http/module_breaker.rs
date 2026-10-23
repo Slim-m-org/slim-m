@@ -17,7 +17,7 @@ pub(crate) const AUTO_DISABLE_ACTION: &str = "module.auto_disable";
 const MAX_REASON_CHARS: usize = 300;
 
 /// A full lane is the host's load, not the module's fault.
-fn was_turned_away(outcome: &CommandOutcome) -> bool {
+pub(super) fn was_turned_away(outcome: &CommandOutcome) -> bool {
     outcome.host_failed && outcome.payload == RunError::Busy.to_string()
 }
 

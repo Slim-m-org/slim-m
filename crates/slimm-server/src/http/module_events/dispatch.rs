@@ -7,7 +7,7 @@ use super::events_approved;
 use super::queue::{Job, Queues};
 use crate::http::AppState;
 use crate::http::module_host::{scheduled_surface, surface_posting_as};
-use crate::http::module_run::{RunRequest, run_installed};
+use crate::http::module_run::{RunKind, RunRequest, run_installed};
 use crate::ids::UserId;
 use crate::module_runtime::CapabilitySurface;
 use crate::permissions::Permissions;
@@ -109,7 +109,7 @@ async fn deliver(state: &AppState, module: &InstalledModule, job: &Job) {
         caller: bot,
         command: EVENT_COMMAND,
         input: &job.body,
-        scheduled: true,
+        kind: RunKind::Background,
     };
     let surface = event_surface(state, module, bot);
     match run_installed(state, module, &request, surface).await {

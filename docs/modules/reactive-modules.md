@@ -308,7 +308,8 @@ A run that fails, or an output that is not `slot/1`, shows nothing and counts as
 **The 30 second cache.**
 The host remembers the answer for 30 seconds for each module, slot, viewer and member.
 That includes the empty answer: a member you left out stays empty for 30 seconds even if they earn something a moment later.
-Updating, disabling or uninstalling the module drops its cache.
+Updating, disabling, uninstalling or changing the settings of the module drops its cache.
+Slot runs use a lane of their own (2 at a time, 2 seconds of waiting), one fill per member at a time, and a failed one never counts toward the circuit breaker.
 Do not expect a slot to change faster than that, and do not do work in a slot run that you cannot afford once per viewer per half minute.
 
 ### The `slot/1` vocabulary

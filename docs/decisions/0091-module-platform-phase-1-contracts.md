@@ -177,6 +177,7 @@ Routes, both behind `MANAGE_SERVER`:
 The host asks a module for slot content by running it with `command: "@slot"` and `input` set to `{"slot","name","user_ids","viewer_id"}`, and `caller.id` is the viewer's.
 The module returns `{"$slim":"slot/1","items":{"<user_id>":{ "nodes":[...], "fallback":"..." }}}`.
 Responses are cached 30 seconds per module, slot, viewer and member, an empty answer included.
+Slot runs have a lane of their own (2 at a time, waiting at most 2 seconds, then showing nothing and caching nothing), one fill per viewer at a time, and never count toward the circuit breaker; a failed or malformed reply is a failed run in `module_run_stats` only.
 Routes, for any signed-in member:
 
 - `GET /space/dock/slots/profile/{user_id}` returns `{sections:[{module_id, name, title, nodes, fallback}]}`.

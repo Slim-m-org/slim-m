@@ -63,6 +63,7 @@ pub(in crate::http) async fn put_settings(
         .store
         .apply_module_settings(&id, &module.settings_schema, &changes)
         .await?;
+    state.dock.slot_cache().invalidate_module(&id);
     Ok(Json(view(&state, &module).await?))
 }
 
