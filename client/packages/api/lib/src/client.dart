@@ -45,6 +45,8 @@ part 'client_metrics_parser.dart';
 part 'client_moderation.dart';
 part 'client_module_commands.dart';
 part 'client_module_permissions.dart';
+part 'client_module_settings.dart';
+part 'client_module_slots.dart';
 part 'client_bots.dart';
 part 'client_category_permissions.dart';
 part 'client_linked_accounts.dart';
