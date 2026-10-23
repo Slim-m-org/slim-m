@@ -48,6 +48,20 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
         json!({ "channel_id": channel }),
     )
     .await;
+    c.get(
+        "getDockModuleSettings",
+        &format!("/space/dock/modules/{id}/settings"),
+        root,
+    )
+    .await;
+    c.json(
+        "putDockModuleSettings",
+        "PUT",
+        &format!("/space/dock/modules/{id}/settings"),
+        root,
+        json!({ "values": { "xp_per_minute": 7, "api_key": "contract-secret" } }),
+    )
+    .await;
     c.bare(
         "enableDockModule",
         "POST",

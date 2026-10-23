@@ -29,12 +29,56 @@ const RESERVED_HEADERS: [&str; 5] = [
 ];
 
 /// What a module asked for, already checked against its approved hosts.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Header values may carry a substituted secret, so `Debug` shows names only.
+#[derive(Clone, PartialEq, Eq)]
 pub struct FetchRequest {
     pub method: reqwest::Method,
     pub url: Url,
     pub headers: Vec<(String, String)>,
     pub body: Option<String>,
+}
+
+impl std::fmt::Debug for FetchRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let names: Vec<&str> = self.headers.iter().map(|(n, _)| n.as_str()).collect();
+        f.debug_struct("FetchRequest")
+            .field("method", &self.method)
+            .field("url", &self.url)
+            .field("header_names", &names)
+            .field("body", &self.body)
+            .finish()
+    }
+}
+
+/// Where a module's stored secrets are read from, by key.
+pub trait SecretSource: Send + Sync {
+    fn secret(&self, key: &str) -> Option<String>;
+}
+
+/// No secrets at all: every `{"secret": ...}` header is refused.
+pub struct NoSecrets;
+
+impl SecretSource for NoSecrets {
+    fn secret(&self, _key: &str) -> Option<String> {
+        None
+    }
+}
+
+/// A header value: plain text, or `{"secret": "<key>"}` the host fills in.
+fn header_value(raw: serde_json::Value, secrets: &dyn SecretSource) -> Result<String, String> {
+    match raw {
+        serde_json::Value::String(text) => Ok(text),
+        serde_json::Value::Object(map) if map.len() == 1 => {
+            let key = map
+                .get("secret")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("net.fetch header values are text or {\"secret\": key}")?;
+            secrets
+                .secret(key)
+                .ok_or_else(|| format!("net.fetch names a secret that is not set: {key}"))
+        }
+        _ => Err("net.fetch header values are text or {\"secret\": key}".into()),
+    }
 }
 
 /// What came back, with the body already capped.
@@ -70,7 +114,7 @@ struct RawRequest {
     #[serde(default)]
     url: Option<String>,
     #[serde(default)]
-    headers: BTreeMap<String, String>,
+    headers: BTreeMap<String, serde_json::Value>,
     #[serde(default)]
     body: Option<String>,
 }
@@ -94,7 +138,18 @@ pub fn host_allowed(url: &Url, hosts: &[String]) -> bool {
 
 /// Parses and gates one request: http or https only, an approved host, a
 /// known method, and bounded headers and body.
+#[cfg(test)]
 pub fn parse(request: &[u8], hosts: &[String]) -> Result<FetchRequest, String> {
+    parse_with_secrets(request, hosts, &NoSecrets)
+}
+
+/// [`parse`], substituting `{"secret"}` header values from `secrets`. The
+/// host gate runs first, so a secret is only ever read for an approved host.
+pub fn parse_with_secrets(
+    request: &[u8],
+    hosts: &[String],
+    secrets: &dyn SecretSource,
+) -> Result<FetchRequest, String> {
     let raw: RawRequest =
         serde_json::from_slice(request).map_err(|_| "malformed net.fetch request".to_owned())?;
     let url = raw.url.ok_or("net.fetch needs a url")?;
@@ -133,6 +188,7 @@ pub fn parse(request: &[u8], hosts: &[String]) -> Result<FetchRequest, String> {
         if RESERVED_HEADERS.contains(&lower.as_str()) {
             return Err(format!("net.fetch may not set the {lower} header"));
         }
+        let value = header_value(value, secrets)?;
         headers.push((name, value));
     }
     if raw
@@ -153,8 +209,24 @@ pub fn parse(request: &[u8], hosts: &[String]) -> Result<FetchRequest, String> {
 /// Dispatches one `net.fetch` request, returning the UTF-8 JSON response.
 /// `fetches_remaining` is this run's budget, spent per attempt, and `remaining`
 /// the wall clock the run has left.
+#[cfg(test)]
 pub fn handle(
     fetcher: &dyn HttpFetcher,
+    hosts: &[String],
+    fetches_remaining: &mut u32,
+    (request, remaining): (&[u8], Duration),
+) -> Vec<u8> {
+    handle_with_secrets(
+        (fetcher, &NoSecrets),
+        hosts,
+        fetches_remaining,
+        (request, remaining),
+    )
+}
+
+/// [`handle`], with `{"secret"}` header values filled from the secret source.
+pub fn handle_with_secrets(
+    (fetcher, secrets): (&dyn HttpFetcher, &dyn SecretSource),
     hosts: &[String],
     fetches_remaining: &mut u32,
     (request, remaining): (&[u8], Duration),
@@ -163,7 +235,7 @@ pub fn handle(
         return refusal("net.fetch budget for this run is exhausted");
     }
     *fetches_remaining -= 1;
-    let parsed = match parse(request, hosts) {
+    let parsed = match parse_with_secrets(request, hosts, secrets) {
         Ok(parsed) => parsed,
         Err(reason) => return refusal(&reason),
     };
@@ -186,5 +258,7 @@ fn refusal(message: &str) -> Vec<u8> {
         .unwrap_or_else(|_| br#"{"ok":false,"error":"host error"}"#.to_vec())
 }
 
+#[cfg(test)]
+mod secret_tests;
 #[cfg(test)]
 mod tests;

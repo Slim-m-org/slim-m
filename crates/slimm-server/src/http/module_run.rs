@@ -4,6 +4,7 @@
 //! commands people invoke (`super::module_commands`) and scheduled runs
 //! (`super::module_schedule`).
 
+use std::collections::BTreeMap;
 use std::time::Instant;
 
 use rand_core::{OsRng, RngCore};
@@ -25,6 +26,9 @@ struct ModuleWireRequest<'a> {
     entropy: String,
     /// The host's wall clock, UTC epoch milliseconds: a module has no clock of its own.
     now_ms: i64,
+    /// The admin's values over the manifest's defaults, left out when empty; secrets are never here.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    settings: BTreeMap<String, serde_json::Value>,
 }
 
 /// 16 fresh random bytes as hex, new for every run. A module has no random
@@ -120,6 +124,10 @@ async fn run_checked(
     {
         limits = limits.for_fetching();
     }
+    let settings = state
+        .store
+        .module_run_settings(module_id, &module.settings_schema)
+        .await?;
     let caller_key = state.store.module_caller_key().await?;
     let request_json = serde_json::to_vec(&ModuleWireRequest {
         command: request.command,
@@ -129,6 +137,7 @@ async fn run_checked(
         },
         entropy: run_entropy(),
         now_ms: now_ms(),
+        settings,
     })
     .map_err(|_| ApiError::Internal)?;
 

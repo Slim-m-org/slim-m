@@ -12,7 +12,7 @@ use crate::store::ModuleSchedule;
 /// What an install that named no approvals keeps: the module's current host
 /// capabilities that the new manifest still declares, except the ones whose
 /// power a new build or a changed manifest could widen unseen: `message.post`,
-/// `net.fetch` and `schedule` after a new build, `net.fetch` when its hosts
+/// `net.fetch`, `schedule`, `events`, `data.store` and `log.read` after a new build, `net.fetch` when its hosts
 /// changed and `schedule` when its commands or intervals did. Nothing is added.
 pub(super) async fn carried_host_capabilities(
     state: &AppState,
@@ -36,7 +36,14 @@ pub(super) async fn carried_host_capabilities(
 }
 
 /// Capabilities whose approval does not survive a new artifact.
-const REASKED_ON_NEW_BUILD: [&str; 3] = ["message.post", NET_FETCH, "schedule"];
+const REASKED_ON_NEW_BUILD: [&str; 6] = [
+    "message.post",
+    NET_FETCH,
+    "schedule",
+    "events",
+    "data.store",
+    "log.read",
+];
 
 fn same_schedules(current: &[ModuleSchedule], manifest: &Manifest) -> bool {
     let mut had: Vec<(&str, u32)> = current

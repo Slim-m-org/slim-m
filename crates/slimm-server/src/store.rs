@@ -186,7 +186,8 @@ pub use module_permissions::{
 pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
-    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits, ModuleSchedule,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits,
+    ModuleSchedule, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

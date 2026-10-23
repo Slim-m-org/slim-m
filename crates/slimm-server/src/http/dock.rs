@@ -31,6 +31,7 @@ use sha2::{Digest, Sha256};
 use url::Url;
 
 use self::dock_lifecycle::{clear_storage, disable, enable, list_installed, uninstall};
+use self::dock_settings::{get_settings, put_settings};
 use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
 use super::error::ApiError;
@@ -55,9 +56,12 @@ use sources::{Origin, SourceQuery};
 use wire::{IndexEntryDto, InstalledModuleDto, ManifestDto};
 
 pub(super) mod dock_lifecycle;
+pub(super) mod dock_settings;
 pub(super) mod dock_sources;
 
 const BODY_LIMIT: usize = 4 * 1024;
+/// Room for 32 settings of up to 1000 characters each.
+const SETTINGS_BODY_LIMIT: usize = 64 * 1024;
 
 /// The fixed host every Dock fetch targets in production; see
 /// `Config::addons_repo`'s own doc for why only the repo is configurable.
@@ -210,6 +214,12 @@ pub fn routes() -> Router<AppState> {
             axum::routing::delete(remove_source),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
+        .route(
+            "/space/dock/modules/{id}/settings",
+            get(get_settings)
+                .put(put_settings)
+                .layer(DefaultBodyLimit::max(SETTINGS_BODY_LIMIT)),
+        )
 }
 
 impl From<FetchError> for ApiError {
@@ -490,6 +500,7 @@ async fn install(
                 network_hosts,
                 local_network_approved: local_network,
                 schedules: &schedules,
+                platform: &manifest.platform,
             },
         )
         .await?;

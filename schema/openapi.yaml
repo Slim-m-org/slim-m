@@ -9478,6 +9478,66 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/settings:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getDockModuleSettings
+      tags: [space]
+      summary: Read an installed module's settings. Requires MANAGE_SERVER.
+      description: >
+        Returns the schema the module declared with each setting's current
+        value. A secret's value is never returned, only whether it is set.
+      responses:
+        "200":
+          description: The module's settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: putDockModuleSettings
+      tags: [space]
+      summary: Change an installed module's settings. Requires MANAGE_SERVER.
+      description: >
+        Applies the given values together or not at all. A key the module did
+        not declare, or a value its definition does not allow, is refused with
+        400 and nothing is changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutModuleSettingsRequest"
+      responses:
+        "200":
+          description: The settings after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/schedule-channel:
     parameters:
       - name: moduleId
@@ -11938,12 +11998,99 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        addon_api:
+          type: integer
+          description: The add-on API version it declares; absent when it uses none.
+        subscriptions:
+          type: array
+          description: The events it subscribes to.
+          items:
+            type: string
+        settings:
+          type: array
+          description: The settings it declares for an admin to fill.
+          items:
+            $ref: "#/components/schemas/ModuleSettingDef"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSlot"
+        data:
+          description: The structured data store it declares, as written in the manifest.
         review_digest:
           type: string
           description: >
             A digest of the artifact, capabilities, hosts, schedules,
             permission keys and limits shown here. Send it back as
             `reviewed_digest` on install so consent is for this manifest.
+    ModuleSettingDef:
+      type: object
+      required: [key, type, label]
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [bool, int, string, choice, secret]
+        label:
+          type: string
+        help:
+          type: string
+        default: {}
+        min:
+          type: integer
+        max:
+          type: integer
+        choices:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+    ModuleSlot:
+      type: object
+      required: [kind, name]
+      properties:
+        kind:
+          type: string
+          enum: [profile.section, member.badge]
+        name:
+          type: string
+        title:
+          type: string
+    ModuleSettingValue:
+      description: >
+        A declared setting with its current value. The value is the stored one
+        or else the default, absent when neither exists. For a secret it is
+        `{set: boolean}` and the secret itself is never returned.
+      allOf:
+        - $ref: "#/components/schemas/ModuleSettingDef"
+        - type: object
+          properties:
+            value: {}
+    ModuleSettings:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSettingValue"
+    PutModuleSettingsRequest:
+      type: object
+      required: [values]
+      properties:
+        values:
+          type: object
+          description: >
+            Setting key to new value; null clears a value. Every value must
+            suit its declared type, range and choices, and every key must be
+            declared.
+          additionalProperties: {}
     DockChangelogEntry:
       type: object
       required: [version, changes]
@@ -12040,6 +12187,25 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DockSchedule"
+        addon_api:
+          type: integer
+          description: The add-on API version it declares; absent when it uses none.
+        subscriptions:
+          type: array
+          description: The events it subscribes to.
+          items:
+            type: string
+        settings:
+          type: array
+          description: The settings it declares for an admin to fill.
+          items:
+            $ref: "#/components/schemas/ModuleSettingDef"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSlot"
+        data:
+          description: The structured data store it declares, as written in the manifest.
         bot_user_id:
           type: string
           description: >

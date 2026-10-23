@@ -23,7 +23,8 @@ pub use limits::{
     MAX_FETCH_MS, MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS, NET_FETCH_WALL_FLOOR_MS, RunLimits,
 };
 pub use net::{
-    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES, host_allowed,
+    FetchRefused, FetchRequest, FetchResponse, HttpFetcher, MAX_RESPONSE_BODY_BYTES, NoSecrets,
+    SecretSource, host_allowed, parse_with_secrets,
 };
 pub use post::{MessagePoster, PostRefused};
 

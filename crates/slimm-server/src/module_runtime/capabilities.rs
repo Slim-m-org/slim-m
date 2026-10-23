@@ -23,7 +23,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::kv::{self, KvBackend};
-use super::net::{self, HttpFetcher};
+use super::net::{self, HttpFetcher, SecretSource};
 use super::post::{self, MessagePoster};
 
 /// Most host calls one run may make, of any kind: room for every per-capability
@@ -60,6 +60,8 @@ pub enum CapabilitySurface {
         fetcher: Option<Arc<dyn HttpFetcher>>,
         /// The hosts the admin approved with `net.fetch`.
         network_hosts: Vec<String>,
+        /// The module's stored secrets, which `net.fetch` headers may name.
+        secrets: Arc<dyn SecretSource>,
         /// Remaining `net.fetch` attempts this run may make.
         fetches_remaining: u32,
         /// Remaining host calls of any kind, refused ones included, so a loop
@@ -85,6 +87,7 @@ impl CapabilitySurface {
             posts_remaining: post::MAX_POSTS_PER_RUN,
             fetcher: None,
             network_hosts: Vec::new(),
+            secrets: Arc::new(net::NoSecrets),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
             calls_remaining: MAX_HOST_CALLS_PER_RUN,
         }
@@ -101,6 +104,15 @@ impl CapabilitySurface {
         {
             *fetcher = Some(new_fetcher);
             *network_hosts = hosts;
+        }
+        self
+    }
+
+    /// Lets `net.fetch` headers name the module's stored secrets. A no-op on a
+    /// disabled surface.
+    pub fn with_secrets(mut self, source: Arc<dyn SecretSource>) -> Self {
+        if let CapabilitySurface::Enabled { secrets, .. } = &mut self {
+            *secrets = source;
         }
         self
     }
@@ -142,6 +154,7 @@ impl CapabilitySurface {
             posts_remaining,
             fetcher,
             network_hosts,
+            secrets,
             fetches_remaining,
             calls_remaining,
         } = self
@@ -170,8 +183,8 @@ impl CapabilitySurface {
                     let remaining = deadline.map_or(Duration::MAX, |d| {
                         d.saturating_duration_since(Instant::now())
                     });
-                    net::handle(
-                        fetcher.as_ref(),
+                    net::handle_with_secrets(
+                        (fetcher.as_ref(), secrets.as_ref()),
                         network_hosts,
                         fetches_remaining,
                         (request, remaining),

@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 use super::super::hidden_chars::is_hidden_char;
 use crate::module_runtime::{MAX_FUEL, MAX_MEMORY_MB, MAX_WALL_MS};
+use crate::store::{ModulePlatform, ModuleSettingDef, ModuleSlot};
 pub(in crate::http) use changelog::ChangelogEntry;
 pub(super) use index::{IndexEntry, parse_index};
 pub(in crate::http) use network::{ManifestNetwork, NET_FETCH};
@@ -63,6 +64,16 @@ struct RawManifest {
     schedules: Vec<schedule::RawSchedule>,
     #[serde(default)]
     changelog: Vec<changelog::RawChangelogEntry>,
+    #[serde(default)]
+    addon_api: Option<i64>,
+    #[serde(default)]
+    subscriptions: Vec<platform::RawSubscription>,
+    #[serde(default)]
+    settings: Vec<ModuleSettingDef>,
+    #[serde(default)]
+    slots: Vec<ModuleSlot>,
+    #[serde(default)]
+    data: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -180,6 +191,7 @@ pub(super) struct Manifest {
     pub(super) network: ManifestNetwork,
     pub(super) schedules: Vec<ManifestSchedule>,
     pub(super) changelog: Vec<ChangelogEntry>,
+    pub(super) platform: ModulePlatform,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
@@ -257,6 +269,16 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         network: network::validate_network(raw.network, &capabilities)?,
         schedules: schedule::validate_schedules(raw.schedules, &capabilities, &command_names)?,
         changelog: changelog::validate_changelog(raw.changelog)?,
+        platform: platform::validate_platform(
+            platform::RawPlatform {
+                addon_api: raw.addon_api,
+                subscriptions: raw.subscriptions,
+                settings: raw.settings,
+                slots: raw.slots,
+                data: raw.data,
+            },
+            &capabilities,
+        )?,
         capabilities,
         extension_points,
     })
@@ -454,12 +476,17 @@ mod changelog;
 mod index;
 mod names;
 mod network;
+mod platform;
 mod review;
 mod schedule;
+mod settings;
 mod supported;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod platform_tests;
 
 #[cfg(test)]
 mod validation_tests;
