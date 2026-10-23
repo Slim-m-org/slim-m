@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ const bool kVoiceHarness = bool.fromEnvironment('SLIMM_VOICE_HARNESS');
 const joinFailedMarker = 'SLIMM_HARNESS join-failed';
 
 const _channelFlag = '--voice-harness-channel=';
+const _volumeFileFlag = '--voice-harness-volume-file=';
 const _signInWait = Duration(seconds: 90);
 const _joinWait = Duration(seconds: 60);
 
@@ -28,12 +30,24 @@ String? harnessChannel(List<String> args) {
   return null;
 }
 
+/// The file passed as `--voice-harness-volume-file=<path>`, if any; its text is
+/// the slider value (0 to 2) to apply live to every other person in the call.
+String? harnessVolumeFile(List<String> args) {
+  for (final arg in args) {
+    if (arg.startsWith(_volumeFileFlag)) {
+      return arg.substring(_volumeFileFlag.length);
+    }
+  }
+  return null;
+}
+
 /// Waits for the restored session, joins [channel], and prints one line per
 /// second about the capture gate so the harness can read it from stdout.
 Future<void> joinHarnessChannel(
   ProviderContainer Function() container,
-  String channel,
-) async {
+  String channel, {
+  String? volumeFile,
+}) async {
   final deadline = DateTime.now().add(_signInWait);
   while (!container().read(sessionProvider).isSignedIn) {
     if (DateTime.now().isAfter(deadline)) {
@@ -51,6 +65,27 @@ Future<void> joinHarnessChannel(
   }
   debugPrint('SLIMM_HARNESS joined $channel');
   _logGate(voice, container);
+  if (volumeFile != null) _followVolumeFile(voice, container, volumeFile);
+}
+
+/// Applies the slider value in [path] to everyone else whenever it changes, the
+/// way a listener dragging the slider does, so a harness can measure the live path.
+void _followVolumeFile(
+  VoiceController voice,
+  ProviderContainer Function() container,
+  String path,
+) {
+  String? applied;
+  Timer.periodic(const Duration(milliseconds: 500), (_) async {
+    final text = File(path).existsSync() ? File(path).readAsStringSync() : '';
+    final volume = double.tryParse(text.trim());
+    if (volume == null || text == applied) return;
+    applied = text;
+    for (final p in container().read(voiceControllerProvider).participants) {
+      if (!p.isLocal) await voice.setVolumeFor(p.identity, volume);
+    }
+    debugPrint('SLIMM_HARNESS volume set $volume');
+  });
 }
 
 /// Null once the call is connected; otherwise what it ended in, since

@@ -265,8 +265,9 @@ def _marked(marker):
 class Desktop:
     """One run of the Linux client in the nested compositor, inside its own session bus."""
 
-    def __init__(self, bundle, root, channel, log):
+    def __init__(self, bundle, root, channel, log, extra_args=()):
         self.bundle, self.root, self.channel, self.log = bundle, root, channel, log
+        self.extra_args = list(extra_args)
         self.proc = None
         self.out = None
 
@@ -281,7 +282,7 @@ class Desktop:
         self.out = open(self.log, "wb")
         self.proc = subprocess.Popen(
             ["dbus-run-session", "--", os.path.join(self.bundle, "slimm_app"),
-             f"--voice-harness-channel={self.channel}"],
+             f"--voice-harness-channel={self.channel}", *self.extra_args],
             env=env, stdout=self.out, stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL, start_new_session=True)
 

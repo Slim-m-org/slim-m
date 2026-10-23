@@ -135,7 +135,7 @@ mixin VoiceSessionMicRecovery {
   /// Strong suppression turns a quiet room into near-silence, which read as a
   /// dead mic and restarted the capture every 30-60 s; it proves nothing either way.
   void _observeGateReading(InputGateReading reading) {
-    if (reading.strongActive) return;
+    if (reading.strongActive) return _micWatchdog.pause();
     _observeMicLevel(reading.levelDb);
   }
 

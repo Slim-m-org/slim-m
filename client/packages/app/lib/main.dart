@@ -118,7 +118,13 @@ Future<void> main([List<String> args = const []]) async {
   runApp(AccountRoot(host: host));
   final harnessTarget = kVoiceHarness ? harnessChannel(args) : null;
   if (harnessTarget != null) {
-    unawaited(joinHarnessChannel(() => host.active!.container, harnessTarget));
+    unawaited(
+      joinHarnessChannel(
+        () => host.active!.container,
+        harnessTarget,
+        volumeFile: harnessVolumeFile(args),
+      ),
+    );
   }
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;

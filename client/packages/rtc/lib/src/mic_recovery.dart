@@ -30,6 +30,7 @@ class MicRecoveryTiming {
     this.silence = const Duration(seconds: 10),
     this.silentCooldown = const Duration(seconds: 30),
     this.maxSilentRestarts = 3,
+    this.recoveredAfter = const Duration(minutes: 2),
     this.deviceDebounce = const Duration(seconds: 1),
     this.senderPoll = const Duration(seconds: 2),
   });
@@ -44,6 +45,10 @@ class MicRecoveryTiming {
   /// Multiplied by the restarts already made, so a truly dead source is not hammered.
   final Duration silentCooldown;
   final int maxSilentRestarts;
+
+  /// How long the level must stay live before the restart budget is refilled; a
+  /// restart's own startup blip must not refill it, or a dead mic restarts forever.
+  final Duration recoveredAfter;
   final Duration deviceDebounce;
 
   /// How often a host without the input gate reads the capture's level.
@@ -172,28 +177,33 @@ class SilentMicWatchdog {
   /// Silence outlasted every restart; the user has to be told.
   final void Function()? onGaveUp;
 
-  /// A live level came back after [onGaveUp].
+  /// A live level held for [MicRecoveryTiming.recoveredAfter] after [onGaveUp].
   final void Function()? onRecovered;
   final DateTime Function() _now;
   bool _gaveUp = false;
 
   DateTime? _silentSince;
+  DateTime? _liveSince;
   DateTime? _nextAllowed;
   int _restarts = 0;
 
   /// [active] is false while muted, closed or out of a call.
   void observe(double levelDb, {required bool active}) {
     if (!active) return reset();
+    final now = _now();
     if (levelDb > kInputFloorDb + 1) {
       _silentSince = null;
+      final since = _liveSince ??= now;
+      if (now.difference(since) < timing.recoveredAfter) return;
       _restarts = 0;
+      _nextAllowed = null;
       if (_gaveUp) {
         _gaveUp = false;
         onRecovered?.call();
       }
       return;
     }
-    final now = _now();
+    _liveSince = null;
     final since = _silentSince ??= now;
     if (now.difference(since) < timing.silence) return;
     final allowed = _nextAllowed;
@@ -211,8 +221,16 @@ class SilentMicWatchdog {
     onSilent();
   }
 
+  /// A reading that proves nothing (Strong zeroes a quiet room): forgets the
+  /// silence so far without refilling the restart budget.
+  void pause() {
+    _silentSince = null;
+    _liveSince = null;
+  }
+
   void reset() {
     _silentSince = null;
+    _liveSince = null;
     _nextAllowed = null;
     _restarts = 0;
     _gaveUp = false;
