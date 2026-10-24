@@ -518,7 +518,7 @@ pub(super) async fn insert_module_metadata(
     Ok(())
 }
 
-/// Drops run history for commands the installed build no longer declares.
+/// Drops run history for commands the installed build no longer declares, keeping the host's own keys.
 async fn prune_undeclared_run_stats(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     req: &InstallModuleRequest<'_>,
@@ -530,10 +530,12 @@ async fn prune_undeclared_run_stats(
     .fetch_all(&mut **tx)
     .await?;
     for command in recorded {
-        let declared = req
-            .extension_points
-            .iter()
-            .any(|e| e.kind == "command" && e.name == command);
+        // Host-run keys such as "@event" and "@slot" are not commands a manifest declares.
+        let declared = command.starts_with('@')
+            || req
+                .extension_points
+                .iter()
+                .any(|e| e.kind == "command" && e.name == command);
         if !declared {
             sqlx::query!(
                 "DELETE FROM module_run_stats WHERE module_id = ? AND command = ?",
