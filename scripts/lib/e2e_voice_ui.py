@@ -72,13 +72,25 @@ def slider_rect(client, label):
     return json.loads(raw)
 
 
+def merged_readout(text, label):
+    """The percent that follows `label` in a merged menu node, or None."""
+    lines = text.split("\n")
+    if label not in lines:
+        return None
+    for line in lines[lines.index(label) + 1:]:
+        if line.endswith("%") and line[:-1].isdigit():
+            return int(line[:-1])
+    return None
+
+
 def slider_percent(client, label):
     """The number the slider's own readout shows, from the row it sits on."""
     x, y, w, h = slider_rect(client, label)
-    # In a context menu the readout is merged into the slider's own name.
+    # In a context menu the readouts of every slider in it are merged into one name.
     for n in client.nodes():
-        if n["t"].startswith(label + "\n") and n["t"].endswith("%"):
-            return int(n["t"].rsplit("\n", 1)[1].rstrip("%"))
+        merged = merged_readout(n["t"], label)
+        if merged is not None:
+            return merged
     for n in client.nodes():
         if n["t"].endswith("%") and abs(n["y"] - (y + h / 2)) < 20 \
                 and n["x"] > x + w - 10:
@@ -155,4 +167,13 @@ def reset_volumes(client, name, labels):
     for label in labels:
         if client.find(label):
             set_slider(client, label, 100)
+    dismiss_popover(client)
+
+
+def reset_share_volume(client, caption, label):
+    """Put a share's inline stream slider back at 100%, if its tile is still up."""
+    if not client.find(caption):
+        return
+    open_share_menu(client, caption, label)
+    set_slider(client, label, 100)
     dismiss_popover(client)
