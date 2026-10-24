@@ -17,6 +17,9 @@ class FakeAudioTrack {
   final LocalAudioChannel channel;
   Object key = Object();
 
+  /// The platform track id; a replaced receiver may change it.
+  late String nativeId = identity;
+
   bool enabled = true;
   double volume = kDefaultParticipantVolume;
 
@@ -33,6 +36,10 @@ class FakeAudioTrack {
   int disableCalls = 0;
   int volumeCalls = 0;
 
+  /// How many gain pushes still fail before one lands, like a native track
+  /// the platform cannot find yet.
+  int failVolumeTimes = 0;
+
   /// Set to make the next push fail the way a real platform call can.
   Object? failure;
 
@@ -43,6 +50,13 @@ class FakeAudioTrack {
   /// arriving back at the source default with nothing to announce it.
   void resubscribe() {
     key = Object();
+    enabled = true;
+    volume = kDefaultParticipantVolume;
+  }
+
+  /// The native receiver replaced behind the very same Dart object and id,
+  /// which nothing about the object itself gives away.
+  void replaceNativeKeepingObject() {
     enabled = true;
     volume = kDefaultParticipantVolume;
   }
@@ -68,7 +82,7 @@ class FakeAudioTrack {
   LocalAudioRef get ref => (
         identity: identity,
         channel: channel,
-        trackId: identity,
+        trackId: nativeId,
         track: key,
         isAudible: () => enabled,
         enable: () async {
@@ -92,6 +106,10 @@ class FakeAudioTrack {
         setVolume: (value) async {
           volumeCalls++;
           if (failure != null) return failure;
+          if (failVolumeTimes > 0) {
+            failVolumeTimes--;
+            return StateError('track not found');
+          }
           volume = value;
           return null;
         },

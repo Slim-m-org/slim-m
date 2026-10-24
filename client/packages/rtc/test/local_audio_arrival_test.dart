@@ -75,6 +75,19 @@ void main() {
       expect(held, {'track-maya': 0.0});
     });
 
+    test('holds a saved volume at the tapered gain a later pass applies', () {
+      final state = LocalAudioState()..setVolumeFor('maya', 0.5);
+      final held = <String, double>{};
+
+      state.holdArrival(
+        [_ref('maya')],
+        'track-maya',
+        (id, gain) => held[id] = gain,
+      );
+
+      expect(held['track-maya'], closeTo(perceptualParticipantGain(0.5), 1e-9));
+    });
+
     test('leaves a track at full volume alone', () {
       final held = <String, double>{};
 

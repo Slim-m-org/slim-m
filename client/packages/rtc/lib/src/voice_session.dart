@@ -19,6 +19,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
