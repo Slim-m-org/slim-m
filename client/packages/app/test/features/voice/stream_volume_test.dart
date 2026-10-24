@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/call_mini_player.dart';
@@ -102,6 +103,25 @@ void main() {
 
     await rightClickMenu(tester, find.byType(ScreenShareStage));
     await tester.drag(find.byType(AppSlider), const Offset(-60, 0));
+    await tester.pumpAndSettle();
+
+    expect(volumes, isNotEmpty);
+    expect(volumes.last, lessThan(1));
+  });
+
+  testWidgets('the menu slider takes the arrow keys as soon as it opens', (
+    tester,
+  ) async {
+    final volumes = <double>[];
+    await _pumpTile(
+      tester,
+      sound: true,
+      sharer: _sharer(),
+      onScreenVolume: volumes.add,
+    );
+
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
 
     expect(volumes, isNotEmpty);

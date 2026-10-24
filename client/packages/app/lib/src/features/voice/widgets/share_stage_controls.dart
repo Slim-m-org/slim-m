@@ -75,4 +75,5 @@ Widget streamVolumeSlider(String identity, VoiceController controller) =>
       controller: controller,
       channel: LocalAudioChannel.screen,
       label: 'Stream volume',
+      autofocus: true,
     );
