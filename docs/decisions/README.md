@@ -99,4 +99,5 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0087](0087-sequenced-canvas-reducer-and-paged-first-read.md) | One sequenced canvas reducer, and a paged first read | accepted |
 | [0088](0088-catppuccin-mocha-theme.md) | Catppuccin Mocha is the fourth app theme | accepted |
 | [0089](0089-soft-dark-and-forest-themes.md) | Soft dark and Forest are the fifth and sixth app themes | accepted |
+| [0090](0090-modules-as-the-extension-surface.md) | Modules become the extension surface: events, interceptors, data, settings and UI slots, with connectors for the rest | accepted |
 | [0091](0091-module-platform-phase-1-contracts.md) | Module platform, phase 1 contracts | accepted |
