@@ -76,9 +76,11 @@ How delivery behaves:
   When it is full the oldest event is dropped and the drop is counted.
 - A module gets one event at a time, in the order queued.
   Events and schedules share a lane of 2 concurrent runs across all modules, separate from the 4 slots members' commands use.
+  Slot answers have their own lane of 2.
 - After 5 failed runs in a row (a trap, a timeout, running out of fuel, or `{ok:false}`) the module is disabled with a reason the admin sees.
   A success resets the count.
-  Scheduled runs and slot runs count toward the same streak.
+  Scheduled runs count toward the same streak.
+  Slot runs never do, because a member viewing a profile must not be able to turn a module off.
   A run the host turned away because it was busy does not count.
 
 **Treat a push as a trigger, not as the data.**
@@ -182,15 +184,20 @@ Every call names `"capability": "data.store"`, an `op` and a `table`.
 
 | `op` | other fields | returns |
 | --- | --- | --- |
-| `insert` | `values` | `rows: [{_id}]` |
-| `upsert` | `values`, `on` (one unique column, which `values` must include) | `changed` |
-| `update` | `values`, `where` | `changed` |
+| `insert` | `values`, or `rows` (up to 50, all setting the same columns) | `rows: [{_id}]`, one per row in order |
+| `upsert` | `values`, `on` (one unique column, which `values` must include), optionally `add` | `changed`, and the resulting row in `rows` when `add` is used |
+| `update` | `values`, `add`, or both, and `where` | `changed` |
 | `delete` | `where` | `changed` |
 | `get` | `where`, `order` | `rows` with the first match, or none |
 | `query` | `where`, `order`, `limit`, `offset` | `rows` |
 | `count` | `where` | the number in `count` |
 | `sum` | `col` (int or real), `where` | the total in `count` |
 | `increment` | `col` (int or real), `by`, `where` | `changed` |
+
+`add` is a map of `{column: number}` over `int` or `real` columns, and a column cannot be in both `values` and `add`.
+On an `upsert` a new row gets the added amounts and an existing one gets `column = column + n`, in one atomic statement.
+On an `update` it runs `column = column + n` in the same statement as any `values`.
+A multi-row `insert` or an `add` is still one call of the run's budget.
 
 Replies are `{ "ok": true, "rows": [...], "changed": n, "count": n }` or `{ "ok": false, "error": "..." }`.
 Rows carry `_id` and every declared column.
