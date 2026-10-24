@@ -20,6 +20,9 @@ const double memberPopoverWidth = 300;
 /// context so the popover lands beside the row that was clicked rather than
 /// in the middle of the window.
 ///
+/// [profileOnly] drops the action rows on a pointer layout, where right click
+/// reaches them; a compact sheet keeps them, as long press is its only other way.
+///
 /// On compact width the roster this popover can open from lives in a
 /// `Scaffold.endDrawer`, whose open state lives on the `ScaffoldState` and
 /// outlives a `go_router` navigation - the shell's `Scaffold` is reused
@@ -32,6 +35,7 @@ Future<void> showMemberProfile(
   String? callChannelName,
   bool initiallyModerating = false,
   String? channelId,
+  bool profileOnly = false,
 }) {
   // Read before anything pops: a popped context has no navigator above it.
   final host = Navigator.of(anchor, rootNavigator: true).context;
@@ -88,6 +92,7 @@ Future<void> showMemberProfile(
         memberPaneScaffold: memberPaneScaffold,
         initiallyModerating: initiallyModerating,
         channelId: channelId,
+        profileOnly: profileOnly,
         onDone: () => Navigator.of(context).pop(),
       ),
     ),
