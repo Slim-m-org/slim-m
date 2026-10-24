@@ -136,24 +136,37 @@ async fn the_cursor_catches_up_exactly_once() {
 }
 
 #[tokio::test]
-async fn a_session_closing_late_is_not_skipped_by_a_cursor_past_a_later_one() {
+async fn a_long_open_session_does_not_hide_a_later_closed_one() {
     let c = calls("slimm-logread-late").await;
     c.session("slow", false, None).await;
     let quick = c.session("quick", true, Some(2_000)).await;
 
     let held = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
-    assert!(
-        ids(&held).is_empty(),
-        "nothing after an open session is handed out yet"
+    assert_eq!(
+        ids(&held),
+        vec![quick],
+        "readable while the older call is open"
     );
+    let next = held["next"].as_i64().unwrap();
 
     c.w.store
         .close_voice_sessions(SessionScope::Sid(c.w.user.id, "slow"), 3_000)
         .await
         .unwrap();
-    let released = read(&c.w, &["log.read"], &read_request("voice.sessions", 0, 100)).await;
-    assert_eq!(ids(&released).len(), 2);
-    assert_eq!(ids(&released)[1], quick);
+    let rest = read(
+        &c.w,
+        &["log.read"],
+        &read_request("voice.sessions", next, 100),
+    )
+    .await;
+    assert_eq!(ids(&rest), vec![1], "the late close still arrives, once");
+    let again = read(
+        &c.w,
+        &["log.read"],
+        &read_request("voice.sessions", rest["next"].as_i64().unwrap(), 100),
+    )
+    .await;
+    assert!(ids(&again).is_empty());
 }
 
 #[tokio::test]

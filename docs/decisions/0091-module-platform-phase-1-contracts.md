@@ -117,12 +117,13 @@ One host call:
 
 The reply is `{ "ok": true, "rows": [...], "next": 123 }`, where `next` is the cursor to send as `after` next time.
 `limit` is at most 200.
-Phase 1 has one log, `voice.sessions`, returning only closed sessions in id order:
+Phase 1 has one log, `voice.sessions`, returning only closed sessions in the order they closed:
 `{ id, user_id, channel_id, joined_at_ms, left_at_ms, alone_ms }`.
 
 ## Voice sessions
 
-Table `voice_sessions` (migration 0147): `id INTEGER PRIMARY KEY AUTOINCREMENT`, `user_id`, `channel_id`, `sid`, `joined_at` and `left_at` (milliseconds), `alone_ms`.
+Table `voice_sessions` (migration 0147): `id INTEGER PRIMARY KEY AUTOINCREMENT`, `user_id`, `channel_id`, `sid`, `joined_at` and `left_at` (milliseconds), `alone_ms`, `closed_seq`.
+`closed_seq` is numbered from a counter at the moment of closing and is what `next` and `after` count, so an open session never holds later closes back.
 It is written beside the existing record call in the voice webhook handler, opened on a join and closed on a leave.
 An open session is also closed on a room finishing, on the stale-heartbeat sweep and on startup, so a missed leave caps the duration.
 Closed sessions are kept 90 days.

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!: i64\", user_id AS \"user_id!: UserId\",\n                      channel_id AS \"channel_id!: ChannelId\", sid AS \"sid!\",\n                      joined_at AS \"joined_at!: i64\", left_at AS \"left_at!: i64\",\n                      alone_ms AS \"alone_ms!: i64\"\n               FROM voice_sessions\n               WHERE id > ? AND left_at IS NOT NULL\n                 AND id < COALESCE((SELECT MIN(id) FROM voice_sessions WHERE left_at IS NULL), 9223372036854775807)\n               ORDER BY id LIMIT ?",
+  "query": "SELECT id AS \"id!: i64\", user_id AS \"user_id!: UserId\",\n                      channel_id AS \"channel_id!: ChannelId\", sid AS \"sid!\",\n                      joined_at AS \"joined_at!: i64\", left_at AS \"left_at!: i64\",\n                      alone_ms AS \"alone_ms!: i64\", closed_seq AS \"closed_seq!: i64\"\n               FROM voice_sessions\n               WHERE closed_seq > ?\n               ORDER BY closed_seq LIMIT ?",
   "describe": {
     "columns": [
       {
@@ -37,6 +37,11 @@
         "name": "alone_ms!: i64",
         "ordinal": 6,
         "type_info": "Integer"
+      },
+      {
+        "name": "closed_seq!: i64",
+        "ordinal": 7,
+        "type_info": "Integer"
       }
     ],
     "parameters": {
@@ -49,8 +54,9 @@
       false,
       false,
       true,
-      false
+      false,
+      true
     ]
   },
-  "hash": "c966e8db6d83a2328037a84bf884d004c0c5ba4969af7cf0543cb81ea71e3fe8"
+  "hash": "3eb8e93f971c3bddb27d17126655b5161b3bfeb49103fc5102f2c1ca7dd764b4"
 }

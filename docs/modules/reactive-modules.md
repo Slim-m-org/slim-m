@@ -96,7 +96,7 @@ Send `next` as `after` on the next read; when there are no rows, `next` is the `
 `limit` defaults to 100 and is at most 200, and `after` defaults to 0.
 Store the cursor yourself, in `data.store` or `kv.store`, and move it only after the work for those rows succeeded.
 
-Phase 1 has one log, `voice.sessions`, with one row per closed voice session in id order:
+Phase 1 has one log, `voice.sessions`, with one row per closed voice session, in the order they closed:
 
 ```json
 { "id": 41, "user_id": "...", "channel_id": "...", "joined_at_ms": 1760000000000, "left_at_ms": 1760000600000, "alone_ms": 120000 }
@@ -105,9 +105,10 @@ Phase 1 has one log, `voice.sessions`, with one row per closed voice session in 
 - `id` is the same number as `session_id` in the `voice.session.closed` event, so an event and the log agree about which session is which.
 - Only closed sessions are returned.
   A session left open by a missed leave is closed when its room finishes, when its heartbeat goes stale, or at server startup, which caps its length.
-- Rows are returned in id order and never skip ahead of a session that is still open.
-  While a member's older session is open, sessions that opened after it and have closed wait, and show up once the older one closes.
-  A cursor is therefore always safe to advance to `next`.
+- Rows are returned in the order they closed, whatever order they opened in.
+  A long call that is still open never holds back sessions that closed after it opened.
+  A session that closes later is numbered later, so a cursor is always safe to advance to `next` and never skips or repeats a row.
+- `next` is a close-order cursor, not a session `id`.
 - Closed sessions are kept 90 days, and a member's sessions are removed when their account is deleted.
 - Only a module with an approved `log.read` can read them, and the consent line says it can see when members are in calls.
 

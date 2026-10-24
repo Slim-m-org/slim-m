@@ -51,7 +51,9 @@ impl LogBackend for SqliteLogs {
                 anyhow::Ok((sessions, visible))
             })
             .map_err(|_| LogError)?;
-        let next = sessions.last().map_or(after, |s| s.id);
+        let next = sessions
+            .last()
+            .map_or(after, |s| s.closed_seq.unwrap_or(after));
         let rows = sessions
             .into_iter()
             .filter(|s| visible.get(&s.channel_id).copied().unwrap_or(false))

@@ -29,13 +29,13 @@ pub struct VoiceSessionRow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogPage {
     pub rows: Vec<VoiceSessionRow>,
-    /// The id of the last row scanned, including rows left out, so a reader never stalls on one.
+    /// The cursor of the last row scanned, including rows left out, so a reader never stalls on one.
     pub next: i64,
 }
 
 /// Where the logs live; a trait seam like [`super::KvBackend`].
 pub trait LogBackend: Send + Sync {
-    /// Scans closed sessions with an id above `after`, in id order, at most `limit`.
+    /// Scans closed sessions closed after cursor `after`, in close order, at most `limit`.
     fn voice_sessions(&self, after: i64, limit: i64) -> Result<LogPage, LogError>;
 }
 

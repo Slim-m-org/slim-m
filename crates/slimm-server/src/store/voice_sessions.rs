@@ -18,6 +18,8 @@ pub struct VoiceSession {
     pub joined_at: i64,
     pub left_at: Option<i64>,
     pub alone_ms: i64,
+    /// Where this close falls among all closes; `None` while the session is open.
+    pub closed_seq: Option<i64>,
 }
 
 /// Which open sessions a close applies to.
@@ -178,10 +180,17 @@ impl Store {
             .map(|o| (o.joined_at, o.left_at.unwrap_or(left)))
             .collect();
         let alone_ms = alone_for(row.joined_at, left, spans);
+        let closed_seq = sqlx::query_scalar!(
+            r#"UPDATE voice_session_close_seq SET last = last + 1 WHERE id = 1
+               RETURNING last AS "last!: i64""#
+        )
+        .fetch_one(&mut *tx)
+        .await?;
         sqlx::query!(
-            "UPDATE voice_sessions SET left_at = ?, alone_ms = ? WHERE id = ?",
+            "UPDATE voice_sessions SET left_at = ?, alone_ms = ?, closed_seq = ? WHERE id = ?",
             left,
             alone_ms,
+            closed_seq,
             id
         )
         .execute(&mut *tx)
@@ -195,12 +204,14 @@ impl Store {
             joined_at: row.joined_at,
             left_at: Some(left),
             alone_ms,
+            closed_seq: Some(closed_seq),
         }))
     }
 
-    /// Closed sessions with an id above `cursor`, in id order. A session that
-    /// closes after a later one would be skipped by a cursor that had passed
-    /// it, so nothing at or above the oldest open session's id is returned.
+    /// Closed sessions with a `closed_seq` above `cursor`, in close order. The
+    /// sequence is handed out at the moment of closing, so a later close always
+    /// lands above a cursor that has passed the earlier ones and an open
+    /// session never holds the others back.
     pub async fn closed_voice_sessions_after(
         &self,
         cursor: i64,
@@ -210,11 +221,10 @@ impl Store {
             r#"SELECT id AS "id!: i64", user_id AS "user_id!: UserId",
                       channel_id AS "channel_id!: ChannelId", sid AS "sid!",
                       joined_at AS "joined_at!: i64", left_at AS "left_at!: i64",
-                      alone_ms AS "alone_ms!: i64"
+                      alone_ms AS "alone_ms!: i64", closed_seq AS "closed_seq!: i64"
                FROM voice_sessions
-               WHERE id > ? AND left_at IS NOT NULL
-                 AND id < COALESCE((SELECT MIN(id) FROM voice_sessions WHERE left_at IS NULL), 9223372036854775807)
-               ORDER BY id LIMIT ?"#,
+               WHERE closed_seq > ?
+               ORDER BY closed_seq LIMIT ?"#,
             cursor,
             limit
         )
@@ -230,6 +240,7 @@ impl Store {
                 joined_at: r.joined_at,
                 left_at: Some(r.left_at),
                 alone_ms: r.alone_ms,
+                closed_seq: Some(r.closed_seq),
             })
             .collect())
     }
