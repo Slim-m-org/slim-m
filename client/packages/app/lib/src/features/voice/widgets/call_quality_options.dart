@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The share quality groups in the call dock's share menu, so a quality can
-/// change without leaving the call.
+/// change without leaving the call. A live share restarts to pick it up where
+/// it can do so without a prompt, and says otherwise where it cannot.
 ///
 /// Each group is the same pick-one the Voice settings card edits, written
 /// through the same notifier, so the two cannot disagree. The menu is
@@ -12,6 +13,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/live_quality_restart.dart';
 import '../providers/voice_settings_controller.dart';
 import '../../../widgets/control_options_menu.dart';
 import '../../../widgets/control_swatch_row.dart';
@@ -22,6 +24,8 @@ List<ControlOptionEntry> videoQualityOptions(WidgetRef ref) {
   final settings = ref.watch(voiceSettingsControllerProvider);
   final notifier = ref.read(voiceSettingsControllerProvider.notifier);
   return [
+    if (ref.watch(shareSettingsPendingProvider))
+      const ControlOptionHeading(shareSettingsPendingNote),
     const ControlOptionHeading('Resolution'),
     for (final r in ScreenShareResolution.values)
       ControlOption(
