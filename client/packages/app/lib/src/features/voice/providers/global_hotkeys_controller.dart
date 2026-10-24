@@ -63,9 +63,15 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
     }
     _source = source;
     _events = source.events.listen(_onEvent);
-    _ref.listen(voiceSettingsControllerProvider, (_, _) => _sync());
+    _ref.listen(
+      voiceSettingsControllerProvider,
+      (_, _) => _sync(retryUnavailable: true),
+    );
     _ref.listen(voiceControllerProvider, (_, _) => _sync());
-    _ref.listen(shortcutOverridesProvider, (_, _) => _sync());
+    _ref.listen(
+      shortcutOverridesProvider,
+      (_, _) => _sync(retryUnavailable: true),
+    );
     unawaited(_start());
   }
 
@@ -74,11 +80,14 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   StreamSubscription<GlobalHotkeyEvent>? _events;
   String _bound = '';
   bool _binding = false;
+  bool _probedAvailable = false;
 
   Future<void> _start() async {
     final source = _source;
     if (source == null) return;
-    state = await source.probe();
+    final probed = await source.probe();
+    _probedAvailable = probed.available;
+    state = probed;
     if (mounted) await _sync();
   }
 
@@ -111,9 +120,11 @@ class GlobalHotkeysController extends StateNotifier<GlobalHotkeyAvailability?> {
   String _chordKey(HotkeyChord c) =>
       '${c.key.keyId}${c.ctrl ? 'c' : ''}${c.alt ? 'a' : ''}${c.shift ? 's' : ''}${c.meta ? 'm' : ''}';
 
-  Future<void> _sync() async {
+  Future<void> _sync({bool retryUnavailable = false}) async {
     final source = _source;
-    if (source == null || _binding || state?.available != true) return;
+    final canBind =
+        state?.available == true || (retryUnavailable && _probedAvailable);
+    if (source == null || _binding || !canBind) return;
     final wanted = _wanted();
     final signature = [
       for (final b in wanted) '${b.id.name}:${_chordKey(b.chord)}',

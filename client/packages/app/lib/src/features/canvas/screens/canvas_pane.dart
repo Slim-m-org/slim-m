@@ -62,6 +62,7 @@ import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
+import '../../voice/providers/share_watch.dart';
 import '../../voice/providers/video_interest_relay.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -136,6 +137,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// What was selected when the current select press began, so a tap edits a note only on its second tap.
   String? _selectedBeforeDown;
   final _focusNode = FocusNode(debugLabel: 'canvas pane');
+  final _boardFocusNode = FocusNode(debugLabel: 'canvas board');
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
@@ -214,6 +216,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _boardFocusNode.dispose();
     _focusNode.dispose();
     _windowHold.release();
     _landscapeHold.release();
@@ -274,7 +277,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   _onNoteEditCancel
             else if (fullscreen)
               const SingleActivator(LogicalKeyboardKey.escape):
-                  _toggleFullscreen
+                  _escapeFullscreen
             else if (_memberPaneDocked)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _closeMemberPane,
@@ -301,6 +304,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                 onDrop: (items) => unawaited(_dropImage(items)),
                 child: CanvasPaneBody(
                   channelId: widget.channelId,
+                  boardFocusNode: _boardFocusNode,
                   onClose: _closeCanvas,
                   onActivityLogOpenChanged: (open) =>
                       setState(() => _activityLogOpen = open),

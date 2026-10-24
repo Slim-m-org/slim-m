@@ -133,15 +133,13 @@ class HardwareAudioDevices implements AudioDevices {
   Future<AudioDevice?> systemDefaultInput() async =>
       await _pulse.defaultNode(capture: true) != null
           ? null
-          : _systemDefaultOf(
-              _toAudioDevices(await lk.Hardware.instance.audioInputs()));
+          : _systemDefaultOf(_toAudioDevices(await _listInputs()));
 
   @override
   Future<AudioDevice?> systemDefaultOutput() async =>
       await _pulse.defaultNode(capture: false) != null
           ? null
-          : _systemDefaultOf(
-              _toAudioDevices(await lk.Hardware.instance.audioOutputs()));
+          : _systemDefaultOf(_toAudioDevices(await _listOutputs()));
 
   @override
   Stream<void> get onChange => _merged([

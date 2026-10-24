@@ -35,7 +35,7 @@ import '../providers/voice_controller.dart';
 
 /// Both halves together, in the shape the full member card wants them: the
 /// slider (when supported) above the mute toggle.
-class MemberLocalAudioSection extends StatelessWidget {
+class MemberLocalAudioSection extends StatefulWidget {
   const MemberLocalAudioSection({
     super.key,
     required this.identity,
@@ -50,11 +50,19 @@ class MemberLocalAudioSection extends StatelessWidget {
   final bool showVolume;
 
   @override
+  State<MemberLocalAudioSection> createState() =>
+      _MemberLocalAudioSectionState();
+}
+
+class _MemberLocalAudioSectionState extends State<MemberLocalAudioSection> {
+  @override
   Widget build(BuildContext context) {
+    final identity = widget.identity;
+    final controller = widget.controller;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showVolume)
+        if (widget.showVolume)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s12,
@@ -67,7 +75,7 @@ class MemberLocalAudioSection extends StatelessWidget {
               controller: controller,
             ),
           ),
-        if (showVolume && controller.hasScreenAudio(identity))
+        if (widget.showVolume && controller.hasScreenAudio(identity))
           ParticipantScreenAudioSection(
             identity: identity,
             controller: controller,
@@ -75,6 +83,9 @@ class MemberLocalAudioSection extends StatelessWidget {
         ParticipantMuteForMeMenuItem(
           identity: identity,
           controller: controller,
+          onDone: () {
+            if (mounted) setState(() {});
+          },
         ),
       ],
     );

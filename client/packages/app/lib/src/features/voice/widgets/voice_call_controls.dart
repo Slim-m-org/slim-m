@@ -419,12 +419,19 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// sources by hand would do themselves.
   Future<void> _changeSource(BuildContext context) async {
     if (!widget.voice.screenSharing) return;
-    await widget.controller.setScreenShare(false);
-    if (!context.mounted) return;
-    await _startShare(context);
+    if (!widget.controller.screenShareSourcePickerUseful) {
+      await widget.controller.setScreenShare(false);
+      if (!context.mounted) return;
+      await _startShare(context);
+      return;
+    }
+    await _startShare(context, stopFirst: true);
   }
 
-  Future<void> _startShare(BuildContext context) async {
+  Future<void> _startShare(
+    BuildContext context, {
+    bool stopFirst = false,
+  }) async {
     final controller = widget.controller;
     setState(() => _shareRequestInFlight = true);
     try {
@@ -446,6 +453,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         return;
       }
       _lastSourceId = sourceId ?? _lastSourceId;
+      if (stopFirst) await controller.setScreenShare(false);
       await controller.setScreenShare(
         true,
         quality: quality,

@@ -24,6 +24,7 @@ enum DesktopWindowEventKind {
   move,
   maximize,
   unmaximize,
+  minimize,
   fullScreen,
   leaveFullScreen,
   show,
@@ -167,6 +168,8 @@ class WindowManagerDesktopWindowPort
   void onWindowMaximize() => _events.add(DesktopWindowEventKind.maximize);
   @override
   void onWindowUnmaximize() => _events.add(DesktopWindowEventKind.unmaximize);
+  @override
+  void onWindowMinimize() => _events.add(DesktopWindowEventKind.minimize);
 
   /// Un-minimising emits `restore`, never `show`, and the controller reads
   /// `show` as the window coming back.
@@ -249,6 +252,7 @@ class WindowManagerDesktopWindowPort
   @override
   Future<void> hide() {
     _hidden = true;
+    _events.add(DesktopWindowEventKind.minimize);
     return wm.windowManager.hide();
   }
 

@@ -35,7 +35,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _pointersDown++;
 
     if (_editingNoteId == null && !_focusNode.hasFocus) {
-      _focusNode.requestFocus();
+      _boardFocusNode.requestFocus();
     }
   }
 
@@ -70,7 +70,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final startedWith = _tool;
     var text = await showCanvasNoteSheet(context);
     if (!_mounted) return;
-    _focusNode.requestFocus();
+    _boardFocusNode.requestFocus();
     while (text != null && _mounted) {
       final placed = await _quickPlacement.placeNote(
         world,
@@ -224,14 +224,14 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   Future<void> _onNoteEditSave(String id, String text) async {
     _refresh(() => _editingNoteId = null);
-    _focusNode.requestFocus();
+    _boardFocusNode.requestFocus();
     await _ops.editNote(id, text);
     _refresh();
   }
 
   void _onNoteEditCancel() {
     _refresh(() => _editingNoteId = null);
-    _focusNode.requestFocus();
+    _boardFocusNode.requestFocus();
   }
 
   NoteSpanStyle _noteSpanStyle(BuildContext context) {
@@ -268,6 +268,9 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onSelectStart(Offset world) {
+    if (_editingNoteId == null && !_boardFocusNode.hasPrimaryFocus) {
+      _boardFocusNode.requestFocus();
+    }
     _selectedBeforeDown = _document.selectedObjectId.value;
     final me = ref.read(meProvider).valueOrNull;
     // A safe read, not a cold one: build() already watches this same family instance every frame.
@@ -480,52 +483,4 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     _ops.cancelErase();
     _refresh();
   }
-
-  /// Who to show as a camera bubble: nobody unless this device joined a call in this channel, since without one there is no LiveKit room to render from.
-  List<VoiceParticipant> _callParticipants() {
-    final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
-    if (channelId != widget.channelId) return const [];
-    final blocks = ref.watch(blocksProvider);
-    final participants = ref
-        .watch(voiceParticipantsProvider.select(CanvasCallParticipants.new))
-        .participants;
-    return participants
-        .where((p) => !blocks.contains(p.identity))
-        .toList(growable: false);
-  }
-}
-
-/// The call participants as the canvas sees them: equal whenever nothing but
-/// a speaking flag or level moved, since the tiles draw neither (speaking is
-/// the cursor label's glow and the dock roster's ring) and rebuilding the
-/// whole pane several times a second per speaker made it lag.
-@visibleForTesting
-class CanvasCallParticipants {
-  const CanvasCallParticipants(this.participants);
-
-  final List<VoiceParticipant> participants;
-
-  static bool _same(VoiceParticipant a, VoiceParticipant b) =>
-      a.identity == b.identity &&
-      a.name == b.name &&
-      a.isMuted == b.isMuted &&
-      a.isDeafened == b.isDeafened &&
-      a.isLocal == b.isLocal &&
-      a.isScreenSharing == b.isScreenSharing &&
-      a.isCameraOn == b.isCameraOn;
-
-  @override
-  bool operator ==(Object other) {
-    if (other is! CanvasCallParticipants) return false;
-    final a = participants;
-    final b = other.participants;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!_same(a[i], b[i])) return false;
-    }
-    return true;
-  }
-
-  @override
-  int get hashCode => Object.hashAll(participants.map((p) => p.identity));
 }

@@ -115,6 +115,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       menuRequests: _menuRequests,
       presenceFrames: _presenceFrames,
       focusedTileKey: widget.focusedTileKey,
+      boardFocusNode: widget.boardFocusNode,
     ),
   );
 }
