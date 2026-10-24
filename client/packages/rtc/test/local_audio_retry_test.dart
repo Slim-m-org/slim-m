@@ -2,6 +2,8 @@
 /// A failed push is retried on its own schedule, whatever the room events do.
 library;
 
+import 'dart:async';
+
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' show LogLevel;
@@ -29,8 +31,8 @@ void main() {
     track = FakeAudioTrack('maya')..failure = Exception('no');
   });
 
-  Future<void> applyAndFlush(FakeAsync async) async {
-    state.applyToRefs([track.ref]);
+  void applyAndFlush(FakeAsync async) {
+    unawaited(state.applyToRefs([track.ref]));
     async.flushMicrotasks();
   }
 
