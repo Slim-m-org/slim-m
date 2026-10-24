@@ -143,6 +143,8 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
     if ((volume - kDefaultParticipantVolume).abs() < _snapToNormal) {
       volume = kDefaultParticipantVolume;
     }
+    // Whole percents, so the label shows exactly the value that is applied.
+    volume = (volume * 100).round() / 100;
     setState(() => _volume = volume);
     final controller = widget.controller;
     final applied = _applyVolume(controller, volume, commit: commit);

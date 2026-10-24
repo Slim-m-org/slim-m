@@ -41,10 +41,18 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   bool get supportsParticipantVolume => true;
 
   @override
-  double screenVolumeFor(String identity) => 1.0;
+  double screenVolumeFor(String identity) => _screenVolumes[identity] ?? 1.0;
 
   @override
-  Future<void> setScreenVolumeFor(String identity, double volume) async {}
+  Future<void> setScreenVolumeFor(String identity, double volume) async {
+    _screenVolumes[identity] = volume.clamp(0.0, 2.0);
+    volumePushes.add((identity, true, volume));
+  }
+
+  final Map<String, double> _screenVolumes = {};
+
+  /// Every gain push, as (identity, screen channel, value), in order.
+  final List<(String, bool, double)> volumePushes = [];
 
   @override
   bool isScreenAudioMuted(String identity) => false;
@@ -113,6 +121,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<void> setVolumeFor(String identity, double volume) async {
     _volumes[identity] = volume.clamp(0.0, 2.0);
+    volumePushes.add((identity, false, volume));
   }
 
   final VoiceSessionState joinOutcome;
