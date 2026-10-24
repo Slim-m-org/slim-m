@@ -45,9 +45,13 @@ class MemberProfileBody extends ConsumerStatefulWidget {
     this.memberPaneScaffold,
     this.initiallyModerating = false,
     this.channelId,
+    this.profileOnly = false,
   });
 
   final api.UserProfile profile;
+
+  /// Shows the profile and the Message row only, leaving the action rows to the quick menu.
+  final bool profileOnly;
 
   /// Opens straight onto [MemberModerateView] rather than the profile - a
   /// quick-actions menu's own "Moderate..." row uses this so tapping it does
@@ -229,6 +233,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
             callChannelName: widget.callChannelName,
             channelId: widget.channelId,
             memberPaneScaffold: widget.memberPaneScaffold,
+            profileOnly: widget.profileOnly,
           );
 
     final content = _moderating

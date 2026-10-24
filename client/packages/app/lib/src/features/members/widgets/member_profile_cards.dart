@@ -152,9 +152,13 @@ class OtherMemberCard extends ConsumerStatefulWidget {
     this.callChannelName,
     this.channelId,
     this.memberPaneScaffold,
+    this.profileOnly = false,
   });
 
   final api.UserProfile profile;
+
+  /// Drops the volume, notify, moderate, report and block rows.
+  final bool profileOnly;
   final MemberModerationGates gates;
   final List<ParticipantAction> actions;
   final BuildContext host;
@@ -230,12 +234,14 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             subjectId: profile.id,
             autofocus: _noteRevealed && !hasNote,
           ),
-        const _Rule(),
-        if (widget.localAudio case final audio?) ...[audio, const _Rule()],
-        _menuSection(blocked: blocked),
-        if (inChannel || !blocked) ...[
+        if (!widget.profileOnly) ...[
           const _Rule(),
-          _dangerSection(inChannel: inChannel, blocked: blocked),
+          if (widget.localAudio case final audio?) ...[audio, const _Rule()],
+          _menuSection(blocked: blocked),
+          if (inChannel || !blocked) ...[
+            const _Rule(),
+            _dangerSection(inChannel: inChannel, blocked: blocked),
+          ],
         ],
       ],
     );
