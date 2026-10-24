@@ -58,6 +58,7 @@ extension VoiceSessionTracks on VoiceSession {
   Future<void> _onDisconnected(lk.DisconnectReason? reason) async {
     if (_disposed) return;
     if (reason == lk.DisconnectReason.clientInitiated) return;
+    _audio.cancelRetry();
     await _screenShare.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
     _participants = const [];

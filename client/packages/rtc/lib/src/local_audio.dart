@@ -50,8 +50,8 @@ class LocalAudioState {
     ],
   });
 
-  /// Waits before each retry of a failed push; once spent, the next room
-  /// event is the only retry left.
+  /// Waits before each retry of a failed push; once spent, retrying stops
+  /// until the mute, deafen or volume choices change.
   final List<Duration> retryDelays;
 
   /// Receives one line per gain push, for the app's debug log.
@@ -106,6 +106,8 @@ class LocalAudioState {
 
   Timer? _retryTimer;
   int _attempts = 0;
+  bool _gaveUp = false;
+  String? _retryTarget;
 
   /// Stops any scheduled retry; the state itself stays usable.
   void cancelRetry() {
@@ -241,19 +243,29 @@ class LocalAudioState {
   }
 
   void _planRetry() {
-    cancelRetry();
     if (_failures.isEmpty) {
+      cancelRetry();
       _attempts = 0;
+      _gaveUp = false;
+      _retryTarget = null;
       return;
     }
+    final target = _targetFingerprint();
+    if (target != _retryTarget) {
+      cancelRetry();
+      _attempts = 0;
+      _gaveUp = false;
+      _retryTarget = target;
+    }
+    if (_retryTimer != null || _gaveUp) return;
     if (_attempts >= retryDelays.length) {
       log?.call(
         'Volume still failing after $_attempts retries for '
         '${_failures.keys.map((k) => '${k.$1}/${k.$2.name}').join(', ')}; '
-        'will try again on the next room event',
+        'giving up until the audio settings change',
         level: LogLevel.warning,
       );
-      _attempts = 0;
+      _gaveUp = true;
       return;
     }
     _retryTimer = Timer(retryDelays[_attempts++], () {
@@ -261,6 +273,19 @@ class LocalAudioState {
       unawaited(applyToRefs(_latestRefs));
     });
   }
+
+  String _targetFingerprint() => [
+        deafened,
+        (muted.toList()..sort()).join(','),
+        (screenMuted.toList()..sort()).join(','),
+        for (final channel in LocalAudioChannel.values)
+          (_volumesOf(channel)
+                  .entries
+                  .map((e) => '${e.key}=${e.value}')
+                  .toList()
+                ..sort())
+              .join(','),
+      ].join('|');
 
   Future<Object?> _pass(Iterable<LocalAudioRef> refs) async {
     Object? failure;
