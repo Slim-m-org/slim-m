@@ -14,8 +14,10 @@ import e2e_voice_ui as ui
 from e2e_voice import join_call, sfu_participants, tracks_of
 import time
 
+from e2e_voice_volume import loudest_output
+
 VOICE_LABEL = "Volume for you"
-SCREEN_LABEL = "Screen audio"
+SCREEN_LABEL = "Stream volume"
 MEASURE_SECONDS = 3
 MEASURE_TRIES = 3
 TOLERANCE_DB = 1.5
@@ -87,9 +89,7 @@ def _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
         assert tone > -45, f"the share's audio is silent: {tone:.1f} dB"
         assert abs(_heard(probe, screen)[0]) <= TOLERANCE_DB
 
-        ui.open_share_menu(a, "Bob's screen", "Stream volume")
-        a.click("Stream volume", settle=1.5)
-        a.wait_for(SCREEN_LABEL)
+        ui.open_share_menu(a, "Bob's screen", SCREEN_LABEL)
         shown = ui.set_slider(a, SCREEN_LABEL, 50)
         ui.dismiss_popover(a)
         want = lv.volume_to_db(lv.slider_to_gain(shown / 100))
@@ -106,15 +106,16 @@ def _stream_volume_is_apart_from_the_voice(a, b, room_id, bob_id):
         ui.set_slider(a, VOICE_LABEL, 0)
         ui.dismiss_popover(a)
         screen_gain, _ = _heard(probe, screen)
-        voice_gain, voice_loudest = _heard(probe, voice)
-        print(f"  voice at 0%: voice {voice_gain:.1f} dB, "
+        voice_loudest = loudest_output(probe, voice)
+        print(f"  voice at 0%: voice loudest {voice_loudest:.1f} dB, "
               f"screen still {screen_gain:.1f} dB")
         assert voice_loudest <= lv.SILENCE_DB, \
             f"the voice still leaked {voice_loudest:.1f} dB"
         assert abs(screen_gain - want) <= TOLERANCE_DB, \
             f"silencing the voice moved the screen to {screen_gain:.1f} dB"
     finally:
-        ui.reset_volumes(a, "Bob", [VOICE_LABEL, SCREEN_LABEL])
+        ui.reset_volumes(a, "Bob", [VOICE_LABEL])
+        ui.reset_share_volume(a, "Bob's screen", SCREEN_LABEL)
         if b.find(L.STOP_SHARING):
             b.click(L.STOP_SHARING, settle=4)
         ui.leave_if_in_call(a, b)
