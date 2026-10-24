@@ -20,6 +20,9 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
   /// completes.
   OwnedVideoRenderer? ownedRenderer;
 
+  /// Whether this tile has ever put a frame on screen for the followed participant.
+  final frameHistory = FrameHistory();
+
   lk.Room get tileRoom;
   String get tileIdentity;
 
@@ -39,6 +42,7 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
       _subscribe();
     }
     if (!identical(oldRoom, tileRoom) || oldIdentity != tileIdentity) {
+      frameHistory.reset();
       _syncRenderer();
     }
   }
@@ -71,6 +75,7 @@ mixin TrackTileState<T extends StatefulWidget> on State<T> {
     _renderedTrack = track;
     final stale = ownedRenderer;
     ownedRenderer = null;
+    frameHistory.retire(stale);
     if (stale != null) unawaited(stale.dispose());
     if (track != null) unawaited(_attachRenderer(track));
   }
