@@ -149,8 +149,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       LogicalKeyboardKey.bracketRight => once && _step(1),
       LogicalKeyboardKey.bracketLeft => once && _step(-1),
       LogicalKeyboardKey.enter ||
-      LogicalKeyboardKey.numpadEnter ||
-      LogicalKeyboardKey.space => once && _activate(),
+      LogicalKeyboardKey.numpadEnter => once && _activate(),
       LogicalKeyboardKey.escape => once && _deselect(),
       _ => false,
     };

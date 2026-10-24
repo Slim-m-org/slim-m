@@ -277,7 +277,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   _onNoteEditCancel
             else if (fullscreen)
               const SingleActivator(LogicalKeyboardKey.escape):
-                  _toggleFullscreen
+                  _escapeFullscreen
             else if (_memberPaneDocked)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _closeMemberPane,

@@ -25,15 +25,7 @@ mixin VoiceControllerCameraHideMixin on StateNotifier<VoiceState> {
     return [
       for (final p in roster)
         if (p.isCameraOn && !p.isLocal && _hiddenCameras.contains(p.identity))
-          VoiceParticipant(
-            identity: p.identity,
-            name: p.name,
-            isSpeaking: p.isSpeaking,
-            isMuted: p.isMuted,
-            isLocal: p.isLocal,
-            isScreenSharing: p.isScreenSharing,
-            audioLevel: p.audioLevel,
-          )
+          p.copyWith(isCameraOn: false)
         else
           p,
     ];

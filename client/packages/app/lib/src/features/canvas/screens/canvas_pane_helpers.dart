@@ -102,17 +102,7 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
           if (p.isScreenSharing &&
               !p.isLocal &&
               stoppedShares.contains(p.identity))
-            VoiceParticipant(
-              identity: p.identity,
-              name: p.name,
-              isSpeaking: p.isSpeaking,
-              isMuted: p.isMuted,
-              isLocal: p.isLocal,
-              isScreenSharing: false,
-              isCameraOn: p.isCameraOn,
-              audioLevel: p.audioLevel,
-              isDeafened: p.isDeafened,
-            )
+            p.copyWith(isScreenSharing: false)
           else
             p,
     ];

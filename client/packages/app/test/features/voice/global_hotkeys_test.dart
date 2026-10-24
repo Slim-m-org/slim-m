@@ -83,7 +83,7 @@ void main() {
       UncontrolledProviderScope(
         container: harness.container,
         child: const MaterialApp(
-          home: PushToTalkListener(child: Scaffold(body: SizedBox())),
+          home: PushToTalkListener(child: Scaffold(body: TextField())),
         ),
       ),
     );
@@ -328,6 +328,70 @@ void main() {
     expect(mute.ctrl, isFalse);
     await c.voice.leave();
   });
+
+  testWidgets(
+    'after capture is lost or declined, changing a shortcut retries binding',
+    (tester) async {
+      final c = await connect(tester);
+      c.source.lose();
+      await tester.pump();
+      await tester.pump();
+      expect(harness.container.read(globalHotkeysProvider)!.available, isFalse);
+      final before = c.source.binds.length;
+
+      await harness.container
+          .read(shortcutOverridesProvider.notifier)
+          .set(
+            AppAction.toggleMuteCall,
+            const SingleActivator(LogicalKeyboardKey.keyU, alt: true),
+          );
+      await tester.pumpAndSettle();
+
+      expect(c.source.binds.length, greaterThan(before));
+      expect(harness.container.read(globalHotkeysProvider)!.available, isTrue);
+      await c.voice.leave();
+    },
+  );
+
+  testWidgets(
+    'push-to-talk is ignored while a text field is focused in the active window',
+    (tester) async {
+      final c = await connect(tester);
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+
+      await global(
+        tester,
+        c.source,
+        GlobalHotkeyId.pushToTalk,
+        GlobalHotkeyPhase.pressed,
+      );
+      expect(c.voice.state.microphoneEnabled, isFalse);
+      await global(
+        tester,
+        c.source,
+        GlobalHotkeyId.pushToTalk,
+        GlobalHotkeyPhase.released,
+      );
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      await global(
+        tester,
+        c.source,
+        GlobalHotkeyId.pushToTalk,
+        GlobalHotkeyPhase.pressed,
+      );
+      expect(c.voice.state.microphoneEnabled, isTrue);
+      await global(
+        tester,
+        c.source,
+        GlobalHotkeyId.pushToTalk,
+        GlobalHotkeyPhase.released,
+      );
+      await c.voice.leave();
+    },
+  );
 
   group('mute duplicate suppression', () {
     test('deafen dedupes across sources on its own clock', () {

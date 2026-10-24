@@ -4,6 +4,7 @@
 /// object's menu or places with the armed tool.
 library;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,4 +75,42 @@ void main() {
 
     expect(find.text('Add a note'), findsWidgets);
   });
+
+  testWidgets(
+    'holding Space and dragging with the mouse pans the board without stepping selection, opening a menu, or placing a note',
+    (tester) async {
+      await _pump(tester);
+      final document = surfaceDocument(tester);
+      final before = document.camera;
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(
+        pointer.down(const Offset(400, 300), buttons: kPrimaryButton),
+      );
+      await tester.sendEventToBinding(pointer.move(const Offset(320, 260)));
+      await tester.sendEventToBinding(pointer.up());
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+
+      expect(document.camera.x, greaterThan(before.x));
+      expect(document.camera.y, greaterThan(before.y));
+      expect(document.selectedObjectId.value, isNull);
+      expect(find.text('Bring to front'), findsNothing);
+
+      // Even with the note tool armed, a Space-drag only pans and never opens the note sheet.
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+      await tester.pump();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      await tester.sendEventToBinding(
+        pointer.down(const Offset(320, 260), buttons: kPrimaryButton),
+      );
+      await tester.sendEventToBinding(pointer.move(const Offset(260, 220)));
+      await tester.sendEventToBinding(pointer.up());
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add a note'), findsNothing);
+    },
+  );
 }

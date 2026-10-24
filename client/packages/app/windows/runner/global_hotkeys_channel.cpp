@@ -49,10 +49,6 @@ bool IsAltKey(DWORD vk) {
   return vk == VK_MENU || vk == VK_LMENU || vk == VK_RMENU;
 }
 
-bool IsShiftKey(DWORD vk) {
-  return vk == VK_SHIFT || vk == VK_LSHIFT || vk == VK_RSHIFT;
-}
-
 bool IsMetaKey(DWORD vk) { return vk == VK_LWIN || vk == VK_RWIN; }
 
 bool ModifiersHeld(const Binding& binding) {
@@ -60,9 +56,7 @@ bool ModifiersHeld(const Binding& binding) {
     return false;
   }
   if (!IsAltKey(binding.vk) && KeyHeld(VK_MENU) != binding.alt) return false;
-  if (!IsShiftKey(binding.vk) && KeyHeld(VK_SHIFT) != binding.shift) {
-    return false;
-  }
+  if (binding.shift && !KeyHeld(VK_SHIFT)) return false;
   const bool meta_held = KeyHeld(VK_LWIN) || KeyHeld(VK_RWIN);
   if (!IsMetaKey(binding.vk) && meta_held != binding.meta) return false;
   return true;

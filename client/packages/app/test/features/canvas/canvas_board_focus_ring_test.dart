@@ -114,4 +114,86 @@ void main() {
     await tester.pump();
     expect(placed, 1);
   });
+
+  testWidgets(
+    'discrete keys ([ ] 0 Escape) act once on KeyDownEvent and ignore KeyRepeatEvent',
+    (tester) async {
+      final document = CanvasDocument()
+        ..setBoard(const Rect.fromLTWH(0, 0, 800, 600))
+        ..applyPlaced(
+          const CanvasStrokeInput(
+            id: 'a',
+            seq: 1,
+            zIndex: 1,
+            x: 40,
+            y: 40,
+            w: 120,
+            h: 80,
+            points: [],
+            width: 0,
+            colorKey: 'butter',
+            kind: CanvasObjectKind.note,
+            text: 'first',
+          ),
+        )
+        ..applyPlaced(
+          const CanvasStrokeInput(
+            id: 'b',
+            seq: 2,
+            zIndex: 2,
+            x: 240,
+            y: 40,
+            w: 120,
+            h: 80,
+            points: [],
+            width: 0,
+            colorKey: 'butter',
+            kind: CanvasObjectKind.note,
+            text: 'second',
+          ),
+        )
+        ..setViewport(const Size(800, 600));
+      addTearDown(document.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, AppTokens.dark),
+          home: Scaffold(
+            body: CanvasBoardKeys(
+              document: document,
+              tool: CanvasTool.pan,
+              onOpenActions: (_) {},
+              onPlaceNote: (_) {},
+              onPlaceShape: (_) {},
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.bracketRight);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.bracketRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.bracketRight);
+      expect(document.selectedObjectId.value, 'a');
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.bracketLeft);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.bracketLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.bracketLeft);
+      expect(document.selectedObjectId.value, 'b');
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.escape);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.escape);
+      expect(document.selectedObjectId.value, isNull);
+
+      document.setCamera(const Camera(x: 120, y: 80, zoom: 2));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.digit0);
+      final fitted = document.camera;
+      document.setCamera(const Camera(x: 120, y: 80, zoom: 2));
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.digit0);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.digit0);
+      expect(document.camera.x, 120);
+      expect(fitted.x, isNot(120));
+    },
+  );
 }
