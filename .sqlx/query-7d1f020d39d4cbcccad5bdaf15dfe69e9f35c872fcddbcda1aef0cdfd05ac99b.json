@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM module_settings WHERE value LIKE 'msec1:%') AS \"found!: bool\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "found!: bool",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7d1f020d39d4cbcccad5bdaf15dfe69e9f35c872fcddbcda1aef0cdfd05ac99b"
+}

@@ -40,6 +40,16 @@ impl Store {
             .collect())
     }
 
+    /// Whether any module secret is sealed, so the data key must exist to open it.
+    pub async fn has_sealed_module_secrets(&self) -> anyhow::Result<bool> {
+        let found = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM module_settings WHERE value LIKE 'msec1:%') AS "found!: bool""#
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(found)
+    }
+
     /// The keys that have a stored value, secrets included; never the values.
     pub async fn module_setting_keys_set(
         &self,

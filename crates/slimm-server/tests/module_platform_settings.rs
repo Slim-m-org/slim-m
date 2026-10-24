@@ -382,12 +382,17 @@ async fn a_secret_is_sealed_in_the_column_and_still_sent_as_a_header() {
 
     let stored = stored_api_key(&w).await.expect("a row");
     assert!(stored.starts_with("msec1:"), "{stored}");
+    assert!(
+        w.store.has_sealed_secrets().await.unwrap(),
+        "a sealed module secret guards the data key"
+    );
     assert!(!stored.contains("hunter2-token"), "{stored}");
     let sent = w.answer(MODULE).await;
     assert!(sent.contains("'body':'hunter2-token'"), "{sent}");
 
     put_secret(&w, &token, Value::Null).await;
     assert!(stored_api_key(&w).await.is_none());
+    assert!(!w.store.has_sealed_secrets().await.unwrap());
     let cleared = w.answer(MODULE).await;
     assert!(cleared.contains("not set: api_key"), "{cleared}");
 }

@@ -66,9 +66,9 @@ impl DataKey {
         let path = key_file_path(database_path);
         if sealed_rows_exist && !allow_new && !has_env && !path.exists() {
             bail!(
-                "two-factor secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
+                "two-factor or module secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
                  exists; restore the key that was backed up with this database. If it is gone, \
-                 clear every factor with `slimm-server clear-totp <username>` and start once with \
+                 clear every factor with `slimm-server clear-totp <username>`, re-enter module secrets, and start once with \
                  SLIMM_DATA_KEY_ALLOW_NEW=1",
                 path.display()
             );

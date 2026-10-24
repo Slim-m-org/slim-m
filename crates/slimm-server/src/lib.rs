@@ -120,7 +120,7 @@ pub async fn run() -> anyhow::Result<()> {
     let data_key = data_key::DataKey::load_guarded(
         config.data_key.as_deref(),
         &config.database_path,
-        store.has_sealed_totp_secrets().await?,
+        store.has_sealed_secrets().await?,
         allow_new_key,
     )?;
     let store = store.with_data_key(data_key);
