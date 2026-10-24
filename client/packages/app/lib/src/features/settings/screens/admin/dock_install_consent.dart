@@ -60,11 +60,13 @@ bool dockNeedsReapproval(
   };
 }
 
+/// `message.post` is left to the access card's own "approved again" switch.
 bool _widened(
   String capability,
   api.DockManifest manifest,
   api.InstalledDockModule? installed,
 ) =>
+    capability != 'message.post' &&
     installed != null &&
     installed.approvedHostCapabilities.contains(capability) &&
     dockNeedsReapproval(capability, manifest, installed);
@@ -116,7 +118,6 @@ List<String> dockConsentChanges(
 }
 
 const _reaskedOnNewBuild = {
-  'message.post',
   api.kNetFetchCapability,
   'schedule',
   'events',
