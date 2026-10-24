@@ -123,7 +123,7 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(overrides.stateFor('camera:user-noor').rect, isNotNull);
+    expect(overrides.stateFor('camera:user-avery').rect, isNotNull);
     expect((cameras.created, shares.created), created);
     expect(cameras.disposed, 0);
     expect(shares.disposed, 0);

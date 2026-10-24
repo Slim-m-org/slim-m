@@ -71,6 +71,41 @@ void main() {
     expect(state.sentToBack, isTrue);
   });
 
+  test(
+    'fetch stacks the tile moved last on top, whatever order the server lists',
+    () async {
+      final overrides = CanvasPresenceTileOverrides();
+      addTearDown(overrides.dispose);
+      Map<String, Object> slot(String user, int at) => {
+        'kind': 'camera',
+        'user_id': user,
+        'x': 0.0,
+        'y': 0.0,
+        'w': 220.0,
+        'h': 160.0,
+        'locked': false,
+        'sent_to_back': false,
+        'updated_at': at,
+      };
+      final client = _apiWith(
+        (request) async => _json({
+          'slots': [slot('zed', 2000), slot('amy', 1000)],
+        }),
+      );
+
+      await CanvasMediaSlotSync(
+        channelId: 'c1',
+        client: client,
+        overrides: overrides,
+      ).fetch();
+
+      expect(
+        overrides.zFor('camera:zed'),
+        greaterThan(overrides.zFor('camera:amy')!),
+      );
+    },
+  );
+
   test('a failed fetch leaves every tile at its default arrangement', () async {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);

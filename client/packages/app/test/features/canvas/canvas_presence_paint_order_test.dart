@@ -15,4 +15,18 @@ void main() {
 
     expect(order, [first, later]);
   });
+
+  test(
+    'tiles with no order stack by key, whatever order the roster listed',
+    () {
+      const alice = 'camera:alice';
+      const bob = 'camera:bob';
+
+      final mine = presencePaintOrder({alice, bob}, (_) => null);
+      final theirs = presencePaintOrder({bob, alice}, (_) => null);
+
+      expect(mine, [alice, bob]);
+      expect(theirs, mine);
+    },
+  );
 }
