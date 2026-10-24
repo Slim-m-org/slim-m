@@ -228,8 +228,9 @@ class VoiceSession
     _refreshParticipants();
   }
 
-  /// How sharp your camera publishes. Takes effect the next time the camera
-  /// turns on, because capture parameters cannot change on a live track.
+  /// How sharp your camera publishes. Read when the camera turns on, since
+  /// capture parameters cannot change on a live track; the app cycles a live
+  /// camera to apply a change.
   void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
 
   /// Why the last attempt failed, when [state] is [VoiceSessionState.failed].
