@@ -375,3 +375,33 @@ async fn the_routes_are_rate_limited_per_member() {
     assert_eq!(statuses[0], StatusCode::OK);
     assert!(statuses.contains(&StatusCode::TOO_MANY_REQUESTS));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_profile_and_a_badge_request_at_once_both_get_their_content() {
+    let w = world("slimm-slots-concurrent").await;
+    let mut members = Vec::new();
+    for i in 0..6 {
+        members.push(member(&w, &format!("bea{i}")).await.id);
+    }
+    let item = json!({ "nodes": [text("Level 4")] });
+    let items: Vec<(UserId, Value)> = members.iter().map(|m| (*m, item.clone())).collect();
+    install(
+        &w,
+        "levels",
+        &canned_slot_wasm(&answer(&items)),
+        1,
+        both_slots(),
+    )
+    .await;
+
+    for id in members {
+        let one = [id];
+        let (p, b) = tokio::join!(profile(&w, id), badges(&w, &one));
+        assert_eq!(p["sections"].as_array().unwrap().len(), 1, "{p}");
+        assert_eq!(
+            b["badges"][id.to_string()].as_array().unwrap().len(),
+            1,
+            "{b}"
+        );
+    }
+}

@@ -17,7 +17,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE, Query};
 use super::module_run::{RunKind, RunRequest, run_installed};
-use super::module_slot_cache::SlotKey;
+use super::module_slot_cache::{FILL_WAIT, SlotKey};
 use super::module_slot_nodes::{SlotItem, parse_response};
 use crate::ids::UserId;
 use crate::store::{InstalledModule, ModuleSlot, RunResult, now_ms};
@@ -206,6 +206,21 @@ async fn items_for(
     if missing.is_empty() {
         return found;
     }
+    let Some(_fill) = cache.begin_fill(viewer, FILL_WAIT).await else {
+        return found;
+    };
+    // A fill that just finished for this viewer may have stored what this one lacks.
+    missing.retain(|member| match cache.get(&key(*member), Instant::now()) {
+        Some(Some(item)) => {
+            found.insert(*member, item);
+            false
+        }
+        Some(None) => false,
+        None => true,
+    });
+    if missing.is_empty() {
+        return found;
+    }
     let generation = cache.generation(&module.id);
     let Some(mut fresh) = run_slot(state, module, slot, viewer, &missing).await else {
         return found;
@@ -232,7 +247,7 @@ fn slot_input(slot: &ModuleSlot, members: &[UserId], viewer: UserId) -> String {
 }
 
 /// Runs the module for `members` in the slot lane; a failure yields nothing to cache.
-/// `None` means it never ran (the viewer has a fill going, or the lane was full), so nothing is cached either.
+/// `None` means it never ran (the lane was full), so nothing is cached either.
 async fn run_slot(
     state: &AppState,
     module: &InstalledModule,
@@ -240,7 +255,6 @@ async fn run_slot(
     viewer: UserId,
     members: &[UserId],
 ) -> Option<HashMap<UserId, SlotItem>> {
-    let _fill = state.dock.slot_cache().begin_fill(viewer)?;
     let input = slot_input(slot, members, viewer);
     let surface = super::module_host::surface_for(state, module, viewer, None);
     let request = RunRequest {

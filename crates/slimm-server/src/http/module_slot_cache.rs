@@ -2,7 +2,7 @@
 //! A short memory of what modules returned for a slot, so a profile opened
 //! twice or a member list scrolled past does not run a module each time.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -11,6 +11,8 @@ use crate::ids::UserId;
 
 const TTL: Duration = Duration::from_secs(30);
 const MAX_ENTRIES: usize = 20_000;
+/// How long a second fill waits for the viewer's running one before giving up.
+pub(crate) const FILL_WAIT: Duration = Duration::from_secs(2);
 
 /// Includes the viewer because a module sees `viewer_id` and may answer per viewer.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -28,8 +30,8 @@ struct Inner {
     entries: HashMap<SlotKey, (Instant, Option<SlotItem>)>,
     /// Bumped on every invalidation, so a run that began before one cannot store its answer after it.
     generations: HashMap<String, u64>,
-    /// Viewers with a slot fill in flight; one at a time keeps a member from filling the lane.
-    filling: HashSet<UserId>,
+    /// One lock per viewer with a slot fill in flight or waiting; one at a time keeps a member from filling the lane.
+    filling: HashMap<UserId, Arc<tokio::sync::Mutex<()>>>,
 }
 
 #[derive(Clone, Default)]
@@ -41,11 +43,15 @@ pub struct SlotCache {
 pub(crate) struct ViewerFill {
     cache: SlotCache,
     viewer: UserId,
+    guard: Option<tokio::sync::OwnedMutexGuard<()>>,
 }
 
 impl Drop for ViewerFill {
     fn drop(&mut self) {
-        self.cache.lock().filling.remove(&self.viewer);
+        let lock = tokio::sync::OwnedMutexGuard::mutex(self.guard.as_ref().expect("held"));
+        let lock = lock.clone();
+        self.guard = None;
+        self.cache.forget_if_idle(self.viewer, &lock);
     }
 }
 
@@ -96,12 +102,33 @@ impl SlotCache {
         *inner.generations.entry(module_id.to_owned()).or_default() += 1;
     }
 
-    /// The viewer's place, or `None` while another of their fills is still running.
-    pub(crate) fn begin_fill(&self, viewer: UserId) -> Option<ViewerFill> {
-        self.lock().filling.insert(viewer).then(|| ViewerFill {
-            cache: self.clone(),
-            viewer,
-        })
+    /// The viewer's place, waiting up to `wait` for their running fill; `None` if it is still going.
+    pub(crate) async fn begin_fill(&self, viewer: UserId, wait: Duration) -> Option<ViewerFill> {
+        let lock = self.lock().filling.entry(viewer).or_default().clone();
+        let acquired = tokio::time::timeout(wait, lock.clone().lock_owned()).await;
+        match acquired {
+            Ok(guard) => {
+                drop(lock);
+                Some(ViewerFill {
+                    cache: self.clone(),
+                    viewer,
+                    guard: Some(guard),
+                })
+            }
+            Err(_) => {
+                self.forget_if_idle(viewer, &lock);
+                None
+            }
+        }
+    }
+
+    /// Drops the viewer's lock once nobody holds or awaits it.
+    fn forget_if_idle(&self, viewer: UserId, lock: &Arc<tokio::sync::Mutex<()>>) {
+        let mut inner = self.lock();
+        let idle = Arc::strong_count(lock) == 2 && lock.try_lock().is_ok();
+        if idle {
+            inner.filling.remove(&viewer);
+        }
     }
 
     #[cfg(test)]
@@ -178,14 +205,36 @@ mod tests {
         assert_eq!(cache.get(&k, now), Some(None));
     }
 
-    #[test]
-    fn a_viewer_has_one_fill_in_flight_at_a_time() {
+    #[tokio::test]
+    async fn a_second_fill_waits_for_the_first_and_gives_up_after_the_bound() {
         let cache = SlotCache::default();
         let (ada, bob) = (UserId::generate(), UserId::generate());
-        let first = cache.begin_fill(ada).expect("the first fill");
-        assert!(cache.begin_fill(ada).is_none());
-        assert!(cache.begin_fill(bob).is_some(), "others are not held up");
+        let wait = Duration::from_millis(50);
+        let first = cache.begin_fill(ada, wait).await.expect("the first fill");
+        assert!(
+            cache.begin_fill(bob, wait).await.is_some(),
+            "others are not held up"
+        );
+        assert!(
+            cache.begin_fill(ada, wait).await.is_none(),
+            "gave up after the bound"
+        );
+
+        let waiting = tokio::spawn({
+            let cache = cache.clone();
+            async move {
+                cache
+                    .begin_fill(ada, Duration::from_secs(5))
+                    .await
+                    .is_some()
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
         drop(first);
-        assert!(cache.begin_fill(ada).is_some());
+        assert!(
+            waiting.await.unwrap(),
+            "the waiter got its turn when the first finished"
+        );
+        assert!(cache.lock().filling.is_empty(), "idle locks are not kept");
     }
 }
