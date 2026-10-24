@@ -230,4 +230,30 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.118.0',
+    headline: 'Modules that react, and calmer calls',
+    points: [
+      WhatsNewPoint(
+        'Modules can now react to messages and calls, keep their own data, '
+        'and show on profiles and next to names.',
+      ),
+      WhatsNewPoint(
+        'Changing share or camera quality while live restarts it for you, '
+        'and a volume you set sticks without rejoining.',
+      ),
+      WhatsNewPoint(
+        'Stream volume is a slider in the stream\'s menu, and a left click '
+        'on someone in the lounge opens their profile.',
+      ),
+      WhatsNewPoint(
+        'Minimising pauses video only if you ask it to, and tabbing away '
+        'never does.',
+      ),
+      WhatsNewPoint(
+        'Everyone sees overlapping call tiles stacked the same way, and '
+        'hold space to pan the canvas.',
+      ),
+    ],
+  ),
 ];
