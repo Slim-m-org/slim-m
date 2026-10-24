@@ -117,7 +117,10 @@ class CanvasMediaSlotSync {
       api.reportFailure(api.LogTag.ui, 'load canvas media slots', error, stack);
       return;
     }
-    for (final slot in page.slots) {
+    // Oldest move first, so the tile moved last ends up on top as it does on every live client.
+    final slots = [...page.slots]
+      ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+    for (final slot in slots) {
       overrides.applyServer(
         presenceTileKeyForSlot(slot.kind, slot.userId),
         rect: Rect.fromLTWH(slot.x, slot.y, slot.w, slot.h),
