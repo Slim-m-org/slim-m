@@ -29,11 +29,18 @@ use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 4] =
-    ["kv.store", "message.post", "net.fetch", "schedule"];
+pub(crate) const HOST_CAPABILITIES: [&str; 7] = [
+    "kv.store",
+    "message.post",
+    "net.fetch",
+    "schedule",
+    "events",
+    "data.store",
+    "log.read",
+];
 
 /// Approved like the others, but a permission to be run, not a host call.
-const NOT_HOST_CALLS: [&str; 1] = ["schedule"];
+const NOT_HOST_CALLS: [&str; 2] = ["schedule", "events"];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.
 const LIST_LIMIT: i64 = MAX_ENTRIES as i64;
@@ -57,6 +64,13 @@ pub(crate) fn schedule_approved(module: &InstalledModule) -> bool {
     effective_capabilities(module)
         .iter()
         .any(|c| c == "schedule")
+}
+
+/// Whether an admin approved `module` to read the durable logs, which it does as its own principal.
+pub(crate) fn logs_approved(module: &InstalledModule) -> bool {
+    effective_capabilities(module)
+        .iter()
+        .any(|c| c == "log.read")
 }
 
 /// The capability surface for one run of `module`, invoked by `user_id`.
@@ -86,7 +100,7 @@ pub(crate) fn scheduled_surface(
     surface_posting_as(state, module, bot, Some(channel), true)
 }
 
-fn surface_posting_as(
+pub(super) fn surface_posting_as(
     state: &AppState,
     module: &InstalledModule,
     user_id: UserId,
@@ -106,7 +120,19 @@ fn surface_posting_as(
         handle: handle.clone(),
     });
     let fetches = approved.iter().any(|c| c == "net.fetch");
+    let stores_data = approved.iter().any(|c| c == "data.store");
+    let logs = approved.iter().any(|c| c == "log.read");
     let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
+    if stores_data {
+        surface = surface.with_data(state.dock.module_data(state.store.modules_dir()));
+    }
+    if logs {
+        surface = surface.with_logs(Arc::new(super::module_logs::SqliteLogs {
+            store: state.store.clone(),
+            handle: handle.clone(),
+            principal: module.bot_user_id,
+        }));
+    }
     if fetches {
         surface = surface.with_fetcher(
             Arc::new(super::module_net::ReqwestFetcher::new(
@@ -115,6 +141,12 @@ fn surface_posting_as(
             )),
             module.network_hosts.clone(),
         );
+        surface = surface.with_secrets(Arc::new(StoredSecrets {
+            store: state.store.clone(),
+            handle: handle.clone(),
+            module_id: module.id.clone(),
+            declared: module.settings_schema.clone(),
+        }));
     }
     let Some(channel) = channel else {
         return surface;
@@ -158,6 +190,28 @@ fn hides_text(content: &str) -> bool {
     content
         .split(['\n', '\r', '\t'])
         .any(crate::hidden_chars::hides_text_outside_emoji)
+}
+
+/// The module's `secret` settings, read on demand from the host call's thread.
+struct StoredSecrets {
+    store: Store,
+    handle: Handle,
+    module_id: String,
+    declared: Vec<crate::store::ModuleSettingDef>,
+}
+
+impl crate::module_runtime::SecretSource for StoredSecrets {
+    fn secret(&self, key: &str) -> Option<String> {
+        let is_secret = self
+            .declared
+            .iter()
+            .any(|d| d.key == key && d.kind == crate::store::SettingKind::Secret);
+        if !is_secret {
+            return None;
+        }
+        self.handle
+            .block_on(self.store.module_secret(&self.module_id, key))
+    }
 }
 
 struct SqliteKv {

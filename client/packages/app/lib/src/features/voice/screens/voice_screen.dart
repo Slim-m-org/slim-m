@@ -468,5 +468,5 @@ void _openProfile(
       .firstOrNull;
   if (profile == null) return;
 
-  showMemberProfile(context, profile: profile);
+  showMemberProfile(context, profile: profile, profileOnly: true);
 }

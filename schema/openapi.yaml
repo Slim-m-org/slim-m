@@ -9300,7 +9300,9 @@ paths:
       summary: Read a module's full manifest before installing it. Requires MANAGE_SERVER.
       description: >
         Shows every permission the module will register and every capability
-        it asks for, so an admin reviews both before installing.
+        it asks for, so an admin reviews both before installing. A manifest
+        the server cannot accept is answered with 502, naming the rule it
+        broke (for example a data column named with an SQLite keyword).
       responses:
         "200":
           description: The module's manifest.
@@ -9339,9 +9341,10 @@ paths:
         Re-fetches the module's manifest, refuses if its version no longer
         matches the one requested, refuses (409) an id another source already
         owns (decision 0046), and records the install, its declared
-        permissions, and its approved capabilities. No runtime executes the
-        module; see docs/decisions/0021's phasing. Off (disabled) by default -
-        a separate enable call turns it on.
+        permissions, and its approved capabilities. Off (disabled) by default -
+        a separate enable call turns it on. Once enabled, the module runs
+        sandboxed on demand, on its schedule and for the events it
+        subscribed to, and only with the capabilities approved here.
       requestBody:
         required: true
         content:
@@ -9379,10 +9382,20 @@ paths:
         Removes the install, its registered permissions, and every role
         grant of them - nothing dangles. A scheduled module's own principal
         is removed too, with its overwrite in the channel it posted to; its
-        earlier messages stay, still marked as the module's.
+        earlier messages stay, still marked as the module's. The module's
+        data file (decision 0091) is kept unless delete_data is true.
+      parameters:
+        - name: delete_data
+          in: query
+          required: false
+          description: Also delete the module's data file.
+          schema:
+            type: boolean
       responses:
         "204":
           description: The module was uninstalled.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -9478,6 +9491,66 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/settings:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getDockModuleSettings
+      tags: [space]
+      summary: Read an installed module's settings. Requires MANAGE_SERVER.
+      description: >
+        Returns the schema the module declared with each setting's current
+        value. A secret's value is never returned, only whether it is set.
+      responses:
+        "200":
+          description: The module's settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+    put:
+      operationId: putDockModuleSettings
+      tags: [space]
+      summary: Change an installed module's settings. Requires MANAGE_SERVER.
+      description: >
+        Applies the given values together or not at all. A key the module did
+        not declare, or a value its definition does not allow, is refused with
+        400 and nothing is changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutModuleSettingsRequest"
+      responses:
+        "200":
+          description: The settings after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/schedule-channel:
     parameters:
       - name: moduleId
@@ -9542,6 +9615,67 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/slots/profile/{userId}:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMemberProfileSlots
+      tags: [space]
+      summary: Read what installed modules show on a member's profile.
+      description: >
+        Asks every enabled module that declares a `profile.section` slot, and
+        returns the sections that came back valid. A module that fails or
+        answers badly is left out. A member who does not exist, or was
+        deleted, answers an empty list. Results are cached for 30 seconds per
+        module, slot, viewer and member.
+      responses:
+        "200":
+          description: The sections to show, in module order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileSlots"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/slots/badges:
+    get:
+      operationId: getMemberBadgeSlots
+      tags: [space]
+      summary: Read what installed modules show next to members' names.
+      description: >
+        Asks every enabled module that declares a `member.badge` slot, once
+        for all the members requested, and returns the badges that came back
+        valid, keyed by member id. A member with nothing to show, or who does
+        not exist, is absent from the map.
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Comma-separated member ids, at most 100.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The badges to show per member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BadgeSlots"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "429":
           $ref: "#/components/responses/TooManyRequests"
   /space/dock/sources:
@@ -11938,12 +12072,152 @@ components:
             optional changelog; empty when the module publishes none.
           items:
             $ref: "#/components/schemas/DockChangelogEntry"
+        addon_api:
+          type: integer
+          description: The add-on API version it declares; absent when it uses none.
+        subscriptions:
+          type: array
+          description: The events it subscribes to.
+          items:
+            type: string
+        settings:
+          type: array
+          description: The settings it declares for an admin to fill.
+          items:
+            $ref: "#/components/schemas/ModuleSettingDef"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSlot"
+        data:
+          description: The structured data store it declares, as written in the manifest.
         review_digest:
           type: string
           description: >
             A digest of the artifact, capabilities, hosts, schedules,
             permission keys and limits shown here. Send it back as
             `reviewed_digest` on install so consent is for this manifest.
+    ModuleSettingDef:
+      type: object
+      required: [key, type, label]
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum: [bool, int, string, choice, secret]
+        label:
+          type: string
+        help:
+          type: string
+        default: {}
+        min:
+          type: integer
+        max:
+          type: integer
+        choices:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+    ModuleSlot:
+      type: object
+      required: [kind, name]
+      properties:
+        kind:
+          type: string
+          enum: [profile.section, member.badge]
+        name:
+          type: string
+        title:
+          type: string
+    ModuleSettingValue:
+      description: >
+        A declared setting with its current value. The value is the stored one
+        or else the default, absent when neither exists. For a secret it is
+        `{set: boolean}` and the secret itself is never returned.
+      allOf:
+        - $ref: "#/components/schemas/ModuleSettingDef"
+        - type: object
+          properties:
+            value: {}
+    ModuleSettings:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSettingValue"
+    PutModuleSettingsRequest:
+      type: object
+      required: [values]
+      properties:
+        values:
+          type: object
+          description: >
+            Setting key to new value; null clears a value. Every value must
+            suit its declared type, range and choices, and every key must be
+            declared.
+          additionalProperties: {}
+    SlotNodes:
+      type: array
+      description: >
+        Display nodes, each an object with a `type` of `text`, `icon`, `badge`,
+        `progress`, `row` or `stack` (see decision 0091). A client skips a type
+        it does not know and shows `fallback` when every node was skipped.
+      items:
+        type: object
+        additionalProperties: true
+    ProfileSlotSection:
+      type: object
+      required: [module_id, name, nodes]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        title:
+          type: string
+        nodes:
+          $ref: "#/components/schemas/SlotNodes"
+        fallback:
+          type: string
+    ProfileSlots:
+      type: object
+      required: [sections]
+      properties:
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileSlotSection"
+    BadgeSlot:
+      type: object
+      required: [module_id, name, nodes]
+      properties:
+        module_id:
+          type: string
+        name:
+          type: string
+        nodes:
+          $ref: "#/components/schemas/SlotNodes"
+        fallback:
+          type: string
+    BadgeSlots:
+      type: object
+      required: [badges]
+      properties:
+        badges:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/BadgeSlot"
     DockChangelogEntry:
       type: object
       required: [version, changes]
@@ -11979,13 +12253,15 @@ components:
             type: string
           description: >
             The host capabilities the admin approved after seeing them listed
-            (kv.store, message.post, net.fetch, schedule; decision 0023). Each must be declared in
+            (kv.store, message.post, net.fetch, schedule, events, data.store
+            and log.read; decisions 0023 and 0091). Each must be declared in
             the manifest and implemented by the host, or the install is refused
             with 400. An empty list withdraws every approval. Omitted keeps
             what was approved before, minus anything the new manifest no
-            longer declares, message.post, net.fetch and schedule when the
-            artifact changed, net.fetch when its hosts changed and schedule
-            when its commands or intervals did, and never adds one.
+            longer declares, message.post, net.fetch, schedule, events,
+            data.store and log.read when the artifact changed, net.fetch when
+            its hosts changed and schedule when its commands or intervals did,
+            and never adds one.
         approve_local_network:
           type: boolean
           description: >
@@ -12040,6 +12316,25 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DockSchedule"
+        addon_api:
+          type: integer
+          description: The add-on API version it declares; absent when it uses none.
+        subscriptions:
+          type: array
+          description: The events it subscribes to.
+          items:
+            type: string
+        settings:
+          type: array
+          description: The settings it declares for an admin to fill.
+          items:
+            $ref: "#/components/schemas/ModuleSettingDef"
+        slots:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSlot"
+        data:
+          description: The structured data store it declares, as written in the manifest.
         bot_user_id:
           type: string
           description: >
@@ -12087,6 +12382,19 @@ components:
             $ref: "#/components/schemas/DockRunStat"
         storage:
           $ref: "#/components/schemas/DockStorage"
+        consecutive_failures:
+          type: integer
+          format: int64
+          description: >
+            Failed event or scheduled runs in a row. At five the host turns
+            the module off; a success or an admin enabling it resets the count.
+        disabled_reason:
+          type: string
+          description: Why the host turned the module off; absent until it did.
+        events_dropped:
+          type: integer
+          format: int64
+          description: Pushed events its queue dropped because it fell behind.
     DockRunStat:
       type: object
       required:
@@ -12156,7 +12464,7 @@ components:
           type: array
           description: >
             The host capabilities an admin approved (kv.store, message.post,
-            net.fetch, schedule).
+            net.fetch, schedule, events, data.store, log.read).
           items:
             type: string
         network_hosts:

@@ -9,6 +9,7 @@
 library;
 
 import 'models_dock_activity.dart';
+import 'models_dock_platform.dart';
 
 /// One row of the marketplace's index: enough to list a module, not enough
 /// to install it. `GET /space/dock/modules`.
@@ -301,12 +302,21 @@ class DockManifest {
     this.network,
     this.schedules = const [],
     this.changelog = const [],
+    this.subscriptions = const [],
+    this.dataMaxMb,
+    this.dataSchema,
     this.reviewDigest,
   });
 
+  /// The tables and cap of its data store; null when it declares none.
+  final DockDataSchema? dataSchema;
+
+  /// Event kinds it subscribes to and its data store cap in MB.
+  final List<String> subscriptions;
+  final int? dataMaxMb;
+
   /// Sent back with the install so consent is for exactly this manifest.
   final String? reviewDigest;
-
   final String id;
   final String name;
   final String version;
@@ -379,6 +389,9 @@ class DockManifest {
             : DockNetwork.fromJson(json['network'] as Map<String, dynamic>),
         schedules: _schedules(json['schedules']),
         changelog: _changelog(json['changelog']),
+        subscriptions: dockSubscriptions(json['subscriptions']),
+        dataMaxMb: dockDataMaxMb(json['data']),
+        dataSchema: dockDataSchema(json['data']),
         reviewDigest: json['review_digest'] as String?,
       );
 }
@@ -404,7 +417,31 @@ class InstalledDockModule {
     this.scheduleChannelId,
     this.runStats,
     this.storage,
+    this.declaresSettings = false,
+    this.subscriptions = const [],
+    this.dataSchema,
+    this.consecutiveFailures = 0,
+    this.disabledReason,
+    this.eventsDropped = 0,
   });
+
+  /// Event kinds it was installed to receive.
+  final List<String> subscriptions;
+
+  /// The data store it was installed with; null when it declared none.
+  final DockDataSchema? dataSchema;
+
+  /// Failed event or scheduled runs in a row; the host turns it off at five.
+  final int consecutiveFailures;
+
+  /// Why the host turned it off; null until it did.
+  final String? disabledReason;
+
+  /// Pushed events its queue dropped because it fell behind.
+  final int eventsDropped;
+
+  /// Whether it declares settings an admin can fill.
+  final bool declaresSettings;
 
   /// How each command has run lately; only `GET /space/dock/installed` fills it.
   final List<DockRunStat>? runStats;
@@ -483,5 +520,11 @@ class InstalledDockModule {
         storage: json['storage'] == null
             ? null
             : DockStorage.fromJson(json['storage'] as Map<String, dynamic>),
+        declaresSettings: dockDeclaresSettings(json['settings']),
+        subscriptions: dockSubscriptions(json['subscriptions']),
+        dataSchema: dockDataSchema(json['data']),
+        consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
+        disabledReason: json['disabled_reason'] as String?,
+        eventsDropped: json['events_dropped'] as int? ?? 0,
       );
 }

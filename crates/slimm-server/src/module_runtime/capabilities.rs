@@ -22,8 +22,10 @@ use std::time::{Duration, Instant};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::data::{self, DataBackend};
 use super::kv::{self, KvBackend};
-use super::net::{self, HttpFetcher};
+use super::log_read::{self, LogBackend};
+use super::net::{self, HttpFetcher, SecretSource};
 use super::post::{self, MessagePoster};
 
 /// Most host calls one run may make, of any kind: room for every per-capability
@@ -60,11 +62,17 @@ pub enum CapabilitySurface {
         fetcher: Option<Arc<dyn HttpFetcher>>,
         /// The hosts the admin approved with `net.fetch`.
         network_hosts: Vec<String>,
+        /// The module's stored secrets, which `net.fetch` headers may name.
+        secrets: Arc<dyn SecretSource>,
         /// Remaining `net.fetch` attempts this run may make.
         fetches_remaining: u32,
+        /// The durable logs `log.read` reads; `None` leaves it unavailable.
+        logs: Option<Arc<dyn LogBackend>>,
         /// Remaining host calls of any kind, refused ones included, so a loop
         /// of bad requests is bounded by more than the wall clock.
         calls_remaining: u32,
+        /// Runs `data.store` statements; `None` leaves it unavailable.
+        data: Option<Arc<dyn DataBackend>>,
     },
 }
 
@@ -85,9 +93,20 @@ impl CapabilitySurface {
             posts_remaining: post::MAX_POSTS_PER_RUN,
             fetcher: None,
             network_hosts: Vec::new(),
+            secrets: Arc::new(net::NoSecrets),
             fetches_remaining: net::MAX_FETCHES_PER_RUN,
+            logs: None,
             calls_remaining: MAX_HOST_CALLS_PER_RUN,
+            data: None,
         }
+    }
+
+    /// Makes `data.store` available through `backend`. A no-op on a disabled surface.
+    pub fn with_data(mut self, backend: Arc<dyn DataBackend>) -> Self {
+        if let CapabilitySurface::Enabled { data, .. } = &mut self {
+            *data = Some(backend);
+        }
+        self
     }
 
     /// Makes `net.fetch` available through `fetcher`, to `hosts` only. A
@@ -101,6 +120,23 @@ impl CapabilitySurface {
         {
             *fetcher = Some(new_fetcher);
             *network_hosts = hosts;
+        }
+        self
+    }
+
+    /// Lets `net.fetch` headers name the module's stored secrets. A no-op on a
+    /// disabled surface.
+    pub fn with_secrets(mut self, source: Arc<dyn SecretSource>) -> Self {
+        if let CapabilitySurface::Enabled { secrets, .. } = &mut self {
+            *secrets = source;
+        }
+        self
+    }
+
+    /// Makes `log.read` available through `logs`. A no-op on a disabled surface.
+    pub fn with_logs(mut self, new_logs: Arc<dyn LogBackend>) -> Self {
+        if let CapabilitySurface::Enabled { logs, .. } = &mut self {
+            *logs = Some(new_logs);
         }
         self
     }
@@ -142,8 +178,11 @@ impl CapabilitySurface {
             posts_remaining,
             fetcher,
             network_hosts,
+            secrets,
             fetches_remaining,
+            logs,
             calls_remaining,
+            data,
         } = self
         else {
             return refusal("the capability surface is off");
@@ -161,6 +200,20 @@ impl CapabilitySurface {
         }
         match parsed.capability.as_str() {
             "kv.store" => kv::handle(kv.as_ref(), module_id, kv_calls_remaining, request),
+            "data.store" => match data {
+                Some(data) => {
+                    let remaining = deadline.map_or(data::MAX_CALL_TIME, |d| {
+                        d.saturating_duration_since(Instant::now())
+                    });
+                    data::handle(
+                        data.as_ref(),
+                        module_id,
+                        kv_calls_remaining,
+                        (request, remaining.min(data::MAX_CALL_TIME)),
+                    )
+                }
+                None => refusal("data.store is not available to this run"),
+            },
             "message.post" => match poster {
                 Some(poster) => post::handle(poster.as_ref(), posts_remaining, request),
                 None => refusal("message.post needs a channel"),
@@ -170,8 +223,8 @@ impl CapabilitySurface {
                     let remaining = deadline.map_or(Duration::MAX, |d| {
                         d.saturating_duration_since(Instant::now())
                     });
-                    net::handle(
-                        fetcher.as_ref(),
+                    net::handle_with_secrets(
+                        (fetcher.as_ref(), secrets.as_ref()),
                         network_hosts,
                         fetches_remaining,
                         (request, remaining),
@@ -179,6 +232,10 @@ impl CapabilitySurface {
                 }
                 None => refusal("net.fetch is not available to this run"),
             },
+            "log.read" => logs.as_ref().map_or_else(
+                || refusal("log.read is not available to this run"),
+                |logs| log_read::handle(logs.as_ref(), request),
+            ),
             // Approved, but the host implements no such capability; it fails closed.
             other => refusal(&format!("capability not available: {other}")),
         }

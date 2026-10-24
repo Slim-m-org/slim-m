@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 class TileCameraForwarder {
@@ -36,6 +37,7 @@ class TileCameraForwarder {
               panned,
               focal: originOf() + event.localPosition,
               zoomTarget: panned.zoom * ratio,
+              zoomFloor: document.zoomFloor,
             ),
     );
   }
@@ -57,6 +59,38 @@ class TileCameraForwarder {
   void touchUp(PointerEvent event) => _touches.remove(event.pointer);
 
   void reset() => _touches.clear();
+
+  /// A wheel notch or scale signal inside the tile's opaque bounds, re-based onto [originOf].
+  void signal(PointerSignalEvent event) {
+    final focal = originOf() + event.localPosition;
+    if (event is PointerScaleEvent) {
+      final scale = event.kind == PointerDeviceKind.mouse
+          ? event.scale.clamp(minWheelZoomStep, maxWheelZoomStep)
+          : event.scale;
+      document.setCamera(
+        cameraAfterZoom(
+          document.camera,
+          focal: focal,
+          zoomTarget: document.camera.zoom * scale,
+          zoomFloor: document.zoomFloor,
+        ),
+      );
+      return;
+    }
+    if (event is! PointerScrollEvent) return;
+    final keys = HardwareKeyboard.instance;
+    document.setCamera(
+      cameraAfterWheelScroll(
+        document.camera,
+        focal: focal,
+        dx: event.scrollDelta.dx,
+        dy: event.scrollDelta.dy,
+        zoomModifier: keys.isControlPressed || keys.isMetaPressed,
+        horizontalModifier: keys.isShiftPressed,
+        zoomFloor: document.zoomFloor,
+      ),
+    );
+  }
 
   ({Offset centre, double span})? _pair() {
     if (_touches.length < 2) return null;
@@ -85,6 +119,7 @@ class TileCameraForwarder {
               panned,
               focal: after.centre,
               zoomTarget: panned.zoom * ratio,
+              zoomFloor: document.zoomFloor,
             ),
     );
   }

@@ -190,6 +190,12 @@ impl Store {
         Ok(found)
     }
 
+    /// Whether any value in the database needs the data key to open: a sealed
+    /// two-factor secret or a sealed module secret.
+    pub async fn has_sealed_secrets(&self) -> anyhow::Result<bool> {
+        Ok(self.has_sealed_totp_secrets().await? || self.has_sealed_module_secrets().await?)
+    }
+
     /// Seals every two-factor secret still stored in the clear, from before the data key
     /// existed, and warns about any the current key cannot open. Safe to run on every start.
     pub async fn seal_totp_secrets(&self) -> anyhow::Result<()> {

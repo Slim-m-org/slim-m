@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The desktop-only switch for pausing your own video preview when the window loses focus,
+/// The desktop-only switch for pausing video while the window is minimised,
 /// a row in the Video quality card rather than a card of its own.
 library;
 
@@ -19,17 +19,16 @@ class PauseVideoRow extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final enabled = ref.watch(
-      voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
+      voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenMinimised),
     );
     return SettingsToggleRow(
-      label: 'Pause my preview when unfocused',
-      description:
-          'Stops your own camera and screen preview behind other windows.',
+      label: 'Pause video when minimised',
+      description: 'Stops receiving video while the window is minimised.',
       value: enabled,
-      semanticLabel: 'Pause my preview when slim-m is not focused',
+      semanticLabel: 'Pause video when slim-m is minimised',
       onChanged: (value) => ref
           .read(voiceSettingsControllerProvider.notifier)
-          .setPauseVideoWhenUnfocused(value),
+          .setPauseVideoWhenMinimised(value),
     );
   }
 }

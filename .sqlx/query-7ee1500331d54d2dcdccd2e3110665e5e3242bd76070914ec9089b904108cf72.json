@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT value AS \"value!: String\" FROM module_settings WHERE module_id = ? AND key = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "value!: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7ee1500331d54d2dcdccd2e3110665e5e3242bd76070914ec9089b904108cf72"
+}

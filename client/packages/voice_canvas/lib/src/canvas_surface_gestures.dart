@@ -41,12 +41,18 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     };
   }
 
-  /// Middle-mouse-button drag was chosen over right-drag for grab-to-pan:
-  /// it is the near-universal convention in drawing and design tools, and a
-  /// canvas object's own right-click context menu (built elsewhere) would
-  /// otherwise have to tell a click from the start of a drag on every
-  /// right-press, which middle-drag simply never collides with.
-  bool _isPanButton(int buttons) => buttons & kMiddleMouseButton != 0;
+  /// Middle-mouse-button drag (or Space + primary drag) was chosen over
+  /// right-drag for grab-to-pan: it is the near-universal convention in
+  /// drawing and design tools, and a canvas object's own right-click context
+  /// menu (built elsewhere) would otherwise have to tell a click from the
+  /// start of a drag on every right-press, which middle-drag simply never
+  /// collides with.
+  bool _isPanButton(int buttons) =>
+      buttons & kMiddleMouseButton != 0 ||
+      (buttons & kPrimaryButton != 0 &&
+          HardwareKeyboard.instance.isLogicalKeyPressed(
+            LogicalKeyboardKey.space,
+          ));
 
   /// Only a primary press drives a tool; a stylus counts by contact alone, since a barrel button or an eraser end can leave the primary bit clear.
   bool _isToolPress(PointerDownEvent event) =>

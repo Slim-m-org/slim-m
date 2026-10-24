@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/features/voice/widgets/local_preview_gate.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_health_overlay.dart';
 import 'package:slimm_app/src/features/voice/widgets/video_state_card.dart';
@@ -40,6 +41,11 @@ void main() {
         ScreenShareStatus.loading,
         'Loading screen share',
         "Waiting for Bob's first frame",
+      ),
+      (
+        ScreenShareStatus.resuming,
+        'Resuming screen share',
+        "Catching up with Bob's share",
       ),
       (
         ScreenShareStatus.paused,
@@ -106,37 +112,28 @@ void main() {
       ),
     );
 
-    testWidgets('an unfocused window shows a card with Resume, not black', (
-      tester,
-    ) async {
+    testWidgets('an unfocused window keeps the preview', (tester) async {
       await tester.pumpWidget(gate());
       await tester.pump();
-      expect(find.byKey(const Key('preview')), findsOneWidget);
-
       await _lifecycle(tester, AppLifecycleState.inactive);
-      expect(find.byKey(const Key('preview')), findsNothing);
-      expect(
-        find.text("Preview paused while you're in another window"),
-        findsOneWidget,
-      );
-      expect(find.text('Resume'), findsOneWidget);
+      expect(find.byKey(const Key('preview')), findsOneWidget);
     });
 
-    testWidgets('Resume keeps the preview up while unfocused', (tester) async {
+    testWidgets('a minimised window shows a card, not black', (tester) async {
       await tester.pumpWidget(gate());
-      await _lifecycle(tester, AppLifecycleState.inactive);
+      await tester.pump();
+      final life = ProviderScope.containerOf(
+        tester.element(find.byType(LocalPreviewGate)),
+      ).read(appLifecycleProvider.notifier);
 
-      await tester.tap(find.text('Resume'));
+      life.didChangeAppLifecycleState(AppLifecycleState.hidden);
+      await tester.pump();
+      expect(find.byKey(const Key('preview')), findsNothing);
+      expect(find.text('Preview paused while minimised'), findsOneWidget);
+
+      life.didChangeAppLifecycleState(AppLifecycleState.resumed);
       await tester.pump();
       expect(find.byKey(const Key('preview')), findsOneWidget);
-      expect(find.text('Resume'), findsNothing);
-
-      await _lifecycle(tester, AppLifecycleState.hidden);
-      expect(
-        find.byKey(const Key('preview')),
-        findsNothing,
-        reason: 'a minimised window still pauses',
-      );
     });
   });
 }

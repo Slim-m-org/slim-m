@@ -51,6 +51,7 @@ Future<void> _capture(
   required bool dark,
   required bool image,
   required String name,
+  bool profileOnly = false,
 }) async {
   tester.view.physicalSize = Size(width + 40, 900);
   tester.view.devicePixelRatio = 1.0;
@@ -79,6 +80,7 @@ Future<void> _capture(
                   child: MemberProfileBody(
                     profile: profile,
                     compact: width < 400,
+                    profileOnly: profileOnly,
                     onDone: () {},
                   ),
                 ),
@@ -109,6 +111,7 @@ void main() {
       for (final (label, width) in const [
         ('phone', 390.0),
         ('desktop', 320.0),
+        ('desktop-profile-only', 320.0),
       ]) {
         final name =
             'member-profile-away-$label-${dark ? 'dark' : 'light'}-'
@@ -120,6 +123,7 @@ void main() {
             dark: dark,
             image: image,
             name: name,
+            profileOnly: label == 'desktop-profile-only',
           );
         });
       }

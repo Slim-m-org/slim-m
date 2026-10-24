@@ -40,14 +40,19 @@ class PushToTalkGate {
 
   VoiceController get _voice => _ref.read(voiceControllerProvider.notifier);
 
+  static bool _editableTextFocused() =>
+      FocusManager.instance.primaryFocus?.context
+          ?.findAncestorWidgetOfExactType<EditableText>() !=
+      null;
+
   /// Opens the mic for the first source to hold; a repeat from the same source is ignored.
   void press(HoldSource source) {
     if (_holds.contains(source)) return;
-    // A locked app takes no input, and the composer owns the key while it has focus.
+    // A locked app takes no input, and a focused text field owns the key while the window is active.
     if (_ref.read(appLockControllerProvider)) return;
     final composerFocused =
         _ref.read(composerFocusNodeProvider)?.hasFocus ?? false;
-    if (composerFocused && _windowFocused()) return;
+    if ((composerFocused || _editableTextFocused()) && _windowFocused()) return;
     final first = _holds.isEmpty;
     _holds.add(source);
     if (first) unawaited(_voice.setPushToTalkHeld(true));

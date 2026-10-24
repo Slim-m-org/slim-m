@@ -3,16 +3,19 @@
 /// focused tile use to cover the whole display.
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/window_fullscreen_hold.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
+import 'package:slimm_app/src/providers/app_lifecycle.dart';
 
 import 'support/fake_desktop_window_port.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late FakeDesktopWindowPort port;
   late ProviderContainer container;
 
@@ -146,4 +149,43 @@ void main() {
       reason: 'the title bar must come back with the window',
     );
   });
+
+  test(
+    'releasing while isFullScreen is still in flight does not fullscreen the window',
+    () async {
+      DesktopWindowShell.debugActivate(frameless: true);
+      final h = hold();
+      final entering = h.enter();
+      h.release();
+      await entering;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(port.fullScreen, isFalse);
+      expect(container.read(fullscreenVideoActiveProvider), isFalse);
+    },
+  );
+
+  test(
+    'minimising or hiding the window reports hidden even when the embedder only reports inactive, and showing restores it',
+    () async {
+      final life = container.read(appLifecycleProvider.notifier);
+      life.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      expect(container.read(appLifecycleProvider), AppLifecycleState.resumed);
+
+      port.emit(DesktopWindowEventKind.minimize);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(appLifecycleProvider), AppLifecycleState.hidden);
+
+      // Linux GTK reports inactive rather than hidden when minimised or hidden to tray.
+      life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+      expect(container.read(appLifecycleProvider), AppLifecycleState.hidden);
+
+      port.emit(DesktopWindowEventKind.show);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(appLifecycleProvider), AppLifecycleState.inactive);
+
+      life.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      expect(container.read(appLifecycleProvider), AppLifecycleState.resumed);
+    },
+  );
 }

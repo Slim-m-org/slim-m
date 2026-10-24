@@ -35,7 +35,7 @@ import '../providers/voice_controller.dart';
 
 /// Both halves together, in the shape the full member card wants them: the
 /// slider (when supported) above the mute toggle.
-class MemberLocalAudioSection extends StatelessWidget {
+class MemberLocalAudioSection extends StatefulWidget {
   const MemberLocalAudioSection({
     super.key,
     required this.identity,
@@ -50,11 +50,19 @@ class MemberLocalAudioSection extends StatelessWidget {
   final bool showVolume;
 
   @override
+  State<MemberLocalAudioSection> createState() =>
+      _MemberLocalAudioSectionState();
+}
+
+class _MemberLocalAudioSectionState extends State<MemberLocalAudioSection> {
+  @override
   Widget build(BuildContext context) {
+    final identity = widget.identity;
+    final controller = widget.controller;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showVolume)
+        if (widget.showVolume)
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.s12,
@@ -67,7 +75,7 @@ class MemberLocalAudioSection extends StatelessWidget {
               controller: controller,
             ),
           ),
-        if (showVolume && controller.hasScreenAudio(identity))
+        if (widget.showVolume && controller.hasScreenAudio(identity))
           ParticipantScreenAudioSection(
             identity: identity,
             controller: controller,
@@ -75,6 +83,9 @@ class MemberLocalAudioSection extends StatelessWidget {
         ParticipantMuteForMeMenuItem(
           identity: identity,
           controller: controller,
+          onDone: () {
+            if (mounted) setState(() {});
+          },
         ),
       ],
     );
@@ -102,10 +113,14 @@ class ParticipantVolumeControl extends StatefulWidget {
     this.showLabel = true,
     this.channel = LocalAudioChannel.voice,
     this.autofocus = false,
+    this.label,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// Replaces the default title, for a menu that names the thing differently.
+  final String? label;
 
   /// Whose sound this slider sets: their voice, or their shared screen's.
   final LocalAudioChannel channel;
@@ -124,7 +139,8 @@ class ParticipantVolumeControl extends StatefulWidget {
 class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
   bool get _screen => widget.channel == LocalAudioChannel.screen;
 
-  String get _label => _screen ? 'Screen audio' : 'Volume for you';
+  String get _label =>
+      widget.label ?? (_screen ? 'Screen audio' : 'Volume for you');
 
   /// The slider owns its position while it is being dragged. Reading it back
   /// from the session on every frame would make the drag depend on a round
@@ -143,6 +159,8 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
     if ((volume - kDefaultParticipantVolume).abs() < _snapToNormal) {
       volume = kDefaultParticipantVolume;
     }
+    // Whole percents, so the label shows exactly the value that is applied.
+    volume = (volume * 100).round() / 100;
     setState(() => _volume = volume);
     final controller = widget.controller;
     final applied = _applyVolume(controller, volume, commit: commit);

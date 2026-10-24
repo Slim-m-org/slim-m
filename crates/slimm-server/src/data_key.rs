@@ -66,9 +66,9 @@ impl DataKey {
         let path = key_file_path(database_path);
         if sealed_rows_exist && !allow_new && !has_env && !path.exists() {
             bail!(
-                "two-factor secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
+                "two-factor or module secrets are sealed in the database but neither SLIMM_DATA_KEY nor {} \
                  exists; restore the key that was backed up with this database. If it is gone, \
-                 clear every factor with `slimm-server clear-totp <username>` and start once with \
+                 clear every factor with `slimm-server clear-totp <username>`, re-enter module secrets, and start once with \
                  SLIMM_DATA_KEY_ALLOW_NEW=1",
                 path.display()
             );
@@ -78,6 +78,16 @@ impl DataKey {
 
     /// Seals `plaintext` for the row `context` names; opening it for any other row fails.
     pub fn seal(&self, context: &str, plaintext: &str) -> anyhow::Result<String> {
+        self.seal_prefixed(SEALED_PREFIX, context, plaintext)
+    }
+
+    /// As [`Self::seal`] under a caller-chosen version prefix, so a kind of value can be told apart.
+    pub fn seal_prefixed(
+        &self,
+        prefix: &str,
+        context: &str,
+        plaintext: &str,
+    ) -> anyhow::Result<String> {
         let nonce_bytes: [u8; NONCE_BYTES] = random_bytes();
         let bound = format!("{context}\n{plaintext}");
         let ciphertext = self
@@ -86,7 +96,7 @@ impl DataKey {
             .map_err(|_| anyhow::anyhow!("sealing failed"))?;
         let mut blob = nonce_bytes.to_vec();
         blob.extend_from_slice(&ciphertext);
-        Ok(format!("{SEALED_PREFIX}{}", BASE64.encode(blob)))
+        Ok(format!("{prefix}{}", BASE64.encode(blob)))
     }
 
     /// The plaintext of a [`Self::seal`] output for the same `context`. A value that was never
@@ -95,6 +105,21 @@ impl DataKey {
         let Some(encoded) = stored.strip_prefix(SEALED_PREFIX) else {
             return Ok(stored.to_owned());
         };
+        self.open_encoded(context, encoded)
+    }
+
+    /// Opens a [`Self::seal_prefixed`] output; a value without `prefix` is an error.
+    pub fn open_prefixed(
+        &self,
+        prefix: &str,
+        context: &str,
+        stored: &str,
+    ) -> anyhow::Result<String> {
+        let encoded = stored.strip_prefix(prefix).context("value is not sealed")?;
+        self.open_encoded(context, encoded)
+    }
+
+    fn open_encoded(&self, context: &str, encoded: &str) -> anyhow::Result<String> {
         let blob = BASE64
             .decode(encoded)
             .context("sealed value is not base64")?;

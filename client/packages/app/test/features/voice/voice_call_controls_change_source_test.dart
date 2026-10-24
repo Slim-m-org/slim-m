@@ -299,4 +299,27 @@ void main() {
     expect(find.bySemanticsLabel(RegExp(r'Stop sharing')), findsOneWidget);
     handle.dispose();
   });
+
+  testWidgets(
+    'cancelling the Switch screen picker keeps the active share running',
+    (tester) async {
+      final session = InertSession(
+        needsSource: true,
+        sources: Future.value(_sources),
+      );
+      await pumpControls(tester, _sharing, session: session);
+
+      await _switchScreen(tester);
+      expect(find.text('Screen 2'), findsOneWidget);
+
+      Navigator.of(tester.element(find.text('Screen 2'))).pop();
+      await tester.pumpAndSettle();
+
+      expect(
+        session.screenShareCalls,
+        isEmpty,
+        reason: 'dismissing the picker must not stop the active share',
+      );
+    },
+  );
 }

@@ -111,6 +111,29 @@ class VoiceParticipant {
   /// participant attribute, see [kDeafenedAttribute].
   final bool isDeafened;
 
+  VoiceParticipant copyWith({
+    String? identity,
+    String? name,
+    bool? isSpeaking,
+    bool? isMuted,
+    bool? isLocal,
+    bool? isScreenSharing,
+    bool? isCameraOn,
+    double? audioLevel,
+    bool? isDeafened,
+  }) =>
+      VoiceParticipant(
+        identity: identity ?? this.identity,
+        name: name ?? this.name,
+        isSpeaking: isSpeaking ?? this.isSpeaking,
+        isMuted: isMuted ?? this.isMuted,
+        isLocal: isLocal ?? this.isLocal,
+        isScreenSharing: isScreenSharing ?? this.isScreenSharing,
+        isCameraOn: isCameraOn ?? this.isCameraOn,
+        audioLevel: audioLevel ?? this.audioLevel,
+        isDeafened: isDeafened ?? this.isDeafened,
+      );
+
   @override
   bool operator ==(Object other) =>
       other is VoiceParticipant &&

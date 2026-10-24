@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!\", bot_user_id AS \"bot_user_id!: UserId\" FROM installed_modules\n               WHERE enabled = 1 AND bot_user_id IS NOT NULL\n                 AND instr(subscriptions, ?) > 0\n                 AND instr(approved_capabilities, '\"events\"') > 0\n                 AND instr(approved_host_capabilities, '\"events\"') > 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "bot_user_id!: UserId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "ae1dd76a9dfd10133ed6f5f61962b6f6036b7f03cb555813e58b107b6a948d8e"
+}

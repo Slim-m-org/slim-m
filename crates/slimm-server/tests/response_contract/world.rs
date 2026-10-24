@@ -321,7 +321,15 @@ async fn spawn_fake_dock_registry() -> String {
             "permissions": [
                 {"key": "run", "name": "Execute code blocks", "description": "run a snippet"}
             ],
-            "capabilities": ["command.register", "message.post", "net.fetch", "schedule"],
+            "capabilities": ["command.register", "message.post", "net.fetch", "schedule", "events", "data.store"],
+            "addon_api": 1,
+            "subscriptions": [{"event": "member.joined"}],
+            "data": {"max_mb": 8, "tables": [{"name": "xp", "columns": [{"name": "user_id", "type": "text", "unique": true}]}]},
+            "settings": [
+                {"key": "xp_per_minute", "type": "int", "label": "XP per minute", "default": 5, "min": 0, "max": 100},
+                {"key": "api_key", "type": "secret", "label": "API key"}
+            ],
+            "slots": [{"kind": "member.badge", "name": "level", "title": "Level"}],
             "network": {"hosts": ["api.example.com"], "local": false},
             "schedules": [{"command": "run", "every_minutes": 60}],
             "extension_points": [

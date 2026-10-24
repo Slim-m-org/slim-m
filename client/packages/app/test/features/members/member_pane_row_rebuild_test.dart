@@ -22,6 +22,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/admin_providers.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
+import 'package:slimm_app/src/features/members/providers/module_badges.dart';
 import 'package:slimm_app/src/features/members/providers/member_selection.dart';
 import 'package:slimm_app/src/features/members/providers/member_presence.dart';
 import 'package:slimm_app/src/providers/providers.dart';
@@ -50,8 +51,30 @@ const _tokens = TokenPair(
 SlimmApi _fakeApi(
   SessionStore session, {
   Map<String, PresenceState> presence = const {},
+  Map<String, String> badges = const {},
 }) {
   return testApi((request) async {
+    if (request.url.path == '/space/dock/slots/badges') {
+      final ids = request.url.queryParameters['ids']?.split(',') ?? [];
+      return http.Response(
+        jsonEncode({
+          'badges': {
+            for (final id in ids)
+              if (badges[id] != null)
+                id: [
+                  {
+                    'module_id': 'xp',
+                    'name': 'level',
+                    'nodes': [
+                      {'type': 'badge', 'text': badges[id]},
+                    ],
+                  },
+                ],
+          },
+        }),
+        200,
+      );
+    }
     if (request.url.path == '/me') {
       return http.Response(
         jsonEncode({
@@ -204,6 +227,65 @@ void main() {
           "picking one member must not rebuild the rest of the roster: the "
           "selection set is a new object every toggle, so an unscoped watch "
           "would rebuild all of them",
+    );
+  });
+
+  testWidgets("a module badge shows on its member's row and a change to it "
+      'rebuilds only that row', (tester) async {
+    debugResetMemberRowBuildCounts();
+    final members = [_profile('a', 'Anna'), _profile('b', 'Bo')];
+    final events = StreamController<ServerEvent>.broadcast();
+    addTearDown(events.close);
+    final badges = {'a': 'LV 7', 'b': 'LV 2'};
+    var now = DateTime(2026, 10, 23, 12);
+
+    final container = ProviderContainer(
+      overrides: [
+        keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
+        apiProvider.overrideWith((ref) {
+          final api = _fakeApi(
+            ref.watch(sessionProvider),
+            presence: {'a': PresenceState.online, 'b': PresenceState.online},
+            badges: badges,
+          );
+          ref.onDispose(api.close);
+          return api;
+        }),
+        moduleBadgesClockProvider.overrideWithValue(() => now),
+        liveEventsProvider.overrideWithValue(events.stream),
+        membersProvider.overrideWith((ref) async => members),
+        channelMembersProvider.overrideWith((ref, _) async => members),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppTokens.light),
+          home: const Scaffold(body: AppMemberPane(channelId: 'c1')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('LV 7'), findsOneWidget);
+    expect(find.text('LV 2'), findsOneWidget);
+    final before = Map.of(debugMemberRowBuildCounts);
+
+    badges['a'] = 'LV 8';
+    now = now.add(const Duration(seconds: 61));
+    events.add(const PresenceChanged(userId: 'a', status: PresenceState.away));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LV 8'), findsOneWidget);
+    expect(find.text('LV 7'), findsNothing);
+    expect(
+      debugMemberRowBuildCounts['b'],
+      before['b'],
+      reason: "one member's badge changing must not rebuild another's row",
     );
   });
 }

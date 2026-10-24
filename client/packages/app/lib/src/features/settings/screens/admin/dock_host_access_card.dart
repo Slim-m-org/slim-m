@@ -51,6 +51,63 @@ final dockHostCapabilities = <String, DockCapability>{
         'Can run on a timer with nobody asking, and post as itself in a '
         'channel you choose.',
   ),
+  'events': (
+    label: 'Hear about events',
+    description: 'Is told when things happen in your space.',
+    warning: _eventsWarning,
+  ),
+  'data.store': (
+    label: 'Keep its own data',
+    description: 'A private database for this module.',
+    warning: _dataStoreWarning,
+  ),
+  'log.read': (
+    label: 'See call history',
+    description: 'Reads when members join and leave voice calls.',
+    warning: (_) => 'Can see when members join and leave voice calls.',
+  ),
+};
+
+const _eventPhrases = {
+  'message.created': 'messages are posted',
+  'message.deleted': 'messages are deleted',
+  'reaction.changed': 'reactions change',
+  'voice.session.closed': 'voice calls end',
+};
+
+String _eventsWarning(List<String> events) {
+  final phrases = [
+    for (final event in events)
+      if (event != 'member.joined' && event != 'member.left')
+        _eventPhrases[event] ?? event,
+  ];
+  final joined = events.contains('member.joined');
+  final left = events.contains('member.left');
+  if (joined && left) {
+    phrases.insert(phrases.isEmpty ? 0 : 1, 'members join or leave');
+  } else if (joined || left) {
+    phrases.insert(
+      phrases.isEmpty ? 0 : 1,
+      joined ? 'members join' : 'members leave',
+    );
+  }
+  return 'Can be told when ${_andList(phrases, fallback: 'things happen', oxford: true)}.';
+}
+
+String _dataStoreWarning(List<String> details) => details.isEmpty
+    ? 'Can keep its own data on your server.'
+    : 'Can keep its own data on your server, up to ${details.single} MB.';
+
+String _andList(
+  List<String> items, {
+  required String fallback,
+  bool oxford = false,
+}) => switch (items.length) {
+  0 => fallback,
+  1 => items.single,
+  _ =>
+    '${items.take(items.length - 1).join(', ')}'
+        '${oxford && items.length > 2 ? ',' : ''} and ${items.last}',
 };
 
 /// The second, separate yes for `net.fetch` to reach private addresses.
@@ -60,11 +117,7 @@ const dockLocalNetworkWarning =
     'server. Never this server, its host or anything you block.';
 
 String _networkWarning(List<String> hosts) {
-  final names = switch (hosts.length) {
-    0 => 'the sites it names',
-    1 => hosts.single,
-    _ => '${hosts.take(hosts.length - 1).join(', ')} and ${hosts.last}',
-  };
+  final names = _andList(hosts, fallback: 'the sites it names');
   return 'Can send data from your server to $names.';
 }
 
@@ -74,7 +127,11 @@ List<String> dockCapabilityDetails(
   String capability,
 ) => capability == api.kNetFetchCapability
     ? manifest.network?.hosts ?? const []
-    : const [];
+    : switch (capability) {
+        'events' => manifest.subscriptions,
+        'data.store' => [if (manifest.dataMaxMb case final mb?) '$mb'],
+        _ => const [],
+      };
 
 /// The consent sentence for [capability], or null when this client has none.
 String? dockCapabilityWarning(

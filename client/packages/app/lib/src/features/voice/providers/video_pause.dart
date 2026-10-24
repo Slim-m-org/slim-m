@@ -18,58 +18,40 @@ import 'video_interest_relay.dart';
 import 'voice_flags.dart';
 import 'voice_settings_controller.dart';
 
-/// Whether a focus-only loss counts; a phone's `inactive` is a shade pull, not a switch away.
+/// Whether this is a desktop window, where minimising is a choice the user can opt out of pausing for.
 final pauseOnUnfocusedAppliesProvider = Provider<bool>((ref) => isDesktopHost);
 
-/// Hidden, minimised or backgrounded pauses; unfocused only when the user opts in.
+/// Hidden, minimised or backgrounded pauses; a merely unfocused window never does.
+///
+/// On a desktop the user's setting decides whether a minimised window pauses; a phone always does.
 bool shouldPauseLocalPreview({
   required AppLifecycleState lifecycle,
-  required bool pauseWhenUnfocused,
+  required bool pauseWhenMinimised,
+  required bool desktop,
   required bool pictureInPicture,
 }) {
   if (pictureInPicture) return false;
   return switch (lifecycle) {
-    AppLifecycleState.resumed => false,
-    AppLifecycleState.inactive => pauseWhenUnfocused,
+    AppLifecycleState.resumed || AppLifecycleState.inactive => false,
     AppLifecycleState.hidden ||
     AppLifecycleState.paused ||
-    AppLifecycleState.detached => true,
+    AppLifecycleState.detached => !desktop || pauseWhenMinimised,
   };
 }
 
-/// The member asked to keep their own preview showing while unfocused; lasts until the app closes.
-final localPreviewResumedProvider = StateProvider<bool>((ref) => false);
+bool _pausedNow(Ref ref) => shouldPauseLocalPreview(
+  lifecycle: ref.watch(appLifecycleProvider),
+  pauseWhenMinimised: ref.watch(
+    voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenMinimised),
+  ),
+  desktop: ref.watch(pauseOnUnfocusedAppliesProvider),
+  pictureInPicture: ref.watch(inPictureInPictureProvider),
+);
 
-final localPreviewPausedProvider = Provider<bool>((ref) {
-  final unfocusedSetting = ref.watch(
-    voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
-  );
-  final lifecycle = ref.watch(appLifecycleProvider);
-  // Only a focus loss is overridable: a hidden or minimised window has nobody to draw for.
-  if (lifecycle == AppLifecycleState.inactive &&
-      ref.watch(localPreviewResumedProvider)) {
-    return false;
-  }
-  return shouldPauseLocalPreview(
-    lifecycle: lifecycle,
-    pauseWhenUnfocused:
-        unfocusedSetting && ref.watch(pauseOnUnfocusedAppliesProvider),
-    pictureInPicture: ref.watch(inPictureInPictureProvider),
-  );
-});
+final localPreviewPausedProvider = Provider<bool>(_pausedNow);
 
 /// Whether a person can see the window, so remote video is worth receiving.
-final remoteVideoSeenProvider = Provider<bool>((ref) {
-  final unfocusedSetting = ref.watch(
-    voiceSettingsControllerProvider.select((s) => s.pauseVideoWhenUnfocused),
-  );
-  return !shouldPauseLocalPreview(
-    lifecycle: ref.watch(appLifecycleProvider),
-    pauseWhenUnfocused:
-        unfocusedSetting && ref.watch(pauseOnUnfocusedAppliesProvider),
-    pictureInPicture: ref.watch(inPictureInPictureProvider),
-  );
-});
+final remoteVideoSeenProvider = Provider<bool>((ref) => !_pausedNow(ref));
 
 /// Mounted from the app chrome: feeds window visibility and a fresh connection into the video interest.
 final videoInterestHostProvider = Provider<void>((ref) {

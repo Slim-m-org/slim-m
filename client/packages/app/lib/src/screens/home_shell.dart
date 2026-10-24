@@ -24,6 +24,7 @@ import 'package:go_router/go_router.dart';
 import '../features/accounts/widgets/account_shortcuts.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
+import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../providers/admin_providers.dart';
 import '../features/members/providers/blocks_controller.dart';
@@ -143,6 +144,7 @@ class HomeShell extends ConsumerWidget {
     ref.watch(holdMusicControllerProvider);
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
+    ref.watch(liveQualityRestartProvider);
     // Same reasoning: read lazily, its first read would race a module's own sound trigger against this provider's async load from disk.
     ref.watch(moduleSoundSettingsProvider);
     // Same reasoning as the channel-mute watch above: session-lifetime, for the sound and desktop-notifier paths.

@@ -7,9 +7,14 @@
 /// same ground.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
+
+import '../desktop/desktop_window_port.dart';
+import '../desktop/desktop_window_shell.dart';
 
 /// Whether this build runs on a phone, where an embedder that has not yet
 /// reported a state means a background launch rather than a window waiting to
@@ -24,19 +29,41 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
   /// A state the embedder has not reported counts as hidden on a phone, so a
   /// process woken in the background never claims the user is looking at it.
   AppLifecycleNotifier({required bool mobile})
-    : super(
+    : _bindingState =
+          WidgetsBinding.instance.lifecycleState ??
+          (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
+      super(
         WidgetsBinding.instance.lifecycleState ??
             (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
       ) {
     WidgetsBinding.instance.addObserver(this);
+    _windowEvents = DesktopWindowShell.port.events.listen(_onWindowEvent);
+  }
+
+  AppLifecycleState _bindingState;
+  bool _windowMinimized = false;
+  StreamSubscription<DesktopWindowEventKind>? _windowEvents;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _bindingState = state;
+    if (state == AppLifecycleState.resumed) _windowMinimized = false;
+    this.state = _windowMinimized ? AppLifecycleState.hidden : state;
+  }
+
+  void _onWindowEvent(DesktopWindowEventKind kind) {
+    if (kind == DesktopWindowEventKind.minimize) {
+      _windowMinimized = true;
+      state = AppLifecycleState.hidden;
+    } else if (kind == DesktopWindowEventKind.show && _windowMinimized) {
+      _windowMinimized = false;
+      state = _bindingState;
+    }
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) =>
-      this.state = state;
-
-  @override
   void dispose() {
+    unawaited(_windowEvents?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

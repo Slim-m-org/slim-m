@@ -6,6 +6,9 @@ part of 'voice_controller.dart';
 mixin VoiceControllerVideoMixin on StateNotifier<VoiceState> {
   VoiceSession get _videoSession;
 
+  /// The owning controller's call generation; see `VoiceController.join`.
+  int get _callGeneration;
+
   /// Whether starting a share here needs a screen chosen first, and the
   /// screens to choose from. Enumerating is also what makes the capture that
   /// follows able to find anything, so it happens even for a single screen.
@@ -74,5 +77,31 @@ mixin VoiceControllerVideoMixin on StateNotifier<VoiceState> {
       clearError: ok,
     );
     return ok;
+  }
+
+  /// Turns a live camera off and on again so a new quality takes effect;
+  /// the device, mute and hidden choices live outside the track and carry over.
+  Future<void> restartCamera() async {
+    final connected = state.state == VoiceSessionState.connected;
+    if (!connected || !state.cameraEnabled || state.cameraPending) return;
+    final generation = _callGeneration;
+    state = state.copyWith(cameraPending: true);
+    final (off, offCause) = await setCameraWithin(_videoSession, false);
+    final (on, onCause) = off && generation == _callGeneration
+        ? await setCameraWithin(_videoSession, true)
+        : (false, null);
+    if (generation != _callGeneration) {
+      if (state.cameraPending) state = state.copyWith(cameraPending: false);
+      return;
+    }
+    final failed = !off || !on;
+    state = state.copyWith(
+      cameraPending: false,
+      cameraEnabled: !off ? state.cameraEnabled : on,
+      error: failed
+          ? cameraFailureMessage(off, off ? onCause : offCause)
+          : null,
+      clearError: !failed,
+    );
   }
 }

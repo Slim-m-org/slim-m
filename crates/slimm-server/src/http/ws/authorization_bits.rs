@@ -76,6 +76,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => None,
     }
 }

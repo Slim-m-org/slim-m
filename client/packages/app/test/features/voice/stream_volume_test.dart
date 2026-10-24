@@ -18,12 +18,17 @@ import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
 class _SoundSession extends FakeSession {
-  _SoundSession({required this.sound});
+  _SoundSession({required this.sound, this.onScreenVolume});
 
   final bool sound;
+  final void Function(double volume)? onScreenVolume;
 
   @override
   bool hasScreenAudio(String identity) => sound;
+
+  @override
+  Future<void> setScreenVolumeFor(String identity, double volume) async =>
+      onScreenVolume?.call(volume);
 }
 
 VoiceParticipant _sharer({bool isLocal = false}) => VoiceParticipant(
@@ -39,11 +44,12 @@ Future<void> _pumpTile(
   WidgetTester tester, {
   required bool sound,
   required VoiceParticipant sharer,
+  void Function(double volume)? onScreenVolume,
 }) async {
   final harness = VoiceHarness();
   addTearDown(harness.dispose);
   final controller = harness.controllerWith(
-    _SoundSession(sound: sound),
+    _SoundSession(sound: sound, onScreenVolume: onScreenVolume),
     voiceApi(),
   );
   tester.view.physicalSize = const Size(1200, 800);
@@ -72,53 +78,54 @@ Future<void> _pumpTile(
 }
 
 void main() {
-  testWidgets('a share with sound opens its own screen audio volume', (
+  testWidgets('a share with sound shows its volume slider right in the menu', (
     tester,
   ) async {
     await _pumpTile(tester, sound: true, sharer: _sharer());
 
     await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.tap(find.text('Stream volume'));
-    await tester.pumpAndSettle();
 
-    expect(find.text("Ada's screen audio"), findsOneWidget);
-    expect(find.text('Mute screen audio'), findsOneWidget);
-    expect(find.text('Volume for Ada'), findsNothing);
-  });
-
-  testWidgets('the stream volume slider has focus when the popover opens', (
-    tester,
-  ) async {
-    await _pumpTile(tester, sound: true, sharer: _sharer());
-
-    await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.tap(find.text('Stream volume'));
-    await tester.pumpAndSettle();
-
-    final focus = FocusManager.instance.primaryFocus;
-    expect(focus, isNotNull);
-    expect(
-      find.descendant(
-        of: find.byType(AppSlider),
-        matching: find.byWidgetPredicate(
-          (w) => w is Focus && w.focusNode == focus,
-        ),
-      ),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Escape closes the stream volume popover', (tester) async {
-    await _pumpTile(tester, sound: true, sharer: _sharer());
-
-    await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.tap(find.text('Stream volume'));
-    await tester.pumpAndSettle();
-    expect(find.text("Ada's screen audio"), findsOneWidget);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-    await tester.pumpAndSettle();
+    expect(find.text('Stream volume'), findsOneWidget);
+    expect(find.byType(AppSlider), findsOneWidget);
     expect(find.text("Ada's screen audio"), findsNothing);
+  });
+
+  testWidgets('dragging the menu slider sets that share\'s volume', (
+    tester,
+  ) async {
+    final volumes = <double>[];
+    await _pumpTile(
+      tester,
+      sound: true,
+      sharer: _sharer(),
+      onScreenVolume: volumes.add,
+    );
+
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.drag(find.byType(AppSlider), const Offset(-60, 0));
+    await tester.pumpAndSettle();
+
+    expect(volumes, isNotEmpty);
+    expect(volumes.last, lessThan(1));
+  });
+
+  testWidgets('the menu slider takes the arrow keys as soon as it opens', (
+    tester,
+  ) async {
+    final volumes = <double>[];
+    await _pumpTile(
+      tester,
+      sound: true,
+      sharer: _sharer(),
+      onScreenVolume: volumes.add,
+    );
+
+    await rightClickMenu(tester, find.byType(ScreenShareStage));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+
+    expect(volumes, isNotEmpty);
+    expect(volumes.last, lessThan(1));
   });
 
   testWidgets('a silent share offers no stream volume', (tester) async {

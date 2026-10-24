@@ -146,6 +146,143 @@ pub fn host_call_loop_wasm(request: &str, count: u32) -> Vec<u8> {
     wat::parse_str(&text).expect("host-call loop wasm fixture must parse")
 }
 
+/// A module that records every request it is run with into `kv.store`, under
+/// a key derived from the request text (`ev` and eight hex digits, so two
+/// different events never share one), and answers `ok`. Reading its keys
+/// back shows exactly which events reached it.
+#[allow(dead_code)]
+pub fn event_recorder_wasm() -> Vec<u8> {
+    let prefix = r#"{"capability":"kv.store","op":"set","key":"ev"#;
+    let middle = r#"","value":""#;
+    let ok = r#"{"ok":true,"output":"ok"}"#;
+    let (prefix_len, middle_len, ok_len) = (prefix.len(), middle.len(), ok.len());
+    let (prefix_data, middle_data, ok_data) = (
+        escape_wat_string(prefix.as_bytes()),
+        escape_wat_string(middle.as_bytes()),
+        escape_wat_string(ok.as_bytes()),
+    );
+    let text = format!(
+        r#"(module
+            (import "slim" "host_call" (func $host_call (param i32 i32) (result i64)))
+            (memory (export "memory") 3)
+            (data (i32.const 1024) "{prefix_data}")
+            (data (i32.const 1200) "{middle_data}")
+            (data (i32.const 1300) "\22\7d")
+            (data (i32.const 1400) "{ok_data}")
+            (data (i32.const 1500) "0123456789abcdef")
+            (func (export "alloc") (param $len i32) (result i32) (i32.const 16384))
+            (func $copy (param $dst i32) (param $src i32) (param $len i32)
+                (local $i i32)
+                (block $done
+                    (loop $loop
+                        (br_if $done (i32.ge_u (local.get $i) (local.get $len)))
+                        (i32.store8 (i32.add (local.get $dst) (local.get $i))
+                            (i32.load8_u (i32.add (local.get $src) (local.get $i))))
+                        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                        (br $loop))))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (local $i i32) (local $b i32) (local $h i32) (local $out i32)
+                (local.set $h (i32.const 5381))
+                (block $hashed
+                    (loop $hash
+                        (br_if $hashed (i32.ge_u (local.get $i) (local.get $in_len)))
+                        (local.set $h (i32.add (i32.mul (local.get $h) (i32.const 33))
+                            (i32.load8_u (i32.add (local.get $in_ptr) (local.get $i)))))
+                        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                        (br $hash)))
+                (local.set $out (i32.const 80000))
+                (call $copy (local.get $out) (i32.const 1024) (i32.const {prefix_len}))
+                (local.set $out (i32.add (local.get $out) (i32.const {prefix_len})))
+                (local.set $i (i32.const 0))
+                (block $hexed
+                    (loop $hex
+                        (br_if $hexed (i32.ge_u (local.get $i) (i32.const 8)))
+                        (i32.store8 (i32.add (local.get $out) (local.get $i))
+                            (i32.load8_u (i32.add (i32.const 1500)
+                                (i32.and (i32.shr_u (local.get $h)
+                                    (i32.sub (i32.const 28) (i32.mul (local.get $i) (i32.const 4))))
+                                    (i32.const 15)))))
+                        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                        (br $hex)))
+                (local.set $out (i32.add (local.get $out) (i32.const 8)))
+                (call $copy (local.get $out) (i32.const 1200) (i32.const {middle_len}))
+                (local.set $out (i32.add (local.get $out) (i32.const {middle_len})))
+                (local.set $i (i32.const 0))
+                (block $copied
+                    (loop $text
+                        (br_if $copied (i32.ge_u (local.get $i) (local.get $in_len)))
+                        (local.set $b (i32.load8_u (i32.add (local.get $in_ptr) (local.get $i))))
+                        (if (i32.or (i32.eq (local.get $b) (i32.const 34))
+                                    (i32.eq (local.get $b) (i32.const 92)))
+                            (then
+                                (i32.store8 (local.get $out) (i32.const 92))
+                                (local.set $out (i32.add (local.get $out) (i32.const 1)))))
+                        (i32.store8 (local.get $out) (local.get $b))
+                        (local.set $out (i32.add (local.get $out) (i32.const 1)))
+                        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                        (br $text)))
+                (call $copy (local.get $out) (i32.const 1300) (i32.const 2))
+                (local.set $out (i32.add (local.get $out) (i32.const 2)))
+                (drop (call $host_call (i32.const 80000) (i32.sub (local.get $out) (i32.const 80000))))
+                (i64.or (i64.shl (i64.const 1400) (i64.const 32)) (i64.const {ok_len}))))"#
+    );
+    wat::parse_str(&text).expect("event recorder wasm fixture must parse")
+}
+
+/// A module that spins `rounds` loop turns, then answers `ok`: a run that
+/// holds its slot for a while without ever trapping or timing out.
+#[allow(dead_code)]
+pub fn busy_ok_wasm(rounds: u32) -> Vec<u8> {
+    let ok = r#"{"ok":true,"output":"ok"}"#;
+    let (data, len) = (escape_wat_string(ok.as_bytes()), ok.len());
+    let text = format!(
+        r#"(module
+            (memory (export "memory") 1)
+            (data (i32.const 1024) "{data}")
+            (func (export "alloc") (param $len i32) (result i32) (i32.const 8192))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (local $i i32)
+                (loop $spin
+                    (local.set $i (i32.add (local.get $i) (i32.const 1)))
+                    (br_if $spin (i32.lt_u (local.get $i) (i32.const {rounds}))))
+                (i64.or (i64.shl (i64.const 1024) (i64.const 32)) (i64.const {len}))))"#
+    );
+    wat::parse_str(&text).expect("busy wasm fixture must parse")
+}
+
+/// A module that fails every `member.joined` event and accepts any other: it
+/// reads the character after `member.` in the `{"event":"member.x"` it is sent.
+#[allow(dead_code)]
+pub fn joined_fails_wasm() -> Vec<u8> {
+    let ok = r#"{"ok":true,"output":"ok"}"#;
+    let bad = r#"{"ok":false,"error":"no joiners"}"#;
+    let (ok_data, bad_data) = (
+        escape_wat_string(ok.as_bytes()),
+        escape_wat_string(bad.as_bytes()),
+    );
+    let (ok_len, bad_len) = (ok.len(), bad.len());
+    let text = format!(
+        r#"(module
+            (memory (export "memory") 1)
+            (data (i32.const 1024) "{ok_data}")
+            (data (i32.const 1100) "{bad_data}")
+            (func (export "alloc") (param $len i32) (result i32) (i32.const 8192))
+            (func (export "run") (param $in_ptr i32) (param $in_len i32) (result i64)
+                (if (result i64)
+                    (i32.eq (i32.load8_u (i32.add (local.get $in_ptr) (i32.const 49))) (i32.const 106))
+                    (then (i64.or (i64.shl (i64.const 1100) (i64.const 32)) (i64.const {bad_len})))
+                    (else (i64.or (i64.shl (i64.const 1024) (i64.const 32)) (i64.const {ok_len}))))))"#
+    );
+    wat::parse_str(&text).expect("joined-fails wasm fixture must parse")
+}
+
+/// A module that answers `ok:false`, the failure a module that does not
+/// handle `@event` gives.
+#[allow(dead_code)]
+pub fn refusing_wasm() -> Vec<u8> {
+    canned_raw_wasm(br#"{"ok":false,"error":"unknown command"}"#)
+}
+
 /// Escapes `bytes` as a WAT string-literal body: only `\` and `"` need it for
 /// content in this file's own callers, all of which are ASCII with no quotes
 /// or backslashes of their own, but this stays correct if that ever changes.
@@ -160,4 +297,12 @@ fn escape_wat_string(bytes: &[u8]) -> String {
         }
     }
     out
+}
+
+/// A module that answers every run with `{"ok":true,"output":<slot_response as text>}`,
+/// the shape a `@slot` run returns.
+#[allow(dead_code)]
+pub fn canned_slot_wasm(slot_response: &serde_json::Value) -> Vec<u8> {
+    let wire = serde_json::json!({ "ok": true, "output": slot_response.to_string() });
+    canned_raw_wasm(wire.to_string().as_bytes())
 }

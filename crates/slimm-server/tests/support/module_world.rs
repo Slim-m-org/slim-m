@@ -29,7 +29,9 @@ pub struct World {
     pub user: User,
     pub token: String,
     pub db_path: String,
+    pub modules_dir: std::path::PathBuf,
     _guard: super::TestDbGuard,
+    _modules_guard: super::TestDirGuard,
 }
 
 pub async fn world(name: &str) -> World {
@@ -40,7 +42,9 @@ pub async fn world(name: &str) -> World {
         hash_concurrency: 2,
         ..Config::default()
     };
-    let store = Store::new(db::connect(&config).await.expect("connect + migrate"));
+    let (modules_dir, modules_guard) = super::TestDirGuard::new("slimm-modworld-data");
+    let store = Store::new(db::connect(&config).await.expect("connect + migrate"))
+        .with_modules_dir(modules_dir.clone());
     let view_send = Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES);
     let everyone = store
         .create_role("everyone", view_send, true)
@@ -64,7 +68,9 @@ pub async fn world(name: &str) -> World {
         user,
         token,
         db_path: path,
+        modules_dir,
         _guard: guard,
+        _modules_guard: modules_guard,
     }
 }
 

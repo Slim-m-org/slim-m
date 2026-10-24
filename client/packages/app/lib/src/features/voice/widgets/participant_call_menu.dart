@@ -53,14 +53,16 @@ List<Widget> participantCallMenuItems(
   String? channelId,
   bool withFullscreen = true,
 }) {
-  final streams = participantStreamMenuItems(
-    context,
-    ref,
-    identity: participant.identity,
-    close: close,
-    withFullscreen: withFullscreen,
-  );
-  if (participant.isLocal) return streams;
+  List<Widget> streamRows({required bool autofocusVolume}) =>
+      participantStreamMenuItems(
+        context,
+        ref,
+        identity: participant.identity,
+        close: close,
+        withFullscreen: withFullscreen,
+        autofocusStreamVolume: autofocusVolume,
+      );
+  if (participant.isLocal) return streamRows(autofocusVolume: true);
 
   final controller = ref.read(voiceControllerProvider.notifier);
   final profile =
@@ -176,7 +178,7 @@ List<Widget> participantCallMenuItems(
           },
         ),
       },
-    ...streams,
+    ...streamRows(autofocusVolume: !actions.contains(ParticipantAction.volume)),
   ];
 }
 

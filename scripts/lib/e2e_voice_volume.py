@@ -38,6 +38,25 @@ def _set_and_hear(a, probe, stream, percent):
     return (shown,) + _heard(probe, stream)
 
 
+def _set_and_hear_silence(a, probe, stream):
+    """Move to 0% and report the loudest output of every window afterwards.
+
+    Exactly 0% also stops the SFU forwarding the track, so the source itself
+    may go quiet and there is nothing left to compare against: the output must
+    be silent in every window, audible source or not.
+    """
+    shown = ui.set_slider(a, LABEL, 0)
+    ui.dismiss_popover(a)
+    return shown, loudest_output(probe, stream)
+
+
+def loudest_output(probe, stream):
+    """The loudest output over a measuring window, whatever the source did in it."""
+    series = probe.measure(stream, MEASURE_SECONDS)
+    assert series, "the stream stopped being measured"
+    return max(eff for _, eff, _ in series)
+
+
 def individual_volume_scales_the_sound(a, b, room_id, bob_id):
     with e2e_audio.installed(a):
         _individual_volume_scales_the_sound(a, b, room_id, bob_id)
@@ -54,7 +73,7 @@ def _individual_volume_scales_the_sound(a, b, room_id, bob_id):
         assert abs(gain) <= TOLERANCE_DB, f"untouched volume changed the level: {gain}"
 
         ui.open_volume_popover(a, "Bob")
-        shown, gain, loudest, source = _set_and_hear(a, probe, stream, 50)
+        shown, gain, loudest, voice_db = _set_and_hear(a, probe, stream, 50)
         want = lv.volume_to_db(lv.slider_to_gain(shown / 100))
         print(f"  bob at {shown}%: gain {gain:.1f} dB against {want:.1f} expected")
         assert abs(gain - want) <= TOLERANCE_DB, \
@@ -62,10 +81,11 @@ def _individual_volume_scales_the_sound(a, b, room_id, bob_id):
         assert any(e["graph"] for e in probe.listening()), \
             "the app never put a gain graph on bob's stream"
 
+        assert voice_db > AUDIBLE_SOURCE_DB, "nothing to silence: bob was not speaking"
         ui.open_volume_popover(a, "Bob")
-        shown, gain, loudest, source = _set_and_hear(a, probe, stream, 0)
-        print(f"  bob at {shown}%: gain {gain:.1f} dB on a {source:.1f} dB voice")
-        assert source > AUDIBLE_SOURCE_DB, "nothing to silence: bob was not speaking"
+        shown, loudest = _set_and_hear_silence(a, probe, stream)
+        print(f"  bob at {shown}%: loudest output {loudest:.1f} dB on a "
+              f"{voice_db:.1f} dB voice")
         assert loudest <= lv.SILENCE_DB, \
             f"0% still let the voice through: {loudest:.1f} dB"
 
@@ -103,16 +123,18 @@ def _assert_silent_from_the_first_window(probe, stream, since):
     time.sleep(MEASURE_SECONDS)
     series = probe.series(stream, since)
     series = _after_the_last_gap(series)
-    audible = [(t, eff, src) for t, eff, src in series if src >= -50.0]
-    assert audible, "the source never became audible to measure against"
+    assert series, "the rejoined stream was never measured"
+    # A saved 0% also stops the SFU forwarding, so every window counts, not just audible ones.
     first = series[0][0]
-    leaks = [(t - first, eff) for t, eff, src in audible if eff > lv.SILENCE_DB]
-    print(f"  after rejoining: {len(audible)} audible windows, "
+    leaks = [(t - first, eff) for t, eff, _ in series if eff > lv.SILENCE_DB]
+    held = any(e["stream"] == stream and e["graph"] for e in probe.listening())
+    print(f"  after rejoining: {len(series)} windows, gain graph {held}, "
           f"{len(leaks)} let sound through"
           + "".join(f" +{t:.2f}s:{e:.0f}dB" for t, e in leaks[:8]))
+    assert held, "the rejoined stream was never put behind the saved gain"
     assert not leaks, (
         f"the 0% choice did not survive rejoining: {len(leaks)} of "
-        f"{len(audible)} audible windows leaked, first at +{leaks[0][0]:.2f}s "
+        f"{len(series)} windows leaked, first at +{leaks[0][0]:.2f}s "
         f"into the stream at {leaks[0][1]:.1f} dB, loudest "
         f"{max(e for _, e in leaks):.1f} dB")
 

@@ -42,7 +42,7 @@ async fn record_sweep_run(store: &store::Store, name: &str, reclaimed: i64) {
 /// these capture (`Store`, `Hub`, `VoiceService`, `Media`, `PushSender`) are
 /// `Arc` clones, bar `Media`'s two owned `PathBuf`s - and that one is captured
 /// only by the hourly and six-hourly sweeps, never the two-second ring.
-fn spawn_sweep<F, Fut>(interval: std::time::Duration, pass: F)
+pub(crate) fn spawn_sweep<F, Fut>(interval: std::time::Duration, pass: F)
 where
     F: Fn() -> Fut + Send + 'static,
     Fut: std::future::Future<Output = ()> + Send,
@@ -193,12 +193,14 @@ const CALL_SWEEP_INTERVAL: std::time::Duration = std::time::Duration::from_secs(
 ///
 /// A deployment with no SFU configured never has anything to sweep, so this is
 /// safe to spawn unconditionally.
-pub(crate) fn spawn_call_sweep(voice: voice::VoiceService, hub: hub::Hub) {
+pub(crate) fn spawn_call_sweep(store: store::Store, voice: voice::VoiceService, hub: hub::Hub) {
     spawn_sweep(CALL_SWEEP_INTERVAL, move || {
+        let store = store.clone();
         let voice = voice.clone();
         let hub = hub.clone();
         async move {
-            sweep_stale_voice_calls(&voice, &hub).await;
+            let stale = sweep_stale_voice_calls(&voice, &hub).await;
+            crate::voice_session_sweeps::close_stale_sessions(&store, &hub, &stale).await;
         }
     });
 }
@@ -234,8 +236,11 @@ pub(crate) fn spawn_room_sweep(store: store::Store, voice: voice::VoiceService, 
 
 /// One pass of the stale-call sweep, evicting every call whose heartbeat has
 /// gone stale as of now.
-pub async fn sweep_stale_voice_calls(voice: &voice::VoiceService, hub: &hub::Hub) {
-    sweep_stale_voice_calls_at(voice, hub, std::time::Instant::now()).await;
+pub async fn sweep_stale_voice_calls(
+    voice: &voice::VoiceService,
+    hub: &hub::Hub,
+) -> Vec<(crate::ids::UserId, crate::ids::ChannelId)> {
+    sweep_stale_voice_calls_at(voice, hub, std::time::Instant::now()).await
 }
 
 /// [`sweep_stale_voice_calls`] with an explicit clock.
@@ -263,14 +268,14 @@ pub async fn sweep_stale_voice_calls_at(
     voice: &voice::VoiceService,
     hub: &hub::Hub,
     now: std::time::Instant,
-) {
+) -> Vec<(crate::ids::UserId, crate::ids::ChannelId)> {
     let stale = voice.sweep_stale_calls_at(now);
     for (_, channel_id) in &stale {
         hub.publish(hub::Event::VoiceActivityChanged {
             channel_id: *channel_id,
         });
     }
-    futures_util::stream::iter(stale)
+    futures_util::stream::iter(stale.clone())
         .for_each_concurrent(
             STALE_SWEEP_CONCURRENCY,
             |(user_id, channel_id)| async move {
@@ -291,6 +296,7 @@ pub async fn sweep_stale_voice_calls_at(
             },
         )
         .await;
+    stale
 }
 
 /// How many stale-participant removals the sweep runs at once. A burst that

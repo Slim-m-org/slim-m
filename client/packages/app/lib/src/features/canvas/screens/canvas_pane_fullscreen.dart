@@ -45,6 +45,17 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     });
   }
 
+  /// Steps out of a focused tile first when fullscreen was entered by hand, and leaves fullscreen otherwise.
+  void _escapeFullscreen() {
+    if (_fullscreen &&
+        _focusedTileKey != null &&
+        ref.read(canvasFullscreenFromFocusProvider) != widget.channelId) {
+      _focusTile(null);
+      return;
+    }
+    _toggleFullscreen();
+  }
+
   String? get _focusedTileKey {
     final focus = ref.watch(canvasFocusedTileProvider);
     return focus?.channelId == widget.channelId ? focus!.tileKey : null;

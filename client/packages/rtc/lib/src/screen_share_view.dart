@@ -133,7 +133,10 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
           : ScreenShareStatus.loading;
     }
     _sawPublication = true;
-    return pub.muted ? ScreenShareStatus.paused : ScreenShareStatus.loading;
+    if (pub.muted) return ScreenShareStatus.paused;
+    return frameHistory.everShown
+        ? ScreenShareStatus.resuming
+        : ScreenShareStatus.loading;
   }
 
   lk.TrackPublication<lk.VideoTrack>? _currentPublication() {
@@ -163,9 +166,13 @@ class _ScreenShareViewState extends State<ScreenShareView> with TrackTileState {
     final status = _status();
     // Honest about the beat between "sharing" and the track arriving.
     if (track == null) return _placeholderFor(context, status);
+    final resumed = frameHistory.everShown;
     // And the further beat between the track arriving and a real frame.
     final owned = ownedRenderer;
-    final loading = _placeholderFor(context, ScreenShareStatus.loading);
+    final loading = _placeholderFor(
+      context,
+      resumed ? ScreenShareStatus.resuming : ScreenShareStatus.loading,
+    );
     if (owned == null) return loading;
     return FirstFrameReveal(
       tracker: owned.tracker,

@@ -18,7 +18,6 @@ import '../../voice/widgets/call_roster_motion.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
-import 'canvas_presence_spawn.dart';
 import 'canvas_presence_tile.dart';
 
 export 'canvas_presence_backdrop.dart';
@@ -129,7 +128,6 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
       oldWidget.overrides.removeListener(_onChanged);
       widget.overrides.addListener(_onChanged);
     }
-    _placeStartedTiles(oldWidget.participants);
     // After this frame, not inside didUpdateWidget: overrides is shared with the dock's own still-mid-reconciliation ListenableBuilder, and notifyListeners() reaching it here throws "setState() called during build".
     final overrides = widget.overrides;
     final keys = presenceTileKeys(widget.participants);
@@ -139,32 +137,6 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
         overrides.prune(keys);
       }
     });
-  }
-
-  /// A camera or share this person just turned on appears where they are looking; others get it through the committed slot.
-  void _placeStartedTiles(List<VoiceParticipant> before) {
-    final started = presenceStartedByMe(before, widget.participants);
-    if (started.isEmpty) return;
-    final overrides = widget.overrides;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.overrides != overrides) return;
-      for (final key in started) {
-        _placeStartedTile(overrides, key);
-      }
-    });
-  }
-
-  void _placeStartedTile(CanvasPresenceTileOverrides overrides, String key) {
-    final state = overrides.stateFor(key);
-    if (state.locked || state.hidden) return;
-    final taken = [
-      for (final e in _resolver.lastOnCanvas.entries)
-        if (e.key != key) e.value,
-    ];
-    final rect = presenceSpawnRect(key, widget.document, taken: taken);
-    if (rect == null) return;
-    overrides.setRect(key, rect);
-    widget.onCommit(key, rect);
   }
 
   @override

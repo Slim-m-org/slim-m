@@ -73,6 +73,27 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::InteractionForm { .. }
         | Event::NewDeviceSignIn { .. }
         | Event::VoiceMoved { .. }
+        | Event::VoiceSessionClosed { .. }
         | Event::Stamped { .. } => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ids::UserId;
+
+    #[test]
+    fn a_voice_session_closing_names_a_channel_yet_reaches_no_connection() {
+        let event = Event::VoiceSessionClosed {
+            session_id: 1,
+            user_id: UserId::generate(),
+            channel_id: ChannelId::generate(),
+            joined_at_ms: 0,
+            left_at_ms: 1,
+            alone_ms: 0,
+        };
+        assert_eq!(channel_of(&event), None);
+        assert!(super::super::authorization_bits::extra_bit(&event).is_none());
+    }
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM voice_sessions WHERE left_at IS NOT NULL AND left_at < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "224a44d64760e1790a2401b143d55ec1dee4bd184d697d30600492bf37a77f70"
+}

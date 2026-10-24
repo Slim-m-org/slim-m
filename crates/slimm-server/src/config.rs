@@ -67,6 +67,11 @@ pub struct Config {
     #[serde(default = "default_attachments_dir")]
     pub attachments_dir: String,
 
+    /// Directory holding one data file per installed module; `None` means a
+    /// `modules` directory beside the database file.
+    #[serde(default)]
+    pub modules_dir: Option<String>,
+
     /// Largest attachment a single upload may store, in bytes.
     #[serde(default = "default_attachment_max_bytes")]
     pub attachment_max_bytes: u64,
@@ -248,6 +253,7 @@ impl Default for Config {
             livekit_api_secret: None,
             livekit_service_url: None,
             attachments_dir: default_attachments_dir(),
+            modules_dir: None,
             attachment_max_bytes: default_attachment_max_bytes(),
             max_total_attachment_bytes: None,
             gif_provider: None,

@@ -19,8 +19,9 @@ use super::super::extract::enforce;
 use crate::hub::Event;
 use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::Class;
-use crate::store::VoiceEventKind;
+use crate::store::{SessionScope, VoiceEventKind};
 use crate::voice::{self, RoomLiveState, WebhookError, WebhookEvent};
+use crate::voice_session_sweeps::publish_closed;
 
 pub fn routes() -> Router<AppState> {
     Router::new().route("/voice/webhook", post(receive))
@@ -54,8 +55,51 @@ async fn receive(
         }
     };
 
+    track_session(&state, &event).await;
     apply(&state, event);
     StatusCode::NO_CONTENT
+}
+
+/// Keeps the member's voice session row (decision 0091) in step with the
+/// event. Awaited, so a leave never races the join it closes; a failure is
+/// logged and the delivery still succeeds, since LiveKit would only retry it.
+async fn track_session(state: &AppState, event: &WebhookEvent) {
+    let Some(channel_id) = event
+        .room
+        .as_ref()
+        .and_then(|room| voice::channel_for_room(&room.name))
+    else {
+        return;
+    };
+    let at = crate::store::now_ms();
+    let store = &state.store;
+    let outcome = if event.event == "room_finished" {
+        store
+            .close_voice_sessions(SessionScope::Channel(channel_id), at)
+            .await
+            .map(|closed| publish_closed(&state.hub, &closed))
+    } else {
+        let Some(participant) = &event.participant else {
+            return;
+        };
+        let Some(user_id) = participant.identity.parse().ok().map(UserId) else {
+            return;
+        };
+        match event.event.as_str() {
+            "participant_joined" => store
+                .open_voice_session_closing(channel_id, user_id, &participant.sid, at)
+                .await
+                .map(|(_, closed)| publish_closed(&state.hub, &closed)),
+            "participant_left" => store
+                .close_voice_sessions(SessionScope::Sid(user_id, &participant.sid), at)
+                .await
+                .map(|closed| publish_closed(&state.hub, &closed)),
+            _ => return,
+        }
+    };
+    if let Err(err) = outcome {
+        tracing::warn!(%err, "could not update a voice session");
+    }
 }
 
 /// Turns a verified webhook event into a hub publish, or nothing for an

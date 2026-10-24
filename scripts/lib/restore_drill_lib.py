@@ -2,7 +2,7 @@
 """Restores a scripts/backup.py snapshot into a scratch location and checks
 it, rather than trusting a backup nobody has ever restored.
 
-Three things are verified, none of them by inference:
+Four things are verified, none of them by inference:
 
 1. The database snapshot file, copied to a fresh path and opened on its
    own with nothing else present, passes `PRAGMA integrity_check`.
@@ -13,6 +13,8 @@ Three things are verified, none of them by inference:
 3. Every user the database marks as having an avatar has a file for it
    in the avatars mirror (existence only: an avatar carries no stored
    hash of its own to compare against).
+4. Every module data file in the modules mirror passes its own
+   `PRAGMA integrity_check`.
 
 Exits non-zero, and names every mismatch, if anything referenced by the
 database is missing or corrupt in the backup. This is the property a
@@ -30,6 +32,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import backup_modules
 import path_guard
 
 
@@ -178,6 +181,17 @@ def _report_avatars(restored_db, backup_root):
     return not (avatars["missing"] or avatars["malformed"])
 
 
+def _report_modules(restored_db, backup_root):
+    modules = backup_modules.check_modules(backup_root, restored_db)
+    print(f"modules: {len(modules['verified'])}/"
+          f"{len(modules['verified']) + len(modules['broken'])} data files verified")
+    for name, result in modules["broken"]:
+        print(f"  BROKEN     modules/{name}: {result}", file=sys.stderr)
+    for name in modules["missing"]:
+        print(f"  MISSING    modules/{name}", file=sys.stderr)
+    return not (modules["broken"] or modules["missing"])
+
+
 def _drill(snapshot, scratch_dir, backup_root):
     print(f"restoring {snapshot.name} into {scratch_dir}")
     restored_db = restore_database(snapshot, scratch_dir)
@@ -192,6 +206,7 @@ def _drill(snapshot, scratch_dir, backup_root):
 
     ok = _report_attachments(restored_db, backup_root)
     ok = _report_avatars(restored_db, backup_root) and ok
+    ok = _report_modules(restored_db, backup_root) and ok
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
 

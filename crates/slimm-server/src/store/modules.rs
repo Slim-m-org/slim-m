@@ -17,10 +17,16 @@ use super::{Store, now_ms};
 use crate::ids::{ChannelId, UserId};
 
 pub(super) mod module_artifacts;
+pub(super) mod module_health;
 pub(super) mod module_kv;
 pub(super) mod module_permissions;
 pub(super) mod module_schedule;
+pub(super) mod module_settings;
 pub(super) mod module_stats;
+pub(super) mod platform;
+
+use platform::write_platform;
+pub use platform::{ModulePlatform, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind};
 
 /// One installed module, as recorded at its last install.
 #[derive(Debug, Clone)]
@@ -52,6 +58,14 @@ pub struct InstalledModule {
     pub bot_user_id: Option<UserId>,
     /// Where the admin lets its scheduled runs post.
     pub schedule_channel_id: Option<ChannelId>,
+    /// The `addon_api` the manifest declared; 0 for a module that uses none.
+    pub addon_api: u32,
+    /// The event names it subscribes to.
+    pub subscriptions: Vec<String>,
+    /// The manifest's `data` section as declared, or `Null`.
+    pub data_schema: serde_json::Value,
+    pub settings_schema: Vec<ModuleSettingDef>,
+    pub slots: Vec<ModuleSlot>,
 }
 
 /// A manifest schedule as recorded at install.
@@ -134,6 +148,7 @@ pub struct DockProvenance<'a> {
     pub network_hosts: &'a [String],
     pub local_network_approved: bool,
     pub schedules: &'a [ModuleSchedule],
+    pub platform: &'a ModulePlatform,
 }
 
 struct ModuleRow {
@@ -153,6 +168,11 @@ struct ModuleRow {
     schedules: String,
     bot_user_id: Option<UserId>,
     schedule_channel_id: Option<ChannelId>,
+    addon_api: i64,
+    subscriptions: String,
+    data_schema: String,
+    settings_schema: String,
+    slots: String,
 }
 
 impl From<ModuleRow> for InstalledModule {
@@ -181,6 +201,11 @@ impl From<ModuleRow> for InstalledModule {
             schedules: serde_json::from_str(&row.schedules).unwrap_or_default(),
             bot_user_id: row.bot_user_id,
             schedule_channel_id: row.schedule_channel_id,
+            addon_api: u32::try_from(row.addon_api).unwrap_or(0),
+            subscriptions: serde_json::from_str(&row.subscriptions).unwrap_or_default(),
+            data_schema: serde_json::from_str(&row.data_schema).unwrap_or_default(),
+            settings_schema: serde_json::from_str(&row.settings_schema).unwrap_or_default(),
+            slots: serde_json::from_str(&row.slots).unwrap_or_default(),
         }
     }
 }
@@ -268,6 +293,7 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        write_platform(&mut tx, req.id, provenance.platform).await?;
         tx.commit().await?;
         self.installed_module(req.id)
             .await?
@@ -290,7 +316,12 @@ impl Store {
                       local_network_approved AS "local_network_approved!: bool",
                       schedules AS "schedules!",
                       bot_user_id AS "bot_user_id: UserId",
-                      schedule_channel_id AS "schedule_channel_id: ChannelId"
+                      schedule_channel_id AS "schedule_channel_id: ChannelId",
+                      addon_api AS "addon_api!",
+                      subscriptions AS "subscriptions!",
+                      data_schema AS "data_schema!",
+                      settings_schema AS "settings_schema!",
+                      slots AS "slots!"
                FROM installed_modules WHERE id = ?"#,
             id
         )
@@ -315,7 +346,12 @@ impl Store {
                       local_network_approved AS "local_network_approved!: bool",
                       schedules AS "schedules!",
                       bot_user_id AS "bot_user_id: UserId",
-                      schedule_channel_id AS "schedule_channel_id: ChannelId"
+                      schedule_channel_id AS "schedule_channel_id: ChannelId",
+                      addon_api AS "addon_api!",
+                      subscriptions AS "subscriptions!",
+                      data_schema AS "data_schema!",
+                      settings_schema AS "settings_schema!",
+                      slots AS "slots!"
                FROM installed_modules ORDER BY installed_at DESC"#
         )
         .fetch_all(&self.pool)
@@ -335,6 +371,9 @@ impl Store {
         .execute(&self.pool)
         .await?
         .rows_affected();
+        if enabled && affected > 0 {
+            self.reset_module_breaker(id).await?;
+        }
         Ok(affected > 0)
     }
 
@@ -479,7 +518,7 @@ pub(super) async fn insert_module_metadata(
     Ok(())
 }
 
-/// Drops run history for commands the installed build no longer declares.
+/// Drops run history for commands the installed build no longer declares, keeping the host's own keys.
 async fn prune_undeclared_run_stats(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     req: &InstallModuleRequest<'_>,
@@ -491,10 +530,12 @@ async fn prune_undeclared_run_stats(
     .fetch_all(&mut **tx)
     .await?;
     for command in recorded {
-        let declared = req
-            .extension_points
-            .iter()
-            .any(|e| e.kind == "command" && e.name == command);
+        // Host-run keys such as "@event" and "@slot" are not commands a manifest declares.
+        let declared = command.starts_with('@')
+            || req
+                .extension_points
+                .iter()
+                .any(|e| e.kind == "command" && e.name == command);
         if !declared {
             sqlx::query!(
                 "DELETE FROM module_run_stats WHERE module_id = ? AND command = ?",

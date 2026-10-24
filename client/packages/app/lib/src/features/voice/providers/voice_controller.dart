@@ -140,7 +140,11 @@ class VoiceController extends StateNotifier<VoiceState>
   /// Bumped by every [join] and [leave], so a stale call's continuation can
   /// tell it has been superseded; see [join]'s own comment on why this
   /// exists.
+  @override
   int _callGeneration = 0;
+
+  /// Changes whenever a call starts or ends, for work that must not outlive its call.
+  int get callGeneration => _callGeneration;
 
   /// Sets the camera preference before joining; use [toggleCamera] for the
   /// live in-call control. Its microphone sibling died with the join lobby

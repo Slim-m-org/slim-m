@@ -216,4 +216,45 @@ void main() {
     await switching.applyServerRouting();
     expect(pactl.moves, isEmpty);
   });
+
+  test(
+    'routePreviewInput moves the preview stream to the default source when none is picked',
+    () async {
+      final pactl = _FakePactl();
+      final switching = AudioDeviceSwitching(
+        _NoDevices(),
+        pulse: PulseAudio(run: pactl.call, processId: 4242),
+      );
+
+      await switching.routePreviewInput(null);
+      expect(pactl.moves, [
+        ['move-source-output', '500', 'sink_mic'],
+      ]);
+    },
+  );
+
+  test(
+    'HardwareAudioDevices systemDefaultInput and systemDefaultOutput use the injected device lists on non-Pulse hosts',
+    () async {
+      final devices = HardwareAudioDevices(
+        pulse: PulseAudio(
+          run: (_) async => throw const ProcessException('pactl', []),
+        ),
+        listInputs: () async => [
+          const lk.MediaDevice('default', 'Default mic', 'audioinput', null),
+          const lk.MediaDevice('usb-mic', 'USB mic', 'audioinput', null),
+        ],
+        listOutputs: () async => [
+          const lk.MediaDevice(
+              'default', 'Default speaker', 'audiooutput', null),
+          const lk.MediaDevice('usb-spk', 'USB speaker', 'audiooutput', null),
+        ],
+      );
+
+      final defaultIn = await devices.systemDefaultInput();
+      final defaultOut = await devices.systemDefaultOutput();
+      expect(defaultIn?.id, 'default');
+      expect(defaultOut?.id, 'default');
+    },
+  );
 }

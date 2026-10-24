@@ -251,5 +251,21 @@ class RegistryTest(unittest.TestCase):
             self.assertLess(at, dm, f"{fragment!r} must run before the dm call")
 
 
+class MergedReadoutTest(unittest.TestCase):
+    """A menu with two sliders merges them into one node; each readout is its own."""
+
+    MERGED = "Volume for you\n0%\nStream volume\nStream volume\n50%"
+
+    def test_each_slider_reads_the_percent_after_its_own_name(self):
+        self.assertEqual(ui.merged_readout(self.MERGED, "Volume for you"), 0)
+        self.assertEqual(ui.merged_readout(self.MERGED, "Stream volume"), 50)
+
+    def test_a_lone_slider_reads_its_percent(self):
+        self.assertEqual(ui.merged_readout("Volume for you\n100%", "Volume for you"), 100)
+
+    def test_another_menus_name_reads_nothing(self):
+        self.assertIsNone(ui.merged_readout(self.MERGED, "Screen audio"))
+
+
 if __name__ == "__main__":
     unittest.main()

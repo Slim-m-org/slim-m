@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM module_settings WHERE module_id = ? AND key = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7762f3e4c327ce6b2a87ad8fb90cb85af40d309f079e3834832df58fe452d5d1"
+}
