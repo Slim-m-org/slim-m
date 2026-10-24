@@ -1183,7 +1183,7 @@
 "test/features/voice/participant_menu_state_parity_test.dart": 1.2,
 "test/features/voice/participant_volume_applied_test.dart": 0.9,
 "test/features/voice/participant_volume_row_test.dart": 0.9,
-"test/features/voice/participant_volume_sheet_test.dart": 0.9,
+"test/features/voice/participant_volume_control_test.dart": 0.9,
 "test/features/voice/picture_in_picture_test.dart": 0.8,
 "test/features/voice/popout_reduced_motion_test.dart": 0.7,
 "test/features/voice/popout_video_interest_test.dart": 0.7,
