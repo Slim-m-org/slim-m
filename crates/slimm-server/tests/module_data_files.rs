@@ -266,3 +266,32 @@ async fn a_wasm_module_stores_and_reads_back_through_the_run_route() {
     .await;
     assert!(w.answer("scores").await.contains("declares an import"));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_dock_hands_every_caller_one_data_store() {
+    let (dir, _g) = TestDirGuard::new("slimm-data-shared");
+    let dock = slimm_server::http::dock::Dock::disabled();
+    let first = dock.module_data(dir.clone());
+    let second = dock.clone().module_data(dir);
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn deleting_a_modules_data_closes_the_pool_a_run_opened() {
+    use slimm_server::module_runtime::DataBackend;
+    let (dir, _g) = TestDirGuard::new("slimm-data-delete-open");
+    let schema = validate_data_schema(&xp_schema()).unwrap();
+    let data = files(&dir);
+    data.apply_schema("scores", &schema).await.unwrap();
+    let probe = || {
+        let data = &data;
+        tokio::task::block_in_place(|| data.schema("scores").is_ok())
+    };
+    assert!(probe());
+    data.delete_data("scores").await.unwrap();
+    assert!(
+        !probe(),
+        "a deleted module must not be served from a cached pool"
+    );
+    assert!(!dir.join("scores.db").exists());
+}

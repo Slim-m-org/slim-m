@@ -2,7 +2,7 @@
 //! Install-time handling of a module's declared data (decision 0091): check the
 //! schema can be applied before the install commits, create it after.
 
-use tokio::runtime::Handle;
+use std::sync::Arc;
 
 use super::Manifest;
 use crate::http::AppState;
@@ -19,8 +19,8 @@ fn approved_schema<'a>(manifest: &'a Manifest, approved: &[String]) -> Option<&'
         .filter(|_| approved.iter().any(|c| c == DATA_STORE))
 }
 
-fn files(state: &AppState) -> SqliteData {
-    SqliteData::new(state.store.modules_dir(), Handle::current())
+fn files(state: &AppState) -> Arc<SqliteData> {
+    state.dock.module_data(state.store.modules_dir())
 }
 
 /// Refuses an install whose schema would remove or retype existing data.

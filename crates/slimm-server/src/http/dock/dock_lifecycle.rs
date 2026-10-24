@@ -12,7 +12,6 @@ use super::super::extract::require_manage_server;
 use super::super::extract::{Authed, Json, Query, enforce};
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
-use crate::module_runtime::SqliteData;
 use crate::ratelimit::Class;
 use crate::store::{DeleteAccountError, InstalledModule};
 
@@ -37,7 +36,9 @@ pub(in crate::http) async fn uninstall(
         return Err(ApiError::NotFound("module not installed"));
     }
     if query.delete_data {
-        SqliteData::new(state.store.modules_dir(), tokio::runtime::Handle::current())
+        state
+            .dock
+            .module_data(state.store.modules_dir())
             .delete_data(&id)
             .await
             .map_err(|_| ApiError::Internal)?;

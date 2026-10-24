@@ -76,6 +76,7 @@ const MAX_MODULE_ID_LEN: usize = 64;
 pub struct Dock {
     inner: Option<Arc<Enabled>>,
     slot_cache: super::module_slot_cache::SlotCache,
+    module_data: Arc<std::sync::OnceLock<Arc<crate::module_runtime::SqliteData>>>,
 }
 
 struct Enabled {
@@ -94,6 +95,18 @@ impl Dock {
     /// Slot results held for a few seconds; see `module_slots`.
     pub(super) fn slot_cache(&self) -> &super::module_slot_cache::SlotCache {
         &self.slot_cache
+    }
+
+    /// The one module data store, so its pool cache outlives any run or install.
+    pub fn module_data(&self, dir: std::path::PathBuf) -> Arc<crate::module_runtime::SqliteData> {
+        self.module_data
+            .get_or_init(|| {
+                Arc::new(crate::module_runtime::SqliteData::new(
+                    dir,
+                    tokio::runtime::Handle::current(),
+                ))
+            })
+            .clone()
     }
 
     /// Always enabled: unlike link previews, the Dock has no deployment-wide
@@ -147,6 +160,7 @@ impl Dock {
             .to_owned();
         Self {
             slot_cache: super::module_slot_cache::SlotCache::default(),
+            module_data: Arc::default(),
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -165,6 +179,7 @@ impl Dock {
         Self {
             inner: None,
             slot_cache: super::module_slot_cache::SlotCache::default(),
+            module_data: Arc::default(),
         }
     }
 

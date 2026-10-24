@@ -21,8 +21,7 @@ use super::messages::validate_content;
 use crate::hub::Event;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::module_runtime::{
-    CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster,
-    PostRefused, SqliteData,
+    CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster, PostRefused,
 };
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -125,10 +124,7 @@ pub(super) fn surface_posting_as(
     let logs = approved.iter().any(|c| c == "log.read");
     let mut surface = CapabilitySurface::enabled(approved, module.id.clone(), kv);
     if stores_data {
-        surface = surface.with_data(Arc::new(SqliteData::new(
-            state.store.modules_dir(),
-            handle.clone(),
-        )));
+        surface = surface.with_data(state.dock.module_data(state.store.modules_dir()));
     }
     if logs {
         surface = surface.with_logs(Arc::new(super::module_logs::SqliteLogs {

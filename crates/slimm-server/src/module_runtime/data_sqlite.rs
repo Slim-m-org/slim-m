@@ -78,7 +78,7 @@ struct Opened {
 pub struct SqliteData {
     dir: PathBuf,
     handle: Handle,
-    open: Mutex<HashMap<String, Opened>>,
+    open: Mutex<HashMap<String, Arc<Opened>>>,
 }
 
 impl SqliteData {
@@ -106,7 +106,10 @@ impl SqliteData {
         }
         let ddl = plan(old.as_ref(), schema)?;
         create_file_private(&self.dir, &path).map_err(|_| "could not create the data file")?;
-        self.open.lock().unwrap().remove(module_id);
+        let stale = self.open.lock().unwrap().remove(module_id);
+        if let Some(stale) = stale {
+            stale.pool.close().await;
+        }
         run_ddl(&path, &ddl, schema).await.map_err(|err| {
             tracing::warn!(%err, module = module_id, "data schema migration failed");
             "could not migrate the module's data".to_owned()
@@ -149,15 +152,31 @@ impl SqliteData {
         run: impl FnOnce(&Opened) -> Result<T, DataError>,
     ) -> Result<T, DataError> {
         let path = self.path_for(module_id).map_err(|_| DataError::NoSchema)?;
-        let mut open = self.open.lock().unwrap();
-        if !open.contains_key(module_id) {
-            let opened = self
-                .handle
-                .block_on(open_existing(&path))?
-                .ok_or(DataError::NoSchema)?;
-            open.insert(module_id.to_owned(), opened);
-        }
-        run(&open[module_id])
+        let cached = self.open.lock().unwrap().get(module_id).cloned();
+        let opened = match cached {
+            Some(opened) => opened,
+            None => {
+                let fresh = Arc::new(
+                    self.handle
+                        .block_on(open_existing(&path))?
+                        .ok_or(DataError::NoSchema)?,
+                );
+                let mut open = self.open.lock().unwrap();
+                match open.get(module_id) {
+                    Some(raced) => {
+                        let raced = raced.clone();
+                        drop(open);
+                        self.handle.block_on(fresh.pool.close());
+                        raced
+                    }
+                    None => {
+                        open.insert(module_id.to_owned(), fresh.clone());
+                        fresh
+                    }
+                }
+            }
+        };
+        run(&opened)
     }
 }
 
