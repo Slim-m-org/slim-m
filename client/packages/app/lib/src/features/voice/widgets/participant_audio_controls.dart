@@ -102,10 +102,14 @@ class ParticipantVolumeControl extends StatefulWidget {
     this.showLabel = true,
     this.channel = LocalAudioChannel.voice,
     this.autofocus = false,
+    this.label,
   });
 
   final String identity;
   final VoiceController controller;
+
+  /// Replaces the default title, for a menu that names the thing differently.
+  final String? label;
 
   /// Whose sound this slider sets: their voice, or their shared screen's.
   final LocalAudioChannel channel;
@@ -124,7 +128,8 @@ class ParticipantVolumeControl extends StatefulWidget {
 class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
   bool get _screen => widget.channel == LocalAudioChannel.screen;
 
-  String get _label => _screen ? 'Screen audio' : 'Volume for you';
+  String get _label =>
+      widget.label ?? (_screen ? 'Screen audio' : 'Volume for you');
 
   /// The slider owns its position while it is being dragged. Reading it back
   /// from the session on every frame would make the drag depend on a round

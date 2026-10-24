@@ -47,14 +47,14 @@ class ScreenShareStage extends ConsumerWidget {
     this.onFocus,
     this.focused = false,
     this.showCaption = true,
-    this.onStreamVolume,
+    this.streamVolume,
   });
 
   /// Off where a caption under the tile already names the sharer, as in the share grid.
   final bool showCaption;
 
   /// Opens this share's own volume, anchored to the given context; null when it carries no sound.
-  final void Function(BuildContext anchor)? onStreamVolume;
+  final Widget? streamVolume;
 
   /// Stops watching this share; null where the tile is not a choosable share.
   final VoidCallback? onStopWatching;
@@ -127,7 +127,6 @@ class ScreenShareStage extends ConsumerWidget {
     final popOutId = popOutIdentity;
     final canPopOut =
         popOutId != null && !isLocal && ref.watch(popOutSupportedProvider);
-    final volume = onStreamVolume;
     return ContextMenuRegion(
       itemsBuilder: (_, close) => shareStageMenuItems(
         close,
@@ -140,7 +139,7 @@ class ScreenShareStage extends ConsumerWidget {
                   kind: FeedKind.screenShare,
                 )
               : null,
-          onStreamVolume: volume == null ? null : () => volume(context),
+          streamVolume: streamVolume,
           onFocus: onFocus,
           focused: focused,
           onStopWatching: onStopWatching,

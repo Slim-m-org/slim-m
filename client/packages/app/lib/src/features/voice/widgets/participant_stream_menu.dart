@@ -16,7 +16,6 @@ import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart' show voiceParticipantsProvider;
 import 'fullscreen_video_overlay.dart';
-import 'participant_volume_popover.dart';
 import 'share_stage_controls.dart';
 
 /// Rows for [identity]'s live streams in the joined call; empty when they are
@@ -75,14 +74,8 @@ List<Widget> _screenRows(
     ShareStageMenu(
       sharerName: p.name,
       onPopOut: _popOut(ref, p, FeedKind.screenShare),
-      onStreamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
-          ? () => showParticipantVolumePopover(
-              context,
-              identity: p.identity,
-              name: p.name,
-              controller: controller,
-              screenOnly: true,
-            )
+      streamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
+          ? streamVolumeSlider(p.identity, controller)
           : null,
       onStopWatching: () => watch.stop(p.identity),
       onFullscreen: withFullscreen
