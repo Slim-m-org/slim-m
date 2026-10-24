@@ -42,8 +42,19 @@ const canvasLoadFailedMessage = 'The canvas could not be loaded.';
 
 /// Whether [error] says placing would fail the same way again: a refusal or a
 /// timeout freeze. Any other banner, a failed load included, leaves drawing available.
-bool canvasErrorBlocksDrawing(String? error) =>
-    error != null &&
-    (error == _drawRefusedMessage ||
-        error == canvasUnavailableMessage ||
-        error.startsWith(_timedOutPrefix));
+/// If [timedOutUntil] is provided, an expired timeout is no longer treated as blocking.
+bool canvasErrorBlocksDrawing(String? error, {int? timedOutUntil}) {
+  if (error == null) return false;
+  if (error == _drawRefusedMessage || error == canvasUnavailableMessage) {
+    return true;
+  }
+  if (error.startsWith(_timedOutPrefix)) {
+    if (timedOutUntil != null) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        timedOutUntil,
+      ).isAfter(DateTime.now());
+    }
+    return true;
+  }
+  return false;
+}

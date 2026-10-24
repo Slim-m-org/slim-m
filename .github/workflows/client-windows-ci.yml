@@ -13,7 +13,17 @@ on:
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"
       - "!client/packages/app/pubspec.yaml"
-  # Also nightly and by hand, and off pull requests: it gates nothing, so a PR push should not take a slot for it.
+  pull_request:
+    paths:
+      - "client/packages/platform/windows/**"
+      - "client/packages/app/windows/**"
+      - "client/windows/**"
+      - "packaging/windows/**"
+      - ".github/workflows/client-windows-ci.yml"
+      - ".github/actions/install-inno-setup/**"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
+  # Also nightly and by hand; PRs are path-gated to Windows native files.
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:

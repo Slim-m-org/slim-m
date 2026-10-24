@@ -60,6 +60,7 @@ import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
+import '../../channels/providers/threads.dart' show openThreadProvider;
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/share_watch.dart';
@@ -263,6 +264,26 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     final editingNote = _editingNoteId != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
+    final timeoutLapsed =
+        engineState.error != null &&
+        engineState.error!.startsWith("You're timed out and can't draw") &&
+        me?.timedOutUntil != null &&
+        DateTime.fromMillisecondsSinceEpoch(
+          me!.timedOutUntil!,
+        ).isBefore(DateTime.now());
+    final activeError = timeoutLapsed ? null : engineState.error;
+    if (timeoutLapsed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _engine.reportError(null);
+      });
+    }
+    final canDraw = !canvasErrorBlocksDrawing(
+      activeError,
+      timedOutUntil: me?.timedOutUntil,
+    );
+    if (!canDraw && _tool.placesObjects) {
+      _tool = CanvasTool.pan;
+    }
     // Held here: the layer reports its release from dispose, when ref can no longer be read.
     final interest = ref.read(videoInterestRelayProvider);
     return CanvasRealWindowScope(
@@ -278,6 +299,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             else if (fullscreen)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _escapeFullscreen
+            else if (_threadPaneDocked)
+              const SingleActivator(LogicalKeyboardKey.escape): _closeThreadPane
             else if (_memberPaneDocked)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _closeMemberPane,
@@ -293,12 +316,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             child: Focus(
               skipTraversal: true,
               focusNode: _focusNode,
-              onKeyEvent: (_, event) => _onToolKey(
-                event,
-                canDraw: !canvasErrorBlocksDrawing(engineState.error),
-              ),
+              onKeyEvent: (_, event) => _onToolKey(event, canDraw: canDraw),
               child: AppDropZone(
-                enabled: !canvasErrorBlocksDrawing(engineState.error),
+                enabled: canDraw,
                 label: 'Drop an image to place it',
                 icon: AppIcons.image,
                 onDrop: (items) => unawaited(_dropImage(items)),
@@ -328,10 +348,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                       unawaited(_imagePaste.pasteAt(world)),
                   onRecenter: _onRecenter,
                   onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
-                  error: engineState.error,
+                  error: activeError,
                   onDismissError: () => _engine.reportError(null),
-                  onRetryError:
-                      engineState.error == CanvasEngine.genericLoadError
+                  onRetryError: activeError == CanvasEngine.genericLoadError
                       ? () => unawaited(_engine.fetch())
                       : null,
                   truncated: engineState.truncated,
