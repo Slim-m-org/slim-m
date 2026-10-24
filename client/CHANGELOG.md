@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.118.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.117.0...client-v0.118.0) (2026-10-24)
+
+
+### Features
+
+* v118, the module platform: events, per-module data, settings, slots and voice sessions ([#2298](https://github.com/Slim-m-org/slim-m/issues/2298)) ([99def6d](https://github.com/Slim-m-org/slim-m/commit/99def6dd998af85f00208ecb9beecec7209682e5))
+
 ## [0.117.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.116.0...client-v0.117.0) (2026-10-23)
 
 
