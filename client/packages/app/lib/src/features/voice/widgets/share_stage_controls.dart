@@ -69,11 +69,14 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
 }
 
 /// A person's screen volume as an inline slider row, so changing it is one drag in the menu.
-Widget streamVolumeSlider(String identity, VoiceController controller) =>
-    ParticipantVolumeControl(
-      identity: identity,
-      controller: controller,
-      channel: LocalAudioChannel.screen,
-      label: 'Stream volume',
-      autofocus: true,
-    );
+Widget streamVolumeSlider(
+  String identity,
+  VoiceController controller, {
+  bool autofocus = true,
+}) => ParticipantVolumeControl(
+  identity: identity,
+  controller: controller,
+  channel: LocalAudioChannel.screen,
+  label: 'Stream volume',
+  autofocus: autofocus,
+);

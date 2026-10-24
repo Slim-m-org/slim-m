@@ -26,6 +26,7 @@ List<Widget> participantStreamMenuItems(
   required String identity,
   required VoidCallback close,
   bool withFullscreen = true,
+  bool autofocusStreamVolume = true,
 }) {
   final live = ref
       .read(voiceParticipantsProvider)
@@ -34,7 +35,14 @@ List<Widget> participantStreamMenuItems(
   if (live == null) return const [];
   return [
     if (live.isScreenSharing)
-      ..._screenRows(context, ref, live, close, withFullscreen),
+      ..._screenRows(
+        context,
+        ref,
+        live,
+        close,
+        withFullscreen,
+        autofocusStreamVolume,
+      ),
     ..._cameraRows(context, ref, live, close, withFullscreen),
   ];
 }
@@ -54,6 +62,7 @@ List<Widget> _screenRows(
   VoiceParticipant p,
   VoidCallback close,
   bool withFullscreen,
+  bool autofocusVolume,
 ) {
   final watch = ref.read(shareWatchProvider.notifier);
   if (ref.read(shareWatchProvider).stopped.contains(p.identity)) {
@@ -75,7 +84,11 @@ List<Widget> _screenRows(
       sharerName: p.name,
       onPopOut: _popOut(ref, p, FeedKind.screenShare),
       streamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
-          ? streamVolumeSlider(p.identity, controller)
+          ? streamVolumeSlider(
+              p.identity,
+              controller,
+              autofocus: autofocusVolume,
+            )
           : null,
       onStopWatching: () => watch.stop(p.identity),
       onFullscreen: withFullscreen
