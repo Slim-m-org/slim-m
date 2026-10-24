@@ -21,6 +21,8 @@ const MAX_CONDITIONS: usize = 16;
 const MAX_IN_VALUES: usize = 100;
 const MAX_ORDER: usize = 4;
 pub(super) const MAX_INCREMENT: i64 = 1 << 53;
+/// [`MAX_INCREMENT`] as a real, which 2^53 is exactly.
+const MAX_INCREMENT_REAL: f64 = 9_007_199_254_740_992.0;
 pub(super) const ID: &str = "_id";
 
 #[derive(Debug, Clone, PartialEq)]
@@ -136,6 +138,15 @@ pub(super) fn column_type(table: &Table, name: &str) -> Result<ColumnType, Strin
         .ok_or_else(|| "unknown column".to_owned())
 }
 
+/// Whether an increment amount is beyond what a counter may move by in one step.
+pub(super) fn amount_out_of_range(bind: &Bind) -> bool {
+    match bind {
+        Bind::Int(n) => n.abs() > MAX_INCREMENT,
+        Bind::Real(x) => !x.is_finite() || x.abs() > MAX_INCREMENT_REAL,
+        Bind::Text(_) | Bind::Null => false,
+    }
+}
+
 pub(super) fn to_bind(ty: ColumnType, value: &Value) -> Result<Bind, String> {
     match (ty, value) {
         (_, Value::Null) => Ok(Bind::Null),
@@ -244,7 +255,7 @@ fn increment(table: &Table, q: &Quoted, req: &Request) -> Result<Statement, Stri
         (Some(v), _) => to_bind(ty, v)?,
         (None, _) => return Err("increment needs by".to_owned()),
     };
-    if matches!(by, Bind::Null) || matches!(by, Bind::Int(n) if n.abs() > MAX_INCREMENT) {
+    if matches!(by, Bind::Null) || amount_out_of_range(&by) {
         return Err("by is out of range".to_owned());
     }
     let mut binds = vec![by];

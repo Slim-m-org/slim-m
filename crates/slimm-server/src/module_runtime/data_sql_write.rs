@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 use super::data_schema::{ColumnType, Table};
 use super::data_sql::{
-    Bind, ID, MAX_INCREMENT, Quoted, Request, Shape, Statement, column_type, quote, to_bind,
+    Bind, ID, Quoted, Request, Shape, Statement, amount_out_of_range, column_type, quote, to_bind,
     where_clause,
 };
 
@@ -42,7 +42,7 @@ fn additions(
             return Err("add amounts cannot be null".to_owned());
         }
         let bind = to_bind(ty, value)?;
-        if matches!(bind, Bind::Int(n) if n.abs() > MAX_INCREMENT) {
+        if amount_out_of_range(&bind) {
             return Err("add amount is out of range".to_owned());
         }
         out.push((name.clone(), bind));

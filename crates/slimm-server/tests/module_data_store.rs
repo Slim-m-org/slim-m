@@ -234,3 +234,21 @@ async fn hostile_input_is_refused_or_stored_as_plain_data() {
     let still = r.ok(json!({ "op": "count", "table": "xp" }));
     assert_eq!(still["count"], json!(2));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_real_amount_that_could_overflow_is_refused_and_an_overflowing_sum_is_not_null() {
+    let (mut r, _g) = rig("slimm-data-real-overflow").await;
+    r.ok(json!({ "op": "insert", "table": "xp", "values": { "user_id": "a", "ratio": 1.7e308 } }));
+    r.ok(json!({ "op": "insert", "table": "xp", "values": { "user_id": "b", "ratio": 1.7e308 } }));
+
+    let huge =
+        r.refused(json!({ "op": "increment", "table": "xp", "col": "ratio", "by": 1.0e308 }));
+    assert!(huge.contains("out of range"), "{huge}");
+    let upsert = r.refused(json!({ "op": "upsert", "table": "xp", "on": "user_id",
+        "values": { "user_id": "a" }, "add": { "ratio": 1.0e308 } }));
+    assert!(upsert.contains("out of range"), "{upsert}");
+    r.ok(json!({ "op": "increment", "table": "xp", "col": "ratio", "by": 4.5 }));
+
+    let sum = r.refused(json!({ "op": "sum", "table": "xp", "col": "ratio" }));
+    assert!(!sum.is_empty(), "an infinite total is an error, not a null");
+}

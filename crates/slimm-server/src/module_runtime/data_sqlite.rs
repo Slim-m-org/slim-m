@@ -432,11 +432,12 @@ fn decode(row: &SqliteRow, index: usize, ty: ColumnType) -> Result<Value, DataEr
     let bad = |_| DataError::Unavailable;
     Ok(match ty {
         ColumnType::Int => row.try_get::<Option<i64>, _>(index).map_err(bad)?.into(),
-        ColumnType::Real => row
-            .try_get::<Option<f64>, _>(index)
-            .map_err(bad)?
-            .and_then(serde_json::Number::from_f64)
-            .map_or(Value::Null, Value::Number),
+        ColumnType::Real => match row.try_get::<Option<f64>, _>(index).map_err(bad)? {
+            None => Value::Null,
+            Some(x) => {
+                Value::Number(serde_json::Number::from_f64(x).ok_or(DataError::Unavailable)?)
+            }
+        },
         ColumnType::Text => row.try_get::<Option<String>, _>(index).map_err(bad)?.into(),
         ColumnType::Bool => row
             .try_get::<Option<i64>, _>(index)
