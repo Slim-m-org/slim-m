@@ -181,13 +181,15 @@ def _report_avatars(restored_db, backup_root):
     return not (avatars["missing"] or avatars["malformed"])
 
 
-def _report_modules(backup_root):
-    modules = backup_modules.check_modules(backup_root)
+def _report_modules(restored_db, backup_root):
+    modules = backup_modules.check_modules(backup_root, restored_db)
     print(f"modules: {len(modules['verified'])}/"
           f"{len(modules['verified']) + len(modules['broken'])} data files verified")
     for name, result in modules["broken"]:
         print(f"  BROKEN     modules/{name}: {result}", file=sys.stderr)
-    return not modules["broken"]
+    for name in modules["missing"]:
+        print(f"  MISSING    modules/{name}", file=sys.stderr)
+    return not (modules["broken"] or modules["missing"])
 
 
 def _drill(snapshot, scratch_dir, backup_root):
@@ -204,7 +206,7 @@ def _drill(snapshot, scratch_dir, backup_root):
 
     ok = _report_attachments(restored_db, backup_root)
     ok = _report_avatars(restored_db, backup_root) and ok
-    ok = _report_modules(backup_root) and ok
+    ok = _report_modules(restored_db, backup_root) and ok
     print("PASS" if ok else "FAIL")
     return 0 if ok else 1
 

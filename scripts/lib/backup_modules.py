@@ -8,6 +8,7 @@ never leaves a torn copy. The mirror keeps the latest copy of each file under
 `<backup-root>/modules/`; it is taken moments after the main snapshot, not in
 the same transaction.
 """
+import json
 import re
 import sqlite3
 from pathlib import Path
@@ -56,8 +57,38 @@ def backup_modules(modules_dir, backup_root):
     return {"total": len(sources), "copied": copied, "failed": failed}
 
 
-def check_modules(backup_root):
-    """Opens every mirrored file on its own and runs `PRAGMA integrity_check`."""
+def expected_module_files(db_path):
+    """File names of the installed modules the main database says keep data.
+
+    A module keeps a file only with a `data` section and an approved `data.store`.
+    A snapshot from before the module tables existed expects none.
+    """
+    conn = sqlite3.connect(f"file:{quote(str(Path(db_path).resolve()), safe='/')}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            "SELECT id, data_schema, approved_host_capabilities FROM installed_modules"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+    names = []
+    for module_id, data_schema, approved in rows:
+        try:
+            has_data = json.loads(data_schema) is not None
+            approved_store = "data.store" in json.loads(approved)
+        except (TypeError, ValueError):
+            continue
+        if has_data and approved_store:
+            names.append(f"{module_id}.db")
+    return sorted(names)
+
+
+def check_modules(backup_root, restored_db=None):
+    """Opens every mirrored file on its own and runs `PRAGMA integrity_check`.
+
+    With `restored_db`, also reports the files the installed modules should have had.
+    """
     verified, broken = [], []
     for path in module_files(Path(backup_root, "modules")):
         conn = sqlite3.connect(f"file:{quote(str(path.resolve()), safe='/')}?mode=ro", uri=True)
@@ -68,4 +99,8 @@ def check_modules(backup_root):
         finally:
             conn.close()
         (verified if result == "ok" else broken).append((path.name, result))
-    return {"verified": [n for n, _ in verified], "broken": broken}
+    missing = []
+    if restored_db is not None:
+        mirrored = {path.name for path in module_files(Path(backup_root, "modules"))}
+        missing = [name for name in expected_module_files(restored_db) if name not in mirrored]
+    return {"verified": [n for n, _ in verified], "broken": broken, "missing": missing}

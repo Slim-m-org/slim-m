@@ -154,6 +154,45 @@ class RestoreDrillModulesTest(ModulesTestCase):
 
         self.assertEqual(self._drill(), 1)
 
+    def _install(self, module_id, data_schema, approved):
+        snapshot = next((self.backup_root / "db").glob("slimm-*.db"))
+        conn = sqlite3.connect(snapshot)
+        values = {"id": module_id, "data_schema": data_schema, "approved_host_capabilities": approved}
+        for _, name, kind, notnull, default, _pk in conn.execute("PRAGMA table_info(installed_modules)"):
+            if name not in values and notnull and default is None:
+                values[name] = 0 if kind.upper() == "INTEGER" else "x"
+        columns = ", ".join(values)
+        marks = ", ".join("?" for _ in values)
+        conn.execute(
+            f"INSERT INTO installed_modules ({columns}) VALUES ({marks})", tuple(values.values())
+        )
+        conn.commit()
+        conn.close()
+
+    def _drill_with(self, module_id, data_schema, approved):
+        fixtures.build_database(self.backup_root / "db" / "slimm-20260101T000000Z.db")
+        self._install(module_id, data_schema, approved)
+        args = restore_drill_lib.parse_args(["--backup-root", str(self.backup_root)])
+        return restore_drill_lib.run(args)
+
+    def test_an_installed_module_with_data_but_no_mirrored_file_fails_the_drill(self):
+        self.assertEqual(
+            self._drill_with("scores", '{"tables":[]}', '["data.store"]'), 1
+        )
+
+    def test_a_module_with_no_data_section_passes_the_drill(self):
+        self.assertEqual(self._drill_with("plain", "null", '["data.store"]'), 0)
+
+    def test_a_module_whose_data_store_was_never_approved_passes_the_drill(self):
+        self.assertEqual(self._drill_with("unapproved", '{"tables":[]}', "[]"), 0)
+
+    def test_an_installed_module_with_data_and_its_mirrored_file_passes(self):
+        self.make_module_file("scores.db").close()
+        backup_modules.backup_modules(self.modules_dir, self.backup_root)
+        self.assertEqual(
+            self._drill_with("scores", '{"tables":[]}', '["data.store"]'), 0
+        )
+
     def test_no_modules_mirror_is_fine(self):
         self.assertEqual(self._drill(), 0)
 
