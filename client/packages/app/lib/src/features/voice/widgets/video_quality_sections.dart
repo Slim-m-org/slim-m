@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/live_quality_restart.dart'
+    show shareSettingsPendingNote, shareSettingsPendingProvider;
 import '../providers/video_pause.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_settings_controller.dart';
@@ -27,6 +29,9 @@ class VideoQualitySection extends ConsumerWidget {
     final settings = ref.watch(voiceSettingsControllerProvider);
     final notifier = ref.read(voiceSettingsControllerProvider.notifier);
     // A plain getter, not provider state, so `ref.read` rather than `ref.watch`.
+    final note = ref.watch(shareSettingsPendingProvider)
+        ? shareSettingsPendingNote
+        : null;
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
         .supportsScreenShareAudio;
@@ -55,6 +60,7 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             _QualityRow<ScreenShareResolution>(
               label: 'Screen share resolution',
+              description: note,
               footnote: screenShareSizeNote(
                 settings.screenShareQuality.resolution,
                 _largestDisplayHeight(),
@@ -66,6 +72,7 @@ class VideoQualitySection extends ConsumerWidget {
             ),
             _QualityRow<ScreenShareFps>(
               label: 'Screen share frame rate',
+              description: note,
               values: ScreenShareFps.values,
               selected: settings.screenShareQuality.frameRate,
               nameOf: (f) => f.label,
@@ -80,6 +87,7 @@ class VideoQualitySection extends ConsumerWidget {
             if (supportsAudio)
               SettingsToggleRow(
                 label: 'Share device audio',
+                description: note,
                 value: settings.screenShareIncludeAudio,
                 semanticLabel: 'Share audio with a screen share',
                 onChanged: notifier.setScreenShareIncludeAudio,

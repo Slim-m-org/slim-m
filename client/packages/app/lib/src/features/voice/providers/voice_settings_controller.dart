@@ -399,7 +399,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setString(_receiveQualityKey, quality.name);
   }
 
-  /// [setReceiveVideoQuality]'s counterpart for your camera.
+  /// [setReceiveVideoQuality]'s counterpart; a live camera restarts shortly after.
   Future<void> setCameraQuality(CameraQuality quality) async {
     state = state.copyWith(cameraQuality: quality);
     _ref.read(voiceControllerProvider.notifier).setCameraQuality(quality);

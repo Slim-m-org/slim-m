@@ -75,4 +75,25 @@ mixin VoiceControllerVideoMixin on StateNotifier<VoiceState> {
     );
     return ok;
   }
+
+  /// Turns a live camera off and on again so a new quality takes effect;
+  /// the device, mute and hidden choices live outside the track and carry over.
+  Future<void> restartCamera() async {
+    if (!state.cameraEnabled || state.cameraPending) return;
+    final channelId = state.channelId;
+    state = state.copyWith(cameraPending: true);
+    final (off, offCause) = await setCameraWithin(_videoSession, false);
+    final (on, onCause) = off
+        ? await setCameraWithin(_videoSession, true)
+        : (false, null);
+    if (state.channelId != channelId) return;
+    final failed = !off || !on;
+    state = state.copyWith(
+      cameraPending: false,
+      cameraEnabled: !off ? state.cameraEnabled : on,
+      error: failed
+          ? cameraFailureMessage(off, off ? onCause : offCause)
+          : null,
+    );
+  }
 }

@@ -109,6 +109,20 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     return true;
   }
 
+  /// Every start or stop the session was asked for, in order.
+  final shareCalls =
+      <
+        ({
+          bool enabled,
+          ScreenShareQuality quality,
+          String? sourceId,
+          bool includeAudio,
+        })
+      >[];
+
+  /// Every camera on or off the session was asked for, in order.
+  final cameraToggles = <bool>[];
+
   /// Every `includeAudio` a call to [setScreenShareEnabled] received, in
   /// order.
   final List<bool> screenShareAudioCalls = [];
@@ -136,7 +150,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   /// What a request to start sharing reports back. Every branch the
   /// controller has to tell apart is one of these.
-  final ScreenShareOutcome screenShareOutcome;
+  ScreenShareOutcome screenShareOutcome;
   final bool deafenGranted;
 
   /// Whether this platform makes a share name a screen first.
@@ -357,6 +371,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<bool> setCameraEnabled(bool enabled) async {
     askedForCameraOnToggle = enabled;
+    cameraToggles.add(enabled);
     if (!cameraGranted) {
       final reason = cameraFailureReason;
       _lastError = reason == null
@@ -375,6 +390,12 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     int? maxHeight,
   }) async {
     lastSourceId = sourceId;
+    shareCalls.add((
+      enabled: enabled,
+      quality: quality,
+      sourceId: sourceId,
+      includeAudio: includeAudio,
+    ));
     screenShareAudioCalls.add(includeAudio);
     if (!enabled) return ScreenShareOutcome.stopped;
     // The real session records the cause first; a fake that skips it hides a dropped cause.
