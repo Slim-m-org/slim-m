@@ -125,6 +125,11 @@ Widget screenShareStatusCard({
       'Loading screen share',
       "Waiting for $name's first frame",
     ),
+    ScreenShareStatus.resuming => (
+      AppIcons.screenShare,
+      'Resuming screen share',
+      "Catching up with $name's share",
+    ),
     ScreenShareStatus.paused => (
       AppIcons.pause,
       'Share paused',

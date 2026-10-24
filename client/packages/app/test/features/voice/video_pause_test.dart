@@ -67,36 +67,55 @@ Future<void> _go(AppLifecycleState state) async {
 
 void main() {
   group('shouldPauseLocalPreview', () {
-    bool pauses(AppLifecycleState s, {bool setting = true, bool pip = false}) =>
-        shouldPauseLocalPreview(
-          lifecycle: s,
-          pauseWhenUnfocused: setting,
-          pictureInPicture: pip,
-        );
-
-    test('a focused window never pauses', () async {
-      expect(pauses(AppLifecycleState.resumed), isFalse);
-    });
-
-    test(
-      'hidden, paused and detached pause whatever the setting says',
-      () async {
-        for (final s in [
-          AppLifecycleState.hidden,
-          AppLifecycleState.paused,
-          AppLifecycleState.detached,
-        ]) {
-          expect(pauses(s, setting: false), isTrue, reason: '$s');
-        }
-      },
+    bool pauses(
+      AppLifecycleState s, {
+      bool setting = true,
+      bool desktop = true,
+      bool pip = false,
+    }) => shouldPauseLocalPreview(
+      lifecycle: s,
+      pauseWhenMinimised: setting,
+      desktop: desktop,
+      pictureInPicture: pip,
     );
 
-    test('an unfocused window pauses only when the setting is on', () async {
-      expect(pauses(AppLifecycleState.inactive), isTrue);
-      expect(pauses(AppLifecycleState.inactive, setting: false), isFalse);
+    const away = [
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.detached,
+    ];
+
+    test('a focused or merely unfocused window never pauses', () {
+      for (final setting in [true, false]) {
+        for (final desktop in [true, false]) {
+          for (final s in [
+            AppLifecycleState.resumed,
+            AppLifecycleState.inactive,
+          ]) {
+            expect(
+              pauses(s, setting: setting, desktop: desktop),
+              isFalse,
+              reason: '$s setting=$setting desktop=$desktop',
+            );
+          }
+        }
+      }
     });
 
-    test('picture-in-picture is never paused', () async {
+    test('a hidden desktop window pauses only when the setting is on', () {
+      for (final s in away) {
+        expect(pauses(s), isTrue, reason: '$s');
+        expect(pauses(s, setting: false), isFalse, reason: '$s off');
+      }
+    });
+
+    test('a backgrounded phone pauses whatever the setting says', () {
+      for (final s in away) {
+        expect(pauses(s, desktop: false, setting: false), isTrue, reason: '$s');
+      }
+    });
+
+    test('picture-in-picture is never paused', () {
       for (final s in AppLifecycleState.values) {
         expect(pauses(s, pip: true), isFalse, reason: '$s');
       }
@@ -158,23 +177,22 @@ void main() {
     final remoteCamera = find.byKey(const Key('fake-camera-view-u-ada'));
     final localCamera = find.byKey(const Key('fake-camera-view-u-me'));
 
-    testWidgets(
-      'an unfocused window keeps remote video and pauses the preview',
-      (tester) async {
-        final c = await pump(tester);
-        expect(localCamera, findsOneWidget);
-        c
-            .read(appLifecycleProvider.notifier)
-            .didChangeAppLifecycleState(AppLifecycleState.inactive);
-        await tester.pump();
-        expect(remoteShare, findsOneWidget);
-        expect(remoteCamera, findsOneWidget);
-        expect(localCamera, findsNothing);
-        expect(find.text('Resume'), findsOneWidget);
-      },
-    );
+    testWidgets('an unfocused window keeps remote video and the preview', (
+      tester,
+    ) async {
+      final c = await pump(tester);
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(remoteShare, findsOneWidget);
+      expect(remoteCamera, findsOneWidget);
+      expect(localCamera, findsOneWidget);
+    });
 
-    testWidgets('a minimised window still keeps remote video', (tester) async {
+    testWidgets('a minimised window still keeps remote video tiles', (
+      tester,
+    ) async {
       final c = await pump(tester);
       c
           .read(appLifecycleProvider.notifier)
@@ -187,20 +205,20 @@ void main() {
     testWidgets('the preview comes back with focus', (tester) async {
       final c = await pump(tester);
       final life = c.read(appLifecycleProvider.notifier);
-      life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+      life.didChangeAppLifecycleState(AppLifecycleState.hidden);
       await tester.pump();
       life.didChangeAppLifecycleState(AppLifecycleState.resumed);
       await tester.pump();
       expect(localCamera, findsOneWidget);
     });
 
-    testWidgets('the setting off keeps the preview while unfocused', (
+    testWidgets('the setting off keeps the preview while minimised', (
       tester,
     ) async {
       final c = await pump(tester, setting: false);
       c
           .read(appLifecycleProvider.notifier)
-          .didChangeAppLifecycleState(AppLifecycleState.inactive);
+          .didChangeAppLifecycleState(AppLifecycleState.hidden);
       await tester.pump();
       expect(localCamera, findsOneWidget);
       expect(remoteShare, findsOneWidget);
@@ -220,7 +238,6 @@ void main() {
           AppLifecycleState.hidden,
           AppLifecycleState.paused,
           AppLifecycleState.detached,
-          AppLifecycleState.inactive,
         ]) {
           c.read(appLifecycleProvider.notifier).didChangeAppLifecycleState(s);
           await tester.pump();
@@ -234,7 +251,22 @@ void main() {
       },
     );
 
-    testWidgets('losing focus keeps receiving video when the setting is off', (
+    testWidgets('an unfocused window keeps its video interest', (tester) async {
+      final c = await pump(tester);
+      c.read(videoInterestHostProvider);
+      await tester.pump();
+      c.read(videoInterestRelayProvider).refresh();
+      final shown = _lastSession!.videoInterests.last;
+      expect(shown, isNotEmpty);
+      c
+          .read(appLifecycleProvider.notifier)
+          .didChangeAppLifecycleState(AppLifecycleState.inactive);
+      await tester.pump();
+      expect(c.read(remoteVideoSeenProvider), isTrue);
+      expect(_lastSession!.videoInterests.last, shown);
+    });
+
+    testWidgets('minimising keeps receiving video when the setting is off', (
       tester,
     ) async {
       final c = await pump(tester, setting: false);
@@ -242,16 +274,33 @@ void main() {
       await tester.pump();
       c
           .read(appLifecycleProvider.notifier)
-          .didChangeAppLifecycleState(AppLifecycleState.inactive);
-      await tester.pump();
-      expect(c.read(remoteVideoSeenProvider), isTrue);
-      c
-          .read(appLifecycleProvider.notifier)
           .didChangeAppLifecycleState(AppLifecycleState.hidden);
       await tester.pump();
-      expect(c.read(remoteVideoSeenProvider), isFalse);
-      expect(_lastSession!.videoInterests.last, isEmpty);
+      expect(c.read(remoteVideoSeenProvider), isTrue);
     });
+
+    test(
+      'a phone still pauses when backgrounded, not on a shade pull',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final c = ProviderContainer(
+          overrides: [
+            preferencesProvider.overrideWith(
+              (ref) => SharedPreferences.getInstance(),
+            ),
+            pauseOnUnfocusedAppliesProvider.overrideWithValue(false),
+          ],
+        );
+        addTearDown(c.dispose);
+        final life = c.read(appLifecycleProvider.notifier);
+        life.didChangeAppLifecycleState(AppLifecycleState.inactive);
+        expect(c.read(remoteVideoSeenProvider), isTrue);
+        life.didChangeAppLifecycleState(AppLifecycleState.paused);
+        expect(c.read(remoteVideoSeenProvider), isFalse);
+        await c.read(preferencesProvider.future);
+        await Future<void>.delayed(Duration.zero);
+      },
+    );
 
     testWidgets('a connected call with no video mounted wants none', (
       tester,
