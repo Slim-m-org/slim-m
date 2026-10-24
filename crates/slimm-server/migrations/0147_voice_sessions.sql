@@ -1,4 +1,4 @@
--- SPDX-License-Identifier: AGPL-3.0-only
+-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 -- One row per member per call (decision 0091): opened by the LiveKit join
 -- webhook, closed by its leave, a finished room, a stale heartbeat or a
 -- restart, so a missed leave still ends the session. Times are milliseconds.
