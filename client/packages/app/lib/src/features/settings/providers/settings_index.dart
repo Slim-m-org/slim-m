@@ -302,9 +302,8 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
-    'Pause my preview when unfocused',
-    description:
-        'Stops your own camera and screen preview behind other windows.',
+    'Pause video when minimised',
+    description: 'Stops receiving video while the window is minimised.',
   ),
   SettingsEntry(
     'voice',

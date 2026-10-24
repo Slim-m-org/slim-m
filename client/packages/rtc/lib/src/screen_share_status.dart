@@ -9,6 +9,9 @@ enum ScreenShareStatus {
   /// The share is announced but its track or first frame has not arrived.
   loading,
 
+  /// The track is coming back after this tile had already shown a picture.
+  resuming,
+
   /// The sharer paused it: the publication is muted.
   paused,
 

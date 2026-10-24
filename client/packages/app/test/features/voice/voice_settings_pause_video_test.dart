@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The "pause video when not focused" preference: on by default, persisted
+/// The "pause video when minimised" preference: on by default, persisted
 /// when turned off, and absent where losing focus cannot pause anything.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slimm_app/src/features/settings/providers/settings_index.dart';
 import 'package:slimm_app/src/features/voice/providers/video_pause.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
@@ -13,7 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import 'voice_settings_screen_harness.dart';
 
-const _label = 'Pause my preview when slim-m is not focused';
+const _label = 'Pause video when slim-m is minimised';
 const _key = 'slimm.voice.pause_video_when_unfocused';
 
 Finder get _toggle =>
@@ -57,7 +58,13 @@ void main() {
     tester,
   ) async {
     await _pump(tester, desktop: false);
-    expect(find.text('Pause my preview when unfocused'), findsNothing);
+    expect(find.text('Pause video when minimised'), findsNothing);
     expect(_toggle, findsNothing);
+  });
+
+  test('the settings index finds it by its new label only', () {
+    final hit = searchSettings('pause video', personalSettingsIndex);
+    expect(hit.map((e) => e.label), contains('Pause video when minimised'));
+    expect(searchSettings('pause my preview', personalSettingsIndex), isEmpty);
   });
 }

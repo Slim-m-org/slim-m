@@ -26,12 +26,9 @@ class LocalPreviewGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (!ref.watch(localPreviewPausedProvider)) return child;
     return VideoStateCard(
-      title: "Preview paused while you're in another window",
+      title: 'Preview paused while minimised',
       identity: identity,
       name: name,
-      actionLabel: 'Resume',
-      onAction: () =>
-          ref.read(localPreviewResumedProvider.notifier).state = true,
     );
   }
 }
