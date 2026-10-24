@@ -19,12 +19,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
-const _items = [
-  'Pop out stream',
-  'Stream volume',
-  'Hide stream',
-  'Full screen',
-];
+const _items = ['Pop out stream', 'Hide stream', 'Full screen'];
 
 Future<({ProviderContainer container, List<String> calls})> _pumpStage(
   WidgetTester tester,
@@ -49,7 +44,7 @@ Future<({ProviderContainer container, List<String> calls})> _pumpStage(
             child: ScreenShareStage(
               sharerName: 'Ada',
               popOutIdentity: 'u-ada',
-              onStreamVolume: (_) => calls.add('volume'),
+              streamVolume: const Text('Stream volume'),
               onStopWatching: () => calls.add('hide'),
               onExpand: () => calls.add('fullscreen'),
               child: const SizedBox(),
@@ -88,13 +83,13 @@ void main() {
       final rig = await _pumpStage(tester);
       await entry.value(tester);
       expect(_labels(tester), _items);
+      expect(find.text('Stream volume'), findsOneWidget);
 
       await tester.tap(find.text('Pop out stream'));
       await tester.pumpAndSettle();
       expect(rig.container.read(popOutFeedProvider)?.identity, 'u-ada');
 
       for (final (label, call) in [
-        ('Stream volume', 'volume'),
         ('Hide stream', 'hide'),
         ('Full screen', 'fullscreen'),
       ]) {
