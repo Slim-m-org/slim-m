@@ -30,6 +30,7 @@ const _sensitivityKey = 'slimm.voice.activity_sensitivity';
 const _inputThresholdKey = 'slimm.voice.input_threshold_db';
 const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
+// Key kept from when this paused on focus loss, so saved values carry over.
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
@@ -155,7 +156,7 @@ class VoiceSettingsState {
     this.inputThresholdAuto = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
-    this.pauseVideoWhenUnfocused = true,
+    this.pauseVideoWhenMinimised = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
   });
@@ -226,7 +227,7 @@ class VoiceSettingsState {
   final bool screenShareIncludeAudio;
 
   /// Whether incoming video stops while the desktop window is visible but not focused.
-  final bool pauseVideoWhenUnfocused;
+  final bool pauseVideoWhenMinimised;
 
   /// The persisted microphone choice; null is the system default. Applied
   /// live through `VoiceControllerAudioDevicesMixin.selectAudioInputDevice`
@@ -253,7 +254,7 @@ class VoiceSettingsState {
     bool? inputThresholdAuto,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
-    bool? pauseVideoWhenUnfocused,
+    bool? pauseVideoWhenMinimised,
     String? audioInputDeviceId,
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
@@ -278,8 +279,8 @@ class VoiceSettingsState {
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
-    pauseVideoWhenUnfocused:
-        pauseVideoWhenUnfocused ?? this.pauseVideoWhenUnfocused,
+    pauseVideoWhenMinimised:
+        pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
     audioInputDeviceId: clearAudioInputDeviceId
         ? null
         : (audioInputDeviceId ?? this.audioInputDeviceId),
@@ -338,7 +339,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       inputThresholdAuto: prefs.getBool(_inputThresholdAutoKey) ?? false,
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
-      pauseVideoWhenUnfocused: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
+      pauseVideoWhenMinimised: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
       audioOutputDeviceId: prefs.getString(_audioOutputDeviceIdKey),
     );
@@ -399,7 +400,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setString(_receiveQualityKey, quality.name);
   }
 
-  /// [setReceiveVideoQuality]'s counterpart for your camera.
+  /// [setReceiveVideoQuality]'s counterpart; a live camera restarts shortly after.
   Future<void> setCameraQuality(CameraQuality quality) async {
     state = state.copyWith(cameraQuality: quality);
     _ref.read(voiceControllerProvider.notifier).setCameraQuality(quality);
@@ -413,8 +414,8 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(_shareAudioKey, enabled);
   }
 
-  Future<void> setPauseVideoWhenUnfocused(bool enabled) async {
-    state = state.copyWith(pauseVideoWhenUnfocused: enabled);
+  Future<void> setPauseVideoWhenMinimised(bool enabled) async {
+    state = state.copyWith(pauseVideoWhenMinimised: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_pauseVideoUnfocusedKey, enabled);
   }

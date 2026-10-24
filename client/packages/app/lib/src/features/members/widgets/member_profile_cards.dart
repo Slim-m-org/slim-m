@@ -29,6 +29,7 @@ import 'member_profile_identity.dart';
 import 'member_profile_links.dart';
 import 'member_profile_note_field.dart';
 import 'member_profile_sections.dart';
+import 'module_profile_slots.dart';
 import 'profile_banner.dart';
 import 'member_remove_from_channel.dart';
 import '../../voice/widgets/participant_actions.dart';
@@ -106,6 +107,7 @@ class SelfMemberCard extends ConsumerWidget {
           roles: profile.roles,
           createdAt: profile.createdAt,
         ),
+        ModuleProfileSlots(profile.id),
         const _Rule(),
         _Section([
           AppMenuItem(
@@ -150,9 +152,13 @@ class OtherMemberCard extends ConsumerStatefulWidget {
     this.callChannelName,
     this.channelId,
     this.memberPaneScaffold,
+    this.profileOnly = false,
   });
 
   final api.UserProfile profile;
+
+  /// Drops the volume, notify, moderate, report and block rows.
+  final bool profileOnly;
   final MemberModerationGates gates;
   final List<ParticipantAction> actions;
   final BuildContext host;
@@ -220,6 +226,7 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             until: profile.timedOutUntil!,
             onLift: gates.canTimeOut ? widget.onLiftTimeout : null,
           ),
+        ModuleProfileSlots(profile.id),
         const _Rule(),
         if (canMessage || !hasNote) _messageRow(canMessage, canCall, hasNote),
         if (hasNote || _noteRevealed)
@@ -227,12 +234,14 @@ class _OtherMemberCardState extends ConsumerState<OtherMemberCard> {
             subjectId: profile.id,
             autofocus: _noteRevealed && !hasNote,
           ),
-        const _Rule(),
-        if (widget.localAudio case final audio?) ...[audio, const _Rule()],
-        _menuSection(blocked: blocked),
-        if (inChannel || !blocked) ...[
+        if (!widget.profileOnly) ...[
           const _Rule(),
-          _dangerSection(inChannel: inChannel, blocked: blocked),
+          if (widget.localAudio case final audio?) ...[audio, const _Rule()],
+          _menuSection(blocked: blocked),
+          if (inChannel || !blocked) ...[
+            const _Rule(),
+            _dangerSection(inChannel: inChannel, blocked: blocked),
+          ],
         ],
       ],
     );

@@ -4,6 +4,7 @@
 //! commands people invoke (`super::module_commands`) and scheduled runs
 //! (`super::module_schedule`).
 
+use std::collections::BTreeMap;
 use std::time::Instant;
 
 use rand_core::{OsRng, RngCore};
@@ -14,7 +15,7 @@ use super::error::ApiError;
 use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
 use crate::ids::UserId;
-use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLimits};
+use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLane, RunLimits};
 use crate::store::{InstalledModule, RunResult, now_ms};
 
 #[derive(Serialize)]
@@ -25,6 +26,9 @@ struct ModuleWireRequest<'a> {
     entropy: String,
     /// The host's wall clock, UTC epoch milliseconds: a module has no clock of its own.
     now_ms: i64,
+    /// The admin's values over the manifest's defaults, left out when empty; secrets are never here.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    settings: BTreeMap<String, serde_json::Value>,
 }
 
 /// 16 fresh random bytes as hex, new for every run. A module has no random
@@ -52,12 +56,25 @@ struct ModuleWireResponse {
     error: Option<String>,
 }
 
-/// One gated run: who asked, for which command, and whether the timer did.
+/// Who started a run, which decides its lane and how it is held to account.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RunKind {
+    /// A member invoked a command and waits for the answer.
+    Command,
+    /// The host started it (schedule or pushed event): it draws on the
+    /// background lane, `ok:false` counts as failed, and the circuit breaker watches it.
+    Background,
+    /// A slot fill: its own lane, `ok:false` counts as failed in the stats,
+    /// but a member viewing profiles can never trip the breaker.
+    Slot,
+}
+
+/// One gated run: who asked, for which command, and what started it.
 pub(crate) struct RunRequest<'a> {
     pub(crate) caller: UserId,
     pub(crate) command: &'a str,
     pub(crate) input: &'a str,
-    pub(crate) scheduled: bool,
+    pub(crate) kind: RunKind,
 }
 
 /// Runs an already-gated command on `module`, with `surface` as its
@@ -71,8 +88,15 @@ pub(crate) async fn run_installed(
 ) -> Result<CommandOutcome, ApiError> {
     let started = Instant::now();
     let ran = run_checked(state, module, request, surface).await;
+    if request.kind == RunKind::Slot
+        && ran
+            .as_ref()
+            .is_ok_and(super::module_breaker::was_turned_away)
+    {
+        return ran;
+    }
     let result = match &ran {
-        Ok(outcome) if outcome.host_failed || (!outcome.ok && request.scheduled) => {
+        Ok(outcome) if outcome.host_failed || (!outcome.ok && request.kind != RunKind::Command) => {
             RunResult::Failed(outcome.payload.clone())
         }
         Ok(_) => RunResult::Ok,
@@ -92,6 +116,9 @@ pub(crate) async fn run_installed(
         .await
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
+    }
+    if request.kind == RunKind::Background {
+        super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
 }
@@ -120,6 +147,10 @@ async fn run_checked(
     {
         limits = limits.for_fetching();
     }
+    let settings = state
+        .store
+        .module_run_settings(module_id, &module.settings_schema)
+        .await?;
     let caller_key = state.store.module_caller_key().await?;
     let request_json = serde_json::to_vec(&ModuleWireRequest {
         command: request.command,
@@ -129,11 +160,18 @@ async fn run_checked(
         },
         entropy: run_entropy(),
         now_ms: now_ms(),
+        settings,
     })
     .map_err(|_| ApiError::Internal)?;
 
     let store = state.store.clone();
-    let ran = ModuleHost::run_loading(
+    let lane = match request.kind {
+        RunKind::Command => RunLane::Member,
+        RunKind::Background => RunLane::Background,
+        RunKind::Slot => RunLane::Slot,
+    };
+    let ran = ModuleHost::run_loading_in(
+        lane,
         &module.artifact_sha256,
         (limits, request_json, surface),
         || async move {

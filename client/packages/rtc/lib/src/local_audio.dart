@@ -5,7 +5,7 @@
 ///
 /// It is reapplied on every room event so a rejoined or resubscribed track
 /// keeps the listener's choice, skipping a push only when the track already
-/// has that state. Why it reads the track back rather than trusting what it
+/// has that state, and never trusting that across a replaced track. Why it reads the track back rather than trusting what it
 /// asked for is in docs/research/mic-handling.md.
 library;
 
@@ -13,6 +13,8 @@ import 'dart:async';
 
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'audio_apply_cache.dart';
+import 'audio_event_scope.dart';
 import 'audio_gain.dart';
 import 'package:slimm_api/api.dart' show LogLevel, LogTag, reportFailure;
 
@@ -39,17 +41,19 @@ typedef LocalAudioRef = ({
   Future<Object?> Function(double volume) setVolume,
 });
 
-/// The gain last successfully pushed to one platform track.
-///
-/// Only gain. Whether a track is silenced is read back from the track itself
-/// rather than remembered, so nothing here can disagree with the device.
-class _AppliedAudio {
-  const _AppliedAudio({required this.volume});
-
-  final double volume;
-}
-
 class LocalAudioState {
+  LocalAudioState({
+    this.retryDelays = const [
+      Duration(milliseconds: 100),
+      Duration(milliseconds: 400),
+      Duration(seconds: 1),
+    ],
+  });
+
+  /// Waits before each retry of a failed push; once spent, the next room
+  /// event is the only retry left.
+  final List<Duration> retryDelays;
+
   /// Receives one line per gain push, for the app's debug log.
   VoiceLog? log;
 
@@ -88,6 +92,25 @@ class LocalAudioState {
     LocalAudioChannel channel = LocalAudioChannel.voice,
   }) {
     _volumesOf(channel)[identity] = clampParticipantVolume(volume);
+    _cache.forget(identity: identity, channel: channel, volumeOnly: true);
+  }
+
+  /// Distrusts what was pushed to [identity] (everyone for [everyone]): a
+  /// room event may have put a new native receiver under the same Dart track.
+  void trackReplaced(String identity) {
+    _cache.forget(identity: identity == everyone ? null : identity);
+  }
+
+  /// People with a saved gain but no subscribed track to apply it to yet.
+  final Set<(String, LocalAudioChannel)> pending = {};
+
+  Timer? _retryTimer;
+  int _attempts = 0;
+
+  /// Stops any scheduled retry; the state itself stays usable.
+  void cancelRetry() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
   }
 
   void setMuted(String identity, bool value) {
@@ -107,8 +130,8 @@ class LocalAudioState {
     return volume == kDefaultParticipantVolume ? null : volume;
   }
 
-  /// Holds the freshly attached track [trackId] at its [arrivalGain] through
-  /// [hold], so a listener's choice is in force from its first sample.
+  /// Holds the freshly attached track [trackId] at its [arrivalGain], tapered
+  /// as the later pass will taper it, through [hold], so a listener's choice is in force from its first sample.
   void holdArrival(
     Iterable<LocalAudioRef> refs,
     String trackId,
@@ -117,7 +140,7 @@ class LocalAudioState {
     for (final ref in refs) {
       if (ref.trackId != trackId) continue;
       final gain = arrivalGain(ref.identity, ref.channel);
-      if (gain != null) hold(trackId, gain);
+      if (gain != null) hold(trackId, perceptualParticipantGain(gain));
     }
   }
 
@@ -213,12 +236,37 @@ class LocalAudioState {
     } finally {
       _busy = false;
     }
+    _planRetry();
     return result;
+  }
+
+  void _planRetry() {
+    cancelRetry();
+    if (_failures.isEmpty) {
+      _attempts = 0;
+      return;
+    }
+    if (_attempts >= retryDelays.length) {
+      log?.call(
+        'Volume still failing after $_attempts retries for '
+        '${_failures.keys.map((k) => '${k.$1}/${k.$2.name}').join(', ')}; '
+        'will try again on the next room event',
+        level: LogLevel.warning,
+      );
+      _attempts = 0;
+      return;
+    }
+    _retryTimer = Timer(retryDelays[_attempts++], () {
+      _retryTimer = null;
+      unawaited(applyToRefs(_latestRefs));
+    });
   }
 
   Future<Object?> _pass(Iterable<LocalAudioRef> refs) async {
     Object? failure;
+    final present = <(String, LocalAudioChannel)>{};
     for (final ref in refs) {
+      present.add((ref.identity, ref.channel));
       try {
         failure = await _applyOne(ref) ?? failure;
       } catch (e, stack) {
@@ -226,7 +274,21 @@ class LocalAudioState {
         failure = e;
       }
     }
+    _failures.removeWhere((key, _) => !present.contains(key));
+    pending
+      ..clear()
+      ..addAll(_slotsWithGain().where((k) => !present.contains(k)));
     return failure;
+  }
+
+  Iterable<(String, LocalAudioChannel)> _slotsWithGain() sync* {
+    for (final channel in LocalAudioChannel.values) {
+      for (final entry in _volumesOf(channel).entries) {
+        if (entry.value != kDefaultParticipantVolume) {
+          yield (entry.key, channel);
+        }
+      }
+    }
   }
 
   Future<Object?> _applyOne(LocalAudioRef ref) async {
@@ -242,11 +304,7 @@ class LocalAudioState {
     final forwardFailure = await _setForwarding(ref, forward);
     if (silence) return _silence(ref, forwardFailure, audible: audible);
 
-    final last = _applied[ref.track];
-    if (audible &&
-        last != null &&
-        last.volume == volume &&
-        forwardFailure == null) {
+    if (audible && _cache.volumeOf(ref) == volume && forwardFailure == null) {
       return null;
     }
 
@@ -270,7 +328,7 @@ class LocalAudioState {
       }
     }
     // Whatever was believed about gain stops being true once it is silent.
-    _applied[ref.track] = null;
+    _cache.setVolume(ref, null);
     return failure;
   }
 
@@ -295,17 +353,16 @@ class LocalAudioState {
     );
 
     // Remembered only if it both went cleanly and can be seen to have landed.
-    _applied[ref.track] =
-        here == null && ref.isAudible() ? _AppliedAudio(volume: volume) : null;
+    _cache.setVolume(ref, here == null && ref.isAudible() ? volume : null);
     return here;
   }
 
   /// Tells the SFU to send or stop sending [ref], once per change.
   Future<Object?> _setForwarding(LocalAudioRef ref, bool forward) async {
-    if (_forwarding[ref.track] == forward) return null;
+    if (_cache.forwardingOf(ref) == forward) return null;
     try {
       await (forward ? ref.startForwarding() : ref.stopForwarding());
-      _forwarding[ref.track] = forward;
+      _cache.setForwarding(ref, forward);
       return null;
     } catch (e, stack) {
       reportFailure(
@@ -318,11 +375,5 @@ class LocalAudioState {
     }
   }
 
-  /// Whether the SFU was last told to forward each track; a resubscribed
-  /// track is a new object, so it is told again.
-  final Expando<bool> _forwarding = Expando('local audio forwarding');
-
-  /// Weakly keyed, so remembering a track never keeps a finished call's
-  /// platform objects alive.
-  final Expando<_AppliedAudio> _applied = Expando('local audio last applied');
+  final AudioApplyCache _cache = AudioApplyCache();
 }

@@ -147,7 +147,7 @@ Without the voice overlay it simply has no SFU, which is the expected answer rat
 Litestream is off by default because it needs a real S3-compatible bucket.
 To turn it on: fill in the `LITESTREAM_*` values in `.env`, uncomment `COMPOSE_PROFILES=litestream`, then re-run `docker compose up -d`.
 
-**Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered, and neither is `slimm-data.key`, the key that opens the stored two-factor secrets (docs/OPERATING.md, The data key).**
+**Litestream replicates only the SQLite database file. Attachment and avatar bytes are not covered, neither are the module data files in `SLIMM_MODULES_DIR` (default `/data/modules`), and neither is `slimm-data.key`, the key that opens the stored two-factor secrets (docs/OPERATING.md, The data key).**
 Back that key up apart from the replica: a restore without it leaves two-factor members unable to sign in until an administrator clears their factor.
 They live on disk beside the database, at `SLIMM_ATTACHMENTS_DIR` (default `/data/media` inside the container, so the same `slimm_data` volume as the database), specifically because multi-megabyte blobs in the SQLite file would bloat what Litestream streams for no benefit.
 That means restoring from a Litestream replica brings back every message and its attachment references, but not the attachment files themselves; a client would render broken images and failed downloads for anything uploaded since the last time `/data/media` was backed up some other way.
@@ -169,6 +169,9 @@ docker run --rm \
     --database-path /data/slimm.db --media-dir /data/media
 ```
 
+Modules that keep structured data have one small SQLite file each, in `--modules-dir` (default `$SLIMM_MODULES_DIR`, else a `modules` directory beside the database, which is `/data/modules` here), so the command above already finds them.
+Each is copied with `VACUUM INTO` as well, to `/backup/modules/<module id>.db`; that mirror holds the latest copy of each file, taken moments after the database snapshot rather than in the same transaction, and a file that cannot be copied makes the run exit non-zero.
+
 It takes a `VACUUM INTO` snapshot of the database (a consistent point-in-time copy SQLite produces from inside its own read transaction, safe to take while the server keeps writing through WAL - it does not need the server stopped, and the source volume above is mounted read-only on purpose) and mirrors every attachment and avatar file referenced by that snapshot into `/backup`.
 Attachments are content-addressed by their own sha256, so a byte-identical file already mirrored from a previous run is never re-copied; avatars are small, mutable, and few, so they are simply re-copied every run.
 Nothing is ever deleted from the mirror by this script, and every copy is an independent one (never a hardlink to the live file) - a backup that could still be corrupted by whatever corrupts the original is not a backup.
@@ -184,7 +187,7 @@ docker run --rm \
   python3 /scripts/restore-drill.py --backup-root /backup
 ```
 
-It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar.
+It copies the newest snapshot to a fresh scratch path, runs `PRAGMA integrity_check` on that standalone copy, then checks that every attachment the database references exists in the mirror *and* that the file's real, recomputed sha256 actually matches its name (not merely that a same-named file exists), and the same existence check for every user's avatar, then runs `PRAGMA integrity_check` on every module data file in the mirror.
 A snapshot too damaged to query is reported as a failed integrity check rather than a traceback, and the later checks are skipped.
 The scratch copy is deleted when the run ends; `--keep-scratch` keeps it, and a directory given with `--scratch-dir` is always yours.
 It prints exactly what is missing or corrupt and exits non-zero if anything is, which is the property a restore drill exists for.

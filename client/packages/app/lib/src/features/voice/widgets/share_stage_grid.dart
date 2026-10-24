@@ -10,8 +10,8 @@ import 'package:slimm_rtc/rtc.dart';
 import '../providers/voice_controller.dart';
 import 'focusable_video_press.dart';
 import 'fullscreen_video_overlay.dart';
-import 'participant_volume_popover.dart';
 import 'screen_share_stage.dart';
+import 'share_stage_controls.dart';
 
 const double _shareAspect = 16 / 9;
 const double _gap = AppSpacing.s12;
@@ -45,14 +45,8 @@ Widget shareStageTile(
   onFocus: onFocus,
   focused: focused,
   showCaption: showCaption,
-  onStreamVolume: !sharer.isLocal && controller.hasScreenAudio(sharer.identity)
-      ? (anchor) => showParticipantVolumePopover(
-          anchor,
-          identity: sharer.identity,
-          name: sharer.name,
-          controller: controller,
-          screenOnly: true,
-        )
+  streamVolume: !sharer.isLocal && controller.hasScreenAudio(sharer.identity)
+      ? streamVolumeSlider(sharer.identity, controller)
       : null,
   onExpand: () => showFullscreenVideo(
     context,

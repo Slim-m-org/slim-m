@@ -203,7 +203,7 @@ pub(crate) async fn execute_command_in(
         caller: user_id,
         command,
         input,
-        scheduled: false,
+        kind: super::module_run::RunKind::Command,
     };
     super::module_run::run_installed(state, &module, &request, surface).await
 }

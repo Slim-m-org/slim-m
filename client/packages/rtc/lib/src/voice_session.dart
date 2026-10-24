@@ -19,6 +19,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
+import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
@@ -228,8 +229,9 @@ class VoiceSession
     _refreshParticipants();
   }
 
-  /// How sharp your camera publishes. Takes effect the next time the camera
-  /// turns on, because capture parameters cannot change on a live track.
+  /// How sharp your camera publishes. Read when the camera turns on, since
+  /// capture parameters cannot change on a live track; the app cycles a live
+  /// camera to apply a change.
   void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
 
   /// Why the last attempt failed, when [state] is [VoiceSessionState.failed].

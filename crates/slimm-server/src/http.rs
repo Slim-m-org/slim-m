@@ -83,12 +83,19 @@ use messages::{
 mod diagnostics;
 mod direct_route;
 mod metrics;
+mod module_breaker;
 mod module_caller;
 mod module_commands;
+mod module_events;
 mod module_host;
+mod module_logs;
 mod module_net;
 mod module_run;
 mod module_schedule;
+mod module_slot_cache;
+mod module_slot_nodes;
+mod module_slots;
+pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
 mod module_permissions;
 mod notification_schedule;
@@ -249,6 +256,7 @@ pub fn router(state: AppState) -> Router {
         .merge(diagnostics::ping_routes())
         .merge(direct_route::routes())
         .merge(dock::routes())
+        .merge(module_slots::routes())
         .merge(emoji::routes())
         .merge(invites::routes())
         .merge(invite_page::routes())

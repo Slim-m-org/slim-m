@@ -339,6 +339,9 @@ impl Store {
         sqlx::query!("DELETE FROM voice_call_events WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query!("DELETE FROM voice_sessions WHERE user_id = ?", user_id)
+            .execute(&mut *tx)
+            .await?;
         sqlx::query!("DELETE FROM saved_messages WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

@@ -794,6 +794,16 @@ pub enum Event {
         moved_by_id: UserId,
         moved_by_name: String,
     },
+    /// A voice session closed. Internal: only the module event consumer reads
+    /// it, and no websocket frame is ever built from it.
+    VoiceSessionClosed {
+        session_id: i64,
+        user_id: UserId,
+        channel_id: ChannelId,
+        joined_at_ms: i64,
+        left_at_ms: i64,
+        alone_ms: i64,
+    },
     /// A moderation event with its number, added by [`crate::hub::Hub::publish`]
     /// and never built by a handler. See `hub::moderation_seq`.
     Stamped { seq: u64, event: Box<Event> },

@@ -5,9 +5,9 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/widgets.dart';
-import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 import '../../../providers/providers.dart' show apiProvider;
+import '../providers/screen_share_ceiling.dart';
 import '../providers/voice_controller.dart';
 import 'screen_source_sheet.dart';
 
@@ -33,19 +33,6 @@ Future<({bool proceed, String? id})> pickShareSource(
   return (proceed: chosen != null, id: chosen?.id);
 }
 
-/// The space-wide screen-share ceiling from the unauthenticated `GET /version`, or null on failure or an older server.
-/// It is a courtesy cap, not a boundary, so an unreachable Space fails open and the share starts at the chosen quality.
-Future<int?> screenShareCeiling(WidgetRef ref) async {
-  try {
-    final version = await ref.read(apiProvider).version();
-    return version.screenShareMaxHeight;
-  } catch (error, stack) {
-    reportFailure(
-      LogTag.voice,
-      "read the server's screen share quality limit",
-      error,
-      stack,
-    );
-    return null;
-  }
-}
+/// The space-wide screen-share ceiling; see [screenShareCeilingFrom].
+Future<int?> screenShareCeiling(WidgetRef ref) =>
+    screenShareCeilingFrom(ref.read(apiProvider));

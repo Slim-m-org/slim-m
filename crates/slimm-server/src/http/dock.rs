@@ -15,6 +15,7 @@ mod capabilities;
 mod fetch;
 pub(super) mod keywords;
 mod manifest;
+mod module_data;
 mod sources;
 mod ssrf;
 mod testing;
@@ -27,18 +28,18 @@ use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::request::Parts;
 use axum::routing::{get, post};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 use url::Url;
 
+use self::dock_fetch::{fetch_artifact, fetch_index, fetch_manifest, pinned_origin};
 use self::dock_lifecycle::{clear_storage, disable, enable, list_installed, uninstall};
+use self::dock_settings::{get_settings, put_settings};
 use self::dock_sources::{add_source, list_sources, remove_source};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
-use super::module_host;
+use super::{module_events, module_host};
 use crate::config::Config;
-use crate::media::to_hex;
 use crate::ratelimit::Class;
 use crate::store::{
     DockProvenance, InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec,
@@ -48,16 +49,20 @@ use crate::store::{
 use capabilities::{
     approvable_host_capabilities, carried_host_capabilities, local_network_approval,
 };
-use fetch::{FetchError, fetch_first};
+use fetch::FetchError;
 use keywords::ensure_slash_keywords_free;
-use manifest::{IndexEntry, Manifest, ManifestError, parse_index, parse_manifest, validate_slug};
-use sources::{Origin, SourceQuery};
+use manifest::{Manifest, ManifestError, validate_slug};
+use sources::SourceQuery;
 use wire::{IndexEntryDto, InstalledModuleDto, ManifestDto};
 
+pub(super) mod dock_fetch;
 pub(super) mod dock_lifecycle;
+pub(super) mod dock_settings;
 pub(super) mod dock_sources;
 
 const BODY_LIMIT: usize = 4 * 1024;
+/// Room for 32 settings of up to 1000 characters each.
+const SETTINGS_BODY_LIMIT: usize = 64 * 1024;
 
 /// The fixed host every Dock fetch targets in production; see
 /// `Config::addons_repo`'s own doc for why only the repo is configurable.
@@ -70,6 +75,7 @@ const MAX_MODULE_ID_LEN: usize = 64;
 #[derive(Clone)]
 pub struct Dock {
     inner: Option<Arc<Enabled>>,
+    slot_cache: super::module_slot_cache::SlotCache,
 }
 
 struct Enabled {
@@ -85,6 +91,11 @@ struct Enabled {
 }
 
 impl Dock {
+    /// Slot results held for a few seconds; see `module_slots`.
+    pub(super) fn slot_cache(&self) -> &super::module_slot_cache::SlotCache {
+        &self.slot_cache
+    }
+
     /// Always enabled: unlike link previews, the Dock has no deployment-wide
     /// off switch - `MANAGE_SERVER` alone gates it. Only the repo it points
     /// at is configurable.
@@ -135,6 +146,7 @@ impl Dock {
             .expect("the source root always has a host")
             .to_owned();
         Self {
+            slot_cache: super::module_slot_cache::SlotCache::default(),
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -150,7 +162,10 @@ impl Dock {
     /// in the Dock: every one of its routes would need a real fetch, so
     /// nothing exercises it by accident.
     pub fn disabled() -> Self {
-        Self { inner: None }
+        Self {
+            inner: None,
+            slot_cache: super::module_slot_cache::SlotCache::default(),
+        }
     }
 
     /// Whether the operator turned the local `dev` source on.
@@ -210,6 +225,12 @@ pub fn routes() -> Router<AppState> {
             axum::routing::delete(remove_source),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
+        .route(
+            "/space/dock/modules/{id}/settings",
+            get(get_settings)
+                .put(put_settings)
+                .layer(DefaultBodyLimit::max(SETTINGS_BODY_LIMIT)),
+        )
 }
 
 impl From<FetchError> for ApiError {
@@ -251,76 +272,6 @@ pub(crate) fn validate_module_id(id: &str) -> Result<(), ApiError> {
         ));
     }
     validate_slug(id, MAX_MODULE_ID_LEN).map_err(|_| ApiError::BadRequest("invalid module id"))
-}
-
-/// [path] from wherever [origin] keeps its files.
-async fn fetch_path(
-    dock: &Enabled,
-    origin: &Origin,
-    path: &str,
-    limits: fetch::Limits,
-) -> Result<Vec<u8>, FetchError> {
-    match origin {
-        Origin::Remote(bases) => {
-            fetch_first(&dock.client, bases, path, &dock.allowed_host, limits).await
-        }
-        Origin::Dev(root) => fetch::read_local(root, path, limits).await,
-    }
-}
-
-/// Fetches and validates the module at [id]'s current `manifest.json`,
-/// confirming the registry's own `id` field agrees with the path it was
-/// fetched at - the same "does not alias a different resource" check
-/// `messages::SendError::IdConflict` exists for elsewhere.
-async fn fetch_manifest(dock: &Enabled, origin: &Origin, id: &str) -> Result<Manifest, ApiError> {
-    let bytes = fetch_path(
-        dock,
-        origin,
-        &format!("modules/{id}/manifest.json"),
-        fetch::Limits::MANIFEST,
-    )
-    .await?;
-    let manifest = parse_manifest(&bytes)?;
-    if manifest.id != id {
-        return Err(ApiError::UpstreamInvalid(
-            "manifest.json's own id does not match the module it was fetched for".to_owned(),
-        ));
-    }
-    Ok(manifest)
-}
-
-/// `bases` moved to the immutable ref the index published for `id`, so the
-/// manifest an admin reviews and the artifact it installs come from one fixed
-/// commit. An entry with no ref (an older index), or an index that cannot be
-/// read, leaves `bases` on `main`; the reviewed digest still binds the install.
-async fn pinned_origin(dock: &Enabled, origin: &Origin, id: &str) -> Result<Origin, ApiError> {
-    let Origin::Remote(bases) = origin else {
-        return Ok(origin.clone());
-    };
-    let Ok(index) = fetch_index(dock, origin).await else {
-        return Ok(origin.clone());
-    };
-    let Some(reference) = index
-        .into_iter()
-        .find(|e| e.id == id)
-        .and_then(|e| e.reference)
-    else {
-        return Ok(origin.clone());
-    };
-    bases
-        .iter()
-        .map(|base| {
-            base.join(&format!("../{reference}/"))
-                .map_err(|_| ApiError::Internal)
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(Origin::Remote)
-}
-
-/// The first of `bases`' `index.json` that exists, fetched capped and validated.
-async fn fetch_index(dock: &Enabled, origin: &Origin) -> Result<Vec<IndexEntry>, ApiError> {
-    let bytes = fetch_path(dock, origin, "index.json", fetch::Limits::INDEX).await?;
-    Ok(parse_index(&bytes)?)
 }
 
 async fn list_modules(
@@ -444,6 +395,7 @@ async fn install(
             .map(|e| e.name.as_str());
         ensure_slash_keywords_free(&state, &id, keywords).await?;
     }
+    module_data::check(&state, &manifest, &approved_host).await?;
     let artifact = fetch_artifact(dock, &origin, &manifest).await?;
 
     let permissions: Vec<ModulePermissionSpec> = manifest
@@ -490,10 +442,16 @@ async fn install(
                 network_hosts,
                 local_network_approved: local_network,
                 schedules: &schedules,
+                platform: &manifest.platform,
             },
         )
         .await?;
-    let installed = if module_host::schedule_approved(&installed) {
+    module_data::apply(&state, &manifest, &approved_host).await?;
+    state.dock.slot_cache().invalidate_module(&installed.id);
+    let installed = if module_host::schedule_approved(&installed)
+        || module_events::events_approved(&installed)
+        || module_host::logs_approved(&installed)
+    {
         state
             .store
             .ensure_module_bot(&installed.id, &installed.name)
@@ -507,30 +465,4 @@ async fn install(
         installed
     };
     Ok(Json(InstalledModuleDto::from(installed)))
-}
-
-/// Fetches the module's own artifact bytes at `manifest.artifact.path`,
-/// relative to the same allowlisted base the manifest itself came from, and
-/// refuses them if their sha256 does not match what the manifest declared -
-/// the fetch-time half of the check `crate::module_runtime::ModuleHost`
-/// repeats again, defense in depth, right before it ever runs them.
-async fn fetch_artifact(
-    dock: &Enabled,
-    origin: &Origin,
-    manifest: &Manifest,
-) -> Result<Vec<u8>, ApiError> {
-    let bytes = fetch_path(
-        dock,
-        origin,
-        &manifest.artifact.path,
-        fetch::Limits::ARTIFACT,
-    )
-    .await?;
-    let digest = to_hex(&Sha256::digest(&bytes));
-    if digest != manifest.artifact.sha256 {
-        return Err(ApiError::UpstreamInvalid(
-            "the module artifact's sha256 does not match its manifest".to_owned(),
-        ));
-    }
-    Ok(bytes)
 }

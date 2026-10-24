@@ -12,8 +12,9 @@ use crate::store::ModuleSchedule;
 /// What an install that named no approvals keeps: the module's current host
 /// capabilities that the new manifest still declares, except the ones whose
 /// power a new build or a changed manifest could widen unseen: `message.post`,
-/// `net.fetch` and `schedule` after a new build, `net.fetch` when its hosts
-/// changed and `schedule` when its commands or intervals did. Nothing is added.
+/// `net.fetch`, `schedule`, `events`, `data.store` and `log.read` after a new build, `net.fetch` when its hosts
+/// changed, `schedule` when its commands or intervals did, `events` when a subscription was added and
+/// `data.store` when its cap grew or a table was added. Nothing is added.
 pub(super) async fn carried_host_capabilities(
     state: &AppState,
     manifest: &Manifest,
@@ -25,6 +26,12 @@ pub(super) async fn carried_host_capabilities(
     let same_build = current.artifact_sha256 == manifest.artifact.sha256;
     let same_hosts = current.network_hosts == manifest.network.hosts;
     let same_schedules = same_schedules(&current.schedules, manifest);
+    let no_new_subscriptions = manifest
+        .platform
+        .subscriptions
+        .iter()
+        .all(|s| current.subscriptions.contains(s));
+    let data_not_widened = data_not_widened(&current.data_schema, manifest);
     Ok(current
         .approved_host_capabilities
         .into_iter()
@@ -32,11 +39,31 @@ pub(super) async fn carried_host_capabilities(
         .filter(|c| same_build || !REASKED_ON_NEW_BUILD.contains(&c.as_str()))
         .filter(|c| same_hosts || c != NET_FETCH)
         .filter(|c| same_schedules || c != "schedule")
+        .filter(|c| no_new_subscriptions || c != "events")
+        .filter(|c| data_not_widened || c != "data.store")
         .collect())
 }
 
 /// Capabilities whose approval does not survive a new artifact.
-const REASKED_ON_NEW_BUILD: [&str; 3] = ["message.post", NET_FETCH, "schedule"];
+const REASKED_ON_NEW_BUILD: [&str; 6] = [
+    "message.post",
+    NET_FETCH,
+    "schedule",
+    "events",
+    "data.store",
+    "log.read",
+];
+
+/// Whether the manifest's `data` asks for no more room than the approved one: not a larger cap, no new table.
+fn data_not_widened(current: &serde_json::Value, manifest: &Manifest) -> bool {
+    let Some(wanted) = &manifest.data else {
+        return true;
+    };
+    let Ok(had) = crate::module_runtime::validate_data_schema(current) else {
+        return false;
+    };
+    wanted.max_mb <= had.max_mb && wanted.tables.iter().all(|t| had.table(&t.name).is_some())
+}
 
 fn same_schedules(current: &[ModuleSchedule], manifest: &Manifest) -> bool {
     let mut had: Vec<(&str, u32)> = current

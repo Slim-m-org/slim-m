@@ -194,6 +194,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
         "user_id",
         Fate::Exported("call_events.jsonl"),
     ),
+    (
+        "voice_sessions",
+        "user_id",
+        Fate::Excluded("the same joins and leaves as call_events.jsonl, kept for modules"),
+    ),
     ("watch_sessions", "bot_user_id", Fate::Excluded(BOT_CONFIG)),
     (
         "watch_sessions",

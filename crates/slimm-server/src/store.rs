@@ -58,8 +58,9 @@ use messages::{
 };
 mod moderation_audit;
 mod moderation_history;
+mod module_data_dir;
 mod modules;
-use modules::{module_kv, module_permissions, module_stats};
+use modules::{module_health, module_kv, module_permissions, module_stats};
 mod data_exports;
 mod export_capacity;
 mod export_member;
@@ -106,6 +107,7 @@ mod user_notes;
 mod users;
 mod voice_call_events;
 mod voice_rooms;
+mod voice_sessions;
 mod watch_sessions;
 mod webhooks;
 
@@ -179,6 +181,7 @@ pub use message_search::{MessageSearchFilters, SearchError};
 pub use messages::{Edited, MessageDeletion, NewMessage, SendError, Sent};
 pub use messages_bulk::{BulkDeleteError, BulkDeletion, DeletedMessage};
 pub use moderation_history::{AuditLogEntry, HistoryCursor, ModerationHistoryItem};
+pub use module_health::{EventCandidate, ModuleHealth};
 pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
@@ -186,7 +189,8 @@ pub use module_permissions::{
 pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
-    ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits, ModuleSchedule,
+    ModuleExtensionPointSpec, ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits,
+    ModuleSchedule, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
@@ -230,6 +234,7 @@ pub use users::ProfileUpdate;
 pub use voice_call_events::{
     CALL_HISTORY_RETENTION_DAYS, CanvasActivity, VoiceEvent, VoiceEventKind,
 };
+pub use voice_sessions::{SessionScope, VOICE_SESSION_RETENTION_DAYS, VoiceSession};
 pub use watch_sessions::{
     WATCH_SESSION_TTL_MS, WatchSample, WatchSession, WatchSessionWrite, WatchWriteOutcome,
 };
@@ -438,6 +443,8 @@ pub struct Store {
     /// Seals the secrets read back later (two-factor). A bare [`Store::new`] holds a throwaway
     /// key, so a process that should keep them must call [`Store::with_data_key`].
     data_key: Arc<crate::data_key::DataKey>,
+    /// Where module data files live; see [`Store::modules_dir`].
+    modules_dir: Option<Arc<std::path::PathBuf>>,
 }
 
 impl Store {
@@ -446,6 +453,7 @@ impl Store {
             pool,
             canvas_op_clock: Arc::default(),
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
+            modules_dir: None,
         }
     }
 

@@ -19,7 +19,9 @@ import '../../app_metrics.dart';
 import '../../app_tokens.dart';
 import '../../app_typography.dart';
 
-enum AppBadgeVariant { role, tag, warn }
+/// The module variants are for chips a module draws: never uppercased and
+/// always led by an origin marker, so none can pass for a role, tag or warn.
+enum AppBadgeVariant { role, tag, warn, module, moduleAccent, moduleMuted }
 
 class AppBadge extends StatelessWidget {
   const AppBadge(
@@ -27,6 +29,7 @@ class AppBadge extends StatelessWidget {
       required this.variant,
       required this.label,
       this.icon,
+      this.markerIcon,
       this.semanticLabel});
 
   final AppBadgeVariant variant;
@@ -35,6 +38,9 @@ class AppBadge extends StatelessWidget {
   /// A small leading glyph, gapped from the label. Optional in every
   /// variant.
   final IconData? icon;
+
+  /// The origin marker the module variants lead with, at the smallest size.
+  final IconData? markerIcon;
 
   final String? semanticLabel;
 
@@ -70,6 +76,18 @@ class AppBadge extends StatelessWidget {
         text = label.toUpperCase();
         letterSpacing = fontSize * 0.05;
         tabularNumerals = true;
+      case AppBadgeVariant.module:
+        foreground = tokens.textSecondary;
+        border = tokens.textSecondary;
+        text = label;
+      case AppBadgeVariant.moduleAccent:
+        foreground = tokens.accent;
+        border = tokens.accent;
+        text = label;
+      case AppBadgeVariant.moduleMuted:
+        foreground = tokens.textSecondary;
+        border = tokens.borderSubtle;
+        text = label;
     }
 
     final textStyle = TextStyle(
@@ -85,6 +103,10 @@ class AppBadge extends StatelessWidget {
     final child = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (markerIcon != null) ...[
+          Icon(markerIcon, size: AppSizes.icon12, color: foreground),
+          const SizedBox(width: AppSpacing.s4),
+        ],
         if (icon != null) ...[
           Icon(icon, size: AppSizes.icon16, color: foreground),
           const SizedBox(width: AppSpacing.s4),

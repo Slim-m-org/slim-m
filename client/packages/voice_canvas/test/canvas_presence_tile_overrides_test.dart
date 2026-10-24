@@ -177,6 +177,20 @@ void main() {
         greaterThan(overrides.zFor('camera:bob')!));
   });
 
+  test('the server answers set the order, so a local drag does not outrank it',
+      () {
+    final overrides = CanvasPresenceTileOverrides();
+    const rect = Rect.fromLTWH(0, 0, 10, 10);
+    overrides.setRect('camera:alice', rect);
+    overrides.applyServer('camera:bob',
+        rect: rect, locked: false, sentToBack: false);
+    overrides.applyServer('camera:alice',
+        rect: rect, locked: false, sentToBack: false);
+
+    expect(overrides.zFor('camera:alice'),
+        greaterThan(overrides.zFor('camera:bob')!));
+  });
+
   test('prune drops the touch order of a key no longer present', () {
     final overrides = CanvasPresenceTileOverrides();
     overrides.setRect('camera:alice', const Rect.fromLTWH(0, 0, 10, 10));

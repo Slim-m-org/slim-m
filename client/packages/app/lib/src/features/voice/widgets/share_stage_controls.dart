@@ -5,13 +5,17 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import '../providers/voice_controller.dart';
+import 'participant_audio_controls.dart';
 
 /// The rows one stream's context menu can offer; a null callback drops its row.
 class ShareStageMenu {
   const ShareStageMenu({
     required this.sharerName,
     this.onPopOut,
-    this.onStreamVolume,
+    this.streamVolume,
     this.onFocus,
     this.focused = false,
     this.onStopWatching,
@@ -20,7 +24,9 @@ class ShareStageMenu {
 
   final String sharerName;
   final VoidCallback? onPopOut;
-  final VoidCallback? onStreamVolume;
+
+  /// The slider itself, so volume is one drag in the menu and not a second click.
+  final Widget? streamVolume;
   final VoidCallback? onFocus;
   final bool focused;
   final VoidCallback? onStopWatching;
@@ -33,7 +39,7 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
   final ShareStageMenu(
     :sharerName,
     :onPopOut,
-    :onStreamVolume,
+    :streamVolume,
     :onFocus,
     :focused,
     :onStopWatching,
@@ -49,8 +55,7 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
   );
   return [
     if (onPopOut != null) row('Pop out stream', AppIcons.popOut, onPopOut),
-    if (onStreamVolume != null)
-      row('Stream volume', AppIcons.speaker, onStreamVolume),
+    if (streamVolume != null) streamVolume,
     if (onFocus != null)
       row(
         focused ? 'Show all shares' : "Focus $sharerName's screen",
@@ -62,3 +67,13 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
     if (onFullscreen != null) row('Full screen', AppIcons.expand, onFullscreen),
   ];
 }
+
+/// A person's screen volume as an inline slider row, so changing it is one drag in the menu.
+Widget streamVolumeSlider(String identity, VoiceController controller) =>
+    ParticipantVolumeControl(
+      identity: identity,
+      controller: controller,
+      channel: LocalAudioChannel.screen,
+      label: 'Stream volume',
+      autofocus: true,
+    );

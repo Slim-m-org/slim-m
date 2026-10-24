@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE voice_sessions SET left_at = ?, alone_ms = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "ecbb4bc259f630fcdb638ff99252757141e943bd11159a86768c3fe1a5491d3e"
+}

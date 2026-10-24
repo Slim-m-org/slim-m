@@ -27,6 +27,8 @@ extension VoiceSessionTracks on VoiceSession {
     );
     _cancelEvents = room.events.listen((event) {
       _mic.onRoomEvent(event);
+      final replaced = audioReplacedBy(event);
+      if (replaced != null) _audio.trackReplaced(replaced);
       if (event is lk.TrackSubscribedEvent &&
           event.track is lk.RemoteAudioTrack &&
           event.publication.source == lk.TrackSource.microphone) {
@@ -79,6 +81,8 @@ extension VoiceSessionTracks on VoiceSession {
   /// uncancelled listener would still reach `_onDisconnected` mid-teardown,
   /// which `_onDisconnected`'s own doc says a `leave()` must never do.
   Future<void> _teardown() async {
+    _audio.cancelRetry();
+    _audio.trackReplaced(everyone);
     _speakingHoldTimer?.cancel();
     _speakingHoldTimer = null;
     // Synchronously, and before anything else; see this method's own doc.

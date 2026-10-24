@@ -45,12 +45,14 @@ pub mod store;
 mod sweeps;
 pub mod totp;
 pub mod voice;
+mod voice_session_sweeps;
 
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
     sweep_stale_call_rings, sweep_stale_call_rings_at, sweep_stale_voice_calls,
     sweep_stale_voice_calls_at,
 };
+pub use voice_session_sweeps::{close_stale_sessions, reconcile_on_startup};
 
 use std::net::SocketAddr;
 
@@ -122,6 +124,10 @@ pub async fn run() -> anyhow::Result<()> {
         allow_new_key,
     )?;
     let store = store.with_data_key(data_key);
+    let store = match &config.modules_dir {
+        Some(dir) => store.with_modules_dir(dir.into()),
+        None => store,
+    };
     store.seal_totp_secrets().await?;
     log_server_identity(&store).await?;
     warn_if_unclaimed(&store).await?;
@@ -141,7 +147,9 @@ pub async fn run() -> anyhow::Result<()> {
     let limiter = ratelimit::RateLimiter::with_trusted_hops(config.trust_proxy_hops);
     let push = push::PushSender::new(&config)?;
     let voice = voice::VoiceService::new(&config)?;
-    sweeps::spawn_call_sweep(voice.clone(), hub.clone());
+    voice_session_sweeps::reconcile_on_startup(&store).await;
+    sweeps::spawn_call_sweep(store.clone(), voice.clone(), hub.clone());
+    voice_session_sweeps::spawn_retention_sweep(store.clone());
     sweeps::spawn_call_history_sweep(store.clone());
     sweeps::spawn_room_sweep(store.clone(), voice.clone(), hub.clone());
     sweeps::spawn_ring_sweep(voice.clone(), hub.clone(), store.clone(), push.clone());
@@ -166,6 +174,7 @@ pub async fn run() -> anyhow::Result<()> {
         code_runner,
     };
     sweeps::spawn_module_schedule_sweep(state.clone());
+    let _module_events = http::spawn_module_events(state.clone());
     let mut router = http::router(state);
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {
         router = router.layer(axum::Extension(discord));

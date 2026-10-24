@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: i64\" FROM voice_sessions\n                       WHERE user_id = ? AND sid = ? AND left_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "70bd39c609b7371161217332ac37d68326ef5fb38a81ee9f60b264e172a29552"
+}

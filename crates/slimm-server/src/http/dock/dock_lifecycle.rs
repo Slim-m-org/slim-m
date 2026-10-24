@@ -9,17 +9,26 @@ use axum::http::request::Parts;
 use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::require_manage_server;
-use super::super::extract::{Authed, Json, enforce};
+use super::super::extract::{Authed, Json, Query, enforce};
 use super::keywords::{self, ensure_slash_keywords_free};
 use super::wire::InstalledModuleDto;
+use crate::module_runtime::SqliteData;
 use crate::ratelimit::Class;
 use crate::store::{DeleteAccountError, InstalledModule};
+
+/// Module data files are kept on uninstall unless the admin asks for them gone.
+#[derive(serde::Deserialize)]
+pub(in crate::http) struct UninstallQuery {
+    #[serde(default)]
+    delete_data: bool,
+}
 
 pub(in crate::http) async fn uninstall(
     State(state): State<AppState>,
     parts: Parts,
     Authed(ctx): Authed,
     Path(id): Path<String>,
+    Query(query): Query<UninstallQuery>,
 ) -> Result<StatusCode, ApiError> {
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
@@ -27,6 +36,13 @@ pub(in crate::http) async fn uninstall(
     if !state.store.uninstall_module(&id).await? {
         return Err(ApiError::NotFound("module not installed"));
     }
+    if query.delete_data {
+        SqliteData::new(state.store.modules_dir(), tokio::runtime::Handle::current())
+            .delete_data(&id)
+            .await
+            .map_err(|_| ApiError::Internal)?;
+    }
+    state.dock.slot_cache().invalidate_module(&id);
     if let Some(module) = module {
         retire_principal(&state, &module).await;
     }
@@ -98,12 +114,16 @@ async fn apply_enabled(
     if !state.store.set_module_enabled(id, enabled).await? {
         return Err(ApiError::NotFound("module not installed"));
     }
+    state.dock.slot_cache().invalidate_module(id);
     let installed = state
         .store
         .installed_module(id)
         .await?
         .ok_or(ApiError::NotFound("module not installed"))?;
-    Ok(Json(InstalledModuleDto::from(installed)))
+    let health = state.store.module_health().await?.remove(id);
+    Ok(Json(
+        InstalledModuleDto::from(installed).with_health(health.unwrap_or_default()),
+    ))
 }
 
 pub(in crate::http) async fn list_installed(
@@ -116,13 +136,17 @@ pub(in crate::http) async fn list_installed(
     let modules = state.store.list_installed_modules().await?;
     let mut stats = state.store.module_run_stats().await?;
     let usage = state.store.module_storage_usage().await?;
+    let mut health = state.store.module_health().await?;
     Ok(Json(
         modules
             .into_iter()
             .map(|m| {
                 let stats = stats.remove(&m.id).unwrap_or_default();
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
-                InstalledModuleDto::from(m).with_activity(stats, usage)
+                let health = health.remove(&m.id).unwrap_or_default();
+                InstalledModuleDto::from(m)
+                    .with_activity(stats, usage)
+                    .with_health(health)
             })
             .collect(),
     ))

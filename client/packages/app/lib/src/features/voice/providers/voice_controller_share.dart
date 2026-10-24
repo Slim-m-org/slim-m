@@ -15,6 +15,17 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
 
   Timer? _broadcastDeadline;
 
+  /// The screen the last share was started on, kept so a quality change can
+  /// restart it without asking again.
+  String? lastShareSourceId;
+
+  /// Whether a share can be stopped and started again with no picker or
+  /// permission prompt: only where this app lists the sources itself and the
+  /// choice is its own (Windows, macOS), never Wayland, web or mobile.
+  bool get screenShareRestartable =>
+      _shareSession.screenShareNeedsSource &&
+      _shareSession.screenShareSourcePickerUseful;
+
   Future<void> setScreenShare(
     bool enabled, {
     ScreenShareQuality quality = ScreenShareQuality.standard,
@@ -23,6 +34,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     int? maxHeight,
   }) async {
     _cancelBroadcastDeadline();
+    if (enabled && sourceId != null) lastShareSourceId = sourceId;
     final outcome = await _shareSession.setScreenShareEnabled(
       enabled,
       quality: quality,

@@ -237,6 +237,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         MODULE,
     ),
     route(
+        Method::PUT,
+        "/space/dock/modules/{id}/settings",
+        "module.settings",
+        MODULE,
+    ),
+    route(
         Method::POST,
         "/space/dock/sources",
         "module_source.add",

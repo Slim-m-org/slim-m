@@ -5,7 +5,7 @@ This is the guide for writing a module that runs on a slim deployment.
 A module is a small, sandboxed WebAssembly program.
 It receives an input and returns an output, and by default it can reach nothing else - no network, no filesystem, no host state.
 That constraint is the base of the security model, and it is what lets a deployment run community-authored code at all.
-An admin can approve a module for a few mediated host capabilities on top of it (storing data, posting, fetching from named sites, running on a timer); see [Host capabilities](#host-capabilities).
+An admin can approve a module for mediated host capabilities on top of it (storing data, posting, fetching from named sites, running on a timer, receiving events, reading call history); see [Host capabilities](#host-capabilities).
 
 Read `docs/decisions/0021-modules-and-the-dock.md` for why the system is shaped this way, and `docs/decisions/0022-module-extensibility-and-evolution.md` for how it grows.
 This document is the practical how-to; those two are the reasoning.
@@ -31,9 +31,18 @@ With an admin's approval a module can also:
 - store a little state on the host (`kv.store`),
 - post a message as the person who ran it (`message.post`),
 - make HTTP requests to sites its manifest names (`net.fetch`),
-- run one of its commands on a timer with nobody asking, posting as itself in a channel the admin picks (`schedule`).
+- run one of its commands on a timer with nobody asking, posting as itself in a channel the admin picks (`schedule`),
+- be told when something happens: a message, a reaction, a member joining or leaving, a voice call ending (`events`, handled by the `@event` command),
+- keep structured data in its own small database (`data.store`),
+- read a durable log with a cursor, so nothing is lost while the server was down (`log.read`).
 
-A module cannot react to an event, hold a connection open or keep a secret; see [Host capabilities](#host-capabilities), and decision [0035](../decisions/0035-module-or-bot.md) for when a bot is the better home.
+Without needing approval, a module can also declare **settings** an admin edits on its Dock screen, and **slots** that show content on member profiles and next to names (answered by the `@slot` command).
+
+Those last pieces are what make a module reactive.
+They are covered in [reactive-modules.md](reactive-modules.md), which is the guide to read after this one.
+
+A module cannot hold a connection open, and it never sees a secret: a secret setting is only ever substituted into a `net.fetch` header by the host.
+See [Host capabilities](#host-capabilities), and decision [0035](../decisions/0035-module-or-bot.md) for when a bot is the better home.
 
 ## Quickstart
 
@@ -123,6 +132,7 @@ The **request** the host writes is a JSON object:
 ```
 
 - `command` is the name of a `command` extension point the module declared.
+  Two names are reserved for the host: `@event` delivers a pushed event and `@slot` asks for slot content, both described in [reactive-modules.md](reactive-modules.md).
 - `input` is a string whose meaning is entirely the module's own - a code snippet, a dice notation, a JSON blob, whatever the command wants.
 - `caller.id` is an opaque, stable id for whoever ran the command, and it is the only thing the module is told about them.
 - `entropy` is 32 hex characters of fresh randomness, new for every run and unrelated to who ran it.
@@ -131,6 +141,8 @@ The **request** the host writes is a JSON object:
   A module has no clock of its own (inside the sandbox `Date.now()` and `SystemTime::now()` are frozen or unavailable), so this is the only way to know the time: "post at 9am", countdowns, birthdays, a focus timer.
   It is a plain number; there is no time zone, so work in UTC or keep a zone offset in the module's own `kv.store`.
   Like `entropy` it is additive at ABI v1: a module built before it existed ignores it.
+- `settings` is an object of the admin's values for the module's declared settings, with the manifest defaults filled in and secrets left out.
+  It is absent when the module has no values.
 
 ### Who is calling
 
@@ -214,8 +226,12 @@ Field by field:
 - `permissions` are the permission keys this module introduces.
   A deployment's admins grant these to roles; nobody, not even an administrator, holds a module's permission implicitly.
 - `capabilities` are strings a module declares it wants.
-  The host implements two, `kv.store` and `message.post`, and an admin approves each one per install; see [Host capabilities](#host-capabilities).
+  The host implements seven, and an admin approves each one per install; see [Host capabilities](#host-capabilities).
   Declare only what you actually intend to use.
+- `addon_api` is `1` when the manifest uses `subscriptions`, `data`, `settings` or `slots`.
+  A server that supports a lower number refuses the module with a clear reason, and an older server ignores the field.
+- `network`, `schedules`, `subscriptions`, `data`, `settings` and `slots` are the optional sections for the capabilities and platform pieces above.
+  `subscriptions`, `data`, `settings` and `slots` are described in [reactive-modules.md](reactive-modules.md).
 - `extension_points` are what the module offers, covered next.
 
 ## Extension-point kinds
@@ -527,25 +543,32 @@ Set them higher in the manifest if your module genuinely needs it (Game of Life 
 
 The host also caps how many runs execute at once, across every module (four).
 A run that cannot get a slot within a few seconds fails with `the module host is busy; try again in a moment`, so a handful of members using a heavy module cannot stack memory.
+Runs the host starts itself (scheduled commands, events and slot answers) share a separate lane of two, and wait up to a minute for it.
 The first run of a version compiles and verifies its artifact; later runs of the same version reuse that work and never read the stored bytes again.
 
 ## Host capabilities
 
 A module with no approved capability runs on the import-free ABI and can import nothing from the host.
-The host implements four capabilities (`HOST_CAPABILITIES` in `crates/slimm-server/src/http/module_host.rs`).
+The host implements seven capabilities (`HOST_CAPABILITIES` in `crates/slimm-server/src/http/module_host.rs`): `kv.store`, `message.post`, `net.fetch`, `schedule`, `events`, `data.store` and `log.read`.
 You list the ones you need in the manifest's `capabilities`; an admin approves each one at install.
 A run may use a capability only when it is declared in the manifest, approved by an admin for that install, and implemented by the host.
 Anything else gets a clean `{ "ok": false, "error": ... }` response, never a trap (`module_runtime/capabilities.rs`).
 
-`kv.store`, `message.post` and `net.fetch` are reached through the single `slim.host_call` import.
-`schedule` is a permission to be run, not a call: it adds no import.
+`kv.store`, `message.post`, `net.fetch`, `data.store` and `log.read` are reached through the single `slim.host_call` import.
+`schedule` and `events` are permissions to be run, not calls: they add no import.
+`data.store`, `log.read` and `events` are described in [reactive-modules.md](reactive-modules.md).
 
 A module that uses any of them imports `slim.host_call(ptr: i32, len: i32) -> i64`.
 You write a UTF-8 JSON request into your memory and pass its pointer and length.
 The host writes the JSON response into your memory using your own `alloc` and returns the packed `(out_ptr << 32) | out_len`, the same convention `run` uses.
 A return of `0` means the host refused to answer at all: the deadline had passed, the request was over 128 KiB, or the pointer was outside your memory.
 Every request names its capability: `{ "capability": "net.fetch", ... }`.
+
+**Call budgets.**
 A run makes at most 128 host calls of any kind, refused ones included.
+Inside that, `kv.store` and `data.store` calls share 64, `net.fetch` allows 4 requests and `message.post` 3 posts.
+`log.read` has no budget of its own and spends only from the 128.
+Plan around the smallest number that applies to what you call; the same table is in [reactive-modules.md](reactive-modules.md#call-budgets).
 
 ### `kv.store`
 
@@ -560,7 +583,7 @@ A key-value store private to the module, durable across runs.
 
 - Keys are at most 256 bytes and values 4 KiB.
 - A module holds at most 256 entries and 64 KiB (keys plus values), shared by everyone who uses it.
-- One run makes at most 64 calls.
+- One run makes at most 64 calls, counted together with its `data.store` calls.
 - Uninstalling the module wipes its data; a reinstall or upgrade keeps it.
 - The admin sees how much of the allowance a module is using on its Dock screen and can clear it without uninstalling, so a full store is recoverable.
 
@@ -612,6 +635,8 @@ The request:
 - `method` defaults to `GET`; `GET`, `HEAD`, `POST`, `PUT`, `PATCH` and `DELETE` are allowed.
 - `url` must be http or https, name an approved host, and carry no `user:password@`.
 - At most 16 headers; `Host`, `Content-Length`, `Connection`, `Transfer-Encoding` and `Upgrade` belong to the host and are refused.
+- A header value is text, or `{"secret": "<setting key>"}` to have the host fill in a `secret` setting an admin stored, which the module never sees.
+  Only a request to an approved host gets it, and an unset secret is refused; see [Secrets](reactive-modules.md#secrets).
 - `body` is text, at most 64 KiB.
 
 The response, which is always valid JSON:
@@ -682,7 +707,7 @@ The host runs a command of yours on a timer, with nobody invoking it.
 The Dock install screen lists each capability with a switch that starts off, and a module from outside the official registry also needs a tick that says the admin understands what it can do.
 Approval is per install, and an update that names no approvals keeps the earlier ones, with these exceptions that need the admin to approve again:
 
-- `message.post`, `net.fetch` and `schedule` after a **new build** of the wasm.
+- `message.post`, `net.fetch`, `schedule`, `events`, `data.store` and `log.read` after a **new build** of the wasm.
   A different artifact is different code, so what was approved was the old build.
 - `net.fetch` when `network.hosts` changed.
 - `schedule` when a scheduled command or its interval changed.
@@ -693,7 +718,7 @@ A scheduled module whose approval lapsed does not run until it is approved again
 The consent is for the manifest the admin was shown: the install carries a digest of the capabilities, hosts, schedules and artifact it reviewed and is refused if the manifest changed in between.
 A module installed before the approval column existed started with none.
 Decision [0023](../decisions/0023-mediated-host-capabilities.md) has the reasoning and its 2026-09-29 addendum has the details.
-An unknown capability string is still accepted and ignored, so declare only the four above.
+An unknown capability string is still accepted and ignored, so declare only the seven above.
 
 ## Publishing a module
 
@@ -752,6 +777,7 @@ run-module --now-ms 1760000000000 --tick digest module.wasm
 
 It enforces the same limits as the host (four fetches, 64 KiB and 256 KiB bodies, sixteen headers), refuses an unlisted host, and prints each `message.post`.
 It does not enforce wall-clock or memory limits, and it never opens a socket.
+It does not simulate `data.store`, `log.read`, events or slots; [reactive-modules.md](reactive-modules.md#testing-a-reactive-module) says how to test those.
 
 To test the whole thing end to end, install the built wasm on a dev deployment, grant yourself its permission, and exercise it from chat.
 A scene is easiest to iterate on this way, since the interactive loop only exists once the client is painting it.

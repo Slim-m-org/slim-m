@@ -90,15 +90,7 @@ const _defaultTileState = CanvasPresenceTileState();
 class CanvasPresenceTileOverrides extends ChangeNotifier {
   final Map<String, CanvasPresenceTileState> _states = {};
 
-  /// Which tile last had its rect touched *this session*, most recent last -
-  /// a drag or resize is "bring to front" the same way picking up a real
-  /// sheet of paper puts it on top of the pile, so an untouched
-  /// participant's default-positioned tile can never sit over one this
-  /// viewer just moved. Deliberately local and per-mount, unlike everything
-  /// else this class stores: it orders same-screen overlap for one viewer's
-  /// own eye, never sent anywhere, and [sentToBack] (front-versus-drawing-
-  /// surface depth) is the shared concept the owner's own "front or back"
-  /// request actually asked for.
+  /// The order tiles were last moved in, most recent last: a drag stamps it at once and the server's answer for any tile stamps it again, so every viewer sees the same overlap.
   int _nextZ = 0;
   final Map<String, int> _z = {};
 
@@ -184,9 +176,8 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// The tile's shared rect, whatever the view in use.
   Rect? sharedRectFor(String key) => _raw(key).rect;
 
-  /// This key's own place in the touch order, or null if it has never been
-  /// dragged or resized this session - the render order [CanvasPresenceLayer]
-  /// sorts by.
+  /// This key's place in the move order, or null if it has not moved since this
+  /// viewer opened the canvas - the render order [CanvasPresenceLayer] sorts by.
   int? zFor(String key) => _z[key];
 
   /// Whether this key sits behind the drawing surface (the shared front/back
@@ -206,6 +197,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
     _states[key] = _raw(key)
         .copyWith(rect: _onBoard(rect), locked: locked, sentToBack: sentToBack);
     _confirmed[key] = _raw(key);
+    _z[key] = _nextZ++;
     notifyListeners();
   }
 

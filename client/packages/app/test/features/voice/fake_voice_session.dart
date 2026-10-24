@@ -41,10 +41,18 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   bool get supportsParticipantVolume => true;
 
   @override
-  double screenVolumeFor(String identity) => 1.0;
+  double screenVolumeFor(String identity) => _screenVolumes[identity] ?? 1.0;
 
   @override
-  Future<void> setScreenVolumeFor(String identity, double volume) async {}
+  Future<void> setScreenVolumeFor(String identity, double volume) async {
+    _screenVolumes[identity] = volume.clamp(0.0, 2.0);
+    volumePushes.add((identity, true, volume));
+  }
+
+  final Map<String, double> _screenVolumes = {};
+
+  /// Every gain push, as (identity, screen channel, value), in order.
+  final List<(String, bool, double)> volumePushes = [];
 
   @override
   bool isScreenAudioMuted(String identity) => false;
@@ -101,6 +109,20 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     return true;
   }
 
+  /// Every start or stop the session was asked for, in order.
+  final shareCalls =
+      <
+        ({
+          bool enabled,
+          ScreenShareQuality quality,
+          String? sourceId,
+          bool includeAudio,
+        })
+      >[];
+
+  /// Every camera on or off the session was asked for, in order.
+  final cameraToggles = <bool>[];
+
   /// Every `includeAudio` a call to [setScreenShareEnabled] received, in
   /// order.
   final List<bool> screenShareAudioCalls = [];
@@ -113,6 +135,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<void> setVolumeFor(String identity, double volume) async {
     _volumes[identity] = volume.clamp(0.0, 2.0);
+    volumePushes.add((identity, false, volume));
   }
 
   final VoiceSessionState joinOutcome;
@@ -127,7 +150,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
 
   /// What a request to start sharing reports back. Every branch the
   /// controller has to tell apart is one of these.
-  final ScreenShareOutcome screenShareOutcome;
+  ScreenShareOutcome screenShareOutcome;
   final bool deafenGranted;
 
   /// Whether this platform makes a share name a screen first.
@@ -348,6 +371,7 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   Future<bool> setCameraEnabled(bool enabled) async {
     askedForCameraOnToggle = enabled;
+    cameraToggles.add(enabled);
     if (!cameraGranted) {
       final reason = cameraFailureReason;
       _lastError = reason == null
@@ -366,6 +390,12 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
     int? maxHeight,
   }) async {
     lastSourceId = sourceId;
+    shareCalls.add((
+      enabled: enabled,
+      quality: quality,
+      sourceId: sourceId,
+      includeAudio: includeAudio,
+    ));
     screenShareAudioCalls.add(includeAudio);
     if (!enabled) return ScreenShareOutcome.stopped;
     // The real session records the cause first; a fake that skips it hides a dropped cause.

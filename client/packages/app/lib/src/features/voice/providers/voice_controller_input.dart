@@ -123,7 +123,7 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   void setReceiveVideoQuality(ReceiveVideoQuality quality) =>
       _inputSession.setReceiveVideoQuality(quality);
 
-  /// Sets how sharp your camera publishes, from its next start.
+  /// Sets how sharp your camera publishes; [restartCamera] applies it to a live one.
   void setCameraQuality(CameraQuality quality) =>
       _inputSession.setCameraQuality(quality);
 

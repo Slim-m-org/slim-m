@@ -113,19 +113,13 @@ Map<String, Rect> _clampedToViewport(
   return defaults.map((key, rect) => MapEntry(key, rect.shift(offset)));
 }
 
-/// [keys] sorted for paint order: a tile this viewer has ever dragged or
-/// resized paints above every untouched one, most recently touched last
-/// (topmost), the same "a real sheet of paper does not slide under the pile"
-/// rule for the video backdrop and the control layer alike.
+/// [keys] sorted for paint order: the tile moved most recently paints topmost, and tiles with no order yet fall back to their key, so every viewer stacks overlapping tiles the same way whatever order their own roster listed them in.
 List<String> presencePaintOrder(Set<String> keys, int? Function(String) zFor) {
-  final ordered = keys.toList(growable: false);
-  final rank = <String, int>{
-    for (var i = 0; i < ordered.length; i++) ordered[i]: i,
-  };
+  final ordered = keys.toList(growable: false)..sort();
   final withZ = ordered.map((key) => (key: key, z: zFor(key) ?? -1)).toList();
   withZ.sort((a, b) {
     final byZ = a.z.compareTo(b.z);
-    return byZ != 0 ? byZ : rank[a.key]!.compareTo(rank[b.key]!);
+    return byZ != 0 ? byZ : a.key.compareTo(b.key);
   });
   return [for (final entry in withZ) entry.key];
 }
