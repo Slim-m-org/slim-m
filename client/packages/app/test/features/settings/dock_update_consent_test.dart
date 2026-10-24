@@ -85,4 +85,127 @@ void main() {
       'Now reaches api.example.com, evil.test, was api.example.com.',
     ]);
   });
+
+  group('platform powers', () {
+    api.DockManifest platform({
+      String? sha,
+      List<String> events = const ['message.created'],
+      Map<String, dynamic>? data,
+    }) {
+      final json = dockManifestJson(
+        'digest',
+        '0.2.0',
+        capabilities: ['events', 'data.store', 'log.read'],
+        extras: {'subscriptions': events, 'data': ?data},
+      );
+      if (sha != null) {
+        (json['artifact'] as Map<String, dynamic>)['sha256'] = sha;
+      }
+      return api.DockManifest.fromJson(json);
+    }
+
+    final dataV1 = {
+      'max_mb': 8,
+      'tables': [
+        {
+          'name': 'xp',
+          'columns': [
+            {'name': 'user_id', 'type': 'text', 'unique': true},
+          ],
+        },
+      ],
+    };
+
+    api.InstalledDockModule installed() => api.InstalledDockModule(
+      id: 'digest',
+      name: 'digest',
+      version: '0.1.0',
+      artifactSha256: _sha,
+      approvedCapabilities: const ['events', 'data.store', 'log.read'],
+      approvedHostCapabilities: const ['events', 'data.store', 'log.read'],
+      extensionPoints: const [],
+      enabled: true,
+      installedAt: 1,
+      subscriptions: const ['message.created'],
+      dataSchema: api.dockDataSchema(dataV1),
+    );
+
+    test('the same build with the same reach asks for nothing', () {
+      final manifest = platform(data: dataV1);
+      expect(newConsentCapabilities(manifest, installed()), isEmpty);
+      expect(dockConsentChanges(manifest, installed()), isEmpty);
+    });
+
+    test('a new build asks for events, data and log reading again', () {
+      final manifest = platform(sha: _other, data: dataV1);
+      expect(newConsentCapabilities(manifest, installed()), [
+        'events',
+        'data.store',
+        'log.read',
+      ]);
+      expect(dockConsentChanges(manifest, installed()), [
+        'This is a new build of the module code.',
+      ]);
+    });
+
+    test('a new subscription asks for events and names it', () {
+      final manifest = platform(
+        events: const ['message.created', 'member.joined'],
+        data: dataV1,
+      );
+      expect(newConsentCapabilities(manifest, installed()), ['events']);
+      expect(dockConsentChanges(manifest, installed()), [
+        'Now listens for member.joined.',
+      ]);
+    });
+
+    test('a bigger cap, new table, new column or new index asks for data', () {
+      Map<String, dynamic> withColumn(Map<String, dynamic> column) => {
+        'max_mb': 8,
+        'tables': [
+          {
+            'name': 'xp',
+            'columns': [
+              {'name': 'user_id', 'type': 'text', 'unique': true},
+              column,
+            ],
+          },
+        ],
+      };
+      final wider = <Map<String, dynamic>>[
+        {...dataV1, 'max_mb': 16},
+        {
+          ...dataV1,
+          'tables': [
+            ...(dataV1['tables']! as List),
+            {'name': 'log', 'columns': <Object>[]},
+          ],
+        },
+        withColumn({'name': 'xp', 'type': 'int'}),
+        {
+          'max_mb': 8,
+          'tables': [
+            {
+              'name': 'xp',
+              'columns': [
+                {
+                  'name': 'user_id',
+                  'type': 'text',
+                  'unique': true,
+                  'index': true,
+                },
+              ],
+            },
+          ],
+        },
+      ];
+      for (final data in wider) {
+        final manifest = platform(data: data);
+        expect(newConsentCapabilities(manifest, installed()), ['data.store']);
+        expect(dockConsentChanges(manifest, installed()), [
+          'Now asks for more room in its data store.',
+        ]);
+      }
+    });
+  });
 }

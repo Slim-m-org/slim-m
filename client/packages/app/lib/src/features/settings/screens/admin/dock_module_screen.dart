@@ -72,7 +72,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
       for (final capability in grantable)
         if (chosen.contains(capability) &&
             (_hostApproved != null ||
-                !_needsReapproval(capability, manifest, installed)))
+                !dockNeedsReapproval(capability, manifest, installed)))
           capability,
     };
   }
@@ -98,37 +98,13 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     return _localNetwork ?? carried;
   }
 
-  /// A new build never inherits the power to post, fetch or run on a timer,
-  /// and new hosts or a changed schedule never inherit theirs: each has to be
-  /// switched on again for what the admin is looking at.
-  static bool _needsReapproval(
-    String capability,
-    api.DockManifest manifest,
-    api.InstalledDockModule? installed,
-  ) {
-    if (installed == null) return false;
-    final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
-    return switch (capability) {
-      'message.post' => newBuild,
-      api.kNetFetchCapability =>
-        newBuild ||
-            !dockSameHosts(
-              installed.networkHosts,
-              manifest.network?.hosts ?? const [],
-            ),
-      'schedule' =>
-        newBuild || dockScheduleChanges(manifest, installed).isNotEmpty,
-      _ => false,
-    };
-  }
-
   List<String> _reapprovalsFor(
     api.DockManifest manifest,
     api.InstalledDockModule? installed,
   ) => [
     if (_hostApproved == null && installed != null)
       for (final c in installed.approvedHostCapabilities)
-        if (_needsReapproval(c, manifest, installed)) c,
+        if (dockNeedsReapproval(c, manifest, installed)) c,
   ];
 
   void _toggleHostCapability(String capability, bool approved) {

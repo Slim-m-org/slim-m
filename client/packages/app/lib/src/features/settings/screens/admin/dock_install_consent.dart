@@ -32,20 +32,19 @@ List<String> newConsentCapabilities(
   ];
 }
 
-/// An update widens an approved power the admin has not seen when its hosts
-/// changed, when it is a new build of a module that fetches or runs on a
-/// timer, or when its schedule changed. The server drops those approvals.
-bool _widened(
+/// Whether an update takes back an approved power the admin has not seen:
+/// every host power after a new build, new hosts for `net.fetch`, a changed
+/// schedule, a subscription added to `events`, or a wider `data.store`.
+/// Mirrors the server's carry rules in `http/dock/capabilities.rs`.
+bool dockNeedsReapproval(
   String capability,
   api.DockManifest manifest,
   api.InstalledDockModule? installed,
 ) {
-  if (installed == null ||
-      !installed.approvedHostCapabilities.contains(capability)) {
-    return false;
-  }
+  if (installed == null) return false;
   final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
   return switch (capability) {
+    'message.post' || 'log.read' => newBuild,
     api.kNetFetchCapability =>
       newBuild ||
           !dockSameHosts(
@@ -54,8 +53,40 @@ bool _widened(
           ),
     'schedule' =>
       newBuild || dockScheduleChanges(manifest, installed).isNotEmpty,
+    'events' =>
+      newBuild || dockNewSubscriptions(manifest, installed).isNotEmpty,
+    'data.store' => newBuild || dockDataWidened(manifest, installed),
     _ => false,
   };
+}
+
+bool _widened(
+  String capability,
+  api.DockManifest manifest,
+  api.InstalledDockModule? installed,
+) =>
+    installed != null &&
+    installed.approvedHostCapabilities.contains(capability) &&
+    dockNeedsReapproval(capability, manifest, installed);
+
+/// Event kinds [manifest] subscribes to that the installed build did not.
+List<String> dockNewSubscriptions(
+  api.DockManifest manifest,
+  api.InstalledDockModule installed,
+) => [
+  for (final kind in manifest.subscriptions)
+    if (!installed.subscriptions.contains(kind)) kind,
+];
+
+/// Whether [manifest] asks for more data room than the installed build had.
+bool dockDataWidened(
+  api.DockManifest manifest,
+  api.InstalledDockModule installed,
+) {
+  final wanted = manifest.dataSchema;
+  if (wanted == null) return false;
+  final had = installed.dataSchema;
+  return had == null || !had.covers(wanted);
 }
 
 /// Plain sentences for what an update changes about a module's reach or
@@ -66,18 +97,32 @@ List<String> dockConsentChanges(
 ) {
   if (installed == null) return const [];
   final hosts = manifest.network?.hosts ?? const <String>[];
+  final approved = installed.approvedHostCapabilities;
+  final newSubscriptions = dockNewSubscriptions(manifest, installed);
   return [
-    if (installed.approvedHostCapabilities.contains(api.kNetFetchCapability) &&
+    if (approved.contains(api.kNetFetchCapability) &&
         !dockSameHosts(installed.networkHosts, hosts))
       'Now reaches ${hosts.join(', ')}, was ${installed.networkHosts.join(', ')}.',
-    if (installed.approvedHostCapabilities.contains('schedule'))
+    if (approved.contains('schedule'))
       ...dockScheduleChanges(manifest, installed),
-    if ((installed.approvedHostCapabilities.contains(api.kNetFetchCapability) ||
-            installed.approvedHostCapabilities.contains('schedule')) &&
-        installed.artifactSha256 != manifest.artifact.sha256)
+    if (approved.contains('events') && newSubscriptions.isNotEmpty)
+      'Now listens for ${newSubscriptions.join(', ')}.',
+    if (approved.contains('data.store') && dockDataWidened(manifest, installed))
+      'Now asks for more room in its data store.',
+    if (installed.artifactSha256 != manifest.artifact.sha256 &&
+        approved.any(_reaskedOnNewBuild.contains))
       'This is a new build of the module code.',
   ];
 }
+
+const _reaskedOnNewBuild = {
+  'message.post',
+  api.kNetFetchCapability,
+  'schedule',
+  'events',
+  'data.store',
+  'log.read',
+};
 
 /// The sentences for schedule entries that are new or run at another interval.
 List<String> dockScheduleChanges(
