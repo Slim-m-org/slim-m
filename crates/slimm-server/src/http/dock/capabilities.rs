@@ -54,7 +54,7 @@ const REASKED_ON_NEW_BUILD: [&str; 6] = [
     "log.read",
 ];
 
-/// Whether the manifest's `data` asks for no more room than the approved one: not a larger cap, no new table.
+/// Whether the manifest's `data` asks for no more than the approved one: not a larger cap, no new table or column, no newly unique or indexed column.
 fn data_not_widened(current: &serde_json::Value, manifest: &Manifest) -> bool {
     let Some(wanted) = &manifest.data else {
         return true;
@@ -62,7 +62,15 @@ fn data_not_widened(current: &serde_json::Value, manifest: &Manifest) -> bool {
     let Ok(had) = crate::module_runtime::validate_data_schema(current) else {
         return false;
     };
-    wanted.max_mb <= had.max_mb && wanted.tables.iter().all(|t| had.table(&t.name).is_some())
+    wanted.max_mb <= had.max_mb
+        && wanted.tables.iter().all(|t| {
+            had.table(&t.name).is_some_and(|old| {
+                t.columns.iter().all(|c| {
+                    old.column(&c.name)
+                        .is_some_and(|o| (o.unique || !c.unique) && (o.index || !c.index))
+                })
+            })
+        })
 }
 
 fn same_schedules(current: &[ModuleSchedule], manifest: &Manifest) -> bool {

@@ -339,6 +339,50 @@ async fn a_larger_cap_or_a_new_table_with_the_same_artifact_asks_for_data_store_
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_new_column_or_a_new_unique_or_index_flag_asks_for_data_store_again() {
+    let h = harness("slimm-dockdata-columns").await;
+    let base = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
+        { "name": "user_id", "type": "text" }] }] });
+    let mut steps = Vec::new();
+    let mut with_column = base.clone();
+    with_column["tables"][0]["columns"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "name": "points", "type": "int" }));
+    steps.push(with_column);
+    let mut unique = base.clone();
+    unique["tables"][0]["columns"][0]["unique"] = json!(true);
+    steps.push(unique);
+    let mut indexed = base.clone();
+    indexed["tables"][0]["columns"][0]["index"] = json!(true);
+    steps.push(indexed);
+
+    for (i, wider) in steps.iter().enumerate() {
+        h.serve_with("0.1.0", &base, BOTH);
+        h.install("0.1.0", &["data.store", "events"]).await;
+        let version = format!("0.1.{}", i + 1);
+        h.serve_with(&version, wider, BOTH);
+        assert_eq!(h.reinstall_carrying(&version).await, ["events"], "step {i}");
+        let (status, _) = h
+            .call(
+                "DELETE",
+                "/space/dock/modules/scores/install?delete_data=true",
+                Value::Null,
+            )
+            .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    h.serve_with("0.2.0", &base, BOTH);
+    h.install("0.2.0", &["data.store", "events"]).await;
+    h.serve_with("0.2.1", &base, BOTH);
+    assert_eq!(
+        h.reinstall_carrying("0.2.1").await,
+        ["data.store", "events"]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn making_a_column_unique_over_repeated_values_is_refused_before_it_installs() {
     let h = harness("slimm-dockdata-dupes").await;
     let loose = json!({ "max_mb": 8, "tables": [{ "name": "xp", "columns": [
