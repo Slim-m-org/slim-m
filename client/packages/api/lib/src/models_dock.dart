@@ -304,8 +304,12 @@ class DockManifest {
     this.changelog = const [],
     this.subscriptions = const [],
     this.dataMaxMb,
+    this.dataSchema,
     this.reviewDigest,
   });
+
+  /// The tables and cap of its data store; null when it declares none.
+  final DockDataSchema? dataSchema;
 
   /// Event kinds it subscribes to and its data store cap in MB.
   final List<String> subscriptions;
@@ -387,6 +391,7 @@ class DockManifest {
         changelog: _changelog(json['changelog']),
         subscriptions: dockSubscriptions(json['subscriptions']),
         dataMaxMb: dockDataMaxMb(json['data']),
+        dataSchema: dockDataSchema(json['data']),
         reviewDigest: json['review_digest'] as String?,
       );
 }
@@ -413,7 +418,27 @@ class InstalledDockModule {
     this.runStats,
     this.storage,
     this.declaresSettings = false,
+    this.subscriptions = const [],
+    this.dataSchema,
+    this.consecutiveFailures = 0,
+    this.disabledReason,
+    this.eventsDropped = 0,
   });
+
+  /// Event kinds it was installed to receive.
+  final List<String> subscriptions;
+
+  /// The data store it was installed with; null when it declared none.
+  final DockDataSchema? dataSchema;
+
+  /// Failed event or scheduled runs in a row; the host turns it off at five.
+  final int consecutiveFailures;
+
+  /// Why the host turned it off; null until it did.
+  final String? disabledReason;
+
+  /// Pushed events its queue dropped because it fell behind.
+  final int eventsDropped;
 
   /// Whether it declares settings an admin can fill.
   final bool declaresSettings;
@@ -496,5 +521,10 @@ class InstalledDockModule {
             ? null
             : DockStorage.fromJson(json['storage'] as Map<String, dynamic>),
         declaresSettings: dockDeclaresSettings(json['settings']),
+        subscriptions: dockSubscriptions(json['subscriptions']),
+        dataSchema: dockDataSchema(json['data']),
+        consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
+        disabledReason: json['disabled_reason'] as String?,
+        eventsDropped: json['events_dropped'] as int? ?? 0,
       );
 }

@@ -543,7 +543,8 @@ Set them higher in the manifest if your module genuinely needs it (Game of Life 
 
 The host also caps how many runs execute at once, across every module (four).
 A run that cannot get a slot within a few seconds fails with `the module host is busy; try again in a moment`, so a handful of members using a heavy module cannot stack memory.
-Runs the host starts itself (scheduled commands, events and slot answers) share a separate lane of two, and wait up to a minute for it.
+Runs the host starts itself (scheduled commands and events) share a separate lane of two, and wait up to a minute for it.
+Slot answers have a lane of their own, also of two, and wait only two seconds before showing nothing.
 The first run of a version compiles and verifies its artifact; later runs of the same version reuse that work and never read the stored bytes again.
 
 ## Host capabilities

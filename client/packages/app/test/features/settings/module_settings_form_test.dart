@@ -214,6 +214,17 @@ void main() {
     expect(saved, isEmpty);
   });
 
+  testWidgets('emptying a number clears it back to the default', (
+    tester,
+  ) async {
+    final saved = await _pump(tester);
+    await tester.enterText(_input('Cap'), '');
+    await tester.pump();
+    await _save(tester);
+    expect(find.text('Cap needs a whole number.'), findsNothing);
+    expect(saved.last, {'cap': null});
+  });
+
   testWidgets('Discard puts every edit back', (tester) async {
     await _pump(tester);
     await tester.enterText(_input('Display name'), 'Bob');

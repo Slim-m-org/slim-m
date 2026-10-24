@@ -164,7 +164,11 @@ class _ModuleSettingsFormState extends State<ModuleSettingsForm> {
       if (d.type != api.ModuleSettingType.integer || _bounded(d)) continue;
       if (!changes.containsKey(d.key)) continue;
       final value = changes[d.key];
-      if (value == null) return '${d.label} needs a whole number.';
+      // Empty clears the setting back to its default; only junk is a problem.
+      if (value == null) {
+        if ((_controllers[d.key]?.text.trim() ?? '').isEmpty) continue;
+        return '${d.label} needs a whole number.';
+      }
       if (value is int && d.min != null && value < d.min!) {
         return '${d.label} must be at least ${d.min}.';
       }
