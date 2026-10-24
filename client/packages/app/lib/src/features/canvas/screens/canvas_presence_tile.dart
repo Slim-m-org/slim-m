@@ -127,6 +127,23 @@ class _CanvasPresenceManipulableTileState
   Offset _dragTotal = Offset.zero;
   bool _dragPersonal = false;
   bool _dragCancelled = false;
+  ({Offset at, DateTime time})? _lastClick;
+
+  void _onBodyPanDown(DragDownDetails details) {
+    if (widget.onExpand == null || _camera.pinching || _panPointer != null) {
+      return;
+    }
+    final now = DateTime.now();
+    final last = _lastClick;
+    if (last != null &&
+        now.difference(last.time) <= kDoubleTapTimeout &&
+        (details.globalPosition - last.at).distance <= kDoubleTapSlop) {
+      _lastClick = null;
+      widget.onExpand?.call();
+      return;
+    }
+    _lastClick = (at: details.globalPosition, time: now);
+  }
 
   void _dragStart(DragStartDetails details) {
     _dragStartRect = _rect;
@@ -141,8 +158,9 @@ class _CanvasPresenceManipulableTileState
       _dragCancelled = true;
       return;
     }
-    if (_camera.pinching) return;
+    if (_camera.pinching || _panPointer != null) return;
     _dragTotal += details.delta;
+    if (_dragTotal.distance > kTouchSlop) _lastClick = null;
     // From the start rect and the total travel, so the overshoot past a clamp is not lost.
     final next = widget.document.placeOnBoard(
       (_dragStartRect ?? _rect).shift(_dragTotal / widget.camera.zoom),
@@ -211,7 +229,12 @@ class _CanvasPresenceManipulableTileState
   /// pointers this instance actually added, never a guess.
   final Set<int> _countedPointers = {};
 
-  bool _isPanButton(int buttons) => buttons & kMiddleMouseButton != 0;
+  bool _isPanButton(int buttons) =>
+      buttons & kMiddleMouseButton != 0 ||
+      (buttons & kPrimaryButton != 0 &&
+          HardwareKeyboard.instance.isLogicalKeyPressed(
+            LogicalKeyboardKey.space,
+          ));
 
   /// True while a mouse sits over this tile - [MouseRegion.onEnter]/
   /// [MouseRegion.onExit] track it directly and need no timer, since a
@@ -313,24 +336,9 @@ class _CanvasPresenceManipulableTileState
     );
   }
 
-  /// A wheel notch inside this tile's opaque bounds, which `CanvasSurface` never sees; its position is re-based onto the tile's on-screen origin for `cameraAfterWheelScroll`.
+  /// Forwarded to [TileCameraForwarder.signal] unless in pass-through mode.
   void _onPointerSignal(PointerSignalEvent event) {
-    if (_passThrough) return;
-    if (event is! PointerScrollEvent) return;
-    final screen = presenceScreenRect(_rect, widget.camera);
-    final focal = screen.topLeft + event.localPosition;
-    final keys = HardwareKeyboard.instance;
-    widget.document.setCamera(
-      cameraAfterWheelScroll(
-        widget.document.camera,
-        focal: focal,
-        dx: event.scrollDelta.dx,
-        dy: event.scrollDelta.dy,
-        zoomModifier: keys.isControlPressed || keys.isMetaPressed,
-        horizontalModifier: keys.isShiftPressed,
-        zoomFloor: widget.document.zoomFloor,
-      ),
-    );
+    if (!_passThrough) _camera.signal(event);
   }
 
   @override
@@ -471,6 +479,7 @@ class _CanvasPresenceManipulableTileState
                         _menuController.open(details.globalPosition),
                     // A trackpad scroll moves the camera, not the tile.
                     supportedDevices: _dragDevices,
+                    onPanDown: _onBodyPanDown,
                     onPanStart: _dragStart,
                     onPanUpdate: _drag,
                     onPanEnd: _dragEnd,

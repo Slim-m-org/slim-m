@@ -41,11 +41,30 @@ constexpr wchar_t kWatchWindowClass[] = L"SlimmGlobalHotkeyWatch";
 
 bool KeyHeld(int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; }
 
+bool IsCtrlKey(DWORD vk) {
+  return vk == VK_CONTROL || vk == VK_LCONTROL || vk == VK_RCONTROL;
+}
+
+bool IsAltKey(DWORD vk) {
+  return vk == VK_MENU || vk == VK_LMENU || vk == VK_RMENU;
+}
+
+bool IsShiftKey(DWORD vk) {
+  return vk == VK_SHIFT || vk == VK_LSHIFT || vk == VK_RSHIFT;
+}
+
+bool IsMetaKey(DWORD vk) { return vk == VK_LWIN || vk == VK_RWIN; }
+
 bool ModifiersHeld(const Binding& binding) {
-  if (binding.ctrl && !KeyHeld(VK_CONTROL)) return false;
-  if (binding.alt && !KeyHeld(VK_MENU)) return false;
-  if (binding.shift && !KeyHeld(VK_SHIFT)) return false;
-  if (binding.meta && !KeyHeld(VK_LWIN) && !KeyHeld(VK_RWIN)) return false;
+  if (!IsCtrlKey(binding.vk) && KeyHeld(VK_CONTROL) != binding.ctrl) {
+    return false;
+  }
+  if (!IsAltKey(binding.vk) && KeyHeld(VK_MENU) != binding.alt) return false;
+  if (!IsShiftKey(binding.vk) && KeyHeld(VK_SHIFT) != binding.shift) {
+    return false;
+  }
+  const bool meta_held = KeyHeld(VK_LWIN) || KeyHeld(VK_RWIN);
+  if (!IsMetaKey(binding.vk) && meta_held != binding.meta) return false;
   return true;
 }
 

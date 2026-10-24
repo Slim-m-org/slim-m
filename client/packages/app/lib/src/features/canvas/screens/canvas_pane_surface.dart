@@ -47,6 +47,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.menuRequests,
     required this.presenceFrames,
     this.focusedTileKey,
+    this.boardFocusNode,
   });
 
   final CanvasPaneSurfaceActions actions;
@@ -74,6 +75,9 @@ class CanvasPaneSurface extends StatelessWidget {
   /// The call tile whose feed fills the pane under the ink, if any.
   final String? focusedTileKey;
 
+  /// Focus node for [CanvasBoardKeys] so the pane can return focus to the board.
+  final FocusNode? boardFocusNode;
+
   @override
   Widget build(BuildContext context) => CanvasBoardKeys(
     document: document,
@@ -81,6 +85,7 @@ class CanvasPaneSurface extends StatelessWidget {
     onOpenActions: menuRequests.request,
     onPlaceNote: actions.onNotePlace,
     onPlaceShape: (world) => actions.onShapePlace(world, null),
+    focusNode: boardFocusNode,
     child: Stack(
       children: [
         // Below everything, including CanvasPresenceBackdrop - a grid line must never paint over a sent-to-back tile's own video, the bug this ordering fixes.

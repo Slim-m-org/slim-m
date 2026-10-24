@@ -84,4 +84,72 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
           flags.state == VoiceSessionState.failed
       ? (flags.error ?? 'The call was dropped.')
       : null;
+
+  /// Who to show as a camera or share bubble: nobody unless this device joined a call in this channel, since without one there is no LiveKit room to render from.
+  List<VoiceParticipant> _callParticipants() {
+    final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
+    if (channelId != widget.channelId) return const [];
+    final blocks = ref.watch(blocksProvider);
+    final stoppedShares = ref.watch(
+      shareWatchProvider.select((w) => w.stopped),
+    );
+    final participants = ref
+        .watch(voiceParticipantsProvider.select(CanvasCallParticipants.new))
+        .participants;
+    return [
+      for (final p in participants)
+        if (!blocks.contains(p.identity))
+          if (p.isScreenSharing &&
+              !p.isLocal &&
+              stoppedShares.contains(p.identity))
+            VoiceParticipant(
+              identity: p.identity,
+              name: p.name,
+              isSpeaking: p.isSpeaking,
+              isMuted: p.isMuted,
+              isLocal: p.isLocal,
+              isScreenSharing: false,
+              isCameraOn: p.isCameraOn,
+              audioLevel: p.audioLevel,
+              isDeafened: p.isDeafened,
+            )
+          else
+            p,
+    ];
+  }
+}
+
+/// The call participants as the canvas sees them: equal whenever nothing but
+/// a speaking flag or level moved, since the tiles draw neither (speaking is
+/// the cursor label's glow and the dock roster's ring) and rebuilding the
+/// whole pane several times a second per speaker made it lag.
+@visibleForTesting
+class CanvasCallParticipants {
+  const CanvasCallParticipants(this.participants);
+
+  final List<VoiceParticipant> participants;
+
+  static bool _same(VoiceParticipant a, VoiceParticipant b) =>
+      a.identity == b.identity &&
+      a.name == b.name &&
+      a.isMuted == b.isMuted &&
+      a.isDeafened == b.isDeafened &&
+      a.isLocal == b.isLocal &&
+      a.isScreenSharing == b.isScreenSharing &&
+      a.isCameraOn == b.isCameraOn;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! CanvasCallParticipants) return false;
+    final a = participants;
+    final b = other.participants;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_same(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(participants.map((p) => p.identity));
 }

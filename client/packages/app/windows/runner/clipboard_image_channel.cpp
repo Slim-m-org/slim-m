@@ -146,12 +146,17 @@ std::vector<uint8_t> DibToBmp(const std::vector<uint8_t>& dib) {
   std::memcpy(&header, dib.data(), sizeof(header));
   DWORD palette = header.biClrUsed;
   if (palette == 0 && header.biBitCount <= 8) palette = 1u << header.biBitCount;
-  DWORD masks = (header.biSize == sizeof(BITMAPINFOHEADER) &&
-                 header.biCompression == BI_BITFIELDS)
-                    ? 3 * sizeof(DWORD)
-                    : 0;
+  DWORD masks = 0;
+  if (header.biSize == sizeof(BITMAPINFOHEADER)) {
+    if (header.biCompression == BI_BITFIELDS) {
+      masks = 3 * sizeof(DWORD);
+    } else if (header.biCompression == 6 /* BI_ALPHABITFIELDS */) {
+      masks = 4 * sizeof(DWORD);
+    }
+  }
   const DWORD offset = sizeof(BITMAPFILEHEADER) + header.biSize + masks +
                        palette * sizeof(RGBQUAD);
+  if (offset > sizeof(BITMAPFILEHEADER) + dib.size()) return {};
   BITMAPFILEHEADER file = {};
   file.bfType = 0x4D42;  // "BM"
   file.bfSize = static_cast<DWORD>(sizeof(file) + dib.size());
@@ -159,6 +164,22 @@ std::vector<uint8_t> DibToBmp(const std::vector<uint8_t>& dib) {
   std::vector<uint8_t> bmp(sizeof(file));
   std::memcpy(bmp.data(), &file, sizeof(file));
   bmp.insert(bmp.end(), dib.begin(), dib.end());
+  // GDI 32-bpp BI_RGB captures leave the fourth byte zero; opaque it when every pixel has zero alpha.
+  if (header.biBitCount == 32 && header.biCompression == BI_RGB &&
+      bmp.size() > offset + 3) {
+    bool any_alpha = false;
+    for (size_t i = offset + 3; i < bmp.size(); i += 4) {
+      if (bmp[i] != 0) {
+        any_alpha = true;
+        break;
+      }
+    }
+    if (!any_alpha) {
+      for (size_t i = offset + 3; i < bmp.size(); i += 4) {
+        bmp[i] = 0xFF;
+      }
+    }
+  }
   return bmp;
 }
 

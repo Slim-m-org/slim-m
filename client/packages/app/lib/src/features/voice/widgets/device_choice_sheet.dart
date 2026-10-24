@@ -20,6 +20,7 @@ class DeviceChoiceSheet<T> extends StatelessWidget {
     required this.title,
     this.caption,
     required this.icon,
+    this.iconOf,
     required this.items,
     required this.labelOf,
     this.isSelected,
@@ -28,6 +29,7 @@ class DeviceChoiceSheet<T> extends StatelessWidget {
   final String title;
   final String? caption;
   final IconData icon;
+  final IconData Function(T item)? iconOf;
   final List<T> items;
   final String Function(T item) labelOf;
 
@@ -70,7 +72,7 @@ class DeviceChoiceSheet<T> extends StatelessWidget {
             AppListRow(
               label: labelOf(item),
               leading: Icon(
-                icon,
+                iconOf?.call(item) ?? icon,
                 size: AppSizes.icon16,
                 color: tokens.textSecondary,
               ),

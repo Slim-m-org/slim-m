@@ -25,6 +25,7 @@ class CanvasBoardKeys extends StatefulWidget {
     required this.onOpenActions,
     required this.onPlaceNote,
     required this.onPlaceShape,
+    this.focusNode,
     required this.child,
   });
 
@@ -40,6 +41,9 @@ class CanvasBoardKeys extends StatefulWidget {
   final ValueChanged<Offset> onPlaceNote;
   final ValueChanged<Offset> onPlaceShape;
 
+  /// Optional external node so the pane can return focus to the board after a sheet or inline editor closes.
+  final FocusNode? focusNode;
+
   final Widget child;
 
   @override
@@ -52,7 +56,9 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   /// Drawn only for keyboard focus: the board takes focus as the pane opens, where a ring would be noise.
   bool _ring = false;
 
-  final FocusNode _node = FocusNode(debugLabel: 'canvas board');
+  FocusNode? _ownNode;
+  FocusNode get _node =>
+      widget.focusNode ?? (_ownNode ??= FocusNode(debugLabel: 'canvas board'));
 
   @override
   void initState() {
@@ -62,10 +68,24 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
   }
 
   @override
+  void didUpdateWidget(covariant CanvasBoardKeys oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      (oldWidget.focusNode ?? _ownNode)?.removeListener(_onFocusChanged);
+      if (widget.focusNode != null) {
+        _ownNode?.dispose();
+        _ownNode = null;
+      }
+      _node.addListener(_onFocusChanged);
+      _onFocusChanged();
+    }
+  }
+
+  @override
   void dispose() {
     FocusManager.instance.removeHighlightModeListener(_onHighlightMode);
     _node.removeListener(_onFocusChanged);
-    _node.dispose();
+    _ownNode?.dispose();
     super.dispose();
   }
 
@@ -112,6 +132,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     }
     final view = _document.viewport;
     final key = event.logicalKey;
+    final once = event is KeyDownEvent;
     final handled = switch (key) {
       LogicalKeyboardKey.arrowLeft => _pan(-view.width * _panStep, 0),
       LogicalKeyboardKey.arrowRight => _pan(view.width * _panStep, 0),
@@ -124,13 +145,13 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       LogicalKeyboardKey.numpadAdd => _zoom(_zoomStep),
       LogicalKeyboardKey.minus ||
       LogicalKeyboardKey.numpadSubtract => _zoom(1 / _zoomStep),
-      LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => _fit(),
-      LogicalKeyboardKey.bracketRight => _step(1),
-      LogicalKeyboardKey.bracketLeft => _step(-1),
+      LogicalKeyboardKey.digit0 || LogicalKeyboardKey.numpad0 => once && _fit(),
+      LogicalKeyboardKey.bracketRight => once && _step(1),
+      LogicalKeyboardKey.bracketLeft => once && _step(-1),
       LogicalKeyboardKey.enter ||
       LogicalKeyboardKey.numpadEnter ||
-      LogicalKeyboardKey.space => _activate(),
-      LogicalKeyboardKey.escape => _deselect(),
+      LogicalKeyboardKey.space => once && _activate(),
+      LogicalKeyboardKey.escape => once && _deselect(),
       _ => false,
     };
     if (handled && !_ring) setState(() => _ring = true);

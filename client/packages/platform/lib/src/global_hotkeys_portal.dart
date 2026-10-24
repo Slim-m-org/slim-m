@@ -142,7 +142,9 @@ class PortalGlobalHotkeySource implements GlobalHotkeySource {
       return const GlobalHotkeyAvailability.available(portalAvailableMessage);
     }
     try {
-      final session = _session ?? await _createSession();
+      // GlobalShortcuts allows BindShortcuts only once per session, so a re-bind starts a fresh one.
+      if (_session != null) await _closeSession();
+      final session = await _createSession();
       final results = await _request(
         'BindShortcuts',
         (token) => bindShortcutsValues(

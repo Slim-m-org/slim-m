@@ -123,6 +123,8 @@ class DesktopWindowController {
         await _writeNow();
       case DesktopWindowEventKind.close:
         await requestClose();
+      case DesktopWindowEventKind.minimize:
+        break;
       case DesktopWindowEventKind.show:
         onShow?.call(_lastCloseAction);
     }

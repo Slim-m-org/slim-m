@@ -120,10 +120,14 @@ class CanvasPaneBody extends StatefulWidget {
     this.noteSpansRevision = 0,
     this.noteEditor,
     this.viewRelay,
+    this.boardFocusNode,
   });
 
   final String channelId;
   final VoidCallback onClose;
+
+  /// Focus node handed down to [CanvasBoardKeys].
+  final FocusNode? boardFocusNode;
 
   /// Told when the activity log replaces the board, so the pane's edit keys stand down.
   final ValueChanged<bool>? onActivityLogOpenChanged;

@@ -29,6 +29,7 @@ Future<ScreenShareSource?> showScreenSourceSheet(
           : 'Share a screen',
       caption: 'Everyone in the call will see it until you stop sharing.',
       icon: AppIcons.screenShare,
+      iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
       items: sources,
       labelOf: (source) => source.name,
       isSelected: selectedId == null ? null : (s) => s.id == selectedId,

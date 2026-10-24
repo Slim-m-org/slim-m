@@ -146,4 +146,19 @@ void main() {
       reason: 'the title bar must come back with the window',
     );
   });
+
+  test(
+    'releasing while isFullScreen is still in flight does not fullscreen the window',
+    () async {
+      DesktopWindowShell.debugActivate(frameless: true);
+      final h = hold();
+      final entering = h.enter();
+      h.release();
+      await entering;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(port.fullScreen, isFalse);
+      expect(container.read(fullscreenVideoActiveProvider), isFalse);
+    },
+  );
 }

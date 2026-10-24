@@ -144,8 +144,15 @@ class AudioDeviceSwitching {
 
   /// Moves a just-opened preview capture onto a sound-server node.
   Future<void> routePreviewInput(String? inputId) async {
+    if (inputId == null) {
+      final serverDefault = await _pulse.defaultNode(capture: true);
+      if (serverDefault != null) {
+        await _pulse.moveOwnStreams(capture: true, deviceId: serverDefault);
+      }
+      return;
+    }
     if (isPulseDeviceId(inputId)) {
-      await _pulse.moveOwnStreams(capture: true, deviceId: inputId!);
+      await _pulse.moveOwnStreams(capture: true, deviceId: inputId);
     }
   }
 

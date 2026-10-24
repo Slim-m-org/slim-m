@@ -83,4 +83,35 @@ void main() {
     await tester.pump();
     expect(_ringShown(tester), isFalse);
   });
+
+  testWidgets('holding Enter does not repeat placement on KeyRepeatEvent', (
+    tester,
+  ) async {
+    var placed = 0;
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.dark, AppTokens.dark),
+        home: Scaffold(
+          body: CanvasBoardKeys(
+            document: CanvasDocument()..setViewport(const Size(800, 600)),
+            tool: CanvasTool.note,
+            focusNode: focusNode,
+            onOpenActions: (_) {},
+            onPlaceNote: (_) => placed++,
+            onPlaceShape: (_) {},
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(placed, 1);
+  });
 }

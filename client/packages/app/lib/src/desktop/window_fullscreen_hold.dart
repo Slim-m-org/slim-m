@@ -50,8 +50,10 @@ class WindowFullscreenHold {
     try {
       final port = DesktopWindowShell.port;
       _alreadyFullScreen[_chromeHidden] = await port.isFullScreen();
+      if (!_held) return;
       await port.setFullScreen(true);
     } catch (error, stack) {
+      if ((_owners[_chromeHidden] ?? 0) <= 1) _chromeHidden.state = false;
       AppLog.swallowed(
         LogTag.voice,
         'Could not make the window fullscreen; showing the video anyway',
