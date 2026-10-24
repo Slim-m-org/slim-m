@@ -191,13 +191,32 @@ void main() {
         greaterThan(overrides.zFor('camera:bob')!));
   });
 
-  test('prune drops the touch order of a key no longer present', () {
+  test('prune keeps the stacking of a saved slot whose feed is off', () {
     final overrides = CanvasPresenceTileOverrides();
     overrides.setRect('camera:alice', const Rect.fromLTWH(0, 0, 10, 10));
+    overrides.setRect('camera:bob', const Rect.fromLTWH(0, 0, 10, 10));
+    final alice = overrides.zFor('camera:alice');
+    final bob = overrides.zFor('camera:bob');
 
     overrides.prune(const {});
 
-    expect(overrides.zFor('camera:alice'), isNull);
+    expect(overrides.zFor('camera:alice'), alice);
+    expect(overrides.zFor('camera:bob'), bob);
+    expect(overrides.sharedRectFor('camera:alice'), isNotNull);
+  });
+
+  test('slots fetched before their feeds start keep the server order', () {
+    final overrides = CanvasPresenceTileOverrides();
+    const rect = Rect.fromLTWH(0, 0, 10, 10);
+    overrides.applyServer('screen:alice',
+        rect: rect, locked: false, sentToBack: false);
+    overrides.applyServer('camera:bob',
+        rect: rect, locked: false, sentToBack: false);
+
+    overrides.prune({'camera:carol'});
+
+    expect(overrides.zFor('screen:alice'),
+        lessThan(overrides.zFor('camera:bob')!));
   });
 
   test(

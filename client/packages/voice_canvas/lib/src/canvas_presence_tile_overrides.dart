@@ -286,8 +286,8 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
   /// now and are never dropped here: the server, not roster membership, is
   /// their source of truth, and a departed participant's tile is still
   /// worth remembering for whenever they - or whoever moved it - is back.
-  /// The local touch order in [_z] is dropped too, since it is a purely
-  /// this-session paint-stacking concern with nothing to persist.
+  /// The move order in [_z] stays with the saved rect: a feed that is off
+  /// keeps its slot, so its stacking must survive it coming back.
   void prune(Set<String> present) {
     var changed = false;
     for (final entry in _states.entries.toList()) {
@@ -295,9 +295,7 @@ class CanvasPresenceTileOverrides extends ChangeNotifier {
       _states[entry.key] = entry.value.copyWith(hidden: false);
       changed = true;
     }
-    final beforeZ = _z.length;
-    _z.removeWhere((key, _) => !present.contains(key));
-    if (changed || _z.length != beforeZ) notifyListeners();
+    if (changed) notifyListeners();
   }
 
   @override
