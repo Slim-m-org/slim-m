@@ -17,6 +17,7 @@ import '../../widgets/settings_toggle_row.dart';
 import 'dock_activity_card.dart';
 import 'dock_changelog_card.dart';
 import 'dock_command_panel_group.dart';
+import 'dock_health_card.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
@@ -144,6 +145,12 @@ class DockManifestView extends StatelessWidget {
           manifest.summary,
           style: AppText.body.copyWith(color: tokens.textPrimary),
         ),
+        if (installed case final it? when dockHasHealthNews(it))
+          DockHealthCard(
+            installed: it,
+            onTurnOn: () => onSetEnabled(true),
+            enabled: !busy,
+          ),
         DockChangelogCard(
           manifest: manifest,
           installedVersion: installed?.version,

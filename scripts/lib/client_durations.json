@@ -1017,6 +1017,7 @@
 "test/features/settings/dock_module_ux_test.dart": 1.4,
 "test/features/settings/dock_screen_test.dart": 1.6,
 "test/features/settings/dock_search_test.dart": 0.9,
+"test/features/settings/dock_health_card_test.dart": 1.0,
 "test/features/settings/dock_settings_card_test.dart": 1.2,
 "test/features/settings/dock_sources_test.dart": 1.3,
 "test/features/settings/dock_update_all_sources_test.dart": 1.0,
