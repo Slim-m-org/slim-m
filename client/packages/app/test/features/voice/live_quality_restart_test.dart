@@ -2,6 +2,8 @@
 /// A quality change while sharing or on camera restarts it once, quietly.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/live_quality_restart.dart';
@@ -88,6 +90,20 @@ void main() {
       await controller.leave();
     });
 
+    test('a hang-up while the share stops does not start it again', () async {
+      final (controller, settings, session) = await sharing(desktop());
+      session.shareStopGate = Completer<void>();
+      await settings.setScreenShareFps(ScreenShareFps.fps60);
+      await Future<void>.delayed(_settle);
+      expect(session.shareCalls.map((c) => c.enabled), [false]);
+
+      await controller.leave();
+      session.shareStopGate!.complete();
+      await Future<void>.delayed(_settle);
+
+      expect(session.shareCalls.map((c) => c.enabled), [false]);
+    });
+
     test('does nothing after the share has stopped', () async {
       final (controller, settings, session) = await sharing(desktop());
       await controller.setScreenShare(false);
@@ -154,6 +170,50 @@ void main() {
   });
 
   group('camera', () {
+    test('a quality change with no call joined touches no camera', () async {
+      final session = FakeSession();
+      final controller = harness.controllerWith(
+        session,
+        voiceApi(),
+        extraOverrides: [
+          liveQualityRestartProvider.overrideWith(
+            (ref) => LiveQualityRestart(ref, delay: _delay),
+          ),
+        ],
+      );
+      final container = harness.container..read(liveQualityRestartProvider);
+      final settings = container.read(voiceSettingsControllerProvider.notifier);
+      await Future<void>.delayed(_settle);
+      controller.setCameraPreference(true);
+      await settings.setCameraQuality(CameraQuality.dataSaver);
+      await Future<void>.delayed(_settle);
+
+      expect(session.cameraToggles, isEmpty);
+      expect(controller.state.error, isNull);
+      expect(controller.state.cameraPending, isFalse);
+    });
+
+    test('a call change mid-restart neither re-enables nor sticks', () async {
+      final (controller, settings, session) = await sharing(
+        FakeSession(),
+        startShare: false,
+      );
+      await controller.toggleCamera();
+      session.cameraToggles.clear();
+      session.cameraGate = Completer<void>();
+      await settings.setCameraQuality(CameraQuality.dataSaver);
+      await Future<void>.delayed(_settle);
+      expect(controller.state.cameraPending, isTrue);
+
+      await controller.join('channel-2');
+      session.cameraGate!.complete();
+      await Future<void>.delayed(_settle);
+
+      expect(session.cameraToggles, [false]);
+      expect(controller.state.cameraPending, isFalse);
+      await controller.leave();
+    });
+
     test('cycles a live camera once and keeps the call state', () async {
       final (controller, settings, session) = await sharing(
         FakeSession(),

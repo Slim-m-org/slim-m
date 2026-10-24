@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -59,8 +60,9 @@ const _local = VoiceParticipant(
 ({ProviderContainer container, FakeSession session}) _wire({
   int permissions = 0,
   List<api.UserProfile> members = const [_maya],
+  FakeSession? withSession,
 }) {
-  final session = FakeSession();
+  final session = withSession ?? FakeSession();
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -201,4 +203,39 @@ void main() {
 
     expect(find.text('Time out for...'), findsOneWidget);
   });
+
+  testWidgets('with both sliders in the menu only the voice one has focus', (
+    tester,
+  ) async {
+    final wired = _wire(withSession: _SoundSession());
+    wired.container.read(voiceControllerProvider.notifier);
+    wired.session.emitParticipants([_sharing]);
+    await tester.pump();
+    await tester.pumpWidget(_harness(wired.container, _sharing));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppSlider), findsNWidgets(2));
+    final asking = tester.widgetList<AppSlider>(find.byType(AppSlider));
+    expect(asking.where((s) => s.autofocus), hasLength(1));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+
+    final pushes = wired.session.volumePushes;
+    expect(pushes, isNotEmpty);
+    expect(pushes.every((p) => !p.$2), isTrue, reason: 'voice, not stream');
+  });
 }
+
+class _SoundSession extends FakeSession {
+  @override
+  bool hasScreenAudio(String identity) => true;
+}
+
+const _sharing = VoiceParticipant(
+  identity: 'user-maya',
+  name: 'maya',
+  isSpeaking: false,
+  isMuted: false,
+  isLocal: false,
+  isScreenSharing: true,
+);

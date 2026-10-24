@@ -78,8 +78,11 @@ class LiveQualityRestart {
     }
     _restartingShare = true;
     try {
+      final generation = controller.callGeneration;
+      bool sameCall() => generation == controller.callGeneration;
       final sourceId = await _reusableSource(controller);
-      if (sourceId == null ||
+      if (!sameCall() ||
+          sourceId == null ||
           !_ref.read(voiceControllerProvider).screenSharing) {
         pending.state = sourceId == null;
         return;
@@ -87,7 +90,11 @@ class LiveQualityRestart {
       pending.state = false;
       final settings = _ref.read(voiceSettingsControllerProvider);
       final maxHeight = await screenShareCeilingFrom(_ref.read(apiProvider));
+      if (!sameCall() || !_ref.read(voiceControllerProvider).screenSharing) {
+        return;
+      }
       await controller.setScreenShare(false);
+      if (!sameCall()) return;
       await controller.setScreenShare(
         true,
         quality: settings.screenShareQuality,

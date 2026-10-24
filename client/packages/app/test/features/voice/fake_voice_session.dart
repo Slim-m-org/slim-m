@@ -199,6 +199,12 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   /// trip is still in flight can be raced against a hang-up and a fresh join.
   Completer<void>? microphoneGate;
 
+  /// Holds [setCameraEnabled] open, so a camera restart can be raced against a hang-up.
+  Completer<void>? cameraGate;
+
+  /// Holds a share stop open, so a quality restart can be raced against a hang-up.
+  Completer<void>? shareStopGate;
+
   /// The real session's own supersession counter, modelled here so a gated
   /// [leave] behaves the way the thing it stands in for does.
   int _generation = 0;
@@ -372,6 +378,8 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   Future<bool> setCameraEnabled(bool enabled) async {
     askedForCameraOnToggle = enabled;
     cameraToggles.add(enabled);
+    final gate = cameraGate;
+    if (gate != null) await gate.future;
     if (!cameraGranted) {
       final reason = cameraFailureReason;
       _lastError = reason == null
@@ -397,7 +405,11 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
       includeAudio: includeAudio,
     ));
     screenShareAudioCalls.add(includeAudio);
-    if (!enabled) return ScreenShareOutcome.stopped;
+    if (!enabled) {
+      final gate = shareStopGate;
+      if (gate != null) await gate.future;
+      return ScreenShareOutcome.stopped;
+    }
     // The real session records the cause first; a fake that skips it hides a dropped cause.
     if (screenShareOutcome == ScreenShareOutcome.failed) {
       _lastError = 'source not found!';

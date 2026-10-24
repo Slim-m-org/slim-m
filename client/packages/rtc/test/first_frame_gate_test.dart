@@ -20,6 +20,31 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:slimm_rtc/src/first_frame_gate.dart';
 
 void main() {
+  group('FrameHistory', () {
+    test('a first arrival has no history, even once a renderer is up', () {
+      final history = FrameHistory();
+      final owned = OwnedVideoRenderer();
+      expect(history.everShown, isFalse);
+      history.retire(owned);
+      expect(history.everShown, isFalse);
+    });
+
+    test('a retired renderer that showed a frame makes the return resuming',
+        () {
+      final history = FrameHistory();
+      final owned = OwnedVideoRenderer()..tracker.markFirstFrame();
+      history.retire(owned);
+      expect(history.everShown, isTrue);
+      history.reset();
+      expect(history.everShown, isFalse);
+    });
+
+    test('retiring nothing leaves it unchanged', () {
+      final history = FrameHistory()..retire(null);
+      expect(history.everShown, isFalse);
+    });
+  });
+
   group('FirstFrameTracker', () {
     test('a video size on the web renderer opens the gate', () {
       final tracker = FirstFrameTracker();

@@ -61,6 +61,21 @@ class FirstFrameTracker extends ChangeNotifier {
   }
 }
 
+/// Whether any renderer a tile has used showed a real frame, so a later
+/// arrival reads as a return rather than a first load.
+class FrameHistory {
+  bool _everShown = false;
+
+  bool get everShown => _everShown;
+
+  /// Call with a renderer the tile is about to drop.
+  void retire(OwnedVideoRenderer? owned) {
+    if (owned != null && owned.tracker.hasFrame) _everShown = true;
+  }
+
+  void reset() => _everShown = false;
+}
+
 /// A renderer this object created, initialized, and is responsible for
 /// disposing - never `VideoTrackRenderer`'s own, which is private.
 ///
