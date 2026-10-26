@@ -134,11 +134,9 @@ class _MicrophoneSection extends ConsumerWidget {
             children: [
               TweenAnimationBuilder<double>(
                 tween: Tween(
-                  end: preview != null
-                      ? preview.fraction * 100
-                      : speaking
-                      ? _speakingLevel
-                      : _quietLevel,
+                  end: preview == null
+                      ? (speaking ? _speakingLevel : _quietLevel)
+                      : preview.fraction * 100,
                 ),
                 duration: AppMotion.reduced(
                   context,

@@ -357,12 +357,9 @@ class _StateBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final mutedIcon = participant.isMuted ? AppIcons.micOff : AppIcons.mic;
     final main = Icon(
-      participant.isScreenSharing
-          ? AppIcons.screenShare
-          : participant.isMuted
-          ? AppIcons.micOff
-          : AppIcons.mic,
+      participant.isScreenSharing ? AppIcons.screenShare : mutedIcon,
       size: 12,
       color: participant.isMuted ? tokens.textSecondary : tokens.accent,
     );
