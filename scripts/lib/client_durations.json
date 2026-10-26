@@ -1230,6 +1230,7 @@
 "test/features/voice/voice_header_long_name_test.dart": 1.2,
 "test/features/voice/voice_join_preview_roster_test.dart": 0.9,
 "test/features/voice/voice_join_timings_test.dart": 0.4,
+"test/features/voice/voice_mic_fallback_setting_test.dart": 3.4,
 "test/features/voice/voice_noise_suppression_test.dart": 1.5,
 "test/features/voice/voice_options_test.dart": 1.2,
 "test/features/voice/voice_recap_back_test.dart": 1.1,
