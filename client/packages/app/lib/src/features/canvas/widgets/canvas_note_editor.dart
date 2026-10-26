@@ -124,6 +124,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
                   ),
                   noteWidth: bounds.w * camera.zoom,
                   keyboardInset: inset,
+                  bottomInset: widget.document.bottomInset,
                 ),
                 child: _Panel(
                   controller: _controller,
@@ -221,6 +222,7 @@ class _EditorLayout extends SingleChildLayoutDelegate {
     required this.anchor,
     required this.noteWidth,
     required this.keyboardInset,
+    this.bottomInset = 0,
   });
 
   static const double _margin = AppSpacing.s8;
@@ -229,15 +231,18 @@ class _EditorLayout extends SingleChildLayoutDelegate {
   final Offset anchor;
   final double noteWidth;
   final double keyboardInset;
+  final double bottomInset;
 
   Rect _bounds(Size size) {
     final screen = Offset.zero & size;
     return area == null ? screen : screen.intersect(area!);
   }
 
-  /// The lowest the panel may reach: the board's bottom, or the keyboard's top.
-  double _floor(Size size, Rect bounds) =>
-      math.min(bounds.bottom, size.height - keyboardInset);
+  /// The lowest the panel may reach: the board's bottom, or above the dock/keyboard.
+  double _floor(Size size, Rect bounds) => math.min(
+    bounds.bottom,
+    size.height - math.max(keyboardInset, bottomInset),
+  );
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -278,5 +283,6 @@ class _EditorLayout extends SingleChildLayoutDelegate {
       old.area != area ||
       old.anchor != anchor ||
       old.noteWidth != noteWidth ||
-      old.keyboardInset != keyboardInset;
+      old.keyboardInset != keyboardInset ||
+      old.bottomInset != bottomInset;
 }

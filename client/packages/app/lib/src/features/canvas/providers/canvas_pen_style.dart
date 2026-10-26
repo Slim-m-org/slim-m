@@ -4,7 +4,19 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_voice_canvas/voice_canvas.dart';
+
+/// Active pen style choice, preserved across canvas pane opens.
+final canvasActivePenStyleProvider = StateProvider<CanvasPenStyle?>(
+  (ref) => null,
+);
+
+/// Active shape kind choice, preserved across canvas pane opens.
+final canvasActiveShapeKindProvider = StateProvider<CanvasShapeKind>(
+  (ref) => CanvasShapeKind.rectangle,
+);
 
 /// One pen colour: [key] is what a stroke carries on the wire as `color`.
 class CanvasPenColor {

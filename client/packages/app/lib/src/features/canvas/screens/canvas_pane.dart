@@ -142,7 +142,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
-  late CanvasPenStyle _pen = _profilePen();
+  late CanvasPenStyle _pen;
   final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
@@ -183,6 +183,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _document.setBottomInset(
       _boardInset(ref.read(bottomDockReservationProvider)),
     );
+    _pen = ref.read(canvasActivePenStyleProvider) ?? _profilePen();
+    _shapeKind = ref.read(canvasActiveShapeKindProvider);
   }
 
   /// Starts the pen in the colour nearest the user's profile colour, when one is set.
@@ -385,10 +387,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                         _onShapePlace(world, size, flipX: flipX, flipY: flipY),
                       ),
                   shapeKind: _shapeKind,
-                  onShapeKindChanged: (kind) =>
-                      setState(() => _shapeKind = kind),
+                  onShapeKindChanged: (kind) {
+                    ref.read(canvasActiveShapeKindProvider.notifier).state =
+                        kind;
+                    setState(() => _shapeKind = kind);
+                  },
                   pen: _pen,
-                  onPenChanged: (pen) => setState(() => _pen = pen),
+                  onPenChanged: (pen) {
+                    ref.read(canvasActivePenStyleProvider.notifier).state = pen;
+                    setState(() => _pen = pen);
+                  },
                   onBringToFront: (id) => unawaited(_onBringToFront(id)),
                   onSendToBack: (id) => unawaited(_onSendToBack(id)),
                   onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
