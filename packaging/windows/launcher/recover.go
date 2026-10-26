@@ -12,7 +12,7 @@ import (
 func locate(self string) string {
 	dir := filepath.Dir(self)
 	if strings.HasPrefix(filepath.Base(dir), versionPrefix) {
-		if parent := filepath.Dir(dir); read(parent, "current") != "" {
+		if parent := filepath.Dir(dir); read(parent, currentFile) != "" {
 			return parent
 		}
 	}

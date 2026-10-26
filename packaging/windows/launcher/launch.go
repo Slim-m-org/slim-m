@@ -19,6 +19,9 @@ const (
 	versionPrefix   = "app-"
 	maxFailedStarts = 2
 	pendingTries    = "pending.tries"
+	currentFile     = "current"
+	pendingFile     = "pending"
+	previousFile    = "previous"
 )
 
 func read(root, name string) string {
@@ -79,14 +82,14 @@ func shouldRecordPid(running, relaunch bool) bool {
 // choose returns the version folder to start, after applying the start count
 // and any rollback it calls for.
 func choose(root string, relaunch bool) (string, error) {
-	current := read(root, "current")
+	current := read(root, currentFile)
 	if current == "" {
 		return "", errors.New("slim-m has no current version")
 	}
 	if !isComplete(root, current) {
 		return rollBack(root, current)
 	}
-	if read(root, "pending") != current {
+	if read(root, pendingFile) != current {
 		return versionDir(root, current), nil
 	}
 	// A start beside an instance that is still up proves nothing about this version,
@@ -95,7 +98,7 @@ func choose(root string, relaunch bool) (string, error) {
 		return versionDir(root, current), nil
 	}
 	tries, _ := strconv.Atoi(read(root, pendingTries))
-	if tries >= maxFailedStarts && isComplete(root, read(root, "previous")) {
+	if tries >= maxFailedStarts && isComplete(root, read(root, previousFile)) {
 		return rollBack(root, current)
 	}
 	if err := write(root, pendingTries, strconv.Itoa(tries+1)); err != nil {
@@ -107,15 +110,15 @@ func choose(root string, relaunch bool) (string, error) {
 // rollBack makes `previous` current again and leaves a `rolled-back` marker
 // for the app to report once it is up.
 func rollBack(root, failed string) (string, error) {
-	previous := read(root, "previous")
+	previous := read(root, previousFile)
 	if !isComplete(root, previous) {
 		return "", errors.New("slim-m version " + failed + " cannot start and there is no earlier version to go back to")
 	}
-	if err := write(root, "current", previous); err != nil {
+	if err := write(root, currentFile, previous); err != nil {
 		return "", err
 	}
 	_ = write(root, "rolled-back", failed)
-	remove(root, "pending", pendingTries, "previous")
+	remove(root, pendingFile, pendingTries, previousFile)
 	return versionDir(root, previous), nil
 }
 
