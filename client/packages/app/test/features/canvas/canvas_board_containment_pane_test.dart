@@ -6,6 +6,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_pane_harness.dart';
@@ -59,6 +60,47 @@ void main() {
     expect(fixture.postedOps.single['object_id'], 'far');
     expect(document.outsideBoardCount.value, 0);
     expect(notice, findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('bringing content in makes the move undoable at once', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container, board: true, tool: null);
+    surfaceDocument(tester)
+      ..applyPlaced(
+        _legacyShape('far', const Rect.fromLTWH(3000, 1800, 300, 200)),
+      )
+      ..refresh();
+    await tester.pump();
+
+    bool undoEnabled() =>
+        tester
+            .widget<AppIconButton>(
+              find
+                  .ancestor(
+                    of: find.bySemanticsLabel('Undo'),
+                    matching: find.byType(AppIconButton),
+                  )
+                  .first,
+            )
+            .onPressed !=
+        null;
+
+    expect(undoEnabled(), isFalse, reason: 'baseline');
+    await tester.tap(find.text('1 outside the board - bring in'));
+    // Past the move's pace, before anything else gets a chance to rebuild the pane.
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump();
+
+    expect(undoEnabled(), isTrue);
     await tester.pumpWidget(const SizedBox());
   });
 
