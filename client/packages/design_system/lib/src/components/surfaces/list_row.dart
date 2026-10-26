@@ -302,7 +302,6 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
-        enabled: widget.onTap != null,
         focusNode: widget.focusNode,
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
