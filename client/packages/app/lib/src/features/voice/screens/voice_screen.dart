@@ -384,7 +384,7 @@ class _InCallState extends ConsumerState<_InCall> {
 
   @override
   Widget build(BuildContext context) {
-    final voice = ref.watch(voiceControllerProvider);
+    final voice = ref.watch(voiceFlagsProvider);
     // autoDispose: hold the roster while a call is shown, or a tile's menu and card read it unloaded.
     ref.listen(membersProvider, (_, _) {});
     final controller = ref.read(voiceControllerProvider.notifier);
@@ -393,14 +393,15 @@ class _InCallState extends ConsumerState<_InCall> {
     return Stack(
       children: [
         Positioned.fill(
-          child: LoungeBackdrop(
-            channelId: channelId,
-            participants: voice.participants,
-            canvas: !isDm,
+          child: Consumer(
+            builder: (context, ref, _) => LoungeBackdrop(
+              channelId: channelId,
+              participants: ref.watch(voiceParticipantsProvider),
+              canvas: !isDm,
+            ),
           ),
         ),
         CallStageLayout(
-          voice: voice,
           controller: controller,
           onOpenProfile: (anchor, p) => _openProfile(anchor, ref, p),
           isDm: isDm,
@@ -427,7 +428,7 @@ class _InCallState extends ConsumerState<_InCall> {
                 onWidth: _onDockWidth,
                 child: VoiceCallDock(
                   controller: controller,
-                  voice: VoiceFlags.from(voice),
+                  voice: voice,
                   canvasChannelId: isDm ? null : channelId,
                   botControls: botControls,
                 ),
