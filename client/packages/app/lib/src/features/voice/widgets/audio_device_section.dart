@@ -103,7 +103,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
       ),
       if (notifier.supportsAudioInputSelection)
         SettingsToggleRow(
-          label: 'Switch if my microphone stops working',
+          label: 'Switch if mic stops working',
           description: 'Use another microphone when yours goes silent.',
           value: settings.micFallbackEnabled,
           semanticLabel: 'Switch microphone if mine stops working',

@@ -147,6 +147,7 @@ const _deviceKeys = <String>{
   'slimm.voice.hidden_cameras',
   'slimm.voice.input_threshold_auto',
   'slimm.voice.input_threshold_db',
+  'slimm.voice.mic_fallback_enabled',
   'slimm.voice.noise_suppression',
   'slimm.voice.participant_screen_volumes',
   'slimm.voice.participant_volumes',

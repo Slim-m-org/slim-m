@@ -321,7 +321,7 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
-    'Switch if my microphone stops working',
+    'Switch if mic stops working',
     description: 'Use another microphone when yours goes silent.',
     keywords: ['mic', 'fallback', 'silent', 'input', 'device'],
     conditional: true,
