@@ -21,6 +21,15 @@ void main() {
     expect(perceptualParticipantGain(5), kMaxParticipantVolume);
   });
 
+  test('only the web, which limits the boost, goes past 200%', () {
+    expect(participantVolumeCeilingFor(web: false), 2.0);
+    expect(participantVolumeCeilingFor(web: true), 4.0);
+    expect(
+      kMaxBoostedParticipantVolume,
+      greaterThan(kMaxParticipantVolume),
+    );
+  });
+
   test('every platform offers the control', () {
     expect(supportsParticipantVolume, isTrue);
   });

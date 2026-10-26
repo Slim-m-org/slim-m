@@ -84,7 +84,7 @@ class SliderTest(unittest.TestCase):
             x0, _, w, _ = self.rect
             track = w - 2 * ui.SLIDER_INSET
             frac = min(max((x - x0 - ui.SLIDER_INSET) / track, 0), 1)
-            self.percent = round(frac * 200 + 3)
+            self.percent = round(frac * 400 + 3)
 
         def shot(self, tag):
             pass

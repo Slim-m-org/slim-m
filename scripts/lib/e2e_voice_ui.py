@@ -98,7 +98,7 @@ def slider_percent(client, label):
     raise AssertionError(f"{client.name}: no readout beside {label!r}")
 
 
-def set_slider(client, label, percent, maximum=200, tolerance=4, tries=40):
+def set_slider(client, label, percent, maximum=400, tolerance=4, tries=40):
     """Move the slider until the readout reaches `percent`; returns what it shows.
 
     A tap lands within a few percent of where it was aimed, and within four of
@@ -166,7 +166,7 @@ def reset_volumes(client, name, labels):
     open_volume_popover(client, name)
     for label in labels:
         if client.find(label):
-            set_slider(client, label, 100)
+            set_slider(client, label, 100, tries=100)
     dismiss_popover(client)
 
 

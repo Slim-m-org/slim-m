@@ -120,6 +120,15 @@ class AudioProbe:
         return [(t / 1000.0, lv.rms_to_db(eff), lv.rms_to_db(pre))
                 for t, eff, pre, _ in rows]
 
+    def peaks(self, stream_id, since):
+        """`(loudest output sample, loudest source sample)`, linear, since `since` ms."""
+        raw = self.client.ev(
+            "JSON.stringify(window.__e2eAudio.peaksSince(%s, %s))"
+            % (json.dumps(stream_id), json.dumps(since)))
+        rows = json.loads(raw or "[]")
+        assert rows, "no peaks were recorded for the stream"
+        return max(r[1] for r in rows), max(r[2] for r in rows)
+
     def measure(self, stream_id, seconds):
         """Listen for `seconds`, returning the effective-level series."""
         start = self.now()

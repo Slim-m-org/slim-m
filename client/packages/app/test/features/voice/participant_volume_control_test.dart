@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/widgets/participant_audio_controls.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart' show participantVolumeCeiling;
 
 import 'voice_controller_harness.dart';
 
@@ -43,5 +44,33 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 100));
     expect(controller.volumeFor('user-1'), 0.9, reason: 'the trailing apply');
+  });
+
+  testWidgets('the slider announces its percent, whatever the range', (
+    tester,
+  ) async {
+    final controller = await _controller();
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: Scaffold(
+          body: ParticipantVolumeControl(
+            identity: 'user-1',
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+    final slider = tester.widget<AppSlider>(find.byType(AppSlider));
+    expect(slider.valueLabel!(100), '100%');
+    expect(slider.max, participantVolumeCeiling * 100);
+    expect(slider.divisions, participantVolumeCeiling * 100 / 5);
+    expect(
+      find.semantics.byValue('100%'),
+      findsOneWidget,
+      reason: 'the default would read 100 of a 200 range as 50%',
+    );
+    handle.dispose();
   });
 }
