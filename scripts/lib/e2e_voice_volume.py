@@ -22,9 +22,9 @@ MEASURE_SECONDS = 3
 TOLERANCE_DB = 1.5
 # The source must be this loud before a "silent" result means anything.
 AUDIBLE_SOURCE_DB = -45.0
-# The top of the slider on the web, where the soft limiter allows +12 dB.
-BOOST_PERCENT = 400
-# Keys step 5%, so the full range takes up to 80 presses.
+# The top of the slider, where the web soft limiter must keep +6 dB from clipping.
+BOOST_PERCENT = 200
+# Keys step 5%, so the full range takes up to 40 presses.
 KEY_TRIES = 100
 
 

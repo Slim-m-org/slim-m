@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The playout limiter behind a boosted web volume, as a pure transfer curve.
+/// The playout limiter behind the web volume, as a pure transfer curve.
 ///
 /// A compressor node adds look-ahead delay and its own make-up gain, so the
 /// boost is limited with a waveshaper instead: identity up to [softLimitKnee],

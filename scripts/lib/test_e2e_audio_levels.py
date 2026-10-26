@@ -54,7 +54,7 @@ class VolumeTest(unittest.TestCase):
         self.assertAlmostEqual(lv.slider_to_gain(0.5), 0.125)
         self.assertEqual(lv.slider_to_gain(1.0), 1.0)
         self.assertEqual(lv.slider_to_gain(1.5), 1.5)
-        self.assertEqual(lv.slider_to_gain(4.0), 4.0)
+        self.assertEqual(lv.slider_to_gain(2.0), 2.0)
 
     def test_zero_is_silence(self):
         self.assertEqual(lv.volume_to_db(0.0), lv.SILENCE_DB)

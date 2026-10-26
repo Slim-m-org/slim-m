@@ -70,8 +70,8 @@ _AudioContext? _context;
 
 _AudioContext get _ctx => _context ??= _AudioContext();
 
-// The shaper spans the boosted ceiling, so its input gain is divided by this.
-const double _range = kMaxBoostedParticipantVolume;
+// The shaper spans the loudest volume, so its input gain is divided by this.
+const double _range = kMaxParticipantVolume;
 
 final JSFloat32Array _limiterCurve =
     softLimitCurve(points: 8193, range: _range).toJS;

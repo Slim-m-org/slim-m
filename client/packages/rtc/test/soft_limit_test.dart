@@ -12,10 +12,10 @@ void main() {
     }
   });
 
-  test('a +12 dB boost of a full-scale sample stays under 1.0', () {
-    expect(softLimit(4.0), lessThan(1.0));
-    expect(softLimit(4.0), greaterThan(0.99));
-    expect(softLimit(-4.0), greaterThan(-1.0));
+  test('a +6 dB boost of a full-scale sample stays under 1.0', () {
+    expect(softLimit(2.0), lessThan(1.0));
+    expect(softLimit(2.0), greaterThan(0.95));
+    expect(softLimit(-2.0), greaterThan(-1.0));
   });
 
   test('the curve rises monotonically through the knee', () {
@@ -28,7 +28,7 @@ void main() {
   });
 
   test('the shaper table is symmetric and exact at silence', () {
-    final curve = softLimitCurve(points: 8193, range: 4.0);
+    final curve = softLimitCurve(points: 8193, range: 2.0);
     expect(curve[4096], 0.0);
     expect(curve.first, closeTo(-curve.last, 1e-6));
     expect(curve.last, lessThanOrEqualTo(1.0));

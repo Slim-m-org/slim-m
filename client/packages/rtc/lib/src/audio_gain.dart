@@ -30,23 +30,10 @@ import 'web_gain_io.dart' if (dart.library.js_interop) 'web_gain_web.dart'
     as web_gain;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
-/// Loudest a participant may be made where nothing limits the boost (+6 dB).
-/// Native `setVolume` is plain digital gain on decoded audio and hard-clips,
-/// so it stops here.
+/// Loudest a participant may be made, as a multiplier (+6 dB). Native
+/// `setVolume` is plain digital gain on decoded audio and hard-clips, so it
+/// stops here; the web graph also limits, so 200% never clips there.
 const double kMaxParticipantVolume = 2.0;
-
-/// Loudest on the web (+12 dB): the Web Audio graph runs a soft limiter after
-/// the gain, so a boost past 200% rounds off instead of clipping.
-const double kMaxBoostedParticipantVolume = 4.0;
-
-/// The ceiling for a platform; [web] selects the limited graph.
-double participantVolumeCeilingFor({required bool web}) =>
-    web ? kMaxBoostedParticipantVolume : kMaxParticipantVolume;
-
-/// The ceiling on this platform.
-double get participantVolumeCeiling => participantVolumeCeilingFor(
-      web: lk.lkPlatformIs(lk.PlatformType.web),
-    );
 
 /// The default, and what every participant is until somebody moves a slider.
 const double kDefaultParticipantVolume = 1.0;
@@ -56,7 +43,7 @@ bool get supportsParticipantVolume => true;
 
 /// Clamps a requested volume into the range the UI offers.
 double clampParticipantVolume(double volume) =>
-    volume.clamp(0.0, participantVolumeCeiling);
+    volume.clamp(0.0, kMaxParticipantVolume);
 
 /// The playback gain for a slider [volume]. Below 100% it follows an audio
 /// taper (the cube), because a straight multiplier put half volume at only

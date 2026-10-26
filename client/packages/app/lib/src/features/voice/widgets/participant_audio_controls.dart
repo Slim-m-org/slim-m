@@ -102,7 +102,7 @@ class _MemberLocalAudioSectionState extends State<MemberLocalAudioSection> {
 /// How close to normal, as a fraction of it, a drag snaps to normal.
 const double _snapToNormal = 0.04;
 
-/// One arrow-key or screen-reader step, so a wide range does not make each press jump 20%.
+/// One arrow-key or screen-reader step, so each press moves 5% while a drag stays fine.
 const int _keyStepPercent = 5;
 
 /// Wide enough for "200%" in the mono face, so the number never wraps or shifts the slider.
@@ -223,8 +223,8 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
           child: AppSlider(
             value: _volume * 100,
             min: 0,
-            max: participantVolumeCeiling * 100,
-            divisions: participantVolumeCeiling * 100 ~/ _keyStepPercent,
+            max: kMaxParticipantVolume * 100,
+            keyStep: _keyStepPercent.toDouble(),
             semanticLabel: _label,
             valueLabel: (v) => '${v.round()}%',
             autofocus: widget.autofocus,
