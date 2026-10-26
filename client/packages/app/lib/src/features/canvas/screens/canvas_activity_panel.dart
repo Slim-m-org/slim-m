@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart' show isSeenNow;
 import '../../members/providers/user_profiles.dart';
+import '../../modules/providers/dock_reservation.dart';
 import '../../../format.dart';
 import '../../messages/widgets/author_label.dart';
 import 'canvas_activity_log.dart';
@@ -121,7 +122,7 @@ class _CanvasActivityAnnouncerState
 /// `Semantics` label and as ordinary visible text - a cue is never carried
 /// by one channel alone anywhere else in this product, and this is no
 /// exception.
-class CanvasActivityPanel extends StatefulWidget {
+class CanvasActivityPanel extends ConsumerStatefulWidget {
   const CanvasActivityPanel({
     super.key,
     required this.activityLog,
@@ -146,10 +147,11 @@ class CanvasActivityPanel extends StatefulWidget {
   final int objectCount;
 
   @override
-  State<CanvasActivityPanel> createState() => _CanvasActivityPanelState();
+  ConsumerState<CanvasActivityPanel> createState() =>
+      _CanvasActivityPanelState();
 }
 
-class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
+class _CanvasActivityPanelState extends ConsumerState<CanvasActivityPanel> {
   static const _ageRefresh = Duration(seconds: 10);
 
   final ValueNotifier<int> _ageTick = ValueNotifier(0);
@@ -176,6 +178,7 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
     final activityLog = widget.activityLog;
     final summary = widget.summary;
     final objectCount = widget.objectCount;
+    final reserved = ref.watch(bottomDockReservationProvider);
     return AnimatedBuilder(
       animation: Listenable.merge([activityLog, _ageTick]),
       builder: (context, _) {
@@ -198,8 +201,11 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
               child: entries.isEmpty
                   ? Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s24,
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.s24,
+                          0,
+                          AppSpacing.s24,
+                          reserved,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -227,6 +233,9 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
                       ),
                     )
                   : ListView.builder(
+                      padding: EdgeInsets.only(
+                        bottom: reserved + AppSpacing.s16,
+                      ),
                       itemCount: entries.length,
                       itemBuilder: (context, index) =>
                           _ActivityRow(entry: entries[index]),
