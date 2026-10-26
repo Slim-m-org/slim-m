@@ -30,7 +30,7 @@ SELF_RUN_ID="${GITHUB_RUN_ID:-0}"
 IFS='|' read -r -a required <<< "$REQUIRED_CHECKS"
 # Resolved once: the check-runs path takes a tag, the runs query does not.
 if ! SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${REF}" --jq '.sha'); then
-  echo "::error::could not resolve ${REF} to a commit; this gate cannot pass without one"
+  echo "::error::could not resolve ${REF} to a commit; this gate cannot pass without one" >&2
   exit 1
 fi
 echo "verifying ${REF} -> ${SHA}"
@@ -39,7 +39,7 @@ deadline=$(( started + DEADLINE_SECONDS ))
 while :; do
   if ! runs=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs" \
     --paginate --jq '.check_runs[]' | jq -s '.'); then
-    echo "::error::could not read check runs for ${SHA}; this gate cannot pass without them"
+    echo "::error::could not read check runs for ${SHA}; this gate cannot pass without them" >&2
     exit 1
   fi
   missing=() pending=() failed=()
@@ -63,7 +63,7 @@ while :; do
     [[ "$is_pending" -eq 0 ]] || pending+=("$name")
   done
   if [[ "${#failed[@]}" -gt 0 ]]; then
-    echo "::error::required check(s) failed on ${SHA}: ${failed[*]}"
+    echo "::error::required check(s) failed on ${SHA}: ${failed[*]}" >&2
     exit 1
   fi
   if [[ "${#missing[@]}" -eq 0 ]] && [[ "${#pending[@]}" -eq 0 ]]; then
@@ -75,11 +75,11 @@ while :; do
   if [[ "${#missing[@]}" -gt 0 ]] && [[ $(( now - started )) -ge "$CREATION_GRACE_SECONDS" ]] \
     && [[ "$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
           --jq '[.workflow_runs[] | select(.status != "completed" and .id != '"${SELF_RUN_ID}"')] | length' 2>/dev/null || echo 1)" = "0" ]]; then
-    echo "::error::no check run named ${missing[*]} exists on ${SHA} and nothing is still running for it; either it never ran or required_checks names it wrongly"
+    echo "::error::no check run named ${missing[*]} exists on ${SHA} and nothing is still running for it; either it never ran or required_checks names it wrongly" >&2
     exit 1
   fi
   if [[ "$now" -ge "$deadline" ]]; then
-    echo "::error::timed out waiting on ${SHA} (missing: ${missing[*]:-none}, pending: ${pending[*]:-none})"
+    echo "::error::timed out waiting on ${SHA} (missing: ${missing[*]:-none}, pending: ${pending[*]:-none})" >&2
     exit 1
   fi
   echo "waiting on ${SHA} (missing: ${missing[*]:-none}, pending: ${pending[*]:-none})"

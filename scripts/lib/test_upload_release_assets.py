@@ -49,7 +49,7 @@ class UploadReleaseAssets(unittest.TestCase):
 
     def test_retries_a_transient_failure_then_succeeds(self):
         done, uploads = self.run_script("a.zip", fail_first=2, files=["a.zip"])
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(done.returncode, 0, (done.stdout + done.stderr) + done.stderr)
         self.assertEqual(len(uploads), 3)
 
     def test_gives_up_after_the_attempts(self):
@@ -60,12 +60,12 @@ class UploadReleaseAssets(unittest.TestCase):
     def test_a_required_pattern_matching_nothing_fails_without_uploading(self):
         done, uploads = self.run_script("a.zip", "*.flatpak", files=["a.zip"])
         self.assertEqual(done.returncode, 1)
-        self.assertIn("no file matches", done.stdout)
+        self.assertIn("no file matches", (done.stdout + done.stderr))
         self.assertEqual(uploads, [])
 
     def test_an_optional_pattern_may_match_nothing(self):
         done, uploads = self.run_script("a.zip", "?*.flatpak", files=["a.zip"])
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertEqual(done.returncode, 0, (done.stdout + done.stderr) + done.stderr)
         self.assertEqual(len(uploads), 1)
         self.assertNotIn("flatpak", uploads[0])
 
