@@ -29,6 +29,18 @@ bool _penEnabled(WidgetTester tester) =>
         .onPressed !=
     null;
 
+AppIconButton _button(WidgetTester tester, Pattern label) =>
+    tester.widget<AppIconButton>(
+      find
+          .ancestor(
+            of: find.bySemanticsLabel(label),
+            matching: find.byType(AppIconButton),
+          )
+          .first,
+    );
+
+final _penLabel = RegExp(r"^(Pen|Can't draw right now)$");
+
 const _refused = "You don't have permission to draw here right now.";
 
 Future<ProviderContainer> _pump(
@@ -89,6 +101,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(_penEnabled(tester), isFalse);
+  });
+
+  testWidgets('a refusal puts the armed pen back to Pan', (tester) async {
+    final container = await _pump(tester);
+    expect(_button(tester, 'Pen').active, isTrue, reason: 'baseline');
+
+    _report(container, _refused);
+    await tester.pumpAndSettle();
+
+    expect(_button(tester, 'Pan').active, isTrue);
+    expect(_button(tester, _penLabel).active, isFalse);
   });
 
   testWidgets('a timeout freeze disables the Pen button until it lapses', (

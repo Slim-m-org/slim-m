@@ -186,7 +186,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     );
     ref.listenManual(
       canvasEngineProvider(widget.channelId).select((s) => s.error),
-      (_, _) => _timeoutBanner.watch(),
+      (_, error) {
+        _timeoutBanner.watch();
+        _disarmWhenDrawingIsRefused(error);
+      },
       fireImmediately: true,
     );
     ref.listenManual(
@@ -239,6 +242,13 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _landscapeHold.release();
     _engine.detachPane();
     super.dispose();
+  }
+
+  /// A refused canvas cannot take ink, so an armed pen, note or shape goes back to Pan rather than failing on every press.
+  void _disarmWhenDrawingIsRefused(String? error) {
+    if (canvasErrorBlocksDrawing(error) && _tool.placesObjects) {
+      _refresh(() => _tool = CanvasTool.pan);
+    }
   }
 
   /// The same bridge [_refresh] is, for a caller that needs the raw
