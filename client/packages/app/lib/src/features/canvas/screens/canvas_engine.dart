@@ -213,6 +213,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         ),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+    timedOutUntil: () => _ref.read(meProvider).valueOrNull?.timedOutUntil,
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.

@@ -235,4 +235,104 @@ void _c055() {
       reason: 'the server refused the write, so the tile must roll back',
     );
   });
+
+  test(
+    'a commit while timed out is refused before sending and rolls back',
+    () async {
+      final overrides = CanvasPresenceTileOverrides();
+      addTearDown(overrides.dispose);
+      const server = Rect.fromLTWH(10, 20, 360, 203);
+      const dropped = Rect.fromLTWH(400, 300, 360, 203);
+      overrides.applyServer(
+        'screen:alice',
+        rect: server,
+        locked: false,
+        sentToBack: false,
+      );
+      var requestSent = false;
+      final client = _apiWith((request) async {
+        requestSent = true;
+        return _json({'status': 'ok'});
+      });
+      String? reportedError;
+      final sync = CanvasMediaSlotSync(
+        channelId: 'c1',
+        client: client,
+        overrides: overrides,
+        onError: (message) => reportedError = message,
+        timedOutUntil: () => DateTime.now()
+            .add(const Duration(minutes: 5))
+            .millisecondsSinceEpoch,
+      );
+
+      overrides.setRect('screen:alice', dropped);
+      await sync.commit('screen:alice', dropped);
+
+      expect(requestSent, isFalse);
+      expect(overrides.stateFor('screen:alice').rect, server);
+      expect(
+        reportedError,
+        contains("You're timed out and can't draw for another"),
+      );
+    },
+  );
+
+  test('drag preview while timed out is suppressed', () {
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    var previewSent = false;
+    final sync = CanvasMediaSlotSync(
+      channelId: 'c1',
+      client: _apiWith((request) async => _json({})),
+      overrides: overrides,
+      sendPreview: (key, rect, {required ended}) => previewSent = true,
+      timedOutUntil: () =>
+          DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch,
+    );
+
+    sync.reportDrag('screen:alice', const Rect.fromLTWH(400, 300, 360, 203));
+    expect(previewSent, isFalse);
+  });
+
+  test('a commit after timeout lapses sends normally', () async {
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    const server = Rect.fromLTWH(10, 20, 360, 203);
+    const dropped = Rect.fromLTWH(400, 300, 360, 203);
+    overrides.applyServer(
+      'screen:alice',
+      rect: server,
+      locked: false,
+      sentToBack: false,
+    );
+    var requestSent = false;
+    final client = _apiWith((request) async {
+      requestSent = true;
+      return _json({
+        'kind': 'screen',
+        'user_id': 'alice',
+        'x': dropped.left,
+        'y': dropped.top,
+        'w': dropped.width,
+        'h': dropped.height,
+        'locked': false,
+        'sent_to_back': false,
+        'updated_at': 1000,
+      });
+    });
+    final sync = CanvasMediaSlotSync(
+      channelId: 'c1',
+      client: client,
+      overrides: overrides,
+      timedOutUntil: () => DateTime.now()
+          .subtract(const Duration(minutes: 1))
+          .millisecondsSinceEpoch,
+    );
+
+    overrides.setRect('screen:alice', dropped);
+    await sync.commit('screen:alice', dropped);
+
+    expect(requestSent, isTrue);
+    expect(overrides.stateFor('screen:alice').rect, dropped);
+  });
 }
