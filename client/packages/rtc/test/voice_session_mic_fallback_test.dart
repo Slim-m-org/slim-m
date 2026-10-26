@@ -179,6 +179,21 @@ void main() {
     });
   });
 
+  test('a second failure never goes back to a device already tried', () {
+    fakeAsync((clock) {
+      final rig = _run(clock, dead: {''});
+      expect(rig.session.audioInputInUse, 'usb');
+
+      rig.mic.levels['usb'] = kInputFloorDb;
+      clock.elapse(const Duration(seconds: 60));
+
+      final after = rig.mic.restartDevices.skipWhile((d) => d != 'usb');
+      expect(after, isNot(contains(null)));
+      expect(rig.session.audioInputInUse, 'desk');
+      expect(rig.session.micStatus, MicStatus.ok);
+    });
+  });
+
   test('with the setting off nothing is switched', () {
     fakeAsync((clock) {
       final rig = _run(clock, enabled: false, dead: {''});
