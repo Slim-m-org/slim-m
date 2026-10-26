@@ -5,10 +5,14 @@
 /// something to look at instead.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane_hints.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -206,6 +210,34 @@ void main() {
             'the refusal already explains the empty canvas; the pen-tool '
             'invitation would only invite the identical refusal again',
       );
+    },
+  );
+
+  testWidgets(
+    'a hard reset shows the loading hint rather than flashing the empty hint',
+    (tester) async {
+      final fixture = CanvasPaneFixture()..objects = [canvasObjectJson('a')];
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+
+      await pumpCanvasPane(tester, container);
+      expect(find.text('Nothing on this canvas yet'), findsNothing);
+
+      final gate = Completer<void>();
+      fixture.viewportGate = gate;
+      fixture.opsReset = true;
+
+      final engine = container.read(canvasEngineProvider('c1').notifier);
+      unawaited(engine.sync.catchUp());
+      await tester.pump();
+
+      expect(find.text('Nothing on this canvas yet'), findsNothing);
+      expect(find.byType(CanvasLoadingHint), findsOneWidget);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing on this canvas yet'), findsNothing);
     },
   );
 }

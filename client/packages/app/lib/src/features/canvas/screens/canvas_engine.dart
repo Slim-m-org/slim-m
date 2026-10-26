@@ -453,6 +453,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     activityLog.recordResync();
     _objectPreviewRelay?.previews.clear();
     _boardPaged = false;
+    _emit((s) => s.copyWith(loading: true));
   }
 
   /// Reads the padded view, then replays the feed from the cursor. Reads that
