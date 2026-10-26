@@ -252,6 +252,24 @@ class _AppListRowState extends State<AppListRow> {
   bool _hovered = false;
   bool _focused = false;
 
+  /// Tab skips it while the row does nothing; the semantics stay those of a focusable node.
+  late final FocusNode _ownFocus = FocusNode(
+    debugLabel: 'AppListRow',
+    skipTraversal: widget.onTap == null,
+  );
+
+  @override
+  void didUpdateWidget(covariant AppListRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _ownFocus.skipTraversal = widget.onTap == null;
+  }
+
+  @override
+  void dispose() {
+    _ownFocus.dispose();
+    super.dispose();
+  }
+
   /// A finger has no hover, so on a phone this is the only sign a tap landed
   /// before its action runs. Shown as the same raised fill hover uses, but it
   /// appears the instant the finger touches down rather than on release.
@@ -302,8 +320,7 @@ class _AppListRowState extends State<AppListRow> {
       button: widget.onTap != null,
       selected: widget.selected,
       child: FocusableActionDetector(
-        enabled: widget.onTap != null,
-        focusNode: widget.focusNode,
+        focusNode: widget.focusNode ?? _ownFocus,
         mouseCursor:
             widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
         onShowHoverHighlight: (v) => setState(() => _hovered = v),
