@@ -6,8 +6,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../canvas/canvas_pane_harness.dart';
@@ -50,6 +53,41 @@ void main() {
 
     expect(find.textContaining('Scroll to pan'), findsOneWidget);
   });
+
+  testWidgets(
+    'an explicit AppTouchTargets override wins over the window width',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fixture = CanvasPaneFixture();
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            home: const Scaffold(
+              body: AppTouchTargets(
+                enabled: true,
+                child: CanvasPane(channelId: 'c1'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.textContaining('Drag with two fingers to pan'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('a fresh canvas invites a first mark', (tester) async {
     final fixture = CanvasPaneFixture();
