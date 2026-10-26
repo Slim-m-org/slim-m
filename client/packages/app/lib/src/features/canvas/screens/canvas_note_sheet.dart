@@ -44,6 +44,7 @@ class _CanvasNoteSheetState extends State<_CanvasNoteSheet> {
   void initState() {
     super.initState();
     _text.addListener(() => setState(() {}));
+    _focus.addListener(() => setState(() {}));
     // Asked for, not autofocus alone: the sheet's route can still be settling when this builds.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focus.requestFocus();
@@ -90,7 +91,9 @@ class _CanvasNoteSheetState extends State<_CanvasNoteSheet> {
           Container(
             decoration: BoxDecoration(
               color: tokens.surfaceBase,
-              border: Border.all(color: tokens.borderSubtle),
+              border: Border.all(
+                color: _focus.hasFocus ? tokens.focusRing : tokens.borderSubtle,
+              ),
               borderRadius: BorderRadius.circular(AppRadii.control),
             ),
             padding: const EdgeInsets.symmetric(
