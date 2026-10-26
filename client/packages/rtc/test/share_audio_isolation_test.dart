@@ -1,163 +1,149 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The call's own playout must stay out of the Linux share audio mix.
+/// The call's own playout must stay out of the Linux share audio mix, with no rerouting of anything.
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_rtc/rtc.dart';
+import 'package:slimm_rtc/src/share_audio_graph.dart';
+import 'package:slimm_rtc/src/share_audio_graph_parse.dart';
 
 const _ownPid = 4242;
 
-/// A just-enough sound server: sinks, the streams playing on them, loaded modules and the default sink.
-class _FakeServer {
-  final sinks = <String, int>{'speakers': 1};
-  String defaultSink = 'speakers';
-  final modules = <String, String>{};
-  final inputs = <int, ({int sink, String pid})>{
-    10: (sink: 1, pid: '$_ownPid'),
-    11: (sink: 1, pid: '999'),
-    13: (sink: 1, pid: '700'),
-    14: (sink: 1, pid: '701'),
-  };
-  var _nextModule = 50;
-  final log = <String>[];
+/// A just-enough PipeWire: playback streams with ports, one mix node, and the links made into it.
+class _FakeGraph implements ShareAudioGraph {
+  bool canDrive = true;
+  bool mix = false;
+  String? exported = 'unset';
+  int destroys = 0;
+  final links = <(int, int)>[];
+  final streams = <int, String>{20: '$_ownPid', 30: '999'};
 
-  Future<ProcessResult> run(List<String> args) async {
-    log.add(args.join(' '));
-    String out = '';
-    switch (args) {
-      case ['get-default-sink']:
-        out = defaultSink;
-      case ['set-default-sink', final name]:
-        defaultSink = name;
-      case ['list', 'short', 'modules']:
-        out = modules.entries.map((e) => '${e.key}\t${e.value}').join('\n');
-      case ['load-module', final name, ...final rest]:
-        final id = '${_nextModule++}';
-        modules[id] = '$name\t${rest.join(' ')}';
-        for (final arg in rest) {
-          if (arg.startsWith('sink_name=')) {
-            sinks[arg.substring(10)] = sinks.length + 1;
-          }
-        }
-        out = id;
-      case ['unload-module', final id]:
-        final line = modules.remove(id);
-        final sink = RegExp(r'sink_name=(\S+)').firstMatch(line ?? '');
-        if (sink != null) sinks.remove(sink.group(1));
-      case ['-f', 'json', 'list', 'sinks']:
-        out = jsonEncode([
-          for (final e in sinks.entries) {'index': e.value, 'name': e.key},
-        ]);
-      case ['-f', 'json', 'list', 'sink-inputs']:
-        out = jsonEncode([
-          for (final e in inputs.entries)
-            {
-              'index': e.key,
-              'sink': e.value.sink,
-              'properties': {
-                'application.process.id': e.value.pid,
-                if (e.key == 13) 'media.name': 'loopback-7 output',
-                if (e.key == 14) 'target.object': 'speakers',
-              },
-            },
-        ]);
-      case ['move-sink-input', final id, final name]:
-        inputs[int.parse(id)] = (
-          sink: sinks[name]!,
-          pid: inputs[int.parse(id)]!.pid,
-        );
-    }
-    return ProcessResult(0, 0, out, '');
+  @override
+  bool get supported => canDrive;
+  @override
+  int get processId => _ownPid;
+
+  @override
+  Future<bool> createMix(String name) async => mix = true;
+
+  @override
+  Future<bool> link(int out, int input) async {
+    links.add((out, input));
+    return true;
   }
 
-  String sinkOf(int input) =>
-      sinks.entries.firstWhere((e) => e.value == inputs[input]!.sink).key;
+  @override
+  void exportCaptureSource(String? source) => exported = source;
+
+  @override
+  Future<void> destroy() async {
+    destroys++;
+    mix = false;
+    links.clear();
+  }
+
+  @override
+  Future<String?> dump() async => jsonEncode([
+        for (final e in streams.entries) ...[
+          _node(e.key, 'Stream/Output/Audio', e.value),
+          _port(e.key * 10 + 1, e.key, 'out', 'FL'),
+          _port(e.key * 10 + 2, e.key, 'out', 'FR'),
+        ],
+        if (mix) ...[
+          {
+            'id': 90,
+            'info': {
+              'props': {'node.name': 'slimm-share-mix'}
+            }
+          },
+          _port(91, 90, 'in', 'FL'),
+          _port(92, 90, 'in', 'FR'),
+        ],
+        for (final l in links)
+          {
+            'id': 500 + l.$1,
+            'info': {
+              'props': {'link.input.node': 90, 'link.output.port': l.$1}
+            }
+          },
+      ]);
+
+  Map<String, dynamic> _node(int id, String cls, String pid) => {
+        'id': id,
+        'info': {
+          'props': {
+            'media.class': cls,
+            'application.process.id': int.parse(pid),
+          }
+        }
+      };
+
+  Map<String, dynamic> _port(int id, int node, String dir, String ch) => {
+        'id': id,
+        'info': {
+          'props': {'node.id': node, 'port.direction': dir, 'audio.channel': ch}
+        }
+      };
 }
 
 void main() {
-  late _FakeServer server;
+  late _FakeGraph graph;
   late ShareAudioIsolation isolation;
 
   setUp(() {
-    server = _FakeServer();
+    graph = _FakeGraph();
     isolation = ShareAudioIsolation(
-      pulse: PulseAudio(run: server.run, processId: _ownPid),
-      repinEvery: const Duration(milliseconds: 20),
+      graph: graph,
+      followEvery: const Duration(milliseconds: 20),
     );
   });
   tearDown(() => isolation.end());
 
-  test('the default sink becomes a mix that is looped to the real output',
-      () async {
+  test('another app is linked into the mix, channel for channel', () async {
     expect(await isolation.begin(), isTrue);
-    expect(server.defaultSink, 'slimm_share_mix');
-    final loopback = server.modules.values.singleWhere(
-      (m) => m.startsWith('module-loopback'),
-    );
-    expect(loopback, contains('source=slimm_share_mix.monitor'));
-    expect(loopback, contains('sink=speakers'));
+    expect(graph.links.toSet(), {(301, 91), (302, 92)});
   });
 
-  test('another app joins the mix while the call stays on the real output',
-      () async {
+  test('this process\'s own playout is never linked in', () async {
     await isolation.begin();
-    expect(server.sinkOf(11), 'slimm_share_mix');
-    expect(server.sinkOf(10), 'speakers');
-  });
-
-  test(
-      'the mix loopback output and a device-pinned app stay on the real output',
-      () async {
-    await isolation.begin();
-    expect(server.sinkOf(13), 'speakers');
-    expect(server.sinkOf(14), 'speakers');
-  });
-
-  test('a call stream that appears later is kept out of the mix', () async {
-    await isolation.begin();
-    server.inputs[12] =
-        (sink: server.sinks['slimm_share_mix']!, pid: '$_ownPid');
     await Future<void>.delayed(const Duration(milliseconds: 80));
-    expect(server.sinkOf(12), 'speakers');
+    expect(graph.links.where((l) => l.$1 ~/ 10 == 20), isEmpty);
   });
 
-  test('ending restores the default sink and removes the modules', () async {
+  test('an app that starts mid-share is picked up, once', () async {
     await isolation.begin();
+    graph.streams[40] = '1000';
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(graph.links.where((l) => l.$1 ~/ 10 == 40), hasLength(2));
+  });
+
+  test('the capture is pointed at the mix and released at the end', () async {
+    await isolation.begin();
+    expect(graph.exported, shareMixSource);
     await isolation.end();
-    expect(server.defaultSink, 'speakers');
-    expect(server.modules, isEmpty);
+    expect(graph.exported, isNull);
+    expect(graph.destroys, 1);
     expect(isolation.active, isFalse);
   });
 
-  test('a mix left by a crash is removed before a new one is made', () async {
-    server.modules['7'] = 'module-null-sink\tsink_name=slimm_share_mix';
+  test('ending twice tears down once', () async {
     await isolation.begin();
-    expect(server.modules.containsKey('7'), isFalse);
-    expect(
-      server.modules.values.where((m) => m.startsWith('module-null-sink')),
-      hasLength(1),
-    );
+    await isolation.end();
+    await isolation.end();
+    expect(graph.destroys, 1);
   });
 
   test('with no sound server to drive it changes nothing', () async {
-    final silent = ShareAudioIsolation(
-      pulse: PulseAudio(
-        run: (_) async => ProcessResult(0, 1, '', 'no server'),
-        processId: _ownPid,
-      ),
-    );
-    expect(await silent.begin(), isFalse);
-    expect(silent.active, isFalse);
+    graph.canDrive = false;
+    expect(await isolation.begin(), isFalse);
+    expect(graph.exported, 'unset');
+    expect(isolation.active, isFalse);
   });
 
   test('a share that fails to start ends the isolation', () async {
-    final control = ScreenShareControl(
-      _NoBroadcast(),
-      isolation: isolation,
-    );
+    final control = ScreenShareControl(_NoBroadcast(), isolation: isolation);
     await control.setEnabled(
       true,
       quality: ScreenShareQuality.standard,
@@ -166,8 +152,8 @@ void main() {
       isSharing: () => false,
       onSettled: (_) {},
     );
-    expect(server.defaultSink, 'speakers');
-    expect(server.modules, isEmpty);
+    expect(isolation.active, isFalse);
+    expect(graph.mix, isFalse);
   });
 
   test('a share with audio isolates it, and stopping ends it', () async {
@@ -191,7 +177,6 @@ void main() {
       onSettled: (_) {},
     );
     expect(isolation.active, isFalse);
-    expect(server.defaultSink, 'speakers');
   });
 
   test('a share without audio leaves the sound server alone', () async {
@@ -203,7 +188,13 @@ void main() {
       isSharing: () => true,
       onSettled: (_) {},
     );
-    expect(server.log, isEmpty);
+    expect(graph.mix, isFalse);
+    expect(graph.exported, 'unset');
+  });
+
+  test('a dump that is not a graph yields nothing to link', () {
+    expect(foreignPlayback('not json', 1), isEmpty);
+    expect(nodeIdNamed('{}', 'x'), isNull);
   });
 }
 

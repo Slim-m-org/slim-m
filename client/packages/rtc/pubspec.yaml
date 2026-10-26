@@ -13,6 +13,7 @@ dependencies:
   # Pinned exactly: broadcast_bridge.dart reaches into its unversioned src/; broadcast_bridge_test.dart guards it.
   livekit_client: 2.13.1
   flutter_webrtc: ^1.6.0
+  ffi: ^2.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
