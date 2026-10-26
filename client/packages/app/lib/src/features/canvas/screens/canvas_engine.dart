@@ -189,6 +189,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         channelId: channelId,
         mode: viewMode,
         store: openLayoutStore(_ref.read(canvasLayoutStoreProvider.future)),
+        saveDelay: _ref.read(canvasPersonalLayoutSaveDelayProvider),
       );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(

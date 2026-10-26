@@ -190,13 +190,14 @@ class CanvasMediaSlotSync {
 
   static String _explain(api.ApiException error, [int? timedOutUntil]) =>
       switch (error) {
+        api.ConflictException() => 'That tile is locked in place.',
         api.ForbiddenException() =>
           timedOutUntil != null &&
                   DateTime.fromMillisecondsSinceEpoch(
                     timedOutUntil,
                   ).isAfter(DateTime.now())
               ? canvasDrawForbiddenMessage(timedOutUntil)
-              : 'That tile is locked or you cannot move it now.',
+              : 'You cannot move tiles in this channel right now.',
         _ => 'That tile change could not be saved.',
       };
 

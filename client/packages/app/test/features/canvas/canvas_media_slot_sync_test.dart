@@ -144,6 +144,27 @@ void main() {
     expect(overrides.stateFor('camera:alice').rect, isNull);
   });
 
+  test('commit error explains locked tile on 409 conflict', () async {
+    final overrides = CanvasPresenceTileOverrides();
+    addTearDown(overrides.dispose);
+    final client = _apiWith(
+      (request) async =>
+          http.Response('{"error": "that object is locked in place"}', 409),
+    );
+    String? explained;
+    final sync = CanvasMediaSlotSync(
+      channelId: 'c1',
+      client: client,
+      overrides: overrides,
+      onError: (message) => explained = message,
+    );
+
+    await sync.commit('camera:alice', const Rect.fromLTWH(0, 0, 1, 1));
+
+    expect(explained, 'That tile is locked in place.');
+    expect(overrides.stateFor('camera:alice').rect, isNull);
+  });
+
   test('applyRemote ignores a frame for a different channel', () {
     final overrides = CanvasPresenceTileOverrides();
     addTearDown(overrides.dispose);

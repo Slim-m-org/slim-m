@@ -62,7 +62,7 @@ async fn a_locked_slot_refuses_a_move_that_would_leave_it_locked() {
         ))
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_eq!(response.status(), StatusCode::CONFLICT);
 
     let slots = store.list_canvas_media_slots(channel).await.unwrap();
     assert_eq!(slots.len(), 1);
@@ -205,7 +205,7 @@ async fn a_move_that_claims_the_slot_is_unlocked_is_still_refused() {
         .oneshot(put(&bob_access, locked_body(500.0, 500.0, false)))
         .await
         .unwrap();
-    assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
 
     let slots = store.list_canvas_media_slots(channel).await.unwrap();
     assert_eq!((slots[0].x, slots[0].locked), (10.0, true));

@@ -157,7 +157,9 @@ async fn upsert(
                 "the tile is outside the world or too large",
             ));
         }
-        Err(MediaSlotError::Locked) => return Err(ApiError::Forbidden),
+        Err(MediaSlotError::Locked) => {
+            return Err(ApiError::Conflict("that object is locked in place"));
+        }
         Err(MediaSlotError::Internal(err)) => return Err(err.into()),
     };
 

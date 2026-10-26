@@ -357,11 +357,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     final compact = size.width < kCompactWidth;
     // A short window gives the header's height to the board; the dock repeats its controls and the member toggle floats.
     final shortWindow = size.height < kShortHeight && !compact;
-    // No AppBar sits above CanvasBar, so this pane insets itself for top/bottom; left stays unconsumed because a rail, not this pane, ever occupies the true left edge.
+    // Left stays unconsumed in windowed mode because a rail occupies the true left edge; fullscreen claims the edge and respects its cutout.
     return Container(
       color: tokens.surfaceBase,
       child: SafeArea(
-        left: false,
+        left: widget.fullscreen,
         child: Column(
           children: [
             // Fullscreen can drop the header whole without taking an action with it: its controls are the dock's, repeated.

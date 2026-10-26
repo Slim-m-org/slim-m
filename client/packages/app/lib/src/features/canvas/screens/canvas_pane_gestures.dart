@@ -400,6 +400,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
             : 'You can only bring in objects you placed.',
       );
     }
+    if (result.moved > 0) _engine.hydrator.hydrateVisible();
     if (_mounted) _refresh();
   }
 

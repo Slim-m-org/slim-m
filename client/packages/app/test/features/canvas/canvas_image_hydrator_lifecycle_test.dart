@@ -273,4 +273,28 @@ void main() {
 
     expect(rig.fetched, hasLength(1));
   });
+
+  test(
+    'an image arriving outside the board is not decoded until moved on board',
+    () async {
+      final rig = _Rig();
+      addTearDown(rig.dispose);
+      rig.document.setBoard(const Rect.fromLTWH(0, 0, 1000, 1000));
+      rig.arrive('off', x: 5000, y: 5000);
+      await pumpEventQueue();
+
+      expect(rig.document.idsOutsideBoard, contains('off'));
+      expect(rig.has('off'), isFalse);
+      expect(rig.fetched, isEmpty);
+
+      rig.document
+        ..moveObject('off', 100, 100, 20, 20)
+        ..refresh();
+      rig.hydrator.hydrateVisible();
+      await _settleUntil(() => rig.has('off'));
+
+      expect(rig.has('off'), isTrue);
+      expect(rig.fetched, ['att-off']);
+    },
+  );
 }
