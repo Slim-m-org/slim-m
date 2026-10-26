@@ -366,7 +366,7 @@ void main() {
     final before = rig.gateConfigures;
 
     rig.mic.end();
-    await _until(() => rig.mic.enables == 2);
+    await _until(() => rig.mic.enables == 2 && rig.gateConfigures > before);
 
     expect(rig.gateConfigures, greaterThan(before));
   });
