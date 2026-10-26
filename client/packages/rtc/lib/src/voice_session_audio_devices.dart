@@ -37,8 +37,9 @@ mixin VoiceSessionAudioDevices {
   AudioDeviceSwitching _switchingFor(
     AudioDevices? devices,
     LiveOutputSwitch? liveOutput,
-    OsMicBlockProbe? osMicBlocked,
-  ) {
+    OsMicBlockProbe? osMicBlocked, [
+    LiveInputSwitch? liveInput,
+  ]) {
     if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
     return AudioDeviceSwitching(
       devices ??
@@ -47,6 +48,7 @@ mixin VoiceSessionAudioDevices {
             chosenInput: () => _audioSwitching.chosenInput,
           ),
       liveOutput: liveOutput,
+      liveInput: liveInput,
     );
   }
 

@@ -14,6 +14,12 @@ mixin VoiceSessionMicRecovery {
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
   CaptureNoiseSuppression get _capture;
+  bool get micFallbackEnabled;
+  Future<void> _fallBackMic();
+  Future<void> _logAudioDevices(String why);
+  Future<void> _logInputList();
+  void _resetMicFallback();
+  Future<void> _disposeMicFallback();
   InputGateMonitor get _gate;
   late final void Function() _afterRestart;
   bool _micWanted = false;
@@ -88,8 +94,10 @@ mixin VoiceSessionMicRecovery {
           'The microphone is still silent after every restart; asking the user to retry',
           level: LogLevel.warning,
         );
+        unawaited(_logAudioDevices('gave up'));
         _setMicStatus(MicStatus.unavailable);
         unawaited(_noteMicFailure(MicFailureReason.silent));
+        if (micFallbackEnabled) unawaited(_fallBackMic());
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
@@ -167,6 +175,7 @@ mixin VoiceSessionMicRecovery {
     await _deviceChanges?.cancel();
     await _micStatuses.close();
     await _micFailures.close();
+    await _disposeMicFallback();
   }
 
   void _logMic(String message, {LogLevel level = LogLevel.info}) =>
@@ -189,6 +198,8 @@ mixin VoiceSessionMicRecovery {
   /// Follows the call: device changes are watched only while it is up.
   void _syncMicWatch(VoiceSessionState state) {
     if (state == VoiceSessionState.connected) {
+      unawaited(_logAudioDevices('join'));
+      unawaited(_logInputList());
       if (_watchDevices) {
         _deviceChanges ??= _audioSwitching.onChange.listen(_onDeviceChange);
         unawaited(_rememberInputs());
@@ -211,6 +222,7 @@ mixin VoiceSessionMicRecovery {
     _senderPoll?.cancel();
     _senderPoll = null;
     _inputSignature = null;
+    _resetMicFallback();
     unawaited(_deviceChanges?.cancel());
     _deviceChanges = null;
     _micRecovery.reset();
@@ -278,6 +290,7 @@ mixin VoiceSessionMicRecovery {
         '${defaultMoved ? ', and the system default moved' : ''}';
     if (line != _lastDeviceChangeLine) _logMic(line);
     _lastDeviceChangeLine = line;
+    unawaited(_logAudioDevices('device change'));
     if (!_micWanted) return;
     if (inputChanged ||
         defaultMoved ||
@@ -290,6 +303,7 @@ mixin VoiceSessionMicRecovery {
   Future<void> _rememberInputs() async {
     try {
       _inputSignature = await _audioSwitching.inputSignature();
+      unawaited(_logInputList());
     } on Object catch (e) {
       _logMic('Could not list microphones: $e', level: LogLevel.warning);
     }
@@ -313,6 +327,7 @@ mixin VoiceSessionMicRecovery {
   /// when there is no track or the reopen fails.
   Future<bool> _restartMicCapture(String reason) async {
     if (_room == null || !_micWanted) return false;
+    unawaited(_logAudioDevices('restart: $reason'));
     if (!_mic.hasTrack) return _micRecovery.recoverNow(reason);
     try {
       await _mic.restart(_currentCaptureOptions());

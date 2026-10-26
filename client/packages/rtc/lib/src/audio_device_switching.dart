@@ -113,6 +113,23 @@ class AudioDeviceSwitching {
   /// Whether the capture rides whatever the system default microphone is.
   bool get followsSystemDefaultInput => _preferredInputId == null;
 
+  /// Whether playback rides whatever the system default speaker is.
+  bool get followsSystemDefaultOutput => _preferredOutputId == null;
+
+  /// The microphone in use now, or the system default's entry; null when neither is listed.
+  Future<AudioDevice?> inputDeviceInUse() async {
+    final id = _preferredInputId;
+    if (id == null) return _devices.systemDefaultInput();
+    return resolveAudioDevice(await inputs(), id);
+  }
+
+  /// [inputDeviceInUse]'s counterpart for the speaker.
+  Future<AudioDevice?> outputDeviceInUse() async {
+    final id = _preferredOutputId;
+    if (id == null) return _devices.systemDefaultOutput();
+    return resolveAudioDevice(await outputs(), id);
+  }
+
   /// Changes whenever a microphone appears, goes, or becomes the system
   /// default, so a capture on the old default can be told to move.
   Future<String> inputSignature() async {
