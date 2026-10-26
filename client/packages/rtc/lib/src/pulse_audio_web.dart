@@ -23,4 +23,8 @@ class PulseAudio {
   Future<bool> moveOwnStreams(
           {required bool capture, required String deviceId}) async =>
       false;
+
+  Future<String?> pactl(List<String> args) async => null;
+
+  int get processId => 0;
 }

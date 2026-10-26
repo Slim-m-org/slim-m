@@ -66,3 +66,38 @@ List<int> ownStreamIds(String json, int processId) => [
 bool isDeviceEvent(String line) => RegExp(
       r"^Event '(new|remove)' on (source|sink) #\d+$|^Event 'change' on server$",
     ).hasMatch(line.trim());
+
+/// The index of the sink named [name] in `pactl -f json list sinks` output.
+int? sinkIndexOf(String json, String name) {
+  for (final sink in _decode(json).whereType<Map<dynamic, dynamic>>()) {
+    if (sink['name'] == name && sink['index'] is int) {
+      return sink['index'] as int;
+    }
+  }
+  return null;
+}
+
+/// The playback streams on sink [sinkIndex] that follow the default output and belong to another process.
+/// A loopback's own output, and a stream an app aimed at a device itself, are left where they are.
+List<int> foreignStreamsOn(String json, int sinkIndex, int processId) => [
+      for (final stream in _decode(json).whereType<Map<dynamic, dynamic>>())
+        if (stream['index'] is int &&
+            stream['sink'] == sinkIndex &&
+            _followsDefault(stream['properties'] as Map?, processId))
+          stream['index'] as int,
+    ];
+
+bool _followsDefault(Map<dynamic, dynamic>? props, int processId) {
+  if (props == null) return false;
+  if (props['application.process.id'] == '$processId') return false;
+  if (props['target.object'] != null) return false;
+  final names = '${props['media.name']} ${props['node.name']}'.toLowerCase();
+  return !names.contains('loopback');
+}
+
+/// Ids of loaded modules whose line mentions [marker], from `pactl list short modules`.
+List<String> moduleIdsMentioning(String shortList, String marker) => [
+      for (final line in shortList.split('\n'))
+        if (line.contains(marker) && line.split('\t').first.isNotEmpty)
+          line.split('\t').first,
+    ];

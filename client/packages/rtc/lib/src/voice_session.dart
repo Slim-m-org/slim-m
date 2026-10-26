@@ -46,9 +46,11 @@ import 'camera_view.dart';
 import 'desktop_sources.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
+import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
+import 'share_audio_isolation.dart';
 import 'voice_disconnect_reason.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
@@ -133,7 +135,8 @@ class VoiceSession
       enable: () => _trySetMicrophone(true),
       afterRestart: _followPreferredDevices,
     );
-    _screenShare = ScreenShareControl(_broadcast);
+    _screenShare =
+        ScreenShareControl(_broadcast, isolation: ShareAudioIsolation());
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
 
@@ -372,6 +375,21 @@ class VoiceSession
     _refreshParticipants();
     return outcome;
   }
+
+  /// Whether the running share carries an audio track to switch.
+  bool get screenShareHasAudio =>
+      shareAudioPublication(_room?.localParticipant) != null;
+
+  /// Whether the running share's audio is silenced.
+  bool get screenShareAudioMuted =>
+      shareAudioPublication(_room?.localParticipant)?.muted ?? false;
+
+  /// Silences or restores the share's audio while it keeps running.
+  Future<bool> setScreenShareAudioMuted(bool muted) => _reported(
+        'switch the shared audio',
+        false,
+        () => setShareAudioMuted(_room?.localParticipant, muted),
+      );
 
   /// The widget that renders [identity]'s shared screen, live.
   ///

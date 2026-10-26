@@ -17,6 +17,19 @@ mixin VideoQualityRecorder {
     const {},
   );
 
+  /// What the share-audio getters answer; [setScreenShareAudioMuted] writes the second.
+  bool shareHasAudio = false;
+  bool shareAudioMuted = false;
+
+  bool get screenShareHasAudio => shareHasAudio;
+
+  bool get screenShareAudioMuted => shareAudioMuted;
+
+  Future<bool> setScreenShareAudioMuted(bool muted) async {
+    shareAudioMuted = muted;
+    return true;
+  }
+
   ReceiveVideoQuality? lastReceiveVideoQuality;
   CameraQuality? lastCameraQuality;
 

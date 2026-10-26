@@ -128,4 +128,20 @@ class PulseAudio {
     }
     return ids.isNotEmpty;
   }
+
+  /// Runs one `pactl` command; its output, or null when it is missing or fails.
+  Future<String?> pactl(List<String> args) async {
+    if (!_enabled) return null;
+    try {
+      final result = await _run(args);
+      return result.exitCode == 0 ? result.stdout as String : null;
+    } on Object catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.voice, 'pactl ${args.first} failed', error, stack);
+      return null;
+    }
+  }
+
+  /// This process's id, which names its playback streams to the sound server.
+  int get processId => _pid;
 }

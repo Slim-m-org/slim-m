@@ -22,6 +22,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
 import 'screen_share.dart';
+import 'share_audio_isolation.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Publishes or unpublishes a screen share track with the given options.
@@ -63,9 +64,13 @@ typedef ScreenSharePublish = Future<void> Function(
 /// same notification resolves to `unmute()` on the publication this class
 /// just created rather than a second, option-less publish clobbering it.
 class ScreenShareControl {
-  ScreenShareControl(this._broadcast);
+  ScreenShareControl(this._broadcast, {ShareAudioIsolation? isolation})
+      : _isolation = isolation;
 
   final BroadcastBridge _broadcast;
+
+  /// Keeps the call out of shared desktop audio on Linux; null where nothing needs it.
+  final ShareAudioIsolation? _isolation;
 
   /// The iOS hand-off in progress, if a share is still waiting on the system
   /// picker. Held so a second call - a rapid re-tap, or disabling while
@@ -108,6 +113,7 @@ class ScreenShareControl {
           onSettled: onSettled,
         );
       }
+      if (enabled && includeAudio) await _isolation?.begin();
       try {
         await publish(
           enabled,
@@ -124,12 +130,14 @@ class ScreenShareControl {
       } finally {
         // The platform recorder must end even when dropping the track threw.
         if (!enabled) await _broadcast.requestStop();
+        if (!enabled) await _isolation?.end();
       }
       if (!enabled) return ScreenShareOutcome.stopped;
       return isSharing()
           ? ScreenShareOutcome.started
           : ScreenShareOutcome.pendingBroadcast;
     } catch (e, stack) {
+      await _isolation?.end();
       reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
       onSettled(e);
       return ScreenShareOutcome.failed;
@@ -247,6 +255,7 @@ class ScreenShareControl {
   /// again in case some future call-ending path is added that reaches
   /// disposal without going through the ordered call first.
   Future<void> dispose() async {
+    await _isolation?.end();
     await _cancelHandoff();
     await stopActiveBroadcast();
   }

@@ -101,6 +101,7 @@ class VoiceController extends StateNotifier<VoiceState>
       state = state.copyWith(
         participants: _shownRoster(p),
         screenSharing: sharing,
+        shareAudio: sharing ? _shareAudioNow() : ShareAudio.none,
         cameraEnabled: camera,
         awaitingBroadcast: sharing ? false : state.awaitingBroadcast,
       );
