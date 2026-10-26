@@ -65,6 +65,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     child: CanvasPaneSurface(
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
+        onDraftCancel: widget.onDraftCancel,
         onDraftPoint: widget.onDraftPoint,
         onPointerLeft: widget.onPointerLeft,
         onPointerMoved: widget.onPointerMoved,

@@ -28,8 +28,12 @@ class NoteSpanStyle {
   final Color linkInk;
 
   /// Changes whenever the spans for the same text would differ.
-  int get revision =>
-      Object.hash(knownUsernames.length, mentionInk, mentionFill, linkInk);
+  int get revision => Object.hash(
+    Object.hashAllUnordered(knownUsernames),
+    mentionInk,
+    mentionFill,
+    linkInk,
+  );
 }
 
 const _reservedMentions = {'everyone', 'here'};

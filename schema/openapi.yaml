@@ -6842,6 +6842,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -16884,6 +16886,11 @@ components:
           description: >
             Marks this as the gesture's last frame, whether or not it went
             on to commit a real object.
+        cancelled:
+          type: boolean
+          default: false
+          description: >
+            Marks this draft as cancelled or abandoned without committing ink.
         color:
           type: string
           description: >
@@ -17273,6 +17280,10 @@ components:
           items: { type: number, format: double }
         ended:
           type: boolean
+        cancelled:
+          type: boolean
+          default: false
+          description: Whether the gesture was cancelled without committing ink.
         color:
           type: string
           nullable: true

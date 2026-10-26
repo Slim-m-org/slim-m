@@ -4,12 +4,18 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 /// How long a pan or drag settles before the layout is written.
 const Duration personalLayoutSaveDelay = Duration(milliseconds: 400);
+
+/// The delay before writing a personal layout change, overridable in tests.
+final canvasPersonalLayoutSaveDelayProvider = Provider<Duration>(
+  (ref) => personalLayoutSaveDelay,
+);
 
 /// The store once it opens, or null after logging why it could not.
 Future<CanvasLayoutStore?> openLayoutStore(Future<CanvasLayoutStore> opening) =>

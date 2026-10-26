@@ -148,6 +148,7 @@ class CanvasImageHydrator {
     if (_disposed || object.kind != 'image') return;
     final attachmentId = object.props['attachment'];
     if (attachmentId is! String) return;
+    if (document.idsOutsideBoard.contains(object.id)) return;
     _request(object.id, attachmentId);
   }
 

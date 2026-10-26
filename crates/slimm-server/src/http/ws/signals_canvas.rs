@@ -79,6 +79,7 @@ pub(super) struct StrokePreviewFrame {
     pub(super) object_id: String,
     pub(super) points: Vec<f64>,
     pub(super) ended: bool,
+    pub(super) cancelled: bool,
     pub(super) color: Option<String>,
     pub(super) width: Option<f64>,
 }
@@ -163,6 +164,7 @@ pub(super) async fn handle_canvas_stroke_preview(
         object_id,
         points: Arc::new(frame.points),
         ended: frame.ended,
+        cancelled: frame.cancelled,
         color: valid_preview_color(frame.color),
         width: valid_preview_width(frame.width),
     });

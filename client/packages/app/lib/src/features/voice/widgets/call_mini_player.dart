@@ -116,11 +116,10 @@ class _CallMiniPlayerHostState extends ConsumerState<CallMiniPlayerHost> {
   ) {
     final compact = LayoutClass.of(context) == LayoutClass.compact;
     // Compact has the call strip right below, so the card is only its video.
-    final controlsHeight = compact
-        ? 0.0
-        : AppTouchTargets.of(context)
+    final rowHeight = AppTouchTargets.of(context)
         ? AppSizes.rowTouch
         : AppSizes.rowPointer;
+    final controlsHeight = compact ? 0.0 : rowHeight;
     final width = compact ? _compactPlayerWidth : _widePlayerWidth;
     final player = Size(width, width * 9 / 16 + controlsHeight);
     final composerExtent = ref.watch(composerExtentProvider);

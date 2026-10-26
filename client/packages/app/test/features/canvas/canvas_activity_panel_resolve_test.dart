@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -196,6 +197,56 @@ void main() {
 
     expect(find.text('just now'), findsNothing);
     expect(find.text('5m ago'), findsOneWidget);
+    log.dispose();
+  });
+
+  testWidgets('repeated identical summaries are announced aloud', (
+    tester,
+  ) async {
+    final announcements = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<dynamic>(
+      SystemChannels.accessibility,
+      (message) async {
+        if (message is Map && message['type'] == 'announce') {
+          final data = message['data'] as Map?;
+          if (data?['message'] is String) {
+            announcements.add(data!['message'] as String);
+          }
+        }
+        return null;
+      },
+    );
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger
+          .setMockDecodedMessageHandler<dynamic>(
+            SystemChannels.accessibility,
+            null,
+          );
+    });
+
+    final container = _container();
+    addTearDown(container.dispose);
+    await tester.runAsync(
+      () => container.read(batchProfilesControllerProvider.notifier).resolve([
+        'alice',
+      ]),
+    );
+    final log = CanvasActivityLog(
+      isBlocked: (_) => false,
+      announceDelay: Duration.zero,
+    );
+    await _pump(tester, container, CanvasActivityAnnouncer(activityLog: log));
+
+    log.recordPlacedLive(_obj('a1', 'alice'));
+    await tester.pump(Duration.zero);
+
+    log.recordPlacedLive(_obj('a2', 'alice'));
+    await tester.pump(Duration.zero);
+
+    expect(announcements, [
+      'Alice placed a stroke.',
+      'Alice placed a stroke.',
+    ], reason: 'repeated identical summaries must both be announced');
     log.dispose();
   });
 }

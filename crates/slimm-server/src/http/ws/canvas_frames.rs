@@ -122,6 +122,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             object_id,
             points,
             ended,
+            cancelled,
             color,
             width,
         } => ServerFrame::CanvasStrokePreview {
@@ -130,6 +131,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             object_id: object_id.to_string(),
             points: points.to_vec(),
             ended,
+            cancelled,
             color,
             width,
         },

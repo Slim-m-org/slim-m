@@ -128,6 +128,7 @@ class CanvasStrokePreview extends ServerEvent {
     required this.objectId,
     required this.points,
     required this.ended,
+    this.cancelled = false,
     this.color,
     this.width,
   });
@@ -137,6 +138,7 @@ class CanvasStrokePreview extends ServerEvent {
   final String objectId;
   final List<double> points;
   final bool ended;
+  final bool cancelled;
 
   /// The drawer's pen colour key and world width, when they sent them.
   final String? color;

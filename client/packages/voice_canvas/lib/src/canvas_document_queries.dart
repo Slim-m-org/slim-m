@@ -89,7 +89,9 @@ extension CanvasDocumentQueries on CanvasDocument {
   List<({String id, String attachmentId})> get visibleImagesAwaitingBitmap => [
         for (final slot in scene.visible)
           if (strokeIfAlive(slot) case final stroke?)
-            if (imageAwaitsBitmap(stroke.id) && stroke.attachmentId != null)
+            if (!_outsideIds.contains(stroke.id) &&
+                imageAwaitsBitmap(stroke.id) &&
+                stroke.attachmentId != null)
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 

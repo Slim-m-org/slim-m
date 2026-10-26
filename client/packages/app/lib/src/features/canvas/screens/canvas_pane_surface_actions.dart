@@ -15,6 +15,7 @@ import 'canvas_presence_geometry.dart';
 class CanvasPaneSurfaceActions {
   const CanvasPaneSurfaceActions({
     this.onDraftEnded,
+    this.onDraftCancel,
     this.onDraftPoint,
     this.onPointerLeft,
     this.onPointerMoved,
@@ -46,6 +47,7 @@ class CanvasPaneSurfaceActions {
   });
 
   final VoidCallback? onDraftEnded;
+  final VoidCallback? onDraftCancel;
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onPointerLeft;
   final PointerMoved? onPointerMoved;

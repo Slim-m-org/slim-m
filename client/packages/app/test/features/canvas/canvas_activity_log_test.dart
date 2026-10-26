@@ -345,12 +345,10 @@ void main() {
       expect(
         log.announcementTick,
         0,
-        reason:
-            'the second change must restart the quiet window, not '
-            'flush early',
+        reason: 'inside the throttle window, so no flush yet',
       );
 
-      async.elapse(const Duration(seconds: 2, milliseconds: 1));
+      async.elapse(const Duration(seconds: 1, milliseconds: 1));
       expect(log.announcementTick, 1);
 
       final batch = log.takeAnnouncementBatch();

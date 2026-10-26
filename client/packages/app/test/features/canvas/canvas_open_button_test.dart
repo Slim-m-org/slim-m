@@ -13,9 +13,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_open_button.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_pane.dart';
+import 'package:slimm_app/src/features/canvas/widgets/canvas_open_button.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 Future<void> _pump(
   WidgetTester tester,
@@ -76,5 +78,26 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Close canvas'));
     await tester.pump();
     expect(container.read(canvasOpenProvider), isNull);
+  });
+
+  testWidgets('hides when auto-rejoining a call in this channel', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        voiceFlagsProvider.overrideWithValue(
+          const VoiceFlags(
+            channelId: 'c1',
+            state: VoiceSessionState.connecting,
+            rejoining: true,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await _pump(tester, container, isVoice: true);
+    await tester.pump();
+    expect(find.bySemanticsLabel('Open canvas'), findsNothing);
   });
 }

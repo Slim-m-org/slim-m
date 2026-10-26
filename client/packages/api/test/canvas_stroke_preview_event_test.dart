@@ -129,5 +129,24 @@ void main() {
     final preview = event! as CanvasStrokePreview;
     expect(preview.color, isNull);
     expect(preview.width, isNull);
+    expect(preview.cancelled, isFalse);
+  });
+
+  test('parses cancelled true when present', () {
+    final event = ServerEvent.parse(
+      jsonEncode({
+        'type': 'canvas.stroke_preview.updated',
+        'channel_id': 'chan-1',
+        'user_id': 'user-1',
+        'object_id': 'draft-1',
+        'points': <double>[],
+        'ended': true,
+        'cancelled': true,
+      }),
+    );
+
+    final preview = event! as CanvasStrokePreview;
+    expect(preview.ended, isTrue);
+    expect(preview.cancelled, isTrue);
   });
 }

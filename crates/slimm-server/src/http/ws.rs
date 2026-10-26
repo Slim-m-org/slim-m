@@ -225,6 +225,7 @@ async fn serve(
                                 object_id,
                                 points,
                                 ended,
+                                cancelled,
                                 color,
                                 width,
                             }) => {
@@ -241,6 +242,7 @@ async fn serve(
                                         object_id,
                                         points,
                                         ended,
+                                        cancelled,
                                         color,
                                         width,
                                     },

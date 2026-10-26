@@ -15,14 +15,14 @@ status=$?
 
 case $status in
   0)
-    echo "::error::emoji found in UI source; use Lucide icons for chrome"
+    echo "::error::emoji found in UI source; use Lucide icons for chrome" >&2
     exit 1
     ;;
   1)
     echo "no emoji in UI source"
     ;;
   *)
-    echo "::error::the emoji scan itself failed (grep exit $status)"
+    echo "::error::the emoji scan itself failed (grep exit $status)" >&2
     exit 1
     ;;
 esac

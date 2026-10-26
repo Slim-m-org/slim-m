@@ -132,4 +132,86 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('channel list'), findsOneWidget);
   });
+
+  testWidgets(
+    'onBack callback intercepts back navigation before chat and channels',
+    (tester) async {
+      final fullscreenProvider = StateProvider<bool>((ref) => true);
+      final openProvider = StateProvider<bool>((ref) => true);
+      final container = ProviderContainer(
+        overrides: [
+          keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+          sessionProvider.overrideWithValue(api.SessionStore()),
+          liveEventsProvider.overrideWithValue(const Stream.empty()),
+          channelByIdProvider.overrideWith(
+            (ref, id) => Stream.value(_channel('voice')),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final router = GoRouter(
+        initialLocation: Routes.channel('c1'),
+        routes: [
+          GoRoute(
+            path: Routes.channels,
+            builder: (_, _) => const Scaffold(body: Text('channel list')),
+          ),
+          GoRoute(
+            path: '/channels/:id',
+            builder: (context, state) => Consumer(
+              builder: (context, ref, _) {
+                final fs = ref.watch(fullscreenProvider);
+                final open = ref.watch(openProvider);
+                return CompactDrawerScaffold(
+                  channelId: state.pathParameters['id']!,
+                  onBack: fs
+                      ? () =>
+                            ref.read(fullscreenProvider.notifier).state = false
+                      : open
+                      ? () => ref.read(openProvider.notifier).state = false
+                      : null,
+                  body: const _Body(),
+                  showAppBar: true,
+                  showRail: false,
+                  showMembers: false,
+                );
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            theme: buildTheme(Brightness.dark, AppTokens.dark),
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      container.read(voiceChatPaneVisibleProvider.notifier).state = true;
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(container.read(fullscreenProvider), isFalse);
+      expect(container.read(openProvider), isTrue);
+      expect(find.text('chat'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(container.read(openProvider), isFalse);
+      expect(find.text('chat'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('call'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Back to channels'));
+      await tester.pumpAndSettle();
+      expect(find.text('channel list'), findsOneWidget);
+    },
+  );
 }

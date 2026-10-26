@@ -95,6 +95,7 @@ class CanvasSurface extends StatefulWidget {
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
+    this.onDraftCancel,
   });
 
   final CanvasDocument document;
@@ -187,6 +188,9 @@ class CanvasSurface extends StatefulWidget {
   /// [onStroke]. A caller relaying [onDraftPoint] should use this as the
   /// signal to tell other participants the gesture is over.
   final VoidCallback? onDraftEnded;
+
+  /// Fires when a draft is explicitly cancelled without committing ink.
+  final VoidCallback? onDraftCancel;
 
   /// Which gesture a pointer draws. Resolving a world point to an object is
   /// the caller's job, over [onErase], so this widget stays free of any

@@ -247,8 +247,15 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   /// Whether the roster is docked beside the canvas, as the shell decides it.
   bool get _memberPaneDocked =>
+      !_threadPaneDocked &&
       memberPaneWanted(ref, MediaQuery.sizeOf(context)) &&
       LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
+
+  bool get _threadPaneDocked =>
+      ref.read(openThreadProvider) != null &&
+      LayoutClass.of(context).fitsThreadPane(MediaQuery.sizeOf(context).width);
+
+  void _closeThreadPane() => ref.read(openThreadProvider.notifier).state = null;
 
   void _closeMemberPane() =>
       ref.read(memberPaneVisibleProvider.notifier).state = false;
@@ -395,6 +402,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
             : 'You can only bring in objects you placed.',
       );
     }
+    if (result.moved > 0) _engine.hydrator.hydrateVisible();
+    if (_mounted) _refresh();
   }
 
   /// Fits the camera to what is drawn, or the whole board when the canvas is empty.

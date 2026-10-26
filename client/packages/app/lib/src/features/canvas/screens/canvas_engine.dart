@@ -189,6 +189,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         channelId: channelId,
         mode: viewMode,
         store: openLayoutStore(_ref.read(canvasLayoutStoreProvider.future)),
+        saveDelay: _ref.read(canvasPersonalLayoutSaveDelayProvider),
       );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
@@ -213,6 +214,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         ),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+    timedOutUntil: () => _ref.read(meProvider).valueOrNull?.timedOutUntil,
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.
@@ -336,13 +338,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       _strokePreviewRelay ??= CanvasStrokePreviewRelay(
         drafts: remoteDrafts,
         paletteSize: AppCanvasColors.cursors.length,
-        send: (objectId, points, ended) => _ref
+        send: (objectId, points, ended, {bool cancelled = false}) => _ref
             .read(syncControllerProvider.notifier)
             .notifyCanvasStrokePreview(
               channelId,
               objectId,
               points,
               ended: ended,
+              cancelled: cancelled,
               color: _strokePreviewRelay?.pen?.colorKey,
               width: _strokePreviewRelay?.pen?.width,
             ),
@@ -452,6 +455,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     activityLog.recordResync();
     _objectPreviewRelay?.previews.clear();
     _boardPaged = false;
+    _emit((s) => s.copyWith(loading: true));
   }
 
   /// Reads the padded view, then replays the feed from the cursor. Reads that

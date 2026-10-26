@@ -256,12 +256,12 @@ class CanvasActivityLog extends ChangeNotifier {
       _entries.removeFirst();
     }
     _pending.add(entry);
-    _timer?.cancel();
-    _timer = Timer(announceDelay, _flush);
+    _timer ??= Timer(announceDelay, _flush);
     notifyListeners();
   }
 
   void _flush() {
+    _timer = null;
     if (_pending.isEmpty) return;
     announcementTick++;
     notifyListeners();
@@ -279,6 +279,7 @@ class CanvasActivityLog extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _timer = null;
     super.dispose();
   }
 }

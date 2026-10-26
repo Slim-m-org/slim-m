@@ -226,6 +226,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     String objectId,
     List<double> points, {
     bool ended = false,
+    bool cancelled = false,
     String? color,
     double? width,
   }) => _connection?.canvasStrokePreview(
@@ -233,6 +234,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     objectId,
     points,
     ended: ended,
+    cancelled: cancelled,
     color: color,
     width: width,
   );

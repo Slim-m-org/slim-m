@@ -329,6 +329,15 @@ class HomeShell extends ConsumerWidget {
       final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
       return CompactDrawerScaffold(
         channelId: channelId,
+        onBack: facts.canvasFullscreen
+            ? () {
+                ref.read(canvasFullscreenFromFocusProvider.notifier).state =
+                    null;
+                ref.read(canvasFullscreenProvider.notifier).state = null;
+              }
+            : facts.canvasOpen
+            ? () => ref.read(canvasOpenProvider.notifier).state = null
+            : null,
         showAppBar: !(replacesHeader || facts.notFound),
         // Only the canvas (a drawing surface of its own) also claims the rail; see DmCallPane's own doc for why a DM call keeps it.
         showRail: !facts.canvasOpen,

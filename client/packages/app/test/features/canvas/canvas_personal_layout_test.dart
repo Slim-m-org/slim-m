@@ -47,6 +47,9 @@ class _Session {
     container = fixture.container(
       extraOverrides: [
         databaseProvider.overrideWith((ref) async => db),
+        canvasPersonalLayoutSaveDelayProvider.overrideWithValue(
+          const Duration(milliseconds: 10),
+        ),
         mockApiOverride((request) async {
           if (request.method != 'GET') writes.add(request);
           return jsonResponse(_get(request.url.path));
@@ -275,7 +278,7 @@ void main() {
     final session = _Session(db, writes);
     addTearDown(session.close);
     await session.open('c1');
-    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     final rows = await db.select(db.canvasPersonalLayouts).get();
     expect(rows.single.updatedAt, 1, reason: 'restoring is not an edit');
@@ -287,7 +290,7 @@ void main() {
     final engine = await session.open('c1');
     engine.viewMode.showPersonal();
     engine.tileOverrides.setRect('screen:a', _place);
-    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     final saved = CanvasPersonalLayout.decode(
       (await CanvasLayoutStore(db).load('c1'))!,
@@ -331,7 +334,7 @@ void main() {
     engine.document.setCamera(_zoomedCamera());
 
     expect(await CanvasLayoutStore(db).load('c1'), isNull);
-    await Future<void>.delayed(personalLayoutSaveDelay * 2);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     expect(await CanvasLayoutStore(db).load('c1'), isNotNull);
   });

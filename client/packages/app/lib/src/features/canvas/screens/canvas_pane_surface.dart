@@ -157,6 +157,7 @@ class CanvasPaneSurface extends StatelessWidget {
           remoteDrafts: remoteDrafts,
           onDraftPoint: actions.onDraftPoint,
           onDraftEnded: actions.onDraftEnded,
+          onDraftCancel: actions.onDraftCancel,
         ),
         CanvasObjectContextMenu(
           document: document,

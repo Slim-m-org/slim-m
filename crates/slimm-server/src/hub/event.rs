@@ -564,16 +564,15 @@ pub enum Event {
     /// real object: a receiver drops the preview the instant it sees this
     /// rather than waiting for staleness to age it out.
     ///
-    /// `object_id` never names a row in `canvas_objects`: it is an id the
-    /// client mints purely to key this preview session, since the object(s)
-    /// a finished stroke actually commits are decided later, by
-    /// `POST .../canvas/objects`, and one long stroke can split into several.
+    /// `object_id` never names a row in `canvas_objects`: it is a client-minted
+    /// id keying this preview, since the committed objects are decided later.
     CanvasStrokePreview {
         channel_id: ChannelId,
         user_id: UserId,
         object_id: CanvasObjectId,
         points: Arc<Vec<f64>>,
         ended: bool,
+        cancelled: bool,
         /// The drawer's pen colour key, when the sender named a valid one.
         color: Option<String>,
         /// The drawer's pen width in world units, when valid.

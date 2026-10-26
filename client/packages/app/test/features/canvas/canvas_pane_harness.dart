@@ -203,6 +203,9 @@ class CanvasPaneFixture {
   /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
   int? opsHead;
 
+  /// Whether `GET .../canvas/ops` reports that the client must hard-reset.
+  bool opsReset = false;
+
   /// Every `GET .../canvas/ops` the pane sent: every viewport fetch runs a
   /// catch-up afterward, so this file's own tests only need the default
   /// answer below to keep paging correct - it is not itself under test here.
@@ -325,7 +328,7 @@ class CanvasPaneFixture {
             'ops': <Object>[],
             'latest_seq': opsHead ?? afterSeq,
             'has_more': false,
-            'reset': false,
+            'reset': opsReset,
           });
         }
         if (request.url.path.endsWith('/canvas/media-slots')) {

@@ -9,11 +9,13 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart' show isSeenNow;
 import '../../members/providers/user_profiles.dart';
+import '../../modules/providers/dock_reservation.dart';
 import '../../../format.dart';
 import '../../messages/widgets/author_label.dart';
 import 'canvas_activity_log.dart';
@@ -23,10 +25,8 @@ import 'canvas_activity_log.dart';
 /// activity without anyone having opened [CanvasActivityPanel] at all.
 ///
 /// Mounted unconditionally by `CanvasPaneBody`, so a burst of changes still
-/// announces while the panel is closed; a repeated identical summary is a
-/// known platform limitation this does not try to work around, since the
-/// only fix (an invisible varying suffix) would corrupt what is literally
-/// read aloud.
+/// announces while the panel is closed; calls [SemanticsService.sendAnnouncement]
+/// so repeated identical summaries are re-announced aloud.
 class CanvasActivityAnnouncer extends ConsumerStatefulWidget {
   const CanvasActivityAnnouncer({super.key, required this.activityLog});
 
@@ -101,6 +101,11 @@ class _CanvasActivityAnnouncerState
         profiles: profiles,
       ),
     );
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final view = View.maybeOf(context);
+    if (view != null) {
+      unawaited(SemanticsService.sendAnnouncement(view, text, direction));
+    }
     setState(() => _text = text);
   }
 
@@ -121,7 +126,7 @@ class _CanvasActivityAnnouncerState
 /// `Semantics` label and as ordinary visible text - a cue is never carried
 /// by one channel alone anywhere else in this product, and this is no
 /// exception.
-class CanvasActivityPanel extends StatefulWidget {
+class CanvasActivityPanel extends ConsumerStatefulWidget {
   const CanvasActivityPanel({
     super.key,
     required this.activityLog,
@@ -146,10 +151,11 @@ class CanvasActivityPanel extends StatefulWidget {
   final int objectCount;
 
   @override
-  State<CanvasActivityPanel> createState() => _CanvasActivityPanelState();
+  ConsumerState<CanvasActivityPanel> createState() =>
+      _CanvasActivityPanelState();
 }
 
-class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
+class _CanvasActivityPanelState extends ConsumerState<CanvasActivityPanel> {
   static const _ageRefresh = Duration(seconds: 10);
 
   final ValueNotifier<int> _ageTick = ValueNotifier(0);
@@ -176,6 +182,7 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
     final activityLog = widget.activityLog;
     final summary = widget.summary;
     final objectCount = widget.objectCount;
+    final reserved = ref.watch(bottomDockReservationProvider);
     return AnimatedBuilder(
       animation: Listenable.merge([activityLog, _ageTick]),
       builder: (context, _) {
@@ -198,8 +205,11 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
               child: entries.isEmpty
                   ? Center(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.s24,
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.s24,
+                          0,
+                          AppSpacing.s24,
+                          reserved,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -227,6 +237,9 @@ class _CanvasActivityPanelState extends State<CanvasActivityPanel> {
                       ),
                     )
                   : ListView.builder(
+                      padding: EdgeInsets.only(
+                        bottom: reserved + AppSpacing.s16,
+                      ),
                       itemCount: entries.length,
                       itemBuilder: (context, index) =>
                           _ActivityRow(entry: entries[index]),

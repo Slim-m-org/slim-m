@@ -315,6 +315,8 @@ pub(super) enum ServerFrame {
         object_id: String,
         points: Vec<f64>,
         ended: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        cancelled: bool,
         color: Option<String>,
         width: Option<f64>,
     },

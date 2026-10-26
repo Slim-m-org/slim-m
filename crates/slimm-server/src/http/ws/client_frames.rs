@@ -54,6 +54,8 @@ pub(super) enum ClientFrame {
         points: Vec<f64>,
         #[serde(default)]
         ended: bool,
+        #[serde(default)]
+        cancelled: bool,
         color: Option<String>,
         width: Option<f64>,
     },

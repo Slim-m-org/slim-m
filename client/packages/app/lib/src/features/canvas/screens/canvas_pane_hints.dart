@@ -14,11 +14,14 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_summary.dart';
 
 /// The one thing this pane's own onboarding copy never said: how to move
-/// around it at all. Width-branched per `docs/design/desktop-vs-mobile.md`
-/// rule 1 (window width, never platform) - the same compact-width proxy
-/// for a touch-first surface `CanvasEmptyHint`'s sibling widgets already
-/// use throughout this package.
-String panZoomHint(double width) => width < kCompactWidth
+/// around it at all. Resolves through [AppTouchTargets] so explicit
+/// enclosing density overrides are respected while still defaulting to
+/// compact width.
+String panZoomHint(BuildContext context) =>
+    panZoomHintForTouch(AppTouchTargets.of(context));
+
+/// Formats the pan/zoom instruction directly for a [touch] or mouse setting.
+String panZoomHintForTouch(bool touch) => touch
     ? 'Drag with two fingers to pan, pinch to zoom'
     : 'Scroll to pan, hold Ctrl and scroll to zoom, or drag with the '
           'middle mouse button';
@@ -94,7 +97,7 @@ class CanvasEmptyHint extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.s4),
                 Text(
-                  panZoomHint(MediaQuery.sizeOf(context).width),
+                  panZoomHint(context),
                   style: AppText.caption.copyWith(color: tokens.textSecondary),
                   textAlign: TextAlign.center,
                 ),
