@@ -728,6 +728,7 @@
 "test/features/members/presence_resolve_test.dart": 0.5,
 "test/features/members/presence_status_field_test.dart": 1.3,
 "test/features/members/presence_visibility_test.dart": 1.3,
+"test/features/members/profile_banner_geometry_test.dart": 2.3,
 "test/features/members/profile_banner_layout_test.dart": 1.2,
 "test/features/members/profile_banner_test.dart": 0.8,
 "test/features/members/profile_colour_swatch_labels_test.dart": 0.8,
