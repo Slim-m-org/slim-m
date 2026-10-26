@@ -45,9 +45,17 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     );
     switch (outcome) {
       case ScreenShareOutcome.started:
-        state = state.copyWith(screenSharing: true, clearError: true);
+        state = state.copyWith(
+          screenSharing: true,
+          shareAudio: _shareAudioNow(),
+          clearError: true,
+        );
       case ScreenShareOutcome.stopped:
-        state = state.copyWith(screenSharing: false, clearError: true);
+        state = state.copyWith(
+          screenSharing: false,
+          shareAudio: ShareAudio.none,
+          clearError: true,
+        );
       case ScreenShareOutcome.pendingBroadcast:
         state = state.copyWith(awaitingBroadcast: true, clearError: true);
         _broadcastDeadline = Timer(
@@ -78,6 +86,27 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
               : 'Could not stop sharing. ${cause ?? ''}'.trim(),
         );
     }
+  }
+
+  ShareAudio _shareAudioNow() {
+    if (!_shareSession.screenShareHasAudio) return ShareAudio.none;
+    return _shareSession.screenShareAudioMuted
+        ? ShareAudio.muted
+        : ShareAudio.on;
+  }
+
+  /// Silences or restores the running share's audio without ending the share.
+  Future<void> setScreenShareAudioOn(bool on) async {
+    if (state.shareAudio == ShareAudio.none) return;
+    final done = await _shareSession.setScreenShareAudioMuted(!on);
+    if (!done) {
+      _log(
+        'Could not switch the shared audio',
+        detail: _shareSession.lastError,
+      );
+      return;
+    }
+    state = state.copyWith(shareAudio: on ? ShareAudio.on : ShareAudio.muted);
   }
 
   /// The user was shown a broadcast picker and nothing came of it: they

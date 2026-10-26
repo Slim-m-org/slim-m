@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'call_recap.dart';
+import 'voice_state.dart' show ShareAudio;
 import 'mic_level_ballistics.dart';
 import 'voice_controller.dart';
 
@@ -35,6 +36,7 @@ class VoiceFlags {
     this.cameraPending = false,
     this.screenSharing = false,
     this.awaitingBroadcast = false,
+    this.shareAudio = ShareAudio.none,
     this.canPublish = true,
     this.joinedMuted = false,
     this.deafened = false,
@@ -56,6 +58,7 @@ class VoiceFlags {
     cameraPending: state.cameraPending,
     screenSharing: state.screenSharing,
     awaitingBroadcast: state.awaitingBroadcast,
+    shareAudio: state.shareAudio,
     canPublish: state.canPublish,
     joinedMuted: state.joinedMuted,
     deafened: state.deafened,
@@ -88,6 +91,7 @@ class VoiceFlags {
   final bool cameraPending;
   final bool screenSharing;
   final bool awaitingBroadcast;
+  final ShareAudio shareAudio;
   final bool canPublish;
 
   /// See [VoiceState.joinedMuted].
@@ -112,6 +116,7 @@ class VoiceFlags {
       other.cameraPending == cameraPending &&
       other.screenSharing == screenSharing &&
       other.awaitingBroadcast == awaitingBroadcast &&
+      other.shareAudio == shareAudio &&
       other.canPublish == canPublish &&
       other.joinedMuted == joinedMuted &&
       other.deafened == deafened &&
@@ -133,6 +138,7 @@ class VoiceFlags {
     cameraPending,
     screenSharing,
     awaitingBroadcast,
+    shareAudio,
     canPublish,
     joinedMuted,
     deafened,

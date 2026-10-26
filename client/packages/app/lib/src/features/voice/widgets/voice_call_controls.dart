@@ -53,6 +53,7 @@ import '../providers/mic_status.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../providers/voice_state.dart' show ShareAudio;
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
 import 'camera_source_sheet.dart';
@@ -390,6 +391,20 @@ class _CallControlsState extends ConsumerState<CallControls> {
           },
         ),
       ],
+      if (widget.voice.shareAudio != ShareAudio.none)
+        ControlOption(
+          label: widget.voice.shareAudio == ShareAudio.on
+              ? 'Mute shared audio'
+              : 'Unmute shared audio',
+          icon: widget.voice.shareAudio == ShareAudio.on
+              ? AppIcons.speakerOff
+              : AppIcons.speaker,
+          onSelected: () => unawaited(
+            widget.controller.setScreenShareAudioOn(
+              widget.voice.shareAudio == ShareAudio.muted,
+            ),
+          ),
+        ),
       ...videoQualityOptions(ref),
     ];
   }

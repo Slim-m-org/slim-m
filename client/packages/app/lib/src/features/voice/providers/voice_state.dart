@@ -22,6 +22,7 @@ class VoiceState {
     this.cameraPending = false,
     this.screenSharing = false,
     this.awaitingBroadcast = false,
+    this.shareAudio = ShareAudio.none,
     this.canPublish = true,
     this.joinedMuted = false,
     this.deafened = false,
@@ -89,6 +90,9 @@ class VoiceState {
   /// lie this field exists to stop.
   final bool awaitingBroadcast;
 
+  /// What the running share's audio is doing; [ShareAudio.none] when it carries none.
+  final ShareAudio shareAudio;
+
   /// Whether the token allows publishing at all, mirroring the SPEAK grant.
   final bool canPublish;
 
@@ -143,6 +147,7 @@ class VoiceState {
     bool? cameraPending,
     bool? screenSharing,
     bool? awaitingBroadcast,
+    ShareAudio? shareAudio,
     bool? canPublish,
     bool? joinedMuted,
     bool? deafened,
@@ -167,6 +172,7 @@ class VoiceState {
     cameraPending: cameraPending ?? this.cameraPending,
     screenSharing: screenSharing ?? this.screenSharing,
     awaitingBroadcast: awaitingBroadcast ?? this.awaitingBroadcast,
+    shareAudio: shareAudio ?? this.shareAudio,
     canPublish: canPublish ?? this.canPublish,
     joinedMuted: joinedMuted ?? (microphoneEnabled == null && this.joinedMuted),
     deafened: deafened ?? this.deafened,
@@ -180,3 +186,6 @@ class VoiceState {
     justLeftAt: clearJustLeft ? null : (justLeftAt ?? this.justLeftAt),
   );
 }
+
+/// A running screen share's audio: absent, playing to the call, or silenced.
+enum ShareAudio { none, on, muted }
