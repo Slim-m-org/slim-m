@@ -74,6 +74,7 @@ import 'canvas_cursor_relay.dart';
 import 'canvas_object_preview_relay.dart';
 import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
+import 'canvas_timeout_banner.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
@@ -138,6 +139,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   String? _selectedBeforeDown;
   final _focusNode = FocusNode(debugLabel: 'canvas pane');
   final _boardFocusNode = FocusNode(debugLabel: 'canvas board');
+  late final CanvasTimeoutBanner _timeoutBanner;
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
@@ -177,6 +179,20 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       ref.read(portraitLockedPhoneProvider.notifier),
     );
     _engine.attachPane(); // also forces the late field's ref.read now
+    _timeoutBanner = CanvasTimeoutBanner(
+      timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+      error: () => ref.read(canvasEngineProvider(widget.channelId)).error,
+      clear: () => _engine.reportError(null),
+    );
+    ref.listenManual(
+      canvasEngineProvider(widget.channelId).select((s) => s.error),
+      (_, _) => _timeoutBanner.watch(),
+      fireImmediately: true,
+    );
+    ref.listenManual(
+      meProvider.select((m) => m.valueOrNull?.timedOutUntil),
+      (_, _) => _timeoutBanner.watch(),
+    );
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
     _document.setBottomInset(
@@ -216,6 +232,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _timeoutBanner.dispose();
     _boardFocusNode.dispose();
     _focusNode.dispose();
     _windowHold.release();
