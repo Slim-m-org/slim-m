@@ -33,6 +33,7 @@ class MicRecoveryTiming {
     this.recoveredAfter = const Duration(minutes: 2),
     this.deviceDebounce = const Duration(seconds: 1),
     this.senderPoll = const Duration(seconds: 2),
+    this.fallbackSettle = const Duration(seconds: 3),
   });
 
   final Duration retryBase;
@@ -53,6 +54,9 @@ class MicRecoveryTiming {
 
   /// How often a host without the input gate reads the capture's level.
   final Duration senderPoll;
+
+  /// How long a replacement microphone runs before its level is judged.
+  final Duration fallbackSettle;
 }
 
 /// Re-enables a lost microphone with a growing delay, for as long as the user

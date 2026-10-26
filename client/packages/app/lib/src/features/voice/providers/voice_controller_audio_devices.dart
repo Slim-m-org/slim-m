@@ -49,6 +49,21 @@ mixin VoiceControllerAudioDevicesMixin on StateNotifier<VoiceState> {
   AudioDevice? _asPreference(String? id) =>
       id == null ? null : AudioDevice(id: id, label: id);
 
+  /// Seeds the fallback switch before any call; see [VoiceSession.setMicFallbackEnabled].
+  Future<void> restoreMicFallback() async {
+    _inputSession.setMicFallbackEnabled(
+      await loadMicFallbackEnabled(_inputRef),
+    );
+  }
+
+  void setMicFallbackEnabled(bool enabled) =>
+      _inputSession.setMicFallbackEnabled(enabled);
+
+  /// The microphone the call switched to on its own; null once dismissed.
+  String? get micFallbackNotice => _inputSession.micFallbackNotice;
+  Stream<String?> get micFallbackNotices => _inputSession.micFallbackNotices;
+  void dismissMicFallbackNotice() => _inputSession.dismissMicFallbackNotice();
+
   /// Switches the microphone to [device] (null for the system default),
   /// live or at the next join; see [VoiceSession.selectAudioInputDevice].
   Future<bool> selectAudioInputDevice(AudioDevice? device) async {

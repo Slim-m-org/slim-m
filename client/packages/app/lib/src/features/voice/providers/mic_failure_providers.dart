@@ -25,6 +25,16 @@ final micFailureProvider = StreamProvider<MicFailureReason?>((ref) {
   });
 });
 
+/// The microphone the call switched to after the first went silent; null once dismissed.
+final micFallbackNoticeProvider = StreamProvider<String?>((ref) {
+  final controller = ref.watch(voiceControllerProvider.notifier);
+  return Stream<String?>.multi((out) {
+    out.add(controller.micFallbackNotice);
+    final sub = controller.micFallbackNotices.listen(out.add);
+    out.onCancel = sub.cancel;
+  });
+});
+
 /// What the Voice settings meter says when it cannot open the microphone.
 final micPreviewAdviceProvider = FutureProvider<MicAdvice?>((ref) async {
   final status = ref.watch(micPreviewProvider.select((r) => r.status));

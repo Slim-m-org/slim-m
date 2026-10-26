@@ -383,6 +383,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       manageCanvas: manageCanvas,
       selfId: ref.read(meProvider).valueOrNull?.id,
     );
+    // The undo entry lands after the document's own refresh, so the dock's Undo needs this rebuild.
+    _refresh();
     if (result.moved == 0 &&
         !result.failed &&
         _mounted &&

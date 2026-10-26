@@ -218,6 +218,9 @@ class CanvasPaneFixture {
   int deleteStatus = 200;
   var _opSeq = 0;
 
+  /// The caller's own timeout, Unix milliseconds, served on `/me`.
+  int? timedOutUntil;
+
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
   /// stubbed (the presence-layer suite) appends onto this rather than this
   /// fixture growing a case for every consumer's own needs.
@@ -237,6 +240,7 @@ class CanvasPaneFixture {
             'display_name': 'Me',
             'created_at': 0,
             'permissions': mePermissions,
+            if (timedOutUntil != null) 'timed_out_until': timedOutUntil,
           });
         }
         if (request.url.path.endsWith('/permissions')) {

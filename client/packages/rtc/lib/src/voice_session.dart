@@ -29,6 +29,7 @@ import 'mic_release.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
 import 'mic_failure.dart';
+import 'mic_fallback.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -67,6 +68,7 @@ part 'voice_session_health.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_join.dart';
 part 'voice_session_listener_audio.dart';
+part 'voice_session_mic_fallback.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
@@ -88,6 +90,7 @@ class VoiceSession
         VoiceSessionAudioDevices,
         VoiceSessionHealth,
         VoiceSessionInputGate,
+        VoiceSessionMicFallback,
         VoiceSessionMicRecovery,
         VoiceSessionMicRelease,
         VoiceSessionListenerAudio {
@@ -102,6 +105,7 @@ class VoiceSession
     VoiceLog? audioLog,
     AudioDevices? audioDevices,
     LiveOutputSwitch? liveOutput,
+    LiveInputSwitch? liveInput,
     OsMicBlockProbe? osMicBlocked,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
@@ -122,7 +126,12 @@ class VoiceSession
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
     _initCapture(micPort, captureRestartDebounce, _restartCapture);
-    _audioSwitching = _switchingFor(audioDevices, liveOutput, osMicBlocked);
+    _audioSwitching = _switchingFor(
+      audioDevices,
+      liveOutput,
+      osMicBlocked,
+      liveInput,
+    );
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
