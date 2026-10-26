@@ -30,9 +30,9 @@ import 'web_gain_io.dart' if (dart.library.js_interop) 'web_gain_web.dart'
     as web_gain;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
-/// Loudest a participant may be made, as a multiplier. 200% matches the
-/// design; past 1.0 this is digital gain on already-decoded audio, so it
-/// clips rather than amplifying cleanly, which is why it stops here.
+/// Loudest a participant may be made, as a multiplier (+6 dB). Native
+/// `setVolume` is plain digital gain on decoded audio and hard-clips, so it
+/// stops here; the web graph also limits, so 200% never clips there.
 const double kMaxParticipantVolume = 2.0;
 
 /// The default, and what every participant is until somebody moves a slider.
@@ -47,8 +47,8 @@ double clampParticipantVolume(double volume) =>
 
 /// The playback gain for a slider [volume]. Below 100% it follows an audio
 /// taper (the cube), because a straight multiplier put half volume at only
-/// -6 dB, which barely sounded quieter; above 100% it stays linear, since
-/// boosting past that only clips.
+/// -6 dB, which barely sounded quieter; above 100% it stays linear, so
+/// a saved slider value means the same gain on every platform.
 double perceptualParticipantGain(double volume) {
   final v = clampParticipantVolume(volume);
   return v <= 1.0 ? v * v * v : v;

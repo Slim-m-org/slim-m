@@ -22,6 +22,10 @@ MEASURE_SECONDS = 3
 TOLERANCE_DB = 1.5
 # The source must be this loud before a "silent" result means anything.
 AUDIBLE_SOURCE_DB = -45.0
+# The top of the slider, where the web soft limiter must keep +6 dB from clipping.
+BOOST_PERCENT = 200
+# Keys step 5%, so the full range takes up to 40 presses.
+KEY_TRIES = 100
 
 
 def _heard(probe, stream):
@@ -81,6 +85,8 @@ def _individual_volume_scales_the_sound(a, b, room_id, bob_id):
         assert any(e["graph"] for e in probe.listening()), \
             "the app never put a gain graph on bob's stream"
 
+        _assert_boost_does_not_clip(a, probe, stream)
+
         assert voice_db > AUDIBLE_SOURCE_DB, "nothing to silence: bob was not speaking"
         ui.open_volume_popover(a, "Bob")
         shown, loudest = _set_and_hear_silence(a, probe, stream)
@@ -103,6 +109,26 @@ def _individual_volume_scales_the_sound(a, b, room_id, bob_id):
     finally:
         ui.reset_volumes(a, "Bob", [LABEL])
         ui.leave_if_in_call(a, b)
+
+
+def _assert_boost_does_not_clip(a, probe, stream):
+    """At the top of the slider the output must stay under full scale."""
+    ui.open_volume_popover(a, "Bob")
+    shown = ui.set_slider(a, LABEL, BOOST_PERCENT, tries=KEY_TRIES)
+    ui.dismiss_popover(a)
+    start = probe.now()
+    series = probe.measure(stream, MEASURE_SECONDS)
+    out_peak, source_peak = probe.peaks(stream, start)
+    boost = lv.slider_to_gain(shown / 100)
+    print(f"  bob at {shown}%: output peak {out_peak:.3f} on a source peak "
+          f"{source_peak:.3f}, unlimited would be {source_peak * boost:.3f}")
+    assert source_peak > 0.01, "nothing to boost: bob was not speaking"
+    assert lv.boost_is_limited(out_peak), (
+        f"{shown}% clipped: output peak {out_peak:.3f} from a source peak "
+        f"{source_peak:.3f} (gain {boost:.1f}, {len(series)} windows)")
+    ui.open_volume_popover(a, "Bob")
+    ui.set_slider(a, LABEL, 50, tries=KEY_TRIES)
+    ui.dismiss_popover(a)
 
 
 def _after_the_last_gap(series, gap=0.5):

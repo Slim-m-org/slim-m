@@ -17,6 +17,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
@@ -38,6 +39,7 @@ class AppSlider extends StatefulWidget {
     this.min = 0,
     this.max = 100,
     this.divisions,
+    this.keyStep,
     this.tall = false,
     this.meter,
     this.meterActive = true,
@@ -57,6 +59,9 @@ class AppSlider extends StatefulWidget {
   final double min;
   final double max;
   final int? divisions;
+
+  /// How far one arrow-key press moves the value; null keeps Material's step.
+  final double? keyStep;
 
   /// The microphone-meter shape: a 22px trough instead of a 4px round track.
   final bool tall;
@@ -99,7 +104,28 @@ class _AppSliderState extends State<AppSlider> {
   void initState() {
     super.initState();
     _focusNode.addListener(_handleFocusChange);
+    _focusNode.onKeyEvent = _stepByKey;
     FocusManager.instance.addHighlightModeListener(_onHighlightModeChange);
+  }
+
+  KeyEventResult _stepByKey(FocusNode _, KeyEvent event) {
+    final step = widget.keyStep;
+    final change = widget.onChanged;
+    if (step == null || change == null || event is KeyUpEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final up = key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowUp;
+    final down = key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowDown;
+    if (!up && !down) return KeyEventResult.ignored;
+    final next = (widget.value + (up ? step : -step))
+        .clamp(widget.min, widget.max)
+        .toDouble();
+    change(next);
+    widget.onChangeEnd?.call(next);
+    return KeyEventResult.handled;
   }
 
   void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);

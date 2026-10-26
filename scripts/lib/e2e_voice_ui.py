@@ -166,7 +166,7 @@ def reset_volumes(client, name, labels):
     open_volume_popover(client, name)
     for label in labels:
         if client.find(label):
-            set_slider(client, label, 100)
+            set_slider(client, label, 100, tries=100)
     dismiss_popover(client)
 
 

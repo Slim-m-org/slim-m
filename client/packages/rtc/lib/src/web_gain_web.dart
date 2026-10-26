@@ -3,14 +3,16 @@
 ///
 /// livekit_client plays each remote audio track through an `HTMLAudioElement`
 /// it names `livekit_audio_<cid>` and does not expose. Its stream is routed
-/// through a `GainNode` and the element is muted, so the context is the only
+/// through a `GainNode` and a soft-limiting `WaveShaperNode` and the element is muted, so the context is the only
 /// thing heard. Chrome only feeds a remote stream to Web Audio while an
 /// element is playing it, which the muted element still is.
 library;
 
 import 'dart:js_interop';
 
+import 'audio_gain.dart';
 import 'gain_graph_registry.dart';
+import 'soft_limit.dart';
 
 const _elementPrefix = 'livekit_audio_';
 
@@ -32,6 +34,7 @@ extension type _AudioContext._(JSObject _) implements JSObject {
   external JSObject get destination;
   external _Node createMediaStreamSource(JSObject stream);
   external _GainNode createGain();
+  external _ShaperNode createWaveShaper();
   external JSPromise<JSAny?> resume();
 }
 
@@ -44,22 +47,34 @@ extension type _GainNode._(JSObject _) implements _Node {
   external _GainParam get gain;
 }
 
+extension type _ShaperNode._(JSObject _) implements _Node {
+  external set curve(JSFloat32Array? value);
+  external set oversample(String value);
+}
+
 extension type _GainParam._(JSObject _) implements JSObject {
   external set value(double value);
 }
 
 class _Graph {
-  _Graph(this.element, this.stream, this.source, this.gain);
+  _Graph(this.element, this.stream, this.source, this.gain, this.limiter);
 
   final _AudioElement element;
   final JSObject stream;
   final _Node source;
   final _GainNode gain;
+  final _ShaperNode limiter;
 }
 
 _AudioContext? _context;
 
 _AudioContext get _ctx => _context ??= _AudioContext();
+
+// The shaper spans the loudest volume, so its input gain is divided by this.
+const double _range = kMaxParticipantVolume;
+
+final JSFloat32Array _limiterCurve =
+    softLimitCurve(points: 8193, range: _range).toJS;
 
 _Graph? _attach(String id) {
   final element = _document.getElementById(id);
@@ -68,10 +83,14 @@ _Graph? _attach(String id) {
   final context = _ctx;
   final source = context.createMediaStreamSource(stream);
   final gain = context.createGain();
+  final limiter = context.createWaveShaper()
+    ..curve = _limiterCurve
+    ..oversample = '2x';
   source.connect(gain);
-  gain.connect(context.destination);
+  gain.connect(limiter);
+  limiter.connect(context.destination);
   element.muted = true;
-  return _Graph(element, stream, source, gain);
+  return _Graph(element, stream, source, gain, limiter);
 }
 
 bool _isCurrent(String id, _Graph graph) {
@@ -84,6 +103,7 @@ bool _isCurrent(String id, _Graph graph) {
 void _release(_Graph graph) {
   graph.source.disconnect();
   graph.gain.disconnect();
+  graph.limiter.disconnect();
   graph.element.muted = false;
 }
 
@@ -92,7 +112,7 @@ final _registry = GainGraphRegistry<_Graph>(
   isCurrent: _isCurrent,
   release: _release,
   setGain: (graph, gain) {
-    graph.gain.gain.value = gain;
+    graph.gain.gain.value = gain / _range;
     _ctx.resume();
   },
 );
