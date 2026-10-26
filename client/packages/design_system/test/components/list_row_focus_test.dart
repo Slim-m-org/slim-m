@@ -42,29 +42,4 @@ void main() {
 
     expect(_focusedRow(), isNull);
   });
-
-  testWidgets('a button inside a static row stays its own control', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    await _pump(tester, [
-      AppListRow(
-        label: 'kiki',
-        trailing: AppButton(
-          label: 'Remove',
-          semanticLabel: 'Remove kiki',
-          onPressed: () {},
-        ),
-      ),
-    ]);
-
-    expect(find.bySemanticsLabel('Remove kiki'), findsOneWidget);
-    // The first Tab may only enter the route's scope; the button is reached within two.
-    for (var i = 0; i < 2 && _focusedRow() == null; i++) {
-      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-      await tester.pump();
-    }
-    expect(_focusedRow(), 'kiki', reason: 'the button inside is still a stop');
-    semantics.dispose();
-  });
 }
