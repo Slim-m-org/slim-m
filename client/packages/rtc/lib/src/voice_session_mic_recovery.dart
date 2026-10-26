@@ -355,7 +355,7 @@ mixin VoiceSessionMicRecovery {
         await _mic.restart(_currentCaptureOptions());
         _capture.opened(webrtcNoiseSuppression: true);
         _logMic(
-          'Strong noise suppression failed to restart; reopened with standard',
+          'voice-ns: fallback to standard: strong restart failed, mic reopened',
           level: LogLevel.warning,
         );
         return;

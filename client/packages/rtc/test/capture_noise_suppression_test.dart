@@ -125,6 +125,33 @@ void main() {
     });
   });
 
+  test('at least one suppressor is always wanted, through every transition',
+      () {
+    fakeAsync((async) {
+      final h = _Harness()..capture.opened(webrtcNoiseSuppression: true);
+      void check() => expect(
+            h.capture.webrtcNoiseSuppression || h.capture.nativeStrong,
+            isTrue,
+          );
+      for (final step in <void Function()>[
+        () => h.capture.setStrong(true),
+        () => h.capture.opened(webrtcNoiseSuppression: false),
+        () => h.readings(kStrongInactivePolls, active: false),
+        () => h.capture.opened(webrtcNoiseSuppression: true),
+        () => h.capture.setStrong(false),
+        () => h.capture.setStrong(true),
+        () => h.capture.fallBack(),
+        () => h.capture.deviceChanged(),
+        () => h.capture.reset(),
+      ]) {
+        step();
+        check();
+        async.elapse(_settle);
+        check();
+      }
+    });
+  });
+
   test('sustained inactive readings put libwebrtc suppression back', () {
     fakeAsync((async) {
       final h = _Harness()..capture.setStrong(true);

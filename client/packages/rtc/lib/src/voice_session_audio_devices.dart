@@ -26,6 +26,7 @@ mixin VoiceSessionAudioDevices {
   CaptureNoiseSuppression get _capture;
   MicPort get _mic;
   bool get supportsInputGate;
+  void _diag(String line, {LogLevel level});
   Future<void> _applyInputGate();
   set _osMicBlocked(OsMicBlockProbe value);
 
@@ -47,6 +48,7 @@ mixin VoiceSessionAudioDevices {
             chosenInput: () => _audioSwitching.chosenInput,
           ),
       liveOutput: liveOutput,
+      log: _diag,
     );
   }
 

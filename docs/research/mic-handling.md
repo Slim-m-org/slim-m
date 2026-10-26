@@ -537,3 +537,15 @@ Cause: rnnoise classifies the harness's harmonic hum as voiced speech at stream 
 Why piper clears it was not isolated; its louder level against the bed is only a guess.
 Nothing was changed in the fork.
 The harness bed should get a second, broadband hum before the card is read as a product defect; a real harmonic hum at a voice's pitch would still pass through Strong.
+
+### Decision 2026-10-26: one suppressor at a time
+
+Owner: when Strong is chosen and running, libwebrtc's noise suppression is off; when Strong reports inactive on a mic, standard stays on, so there is never zero suppression.
+This is what `CaptureNoiseSuppression` already does: it opens the mic with libwebrtc's suppression off, falls back after 2 s of inactive readings, restarts at most once per change, and never while muted, on push-to-talk or disconnected.
+The first 2 s of a call are optimistic (suppression off before the first reading), which keeps a join to one capture open.
+Offline, rnnoise alone against libwebrtc's suppression (proxy, level 3) in front of rnnoise, same harness mixes, onsets clipped of 8 (mean ms lost):
+- High female: at -35 dBFS 0 (0 ms) against 2 (26 ms); at -45 dBFS 5 (41 ms) against 7 (61 ms).
+- Low male: at -35 dBFS 1 (18 ms) against 0 (1 ms); at -45 dBFS 2 (19 ms) against 3 (30 ms).
+- Scottish female: at -35 dBFS 1 (12 ms) against 1 (10 ms); at -45 dBFS 1 (16 ms) against 4 (44 ms).
+The decision log lines all start with `voice-ns:` and are written on change only: the choice, Strong active and inactive edges, a restart with its reason and result, a deferred restart, fallbacks, and the effective capture options (device and libwebrtc suppression).
+The native reading carries no sample rate, so none is logged.

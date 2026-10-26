@@ -9,6 +9,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 import 'audio_devices.dart';
 import 'screen_share_audio_options.dart';
 import 'pulse_audio.dart';
+import 'voice_log.dart';
 import 'voice_models.dart';
 
 /// Points a live [lk.Room]'s capture at [device]. A seam so tests can see
@@ -30,9 +31,15 @@ class AudioDeviceSwitching {
     LiveInputSwitch? liveInput,
     LiveOutputSwitch? liveOutput,
     PulseAudio? pulse,
+    this.log,
   })  : _liveInput = liveInput ?? switchLiveInput,
         _liveOutput = liveOutput ?? _switchLiveOutput,
         _pulse = pulse ?? PulseAudio();
+
+  /// Where the effective capture options are written when they change.
+  final VoiceLog? log;
+
+  String? _loggedOptions;
 
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
@@ -92,14 +99,23 @@ class AudioDeviceSwitching {
 
   /// [noiseSuppression] is libwebrtc's own; Strong turns it off where rnnoise
   /// runs instead.
-  lk.AudioCaptureOptions captureOptions({bool noiseSuppression = true}) =>
-      lk.AudioCaptureOptions(
-        // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
-        deviceId: isPulseDeviceId(_preferredInputId) ? null : _preferredInputId,
-        noiseSuppression: noiseSuppression,
-        // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
-        stopAudioCaptureOnMute: false,
-      );
+  lk.AudioCaptureOptions captureOptions({bool noiseSuppression = true}) {
+    // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
+    final deviceId =
+        isPulseDeviceId(_preferredInputId) ? null : _preferredInputId;
+    final line =
+        'voice-ns: capture options device=${deviceId ?? 'default'} webrtc_ns=${noiseSuppression ? 'on' : 'off'}';
+    if (line != _loggedOptions) {
+      _loggedOptions = line;
+      log?.call(line);
+    }
+    return lk.AudioCaptureOptions(
+      deviceId: deviceId,
+      noiseSuppression: noiseSuppression,
+      // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
+      stopAudioCaptureOnMute: false,
+    );
+  }
 
   /// The microphone the person chose, kept while it is unplugged.
   String? get chosenInput => _chosenInputId;
