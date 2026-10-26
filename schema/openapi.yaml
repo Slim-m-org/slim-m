@@ -14463,6 +14463,7 @@ components:
         unread:
           type: integer
           format: int64
+          description: Live count of unread messages, reported as at most 1000 (clients show 99+).
         created_at:
           type: integer
           format: int64
@@ -16559,7 +16560,7 @@ components:
         unread:
           type: integer
           format: int64
-          description: Live count of messages past the marker.
+          description: Live count of messages past the marker, reported as at most 1000 (clients show 99+).
         manually_unread:
           type: boolean
           description: The caller asked to see this as unread despite the marker.
