@@ -18,7 +18,8 @@ mixin VoiceSessionMicFallback {
   Future<bool> selectAudioOutputDevice(AudioDevice? device);
 
   /// Whether a silent microphone is swapped for another; see [setMicFallbackEnabled].
-  bool micFallbackEnabled = true;
+  // ignore: unused_field, read through the recovery mixin
+  bool _fallbackOn = true;
   bool _fallingBack = false;
   final _fallbackTried = <String>{};
   String? _loggedInputNames;
@@ -29,7 +30,7 @@ mixin VoiceSessionMicFallback {
   String? get micFallbackNotice => _micFallbackNotice;
   Stream<String?> get micFallbackNotices => _micFallbackNotices.stream;
 
-  void setMicFallbackEnabled(bool enabled) => micFallbackEnabled = enabled;
+  void setMicFallbackEnabled(bool enabled) => _fallbackOn = enabled;
 
   void dismissMicFallbackNotice() => _setFallbackNotice(null);
 

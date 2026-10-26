@@ -32,6 +32,7 @@ const _inputThresholdAutoKey = 'slimm.voice.input_threshold_auto';
 const _evenOutLoudKey = 'slimm.voice.even_out_loud';
 // Key kept from when this paused on focus loss, so saved values carry over.
 const _pauseVideoUnfocusedKey = 'slimm.voice.pause_video_when_unfocused';
+const _micFallbackKey = 'slimm.voice.mic_fallback_enabled';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
@@ -134,6 +135,11 @@ Future<(String?, String?)> loadAudioDevicePreferences(Ref ref) async {
   );
 }
 
+Future<bool> loadMicFallbackEnabled(Ref ref) async {
+  final prefs = await ref.read(preferencesProvider.future);
+  return prefs.getBool(_micFallbackKey) ?? true;
+}
+
 /// What the voice settings screen shows and edits. Every field is a pure
 /// local device preference with no server truth, unlike
 /// [presenceVisibilityDisplayProvider]'s session-only echo, so they are
@@ -157,6 +163,7 @@ class VoiceSettingsState {
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
     this.pauseVideoWhenMinimised = true,
+    this.micFallbackEnabled = true,
     this.audioInputDeviceId,
     this.audioOutputDeviceId,
   });
@@ -228,6 +235,7 @@ class VoiceSettingsState {
 
   /// Whether incoming video stops while the desktop window is visible but not focused.
   final bool pauseVideoWhenMinimised;
+  final bool micFallbackEnabled;
 
   /// The persisted microphone choice; null is the system default. Applied
   /// live through `VoiceControllerAudioDevicesMixin.selectAudioInputDevice`
@@ -255,6 +263,7 @@ class VoiceSettingsState {
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
     bool? pauseVideoWhenMinimised,
+    bool? micFallbackEnabled,
     String? audioInputDeviceId,
     bool clearAudioInputDeviceId = false,
     String? audioOutputDeviceId,
@@ -281,6 +290,7 @@ class VoiceSettingsState {
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
     pauseVideoWhenMinimised:
         pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
+    micFallbackEnabled: micFallbackEnabled ?? this.micFallbackEnabled,
     audioInputDeviceId: clearAudioInputDeviceId
         ? null
         : (audioInputDeviceId ?? this.audioInputDeviceId),
@@ -340,6 +350,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
       pauseVideoWhenMinimised: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
+      micFallbackEnabled: prefs.getBool(_micFallbackKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
       audioOutputDeviceId: prefs.getString(_audioOutputDeviceIdKey),
     );
@@ -418,6 +429,13 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(pauseVideoWhenMinimised: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_pauseVideoUnfocusedKey, enabled);
+  }
+
+  Future<void> setMicFallbackEnabled(bool enabled) async {
+    state = state.copyWith(micFallbackEnabled: enabled);
+    _ref.read(voiceControllerProvider.notifier).setMicFallbackEnabled(enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_micFallbackKey, enabled);
   }
 
   /// Persists the microphone choice and applies it live, [setCameraOnJoin]'s

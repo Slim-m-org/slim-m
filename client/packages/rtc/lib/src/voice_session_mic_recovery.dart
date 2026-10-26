@@ -14,7 +14,7 @@ mixin VoiceSessionMicRecovery {
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
   CaptureNoiseSuppression get _capture;
-  bool get micFallbackEnabled;
+  bool get _fallbackOn;
   Future<void> _fallBackMic();
   Future<void> _logAudioDevices(String why);
   Future<void> _logInputList();
@@ -97,7 +97,7 @@ mixin VoiceSessionMicRecovery {
         unawaited(_logAudioDevices('gave up'));
         _setMicStatus(MicStatus.unavailable);
         unawaited(_noteMicFailure(MicFailureReason.silent));
-        if (micFallbackEnabled) unawaited(_fallBackMic());
+        if (_fallbackOn) unawaited(_fallBackMic());
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);

@@ -60,6 +60,19 @@ mixin VideoQualityRecorder {
   /// The speaker the test says playback is routed to.
   String? audioOutputInUse;
 
+  bool? lastMicFallbackEnabled;
+  String? micFallbackNotice;
+  final micFallbackNoticeChanges = StreamController<String?>.broadcast();
+
+  Stream<String?> get micFallbackNotices => micFallbackNoticeChanges.stream;
+
+  void setMicFallbackEnabled(bool enabled) => lastMicFallbackEnabled = enabled;
+
+  void dismissMicFallbackNotice() {
+    micFallbackNotice = null;
+    micFallbackNoticeChanges.add(null);
+  }
+
   Future<bool> resetMicrophone() async {
     microphoneResets++;
     return microphoneResetWorks;
