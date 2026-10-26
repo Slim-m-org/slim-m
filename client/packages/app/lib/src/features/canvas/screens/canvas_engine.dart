@@ -338,13 +338,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       _strokePreviewRelay ??= CanvasStrokePreviewRelay(
         drafts: remoteDrafts,
         paletteSize: AppCanvasColors.cursors.length,
-        send: (objectId, points, ended) => _ref
+        send: (objectId, points, ended, {bool cancelled = false}) => _ref
             .read(syncControllerProvider.notifier)
             .notifyCanvasStrokePreview(
               channelId,
               objectId,
               points,
               ended: ended,
+              cancelled: cancelled,
               color: _strokePreviewRelay?.pen?.colorKey,
               width: _strokePreviewRelay?.pen?.width,
             ),

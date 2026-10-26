@@ -102,6 +102,7 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
             .map((p) => (p as num).toDouble())
             .toList(growable: false),
         ended: decoded['ended'] as bool,
+        cancelled: decoded['cancelled'] as bool? ?? false,
         color: decoded['color'] is String ? decoded['color'] as String : null,
         width: decoded['width'] is num
             ? (decoded['width'] as num).toDouble()

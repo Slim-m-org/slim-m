@@ -33,6 +33,7 @@ class _RecordingSync extends NoopSyncController {
     String objectId,
     List<double> points, {
     bool ended = false,
+    bool cancelled = false,
     String? color,
     double? width,
   }) => frames.strokePreviews.add((id: objectId, ended: ended));

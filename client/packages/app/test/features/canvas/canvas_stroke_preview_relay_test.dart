@@ -23,7 +23,8 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) => sent.add((id, points, ended)),
+        send: (id, points, ended, {cancelled = false}) =>
+            sent.add((id, points, ended)),
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -48,7 +49,8 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) => sent.add((id, points, ended)),
+        send: (id, points, ended, {cancelled = false}) =>
+            sent.add((id, points, ended)),
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -73,7 +75,8 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) => sent.add((id, points, ended)),
+        send: (id, points, ended, {cancelled = false}) =>
+            sent.add((id, points, ended)),
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -99,7 +102,8 @@ void main() {
         final relay = CanvasStrokePreviewRelay(
           drafts: drafts,
           paletteSize: 6,
-          send: (id, points, ended) => sent.add((id, points, ended)),
+          send: (id, points, ended, {cancelled = false}) =>
+              sent.add((id, points, ended)),
           isBlocked: (_) => false,
           selfId: () => 'self',
         );
@@ -133,7 +137,7 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) {
+        send: (id, points, ended, {cancelled = false}) {
           final wire = jsonEncode({
             'type': 'canvas.stroke_preview',
             'channel_id': '0192f0c0-0000-7000-8000-000000000001',
@@ -176,7 +180,8 @@ void main() {
         final relay = CanvasStrokePreviewRelay(
           drafts: drafts,
           paletteSize: 6,
-          send: (id, points, ended) => sent.add((id, points, ended)),
+          send: (id, points, ended, {cancelled = false}) =>
+              sent.add((id, points, ended)),
           isBlocked: (_) => false,
           selfId: () => 'self',
         );
@@ -204,7 +209,8 @@ void main() {
     final relay = CanvasStrokePreviewRelay(
       drafts: drafts,
       paletteSize: 6,
-      send: (id, points, ended) => sent.add((id, points, ended)),
+      send: (id, points, ended, {cancelled = false}) =>
+          sent.add((id, points, ended)),
       isBlocked: (_) => false,
       selfId: () => 'self',
     );
@@ -223,7 +229,8 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) => sent.add((id, points, ended)),
+        send: (id, points, ended, {cancelled = false}) =>
+            sent.add((id, points, ended)),
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -250,7 +257,7 @@ void main() {
     final relay = CanvasStrokePreviewRelay(
       drafts: drafts,
       paletteSize: 6,
-      send: (_, _, _) {},
+      send: (_, _, _, {cancelled = false}) {},
       isBlocked: (_) => false,
       selfId: () => 'self',
     );
@@ -267,7 +274,7 @@ void main() {
     final relay = CanvasStrokePreviewRelay(
       drafts: drafts,
       paletteSize: 6,
-      send: (_, _, _) {},
+      send: (_, _, _, {cancelled = false}) {},
       isBlocked: (id) => id == 'blocked',
       selfId: () => 'self',
     );
@@ -284,7 +291,7 @@ void main() {
     final relay = CanvasStrokePreviewRelay(
       drafts: drafts,
       paletteSize: 6,
-      send: (_, _, _) {},
+      send: (_, _, _, {cancelled = false}) {},
       isBlocked: (_) => false,
       selfId: () => 'self',
     );
@@ -304,7 +311,7 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (_, _, _) {},
+        send: (_, _, _, {cancelled = false}) {},
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -329,7 +336,7 @@ void main() {
         final relay = CanvasStrokePreviewRelay(
           drafts: drafts,
           paletteSize: 6,
-          send: (_, _, _) {},
+          send: (_, _, _, {cancelled = false}) {},
           isBlocked: (_) => false,
           selfId: () => 'self',
         );
@@ -356,7 +363,7 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (_, _, _) {},
+        send: (_, _, _, {cancelled = false}) {},
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -380,7 +387,8 @@ void main() {
       final relay = CanvasStrokePreviewRelay(
         drafts: drafts,
         paletteSize: 6,
-        send: (id, points, ended) => sent.add((id, points, ended)),
+        send: (id, points, ended, {cancelled = false}) =>
+            sent.add((id, points, ended)),
         isBlocked: (_) => false,
         selfId: () => 'self',
       );
@@ -398,11 +406,11 @@ void main() {
 
   CanvasStrokePreviewRelay relayWith(
     RemoteStrokeDrafts drafts, {
-    void Function(String, List<double>, bool)? send,
+    void Function(String, List<double>, bool, {bool cancelled})? send,
   }) => CanvasStrokePreviewRelay(
     drafts: drafts,
     paletteSize: 6,
-    send: send ?? (_, _, _) {},
+    send: send ?? (_, _, _, {cancelled = false}) {},
     isBlocked: (_) => false,
     selfId: () => 'self',
   );
@@ -454,5 +462,41 @@ void main() {
     expect(relay.pen, (colorKey: 'green', width: 2.5));
     relay.endLocalDraft();
     expect(relay.pen, isNull);
+  });
+
+  test('cancelLocalDraft flushes with cancelled true and ended true', () {
+    String? cancelledId;
+    var wasCancelled = false;
+    var wasEnded = false;
+    final relay = relayWith(
+      RemoteStrokeDrafts(),
+      send: (id, points, ended, {cancelled = false}) {
+        cancelledId = id;
+        wasEnded = ended;
+        wasCancelled = cancelled;
+      },
+    );
+    addTearDown(relay.dispose);
+
+    relay.reportLocalDraftPoint(const Offset(10, 10));
+    relay.cancelLocalDraft();
+
+    expect(cancelledId, isNotNull);
+    expect(wasEnded, isTrue);
+    expect(wasCancelled, isTrue);
+    expect(relay.pen, isNull);
+  });
+
+  test('applyRemote with cancelled true drops the draft immediately', () {
+    final drafts = RemoteStrokeDrafts();
+    final relay = relayWith(drafts);
+    addTearDown(drafts.dispose);
+    addTearDown(relay.dispose);
+
+    relay.applyRemote('alice', 'd1', const [1.0, 1.0], false);
+    expect(drafts.all, isNotEmpty);
+
+    relay.applyRemote('alice', 'd1', const [], true, cancelled: true);
+    expect(drafts.all, isEmpty);
   });
 }

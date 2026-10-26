@@ -368,7 +368,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   void _dropDraft() {
     if (_draft.isEmpty) return;
     _draft.cancel();
-    widget.onDraftEnded?.call();
+    (widget.onDraftCancel ?? widget.onDraftEnded)?.call();
   }
 
   /// Hands the draft to [CanvasSurface.onStroke]. A single point is a dot
@@ -377,8 +377,11 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
   void _commitDraft(Camera under, {required bool single}) {
     if (_draft.isEmpty) return;
     final screen = _draft.take();
+    if (screen.length < 2 && !single) {
+      (widget.onDraftCancel ?? widget.onDraftEnded)?.call();
+      return;
+    }
     widget.onDraftEnded?.call();
-    if (screen.length < 2 && !single) return;
     widget.onStroke(
       screen
           .map((p) => widget.document.clampToBoard(_toWorld(p, under)))

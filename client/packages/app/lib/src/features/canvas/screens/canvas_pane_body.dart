@@ -97,6 +97,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
+    this.onDraftCancel,
     this.callParticipants = const [],
     required this.cameraViewFor,
     required this.screenShareViewFor,
@@ -241,6 +242,7 @@ class CanvasPaneBody extends StatefulWidget {
   final RemoteStrokeDrafts? remoteDrafts;
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onDraftEnded;
+  final VoidCallback? onDraftCancel;
 
   /// Who is on this channel's call right now, already filtered for
   /// blocking - empty whenever there is no call here, or this viewer has not

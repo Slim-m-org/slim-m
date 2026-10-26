@@ -418,6 +418,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                     ),
                   ),
                   onDraftEnded: _strokePreview.endLocalDraft,
+                  onDraftCancel: _strokePreview.cancelLocalDraft,
                   callParticipants: _callParticipants(),
                   cameraViewFor: (identity) => ref
                       .read(voiceControllerProvider.notifier)

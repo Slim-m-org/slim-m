@@ -553,6 +553,7 @@ mod epoch_tests {
             object_id: crate::ids::CanvasObjectId::generate(),
             points: Arc::new(vec![0.0, 0.0]),
             ended: false,
+            cancelled: false,
             color: None,
             width: None,
         });

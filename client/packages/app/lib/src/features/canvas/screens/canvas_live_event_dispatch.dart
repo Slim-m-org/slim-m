@@ -196,6 +196,7 @@ void dispatchCanvasLiveEvent(
           :final objectId,
           :final points,
           :final ended,
+          :final cancelled,
           :final color,
           :final width,
         )
@@ -206,6 +207,7 @@ void dispatchCanvasLiveEvent(
         objectId,
         points,
         ended,
+        cancelled: cancelled,
         color: color,
         width: width,
       );

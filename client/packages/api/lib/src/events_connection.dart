@@ -174,6 +174,7 @@ class EventConnection {
     String objectId,
     List<double> points, {
     bool ended = false,
+    bool cancelled = false,
     String? color,
     double? width,
   }) =>
@@ -184,6 +185,7 @@ class EventConnection {
           'object_id': objectId,
           'points': points,
           'ended': ended,
+          if (cancelled) 'cancelled': true,
           if (color != null) 'color': color,
           if (width != null) 'width': width,
         }),
