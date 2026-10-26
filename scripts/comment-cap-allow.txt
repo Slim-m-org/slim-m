@@ -109,7 +109,7 @@ client/packages/app/test/features/voice/voice_screen_test.dart 3
 client/packages/app/test/features/voice/voice_settings_screen_test.dart 1
 client/packages/app/test/features/voice/voice_share_indicator_test.dart 1
 client/packages/data/lib/src/connection/web.dart 1
-client/packages/data/lib/src/database.dart 3
+client/packages/data/lib/src/database.dart 2
 client/packages/data/lib/src/message_store.dart 1
 client/packages/data/test/message_store_test.dart 3
 client/packages/data/test/migration_test.dart 2

@@ -81,10 +81,12 @@ Future<Set<String>> _reachableMessageIds(
 ) async {
   final ids = channelIds.toSet();
   if (ids.isEmpty) return const {};
-  final rows = await (store.db.select(store.db.messages)
-        ..where((m) => m.channelId.isIn(ids)))
-      .get();
-  return rows.map((r) => r.id).toSet();
+  final messages = store.db.messages;
+  final query = store.db.selectOnly(messages)
+    ..addColumns([messages.id])
+    ..where(messages.channelId.isIn(ids));
+  final rows = await query.get();
+  return rows.map((r) => r.read(messages.id)!).toSet();
 }
 
 /// The distinct set of channel ids [Messages] currently holds any row for -

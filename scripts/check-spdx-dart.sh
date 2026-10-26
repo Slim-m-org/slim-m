@@ -26,7 +26,7 @@ list_files() {
 missing=0
 checked=0
 while IFS= read -r f; do
-  case "$f" in *.g.dart) continue ;; esac
+  case "$f" in *.g.dart | client/packages/data/test/generated/*) continue ;; esac
   checked=$((checked + 1))
   if ! head -1 "$f" | grep -q 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0'; then
     echo "::error file=$f::source needs 'SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0'"

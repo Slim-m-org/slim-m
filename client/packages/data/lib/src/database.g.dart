@@ -3199,6 +3199,14 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
       $PendingAttachmentsTable(this);
   late final $CanvasPersonalLayoutsTable canvasPersonalLayouts =
       $CanvasPersonalLayoutsTable(this);
+  late final Index messagesChannelSeq = Index('messages_channel_seq',
+      'CREATE INDEX messages_channel_seq ON messages (channel_id, seq DESC)');
+  late final Index messagesAuthor = Index('messages_author',
+      'CREATE INDEX messages_author ON messages (author_id)');
+  late final Index messagesPending = Index('messages_pending',
+      'CREATE INDEX messages_pending ON messages (id) WHERE pending = 1');
+  late final Index messagesFailed = Index('messages_failed',
+      'CREATE INDEX messages_failed ON messages (id) WHERE failed = 1');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3209,7 +3217,11 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
         channelCategories,
         channelDrafts,
         pendingAttachments,
-        canvasPersonalLayouts
+        canvasPersonalLayouts,
+        messagesChannelSeq,
+        messagesAuthor,
+        messagesPending,
+        messagesFailed
       ];
 }
 
