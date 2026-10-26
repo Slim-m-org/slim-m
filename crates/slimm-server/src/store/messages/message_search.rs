@@ -175,14 +175,13 @@ impl Store {
                       m.seq, m.content, m.created_at, m.edited_at, m.reply_to_id
                FROM messages m"#,
         );
-        if query.is_some() {
-            builder.push(" JOIN messages_fts ON messages_fts.rowid = m.fts_rowid");
-        }
         builder.push(" LEFT JOIN users u ON u.id = m.author_id AND u.deleted_at IS NULL WHERE ");
         if let Some(q) = query {
-            builder.push("messages_fts MATCH ");
+            // A semi-join, not a JOIN: SQLite scans the whole channel and probes FTS per row for a JOIN.
+            builder
+                .push("m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
             builder.push_bind(q.to_owned());
-            builder.push(" AND ");
+            builder.push(") AND ");
         }
         builder.push("m.channel_id IN (");
         {
