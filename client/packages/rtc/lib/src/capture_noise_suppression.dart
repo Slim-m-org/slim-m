@@ -52,6 +52,8 @@ class CaptureNoiseSuppression {
   bool _captureOff = false;
   bool _disposed = false;
   bool _inFlight = false;
+  bool _deferredLogged = false;
+  bool _inactiveLogged = false;
   int _failures = 0;
   int _generation = 0;
   Timer? _timer;
@@ -71,7 +73,7 @@ class CaptureNoiseSuppression {
   void setStrong(bool strong) {
     if (strong == _strong) return;
     _strong = strong;
-    _log('Strong noise suppression turned ${strong ? 'on' : 'off'}');
+    _log('choice strong=${strong ? 'on' : 'off'}');
     _resetFallback();
     onNativeStrongChanged();
     _schedule();
@@ -87,7 +89,7 @@ class CaptureNoiseSuppression {
     if (_fallback) return;
     _fallback = true;
     _log(
-      'Strong could not reopen the microphone; using standard suppression',
+      'fallback to standard: the mic could not reopen for strong',
       level: LogLevel.warning,
     );
     _tracker.reset();
@@ -96,6 +98,7 @@ class CaptureNoiseSuppression {
   /// A new call opens a new track; nothing about the last one carries over.
   void reset() {
     _generation++;
+    _log('new call, state cleared');
     _timer?.cancel();
     _timer = null;
     _failures = 0;
@@ -124,14 +127,22 @@ class CaptureNoiseSuppression {
     }
     if (strongActive && !_reportedActive) {
       _reportedActive = true;
-      _log('Strong noise suppression is running on this microphone');
+      _log('strong active');
     }
-    if (_tracker.add(strongActive: strongActive, step: step) && !_fallback) {
-      _fallback = true;
+    final inactive = _tracker.add(strongActive: strongActive, step: step);
+    if (inactive != _inactiveLogged) {
+      _inactiveLogged = inactive;
       _log(
-        'Strong noise suppression cannot run on this microphone; using standard',
-        level: LogLevel.warning,
+        inactive
+            ? 'strong inactive for ${kStrongInactiveFor.inSeconds}s'
+            : 'strong active again',
+        level: inactive ? LogLevel.warning : LogLevel.info,
       );
+    }
+    if (inactive && !_fallback) {
+      _fallback = true;
+      _log('fallback to standard: strong cannot run on this mic',
+          level: LogLevel.warning);
       _schedule();
     }
   }
@@ -147,11 +158,15 @@ class CaptureNoiseSuppression {
   void _resetFallback() {
     _fallback = false;
     _reportedActive = false;
+    _inactiveLogged = false;
     _tracker.reset();
   }
 
+  String get _state =>
+      'strong=${_strong ? 'on' : 'off'} webrtc_ns=${webrtcNoiseSuppression ? 'on' : 'off'} native_strong=${nativeStrong ? 'on' : 'off'} fallback=${_fallback ? 'yes' : 'no'}';
+
   void _log(String message, {LogLevel level = LogLevel.info}) =>
-      log?.call(message, level: level);
+      log?.call('voice-ns: $message ($_state)', level: level);
 
   void _schedule() {
     if (_disposed || _inFlight) return;
@@ -161,7 +176,14 @@ class CaptureNoiseSuppression {
       _failures = 0;
       return;
     }
-    if (!canRestart()) return;
+    if (!canRestart()) {
+      if (!_deferredLogged) {
+        _deferredLogged = true;
+        _log('restart deferred: muted, push-to-talk or not connected');
+      }
+      return;
+    }
+    _deferredLogged = false;
     _timer ??= Timer(debounce, _run);
   }
 
@@ -175,17 +197,17 @@ class CaptureNoiseSuppression {
     final want = webrtcNoiseSuppression;
     final generation = _generation;
     _inFlight = true;
+    _log('restarting mic: webrtc_ns ${want ? 'off to on' : 'on to off'}, '
+        'reason: ${_reason(want)}');
     try {
       await restart(webrtcNoiseSuppression: want);
       if (_disposed || generation != _generation) return;
+      _log('mic restarted with webrtc_ns=${want ? 'on' : 'off'}');
       _failures = 0;
       opened(webrtcNoiseSuppression: want);
     } on Object catch (error) {
       if (generation == _generation) {
-        _log(
-          'Could not restart the microphone for noise suppression: $error',
-          level: LogLevel.warning,
-        );
+        _log('mic restart failed: $error', level: LogLevel.warning);
         _failures++;
         _rearm();
       }
@@ -193,6 +215,12 @@ class CaptureNoiseSuppression {
       _inFlight = false;
     }
     if (generation == _generation) _schedule();
+  }
+
+  String _reason(bool webrtcOn) {
+    if (!webrtcOn) return 'strong chosen';
+    if (_fallback) return 'strong cannot run, standard keeps one suppressor';
+    return 'strong turned off';
   }
 
   /// Backs off up to [kMaxRestartBackoff] so a room mid-reconnect is not hammered.

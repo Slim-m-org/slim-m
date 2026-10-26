@@ -510,3 +510,96 @@ P9 (individual echo, noise and gain toggles) did not fall out of this work, beca
 The same restart path as Strong (`CaptureNoiseSuppression`) would carry it, but it still needs a desktop-side verification of `getAudioProcessingState()` that this run did not do.
 The 32 kbps experiment was not repeated with the corpus scorer.
 The earlier synthetic-clip runs of the `bitrate32-sender` variant against the 48 kbps baseline scored similarity 0.958 to 0.975 against 0.971 to 0.980, with more level bursts under 5% loss (22 against 7 for one side), so 32 kbps is no better and the default stays at 48 kbps with DTX off.
+
+## Update 2026-10-26: word-onset clipping and Strong's late engagement, measured
+
+Cards: "the desktop capture chain clips word onsets on real voices" and "Strong noise suppression engages late or only part of the time".
+Method: the fork's own `NoiseSuppressor`, `InputGate` and `VoiceDynamics` sources (fork commit be844bce, the one `client/pubspec.yaml` pins) compiled on their own with the real rnnoise sources and a stub for `rtc_audio_processing.h`.
+They were fed the exact `mix.wav` files the desktop harness sent in the 2026-10-20 corpus run (`~/.slimm-scratch/tmp/report-ab/corpus/desktop-main`), 48 kHz, 10 ms frames, gate off.
+The tools are in `~/.slimm-scratch/tools/chain-offline/`.
+Onsets are scored as the harness does (`voice_noise.py`): a word start after 0.5 s of quiet, lost if the output sits 10 dB under the clip over 30 ms or more of the first 200 ms, after aligning the output to the clip.
+Opus and libwebrtc's noise suppression were approximated with `opusenc` at 32 kbps and the `webrtc_noise_gain` package (an older libwebrtc APM at 16 kHz), so those two rows are a proxy and not the shipped m150 binary.
+
+### Onset clipping
+
+H1: the compressor and limiter clip onsets (10 ms attack).
+Test: run the chain with dynamics on against dynamics off.
+Result: refuted.
+Clipped onsets are 0 of 8 for all four voices in both arms, and the first 30 ms of each onset differ by 0.08 dB.
+The compressor threshold is -14 dBFS, so a word start at -45 to -25 dBFS never reaches it.
+
+H2: the gate hold or attack clips onsets.
+Test: the 2026-10-20 runs with the gate off clipped just as much, and the gate keeps a 20 ms lookahead.
+Result: refuted by those runs (high female Standard gate off 11 of 11, gate on 8 of 10).
+
+H3: Opus or the jitter buffer.
+Test: the mix through `opusenc` at 32 kbps and back.
+Result: 0 of 8 clipped for all four voices at -45, -35 and -30 dBFS.
+
+H4: libwebrtc's own noise suppression (Standard) removes soft word starts.
+Test: the proxy APM with noise suppression level 3.
+Result: confirmed as the main cause, and the proxy needs the caveat above.
+Clipped onsets at -45 dBFS: high female 6 of 8, low male 3 of 8, Scottish female 3 of 8; with suppression off the same proxy clips 0.
+Level 1 clips nothing at -45 dBFS but still clips 2 of 8 high-female onsets at -35 dBFS (24 ms), which fits "worst for high voices".
+
+H5: the metric counts content a suppressor should remove.
+Test: re-score the real recordings with the onset level raised from -45 to -35 and -30 dBFS.
+Result: confirmed.
+VCTK clips start with breath and room tone at -45 to -35 dBFS, which the harness treats as a word start.
+Standard, gate off: high female 11 of 11 at -45, 5 of 11 at -35, 3 of 11 at -30; low male 5 of 11, 0 of 11, 0 of 11; Scottish female 7 of 12, 0 of 11, 0 of 11.
+Strong, gate off: high female 9 of 10, 0 of 10, 0 of 10; low male 3 of 11, 4 of 11, 4 of 11; Scottish female 3 of 12, 3 of 12, 2 of 12.
+`voice_noise.analyze` now also reports `onsets.loud`, scored at -35 dBFS, and the desktop table has a column for it.
+
+H6: rnnoise adds its own onset loss.
+Test: the chain with Strong on, output aligned to the clip.
+Result: small and real.
+Strong adds about 20 ms of delay over the 20 ms the gate's lookahead always costs.
+Once aligned, 0 of 8 onsets are clipped at -35 dBFS for the high female and 1 of 8 for the low male and the Scottish female (12 to 18 ms lost); the whisper loses 2 of 4 at -35 dBFS.
+Without alignment the same output reads 7 of 8 clipped, because rnnoise's output starts 40 to 60 ms after the word does while its speech probability is already 1.0.
+
+Cause: the clipping the harness reports in Standard is libwebrtc's noise suppression plus a metric that counts the clip's own breath and room tone as word starts.
+The fork's chain (compressor, gate, rnnoise) does not clip loud word starts.
+Nothing in the chain was changed.
+Not tested: the m144 to m150 binary change the card suspects, since no m144 build is available here.
+Open decision: Standard clips soft high-voice onsets because libwebrtc's suppression level is fixed; Strong does not (high female 0 of 10 at -35 dBFS), so making rnnoise the only suppressor (P4) would remove the Standard loss.
+
+### Strong engaging late
+
+H7: the harness hum is not a plain fan.
+Test: rnnoise on 8 s of each noise alone at the harness level (-38.4 dBFS).
+Result: confirmed.
+Low-passed white noise: speech probability 0.01, suppressed by 85 dB.
+60 Hz mains buzz with 8 harmonics: probability 0.00, suppressed by 86 dB.
+The harness bed (`make_noise_bed._fan`: 100, 200, 300 and 420 Hz partials plus hiss): probability 0.72 to 0.99 for the first seconds, suppressed by only 20 dB; the 100 Hz harmonic series alone is not suppressed at all (0.2 dB).
+A pitched harmonic series at a voice's fundamental is what rnnoise is trained to keep, and its answer changes with the noise seed (probability 0.2 to 0.99 over the same 10 s for seeds 5, 6 and 7).
+
+H8: it is warm-up.
+Test: cold start on the harness mix, per-gap leak after that.
+Result: partly.
+For the high female, low male and Scottish female the only leak outside the typing and bark events is the first 0.9 s, at -43 dBFS (hum is -38), 7 to 8% of the hum-only frames.
+That one stretch drives the harness hum figure, because it averages in power: 90 frames at -43 dBFS against 1800 near -120 dBFS is about -18 dB, against -13 dB measured on the desktop client.
+The whisper (-36 dBFS against the same hum) leaks 33% of hum-only frames, in runs of 0.8 to 3.6 s.
+
+H9: libwebrtc's gain control raising the hum changes rnnoise's behaviour.
+Test: the same mix scaled by 0, +3, +6 and +12 dB before rnnoise.
+Result: no change in pattern; the leak windows stay where they are and move with the gain, 3 dB per 3 dB.
+The high-pass filter was not modelled.
+
+With the gate on, the same cold-start stretch opens the gate: the speech probability is above 0.6 and the level (-43) is above the -50 dBFS threshold.
+
+Cause: rnnoise classifies the harness's harmonic hum as voiced speech at stream start and intermittently after, so Strong appears to engage late; it is not a frame-alignment or sample-rate fault (48 kHz frames of 480 samples throughout).
+Why piper clears it was not isolated; its louder level against the bed is only a guess.
+Nothing was changed in the fork.
+The harness bed should get a second, broadband hum before the card is read as a product defect; a real harmonic hum at a voice's pitch would still pass through Strong.
+
+### Decision 2026-10-26: one suppressor at a time
+
+Owner: when Strong is chosen and running, libwebrtc's noise suppression is off; when Strong reports inactive on a mic, standard stays on, so there is never zero suppression.
+This is what `CaptureNoiseSuppression` already does: it opens the mic with libwebrtc's suppression off, falls back after 2 s of inactive readings, restarts at most once per change, and never while muted, on push-to-talk or disconnected.
+The first 2 s of a call are optimistic (suppression off before the first reading), which keeps a join to one capture open.
+Offline, rnnoise alone against libwebrtc's suppression (proxy, level 3) in front of rnnoise, same harness mixes, onsets clipped of 8 (mean ms lost):
+- High female: at -35 dBFS 0 (0 ms) against 2 (26 ms); at -45 dBFS 5 (41 ms) against 7 (61 ms).
+- Low male: at -35 dBFS 1 (18 ms) against 0 (1 ms); at -45 dBFS 2 (19 ms) against 3 (30 ms).
+- Scottish female: at -35 dBFS 1 (12 ms) against 1 (10 ms); at -45 dBFS 1 (16 ms) against 4 (44 ms).
+The decision log lines all start with `voice-ns:` and are written on change only: the choice, Strong active and inactive edges, a restart with its reason and result, a deferred restart, fallbacks, and the effective capture options (device and libwebrtc suppression).
+The native reading carries no sample rate, so none is logged.
