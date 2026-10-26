@@ -456,3 +456,48 @@ Measured in headless Chrome against a local LiveKit 1.10.1 with livekit-client 2
 
 Chrome's fake capture device reopens instantly, so the reacquire row says nothing about real hardware or Bluetooth; the win measured here is the first publish, and it grows with the round trip to the SFU.
 The probe is `~/.slimm-scratch/tools/mic-open-probe/probe.mjs`.
+
+## Update 2026-10-26: is a low-latency mode worth building
+
+The owner asked for one switch that turns processing off and uses small Opus frames, built only if the gain is measurable end to end.
+It was not built, for the reasons below.
+
+### Mouth to ear, processing on and off
+
+Measured with the `voice latency` scenario (`scripts/lib/e2e_voice_latency.py`) in two headless Chromes through a local LiveKit 1.10.1, clean network, 60 s per run, chirps stamped on one epoch clock at the sender's microphone tap and the receiver's decoded track.
+Each run gives one median per direction; the table lists both.
+"On" is Chrome's own echo cancellation, noise suppression and AGC (`E2E_VQ_PROCESSING=1`), "off" is all three disabled.
+
+| Processing | Frame request | Run 1 (A to B / B to A) | Run 2 (A to B / B to A) |
+|---|---|---|---|
+| off | default | 56.3 / 47.9 ms | 55.4 / 60.4 ms |
+| on | default | 47.0 / 49.5 ms | 55.0 / 49.9 ms |
+| off | ptime 10 | 56.9 / 50.1 ms | |
+| off | ptime 20 | 62.4 / 59.5 ms | |
+| on | ptime 10 | 53.5 / 53.9 ms | |
+| on | ptime 20 | 47.2 / 49.0 ms | |
+
+Two identical runs differ by up to 12 ms, which is larger than any difference between processing on and off, so the browser measurement shows no gain from turning processing off.
+Packets received were 3150 in 60 s in every row, which is 50 packets per second or 20 ms frames, so the ptime request changed nothing and the ptime rows only repeat the baseline.
+Chrome ignores `ptime` in `RTCRtpEncodingParameters` here.
+
+### Why there is no frame-size half
+
+There is no 10 ms frame option to switch on.
+livekit_client has no ptime or frame duration in `AudioPublishOptions` (pinned at 2.13.1; 2.10.0 has none either), and the flutter-webrtc fork has no ptime field.
+Opus packetization on the desktop engine is therefore fixed at the libwebrtc default of 20 ms.
+The most a 10 ms frame could save is one frame of packetization delay, which is the size of the run-to-run noise above.
+
+### Processing on desktop
+
+The desktop capture chain adds little on its own: rnnoise adds 0.4 to 2.3 ms (section 6), and the input gate hold only delays closing, never opening.
+Turning libwebrtc's processing off on desktop needs a mic track restart (the runtime `setAudioProcessingOptions` throws with the fork), at the price of echo for anyone on speakers.
+That trade is not worth a gain that is inside the noise, so the switch stays unbuilt until a real desktop measurement says otherwise.
+The desktop number was not measured here: the harness drives browsers only.
+
+### P9 and P8 follow-ups
+
+P9 (individual echo, noise and gain toggles) did not fall out of this work, because no capture-option plumbing was added.
+The same restart path as Strong (`CaptureNoiseSuppression`) would carry it, but it still needs a desktop-side verification of `getAudioProcessingState()` that this run did not do.
+The 32 kbps experiment was not repeated with the corpus scorer.
+The earlier synthetic-clip runs of the `bitrate32-sender` variant against the 48 kbps baseline scored similarity 0.958 to 0.975 against 0.971 to 0.980, with more level bursts under 5% loss (22 against 7 for one side), so 32 kbps is no better and the default stays at 48 kbps with DTX off.
