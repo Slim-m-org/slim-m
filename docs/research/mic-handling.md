@@ -244,6 +244,15 @@ Script and raw output are in `~/.slimm-scratch/tmp/mic-ab/`, not in the repo.
 - Risk: B may trigger role-ducking where users enabled it, and BT profile flips; A leaves users unable to use some BT mics without manual action.
 - Verify: Bluetooth headset on Fedora/PipeWire with both options.
 
+Decision 2026-10-26 (owner): try option B behind a hidden flag, default off.
+- Flag: the process environment variable `SLIMM_CALL_MEDIA_ROLE=1`, the same kind of hidden switch as `SLIMM_NO_UPDATE_CHECK`; it is not in the settings UI.
+- Mechanism: `applyCallMediaRole()` (rtc `call_media_role.dart`) runs first in `main()` and exports `PULSE_PROP=media.role=phone` with libc `setenv` over dart:ffi, merged with any `PULSE_PROP` the user already set.
+- Why not pactl or pw-cli: neither can add a property to another client's stream, and the plugin fork needs no change.
+- Why in `main()`: libpulse reads `PULSE_PROP` once, in `pa_context_new`, so setting it after libwebrtc's context exists does nothing (tested with a small C program against this box's PipeWire).
+- Why not per call: libwebrtc holds one context for the process, so the role cannot be scoped to a single call; only libwebrtc's own capture and playout streams are tagged as a call, but any other Pulse context opened later in the process (media_kit, GStreamer) inherits it too.
+- Verified here: a Dart process that called `hostSetenv` and then opened a Pulse capture stream showed `media.role = "phone"` in `pactl list source-outputs`, and the same process before the call showed none.
+- Not verified: the full desktop app with a real call, and a Bluetooth headset auto-switching; that needs the owner's hardware.
+
 ### P11 - Hot-plug and default-device following (medium impact, low effort test first)
 - Problem: unknown behavior when the default mic changes mid-call.
 - Evidence: fork selects the default console endpoint at open time (commit 9c318c1); selectInput in audio_device_switching.dart.

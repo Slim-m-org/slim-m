@@ -11,6 +11,12 @@ export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
 export 'src/pulse_audio.dart';
 export 'src/audio_event_scope.dart';
+export 'src/call_media_role.dart'
+    show
+        applyCallMediaRole,
+        callMediaRoleFlag,
+        callMediaRoleRequested,
+        pulsePropWithCallRole;
 export 'src/audio_gain.dart';
 export 'src/audio_publish_options.dart';
 export 'src/screen_share_audio_options.dart';

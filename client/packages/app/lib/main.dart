@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart' show applyCallMediaRole;
 
 export 'src/desktop/startup_state.dart';
 
@@ -94,6 +95,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before any audio stack opens: libpulse reads the role once per context.
+  applyCallMediaRole();
   // First, so a launch that dies in any later step still counts toward a rollback.
   await countLaunch();
   // The browser's own menu otherwise lands on top of every in-app one.
