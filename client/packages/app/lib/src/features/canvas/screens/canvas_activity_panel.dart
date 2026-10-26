@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -24,10 +25,8 @@ import 'canvas_activity_log.dart';
 /// activity without anyone having opened [CanvasActivityPanel] at all.
 ///
 /// Mounted unconditionally by `CanvasPaneBody`, so a burst of changes still
-/// announces while the panel is closed; a repeated identical summary is a
-/// known platform limitation this does not try to work around, since the
-/// only fix (an invisible varying suffix) would corrupt what is literally
-/// read aloud.
+/// announces while the panel is closed; calls [SemanticsService.sendAnnouncement]
+/// so repeated identical summaries are re-announced aloud.
 class CanvasActivityAnnouncer extends ConsumerStatefulWidget {
   const CanvasActivityAnnouncer({super.key, required this.activityLog});
 
@@ -102,6 +101,11 @@ class _CanvasActivityAnnouncerState
         profiles: profiles,
       ),
     );
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final view = View.maybeOf(context);
+    if (view != null) {
+      unawaited(SemanticsService.sendAnnouncement(view, text, direction));
+    }
     setState(() => _text = text);
   }
 
