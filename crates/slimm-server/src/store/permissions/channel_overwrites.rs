@@ -110,7 +110,7 @@ impl Store {
 /// else, such as the private-channel overwrites
 /// [`super::super::channel_create::Store::create_channel_with_id`] writes alongside the
 /// channel row itself.
-pub(crate) async fn set_overwrite<'e, E>(
+pub(in crate::store) async fn set_overwrite<'e, E>(
     executor: E,
     channel_id: ChannelId,
     target_type: &str,
@@ -144,7 +144,7 @@ where
 /// [`super::super::channel_create::Store::create_channel_with_id`] treats that as a
 /// refusal rather than silently creating a "private" channel with no deny in
 /// place to make it private.
-pub(crate) async fn everyone_role_id<'e, E>(executor: E) -> anyhow::Result<Option<Uuid>>
+pub(in crate::store) async fn everyone_role_id<'e, E>(executor: E) -> anyhow::Result<Option<Uuid>>
 where
     E: SqliteExecutor<'e>,
 {

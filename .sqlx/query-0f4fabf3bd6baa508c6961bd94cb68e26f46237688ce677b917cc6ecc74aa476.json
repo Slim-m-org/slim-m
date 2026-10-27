@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_text (sha256, extracted_at)\n             SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)\n             ON CONFLICT (sha256) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0f4fabf3bd6baa508c6961bd94cb68e26f46237688ce677b917cc6ecc74aa476"
+}

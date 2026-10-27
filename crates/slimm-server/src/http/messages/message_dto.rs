@@ -146,8 +146,8 @@ pub(crate) struct MessageDto {
     /// resolver that fills this in never mentions its own author.
     pub(crate) mentions_me: bool,
     /// Whether the author or a moderator removed this message's link-preview
-    /// cards. Set by the read enrichment only; the live created and edited
-    /// frames say `false`, and `message.link_previews_removed` carries the change.
+    /// cards. Set by the read enrichment and by the edit response and frame; a
+    /// created frame says `false`, and `message.link_previews_removed` carries the change.
     pub(crate) link_previews_removed: bool,
     /// On a search result found only through an attachment's extracted text,
     /// that attachment's id. Set by the search routes alone.

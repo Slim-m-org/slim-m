@@ -5048,10 +5048,12 @@ paths:
       summary: Remove the link-preview cards from one message.
       description: >
         Idempotent, and permanent: the cards stay removed for everyone and
-        there is no restore. Allowed to the message's author, or to a member
-        holding MANAGE_MESSAGES in this channel. Live connections are told
-        over the WebSocket (`message.link_previews_removed`), and later reads
-        carry `link_previews_removed: true` on the message.
+        there is no restore. Allowed to the message's author while they hold
+        SEND_MESSAGES (the same as an edit), or to a member holding
+        MANAGE_MESSAGES in this channel. Live connections are told over the
+        WebSocket (`message.link_previews_removed`), and `/sync` reports it to
+        a client that was offline as an `edit` message op carrying
+        `link_previews_removed: true`. Later reads carry the same flag.
       responses:
         "204":
           description: The cards were removed (or already had been).
@@ -15310,8 +15312,8 @@ components:
           type: boolean
           description: >-
             Whether the author or a moderator removed this message's
-            link-preview cards. Set on reads; a live `message.created` or
-            `message.edited` frame says false, and
+            link-preview cards. Set on reads, on an edit response and on a
+            `message.edited` frame; a `message.created` frame says false, and
             `message.link_previews_removed` carries the change.
         webhook_username:
           type: [string, "null"]
@@ -16807,6 +16809,11 @@ components:
             On an `edit`, present and true when the message is a forward whose
             original was removed, so the snapshot should be cleared. Applies
             even when `content` is absent.
+        link_previews_removed:
+          type: boolean
+          description: >
+            On an `edit`, present and true when the message's link-preview
+            cards were removed. Applies even when `content` is absent.
 
     ClientFrame:
       description: A frame sent by the client over the WebSocket.
@@ -17859,6 +17866,10 @@ components:
         message_id:
           type: string
           format: uuid
+        op_seq:
+          type: integer
+          format: int64
+          description: This removal's place in the message-op stream.
 
     ReactionCount:
       type: object

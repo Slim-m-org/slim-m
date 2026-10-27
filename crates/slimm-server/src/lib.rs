@@ -48,7 +48,8 @@ pub mod totp;
 pub mod voice;
 mod voice_session_sweeps;
 
-pub use attachment_text::run_attachment_text_pass;
+pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
+pub use attachment_text::{PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
     sweep_stale_call_rings, sweep_stale_call_rings_at, sweep_stale_voice_calls,

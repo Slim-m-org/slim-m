@@ -10,24 +10,29 @@ use lopdf::{Document, Object, Stream, dictionary};
 use serde_json::{Value, json};
 use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
-use slimm_server::run_attachment_text_pass;
 use slimm_server::store::Store;
 use tower::ServiceExt;
 use uuid::Uuid;
 
 use crate::fixtures::*;
 
-struct World {
-    app: Router,
-    media: Media,
-    store: Store,
-    token: String,
-    channel: String,
+pub(super) struct World {
+    pub(super) app: Router,
+    pub(super) media: Media,
+    pub(super) store: Store,
+    pub(super) pool: sqlx::SqlitePool,
+    pub(super) extractor: slimm_server::TextExtractor,
+    pub(super) token: String,
+    pub(super) channel: String,
     _guard: crate::support::TestDbGuard,
 }
 
-async fn world() -> World {
-    let (store, guard) = new_store().await;
+pub(super) async fn world() -> World {
+    world_with_upload_cap(crate::fixtures::TEST_MAX_ATTACHMENT_BYTES).await
+}
+
+pub(super) async fn world_with_upload_cap(cap: u64) -> World {
+    let (store, pool, guard) = new_store_and_pool().await;
     store
         .create_role(
             "everyone",
@@ -45,11 +50,13 @@ async fn world() -> World {
         .unwrap()
         .id
         .to_string();
-    let media = media_for_test();
+    let media = media_for_test().with_attachment_max(cap);
     World {
         app: app_with_media(store.clone(), media.clone()),
         media,
         store,
+        pool,
+        extractor: extractor(std::time::Duration::from_millis(1)),
         token,
         channel,
         _guard: guard,
@@ -57,7 +64,7 @@ async fn world() -> World {
 }
 
 impl World {
-    async fn send(&self, content: &str, name: &str, bytes: Vec<u8>) -> (String, String) {
+    pub(super) async fn send(&self, content: &str, name: &str, bytes: Vec<u8>) -> (String, String) {
         let uploaded = upload(&self.app, &self.token, name, bytes).await;
         let id = Uuid::now_v7().to_string();
         let sent = self
@@ -75,7 +82,7 @@ impl World {
         (id, uploaded["id"].as_str().unwrap().to_owned())
     }
 
-    async fn search(&self, q: &str) -> Vec<Value> {
+    pub(super) async fn search(&self, q: &str) -> Vec<Value> {
         let response = self
             .app
             .clone()
@@ -90,12 +97,12 @@ impl World {
         json_body(response).await.as_array().unwrap().clone()
     }
 
-    async fn extract(&self) -> usize {
-        run_attachment_text_pass(&self.store, &self.media).await
+    pub(super) async fn extract(&self) -> usize {
+        self.extractor.run_pass(&self.store, &self.media).await
     }
 }
 
-fn pdf_saying(text: &str) -> Vec<u8> {
+pub(super) fn pdf_saying(text: &str) -> Vec<u8> {
     let mut doc = Document::with_version("1.5");
     let pages_id = doc.new_object_id();
     let font_id = doc.add_object(dictionary! {
@@ -232,4 +239,32 @@ async fn deleting_the_attachment_removes_its_text_from_the_index() {
         .unwrap();
     assert_eq!(indexed(pool).await, 0);
     drop(guard);
+}
+
+#[tokio::test]
+async fn a_message_that_became_encrypted_is_not_found_through_its_attachment() {
+    let w = world().await;
+    let (message, _) = w
+        .send(
+            "secret",
+            "notes.txt",
+            b"the zebrafish migration plan".to_vec(),
+        )
+        .await;
+    w.extract().await;
+    assert_eq!(w.search("zebrafish").await.len(), 1);
+
+    sqlx::query("UPDATE messages SET is_encrypted = 1 WHERE id = ?")
+        .bind(Uuid::parse_str(&message).unwrap())
+        .execute(&w.pool)
+        .await
+        .unwrap();
+    assert!(w.search("zebrafish").await.is_empty(), "search arm");
+    let id = slimm_server::ids::MessageId(Uuid::parse_str(&message).unwrap());
+    let labelled = w
+        .store
+        .attachments_matching_text(&[id], "zebrafish")
+        .await
+        .unwrap();
+    assert!(labelled.is_empty(), "found-in label");
 }

@@ -61,8 +61,8 @@ impl Store {
             .map_err(Into::into)
     }
 
-    /// Marks `sha256` as processed, and indexes `text` when there is any.
-    /// A no-op if the attachment was swept or processed meanwhile.
+    /// Marks `sha256` as processed, and indexes `text` when there is any and
+    /// it is not indexed yet. A no-op if the attachment was swept meanwhile.
     pub async fn record_attachment_text(
         &self,
         sha256: &[u8],
@@ -70,23 +70,26 @@ impl Store {
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
         let now = now_ms();
-        let row = sqlx::query_scalar!(
-            r#"INSERT INTO attachment_text (sha256, extracted_at)
-               SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
-               ON CONFLICT (sha256) DO NOTHING
-               RETURNING fts_rowid AS "fts_rowid!: i64""#,
+        sqlx::query!(
+            "INSERT INTO attachment_text (sha256, extracted_at)
+             SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
+             ON CONFLICT (sha256) DO NOTHING",
             sha256,
             now,
             sha256,
         )
-        .fetch_optional(&mut *tx)
+        .execute(&mut *tx)
         .await?;
-        if let (Some(rowid), Some(text)) = (row, text) {
-            sqlx::query!(
-                "INSERT INTO attachment_text_fts (rowid, content) VALUES (?, ?)",
-                rowid,
-                text,
+        // Also covers a marker written earlier, before the text was known.
+        if let Some(text) = text {
+            sqlx::query(
+                "INSERT INTO attachment_text_fts (rowid, content)
+                 SELECT t.fts_rowid, ? FROM attachment_text t
+                  WHERE t.sha256 = ?
+                    AND NOT EXISTS (SELECT 1 FROM attachment_text_fts f WHERE f.rowid = t.fts_rowid)",
             )
+            .bind(text)
+            .bind(sha256)
             .execute(&mut *tx)
             .await?;
         }
@@ -111,7 +114,7 @@ impl Store {
              FROM message_attachments ma
              JOIN attachment_text t ON t.sha256 = ma.sha256
              JOIN messages m ON m.id = ma.message_id
-             WHERE t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+             WHERE m.is_encrypted = 0 AND t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
         );
         builder.push_bind(query.to_owned());
         builder.push(

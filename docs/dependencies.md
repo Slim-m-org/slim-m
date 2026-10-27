@@ -77,6 +77,16 @@ Decoding holds a whole raster in memory, so previews are generated one at a time
 An upload starts deriving every size bucket from one decode as soon as it is stored, so the first viewer usually finds the preview waiting.
 A whole-pixel box average (`media/preview_scale.rs`) runs ahead of the exact resize, because the exact filter alone cost more than the JPEG decode on a 24 megapixel photo.
 
+## lopdf, libc and tokio `process`
+
+lopdf extracts the text layer of an uploaded PDF for search (`crates/slimm-server/src/attachment_text/`).
+It inflates every flate stream with no output bound, so a small file can ask for gigabytes; the server therefore never parses in its own process.
+The sweep re-runs the same binary as a child (`slimm-server --extract-pdf-text`, PDF on stdin and text on stdout), one at a time, and the child sets `RLIMIT_AS` (1 GiB) and `RLIMIT_CPU` (15 s) on itself through `libc::setrlimit` before reading a byte.
+The parent kills it after 20 s of wall clock.
+`main` dispatches that argument before any runtime exists, because a multi-threaded runtime plus jemalloc arenas map more address space than the limit allows.
+`libc` is already in the lockfile through tokio; `tokio`'s `process` feature spawns and kills the child.
+The same binary is used so the distroless image needs no second executable or shell.
+
 ## tikv-jemallocator
 
 The server binary's global allocator, set in `crates/slimm-server/src/main.rs`.

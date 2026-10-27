@@ -104,6 +104,7 @@ pub(super) enum ServerFrame {
     MessageLinkPreviewsRemoved {
         channel_id: String,
         message_id: String,
+        op_seq: i64,
     },
     #[serde(rename = "message.embeds")]
     MessageEmbedsChanged {
