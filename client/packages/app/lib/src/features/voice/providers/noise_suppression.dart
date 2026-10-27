@@ -40,9 +40,9 @@ Future<NoiseSuppressionChoice> loadNoiseSuppressionChoice(Ref ref) async {
   return NoiseSuppressionChoice.parse(prefs.getString(_choiceKey));
 }
 
-/// Whether the Space defaults to strong suppression, or false when the
-/// server cannot say: standard is what every call used before this existed.
-Future<bool> fetchSpaceStrongNoiseSuppression(Ref ref) async {
+/// Whether the Space defaults to strong suppression, or null when the server
+/// cannot say, so a caller keeps what it last knew rather than guessing.
+Future<bool?> fetchSpaceStrongNoiseSuppression(Ref ref) async {
   try {
     return (await ref.read(apiProvider).version()).strongNoiseSuppression;
   } on Object catch (error, stack) {
@@ -52,7 +52,7 @@ Future<bool> fetchSpaceStrongNoiseSuppression(Ref ref) async {
       error,
       stack,
     );
-    return false;
+    return null;
   }
 }
 
@@ -86,5 +86,5 @@ final noiseSuppressionProvider =
 /// The Space's default, for the settings card to say what "Space default"
 /// currently means.
 final spaceStrongNoiseSuppressionProvider = FutureProvider.autoDispose<bool>(
-  fetchSpaceStrongNoiseSuppression,
+  (ref) async => await fetchSpaceStrongNoiseSuppression(ref) ?? false,
 );

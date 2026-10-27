@@ -16,6 +16,7 @@ class _FakeMic implements MicPort {
   bool muted = true;
   final enables = <(bool, lk.AudioCaptureOptions?)>[];
   final restarts = <bool>[];
+  final mutedReopens = <bool>[];
 
   @override
   bool get hasTrack => published;
@@ -43,7 +44,11 @@ class _FakeMic implements MicPort {
   Future<void> release() async {}
 
   @override
-  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {}
+  Future<void> reopenMuted(lk.AudioCaptureOptions options) async {
+    mutedReopens.add(options.noiseSuppression);
+    published = true;
+    muted = true;
+  }
 
   @override
   void adoptOptions(lk.AudioCaptureOptions options) {}
@@ -209,5 +214,44 @@ void main() {
     await rig.session.leave();
     await rig.join();
     expect(rig.mic.enables.last.$2!.noiseSuppression, isFalse);
+  });
+
+  group('push to talk', () {
+    Future<_Rig> pttRig() async {
+      final rig = _Rig();
+      addTearDown(rig.session.dispose);
+      rig.session.setInputGate(enabled: false, thresholdDb: -50);
+      await rig.session.setKeepMicReady(true);
+      await rig.join(mic: false);
+      expect(rig.mic.mutedReopens, [true], reason: 'primed with Standard');
+      return rig;
+    }
+
+    test('Strong chosen mid-call is running before the key goes down',
+        () async {
+      final rig = await pttRig();
+      rig.session.setStrongNoiseSuppression(true);
+      await _until(() => rig.mic.mutedReopens.length == 2);
+      expect(rig.mic.mutedReopens, [true, false]);
+
+      await rig.session.setMicrophoneEnabled(true);
+      await _quiet();
+      expect(rig.mic.restarts, isEmpty, reason: 'no reopen while talking');
+      expect(rig.mic.enables.last.$2!.noiseSuppression, isFalse);
+    });
+
+    test('a key held through a Strong change reopens after the release',
+        () async {
+      final rig = await pttRig();
+      await rig.session.setMicrophoneEnabled(true);
+      rig.session.setStrongNoiseSuppression(true);
+      await _quiet();
+      expect(rig.mic.restarts, isEmpty);
+      expect(rig.mic.mutedReopens, [true]);
+
+      await rig.session.setMicrophoneEnabled(false);
+      await _until(() => rig.mic.mutedReopens.length == 2);
+      expect(rig.mic.mutedReopens, [true, false]);
+    });
   });
 }

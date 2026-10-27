@@ -238,7 +238,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _activity.reset();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
     _autoRejoin.cancelPending();
-    unawaited(refreshSpaceNoiseSuppression());
+    watchSpaceNoiseSuppression();
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;
@@ -372,6 +372,7 @@ class VoiceController extends StateNotifier<VoiceState>
           )
         : null;
     _heartbeat.stop();
+    stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     _callClock.forget();
     _ref.read(joinTimingsProvider).finish();
@@ -493,6 +494,7 @@ class VoiceController extends StateNotifier<VoiceState>
   void dispose() {
     _cancelBroadcastDeadline();
     _heartbeat.stop();
+    stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     unawaited(_states.cancel());
     unawaited(_participants.cancel());

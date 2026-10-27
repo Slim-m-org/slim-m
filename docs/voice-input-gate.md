@@ -67,13 +67,15 @@ libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and
 It works on 480-sample frames, one 10 ms frame at 48 kHz, so a capture at any other rate (8, 16, 32 or 44.1 kHz, as Bluetooth hands-free headsets deliver) is resampled to 48 kHz for it and back, which costs well under 3 ms of delay; mono and stereo are both handled.
 The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s of polls (whatever the rate), the settings row shows "Strong isn't running on this mic.", and hides it after 0.5 s of active polls in a row. Since the plugin resamples, that now points at a plugin or device problem rather than the sample rate, and the debug log records it.
 While Strong is active the mic is opened with libwebrtc's own noise suppression off, because rnnoise alone measured better than the two in series (docs/research/mic-handling.md, P4).
-If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted or on push-to-talk.
+If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted.
+Under push-to-talk the waiting (muted, still open) capture is reopened as soon as the choice changes, so Strong is already running when the key goes down; a key held through a change reopens it on release.
 
 Measured on its own with the e2e fake voice and added white noise: about 0.7% of one core (generic C, no SIMD dispatch), noise alone 30 to 37 dB quieter, speech level unchanged within 0.5 dB.
 It adds about 1.4 MB to the desktop plugin.
 
 Voice settings offers "Space default", "Standard" and "Strong" (`slimm.voice.noise_suppression`).
-"Space default" follows `space_settings.strong_noise_suppression` (migration 0109), which a server manager sets on the Retention and limits pane and every client reads from `/version`; it is off unless an admin turns it on, and a call rereads it when it starts.
+"Space default" follows `space_settings.strong_noise_suppression` (migration 0109), which a server manager sets on the Retention and limits pane and every client reads from `/version`; it is off unless an admin turns it on.
+No event announces that setting, so a call rereads it when it starts and then every minute, and a member on "Space default" switches live; a failed read keeps the last known value rather than falling back to Standard.
 
 ## Automatic sensitivity
 
@@ -159,3 +161,26 @@ Pushing readings from native instead of polling is not worth a fork change while
 
 Not changed: the call clocks tick once a second and the video stats sampler already runs only while its panel listens.
 Tested on fakes and fake clocks only (`rtc/test/voice_session_level_rate_test.dart`, `app/test/features/voice/mic_resources_test.dart`); a real-hardware check of the OS microphone indicator is still owed.
+
+## When a setting applies
+
+Live means the call keeps its connection, mute and deafen state and published tracks; a track restart reopens only that one track, after a short debounce.
+Verified against the code on 2026-10-27.
+
+| Setting | Applies | Notes |
+| --- | --- | --- |
+| Microphone, speaker device | Live | Web has no speaker picker. |
+| Noise suppression (Space default, Standard, Strong) | Track restart (mic only) | Needs the native gate (Linux and Windows desktop). Waits while muted; under push-to-talk the waiting capture is reopened at once. The Space default is reread every minute. |
+| Input sensitivity, automatic sensitivity, even out loud | Live | Native gate flags, no restart. |
+| Push to talk | Live | |
+| Per-person voice and screen volume, local mute | Live | Reapplied on every room event; the debug log has a `Volume x...` line per push (applied, failed, or already applied and skipped). |
+| Deafen | Live | |
+| Watching quality (including Data saver) | Live | |
+| Camera device | Live | |
+| Camera quality | Track restart | A running camera restarts after 700 ms. |
+| Screen share resolution, frame rate, share audio | Track restart | A running share restarts on the same source after 700 ms; if the source cannot be reused the row says "Applies the next time you share." |
+| Adaptive stream, dynacast | Next join | Fixed when the room is created; no setting. |
+| Echo cancellation, auto gain, codec, bitrate caps | Not a setting | Always on or chosen by the stack. |
+
+Nothing needs a Rejoin button.
+Anyone who still reports a volume that does not land can send the in-app debug log, which carries the `Volume x...` lines.

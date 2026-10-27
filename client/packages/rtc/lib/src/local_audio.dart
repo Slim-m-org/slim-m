@@ -330,12 +330,25 @@ class LocalAudioState {
     if (silence) return _silence(ref, forwardFailure, audible: audible);
 
     if (audible && _cache.volumeOf(ref) == volume && forwardFailure == null) {
+      _noteSkippedPush(ref, volume);
       return null;
     }
 
     final here = await _enableAt(ref, volume, forwardFailure);
     here == null ? _failures.remove(key) : _failures[key] = here;
     return here;
+  }
+
+  final _loggedSkips = <String>{};
+
+  /// Once per track and gain, so a log shows a push the cache skipped without a line per room event.
+  void _noteSkippedPush(LocalAudioRef ref, double volume) {
+    if (!_loggedSkips.add('${ref.trackId}/$volume')) return;
+    log?.call(
+      'Volume x$volume for ${ref.channel.name} audio of ${ref.identity} '
+      '(track ${ref.trackId}): already applied, push skipped',
+      level: LogLevel.debug,
+    );
   }
 
   Future<Object?> _silence(

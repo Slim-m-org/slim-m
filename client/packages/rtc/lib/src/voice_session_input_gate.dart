@@ -22,6 +22,7 @@ mixin VoiceSessionInputGate {
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
+  bool get _micPrimedMuted;
   void _diag(String line, {LogLevel level});
   void _refreshParticipants();
 
@@ -37,7 +38,8 @@ mixin VoiceSessionInputGate {
       supported: _gate.supported,
       restart: restart,
       canRestart: () =>
-          _state == VoiceSessionState.connected && _mic.open && _gateEnabled,
+          _state == VoiceSessionState.connected &&
+          (_micPrimedMuted || (_mic.open && _gateEnabled)),
       onNativeStrongChanged: () => unawaited(_applyInputGate()),
       debounce: debounce ?? kCaptureRestartDebounce,
       log: _diag,

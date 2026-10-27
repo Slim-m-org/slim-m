@@ -153,7 +153,7 @@ extension VoiceSessionTracks on VoiceSession {
     required lk.AudioCaptureOptions? options,
   }) {
     enabled ? _micRelease.reopened() : _micRelease.onMuted();
-    if (!enabled) return;
+    if (!enabled) return _capture.retry();
     _joinTimings.mark(JoinStage.micPublished);
     if (options == null) return;
     if (!hadTrack) {

@@ -8,6 +8,12 @@ part of 'voice_controller.dart';
 /// is reachable the way it would be from any other method declared on
 /// [VoiceController] itself - an extension is never that, however private
 /// its name or however it reaches this file.
+const kSpaceNoiseSuppressionRecheck = Duration(minutes: 1);
+
+/// Shortened by tests; production leaves it at [kSpaceNoiseSuppressionRecheck].
+@visibleForTesting
+Duration spaceNoiseSuppressionRecheck = kSpaceNoiseSuppressionRecheck;
+
 mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// Bridges to [VoiceController]'s own private fields; declared abstract
   /// here because a mixin's `on` clause, not shared-library privacy, is what
@@ -89,12 +95,29 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   }
 
   /// Rereads the Space's default, which an admin may have changed since
-  /// launch; [VoiceController.join] calls this so a new call picks it up.
+  /// launch. A failed read keeps the last known value instead of Standard.
   Future<void> refreshSpaceNoiseSuppression() async {
-    _spaceStrongNoiseSuppression = await fetchSpaceStrongNoiseSuppression(
-      _inputRef,
-    );
+    final fetched = await fetchSpaceStrongNoiseSuppression(_inputRef);
+    if (fetched == null || fetched == _spaceStrongNoiseSuppression) return;
+    _spaceStrongNoiseSuppression = fetched;
     _applyNoiseSuppression();
+  }
+
+  Timer? _spaceDefaultTimer;
+
+  /// No event announces the Space default, so a call asks again periodically.
+  void watchSpaceNoiseSuppression() {
+    _spaceDefaultTimer?.cancel();
+    unawaited(refreshSpaceNoiseSuppression());
+    _spaceDefaultTimer = Timer.periodic(
+      spaceNoiseSuppressionRecheck,
+      (_) => unawaited(refreshSpaceNoiseSuppression()),
+    );
+  }
+
+  void stopWatchingSpaceNoiseSuppression() {
+    _spaceDefaultTimer?.cancel();
+    _spaceDefaultTimer = null;
   }
 
   void _applyNoiseSuppression() => _inputSession.setStrongNoiseSuppression(

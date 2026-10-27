@@ -345,18 +345,27 @@ mixin VoiceSessionMicRecovery {
   }
 
   Future<void> _restartCapture({required bool webrtcNoiseSuppression}) async {
+    final options = _audioSwitching.captureOptions(
+      noiseSuppression: webrtcNoiseSuppression,
+    );
     try {
-      await _mic.restart(
-        _audioSwitching.captureOptions(
-          noiseSuppression: webrtcNoiseSuppression,
-        ),
-      );
+      if (_mic.open) {
+        await _mic.restart(options);
+      } else {
+        await _reopenWaitingCapture(options);
+      }
     } on Object {
       // The failed restart stopped the old capture first; put a live one back.
       await _revive(webrtcNoiseSuppression: webrtcNoiseSuppression);
       rethrow;
     }
     _afterRestart();
+  }
+
+  /// The key may have gone down mid-reopen, which leaves the track muted.
+  Future<void> _reopenWaitingCapture(lk.AudioCaptureOptions options) async {
+    await _mic.reopenMuted(options);
+    if (_micWanted) await _mic.setEnabled(true, options);
   }
 
   Future<void> _revive({required bool webrtcNoiseSuppression}) async {
