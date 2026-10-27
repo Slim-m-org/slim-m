@@ -8,7 +8,7 @@
 mod support;
 
 use slimm_server::ids::MessageId;
-use slimm_server::store::{NewMessage, Store};
+use slimm_server::store::{CodeRunRecord, NewMessage, Store};
 use sqlx::SqlitePool;
 
 async fn new_store() -> (Store, SqlitePool, support::TestDbGuard) {
@@ -56,7 +56,15 @@ async fn soft_deleting_a_message_drops_its_code_runs() {
         .id;
     for block in 0..2 {
         store
-            .record_code_run(message, block, "code-exec", "run", true, "ok", admin.id)
+            .record_code_run(CodeRunRecord {
+                message_id: message,
+                block_index: block,
+                module_id: "code-exec",
+                command: "run",
+                ok: true,
+                output: "ok",
+                ran_by: admin.id,
+            })
             .await
             .unwrap();
     }

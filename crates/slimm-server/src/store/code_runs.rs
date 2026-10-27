@@ -33,6 +33,18 @@ pub struct CodeRunSummary {
     pub ran_at: i64,
 }
 
+/// What a run writes: the block it ran, the command, and the result to share.
+#[derive(Debug, Clone, Copy)]
+pub struct CodeRunRecord<'a> {
+    pub message_id: MessageId,
+    pub block_index: i64,
+    pub module_id: &'a str,
+    pub command: &'a str,
+    pub ok: bool,
+    pub output: &'a str,
+    pub ran_by: UserId,
+}
+
 /// Truncates `output` on a char boundary to [`MAX_SHARED_OUTPUT_BYTES`],
 /// appending a marker when it had to cut, so a huge result becomes a bounded
 /// shared row rather than a huge one fanned out to every viewer.
@@ -49,17 +61,7 @@ pub fn clamp_output(output: &str) -> String {
 
 impl Store {
     /// Records a block's run, replacing any previous result for that block.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn record_code_run(
-        &self,
-        message_id: MessageId,
-        block_index: i64,
-        module_id: &str,
-        command: &str,
-        ok: bool,
-        output: &str,
-        ran_by: UserId,
-    ) -> anyhow::Result<i64> {
+    pub async fn record_code_run(&self, run: CodeRunRecord<'_>) -> anyhow::Result<i64> {
         let now = super::now_ms();
         sqlx::query(
             "INSERT INTO code_runs \
@@ -70,13 +72,13 @@ impl Store {
                  ok = excluded.ok, output = excluded.output, \
                  ran_by = excluded.ran_by, ran_at = excluded.ran_at",
         )
-        .bind(message_id)
-        .bind(block_index)
-        .bind(module_id)
-        .bind(command)
-        .bind(ok as i64)
-        .bind(output)
-        .bind(ran_by)
+        .bind(run.message_id)
+        .bind(run.block_index)
+        .bind(run.module_id)
+        .bind(run.command)
+        .bind(run.ok as i64)
+        .bind(run.output)
+        .bind(run.ran_by)
         .bind(now)
         .execute(&self.pool)
         .await?;

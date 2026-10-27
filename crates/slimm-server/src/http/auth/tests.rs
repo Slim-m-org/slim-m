@@ -92,7 +92,7 @@ fn a_password_must_be_eight_to_1024_characters() {
 fn password_length_message_matches_the_shared_onboarding_fixture() {
     let fixture = load_fixture();
     assert_eq!(
-        super::PASSWORD_LENGTH_MESSAGE,
+        super::validation::PASSWORD_LENGTH_MESSAGE,
         fixture.password_length_error
     );
 }

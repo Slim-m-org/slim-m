@@ -51,7 +51,7 @@ use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::hub::Event;
 use crate::ids::MessageId;
-use crate::store::{MAX_SHARED_OUTPUT_BYTES, clamp_output};
+use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
 /// A code block's input is a whole snippet, so this matches the run route's
 /// own generous cap rather than the small write bodies elsewhere.
@@ -147,15 +147,15 @@ async fn run(
     let (ok, stored) = stored_payload(req.module_id == CODE_RUNNER_MODULE_ID, outcome);
     let ran_at = state
         .store
-        .record_code_run(
+        .record_code_run(CodeRunRecord {
             message_id,
             block_index,
-            &req.module_id,
-            &req.command,
+            module_id: &req.module_id,
+            command: &req.command,
             ok,
-            &stored,
-            ctx.user_id,
-        )
+            output: &stored,
+            ran_by: ctx.user_id,
+        })
         .await?;
 
     state.hub.publish(Event::CodeRunChanged {

@@ -45,4 +45,7 @@ pub use post::{MessagePoster, PostRefused};
 mod tests;
 
 #[cfg(test)]
+mod tests_fixtures;
+
+#[cfg(test)]
 mod tests_limits;
