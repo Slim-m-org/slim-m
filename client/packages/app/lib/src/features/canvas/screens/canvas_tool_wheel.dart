@@ -20,6 +20,7 @@ enum CanvasWheelItem {
   move(CanvasTool.pan, 'Move'),
   pen(CanvasTool.pen, 'Pen'),
   note(CanvasTool.note, 'Note'),
+  text(CanvasTool.text, 'Text'),
   shape(CanvasTool.shape, 'Shape'),
   eraser(CanvasTool.eraser, 'Eraser'),
   pasteImage(null, 'Paste image');
@@ -52,9 +53,9 @@ const double canvasWheelDeadZone = 24;
 int? canvasWheelSector({
   required Offset center,
   required Offset pointer,
-  int count = 6,
   double deadZone = canvasWheelDeadZone,
 }) {
+  final count = CanvasWheelItem.values.length;
   final delta = pointer - center;
   if (delta.distance < deadZone) return null;
   final step = 2 * math.pi / count;
@@ -64,8 +65,8 @@ int? canvasWheelSector({
 }
 
 /// Where item [index] sits around [center].
-Offset canvasWheelItemCenter(Offset center, int index, {int count = 6}) {
-  final angle = 2 * math.pi * index / count;
+Offset canvasWheelItemCenter(Offset center, int index) {
+  final angle = 2 * math.pi * index / CanvasWheelItem.values.length;
   return center + Offset(math.sin(angle), -math.cos(angle)) * canvasWheelRadius;
 }
 
@@ -121,6 +122,7 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
     CanvasWheelItem.move => AppIcons.pan,
     CanvasWheelItem.pen => AppIcons.pen,
     CanvasWheelItem.note => AppIcons.note,
+    CanvasWheelItem.text => AppIcons.textBox,
     CanvasWheelItem.shape => canvasShapeKindIcon(widget.shapeKind),
     CanvasWheelItem.eraser => AppIcons.eraser,
     CanvasWheelItem.pasteImage => AppIcons.clipboardPaste,

@@ -148,11 +148,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
   }
 
   CanvasWheelItem? _itemAt(Offset overlayPoint) {
-    final index = canvasWheelSector(
-      center: _center,
-      pointer: overlayPoint,
-      count: CanvasWheelItem.values.length,
-    );
+    final index = canvasWheelSector(center: _center, pointer: overlayPoint);
     if (index == null) return null;
     final item = CanvasWheelItem.values[index];
     return item.isAvailable(canDraw: widget.canDraw) ? item : null;

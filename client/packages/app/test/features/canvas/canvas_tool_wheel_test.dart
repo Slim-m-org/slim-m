@@ -186,6 +186,22 @@ void main() {
       expect(_wheel, findsNothing);
     });
 
+    testWidgets('the wheel offers the text tool and a flick arms it', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      const anchor = Offset(400, 300);
+      final gesture = await _rightDown(tester, anchor);
+      await tester.pump(_hold);
+      await gesture.moveTo(_itemAt(anchor, CanvasWheelItem.text));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(rig.tools, [CanvasTool.text]);
+    });
+
     testWidgets('the Paste image item pastes at the held point', (
       tester,
     ) async {
