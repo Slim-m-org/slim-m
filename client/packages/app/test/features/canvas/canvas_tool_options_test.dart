@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
+import 'package:slimm_app/src/widgets/control_slider_row.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -97,7 +98,7 @@ void main() {
       expect(find.byTooltip('Blue'), findsNothing, reason: 'picking closes it');
     });
 
-    testWidgets('a width', (tester) async {
+    testWidgets('a size, from the slider', (tester) async {
       CanvasPenStyle? pen;
       await pumpCanvasCallDock(
         tester,
@@ -105,10 +106,12 @@ void main() {
       );
       await tester.tap(_caret);
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Thick'));
+      expect(find.byType(AppSlider), findsOneWidget);
+      await tester.drag(find.byType(AppSlider), const Offset(600, 0));
       await tester.pumpAndSettle();
-      expect(pen?.width, 6);
+      expect(pen?.width, canvasPenMaxWidth);
       expect(pen?.colorKey, canvasDefaultPenColorKey);
+      expect(find.byType(AppSlider), findsOneWidget, reason: 'stays open');
     });
 
     testWidgets('a shape kind, from the four kinds', (tester) async {
@@ -131,7 +134,7 @@ void main() {
       expect(kind, CanvasShapeKind.arrow);
     });
 
-    testWidgets('the pen offers six colours and three widths as swatches', (
+    testWidgets('the pen offers six colour swatches and a size slider', (
       tester,
     ) async {
       await pumpCanvasCallDock(tester, canvas: buildCanvasDockData());
@@ -141,11 +144,8 @@ void main() {
         expect(find.byTooltip(c.label), findsOneWidget);
         expect(find.text(c.label), findsNothing, reason: 'named, not drawn');
       }
-      for (final w in canvasPenWidths) {
-        expect(find.byTooltip(w.label), findsOneWidget);
-      }
+      expect(find.byType(AppSlider), findsOneWidget);
       expect(canvasPenColors, hasLength(6));
-      expect(canvasPenWidths, hasLength(3));
       final ys = {
         for (final c in canvasPenColors)
           tester.getCenter(find.byTooltip(c.label)).dy,
@@ -214,17 +214,16 @@ void main() {
     await tester.tap(_caret);
     await tester.pumpAndSettle();
     expect(find.byType(AppSheetMenu), findsOneWidget);
-    expect(find.byTooltip('Medium'), findsOneWidget);
+    expect(find.byType(AppSlider), findsOneWidget);
     final sheet = tester.getSize(find.byType(AppSheetMenu)).height;
     expect(sheet, lessThan(780 / 3), reason: 'about a quarter of the screen');
-    for (final label in [
-      ...canvasPenColors.map((c) => c.label),
-      ...canvasPenWidths.map((w) => w.label),
-    ]) {
+    for (final label in canvasPenColors.map((c) => c.label)) {
       final size = tester.getSize(find.byTooltip(label));
       expect(size.width, greaterThanOrEqualTo(AppSizes.rowTouch));
       expect(size.height, greaterThanOrEqualTo(AppSizes.rowTouch));
     }
+    final slider = tester.getSize(find.byType(ControlSliderRow));
+    expect(slider.height, greaterThanOrEqualTo(AppSizes.rowTouch));
   });
 
   testWidgets('on desktop every swatch keeps the 30dp pointer target', (
@@ -233,10 +232,7 @@ void main() {
     await pumpCanvasCallDock(tester, canvas: buildCanvasDockData());
     await tester.tap(_caret);
     await tester.pumpAndSettle();
-    for (final label in [
-      ...canvasPenColors.map((c) => c.label),
-      ...canvasPenWidths.map((w) => w.label),
-    ]) {
+    for (final label in canvasPenColors.map((c) => c.label)) {
       final size = tester.getSize(find.byTooltip(label));
       expect(size.width, greaterThanOrEqualTo(AppSizes.rowPointer));
       expect(size.height, greaterThanOrEqualTo(AppSizes.rowPointer));

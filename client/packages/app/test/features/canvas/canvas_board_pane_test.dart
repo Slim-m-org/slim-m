@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -66,6 +67,40 @@ void main() {
     expect(widths, [3.0, 1.5]);
     expect(widths[0] * 1.0, widths[1] * 2.0, reason: 'same size on screen');
   });
+
+  testWidgets(
+    'a chosen size is screen pixels converted to world at draw time',
+    (tester) async {
+      final fixture = CanvasPaneFixture();
+      final container = fixture.container();
+      addTearDown(container.dispose);
+      addTearDown(fixture.events.close);
+      container.read(canvasActivePenStyleProvider.notifier).state =
+          const CanvasPenStyle(width: 12);
+      await pumpCanvasPane(tester, container);
+
+      final stored = <double>[];
+      final screen = <double>[];
+      for (final zoom in [0.5, 2.0]) {
+        surfaceDocument(tester).setCamera(Camera(zoom: zoom));
+        await tester.pump();
+        final gesture = await tester.startGesture(const Offset(100, 100));
+        await gesture.moveTo(const Offset(160, 140));
+        await gesture.up();
+        await tester.pumpAndSettle();
+        final width = (fixture.posted.last['props'] as Map)['width'] as double;
+        stored.add(width);
+        screen.add(width * surfaceDocument(tester).camera.zoom);
+      }
+
+      expect(
+        stored[0],
+        greaterThan(stored[1]),
+        reason: 'wider when zoomed out',
+      );
+      expect(screen, [closeTo(12, 1e-9), closeTo(12, 1e-9)]);
+    },
+  );
 
   testWidgets(
     'following stops when the follower pans, not when the window moves',

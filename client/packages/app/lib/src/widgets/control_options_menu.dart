@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'context_menu_region.dart';
+import 'control_slider_row.dart';
 import 'control_swatch_row.dart';
 import 'hover_reveal.dart';
 
@@ -139,6 +140,9 @@ class _ControlOptionsMenuState extends State<ControlOptionsMenu> {
         AppMenuLabel(entry.heading),
         ControlSwatchRow(swatches: entry.swatches, close: close),
       ];
+    }
+    if (entry is ControlSliderGroup) {
+      return [AppMenuLabel(entry.heading), ControlSliderRow(group: entry)];
     }
     if (entry is ControlOptionHeading) return [AppMenuLabel(entry.text)];
     return _itemRows(context, entry as ControlOption, close);
