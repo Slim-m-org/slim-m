@@ -12,7 +12,7 @@ use crate::store::Store;
 /// Shared by every clone of one `Event::MessageCreated`, so the first
 /// connection to build a frame pays the two lookups and the rest reuse them.
 #[derive(Debug, Default)]
-pub struct CreatedLookups(OnceCell<CreatedFacts>);
+pub struct CreatedLookups(OnceCell<CreatedFacts>, OnceCell<bool>);
 
 /// The per-message facts a frame needs: who it mentions, and a webhook post's
 /// display label and the module that posted it. Both are written with the message, before it is published.
@@ -36,5 +36,17 @@ impl CreatedLookups {
                 })
             })
             .await
+    }
+
+    /// Whether the message's link previews were removed; only an edit frame asks.
+    pub async fn previews_removed(
+        &self,
+        store: &Store,
+        message_id: MessageId,
+    ) -> anyhow::Result<bool> {
+        self.1
+            .get_or_try_init(|| store.link_previews_suppressed(message_id))
+            .await
+            .copied()
     }
 }

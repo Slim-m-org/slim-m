@@ -348,9 +348,11 @@ async fn channel_frame(
         Event::MessageLinkPreviewsRemoved {
             channel_id,
             message_id,
+            op_seq,
         } => ServerFrame::MessageLinkPreviewsRemoved {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
+            op_seq,
         },
         Event::TypingStarted {
             channel_id,

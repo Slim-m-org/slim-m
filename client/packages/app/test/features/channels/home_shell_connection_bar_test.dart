@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -29,6 +30,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
   Size size, {
   SyncStatus status = SyncStatus.offline,
   bool hasFailedSinceLive = false,
+  SyncFailure? failure,
 }) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
@@ -36,6 +38,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
         (ref) => StubSyncController(ref, status),
       ),
       hasFailedSinceLiveProvider.overrideWith((ref) => hasFailedSinceLive),
+      syncFailureProvider.overrideWith((ref) => failure),
     ],
   );
   tester.view.physicalSize = size;
@@ -87,6 +90,21 @@ void main() {
       await teardownFixture(tester, fixture.container, fixture.db);
     },
   );
+
+  testWidgets('a wide header says the session was refused, not Offline', (
+    tester,
+  ) async {
+    final fixture = await _pumpOffline(
+      tester,
+      const Size(1400, 880),
+      failure: SyncFailure.refused,
+    );
+
+    expect(find.text('Refused'), findsOneWidget);
+    expect(find.text('Offline'), findsNothing);
+
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 
   testWidgets(
     'a retry attempt after a real failure still reads Offline, not Connecting',

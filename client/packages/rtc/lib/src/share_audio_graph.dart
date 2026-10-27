@@ -13,6 +13,9 @@ abstract class ShareAudioGraph {
   /// This process's id, which names its own playback streams.
   int get processId;
 
+  /// The running program's file name, which names its own streams where the pid cannot.
+  String? get executableName;
+
   /// Creates the private mix sink; it lives only as long as [destroy] has not run.
   Future<bool> createMix(String name);
 

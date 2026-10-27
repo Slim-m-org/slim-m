@@ -160,6 +160,7 @@ class MessageExtrasController
       case api.MessageEmbedsChanged(:final messageId, :final embeds):
         _set(messageId, extrasFor(messageId).copyWith(embeds: embeds));
       case api.MessageLinkPreviewsRemoved(:final messageId):
+        _unconfirmedRemovals.remove(messageId);
         _set(
           messageId,
           extrasFor(messageId).copyWith(linkPreviewsRemoved: true),
@@ -181,18 +182,33 @@ class MessageExtrasController
     }
   }
 
-  /// Hides or restores [messageId]'s cards before the server answers; the
-  /// caller restores them when the request fails.
-  void applyLocalLinkPreviewsRemoved(String messageId, bool removed) => _set(
-    messageId,
-    extrasFor(messageId).copyWith(linkPreviewsRemoved: removed),
-  );
+  final _unconfirmedRemovals = <String>{};
+
+  /// Hides [messageId]'s cards before the server answers.
+  void beginLocalLinkPreviewsRemoval(String messageId) {
+    _unconfirmedRemovals.add(messageId);
+    _set(messageId, extrasFor(messageId).copyWith(linkPreviewsRemoved: true));
+  }
+
+  /// The server answered the removal; nothing is left to roll back.
+  void confirmLocalLinkPreviewsRemoval(String messageId) =>
+      _unconfirmedRemovals.remove(messageId);
+
+  /// Restores the cards after a refused removal, unless a frame or a fetch has
+  /// since confirmed the removal, in which case they stay hidden. Whether it rolled back.
+  bool rollBackLocalLinkPreviewsRemoval(String messageId) {
+    if (!_unconfirmedRemovals.remove(messageId)) return false;
+    _set(messageId, extrasFor(messageId).copyWith(linkPreviewsRemoved: false));
+    return true;
+  }
 
   /// Merges in whatever [message] carries. See the file doc comment for why
   /// a merge, never an overwrite, is what makes this safe to call from a
   /// live socket frame that may have omitted all three fields.
-  void applyMessage(api.Message message) =>
-      _set(message.id, _merged(message, state[message.id]));
+  void applyMessage(api.Message message) {
+    if (message.linkPreviewsRemoved) _unconfirmedRemovals.remove(message.id);
+    _set(message.id, _merged(message, state[message.id]));
+  }
 
   /// Applies a fetched page in one state write. A fetch is authoritative for
   /// reactions, so an empty list clears a tally removed while away; the other
@@ -201,6 +217,7 @@ class MessageExtrasController
     final next = {...state};
     var changed = false;
     for (final message in messages) {
+      if (message.linkPreviewsRemoved) _unconfirmedRemovals.remove(message.id);
       next[message.id] = _merged(
         message,
         next[message.id],

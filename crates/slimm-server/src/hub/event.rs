@@ -105,10 +105,12 @@ pub enum Event {
         embeds: Arc<Vec<Embed>>,
     },
     /// The author or a moderator removed a message's link-preview cards. One
-    /// way only: a removed preview stays removed, so there is nothing to carry.
+    /// way only: a removed preview stays removed. `op_seq` is its place in the
+    /// message-op stream, where an offline client finds it as an edit.
     MessageLinkPreviewsRemoved {
         channel_id: ChannelId,
         message_id: MessageId,
+        op_seq: i64,
     },
     /// A message was soft-deleted; carries only the ids a live connection
     /// needs to drop it from view, not the content it no longer shows.

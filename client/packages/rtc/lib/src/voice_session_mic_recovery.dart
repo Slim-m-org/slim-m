@@ -13,12 +13,9 @@ mixin VoiceSessionMicRecovery {
   Future<void> _applyInputGate();
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
-  bool get _fallbackOn;
-  Future<void> _fallBackMic();
-  Future<void> _logAudioDevices(String why);
-  Future<void> _logInputList();
-  void _resetMicFallback();
-  Future<void> _disposeMicFallback();
+  MicFallback get _fallback;
+  Future<void> _logAudioDevices(String why) => _fallback.logDevices(why);
+  Future<void> _logInputList() => _fallback.logInputList();
   InputGateMonitor get _gate;
   late final void Function() _afterRestart;
   bool _micWanted = false;
@@ -96,7 +93,7 @@ mixin VoiceSessionMicRecovery {
         unawaited(_logAudioDevices('gave up'));
         _setMicStatus(MicStatus.unavailable);
         unawaited(_noteMicFailure(MicFailureReason.silent));
-        if (_fallbackOn) unawaited(_fallBackMic());
+        if (_fallback.enabled) unawaited(_fallback.run());
       },
       onRecovered: () {
         if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
@@ -174,7 +171,7 @@ mixin VoiceSessionMicRecovery {
     await _deviceChanges?.cancel();
     await _micStatuses.close();
     await _micFailures.close();
-    await _disposeMicFallback();
+    await _fallback.dispose();
   }
 
   void _logMic(String message, {LogLevel level = LogLevel.info}) =>
@@ -221,7 +218,7 @@ mixin VoiceSessionMicRecovery {
     _senderPoll?.cancel();
     _senderPoll = null;
     _inputSignature = null;
-    _resetMicFallback();
+    _fallback.reset();
     unawaited(_deviceChanges?.cancel());
     _deviceChanges = null;
     _micRecovery.reset();

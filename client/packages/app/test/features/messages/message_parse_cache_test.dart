@@ -59,4 +59,19 @@ void main() {
       isTrue,
     );
   });
+
+  test('a scroll back over a 200-message window of four runs each hits', () {
+    var calls = 0;
+    final cache = ParseCache<int>((text) => ++calls);
+    final runs = [for (var i = 0; i < 800; i++) 'run $i'];
+
+    for (final run in runs) {
+      cache.of(run);
+    }
+    for (final run in runs) {
+      cache.of(run);
+    }
+
+    expect(calls, 800, reason: 'the second pass is all hits');
+  });
 }

@@ -22,6 +22,7 @@ mod filenames;
 mod fixtures;
 mod message_filenames;
 mod overwrite_allow;
+mod pdf_worker;
 mod previews;
 mod ranges;
 mod serving;

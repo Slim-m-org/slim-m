@@ -110,7 +110,7 @@ impl Store {
 /// redemption by an existing account ([`Store::redeem_invite`]) spend a code
 /// through exactly the same statement, and cannot drift into two different
 /// notions of what "usable" means.
-pub(crate) async fn spend_invite(
+pub(in crate::store) async fn spend_invite(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     code: &str,
     now: i64,
@@ -135,7 +135,7 @@ pub(crate) async fn spend_invite(
 /// own use has been spent, so the code and the user both exist and the two
 /// foreign keys hold; see SRV5. The `redeemed_at` is informational only - the
 /// primary key is what enforces one redemption per pair.
-pub(crate) async fn record_redemption(
+pub(in crate::store) async fn record_redemption(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     code: &str,
     user_id: UserId,

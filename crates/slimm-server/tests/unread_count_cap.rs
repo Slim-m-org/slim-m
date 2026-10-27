@@ -50,3 +50,27 @@ async fn unread_counts_stop_at_the_cap() {
     assert_eq!(counts.get(&small), Some(&3));
     assert_eq!(counts.get(&read), None, "a fully read channel is absent");
 }
+
+#[tokio::test]
+async fn thread_unread_counts_stop_at_the_cap_too() {
+    let (store, _guard) = support::new_store("slimm-thread-unread-cap").await;
+    let author = register(&store, "author").await;
+    let reader = register(&store, "reader").await;
+    let big = store.create_channel("big", "text").await.unwrap().id;
+    let small = store.create_channel("small", "text").await.unwrap().id;
+    let read = store.create_channel("read", "text").await.unwrap().id;
+    fill(&store, big, author, UNREAD_COUNT_CAP + 5).await;
+    fill(&store, small, author, 3).await;
+    fill(&store, read, author, 2).await;
+    store.mark_read(reader, read, i64::MAX).await.unwrap();
+
+    let counts: std::collections::HashMap<_, _> = store
+        .thread_unread_counts(&[big, small, read], reader)
+        .await
+        .unwrap()
+        .into_iter()
+        .collect();
+    assert_eq!(counts.get(&big), Some(&UNREAD_COUNT_CAP));
+    assert_eq!(counts.get(&small), Some(&3));
+    assert_eq!(counts.get(&read), None, "a fully read thread is absent");
+}

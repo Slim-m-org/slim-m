@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// [SyncController]'s reaction to the app leaving and returning to the
-/// foreground, and to a server that cut the socket for lagging.
+/// foreground, to a server that cut the socket for lagging, and to a connect that failed.
 part of 'sync_controller.dart';
 
 extension SyncControllerResume on SyncController {
@@ -37,5 +37,16 @@ extension SyncControllerResume on SyncController {
       if (alive || generation != _generation || _disposed) return;
     }
     await start();
+  }
+
+  /// A busy stream on a healthy connection resyncs soon with no failure status, a few times; then it is a failure.
+  void _onBacklogOverflow(Object error, StackTrace stack) {
+    if (_overflowRestarts >= maxQuickOverflowRestarts) {
+      _failConnect(error, stack);
+      return;
+    }
+    _overflowRestarts++;
+    _retry?.cancel();
+    _retry = Timer(_backoff.step * _overflowRestarts, start);
   }
 }

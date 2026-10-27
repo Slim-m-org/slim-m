@@ -182,7 +182,10 @@ class MessageRowColumn extends ConsumerWidget {
           trailing: edited,
         ),
       ),
-    if (!editing && message.content.isNotEmpty && !extras.linkPreviewsRemoved)
+    if (!editing &&
+        message.content.isNotEmpty &&
+        !extras.linkPreviewsRemoved &&
+        !message.linkPreviewsRemoved)
       LinkPreviewList(
         urls: extractLinkPreviewUrls(message.content),
         message: message,

@@ -36,9 +36,11 @@ void main() {
 
   test('frames arriving while flush drains join the same drain', () async {
     final seen = <String>[];
+    final drained = Completer<void>();
     late final SerialFrameQueue queue;
     queue = SerialFrameQueue((e) async {
       seen.add(_id(e));
+      if (seen.length == 3) drained.complete();
       if (seen.length == 1) queue.add(_event(2));
       await Future<void>.delayed(Duration.zero);
     }, onError: (_, _) {});
@@ -46,7 +48,7 @@ void main() {
     queue.add(_event(1));
     await queue.flush();
     queue.add(_event(3));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await drained.future;
 
     expect(seen, ['c1', 'c2', 'c3']);
   });
@@ -54,21 +56,28 @@ void main() {
   test('once live, the next frame waits for the previous handler', () async {
     final gate = Completer<void>();
     final log = <String>[];
+    final started = Completer<void>();
+    final finished = Completer<void>();
     final queue = SerialFrameQueue((e) async {
       log.add('start ${_id(e)}');
-      if (_id(e) == 'c1') await gate.future;
+      if (_id(e) == 'c1') {
+        started.complete();
+        await gate.future;
+      }
       log.add('end ${_id(e)}');
+      if (_id(e) == 'c2') finished.complete();
     }, onError: (_, _) {});
     await queue.flush();
 
     queue
       ..add(_event(1))
       ..add(_event(2));
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await started.future;
+    await Future<void>.delayed(Duration.zero);
     expect(log, ['start c1']);
 
     gate.complete();
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await finished.future;
     expect(log, ['start c1', 'end c1', 'start c2', 'end c2']);
   });
 
@@ -77,16 +86,18 @@ void main() {
     () async {
       final seen = <String>[];
       final errors = <Object>[];
+      final second = Completer<void>();
       final queue = SerialFrameQueue((e) async {
         if (_id(e) == 'c1') throw StateError('boom');
         seen.add(_id(e));
+        second.complete();
       }, onError: (error, _) => errors.add(error));
       await queue.flush();
 
       queue
         ..add(_event(1))
         ..add(_event(2));
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await second.future;
 
       expect(errors.single, isA<StateError>());
       expect(seen, ['c2']);
@@ -137,8 +148,12 @@ void main() {
 
   test('a live queue is not capped', () async {
     final seen = <String>[];
+    final all = Completer<void>();
     final queue = SerialFrameQueue(
-      (e) async => seen.add(_id(e)),
+      (e) async {
+        seen.add(_id(e));
+        if (seen.length == 5) all.complete();
+      },
       onError: (_, _) {},
       maxHeld: 1,
     );
@@ -147,9 +162,32 @@ void main() {
     for (var i = 0; i < 5; i++) {
       queue.add(_event(i));
     }
-    await Future<void>.delayed(const Duration(milliseconds: 20));
+    await all.future;
 
     expect(queue.overflowed, isFalse);
     expect(seen, hasLength(5));
+  });
+
+  test('ephemeral frames are not held or counted while catching up', () async {
+    final seen = <String>[];
+    final queue = SerialFrameQueue(
+      (e) async => seen.add(_id(e)),
+      onError: (_, _) {},
+      maxHeld: 2,
+    );
+    final typing = api.ServerEvent.parse(
+      '{"type":"typing.started","channel_id":"c","user_id":"u"}',
+    )!;
+    expect(typing, isA<api.TypingStarted>());
+
+    for (var i = 0; i < 10; i++) {
+      queue.add(typing);
+    }
+    queue.add(_event(1));
+
+    expect(queue.overflowed, isFalse);
+    expect(queue.heldCount, 1);
+    await queue.flush();
+    expect(seen, ['c1']);
   });
 }

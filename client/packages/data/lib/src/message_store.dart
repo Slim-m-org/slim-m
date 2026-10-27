@@ -431,6 +431,11 @@ class MessageStore {
   Future<void> removeForwardSnapshot(String messageId) =>
       _removeForwardSnapshot(db, messageId);
 
+  /// Hides a message's link-preview cards for good; a message not held is skipped.
+  Future<void> markLinkPreviewsRemoved(String messageId) =>
+      (db.update(db.messages)..where((m) => m.id.equals(messageId)))
+          .write(const MessagesCompanion(linkPreviewsRemoved: Value(true)));
+
   /// Mirrors the server's read marker.
   Future<void> setReadMarker(
     String channelId,

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart'
@@ -345,18 +346,60 @@ bool get _splashIsFrameless =>
 /// router's redirect: a revoked session lands on sign-in from wherever the user
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
-class SlimMApp extends ConsumerWidget {
+class SlimMApp extends ConsumerStatefulWidget {
   const SlimMApp({super.key, this.isDesktopOverride});
 
   /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
   final bool? isDesktopOverride;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final onDesktop = isDesktopOverride ?? isDesktopHost;
+  ConsumerState<SlimMApp> createState() => _SlimMAppState();
+}
+
+class _SlimMAppState extends ConsumerState<SlimMApp> {
+  /// Only a cold launch is covered: swapping the app for the splash later would drop the call overlay, dialogs and router stack.
+  bool _coldLaunchCover = true;
+
+  bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
+
+  void _spendCover() {
+    if (_coldLaunchCover) setState(() => _coldLaunchCover = false);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(appReadyProvider) && !ref.read(sessionProvider).isSignedIn) {
+      _coldLaunchCover = false;
+    }
+    ref.listenManual(appReadyProvider, (_, ready) {
+      if (ready && !ref.read(sessionProvider).isSignedIn) _spendCover();
+    });
+    ref.listenManual(initialSyncCompleteProvider, (_, synced) {
+      if (synced) _spendCover();
+    });
+    ref.listenManual(hasFailedSinceLiveProvider, (_, failed) {
+      if (failed) _spendCover();
+    });
+    _signOuts = ref.read(sessionProvider).changes.listen((tokens) {
+      if (tokens == null) _spendCover();
+    });
+  }
+
+  StreamSubscription<TokenPair?>? _signOuts;
+
+  @override
+  void dispose() {
+    unawaited(_signOuts?.cancel());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // A phone keeps the one splash up past bootstrap, through the first catch-up, so nothing second follows it.
     final phoneCovered =
-        !onDesktop &&
+        _coldLaunchCover &&
+        !_onDesktop &&
         ref.watch(sessionProvider).isSignedIn &&
         shouldShowBootSplash(
           isMobile: true,

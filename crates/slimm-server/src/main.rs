@@ -16,8 +16,18 @@ pub static MALLOC_CONF: &[u8; 63] =
 const USAGE: &str =
     "usage: slimm-server [--healthcheck | import-emoji <directory> | clear-totp <username>]";
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
+    // Before any runtime exists: the PDF worker lives under a tight address-space limit.
+    if std::env::args().nth(1).as_deref() == Some(slimm_server::PDF_WORKER_ARG) {
+        return slimm_server::run_pdf_worker();
+    }
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(serve())
+}
+
+async fn serve() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         // No arguments is the server itself, which is how the container image

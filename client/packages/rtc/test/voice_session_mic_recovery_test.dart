@@ -365,7 +365,7 @@ void main() {
     rig.mic.end();
     await _until(() => rig.mic.enables == 2 && rig.gateConfigures > before);
 
-    expect(rig.gateConfigures, greaterThan(before));
+    expect(rig.mic.enables, 2);
   });
 
   test('a quiet room under active Strong suppression is not restarted',

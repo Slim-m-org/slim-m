@@ -46,19 +46,10 @@ bool canvasErrorIsTimeout(String? error) =>
 
 /// Whether [error] says placing would fail the same way again: a refusal or a
 /// timeout freeze. Any other banner, a failed load included, leaves drawing available.
-/// If [timedOutUntil] is provided, an expired timeout is no longer treated as blocking.
-bool canvasErrorBlocksDrawing(String? error, {int? timedOutUntil}) {
-  if (error == null) return false;
-  if (error == _drawRefusedMessage || error == canvasUnavailableMessage) {
-    return true;
-  }
-  if (canvasErrorIsTimeout(error)) {
-    if (timedOutUntil != null) {
-      return DateTime.fromMillisecondsSinceEpoch(
-        timedOutUntil,
-      ).isAfter(DateTime.now());
-    }
-    return true;
-  }
-  return false;
-}
+///
+/// A timeout banner blocks until `CanvasTimeoutBanner` clears it when the
+/// timeout lapses or is lifted, so that is the one place expiry is decided.
+bool canvasErrorBlocksDrawing(String? error) =>
+    error == _drawRefusedMessage ||
+    error == canvasUnavailableMessage ||
+    canvasErrorIsTimeout(error);

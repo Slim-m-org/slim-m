@@ -46,7 +46,7 @@ import '../../../widgets/animation_gate.dart';
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
 /// handing them here; this renders exactly what it is given. Whoever may
-/// remove [message]'s previews gets an X on each card.
+/// remove [message]'s previews gets an X on each card, which removes them all.
 class LinkPreviewList extends ConsumerWidget {
   const LinkPreviewList({super.key, required this.urls, required this.message});
 
@@ -64,6 +64,8 @@ class LinkPreviewList extends ConsumerWidget {
       ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
       ref.watch(myChannelPermissionsProvider(message.channelId)),
     );
+    final failure = ref.watch(linkPreviewRemovalErrorProvider(message.id));
+    void remove() => unawaited(removeLinkPreviews(ref, message));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -72,9 +74,27 @@ class LinkPreviewList extends ConsumerWidget {
             padding: const EdgeInsets.only(top: AppSpacing.s4),
             child: LinkPreviewCard(
               url: url,
-              onRemove: canRemove
-                  ? () => unawaited(removeLinkPreviews(ref, message))
-                  : null,
+              onRemove: canRemove ? remove : null,
+              removeLabel: urls.length > 1
+                  ? 'Remove all link previews'
+                  : 'Remove link preview',
+            ),
+          ),
+        if (failure != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s4),
+            child: AppErrorState(
+              message: failure,
+              onRetry: remove,
+              onDismiss: () =>
+                  ref
+                          .read(
+                            linkPreviewRemovalErrorProvider(
+                              message.id,
+                            ).notifier,
+                          )
+                          .state =
+                      null,
             ),
           ),
       ],
@@ -83,13 +103,23 @@ class LinkPreviewList extends ConsumerWidget {
 }
 
 class LinkPreviewCard extends ConsumerStatefulWidget {
-  const LinkPreviewCard({super.key, required this.url, this.onRemove});
+  const LinkPreviewCard({
+    super.key,
+    required this.url,
+    this.onRemove,
+    this.removeLabel = 'Remove link preview',
+  });
 
   final String url;
 
-  /// Shown as an X over the card while the pointer is on it, or always where
-  /// there is no pointer to hover with. Null for a reader who may not remove it.
+  /// An X over the card, faded in while the pointer or keyboard focus is on
+  /// it and always shown where there is no pointer to hover with. It stays
+  /// mounted so it can be tabbed to and announced. Null for a reader who may
+  /// not remove it.
   final VoidCallback? onRemove;
+
+  /// What the X is called, which says how much it removes.
+  final String removeLabel;
 
   @override
   ConsumerState<LinkPreviewCard> createState() => _LinkPreviewCardState();
@@ -106,6 +136,7 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
   bool _playing = false;
 
   bool _hovered = false;
+  bool _removeFocused = false;
 
   bool get _hasMouse => RendererBinding.instance.mouseTracker.mouseIsConnected;
 
@@ -161,7 +192,14 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
                       border: Border.all(color: tokens.borderSubtle),
                       borderRadius: BorderRadius.circular(AppRadii.control),
                     ),
-                    padding: const EdgeInsets.all(AppSpacing.s8),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.s8,
+                      AppSpacing.s8,
+                      widget.onRemove == null
+                          ? AppSpacing.s8
+                          : AppSizes.controlSm,
+                      AppSpacing.s8,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -236,17 +274,29 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
                       ],
                     ),
                   ),
-                  if (widget.onRemove != null && (_hovered || !_hasMouse))
+                  if (widget.onRemove != null)
                     Positioned(
                       top: AppSpacing.s4,
                       right: AppSpacing.s4,
-                      child: AppIconButton(
-                        icon: AppIcons.dismiss,
-                        semanticLabel: 'Remove link preview',
-                        tooltip: 'Remove link preview',
-                        size: AppIconButtonSize.sm,
-                        iconSize: AppSizes.icon16,
-                        onPressed: widget.onRemove,
+                      child: Focus(
+                        canRequestFocus: false,
+                        onFocusChange: (focused) =>
+                            setState(() => _removeFocused = focused),
+                        child: AnimatedOpacity(
+                          opacity: _hovered || _removeFocused || !_hasMouse
+                              ? 1
+                              : 0,
+                          duration: AppMotion.fast,
+                          alwaysIncludeSemantics: true,
+                          child: AppIconButton(
+                            icon: AppIcons.dismiss,
+                            semanticLabel: widget.removeLabel,
+                            tooltip: widget.removeLabel,
+                            size: AppIconButtonSize.sm,
+                            iconSize: AppSizes.icon16,
+                            onPressed: widget.onRemove,
+                          ),
+                        ),
                       ),
                     ),
                 ],

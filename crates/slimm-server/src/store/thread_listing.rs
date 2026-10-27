@@ -27,31 +27,34 @@ impl Store {
         if thread_channel_ids.is_empty() {
             return Ok(Vec::new());
         }
+        // Capped inside the subquery like `unread_counts`, so a huge backlog is not scanned.
         let mut builder = sqlx::QueryBuilder::new(
-            "SELECT m.channel_id AS channel_id, COUNT(*) AS unread_count \
-             FROM messages m \
-             WHERE m.deleted_at IS NULL AND m.channel_id IN (",
+            "SELECT ch.id AS channel_id, (SELECT COUNT(*) FROM ( \
+               SELECT 1 FROM messages m \
+               WHERE m.channel_id = ch.id AND m.deleted_at IS NULL \
+                 AND m.seq > COALESCE((SELECT rs.last_read_seq FROM read_states rs \
+                                        WHERE rs.channel_id = ch.id AND rs.user_id = ",
         );
+        builder.push_bind(viewer);
+        builder.push("), 0) LIMIT ");
+        builder.push_bind(super::read_state::UNREAD_COUNT_CAP);
+        builder.push(")) AS unread_count FROM channels ch WHERE ch.id IN (");
         let mut separated = builder.separated(", ");
         for id in thread_channel_ids {
             separated.push_bind(*id);
         }
-        builder.push(
-            ") AND m.seq > COALESCE((SELECT last_read_seq FROM read_states rs \
-               WHERE rs.user_id = ",
-        );
-        builder.push_bind(viewer);
-        builder.push(" AND rs.channel_id = m.channel_id), 0) GROUP BY m.channel_id");
+        builder.push(")");
         let rows = builder.build().fetch_all(&self.pool).await?;
 
         use sqlx::Row;
-        rows.into_iter()
-            .map(|row| {
-                let channel_id: ChannelId = row.try_get("channel_id")?;
-                let unread_count: i64 = row.try_get("unread_count")?;
-                Ok((channel_id, unread_count))
-            })
-            .collect()
+        let mut counts = Vec::new();
+        for row in rows {
+            let unread_count: i64 = row.try_get("unread_count")?;
+            if unread_count > 0 {
+                counts.push((row.try_get("channel_id")?, unread_count));
+            }
+        }
+        Ok(counts)
     }
 
     /// Every live thread hanging off a message in `channel_id`, newest
