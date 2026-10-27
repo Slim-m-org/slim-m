@@ -58,10 +58,10 @@ const MAX_COMMAND_LEN: usize = 64;
 /// this transport cap.
 const BODY_LIMIT: usize = 256 * 1024;
 
-mod extension_discovery;
+mod module_commands_discovery;
 
-pub(super) use self::extension_discovery::{ModuleInfoDto, reachable_extension_points};
-use self::extension_discovery::{list_code_block_runners, list_slash_commands};
+pub(super) use self::module_commands_discovery::{ModuleInfoDto, reachable_extension_points};
+use self::module_commands_discovery::{list_code_block_runners, list_slash_commands};
 
 pub fn routes() -> Router<AppState> {
     Router::new()

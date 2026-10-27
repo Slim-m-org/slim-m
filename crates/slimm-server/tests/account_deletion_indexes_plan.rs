@@ -33,6 +33,12 @@ fn source_of(relative: &str) -> String {
         .unwrap_or_else(|_| panic!("read {relative}"))
 }
 
+/// The deletion statements live in the module and its `anonymize` child.
+fn deletion_source() -> String {
+    source_of("src/store/account_deletion.rs")
+        + &source_of("src/store/account_deletion/anonymize.rs")
+}
+
 /// A 16-byte blob per placeholder, matching the affinity of the id columns
 /// every query here binds; `0i64` plans the same but claims the wrong type.
 async fn plan_of(pool: &SqlitePool, sql: &str, binds: usize) -> Vec<String> {
@@ -73,7 +79,7 @@ fn assert_uses(plan: &[String], index: &str, what: &str) {
 #[tokio::test]
 async fn deleting_an_account_seeks_the_reactions_index() {
     let (pool, _guard) = new_pool("slimm-deletion-plan-reactions").await;
-    let source = source_of("src/store/account_deletion.rs");
+    let source = deletion_source();
     let sql = support::query_literal_containing(&source, "DELETE FROM reactions WHERE user_id");
 
     let plan = plan_of(&pool, &sql, 1).await;
@@ -84,7 +90,7 @@ async fn deleting_an_account_seeks_the_reactions_index() {
 #[tokio::test]
 async fn deleting_an_account_seeks_the_uploader_index() {
     let (pool, _guard) = new_pool("slimm-deletion-plan-uploaders").await;
-    let source = source_of("src/store/account_deletion.rs");
+    let source = deletion_source();
     let sql = support::query_literal_containing(
         &source,
         "DELETE FROM attachment_uploaders WHERE uploaded_by",
@@ -102,7 +108,7 @@ async fn deleting_an_account_seeks_the_uploader_index() {
 #[tokio::test]
 async fn deleting_an_account_seeks_the_overwrite_index() {
     let (pool, _guard) = new_pool("slimm-deletion-plan-overwrites").await;
-    let source = source_of("src/store/account_deletion.rs");
+    let source = deletion_source();
     let sql = support::query_literal_containing(
         &source,
         "DELETE FROM channel_overwrites WHERE target_type",
@@ -194,7 +200,7 @@ fn the_live_query_is_read_past_a_comment_quoting_it() {
 #[tokio::test]
 async fn deleting_an_account_seeks_the_moderation_audit_actor_index() {
     let (pool, _guard) = new_pool("slimm-deletion-plan-moderation").await;
-    let source = source_of("src/store/account_deletion.rs");
+    let source = deletion_source();
     let sql = support::query_literal_containing(
         &source,
         "UPDATE moderation_audit_log SET actor_id = NULL",
