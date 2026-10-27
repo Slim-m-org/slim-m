@@ -247,16 +247,7 @@ class MessageStore {
   }
 
   /// Every channel's cursors, for a bundled catch-up request.
-  Future<List<api.ScopeCursor>> allCursors() async {
-    final rows = await db.select(db.channels).get();
-    return rows
-        .map((c) => api.ScopeCursor(
-              channelId: c.id,
-              afterSeq: c.cursor,
-              afterOpSeq: c.opCursor,
-            ))
-        .toList(growable: false);
-  }
+  Future<List<api.ScopeCursor>> allCursors() => _allCursors(this);
 
   // --- Writes ---
 
@@ -459,24 +450,13 @@ class MessageStore {
     String channelId,
     int seq, {
     bool? manuallyUnread,
-  }) async {
-    await db.transaction(() async {
-      final row = await (db.select(db.channels)
-            ..where((c) => c.id.equals(channelId)))
-          .getSingleOrNull();
-      if (row == null) return;
-      // The marker only moves forward; the flag is independent of it.
-      final advancing = seq > row.lastReadSeq;
-      if (!advancing && manuallyUnread == null) return;
-      await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-          .write(ChannelsCompanion(
-        lastReadSeq: advancing ? Value(seq) : const Value.absent(),
-        manuallyUnread: manuallyUnread == null
-            ? const Value.absent()
-            : Value(manuallyUnread),
-      ));
-    });
-  }
+  }) =>
+      _setReadMarker(
+        this,
+        channelId,
+        seq,
+        manuallyUnread: manuallyUnread,
+      );
 
   /// [setReadMarker] for many channels in one transaction, so streams over the
   /// channel list wake once rather than once per channel.
@@ -498,23 +478,11 @@ class MessageStore {
 
   /// Moves a channel's cursor forward. Never backwards: the cursor is the
   /// high-water mark of what has been applied.
-  Future<void> _advanceCursor(String channelId, int seq) async {
-    final row = await (db.select(db.channels)
-          ..where((c) => c.id.equals(channelId)))
-        .getSingleOrNull();
-    if (row == null || row.cursor >= seq) return;
-    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-        .write(ChannelsCompanion(cursor: Value(seq)));
-  }
+  Future<void> _advanceCursor(String channelId, int seq) =>
+      _advanceCursorHelper(this, channelId, seq);
 
   /// [_advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.
-  Future<void> _advanceMentionCursor(String channelId, int seq) async {
-    final row = await (db.select(db.channels)
-          ..where((c) => c.id.equals(channelId)))
-        .getSingleOrNull();
-    if (row == null || row.mentionedSeq >= seq) return;
-    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-        .write(ChannelsCompanion(mentionedSeq: Value(seq)));
-  }
+  Future<void> _advanceMentionCursor(String channelId, int seq) =>
+      _advanceMentionCursorHelper(this, channelId, seq);
 }

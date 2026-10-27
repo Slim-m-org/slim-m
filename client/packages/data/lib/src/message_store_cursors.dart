@@ -27,6 +27,67 @@ Future<void> _setOpCursor(
   });
 }
 
+/// Moves a channel's cursor forward. Never backwards: the cursor is the
+/// high-water mark of what has been applied.
+Future<void> _advanceCursorHelper(
+    MessageStore store, String channelId, int seq) async {
+  final db = store.db;
+  final row = await (db.select(db.channels)
+        ..where((c) => c.id.equals(channelId)))
+      .getSingleOrNull();
+  if (row == null || row.cursor >= seq) return;
+  await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+      .write(ChannelsCompanion(cursor: Value(seq)));
+}
+
+/// [_advanceCursorHelper]'s own shape for `mentionedSeq`, only ever called for a
+/// message whose `mentionsMe` is true.
+Future<void> _advanceMentionCursorHelper(
+    MessageStore store, String channelId, int seq) async {
+  final db = store.db;
+  final row = await (db.select(db.channels)
+        ..where((c) => c.id.equals(channelId)))
+      .getSingleOrNull();
+  if (row == null || row.mentionedSeq >= seq) return;
+  await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+      .write(ChannelsCompanion(mentionedSeq: Value(seq)));
+}
+
+Future<List<api.ScopeCursor>> _allCursors(MessageStore store) async {
+  final rows = await store.db.select(store.db.channels).get();
+  return rows
+      .map((c) => api.ScopeCursor(
+            channelId: c.id,
+            afterSeq: c.cursor,
+            afterOpSeq: c.opCursor,
+          ))
+      .toList(growable: false);
+}
+
+Future<void> _setReadMarker(
+  MessageStore store,
+  String channelId,
+  int seq, {
+  bool? manuallyUnread,
+}) async {
+  final db = store.db;
+  await db.transaction(() async {
+    final row = await (db.select(db.channels)
+          ..where((c) => c.id.equals(channelId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    // The marker only moves forward; the flag is independent of it.
+    final advancing = seq > row.lastReadSeq;
+    if (!advancing && manuallyUnread == null) return;
+    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
+        .write(ChannelsCompanion(
+      lastReadSeq: advancing ? Value(seq) : const Value.absent(),
+      manuallyUnread:
+          manuallyUnread == null ? const Value.absent() : Value(manuallyUnread),
+    ));
+  });
+}
+
 /// One channel's server read marker, as [MessageStore.setReadMarkers] takes it.
 typedef ReadMarker = ({String channelId, int seq, bool? manuallyUnread});
 
