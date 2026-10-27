@@ -7,9 +7,9 @@ scenarios think in world pixels at zoom 1, so [fit_to_board_zoom_one] sizes
 the window until the surface is exactly the shared area's width, and
 [board_frame] says where the shared area starts on the page.
 
-The shared area has no visible edge, so its top is found from the board's top
-edge in a window tall enough to show it, which also gives the height the dock
-takes from the surface.
+The shared area has no visible edge, so the dock's share of the surface is read
+from the letterbox under the board in a window tall enough to be set by the
+board's height, and the area is centred above it.
 """
 import json
 import time
@@ -20,7 +20,6 @@ import e2e_png
 SHARED_W = 1920
 SHARED_H = 1080
 _TALL = 1500
-_BOARD_H = 2 * SHARED_H
 _FULL_BOARD_WINDOW_H = 2700
 _dock_insets = {}
 _WIDE_START = 2600
@@ -63,25 +62,18 @@ def clear_window(client):
 _EDGE_DELTA = 3
 
 
-def _first_change(client, rect, vertical):
-    """Offset of the first pixel along a one-pixel strip that differs from the strip's first.
+def _letterbox_at_foot(client, rect):
+    """How many pixels below the board's foot are letterbox, read up a strip clear of the dock.
 
-    The letterbox is a flat colour and the board edge is the first thing that
-    is not, so this finds where the board starts without knowing the dock's
-    height or where the zoom pill sits, both of which have moved before.
+    The board is centred on the view above the dock and the view never leaves
+    the board, so in a window tall enough that the board's height sets the
+    zoom, the board ends exactly where the dock's share begins; the strip
+    below that edge is the flat letterbox colour.
     """
-    if vertical:
-        strip = {"x": rect["x"] + rect["width"] * 0.6, "y": rect["y"],
-                 "width": 1, "height": rect["height"]}
-    else:
-        strip = {"x": rect["x"], "y": rect["y"] + rect["height"] * 0.6,
-                 "width": rect["width"], "height": 1}
-    width, height, rows, channels = e2e_png.decode(client.region_png(strip))
-    if vertical:
-        pixels = [tuple(rows[y][:3]) for y in range(height)]
-    else:
-        pixels = [tuple(rows[0][x * channels:x * channels + 3])
-                  for x in range(width)]
+    strip = {"x": rect["x"] + rect["width"] * 0.05, "y": rect["y"],
+             "width": 1, "height": rect["height"]}
+    _, height, rows, _ = e2e_png.decode(client.region_png(strip))
+    pixels = [tuple(rows[y][:3]) for y in range(height)][::-1]
     for offset, pixel in enumerate(pixels):
         if max(abs(a - b) for a, b in zip(pixel, pixels[0])) > _EDGE_DELTA:
             return offset
@@ -96,20 +88,17 @@ def _window_size(client):
 def _dock_inset(client):
     """What the dock takes from the surface's foot, read once per window size.
 
-    A window tall enough to show the whole board puts the board's top edge on
-    the page; the board is centred in the view, so that edge gives the height
-    the view really has.
+    A window tall enough that the board's height sets the zoom leaves the
+    dock's share of the surface below the board, as letterbox.
     """
     if client.name not in _dock_insets:
         width, height = _window_size(client)
         _metrics(client, width, _FULL_BOARD_WINDOW_H)
         rect = client.canvas_rect()
-        zoom = rect["width"] / SHARED_W
-        top = _first_change(client, rect, vertical=True)
-        assert top > 1, f"{client.name}: the board's top edge is not on screen in a {width}x{_FULL_BOARD_WINDOW_H} window"
-        view = 2 * top + _BOARD_H * zoom
+        inset = _letterbox_at_foot(client, rect)
+        assert inset > 1, f"{client.name}: no letterbox under the board in a {width}x{_FULL_BOARD_WINDOW_H} window"
         _metrics(client, width, height)
-        _dock_insets[client.name] = max(0.0, rect["height"] - view)
+        _dock_insets[client.name] = float(inset)
     return _dock_insets[client.name]
 
 

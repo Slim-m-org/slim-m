@@ -29,6 +29,7 @@ import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
+import 'canvas_tool_wheel_layer.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
 import 'canvas_pane_overlays.dart';
@@ -322,6 +323,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// which object a right-click or a screen-reader action is asking about
   /// right now outlives nothing beyond this body's own lifetime.
   final _menuRequests = CanvasObjectMenuRequests();
+  final _toolWheel = CanvasToolWheelController();
 
   /// One resolution of the call tiles for both the backdrop and the layer.
   final _presenceFrames = CanvasPresenceFrameResolver();
@@ -363,6 +365,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   void dispose() {
     _hiddenKeys?.dispose();
     _menuRequests.dispose();
+    _toolWheel.dispose();
     super.dispose();
   }
 

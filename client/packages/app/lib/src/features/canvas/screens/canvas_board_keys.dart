@@ -23,6 +23,7 @@ class CanvasBoardKeys extends StatefulWidget {
     required this.document,
     required this.tool,
     required this.onOpenActions,
+    required this.onOpenToolWheel,
     required this.onPlaceNote,
     required this.onPlaceShape,
     this.focusNode,
@@ -36,6 +37,9 @@ class CanvasBoardKeys extends StatefulWidget {
 
   /// Opens the selected object's own menu, the same one a right-click opens.
   final ValueChanged<String> onOpenActions;
+
+  /// Opens the tool wheel, the keyboard's way to what a right-click hold opens.
+  final VoidCallback onOpenToolWheel;
 
   /// Places with the note or shape tool at a world point.
   final ValueChanged<Offset> onPlaceNote;
@@ -151,6 +155,8 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
       LogicalKeyboardKey.enter ||
       LogicalKeyboardKey.numpadEnter => once && _activate(),
       LogicalKeyboardKey.escape => once && _deselect(),
+      LogicalKeyboardKey.contextMenu => once && _openMenu(),
+      LogicalKeyboardKey.f10 => once && keys.isShiftPressed && _openMenu(),
       _ => false,
     };
     if (handled && !_ring) setState(() => _ring = true);
@@ -217,6 +223,17 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     }
   }
 
+  /// The context-menu key: the selected object's menu, else the tool wheel.
+  bool _openMenu() {
+    final selected = _document.selectedObjectId.value;
+    if (selected == null) {
+      widget.onOpenToolWheel();
+    } else {
+      widget.onOpenActions(selected);
+    }
+    return true;
+  }
+
   bool _deselect() {
     if (_document.selectedObjectId.value == null) return false;
     _document.selectedObjectId.value = null;
@@ -241,7 +258,7 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
         label: 'Canvas board',
         hint:
             'Arrow keys pan, plus and minus zoom, 0 fits, square brackets '
-            'step through objects, Enter opens the selected one',
+            'step through objects, Enter opens the selected one, the menu key opens the tool wheel',
         child: DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(

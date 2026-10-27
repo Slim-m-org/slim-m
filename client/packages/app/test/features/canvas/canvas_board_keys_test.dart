@@ -8,6 +8,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:slimm_app/src/features/canvas/screens/canvas_tool_wheel.dart';
+
 import 'canvas_pane_harness.dart';
 
 Future<CanvasPaneFixture> _pump(WidgetTester tester) async {
@@ -51,6 +53,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Bring to front'), findsOneWidget);
+  });
+
+  testWidgets('the menu key opens the tool wheel when nothing is selected', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CanvasToolWheel), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.byType(CanvasToolWheel), findsNothing);
+  });
+
+  testWidgets('the menu key opens the selected object\'s menu instead', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.bracketRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bring to front'), findsOneWidget);
+    expect(find.byType(CanvasToolWheel), findsNothing);
+  });
+
+  testWidgets('holding the right button on empty canvas opens the wheel', (
+    tester,
+  ) async {
+    await _pump(tester);
+    final gesture = await tester.startGesture(
+      const Offset(900, 600),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CanvasToolWheel), findsOneWidget);
   });
 
   testWidgets('arrow keys pan the board', (tester) async {

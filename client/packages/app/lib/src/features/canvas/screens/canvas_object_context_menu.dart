@@ -4,6 +4,9 @@
 /// owner request, 2026-08-29). Clear canvas stays out: it is destructive and
 /// needs MANAGE_CANVAS, so it keeps the overflow menu's extra step.
 ///
+/// A right button held on empty canvas opens the tool wheel instead; see
+/// `CanvasToolWheelLayer` and decision 0094.
+///
 /// It opens on secondary tap-up so a right-drag pan can never leave a menu
 /// behind, and it wires no primary callback so drawing is untouched. Touch
 /// gets it on a long press with the Select tool only, since every other tool
@@ -22,6 +25,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../../../widgets/context_menu_focus.dart';
 import 'canvas_object_locks.dart';
+import 'canvas_tool_wheel_layer.dart';
 import '../../messages/widgets/message_context_menu_layout.dart';
 
 /// Asks [CanvasObjectContextMenu] to open for an object with no pointer
@@ -34,6 +38,13 @@ class CanvasObjectMenuRequests extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// Whether the caller may act on [stroke] from a menu: any with MANAGE_CANVAS, else their own.
+bool canvasMayActOn(
+  CanvasStroke stroke, {
+  required bool canManage,
+  required String? selfId,
+}) => canManage || (stroke.authorId != null && stroke.authorId == selfId);
 
 class CanvasObjectContextMenu extends StatefulWidget {
   const CanvasObjectContextMenu({
@@ -52,7 +63,11 @@ class CanvasObjectContextMenu extends StatefulWidget {
     required this.onToolChanged,
     this.onEditNote,
     this.canDraw = true,
+    this.wheel,
   });
+
+  /// Tells this menu a held right button already opened the tool wheel, so its release opens nothing.
+  final CanvasToolWheelController? wheel;
 
   final CanvasDocument document;
 
@@ -174,9 +189,11 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
     if (id != null) _openFor(id, pointerGlobal: null);
   }
 
-  bool _allowed(CanvasStroke stroke) =>
-      widget.canManage ||
-      (stroke.authorId != null && stroke.authorId == widget.selfId);
+  bool _allowed(CanvasStroke stroke) => canvasMayActOn(
+    stroke,
+    canManage: widget.canManage,
+    selfId: widget.selfId,
+  );
 
   /// The topmost object, the same one `beginSelect` would pick, so a
   /// right-click resolves to the target a left-click select would have.
@@ -196,6 +213,7 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   /// "nothing here" result that used to end this gesture with no menu at
   /// all - opens the empty-space one instead.
   void _onSecondaryTapUp(TapUpDetails details) {
+    if (widget.wheel?.suppressSecondaryTap ?? false) return;
     final world = _toWorld(details.localPosition);
     final id = _hitTest(world);
     if (id != null) {

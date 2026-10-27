@@ -21,6 +21,7 @@ Offset relativeScreenPosition(Offset boardPoint, Size screen, double dpr) {
 
 void main() {
   const screens = [Size(390, 844), Size(1280, 800), Size(2560, 1440)];
+  const landscapeScreens = [Size(1280, 800), Size(2560, 1440)];
 
   test('a board object keeps its place on the board at every size and DPR', () {
     const point = Offset(480, 270);
@@ -55,8 +56,8 @@ void main() {
     }
   });
 
-  test('the shared area is fitted and letterboxed on every screen shape', () {
-    for (final screen in screens) {
+  test('the shared area is fitted on every landscape screen shape', () {
+    for (final screen in landscapeScreens) {
       final document = CanvasDocument()
         ..setBoard(canvasBoard, sharedArea: canvasSharedArea)
         ..setViewport(screen);
@@ -91,8 +92,9 @@ void main() {
       ..setBoard(canvasBoard, sharedArea: canvasSharedArea)
       ..setViewport(const Size(1280, 800));
     document.setCamera(const Camera(x: 9000, y: -4000, zoom: 0.05));
-    expect(document.camera.zoom, closeTo(1280 / canvasBoard.width, 1e-9));
-    expect(document.worldView.left, closeTo(canvasBoard.left, 1e-6));
+    expect(document.camera.zoom, closeTo(800 / canvasBoard.height, 1e-9));
+    expect(document.worldView.right, closeTo(canvasBoard.right, 1e-6));
+    expect(document.worldView.top, closeTo(canvasBoard.top, 1e-6));
     expect(document.isFitted, isFalse);
   });
 
@@ -222,7 +224,7 @@ void main() {
         document.worldView.inflate(1e-6).contains(canvasBoard.bottomRight),
         isTrue,
       );
-      expect(document.zoomFloor, minZoom);
+      expect(document.zoomFloor, closeTo(1280 / canvasBoard.width, 1e-9));
     });
 
     test('old content keeps its world coordinates', () {

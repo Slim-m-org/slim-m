@@ -23,24 +23,45 @@ double boardFitZoom(Rect board, Size viewport) {
   return math.min(viewport.width / board.width, viewport.height / board.height);
 }
 
+/// The zoom at which [board] just covers [viewport] on both axes.
+double boardCoverZoom(Rect board, Size viewport) {
+  if (viewport.isEmpty) return 1;
+  return math.max(viewport.width / board.width, viewport.height / board.height);
+}
+
+/// The lowest zoom a viewer may take over [board]: the cover, so no view shows
+/// past an edge, or the fit when even the cover is beyond [maxZoom].
+double boardZoomFloor(Rect board, Size viewport) {
+  final cover = boardCoverZoom(board, viewport);
+  return cover <= maxZoom ? cover : boardFitZoom(board, viewport);
+}
+
 /// The camera that shows the whole [board], centred and letterboxed.
-Camera boardFitCamera(Rect board, Size viewport) => clampCameraToBoard(
-      Camera(zoom: boardFitZoom(board, viewport)),
-      board,
-      viewport,
-    );
+Camera boardFitCamera(Rect board, Size viewport) {
+  final fit = boardFitZoom(board, viewport);
+  return clampCameraToBoard(
+    Camera(zoom: fit),
+    board,
+    viewport,
+    floor: fit,
+  );
+}
 
 /// The camera that shows [shared] at its fit zoom, held to [board].
 Camera sharedAreaCamera(Rect shared, Rect board, Size viewport) =>
     clampCameraToBoard(boardFitCamera(shared, viewport), board, viewport);
 
-/// [next] with its zoom held between the fit and [maxZoom] and its view kept
-/// over the board: the board is centred on an axis it does not fill, and
-/// pinned to its edges on one it overfills.
-Camera clampCameraToBoard(Camera next, Rect board, Size viewport) {
+/// [next] with its zoom held between [boardZoomFloor] and [maxZoom] and its
+/// view kept over the board, pinned to its edges.
+Camera clampCameraToBoard(
+  Camera next,
+  Rect board,
+  Size viewport, {
+  double? floor,
+}) {
   if (viewport.isEmpty) return next;
-  final fit = boardFitZoom(board, viewport);
-  final zoom = next.zoom.clamp(fit, math.max(fit, maxZoom)).toDouble();
+  floor ??= boardZoomFloor(board, viewport);
+  final zoom = next.zoom.clamp(floor, math.max(floor, maxZoom)).toDouble();
   double axis(double start, double lo, double hi, double view) {
     final extent = view / zoom;
     if ((hi - lo) <= extent) return (lo + hi) / 2 - extent / 2;
@@ -64,10 +85,10 @@ Rect visibleBoardPart(Rect worldView, Rect board) {
 /// own aspect, so a follower on another shape sees extra board around it.
 Camera cameraForBoardView(Rect view, Rect board, Size viewport) {
   if (viewport.isEmpty || view.isEmpty) return boardFitCamera(board, viewport);
-  final fit = boardFitZoom(board, viewport);
+  final floor = boardZoomFloor(board, viewport);
   final zoom = math
       .min(viewport.width / view.width, viewport.height / view.height)
-      .clamp(fit, math.max(fit, maxZoom))
+      .clamp(floor, math.max(floor, maxZoom))
       .toDouble();
   return clampCameraToBoard(
     Camera(

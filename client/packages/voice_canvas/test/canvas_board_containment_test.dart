@@ -187,11 +187,13 @@ void main() {
           onStroke: (points) => drawn = points,
           strokeWidth: 60,
         );
+        document.setCamera(const Camera(x: -9999, y: -9999, zoom: 0));
         final board = _boardOnScreen(document);
-        final gesture = await tester.startGesture(board.center);
-        await gesture.moveTo(Offset(board.center.dx, 0));
-        await gesture.moveTo(const Offset(0, 0));
-        await gesture.moveTo(Offset(board.center.dx, size.height));
+        final centre = size.center(Offset.zero);
+        final gesture = await tester.startGesture(centre);
+        await gesture.moveTo(Offset(centre.dx, -300));
+        await gesture.moveTo(const Offset(-300, -300));
+        await gesture.moveTo(Offset(centre.dx, size.height));
         await tester.pump();
         expect(
           await _paintedOutside(tester, key, board),

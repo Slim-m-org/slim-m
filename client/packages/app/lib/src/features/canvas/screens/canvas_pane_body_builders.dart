@@ -114,6 +114,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       tool: widget.tool,
       tokens: tokens,
       menuRequests: _menuRequests,
+      toolWheel: _toolWheel,
       presenceFrames: _presenceFrames,
       focusedTileKey: widget.focusedTileKey,
       boardFocusNode: widget.boardFocusNode,

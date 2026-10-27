@@ -23,7 +23,7 @@ void main() {
         final rig = await FuzzRig.start(tester, phone: true);
         final document = rig.document;
         document.setCamera(
-          Camera(x: 300, y: 220, zoom: document.camera.zoom * 4),
+          Camera(x: 200, y: 120, zoom: document.camera.zoom * 4),
         );
         await tester.pump();
         final at = onStroke(rig, 's1');

@@ -68,19 +68,9 @@ final canvasPenInkByKey = {
 /// The world width a stroke is stored with, so [screenPx] looks the same on the drawer's screen at any zoom.
 double canvasPenWorldWidth(double screenPx, double zoom) => screenPx / zoom;
 
-/// One pen width, in screen pixels on the drawer's own screen.
-class CanvasPenWidth {
-  const CanvasPenWidth(this.label, this.width);
-
-  final String label;
-  final double width;
-}
-
-const canvasPenWidths = [
-  CanvasPenWidth('Thin', 1.5),
-  CanvasPenWidth('Medium', 3),
-  CanvasPenWidth('Thick', 6),
-];
+/// The pen's size range in screen pixels on the drawer's own screen, as the slider offers it.
+const canvasPenMinWidth = 1.0;
+const canvasPenMaxWidth = 24.0;
 
 /// Medium is what every stroke was before the width was a choice.
 const canvasDefaultPenWidth = 3.0;

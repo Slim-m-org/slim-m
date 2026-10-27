@@ -134,11 +134,11 @@ class CanvasDocument extends ChangeNotifier {
   /// The kind of the latest press, so a finger's reach follows the finger and not the window width.
   PointerDeviceKind lastPointerKind = PointerDeviceKind.mouse;
 
-  /// The lowest zoom a wheel or pinch may aim for: the board's fit when that sits below [minZoom].
+  /// The lowest zoom a wheel or pinch may aim for: the board's cover, so the view never leaves it.
   double get zoomFloor {
     final board = _board;
     if (board == null || _viewport.isEmpty) return minZoom;
-    return math.min(minZoom, boardFitZoom(board, _fitView));
+    return boardZoomFloor(board, _fitView);
   }
 
   Size get viewport => _viewport;
