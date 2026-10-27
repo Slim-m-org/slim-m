@@ -316,6 +316,7 @@ async fn the_off_policy_refuses_new_enrolments_without_weakening_existing_ones()
     let (admin_token, _admin_id) = member(&store, &auth, "alice").await;
     let (bob_token, _bob_id) = second_member(&store, &auth, "bob").await;
     enrol_and_confirm(&router, &bob_token).await;
+    enrol_and_confirm(&router, &admin_token).await;
 
     let patched = router
         .clone()
@@ -388,6 +389,7 @@ async fn omitting_the_policy_leaves_it_alone() {
     let router = app(store.clone(), auth.clone());
     let (admin_token, _admin_id) = member(&store, &auth, "alice").await;
 
+    enrol_and_confirm(&router, &admin_token).await;
     router
         .clone()
         .oneshot(request(
@@ -398,8 +400,6 @@ async fn omitting_the_policy_leaves_it_alone() {
         ))
         .await
         .unwrap();
-    // The policy now asks administrators for a factor, so this one enrols first.
-    enrol_and_confirm(&router, &admin_token).await;
     let response = router
         .clone()
         .oneshot(request(

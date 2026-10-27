@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AppState;
 use super::error::ApiError;
-use super::escalation::escalation_guard;
+use super::escalation::peer_guard;
 use super::extract::{Authed, Json, enforce};
 use super::messages::parse_uuid;
 use super::safety::validate_reason;
@@ -397,7 +397,7 @@ pub(super) async fn authorize(
 
     let caller_granted = state.store.granted_base_permissions(caller).await?;
     let target_granted = state.store.granted_base_permissions(target).await?;
-    escalation_guard(caller_granted, target_granted)
+    peer_guard(caller_granted, target_granted)
 }
 
 /// Drops a member from every voice room they could currently be connected

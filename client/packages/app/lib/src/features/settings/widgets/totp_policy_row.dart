@@ -24,7 +24,7 @@ const _choices = [
   SettingsChoice(value: api.TotpPolicy.optional, label: 'Anyone who wants to'),
   SettingsChoice(
     value: api.TotpPolicy.requiredForElevated,
-    label: 'Expected of admins and moderators',
+    label: 'Required of admins',
   ),
 ];
 
