@@ -39,6 +39,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::PollVoted { .. }
         | Event::MessageComponentsChanged { .. }
         | Event::MessageEmbedsChanged { .. }
+        | Event::MessageLinkPreviewsRemoved { .. }
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::ChannelCreated(..)

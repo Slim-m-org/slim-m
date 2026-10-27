@@ -134,6 +134,7 @@ export 'src/events.dart'
         InteractionForm,
         MessageComponentsChanged,
         MessageEmbedsChanged,
+        MessageLinkPreviewsRemoved,
         MessageEphemeral,
         MessageEdited,
         MessagePinned,

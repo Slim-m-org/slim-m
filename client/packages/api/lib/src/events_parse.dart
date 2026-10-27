@@ -60,6 +60,13 @@ ServerEvent? _messageFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         messageId: decoded['message_id'] as String,
       ),
+    'message.link_previews_removed'
+        when decoded['channel_id'] is String &&
+            decoded['message_id'] is String =>
+      MessageLinkPreviewsRemoved(
+        channelId: decoded['channel_id'] as String,
+        messageId: decoded['message_id'] as String,
+      ),
     'thread.updated'
         when decoded['channel_id'] is String &&
             decoded['parent_message_id'] is String &&

@@ -4992,6 +4992,40 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/messages/{messageId}/link-previews:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: messageId
+        in: path
+        required: true
+        description: The message's UUID.
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: removeMessageLinkPreviews
+      tags: [messages]
+      summary: Remove the link-preview cards from one message.
+      description: >
+        Idempotent, and permanent: the cards stay removed for everyone and
+        there is no restore. Allowed to the message's author, or to a member
+        holding MANAGE_MESSAGES in this channel. Live connections are told
+        over the WebSocket (`message.link_previews_removed`), and later reads
+        carry `link_previews_removed: true` on the message.
+      responses:
+        "204":
+          description: The cards were removed (or already had been).
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/messages/{messageId}/pin:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -15222,6 +15256,13 @@ components:
             that permission. Per-viewer exactly like `reacted`, and always
             false on the sender's own send or edit response: an author is
             never resolved as mentioning themselves.
+        link_previews_removed:
+          type: boolean
+          description: >-
+            Whether the author or a moderator removed this message's
+            link-preview cards. Set on reads; a live `message.created` or
+            `message.edited` frame says false, and
+            `message.link_previews_removed` carries the change.
         webhook_username:
           type: [string, "null"]
           description: >-
@@ -17016,6 +17057,7 @@ components:
         - $ref: "#/components/schemas/ReactionsChanged"
         - $ref: "#/components/schemas/CodeRunChanged"
         - $ref: "#/components/schemas/CodeRunsCleared"
+        - $ref: "#/components/schemas/MessageLinkPreviewsRemoved"
         - $ref: "#/components/schemas/ThreadUpdated"
         - $ref: "#/components/schemas/MessagePinned"
         - $ref: "#/components/schemas/MessageUnpinned"
@@ -17735,6 +17777,23 @@ components:
         type:
           type: string
           enum: [code_runs.cleared]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+
+    MessageLinkPreviewsRemoved:
+      type: object
+      required: [type, channel_id, message_id]
+      description: >
+        The author or a moderator removed this message's link-preview cards.
+        One way only, so a client hides them and keeps them hidden.
+      properties:
+        type:
+          type: string
+          enum: [message.link_previews_removed]
         channel_id:
           type: string
           format: uuid

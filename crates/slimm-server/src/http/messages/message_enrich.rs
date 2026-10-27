@@ -39,6 +39,7 @@ pub(crate) async fn with_reactions(
     let mut module_origins = state.store.module_origins_for_messages(&ids).await?;
     let mut components_by_message = state.store.components_for_messages(&ids).await?;
     let mentioned = state.store.mentioned_messages_for(viewer, &ids).await?;
+    let previews_removed = state.store.link_preview_suppressed_among(&ids).await?;
     // One more batched query; empty when no message on this page has a thread, which is the common case.
     let thread_channel_ids: Vec<ChannelId> = threads_by_message
         .iter()
@@ -105,6 +106,7 @@ pub(crate) async fn with_reactions(
         }
         dto.forwarded = forwards_by_message.remove(&id);
         dto.mentions_me = mentioned.contains(&id);
+        dto.link_previews_removed = previews_removed.contains(&id);
         dto.webhook_username = webhook_usernames.remove(&id);
         dto.via_module = module_origins.remove(&id).map(ViaModuleDto::from);
         if let Some(pos) = embeds_by_message.iter().position(|(mid, _)| *mid == id) {

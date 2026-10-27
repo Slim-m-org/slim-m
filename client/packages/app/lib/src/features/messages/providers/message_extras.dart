@@ -35,6 +35,7 @@ class MessageExtras {
     this.threadLastReplyAt,
     this.threadUnreadCount,
     this.mentionsMe = false,
+    this.linkPreviewsRemoved = false,
   });
 
   final List<api.ReactionSummary> reactions;
@@ -89,6 +90,10 @@ class MessageExtras {
   /// viewer, so only a REST fetch can clear it.
   final bool mentionsMe;
 
+  /// The message's link-preview cards were removed. One way: a fetch or a
+  /// `message.link_previews_removed` frame sets it, and nothing clears it.
+  final bool linkPreviewsRemoved;
+
   MessageExtras copyWith({
     List<api.ReactionSummary>? reactions,
     List<api.Attachment>? attachments,
@@ -98,6 +103,7 @@ class MessageExtras {
     api.CallRecord? call,
     List<api.Embed>? embeds,
     List<api.ComponentRow>? components,
+    bool? linkPreviewsRemoved,
     String? threadChannelId,
     int? threadReplyCount,
     int? threadLastReplyAt,
@@ -117,6 +123,7 @@ class MessageExtras {
     threadLastReplyAt: threadLastReplyAt ?? this.threadLastReplyAt,
     threadUnreadCount: threadUnreadCount,
     mentionsMe: mentionsMe,
+    linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
   );
 
   static const empty = MessageExtras();
@@ -152,6 +159,11 @@ class MessageExtrasController
         _set(messageId, extrasFor(messageId).copyWith(components: components));
       case api.MessageEmbedsChanged(:final messageId, :final embeds):
         _set(messageId, extrasFor(messageId).copyWith(embeds: embeds));
+      case api.MessageLinkPreviewsRemoved(:final messageId):
+        _set(
+          messageId,
+          extrasFor(messageId).copyWith(linkPreviewsRemoved: true),
+        );
       case api.ThreadUpdated(
         :final parentMessageId,
         :final threadChannelId,
@@ -168,6 +180,13 @@ class MessageExtrasController
         break;
     }
   }
+
+  /// Hides or restores [messageId]'s cards before the server answers; the
+  /// caller restores them when the request fails.
+  void applyLocalLinkPreviewsRemoved(String messageId, bool removed) => _set(
+    messageId,
+    extrasFor(messageId).copyWith(linkPreviewsRemoved: removed),
+  );
 
   /// Merges in whatever [message] carries. See the file doc comment for why
   /// a merge, never an overwrite, is what makes this safe to call from a
@@ -238,6 +257,8 @@ class MessageExtrasController
     mentionsMe: authoritative
         ? message.mentionsMe
         : message.mentionsMe || (existing?.mentionsMe ?? false),
+    linkPreviewsRemoved:
+        message.linkPreviewsRemoved || (existing?.linkPreviewsRemoved ?? false),
   );
 
   static List<T> _list<T>(

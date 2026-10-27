@@ -105,6 +105,12 @@ pub enum Event {
         message_id: MessageId,
         embeds: Arc<Vec<Embed>>,
     },
+    /// The author or a moderator removed a message's link-preview cards. One
+    /// way only: a removed preview stays removed, so there is nothing to carry.
+    MessageLinkPreviewsRemoved {
+        channel_id: ChannelId,
+        message_id: MessageId,
+    },
     /// A message was soft-deleted; carries only the ids a live connection
     /// needs to drop it from view, not the content it no longer shows.
     MessageDeleted {

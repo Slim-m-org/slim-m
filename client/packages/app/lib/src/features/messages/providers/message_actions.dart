@@ -169,6 +169,32 @@ bool canManageMessagePin(Message message, int myPermissions) =>
     !message.failed &&
     myPermissions.hasPermission(Perm.manageMessages);
 
+/// Own message, or MANAGE_MESSAGES, like [canDeleteMessage]; the server
+/// applies the same rule to the removal.
+bool canRemoveLinkPreviews(
+  Message message,
+  String? myUserId,
+  int myPermissions,
+) => canDeleteMessage(message, myUserId, myPermissions);
+
+/// Hides [message]'s link-preview cards for everyone. Applied locally first;
+/// a refusal puts them back, and nothing else is shown.
+Future<void> removeLinkPreviews(WidgetRef ref, Message message) async {
+  final extras = ref.read(messageExtrasProvider.notifier);
+  extras.applyLocalLinkPreviewsRemoved(message.id, true);
+  try {
+    await ref
+        .read(apiProvider)
+        .removeMessageLinkPreviews(
+          channelId: message.channelId,
+          messageId: message.id,
+        );
+  } on api.ApiException catch (error, stack) {
+    api.reportFailure(api.LogTag.ui, 'remove link previews', error, stack);
+    extras.applyLocalLinkPreviewsRemoved(message.id, false);
+  }
+}
+
 /// MANAGE_MESSAGES only, matching bulk-delete's own server-side gate with no
 /// author exception - unlike [canDeleteMessage], which a plain member also
 /// satisfies for their own message. That gap matters here specifically:

@@ -159,6 +159,7 @@ class Message {
     this.call,
     this.forwarded,
     this.mentionsMe = false,
+    this.linkPreviewsRemoved = false,
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
@@ -257,6 +258,12 @@ class Message {
   /// `MessageStore.applyMessage`.
   final bool mentionsMe;
 
+  /// The author or a moderator removed this message's link-preview cards. Set
+  /// on reads; a live create or edit frame says false, so a receiver merges it
+  /// in memory only (`MessageExtras`) and the `message.link_previews_removed`
+  /// frame carries the change.
+  final bool linkPreviewsRemoved;
+
   /// Structured content a webhook or a bot attached; fixed once the message
   /// exists, like [attachments]. Always present, empty when there is none.
   final List<Embed> embeds;
@@ -317,6 +324,7 @@ class Message {
                 json['forwarded'] as Map<String, dynamic>),
         // Not in the schema's `required` list either, the same tolerance `reactions` above already needs.
         mentionsMe: json['mentions_me'] as bool? ?? false,
+        linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
         embeds: (json['embeds'] as List<dynamic>?)
                 ?.map((e) => Embed.fromJson(e as Map<String, dynamic>))
                 .toList(growable: false) ??
