@@ -882,6 +882,7 @@
 "test/features/messages/message_selection_bar_test.dart": 0.8,
 "test/features/messages/message_selection_entry_permission_test.dart": 0.8,
 "test/features/messages/message_selection_test.dart": 0.5,
+"test/features/messages/message_time_tooltip_test.dart": 4.0,
 "test/features/messages/message_transcript_extent_test.dart": 3.6,
 "test/features/messages/message_transcript_rebuild_test.dart": 1.1,
 "test/features/messages/message_transcript_start_header_test.dart": 0.8,
