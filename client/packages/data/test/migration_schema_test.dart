@@ -38,4 +38,15 @@ void main() {
     addTearDown(db.close);
     await verifier.migrateAndValidate(db, db.schemaVersion);
   });
+
+  test('v25 with the old hand-made messages_channel_seq index upgrades',
+      () async {
+    final schema = await verifier.schemaAt(25);
+    schema.rawDatabase.execute(
+        'CREATE INDEX messages_channel_seq ON messages (channel_id, seq DESC)');
+    final db = SlimmDatabase(schema.newConnection());
+    addTearDown(db.close);
+
+    await verifier.migrateAndValidate(db, db.schemaVersion);
+  });
 }

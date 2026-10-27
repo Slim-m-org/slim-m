@@ -402,6 +402,14 @@ class SlimmDatabase extends _$SlimmDatabase {
         _UpgradeStep(24,
             () => _addColumnOnce(m, channels, channels.defaultNotification)),
         _UpgradeStep(25, () => m.createTable(canvasPersonalLayouts)),
+        // v2's null display names and the pre-op-stream epoch are both
+        // unreachable by a keyset sync. See the doc comment above.
+        _UpgradeStep(7, () async {
+          await m.deleteTable(messages.actualTableName);
+          await m.createTable(messages);
+          await m.database.customStatement('UPDATE channels SET cursor = 0');
+        }),
+        // After the v7 rebuild: dropping the messages table drops its indexes.
         _UpgradeStep(26, () async {
           for (final index in [
             messagesChannelSeq,
@@ -411,13 +419,6 @@ class SlimmDatabase extends _$SlimmDatabase {
           ]) {
             await _createIndexOnce(index);
           }
-        }),
-        // v2's null display names and the pre-op-stream epoch are both
-        // unreachable by a keyset sync. See the doc comment above.
-        _UpgradeStep(7, () async {
-          await m.deleteTable(messages.actualTableName);
-          await m.createTable(messages);
-          await m.database.customStatement('UPDATE channels SET cursor = 0');
         }),
       ];
 
