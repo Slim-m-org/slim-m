@@ -43,12 +43,12 @@
 
 mod cache;
 mod filename;
+mod gif_select;
 mod provider;
-mod select;
 #[cfg(test)]
 mod tests;
 
-use select::select;
+use self::gif_select::select;
 
 use std::sync::Arc;
 use std::time::Duration;
