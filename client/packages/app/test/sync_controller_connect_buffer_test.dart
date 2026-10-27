@@ -9,6 +9,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/providers/sync_frame_queue.dart';
 
 import 'support/sync_harness.dart';
@@ -118,8 +120,8 @@ void main() {
     expect(rig.status.name, 'live', reason: 'the retry reconnects');
   });
 
-  test('a backlog past the held-frame cap fails the connect and the retry '
-      'resyncs over REST', () async {
+  test('a backlog past the held-frame cap restarts at once with no offline '
+      'status and resyncs over REST', () async {
     final previous = heldFrameCap;
     heldFrameCap = 2;
     addTearDown(() => heldFrameCap = previous);
@@ -130,6 +132,11 @@ void main() {
       (r) => r.on('POST', '/sync', syncs.handle),
       seeded: [rigMessage('m1', 1, 'msg 1')],
     );
+    final statuses = <String>[];
+    rig.container.listen(
+      syncControllerProvider,
+      (_, next) => statuses.add(next.name),
+    );
     rig.signIn();
     await syncs.heldReached.future.timeout(const Duration(seconds: 5));
 
@@ -138,10 +145,10 @@ void main() {
     }
     await Future<void>.delayed(const Duration(milliseconds: 100));
     syncs.release.complete();
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-
-    expect(rig.status.name, 'offline');
     await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
+
+    expect(statuses, isNot(contains('offline')));
+    expect(rig.container.read(syncFailureProvider), isNull);
     expect((await rig.contents()).keys, containsAll(['m1', 'm6']));
   });
 

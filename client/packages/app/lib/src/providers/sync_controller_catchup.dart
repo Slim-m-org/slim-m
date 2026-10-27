@@ -41,6 +41,7 @@ extension SyncControllerCatchUp on SyncController {
     SlimmApi api,
     MessageStore store, {
     void Function()? onFirstRound,
+    bool Function()? shouldStop,
   }) async {
     var first = true;
     Set<String>? only;
@@ -49,7 +50,7 @@ extension SyncControllerCatchUp on SyncController {
       if (generation != _generation) return;
       if (first) onFirstRound?.call();
       first = false;
-      if (behind.isEmpty) return;
+      if (behind.isEmpty || (shouldStop?.call() ?? false)) return;
       only = behind;
       // Next tick rather than straight through, so a long backlog does not block the first paint.
       await Future<void>.delayed(Duration.zero);
