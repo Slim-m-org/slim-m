@@ -20,7 +20,11 @@ It pins the server's public key under `server_identity:<origin>` in the existing
 - Pin matches: no screen.
 - Pin differs: `ServerIdentityChangedStep`, headed "This server's identity changed" in the danger colour with a warning callout.
   The button that re-pins the new key stays disabled until an explicit acknowledgement checkbox is ticked, so it cannot be tapped through.
-- Server too old to report an identity, or unreachable: not blocked here.
+- Unreachable: not blocked here.
+- Reports no identity while nothing is pinned for the address: not blocked here.
+- Reports no identity while a key is pinned: treated as a change, with the same warning.
+  The real server always reports one, so a missing identity on a pinned address is not an old server.
+  Continuing keeps the old pin.
 - The compiled-in official server pins silently on first connect, and a later mismatch still stops.
 
 This behaviour predates the decision; the audit's premise that the screen fires on every invite join was wrong for any device that had joined the server before.

@@ -44,7 +44,7 @@ Map<String, Object?> _identity(String key) => {
 Future<void> _startInvite(
   WidgetTester tester, {
   required KeyStore keyStore,
-  required String servedKey,
+  required String? servedKey,
   required void Function(Uri, String?) onChosen,
 }) async {
   final httpClient = MockClient((request) async {
@@ -53,7 +53,7 @@ Future<void> _startInvite(
             'name': 'slim-m',
             'version': '0.10.0',
             'protocol': 1,
-            'identity': _identity(servedKey),
+            if (servedKey != null) 'identity': _identity(servedKey),
           }
         : {
             'usable': true,
@@ -169,5 +169,46 @@ void main() {
 
     expect(chosen, Uri.parse(_server));
     expect(await keyStore.read(_handle), _keyB);
+  });
+
+  testWidgets('a pinned server that leaves out its identity gets the mismatch '
+      'warning, not a free pass', (tester) async {
+    Uri? chosen;
+    final keyStore = InMemoryKeyStore();
+    await keyStore.put(_handle, _keyA);
+
+    await _startInvite(
+      tester,
+      keyStore: keyStore,
+      servedKey: null,
+      onChosen: (s, c) => chosen = s,
+    );
+
+    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(chosen, isNull);
+
+    await tester.ensureVisible(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    await tester.tap(find.text('Continue without an identity'));
+    await tester.pumpAndSettle();
+
+    expect(chosen, Uri.parse(_server));
+    expect(await keyStore.read(_handle), _keyA, reason: 'the pin is kept');
+  });
+
+  testWidgets('an unpinned server that reports no identity is still unknown, '
+      'not blocked', (tester) async {
+    Uri? chosen;
+    await _startInvite(
+      tester,
+      keyStore: InMemoryKeyStore(),
+      servedKey: null,
+      onChosen: (s, c) => chosen = s,
+    );
+
+    expect(find.text("This server's identity changed"), findsNothing);
+    expect(chosen, Uri.parse(_server));
   });
 }

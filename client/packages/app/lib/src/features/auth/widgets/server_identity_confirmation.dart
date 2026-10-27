@@ -31,10 +31,12 @@ String identityHandleFor(Uri address) => 'server_identity:${address.origin}';
 /// the first time there is nothing to compare against, and a hard stop that
 /// needs deliberate acknowledgement if it ever changes.
 ///
-/// Returns whether it is safe to continue with [server]. A server too old to
-/// report an identity, or unreachable here, is treated as unknown rather than
-/// blocked: sign-in surfaces a real connection failure with more authority
-/// than a probe run during onboarding ever could.
+/// Returns whether it is safe to continue with [server]. An unreachable one is
+/// treated as unknown rather than blocked: sign-in surfaces a real connection
+/// failure with more authority than a probe run during onboarding ever could.
+/// A server that reports no identity is unknown only while nothing is pinned
+/// for it; once a key is pinned, leaving the identity out is a change, and goes
+/// through the same warning as a different key.
 ///
 /// [silentFirstConnect] skips the fingerprint screen on a first connect and
 /// pins whatever answered without asking - only correct for an address
@@ -70,18 +72,18 @@ Future<bool> confirmServerIdentity(
   } finally {
     client.close();
   }
-  if (identity == null) return true;
   if (!context.mounted) return false;
 
   final keyStore = ref.read(keyStoreProvider);
   final handle = identityHandleFor(server);
   final pinned = await keyStore.read(handle);
 
-  if (pinned == identity.publicKey) return true;
+  if (identity == null && pinned == null) return true;
+  if (pinned != null && pinned == identity?.publicKey) return true;
   if (!context.mounted) return false;
 
   if (pinned == null && silentFirstConnect) {
-    await keyStore.put(handle, identity.publicKey);
+    await keyStore.put(handle, identity!.publicKey);
     return true;
   }
 
@@ -97,11 +99,12 @@ Future<bool> confirmServerIdentity(
           fadeThroughRoute<bool>(
             context,
             (context) =>
-                ServerIdentityChangedStep(address: server, identity: identity!),
+                ServerIdentityChangedStep(address: server, identity: identity),
           ),
         );
 
   if (trusted != true) return false;
-  await keyStore.put(handle, identity.publicKey);
+  // Nothing to pin when the server reported nothing; the old key stays pinned.
+  if (identity != null) await keyStore.put(handle, identity.publicKey);
   return true;
 }
