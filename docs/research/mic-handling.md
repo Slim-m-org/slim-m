@@ -379,6 +379,56 @@ Two changes (fork 61d8b3e and this repo):
 - `getInputGate` now returns the loudest frame since the previous poll, which is exactly what the threshold test compares, with no decay. Measured against the sent audio in 50 ms windows with Standard and the same noise: the bar agreed with the received signal being over the line in 84% of windows before and 89% after, and bar-over-the-line-while-no-frame-was-over dropped from 14% to 10% (the rest is codec and alignment jitter in this measurement).
 - The settings bar draws in the accent colour while the gate is open and in a neutral one while it is closed, so the hold is visible instead of looking like the gate ignoring the bar. The speaking ring was already the gate's own state.
 
+### 6.4 A loud steady high-frequency hiss passes through Strong (a model limit)
+
+Owner, 2026-10-23: a friend's high-frequency vacuum "just spams through the call" with Strong selected on Windows.
+Measured 2026-10-27 offline through the fork's real `CaptureChain` sources (rnnoise 0.2, the resampler, the gate), and libwebrtc's noise suppressor at its fixed High level from the python `webrtc_noise_gain` build (16 kHz).
+Strong was running in every run (800 of 800 frames at 16, 44.1 and 48 kHz), so this is not a rate, fallback or Space-default problem.
+
+Steady 2-7.5 kHz hiss only, level in dBFS over the last 3 s of an 8 s run at 48 kHz (lower is quieter):
+
+| input level | rnnoise (3 seeds agree) | libwebrtc NS | libwebrtc NS then rnnoise |
+|---|---|---|---|
+| -50 | -129 | -62 | -123 |
+| -45 | -125 | -58 | -124 |
+| -40 | -107 to -120 | -53 | -124 |
+| -35 | -37 | -48 | -111 |
+| -30 | -31 | -43 | -81 |
+| -25 | -25 | -38 | -70 |
+| -20 | -20 | -33 | -37 |
+
+- rnnoise has a cliff.
+  This hiss is removed completely below about -40 dBFS and passes untouched from -35 up.
+  44.1 kHz behaves the same, and at 16 kHz the cliff sits between -35 and -30.
+  At -30 dBFS rnnoise reports a speech probability of 0.44 for it, against 0.004 at -45: a steady loud band-limited hiss looks like a held "s".
+- White and low-passed noise have no such cliff (white at -30 ends near -70).
+- A 240 Hz harmonic motor hum passes at any level with 0 dB of reduction, because it looks voiced.
+  A vacuum mix of hiss, rumble and hum loses its high band and keeps the hum: -30 in, -54 out.
+- libwebrtc's own suppressor takes a flat 12 dB off all of these, the hum included, and the two in series remove the hiss that rnnoise alone leaves.
+- The gate does not help: at -30 dBFS the hiss is 20 dB over the default -50 line, so the gate opens and stays open.
+
+Turning the WebRTC suppressor off under Strong (P4 above) is still right for fan, keyboard and room hiss, where rnnoise alone was 2 to 9 dB quieter and about 2 dB less distorted.
+It leaves this noise class with nothing, and no code path here is broken, so there is nothing to fix short of a second model (the DeepFilterNet card) or running both suppressors.
+The noise is synthetic and the speech is espeak and flite; a real vacuum with another spectrum may sit on either side of the cliff.
+
+### 6.5 Static pops: what was and was not reproduced (2026-10-27)
+
+Card "occasional static pops (Windows tester)": sender or receiver side.
+Sender side: the gate already ramps (5 ms open, 60 ms close) and the limiter clamps at -1 dBFS.
+Nine speech-and-gap runs of about 35 s through the real `CaptureChain` (gate off and on at -50 and -40, rnnoise on, noise at -60, -50 and -42 dBFS) added no click: at most 1 frame in 1024 had a second difference over 3x the input's, and that one frame is rnnoise's own, identical with the gate off.
+So no gate-transition click was found, and no gain ramp was added.
+Receiver side: a livekit-server 1.10.1 container with `tc netem` on its egress, one python sender and one receiver (30 s of speech, two runs each).
+
+| profile | concealed share of received samples | concealment events | packets lost | HF-spike count per minute |
+|---|---|---|---|---|
+| clean | 0.0 to 0.1% | 0 to 1 | 0 | 17 to 19 |
+| loss 2% | 0.1 to 0.2% | 1 to 3 | 24 to 35 | 19 |
+| loss 5%, delay 20 ms, jitter 30 ms | 0.5 to 1.5% | 2 to 5 | 65 to 66 | 17 to 19 |
+| burst (gemodel) | 3.2 to 5.3% | 20 to 28 | 75 to 108 | 19 to 25 |
+
+Loss is reproducibly concealed by the decoder, and only burst loss moved the spike count above the clean baseline (once in two runs), so a receive-side pop is plausible under burst loss but this detector cannot separate it from speech fricatives.
+The shipped telemetry (`AudioGlitchWatch`, `VoiceHealth`) logs the concealed share and loss per speaker, which is what tells a sender-side pop from a receive-side one in a real tester log: one speaker's pops in everyone's log is the sender, a concealed share above 1% across speakers is the link.
+
 ### How it was measured
 
 `livekit-server` 1.10.1 on its own ports, a small Flutter Linux app that joins with the real `VoiceSession` (or a bare room with libwebrtc suppression off, for Off) and logs `getInputGate` every 50 ms, a null sink per rate and channel count with `PULSE_SOURCE` pointing the app at its monitor, and a Python participant that records the track.
