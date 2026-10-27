@@ -9,7 +9,9 @@ mod support;
 use support::reports::StoreReportExt;
 
 use slimm_server::ids::{CanvasObjectId, CanvasOpId, MessageId};
-use slimm_server::store::{CanvasOpRequest, NewMessage, PlaceRequest, ReportSubject, Store};
+use slimm_server::store::{
+    CanvasOpRequest, CodeRunRecord, NewMessage, PlaceRequest, ReportSubject, Store,
+};
 use sqlx::SqlitePool;
 
 async fn new_store() -> (Store, SqlitePool, support::TestDbGuard) {
@@ -116,7 +118,15 @@ async fn delete_account_anonymizes_every_remaining_authorship_column() {
             .unwrap()
     );
     store
-        .record_code_run(reported, 0, "code-exec", "run", true, "2", bob.id)
+        .record_code_run(CodeRunRecord {
+            message_id: reported,
+            block_index: 0,
+            module_id: "code-exec",
+            command: "run",
+            ok: true,
+            output: "2",
+            ran_by: bob.id,
+        })
         .await
         .unwrap();
     let app = MessageId::generate();

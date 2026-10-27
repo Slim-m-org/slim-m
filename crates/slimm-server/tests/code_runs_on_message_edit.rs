@@ -12,7 +12,7 @@
 mod support;
 
 use slimm_server::ids::MessageId;
-use slimm_server::store::{Edited, NewMessage, Store};
+use slimm_server::store::{CodeRunRecord, Edited, NewMessage, Store};
 use sqlx::SqlitePool;
 
 async fn new_store() -> (Store, SqlitePool, support::TestDbGuard) {
@@ -59,7 +59,15 @@ async fn editing_a_messages_code_changes_its_stored_run() {
         .message
         .id;
     store
-        .record_code_run(message, 0, "code-exec", "run", true, "2", admin.id)
+        .record_code_run(CodeRunRecord {
+            message_id: message,
+            block_index: 0,
+            module_id: "code-exec",
+            command: "run",
+            ok: true,
+            output: "2",
+            ran_by: admin.id,
+        })
         .await
         .unwrap();
     assert_eq!(
@@ -113,7 +121,15 @@ async fn editing_one_block_drops_every_run_in_a_multi_block_message() {
         .id;
     for block in 0..2 {
         store
-            .record_code_run(message, block, "code-exec", "run", true, "ok", admin.id)
+            .record_code_run(CodeRunRecord {
+                message_id: message,
+                block_index: block,
+                module_id: "code-exec",
+                command: "run",
+                ok: true,
+                output: "ok",
+                ran_by: admin.id,
+            })
             .await
             .unwrap();
     }
@@ -161,7 +177,15 @@ async fn re_saving_identical_content_keeps_the_run() {
         .message
         .id;
     store
-        .record_code_run(message, 0, "code-exec", "run", true, "2", admin.id)
+        .record_code_run(CodeRunRecord {
+            message_id: message,
+            block_index: 0,
+            module_id: "code-exec",
+            command: "run",
+            ok: true,
+            output: "2",
+            ran_by: admin.id,
+        })
         .await
         .unwrap();
 

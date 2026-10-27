@@ -2,7 +2,7 @@
 //! The claim shapes signed into a LiveKit join/admin token, and the small
 //! time/URL helpers `VoiceService` shares between minting and verifying.
 //! Split out of `mod.rs` to stay under the file-size budget; `sign` itself
-//! stays there, next to the `Enabled` state it signs against.
+//! lives in `room_admin.rs`, next to the room-service calls.
 
 use serde::Serialize;
 
