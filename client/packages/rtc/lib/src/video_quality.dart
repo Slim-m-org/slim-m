@@ -14,6 +14,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_publish_options.dart';
 import 'video_publish_options.dart';
+import 'video_subscription_culler.dart' show videoSubscriptionDwell;
 
 /// How sharp the remote video you watch should be.
 enum ReceiveVideoQuality {
@@ -50,6 +51,13 @@ lk.RoomOptions receiveRoomOptions() => lk.RoomOptions(
       defaultVideoPublishOptions: cameraPublishOptions(),
       defaultAudioPublishOptions: microphonePublishOptions(),
     );
+
+/// How long an unwanted track stays subscribed; Data saver gives up the grace
+/// beyond LiveKit's own 1.5 s debounce, trading a slower resubscribe for bytes.
+Duration videoDwellFor(ReceiveVideoQuality quality) =>
+    quality == ReceiveVideoQuality.dataSaver
+        ? const Duration(milliseconds: 1500)
+        : videoSubscriptionDwell;
 
 /// Large enough that a tile's drawn size never undercuts the top simulcast
 /// layer, so LiveKit's adaptive sizing yields to the HIGH quality Max asks for

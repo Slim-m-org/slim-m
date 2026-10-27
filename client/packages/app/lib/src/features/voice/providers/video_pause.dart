@@ -2,8 +2,8 @@
 /// Stops drawing the member's own camera and screen-share preview, and
 /// receiving other members' video, while nobody can see the window.
 ///
-/// Audio, the call and what is published to it are never touched, whatever
-/// the window is doing.
+/// Audio and the call are never touched; only a phone's own camera stops
+/// publishing, see `camera_background_pause.dart`.
 library;
 
 import 'package:flutter/widgets.dart';

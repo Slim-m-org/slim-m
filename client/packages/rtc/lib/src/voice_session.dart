@@ -237,6 +237,7 @@ class VoiceSession
   /// kept for the next join.
   void setReceiveVideoQuality(ReceiveVideoQuality quality) {
     _receiveQuality = quality;
+    _videoCuller.dwell = videoDwellFor(quality);
     _receiveDensity.value = pixelDensityFor(quality);
     _refreshParticipants();
   }
