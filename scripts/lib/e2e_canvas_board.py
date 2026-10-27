@@ -179,8 +179,11 @@ def follow_and_bring_everyone(a, b):
     _ctrl_wheel(a, -100, notches=2)
     a.click(L.BRING_EVERYONE)
     a.click(L.BRING_EVERYONE_CONFIRM, settle=2)  # the confirm dialog's own button
+    time.sleep(1.5)
+    assert _near(zoom_percent(b), fit), "b moved before accepting the request"
+    b.click(L.SUMMON_ACCEPT)
     _wait_zoom(b, lambda z: not _near(z, fit), "was not brought to a")
-    print("  bring everyone to me jumped b to a's view")
+    print("  bring everyone to me asked b, and accepting jumped b to a's view")
 
     a.click(L.FIT_VIEW)
     b.click(L.FIT_VIEW)

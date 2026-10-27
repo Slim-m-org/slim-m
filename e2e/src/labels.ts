@@ -119,6 +119,7 @@ export const L = {
   "MEMBER_PANE_HEADER": "MEMBERS ·",
   "BRING_EVERYONE": "Bring everyone to me",
   "BRING_EVERYONE_CONFIRM": "Bring everyone",
+  "SUMMON_ACCEPT": "Accept",
   "FIT_VIEW": "Fit view",
   "FOLLOW_PREFIX": "Follow ",
   "MORE_CANVAS_ACTIONS": "More canvas actions",
