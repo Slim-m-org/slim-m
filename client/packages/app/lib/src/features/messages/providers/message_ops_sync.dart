@@ -46,12 +46,16 @@ Future<OpsOutcome> applyOps(
         :final content,
         :final editedAt,
         :final forwardedRemoved,
+        :final linkPreviewsRemoved,
       ):
         // Gone or collapsed; a later op is what the client acts on instead.
         if (content != null) {
           await store.applyEdit(op.messageId, content, editedAt);
         }
         if (forwardedRemoved) await store.removeForwardSnapshot(op.messageId);
+        if (linkPreviewsRemoved) {
+          await store.markLinkPreviewsRemoved(op.messageId);
+        }
       case MessageDeleteOp():
         await store.discard(op.messageId);
       case MessageUnknownOp():

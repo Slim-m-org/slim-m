@@ -425,6 +425,16 @@ void main() {
       );
       expect(frame, isA<MessageLinkPreviewsRemoved>());
       expect((frame as MessageLinkPreviewsRemoved).messageId, 'm');
+      expect(frame.opSeq, isNull);
+      final withOp = ServerEvent.parse(
+        jsonEncode({
+          'type': 'message.link_previews_removed',
+          'channel_id': 'c',
+          'message_id': 'm',
+          'op_seq': 12,
+        }),
+      );
+      expect((withOp as MessageLinkPreviewsRemoved).opSeq, 12);
       expect(
         Message.fromJson({
           'id': 'm',

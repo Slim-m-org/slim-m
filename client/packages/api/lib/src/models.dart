@@ -260,8 +260,8 @@ class Message {
   final bool mentionsMe;
 
   /// The author or a moderator removed this message's link-preview cards. Set
-  /// on reads; a live create or edit frame says false, so a receiver merges it
-  /// in memory only (`MessageExtras`) and the `message.link_previews_removed`
+  /// on reads; a live create or edit frame says false, so a receiver ORs it
+  /// in (`MessageExtras`, the local cache) and the `message.link_previews_removed`
   /// frame carries the change.
   final bool linkPreviewsRemoved;
 

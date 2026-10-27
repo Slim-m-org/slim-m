@@ -250,6 +250,11 @@ class Messages extends Table {
   BoolColumn get forwardedRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// The author or a moderator removed this message's link-preview cards.
+  /// Stored so a cold start hides them without a REST read; nothing clears it.
+  BoolColumn get linkPreviewsRemoved =>
+      boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -296,6 +301,7 @@ extension MessageRowMapping on MessageRow {
                 content: forwardedContent!,
                 removed: forwardedRemoved,
               ),
+        linkPreviewsRemoved: linkPreviewsRemoved,
         pending: pending,
         failed: failed,
         failureReason: failureReason,
@@ -316,7 +322,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -420,6 +426,8 @@ class SlimmDatabase extends _$SlimmDatabase {
             await _createIndexOnce(index);
           }
         }),
+        _UpgradeStep(27,
+            () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the
