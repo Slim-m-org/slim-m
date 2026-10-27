@@ -233,7 +233,7 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   void _onNoteEditCancel() {
     _refresh(() {
       _editingNoteId = null;
-      _textDraft = null;
+      _text.cancelDraft();
     });
     _boardFocusNode.requestFocus();
   }

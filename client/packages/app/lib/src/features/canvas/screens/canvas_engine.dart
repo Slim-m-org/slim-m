@@ -395,6 +395,9 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
   /// a refused write; null clears it.
+  /// The message the pane is showing, if any.
+  String? get error => state.error;
+
   void reportError(String? message) {
     if (!mounted) return;
     state = state.copyWith(error: message, clearError: message == null);
