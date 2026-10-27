@@ -1114,6 +1114,7 @@
 "test/features/voice/call_dock_accent_test.dart": 0.9,
 "test/features/voice/call_dock_options_menus_test.dart": 1.1,
 "test/features/voice/call_header_and_alone_test.dart": 1.2,
+"test/features/voice/call_keyboard_pill_test.dart": 1.5,
 "test/features/voice/call_mini_player_geometry_test.dart": 0.4,
 "test/features/voice/call_mini_player_reach_test.dart": 2.4,
 "test/features/voice/call_mini_player_rebuild_test.dart": 2.0,
