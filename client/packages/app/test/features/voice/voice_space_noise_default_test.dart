@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/noise_suppression.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
+import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_controller_harness.dart';
 
@@ -61,6 +62,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, _client(space));
     await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
     expect(session.lastStrongNoiseSuppression, isNull);
 
     space.strong = true;
@@ -77,6 +79,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, _client(space));
     await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
     await Future<void>.delayed(Duration.zero);
     expect(session.lastStrongNoiseSuppression, isTrue);
 
@@ -91,6 +94,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, _client(space));
     await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
     controller.setNoiseSuppression(NoiseSuppressionChoice.standard);
 
     space.strong = true;
@@ -100,9 +104,12 @@ void main() {
 
   test('leaving stops asking the server', () async {
     final space = _Space();
-    final controller = harness.controllerWith(FakeSession(), _client(space));
+    final session = FakeSession();
+    final controller = harness.controllerWith(session, _client(space));
     await controller.join('channel-1');
+    session.emitState(VoiceSessionState.connected);
     await controller.leave();
+    await Future<void>.delayed(Duration.zero);
     final before = space.reads;
     await _recheck();
     expect(space.reads, before);

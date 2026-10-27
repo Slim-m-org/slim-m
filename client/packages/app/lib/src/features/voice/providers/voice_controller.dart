@@ -179,6 +179,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       _heartbeat.stop();
+      stopWatchingSpaceNoiseSuppression();
       _log('The call ended: ${dropped.name}', detail: dropped.message);
       _endCallForDrop(dropped);
       return;
@@ -215,11 +216,13 @@ class VoiceController extends StateNotifier<VoiceState>
       case VoiceSessionState.connected:
         // Not gated on lifecycle: only termination may let this lapse.
         _heartbeat.start(state.channelId);
+        watchSpaceNoiseSuppression();
         _autoRejoin.connected();
         if (state.rejoining) state = state.copyWith(rejoining: false);
       case VoiceSessionState.idle:
       case VoiceSessionState.failed:
         _heartbeat.stop();
+        stopWatchingSpaceNoiseSuppression();
       default:
         break;
     }
@@ -238,7 +241,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _activity.reset();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
     _autoRejoin.cancelPending();
-    watchSpaceNoiseSuppression();
+    unawaited(refreshSpaceNoiseSuppression());
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;
