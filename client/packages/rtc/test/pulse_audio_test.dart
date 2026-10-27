@@ -150,6 +150,14 @@ void main() {
         'Arctis Nova Pro Wireless Analog Stereo');
   });
 
+  test('the private share mix is never offered as a speaker', () {
+    final sinks = parseSinks(
+      '[{"name":"slimm-share-mix","description":"slim-m-share-mix"},'
+      '{"name":"alsa_output.a","description":"Speakers"}]',
+    );
+    expect(sinks.map((d) => d.label), ['Speakers']);
+  });
+
   test('only this process own streams are picked out', () {
     expect(ownStreamIds(_sourceOutputs, 4242), [500]);
     expect(ownStreamIds(_sourceOutputs, 9), isEmpty);

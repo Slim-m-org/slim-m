@@ -130,6 +130,10 @@ mixin VoiceSessionAudioDevices {
   /// default), live where this platform honours it, and remembered for the
   /// next join either way; see [AudioDeviceSwitching.selectInput].
   Future<bool> selectAudioInputDevice(AudioDevice? device) =>
+      _selectInput(device, remember: true);
+
+  /// [remember] false moves only the live capture, for a call-only fallback.
+  Future<bool> _selectInput(AudioDevice? device, {required bool remember}) =>
       _trySelectAudio(() async {
         _capture.deviceChanged();
         // The reopen a switch does reuses the track's own options, not the room's.
@@ -140,7 +144,11 @@ mixin VoiceSessionAudioDevices {
             ),
           );
         }
-        final reopened = await _audioSwitching.selectInput(_room, device);
+        final reopened = await _audioSwitching.selectInput(
+          _room,
+          device,
+          remember: remember,
+        );
         if (reopened && supportsInputGate && _mic.open) {
           _capture.opened(
             webrtcNoiseSuppression: _capture.webrtcNoiseSuppression,
@@ -151,7 +159,12 @@ mixin VoiceSessionAudioDevices {
 
   /// [selectAudioInputDevice]'s counterpart for local playback.
   Future<bool> selectAudioOutputDevice(AudioDevice? device) =>
-      _trySelectAudio(() => _audioSwitching.selectOutput(_room, device));
+      _selectOutput(device, remember: true);
+
+  Future<bool> _selectOutput(AudioDevice? device, {required bool remember}) =>
+      _trySelectAudio(
+        () => _audioSwitching.selectOutput(_room, device, remember: remember),
+      );
 
   Future<bool> _trySelectAudio(Future<void> Function() run) async {
     try {

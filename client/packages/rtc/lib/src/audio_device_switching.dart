@@ -57,6 +57,10 @@ class AudioDeviceSwitching {
   String? _preferredInputId;
   String? _preferredOutputId;
 
+  // Set while a call-only fallback has moved the live input off the choice.
+  bool _inputOnFallback = false;
+  bool _chosenInputWentMissing = false;
+
   /// Whether picking a specific microphone actually changes the live call.
   /// False on mobile: `Hardware.selectAudioInput` (livekit_client 2.10.0,
   /// the pinned version) warns and returns without doing anything for iOS
@@ -215,15 +219,13 @@ class AudioDeviceSwitching {
     final inputs = await this.inputs();
     final outputs = await this.outputs();
     // An empty list is a platform that has not enumerated yet, not an unplugged headset.
-    final input = inputs.isEmpty
-        ? _preferredInputId
-        : resolveAudioDevice(inputs, _chosenInputId)?.id;
+    final input = inputs.isEmpty ? _preferredInputId : _inputToUse(inputs);
     final output = outputs.isEmpty
         ? _preferredOutputId
         : resolveAudioDevice(outputs, _chosenOutputId)?.id;
     final result = (
       inputDropped: _preferredInputId != null && input == null,
-      inputRestored: _preferredInputId == null && input != null,
+      inputRestored: input != null && _preferredInputId != input,
     );
     final outputRestored = _preferredOutputId == null && output != null;
     _preferredInputId = input;
@@ -234,6 +236,30 @@ class AudioDeviceSwitching {
     return result;
   }
 
+  /// The choice, unless a call-only fallback is still plugged in and the
+  /// choice has not come back from being unplugged.
+  String? _inputToUse(List<AudioDevice> inputs) {
+    final chosen = resolveAudioDevice(inputs, _chosenInputId)?.id;
+    if (!_inputOnFallback) return chosen;
+    final fallbackPlugged = _preferredInputId == null ||
+        resolveAudioDevice(inputs, _preferredInputId) != null;
+    if (chosen == null) {
+      _chosenInputWentMissing = _chosenInputId != null;
+      return fallbackPlugged ? _preferredInputId : null;
+    }
+    if (!_chosenInputWentMissing && fallbackPlugged) return _preferredInputId;
+    _inputOnFallback = false;
+    return chosen;
+  }
+
+  /// Puts the choice back after a call-only fallback, so the next call uses it.
+  void endFallback() {
+    if (_inputOnFallback) _preferredInputId = _chosenInputId;
+    _inputOnFallback = false;
+    _chosenInputWentMissing = false;
+    _preferredOutputId = _chosenOutputId;
+  }
+
   /// Applies [device] to [room]'s live input when one exists and this
   /// platform honours it, and remembers it either way for the next
   /// [roomOptions].
@@ -242,9 +268,23 @@ class AudioDeviceSwitching {
   /// own default entry, and changes nothing live where it lists none: the
   /// first physical device is not the system default.
   ///
+  /// With [remember] false only the live capture moves: the choice stays, for
+  /// a call-only fallback.
+  ///
   /// True when the live capture was reopened on the new device.
-  Future<bool> selectInput(lk.Room? room, AudioDevice? device) async {
-    _preferredInputId = _chosenInputId = device?.id;
+  Future<bool> selectInput(
+    lk.Room? room,
+    AudioDevice? device, {
+    bool remember = true,
+  }) async {
+    _preferredInputId = device?.id;
+    if (remember) {
+      _chosenInputId = device?.id;
+      _inputOnFallback = false;
+    } else {
+      _inputOnFallback = true;
+      _chosenInputWentMissing = false;
+    }
     if (room == null || !supportsInputSelection) return false;
     final target = device ?? await _devices.systemDefaultInput();
     if (target == null) {
@@ -304,8 +344,13 @@ class AudioDeviceSwitching {
       lk.Hardware.instance.selectedAudioInput = device;
 
   /// [selectInput]'s counterpart for output.
-  Future<void> selectOutput(lk.Room? room, AudioDevice? device) async {
-    _preferredOutputId = _chosenOutputId = device?.id;
+  Future<void> selectOutput(
+    lk.Room? room,
+    AudioDevice? device, {
+    bool remember = true,
+  }) async {
+    _preferredOutputId = device?.id;
+    if (remember) _chosenOutputId = device?.id;
     if (room == null || !supportsOutputSelection) return;
     final target = device ?? await _devices.systemDefaultOutput();
     if (target == null) {

@@ -74,8 +74,9 @@ class _Devices implements AudioDevices {
   Future<AudioDevice?> systemDefaultInput() async => _sys;
   @override
   Future<AudioDevice?> systemDefaultOutput() async => speakers.first;
+  final changes = StreamController<void>.broadcast();
   @override
-  Stream<void> get onChange => const Stream.empty();
+  Stream<void> get onChange => changes.stream;
 }
 
 const _timing = MicRecoveryTiming(
@@ -230,6 +231,50 @@ void main() {
     });
   });
 
+  test('the fallback leaves the chosen mic and speaker for the next call', () {
+    fakeAsync((clock) {
+      const other = AudioDevice(id: 'hp', label: 'Headphones');
+      final rig = _Rig()
+        ..devices.speakers = const [
+          AudioDevice(id: 'spk', label: 'Speakers'),
+          other
+        ];
+      rig.mic.levels['usb'] = kInputFloorDb;
+      unawaited(() async {
+        await rig.session.selectAudioInputDevice(_usb);
+        await rig.session.selectAudioOutputDevice(other);
+        await rig.session.join(
+          url: 'wss://a.invalid',
+          token: 't',
+          microphoneEnabled: true,
+        );
+      }());
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 60));
+      expect(rig.session.audioInputInUse, isNull);
+      expect(rig.session.audioOutputInUse, isNull);
+
+      unawaited(rig.session.leave());
+      clock.flushMicrotasks();
+
+      expect(rig.session.audioInputInUse, 'usb');
+      expect(rig.session.audioOutputInUse, 'hp');
+    });
+  });
+
+  test('the fallback is kept through a device change while it is plugged in',
+      () {
+    fakeAsync((clock) {
+      final rig = _run(clock, chosen: _usb, dead: {'usb'});
+      expect(rig.session.audioInputInUse, isNull);
+
+      rig.devices.changes.add(null);
+      clock.elapse(const Duration(seconds: 5));
+
+      expect(rig.session.audioInputInUse, isNull);
+    });
+  });
+
   test('the devices and the microphone list reach the log', () {
     fakeAsync((clock) {
       final rig = _run(clock, chosen: _usb, dead: {'usb'});
@@ -240,9 +285,14 @@ void main() {
             'SteelSeries Sonar - Microphone | Desk mic'),
       );
       expect(
-        rig.logs.where((l) =>
-            l.startsWith('Audio devices (join): mic "USB headset" (usb);')),
+        rig.logs.where(
+            (l) => l.startsWith('Audio devices (join): mic "USB headset";')),
         isNotEmpty,
+      );
+      expect(
+        rig.logs.where((l) => l.contains('(usb)') || l.contains('(sys)')),
+        isEmpty,
+        reason: 'labels are logged, raw device ids are not',
       );
       expect(
         rig.logs.where((l) => l.startsWith('Audio devices (restart: silent)')),
