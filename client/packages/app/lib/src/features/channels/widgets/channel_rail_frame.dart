@@ -60,6 +60,10 @@ final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
 /// connected" with "what did I set my status to" in the one place a person's
 /// own identity lives. It is a dedicated indicator beside the Space's name
 /// instead, the same place a member list gives a person their own status.
+///
+/// While offline the dot alone was easy to miss at desktop width, so an
+/// "Offline" word sits beside the name (owner decision, 2026-10-26); the wide
+/// layout still shows no banner.
 class RailHeader extends ConsumerWidget {
   const RailHeader({super.key});
 
@@ -109,6 +113,17 @@ class RailHeader extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (syncStatus == SyncStatus.offline)
+                          Padding(
+                            padding: const EdgeInsets.only(left: AppSpacing.s8),
+                            child: Text(
+                              'Offline',
+                              maxLines: 1,
+                              style: AppText.caption.copyWith(
+                                color: tokens.warnText,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

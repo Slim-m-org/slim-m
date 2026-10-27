@@ -7,6 +7,9 @@
 /// 2026-08-03): its offline state now surfaces through the header's
 /// `SpaceConnectionDot`, beside the Space name, rather than a banner pushed
 /// above the profile footer - see `channel_rail_frame.dart`'s own doc.
+/// Owner decision 2026-10-26: the dot stays and an "Offline" word joins it
+/// while disconnected, because an 8px dot alone was the only cue at desktop
+/// width and went unnoticed in the UI audit.
 library;
 
 import 'package:flutter/material.dart';
@@ -78,6 +81,8 @@ void main() {
       expect(find.byType(RailConnectionBar), findsNothing);
       expect(find.byType(SpaceConnectionDot), findsOneWidget);
       expect(find.byTooltip('Offline, retrying'), findsOneWidget);
+      expect(find.text('Offline'), findsOneWidget);
+      expect(find.text('Offline, retrying'), findsNothing);
 
       await teardownFixture(tester, fixture.container, fixture.db);
     },
@@ -99,4 +104,18 @@ void main() {
       await teardownFixture(tester, fixture.container, fixture.db);
     },
   );
+
+  testWidgets('a wide layout shows no Offline label while live', (
+    tester,
+  ) async {
+    final fixture = await _pumpOffline(
+      tester,
+      const Size(1400, 880),
+      status: SyncStatus.live,
+    );
+
+    expect(find.text('Offline'), findsNothing);
+
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 }
