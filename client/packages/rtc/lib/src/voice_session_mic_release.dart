@@ -35,13 +35,6 @@ mixin VoiceSessionMicRelease {
     );
   }
 
-  /// Push to talk's waiting capture, which can be reopened before the key goes down.
-  bool get _micPrimedMuted =>
-      _mic.hasTrack &&
-      !_mic.open &&
-      _micRelease.keepReady &&
-      !_micRelease.released;
-
   /// Keeps the capture open while muted, so push to talk keys down instantly.
   Future<void> setKeepMicReady(bool keepReady) async {
     _micRelease.setKeepReady(keepReady);

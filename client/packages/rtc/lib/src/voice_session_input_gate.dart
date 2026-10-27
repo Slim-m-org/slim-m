@@ -22,11 +22,18 @@ mixin VoiceSessionInputGate {
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
-  bool get _micPrimedMuted;
+  MicRelease get _micRelease;
   void _diag(String line, {LogLevel level});
   void _refreshParticipants();
 
   bool get supportsInputGate => _gate.supported;
+
+  /// Push to talk's waiting capture, which can be reopened before the key goes down.
+  bool get _micPrimedMuted =>
+      _mic.hasTrack &&
+      !_mic.open &&
+      _micRelease.keepReady &&
+      !_micRelease.released;
 
   void _initCapture(
     MicPort? mic,
