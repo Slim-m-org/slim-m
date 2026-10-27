@@ -147,8 +147,8 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final first = await container.read(trendingGifsProvider.future);
-      final second = await container.read(trendingGifsProvider.future);
+      final first = await container.read(trendingGifsProvider(null).future);
+      final second = await container.read(trendingGifsProvider(null).future);
 
       expect(first, hasLength(1));
       expect(second, same(first));

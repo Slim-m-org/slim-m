@@ -64,7 +64,7 @@ class ComposerAttachmentActions {
             unawaited(pasteClipboardImage(stageAttachment, setError)),
         onPoll: () => showPollComposerSheet(context, channelId),
         onCode: onInsertCode,
-        onGif: gifSearchEnabled ? pickGif : null,
+        onGif: gifSearchEnabled ? () => pickGif(channelId) : null,
         // Only when there is something to launch; an empty menu entry would dead-end.
         onApps: apps.isEmpty
             ? null
@@ -82,8 +82,9 @@ class ComposerAttachmentActions {
 
   /// Touch density only: the flow is `gif_picker.dart`'s `pickGif`; desktop
   /// reaches [stageGif] through the same anchored panel as emoji.
-  void pickGif() => unawaited(
+  void pickGif(String channelId) => unawaited(
     gif.pickGif(
+      channelId: channelId,
       context: context(),
       ref: ref,
       attachments: attachments(),

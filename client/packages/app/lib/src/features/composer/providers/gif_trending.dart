@@ -31,6 +31,9 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
 
-final trendingGifsProvider = FutureProvider<List<api.GifResult>>(
-  (ref) => ref.watch(apiProvider).fetchTrendingGifs(),
-);
+/// Keyed by the channel the GIF is headed for, which decides who may browse.
+final trendingGifsProvider =
+    FutureProvider.family<List<api.GifResult>, String?>(
+      (ref, channelId) =>
+          ref.watch(apiProvider).fetchTrendingGifs(channelId: channelId),
+    );

@@ -400,3 +400,77 @@ async fn an_unknown_token_reads_as_expired_rather_than_unavailable() {
         "the message has to name the one thing that fixes it, got {body:?}"
     );
 }
+
+/// The picker names the channel the GIF is headed for, so an overwrite granting ATTACH_FILES there counts even when `@everyone` lacks it.
+#[tokio::test]
+async fn a_channel_overwrite_granting_attach_files_opens_every_gif_route() {
+    let tenor_base = spawn_fake_tenor().await;
+    let gifs = GifSearch::for_test("tenor", &tenor_base, "test-key");
+    let (store, _guard) = support::new_store("slimm-gif-picker-test").await;
+    let app = app(store.clone(), gifs);
+    let _admin = register(&store, "admin").await;
+    let (token, _user_id) = register(&store, "alice").await;
+    let roles = store.list_roles().await.unwrap();
+    let everyone = roles.iter().find(|r| r.is_everyone).unwrap();
+    store
+        .update_role(
+            everyone.id,
+            RoleChanges {
+                permissions: Some(Permissions::VIEW_CHANNEL.union(Permissions::SEND_MESSAGES)),
+                ..RoleChanges::default()
+            },
+        )
+        .await
+        .unwrap();
+    let granted = store.create_channel("gifs-ok", "text").await.unwrap();
+    store
+        .set_role_overwrite(
+            granted.id,
+            everyone.id,
+            Permissions::ATTACH_FILES,
+            Permissions::NONE,
+        )
+        .await
+        .unwrap();
+    let other = store.create_channel("gifs-no", "text").await.unwrap();
+
+    let search = format!("/gifs/search?q=cat&channel_id={}", granted.id);
+    let response = app.clone().oneshot(req_get(&search, &token)).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let results = json_body(response).await["results"].clone();
+    let gif_id = results[0]["id"].as_str().unwrap().to_owned();
+
+    let trending = format!("/gifs/trending?channel_id={}", granted.id);
+    let response = app
+        .clone()
+        .oneshot(req_get(&trending, &token))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let preview = format!("/gifs/preview/{gif_id}?channel_id={}", granted.id);
+    let response = app
+        .clone()
+        .oneshot(req_get(&preview, &token))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let select = post_json(
+        "/gifs/select",
+        &token,
+        json!({ "id": gif_id, "channel_id": granted.id.to_string() }),
+    );
+    let response = app.clone().oneshot(select).await.unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    // The channel without the overwrite, and no channel at all, stay refused.
+    let denied = format!("/gifs/search?q=cat&channel_id={}", other.id);
+    let response = app.clone().oneshot(req_get(&denied, &token)).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let response = app
+        .oneshot(req_get("/gifs/search?q=cat", &token))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}

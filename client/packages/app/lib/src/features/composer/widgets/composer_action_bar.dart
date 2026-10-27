@@ -171,6 +171,7 @@ class ComposerActionBar extends ConsumerWidget {
       gifSearchEnabled: gifSearchEnabled,
       onSelectEmoji: onInsertEmoji,
       onPickedGif: onStageGif,
+      channelId: channelId,
     ),
   ];
 
@@ -187,6 +188,7 @@ class ComposerActionBar extends ConsumerWidget {
           context,
           onSelectEmoji: onInsertEmoji,
           onPickedGif: onStageGif,
+          channelId: channelId,
           showGifTab: gifSearchEnabled,
         ),
       ),

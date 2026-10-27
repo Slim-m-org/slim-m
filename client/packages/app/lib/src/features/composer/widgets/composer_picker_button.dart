@@ -30,8 +30,11 @@ class ComposerPickerButton extends StatefulWidget {
     required this.gifSearchEnabled,
     required this.onSelectEmoji,
     required this.onPickedGif,
+    this.channelId,
     this.controller,
   });
+
+  final String? channelId;
 
   /// Opens this panel on its GIF tab, for `/gif`.
   final ComposerPickerController? controller;
@@ -141,6 +144,7 @@ class _ComposerPickerButtonState extends State<ComposerPickerButton> {
                 key: ValueKey((_tab, _gifQuery)),
                 initialTab: _tab,
                 gifQuery: _gifQuery,
+                channelId: widget.channelId,
                 showGifTab: widget.gifSearchEnabled,
                 onSelectEmoji: _selectEmoji,
                 onPickedGif: _pickedGif,

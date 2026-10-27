@@ -37,6 +37,7 @@ class ComposerPickerController extends ChangeNotifier {
     String query, {
     required void Function(String) onSelectEmoji,
     required Future<void> Function(Attachment) onPickedGif,
+    String? channelId,
   }) {
     if (MediaQuery.sizeOf(context).width < kCompactWidth) {
       unawaited(
@@ -45,6 +46,7 @@ class ComposerPickerController extends ChangeNotifier {
           onSelectEmoji: onSelectEmoji,
           onPickedGif: onPickedGif,
           initialTab: ComposerPickerTab.gif,
+          channelId: channelId,
           gifQuery: query,
         ),
       );

@@ -42,9 +42,13 @@ class ComposerPickerPanel extends StatefulWidget {
     this.showGifTab = true,
     this.width = pickerWidth,
     this.gifQuery = '',
+    this.channelId,
   });
 
   final ComposerPickerTab initialTab;
+
+  /// The channel a picked GIF is headed for, so its overwrites decide who may browse.
+  final String? channelId;
 
   /// What the GIF tab searches for when it opens.
   final String gifQuery;
@@ -102,6 +106,7 @@ class _ComposerPickerPanelState extends State<ComposerPickerPanel> {
                 onClose: widget.onClose,
               ),
               onPickedGif: widget.onPickedGif,
+              channelId: widget.channelId,
               gifQuery: widget.gifQuery,
             ),
           ),
@@ -123,9 +128,10 @@ List<Widget> _pickerBody({
   required bool showGifTab,
   required Widget emojiBody,
   required ValueChanged<api.Attachment> onPickedGif,
+  String? channelId,
   String gifQuery = '',
 }) => [
-  if (showGifTab) const _WarmTrendingGifs(),
+  if (showGifTab) _WarmTrendingGifs(channelId: channelId),
   if (showGifTab)
     Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -147,6 +153,7 @@ List<Widget> _pickerBody({
   switch (tab) {
     ComposerPickerTab.emoji => emojiBody,
     ComposerPickerTab.gif => GifPickerBody(
+      channelId: channelId,
       onPicked: onPickedGif,
       initialQuery: gifQuery,
     ),
@@ -164,6 +171,7 @@ Future<void> showComposerPickerSheet(
   BuildContext context, {
   required ValueChanged<String> onSelectEmoji,
   required ValueChanged<api.Attachment> onPickedGif,
+  String? channelId,
   bool showGifTab = true,
   ComposerPickerTab initialTab = ComposerPickerTab.emoji,
   String gifQuery = '',
@@ -173,6 +181,7 @@ Future<void> showComposerPickerSheet(
     builder: (context) => _ComposerPickerSheet(
       showGifTab: showGifTab,
       initialTab: initialTab,
+      channelId: channelId,
       gifQuery: gifQuery,
       onSelectEmoji: onSelectEmoji,
       onPickedGif: onPickedGif,
@@ -184,6 +193,7 @@ class _ComposerPickerSheet extends StatefulWidget {
   const _ComposerPickerSheet({
     required this.showGifTab,
     required this.initialTab,
+    required this.channelId,
     required this.gifQuery,
     required this.onSelectEmoji,
     required this.onPickedGif,
@@ -191,6 +201,7 @@ class _ComposerPickerSheet extends StatefulWidget {
 
   final bool showGifTab;
   final ComposerPickerTab initialTab;
+  final String? channelId;
   final String gifQuery;
   final ValueChanged<String> onSelectEmoji;
   final ValueChanged<api.Attachment> onPickedGif;
@@ -226,6 +237,7 @@ class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
               Navigator.of(context).pop();
               widget.onPickedGif(attachment);
             },
+            channelId: widget.channelId,
             gifQuery: widget.gifQuery,
           ),
         ),
@@ -240,7 +252,9 @@ const _warmThumbnails = 6;
 /// Starts the trending fetch and its first thumbnails as the picker opens, so
 /// switching to GIFs shows tiles at once; draws nothing.
 class _WarmTrendingGifs extends ConsumerStatefulWidget {
-  const _WarmTrendingGifs();
+  const _WarmTrendingGifs({required this.channelId});
+
+  final String? channelId;
 
   @override
   ConsumerState<_WarmTrendingGifs> createState() => _WarmTrendingGifsState();
@@ -255,10 +269,19 @@ class _WarmTrendingGifsState extends ConsumerState<_WarmTrendingGifs> {
 
   Future<void> _warm() async {
     try {
-      final trending = await ref.read(trendingGifsProvider.future);
+      final trending = await ref.read(
+        trendingGifsProvider(widget.channelId).future,
+      );
       if (!mounted) return;
       for (final gif in trending.take(_warmThumbnails)) {
-        ref.read(gifPreviewBytesProvider(gif.id).future).ignore();
+        ref
+            .read(
+              gifPreviewBytesProvider((
+                gifId: gif.id,
+                channelId: widget.channelId,
+              )).future,
+            )
+            .ignore();
       }
     } on Object catch (error, stack) {
       api.AppLog.swallowed(
