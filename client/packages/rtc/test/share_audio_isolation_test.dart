@@ -246,6 +246,27 @@ void main() {
     expect(graph.exported, isNull);
   });
 
+  test('the previous share ending while a new one starts keeps the new mix',
+      () async {
+    final control = ScreenShareControl(_NoBroadcast(), isolation: isolation);
+    final publishing = Completer<void>();
+    final started = control.setEnabled(
+      true,
+      quality: ScreenShareQuality.standard,
+      includeAudio: true,
+      publish: (_, __, ___) => publishing.future,
+      isSharing: () => true,
+      onSettled: (_) {},
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    await control.shareEnded();
+    publishing.complete();
+    await started;
+
+    expect(isolation.active, isTrue);
+  });
+
   test('a mono stream feeds both sides of the mix', () async {
     graph.channels[40] = ['MONO'];
     graph.streams[40] = '1000';

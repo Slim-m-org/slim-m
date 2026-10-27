@@ -8,6 +8,7 @@ import 'dart:ffi' as ffi;
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'share_audio_graph.dart';
@@ -21,6 +22,10 @@ const _killGrace = Duration(seconds: 2);
 const _captureSourceVariable = 'SLIMM_SHARE_AUDIO_SOURCE';
 
 class PipewireShareGraph implements ShareAudioGraph {
+  PipewireShareGraph({@visibleForTesting this.cli = 'pw-cli'});
+
+  final String cli;
+
   /// Holds the connection that owns the mix: PipeWire removes what a client made when it goes, a crash included.
   Process? _owner;
 
@@ -40,8 +45,16 @@ class PipewireShareGraph implements ShareAudioGraph {
   Future<bool> createMix(String name) async {
     await destroy();
     try {
-      final owner = _owner = await Process.start('pw-cli', const []);
-      unawaited(owner.stdout.drain<void>());
+      final owner = _owner = await Process.start(cli, const []);
+      final connected = Completer<bool>();
+      owner.stdout.listen(
+        (_) {
+          if (!connected.isCompleted) connected.complete(true);
+        },
+        onDone: () {
+          if (!connected.isCompleted) connected.complete(false);
+        },
+      );
       unawaited(owner.stdin.done.catchError((Object e, StackTrace st) {
         AppLog.swallowed(LogTag.voice, 'pw-cli closed its input', e, st);
       }));
@@ -52,10 +65,10 @@ class PipewireShareGraph implements ShareAudioGraph {
         'media.class=Audio/Sink audio.position=[FL FR] object.linger=false '
         'priority.session=0 priority.driver=0 node.virtual=true }',
       );
-      // pw-cli leaves at once when the daemon is not running; a live one stays for the whole share.
-      final gone =
-          await owner.exitCode.timeout(_daemonProbe, onTimeout: () => -1);
-      if (gone != -1) {
+      // pw-cli greets on stdout once it has a daemon and leaves at once without one.
+      final alive =
+          await connected.future.timeout(_daemonProbe, onTimeout: () => true);
+      if (!alive) {
         _owner = null;
         AppLog.warning(LogTag.voice,
             'pw-cli exited at once, the sound server is not reachable: ${(await failure).trim()}');

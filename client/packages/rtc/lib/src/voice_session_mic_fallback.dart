@@ -56,7 +56,8 @@ class MicFallback {
   /// Whether a silent microphone is swapped for another.
   bool enabled = true;
 
-  bool _running = false;
+  /// The generation whose run is in flight; a [reset] makes it stale at once rather than when it unwinds.
+  int? _runningGeneration;
   int _generation = 0;
   final _tried = <String>{};
   String? _loggedInputNames;
@@ -126,14 +127,18 @@ class MicFallback {
   ///
   /// Hosts that cannot pick a microphone (mobile) have nothing to switch to.
   Future<void> run() async {
-    if (_running || !_host.hasRoom() || !_host.micWanted()) return;
+    if (_runningGeneration == _generation ||
+        !_host.hasRoom() ||
+        !_host.micWanted()) {
+      return;
+    }
     if (!_host.switching().supportsInputSelection) {
       _host.log(
           'Microphone fallback skipped: this host cannot pick a microphone');
       return;
     }
-    _running = true;
     final generation = _generation;
+    _runningGeneration = generation;
     try {
       await _tryAll(generation);
     } on Object catch (e) {
@@ -141,7 +146,7 @@ class MicFallback {
       _host.log('Microphone fallback failed: $e', level: LogLevel.warning);
       _fail();
     } finally {
-      _running = false;
+      if (_runningGeneration == generation) _runningGeneration = null;
     }
   }
 

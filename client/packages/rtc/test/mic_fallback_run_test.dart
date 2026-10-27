@@ -111,6 +111,21 @@ void main() {
     });
   });
 
+  test('a run for the next call is not dropped while the last one unwinds', () {
+    fakeAsync((clock) {
+      final rig = _Rig();
+
+      rig.fallback.run();
+      clock.elapse(const Duration(milliseconds: 500));
+      expect(rig.picks, hasLength(1));
+      rig.fallback.reset();
+      rig.fallback.run();
+      clock.elapse(const Duration(milliseconds: 100));
+
+      expect(rig.picks, hasLength(2));
+    });
+  });
+
   test('muting mid-run does not report a success', () {
     fakeAsync((clock) {
       final rig = _Rig();
