@@ -113,6 +113,7 @@ final _registry = GainGraphRegistry<_Graph>(
   release: _release,
   setGain: (graph, gain) {
     graph.gain.gain.value = gain / _range;
+    graph.limiter.curve = limiterNeeded(gain) ? _limiterCurve : null;
     _ctx.resume();
   },
 );

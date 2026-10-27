@@ -4,6 +4,7 @@ library;
 
 import 'dart:convert';
 
+import 'share_audio_graph_parse.dart' show shareMixNode;
 import 'voice_models.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
@@ -46,7 +47,7 @@ List<AudioDevice> parseSources(String json) => [
 
 List<AudioDevice> parseSinks(String json) => [
       for (final node in _decode(json).whereType<Map<dynamic, dynamic>>())
-        if (node['name'] is String)
+        if (node['name'] is String && node['name'] != shareMixNode)
           AudioDevice(
               id: '$pulseDevicePrefix${node['name']}', label: _label(node)),
     ];

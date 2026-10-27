@@ -21,6 +21,10 @@ double softLimit(double x) {
   return x < 0 ? -y : y;
 }
 
+/// Whether a playout at [gain] needs the limiter: a signal at or under full
+/// scale cannot clip until it is boosted, so a trim must pass untouched.
+bool limiterNeeded(double gain) => gain > 1.0;
+
 /// A [points]-long lookup table for a waveshaper whose input spans
 /// `[-range, range]` in sample units, so a boosted signal needs no pre-scaling
 /// beyond dividing the gain by [range].

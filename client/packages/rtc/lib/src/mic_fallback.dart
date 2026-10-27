@@ -38,10 +38,10 @@ List<AudioDevice?> fallbackCandidates({
   ];
 }
 
-/// One log-safe description of a device: its label and id only.
+/// One log-safe description of a device: its label, never its id.
 String describeDevice(AudioDevice? device, {required bool followsDefault}) {
   final name = device == null
       ? 'unknown'
-      : '"${device.label.isEmpty ? 'unnamed' : device.label}" (${device.id})';
+      : '"${device.label.isEmpty ? 'unnamed' : device.label}"';
   return '$name${followsDefault ? ', follows system default' : ''}';
 }

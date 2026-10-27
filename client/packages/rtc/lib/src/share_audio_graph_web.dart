@@ -10,6 +10,8 @@ class PipewireShareGraph implements ShareAudioGraph {
   @override
   int get processId => 0;
   @override
+  String? get executableName => null;
+  @override
   Future<bool> createMix(String name) async => false;
   @override
   Future<String?> dump() async => null;

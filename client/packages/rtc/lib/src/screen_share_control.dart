@@ -72,6 +72,10 @@ class ScreenShareControl {
   /// Keeps the call out of shared desktop audio on Linux; null where nothing needs it.
   final ShareAudioIsolation? _isolation;
 
+  /// The share stopped without [setEnabled] being asked to (the system's stop
+  /// button, the captured window closing); its audio mix must go with it.
+  Future<void> shareEnded() async => _isolation?.end();
+
   /// The iOS hand-off in progress, if a share is still waiting on the system
   /// picker. Held so a second call - a rapid re-tap, or disabling while
   /// pending - cancels it rather than stacking a second listener underneath.

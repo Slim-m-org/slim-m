@@ -15,6 +15,9 @@ import 'share_audio_graph.dart';
 typedef _SetEnv = int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, int);
 typedef _UnsetEnv = int Function(ffi.Pointer<Utf8>);
 
+const _daemonProbe = Duration(milliseconds: 400);
+const _killGrace = Duration(seconds: 2);
+
 const _captureSourceVariable = 'SLIMM_SHARE_AUDIO_SOURCE';
 
 class PipewireShareGraph implements ShareAudioGraph {
@@ -28,18 +31,34 @@ class PipewireShareGraph implements ShareAudioGraph {
   int get processId => pid;
 
   @override
+  String? get executableName {
+    final name = Platform.resolvedExecutable.split('/').last;
+    return name.isEmpty ? null : name;
+  }
+
+  @override
   Future<bool> createMix(String name) async {
+    await destroy();
     try {
       final owner = _owner = await Process.start('pw-cli', const []);
       unawaited(owner.stdout.drain<void>());
-      unawaited(owner.stderr.drain<void>());
+      unawaited(owner.stdin.done.catchError((Object _) {}));
+      final failure = owner.stderr.transform(utf8.decoder).join();
       owner.stdin.writeln(
         'create-node adapter { factory.name=support.null-audio-sink '
         'node.name=$name node.description=slim-m-share-mix '
         'media.class=Audio/Sink audio.position=[FL FR] object.linger=false '
         'priority.session=0 priority.driver=0 node.virtual=true }',
       );
-      await owner.stdin.flush();
+      // pw-cli leaves at once when the daemon is not running; a live one stays for the whole share.
+      final gone =
+          await owner.exitCode.timeout(_daemonProbe, onTimeout: () => -1);
+      if (gone != -1) {
+        _owner = null;
+        AppLog.warning(LogTag.voice,
+            'pw-cli exited at once, the sound server is not reachable: ${(await failure).trim()}');
+        return false;
+      }
       return true;
     } on Object catch (error, stack) {
       AppLog.swallowed(
@@ -102,6 +121,9 @@ class PipewireShareGraph implements ShareAudioGraph {
     _owner = null;
     if (owner == null) return;
     owner.kill();
-    await owner.exitCode;
+    await owner.exitCode.timeout(_killGrace, onTimeout: () {
+      owner.kill(ProcessSignal.sigkill);
+      return -1;
+    });
   }
 }

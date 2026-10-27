@@ -61,7 +61,7 @@ class AppSlider extends StatefulWidget {
   final double max;
   final int? divisions;
 
-  /// How far one arrow-key press moves the value; null keeps Material's step.
+  /// How far one arrow-key press, or one screen-reader increase, moves the value; null keeps Material's step.
   final double? keyStep;
 
   /// The microphone-meter shape: a 22px trough instead of a 4px round track.
@@ -112,24 +112,47 @@ class _AppSliderState extends State<AppSlider> {
     FocusManager.instance.addHighlightModeListener(_onHighlightModeChange);
   }
 
+  bool _commitOnKeyUp = false;
+
+  /// A held key repeats fast; each repeat moves the value and the release commits it once.
   KeyEventResult _stepByKey(FocusNode _, KeyEvent event) {
     final step = widget.keyStep;
     final change = widget.onChanged;
-    if (step == null || change == null || event is KeyUpEvent) {
-      return KeyEventResult.ignored;
-    }
+    if (step == null || change == null) return KeyEventResult.ignored;
     final key = event.logicalKey;
     final up = key == LogicalKeyboardKey.arrowRight ||
         key == LogicalKeyboardKey.arrowUp;
     final down = key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.arrowDown;
     if (!up && !down) return KeyEventResult.ignored;
+    if (event is KeyUpEvent) {
+      if (!_commitOnKeyUp) return KeyEventResult.ignored;
+      _commitOnKeyUp = false;
+      widget.onChangeEnd?.call(widget.value);
+      return KeyEventResult.handled;
+    }
     final next = (widget.value + (up ? step : -step))
         .clamp(widget.min, widget.max)
         .toDouble();
     change(next);
-    widget.onChangeEnd?.call(next);
+    if (event is KeyRepeatEvent) {
+      _commitOnKeyUp = true;
+    } else {
+      widget.onChangeEnd?.call(next);
+    }
     return KeyEventResult.handled;
+  }
+
+  /// Material's own increase and decrease actions move by one division, so the
+  /// key step is also the screen reader's step.
+  int? get _divisions {
+    final given = widget.divisions;
+    final step = widget.keyStep;
+    if (given != null || step == null || step <= 0) return given;
+    final steps = (widget.max - widget.min) / step;
+    return steps >= 1 && (steps - steps.round()).abs() < 1e-9
+        ? steps.round()
+        : null;
   }
 
   void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);
@@ -291,7 +314,7 @@ class _AppSliderState extends State<AppSlider> {
         value: value,
         min: widget.min,
         max: widget.max,
-        divisions: widget.divisions,
+        divisions: _divisions,
         focusNode: _focusNode,
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
