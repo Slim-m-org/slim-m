@@ -42,7 +42,9 @@ class PipewireShareGraph implements ShareAudioGraph {
     try {
       final owner = _owner = await Process.start('pw-cli', const []);
       unawaited(owner.stdout.drain<void>());
-      unawaited(owner.stdin.done.catchError((Object _) {}));
+      unawaited(owner.stdin.done.catchError((Object e, StackTrace st) {
+        AppLog.swallowed(LogTag.voice, 'pw-cli closed its input', e, st);
+      }));
       final failure = owner.stderr.transform(utf8.decoder).join();
       owner.stdin.writeln(
         'create-node adapter { factory.name=support.null-audio-sink '
