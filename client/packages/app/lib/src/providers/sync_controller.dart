@@ -271,7 +271,8 @@ class SyncController extends StateNotifier<SyncStatus> {
     String channelId,
     ({double x, double y, double w, double h}) view, {
     bool summon = false,
-  }) => _connection?.canvasView(channelId, view, summon: summon);
+    String? tile,
+  }) => _connection?.canvasView(channelId, view, summon: summon, tile: tile);
 
   /// Starts, or restarts, synchronisation. Safe to call repeatedly: a call
   /// superseded by a later [start] or a [stop] before it reaches a given

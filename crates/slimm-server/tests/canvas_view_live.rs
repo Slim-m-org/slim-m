@@ -185,3 +185,35 @@ async fn view_frames_are_rate_limited() {
         channel_ids.len()
     );
 }
+
+#[tokio::test]
+async fn a_full_screen_tile_key_rides_the_view_and_an_oversized_one_is_dropped() {
+    let (store, _guard) = support::new_store("slimm-canvas-view-live").await;
+    let (alice_ticket, alice_id) = user_ticket_and_id(&store, "alice").await;
+    store.bootstrap_deployment(alice_id).await.unwrap();
+    let channel = store.list_channels().await.unwrap()[0].id.to_string();
+    let (bob_ticket, _bob_id) = user_ticket_and_id(&store, "bob").await;
+
+    let state = support::app::builder(store.clone()).hub(Hub::new()).build();
+    let addr = serve(state.clone()).await;
+    let mut alice_ws = connect(addr, &alice_ticket).await;
+    let mut bob_ws = connect(addr, &bob_ticket).await;
+
+    for (tile, expected) in [
+        (json!("screen:abc"), json!("screen:abc")),
+        (json!("x".repeat(200)), serde_json::Value::Null),
+    ] {
+        alice_ws
+            .send(WsMessage::Text(
+                json!({
+                    "type": "canvas.view", "channel_id": channel,
+                    "x": 0.0, "y": 0.0, "w": 100.0, "h": 100.0, "tile": tile,
+                })
+                .to_string(),
+            ))
+            .await
+            .unwrap();
+        let frame = next_of_type(&mut bob_ws, VIEW).await;
+        assert_eq!(frame["tile"], expected);
+    }
+}

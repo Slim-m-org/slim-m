@@ -237,11 +237,13 @@ class EventConnection {
       );
 
   /// Relays the world rectangle this device is looking at; [summon] brings
-  /// everyone to it once. Ephemeral and rate-limited like [canvasCursor].
+  /// everyone to it once; [tile] is the call tile this device has full screen.
+  /// Ephemeral and rate-limited like [canvasCursor].
   void canvasView(
     String channelId,
     ({double x, double y, double w, double h}) view, {
     bool summon = false,
+    String? tile,
   }) =>
       _channel.sink.add(
         jsonEncode({
@@ -252,6 +254,7 @@ class EventConnection {
           'w': view.w,
           'h': view.h,
           'summon': summon,
+          if (tile != null) 'tile': tile,
         }),
       );
 

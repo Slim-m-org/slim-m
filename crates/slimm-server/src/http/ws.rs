@@ -307,6 +307,7 @@ async fn serve(
                                 w,
                                 h,
                                 summon,
+                                tile,
                             }) => {
                                 signals_canvas::handle_canvas_view(
                                     &state.store,
@@ -318,6 +319,7 @@ async fn serve(
                                         channel_id,
                                         rect: [x, y, w, h],
                                         summon,
+                                        tile,
                                     },
                                 )
                                 .await;

@@ -357,6 +357,8 @@ pub(super) enum ServerFrame {
         w: f64,
         h: f64,
         summon: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tile: Option<String>,
     },
     #[serde(rename = "canvas.object.moved")]
     CanvasObjectMoved {

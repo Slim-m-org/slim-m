@@ -207,7 +207,8 @@ class CanvasMediaSlotPreview extends ServerEvent {
 /// The part of the shared board a member is looking at, in world units.
 ///
 /// Ephemeral and `seq`-less like [CanvasCursorMoved]. [summon] asks every
-/// receiver to jump to this view once ("bring everyone to me").
+/// receiver to jump to this view once ("bring everyone to me"); [tile] is the
+/// call tile the sender has full screen, so a follower can open it too.
 class CanvasView extends ServerEvent {
   const CanvasView({
     required this.channelId,
@@ -217,6 +218,7 @@ class CanvasView extends ServerEvent {
     required this.w,
     required this.h,
     required this.summon,
+    this.tile,
   });
 
   final String channelId;
@@ -226,6 +228,7 @@ class CanvasView extends ServerEvent {
   final double w;
   final double h;
   final bool summon;
+  final String? tile;
 }
 
 /// A placed object was repositioned.

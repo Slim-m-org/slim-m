@@ -405,12 +405,29 @@ class _CanvasPresenceManipulableTileState
               skipTraversal: true,
               onFocusChange: (hasFocus) =>
                   setState(() => _focusedWithin = hasFocus),
+              onKeyEvent: (_, event) => _fullscreenKey(event),
               child: child,
             ),
           ),
         ),
       ),
     );
+  }
+
+  // F opens the tile full screen from whichever of its controls has keyboard focus.
+  KeyEventResult _fullscreenKey(KeyEvent event) {
+    final onExpand = widget.onExpand;
+    final keyboard = HardwareKeyboard.instance;
+    if (onExpand == null ||
+        event is! KeyDownEvent ||
+        event.logicalKey != LogicalKeyboardKey.keyF ||
+        keyboard.isControlPressed ||
+        keyboard.isMetaPressed ||
+        keyboard.isAltPressed) {
+      return KeyEventResult.ignored;
+    }
+    onExpand();
+    return KeyEventResult.handled;
   }
 
   void _openMenuAtCentre() {

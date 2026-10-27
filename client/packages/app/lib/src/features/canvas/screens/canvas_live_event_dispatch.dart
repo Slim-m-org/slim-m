@@ -239,6 +239,7 @@ void dispatchCanvasLiveEvent(
           :final w,
           :final h,
           :final summon,
+          :final tile,
         )
         when channelId == paneChannelId:
       // Never through sync.applyLive: a view carries no seq.
@@ -246,6 +247,7 @@ void dispatchCanvasLiveEvent(
         userId,
         Rect.fromLTWH(x, y, w, h),
         summon: summon,
+        tile: tile,
       );
     case api.CanvasObjectMoved(
           :final channelId,

@@ -5,7 +5,14 @@ library;
 
 import 'fake_sync.dart';
 
-typedef SentView = ({double x, double y, double w, double h, bool summon});
+typedef SentView = ({
+  double x,
+  double y,
+  double w,
+  double h,
+  bool summon,
+  String? tile,
+});
 
 class RecordingSyncController extends NoopSyncController {
   RecordingSyncController(super.ref);
@@ -23,7 +30,15 @@ class RecordingSyncController extends NoopSyncController {
     String channelId,
     ({double x, double y, double w, double h}) view, {
     bool summon = false,
-  }) => views.add((x: view.x, y: view.y, w: view.w, h: view.h, summon: summon));
+    String? tile,
+  }) => views.add((
+    x: view.x,
+    y: view.y,
+    w: view.w,
+    h: view.h,
+    summon: summon,
+    tile: tile,
+  ));
 
   @override
   void notifyCanvasCursor(

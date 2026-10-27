@@ -36,7 +36,8 @@ List<CanvasFollowTarget> canvasFollowTargets({
 }
 
 /// Clears the top-left corner's rows: two rows of 44 at touch size, two of 28 otherwise.
-double _topInset(BuildContext context) => AppTouchTargets.of(context)
+double canvasCornerRowsInset(BuildContext context) =>
+    AppTouchTargets.of(context)
     ? AppSpacing.s12 + 2 * AppSizes.rowTouch + 2 * AppSpacing.s8
     : AppSpacing.s64;
 
@@ -155,7 +156,7 @@ class _CanvasFollowControlsState extends State<CanvasFollowControls> {
       child: SafeArea(
         minimum: EdgeInsets.fromLTRB(
           AppSpacing.s12,
-          _topInset(context),
+          canvasCornerRowsInset(context),
           AppSpacing.s12,
           AppSpacing.s12,
         ),

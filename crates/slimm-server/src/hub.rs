@@ -583,6 +583,7 @@ mod epoch_tests {
             w: 1.0,
             h: 1.0,
             summon: false,
+            tile: None,
         });
         hub.publish(Event::CanvasObjectPreview {
             channel_id: ChannelId::generate(),

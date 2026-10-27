@@ -53,6 +53,11 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       return KeyEventResult.ignored;
     }
     if (textInputHasFocus()) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.keyF &&
+        _focusedTileKey != null) {
+      _focusTile(null);
+      return KeyEventResult.handled;
+    }
     for (final tool in canvasToolOrder) {
       if (tool.shortcutKey != event.logicalKey) continue;
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
