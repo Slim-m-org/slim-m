@@ -13,7 +13,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../first_run/providers/first_run_controller.dart'
     show firstRunInviterProvider;
-import '../../first_run/providers/first_run_inviter.dart';
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/push_controller.dart';
@@ -34,6 +33,8 @@ import '../../settings/widgets/totp_sign_in_prompt.dart';
 import '../widgets/sign_in_error.dart';
 import 'sign_in_invite_notice.dart';
 import 'sign_in_invite_redeem.dart';
+import 'sign_in_register.dart';
+import 'sign_in_server_probe.dart';
 import 'sign_in_session_ended_notice.dart';
 
 /// Sign in or create an account on a chosen server.
@@ -138,36 +139,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     ),
   );
 
-  /// Reduces a typed address to the scheme, host, and port worth probing.
-  /// Anything else it carries (path, query, userinfo) must not ride along
-  /// on a request that fires as someone types: pasted userinfo would even
-  /// become a Basic auth header sent to whatever host is in the field.
-  Uri? _probeTarget(String text) {
-    final parsed = Uri.tryParse(text.trim());
-    if (parsed == null || !parsed.hasScheme || parsed.host.isEmpty) {
-      return null;
-    }
-    return reduceServerAddress(parsed);
-  }
-
-  /// How [identity] compares against whatever is pinned for [target], for
-  /// the passive chip only: read-only, no pinning and no navigation. The
-  /// active check that pins and can block a connection lives in [_submit],
-  /// via [confirmServerIdentity].
-  Future<ServerIdentityStatus> _identityStatusFor(
-    Uri target,
-    ServerIdentity? identity,
-  ) async {
-    final pinned = await ref
-        .read(keyStoreProvider)
-        .read(identityHandleFor(target));
-    if (pinned == null) return ServerIdentityStatus.unknown;
-    // A pinned address that reports no identity is a change, not an old server.
-    return pinned == identity?.publicKey
-        ? ServerIdentityStatus.confirmed
-        : ServerIdentityStatus.mismatch;
-  }
-
   /// Asks the server in the field what it is, so the facts worth knowing
   /// before joining are on screen while the choice is still open: whether it
   /// can deliver push at all, whether joining needs an invite, and whether it
@@ -182,7 +153,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   /// probed, on every path including failures, so a slow answer about a
   /// previously typed address cannot relabel the current one either way.
   Future<void> _probeServer() async {
-    final target = _probeTarget(_server.text);
+    final target = probeTarget(_server.text);
     if (target == null) {
       setState(() {
         _probed = null;
@@ -206,9 +177,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     } finally {
       client.close();
     }
-    final status = await _identityStatusFor(target, answer?.identity);
+    final status = await identityStatusFor(
+      ref.read(keyStoreProvider),
+      target,
+      answer?.identity,
+    );
     if (!mounted) return;
-    if (_probeTarget(_server.text) == target) {
+    if (probeTarget(_server.text) == target) {
       setState(() {
         _probed = answer;
         _identityStatus = status;
@@ -217,16 +192,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     }
   }
 
-  /// The host in the field, for naming the destination on screen. Falls back
-  /// to the raw text so a half-typed address still shows what it is rather
-  /// than going blank mid-keystroke.
-  String _host() {
-    final host = Uri.tryParse(_server.text.trim())?.host ?? '';
-    return host.isEmpty ? _server.text.trim() : host;
-  }
-
   bool _targetsOfficial() {
-    final target = _probeTarget(_server.text);
+    final target = probeTarget(_server.text);
     return target != null && isOfficialServer(target);
   }
 
@@ -247,7 +214,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final done = await startAccountRecovery(
       context,
       ref,
-      _probeTarget(_server.text),
+      probeTarget(_server.text),
     );
     if (done == null) {
       _badAddress();
@@ -371,24 +338,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     String? invite,
     StateController<bool> justRegistered,
   ) async {
-    // Before the call: its session change is what starts the what's-new check.
-    justRegistered.state = true;
-    await rememberInviter(
+    await registerAccount(
       api,
-      ref.read(firstRunInviterProvider.notifier),
-      invite,
-    );
-    final username = _username.text.trim();
-    final displayName = _displayName.text.trim();
-    await api.register(
-      username: username,
-      displayName: displayName.isEmpty ? username : displayName,
-      password: _password.text,
-      deviceName: identity.deviceName,
-      inviteCode: invite,
-      clientKind: identity.clientKind,
-      clientVersion: identity.clientVersion,
-      installId: identity.installId,
+      identity,
+      justRegistered: justRegistered,
+      inviter: ref.read(firstRunInviterProvider.notifier),
+      credentials: (
+        username: _username.text.trim(),
+        displayName: _displayName.text.trim(),
+        password: _password.text,
+      ),
+      invite: invite,
     );
     return true;
   }
@@ -448,14 +408,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           if (_probed case final version?)
             ServerIdentityChip(
               spaceName: version.displayName,
-              host: _host(),
+              host: serverHostLabel(_server.text),
               status: _identityStatus ?? ServerIdentityStatus.unknown,
             )
           else
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s16),
               child: Text(
-                'Connecting to ${_host()}',
+                'Connecting to ${serverHostLabel(_server.text)}',
                 style: AppText.code.copyWith(color: tokens.textSecondary),
               ),
             ),

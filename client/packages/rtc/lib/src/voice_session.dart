@@ -417,16 +417,16 @@ class VoiceSession
     );
   }
 
-  /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
-  /// exact counterpart: a plain [Widget] backed by [CameraView], working for
-  /// the local participant exactly as it works for anyone else, which is
-  /// what makes a self camera preview possible.
   /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
   /// say beyond its picture: paused by the server, stalled and recovering, or
   /// stopped. A tile missing from the map is playing normally.
   ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
       _stallWatchdog.health;
 
+  /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
+  /// exact counterpart: a plain [Widget] backed by [CameraView], working for
+  /// the local participant exactly as it works for anyone else, which is
+  /// what makes a self camera preview possible.
   Widget cameraViewFor(String identity) {
     final room = _room;
     if (room == null) return const SizedBox.shrink();

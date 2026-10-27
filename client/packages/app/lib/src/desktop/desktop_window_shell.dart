@@ -19,7 +19,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
-import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/accounts/providers/account_providers.dart';
@@ -29,12 +28,14 @@ import 'desktop_window_controller.dart';
 import 'desktop_window_port.dart';
 import 'display_server.dart';
 import 'first_run_tray_notice.dart';
+import 'second_instance_channel.dart';
 import 'splash_mapped_wait.dart';
 import 'startup_state.dart' show startupLeavingProvider;
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
 import 'window_geometry.dart';
+import 'window_final_geometry.dart';
 import 'window_geometry_store.dart';
 import 'window_view_size.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
@@ -57,11 +58,6 @@ class DesktopWindowShell {
   /// otherwise never resolve, which is the same silent-forever startup
   /// screen a thrown exception used to cause before this file caught one.
   static const _setupTimeout = Duration(seconds: 5);
-
-  /// Named to match the senders, `linux_second_instance_channel.cc` and
-  /// the Windows runner's `single_instance.cpp`.
-  static const _secondInstanceChannelName =
-      'top.npcserver.slimm/second_instance';
 
   /// The splash's fixed size - room for the 64px brand mark, the wordmark
   /// and a status line, no more - and deliberately unrelated to
@@ -315,50 +311,14 @@ class DesktopWindowShell {
   }
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
-    await _port.hide();
-
     final prefs = await container.read(preferencesProvider.future);
-    final saved = WindowGeometryStore(prefs).read() ?? WindowGeometry.fallback;
-    // Size clamp before the display clamp so a saved size below the floor is never restored where the OS minimum is not honored (Wayland); see clampSizeToMinimum.
-    final sized = clampToAttachedDisplays(
-      clampSizeToMinimum(saved),
-      await _port.allDisplays(),
+    final target = await applyFinalGeometry(
+      _port,
+      WindowGeometryStore(prefs),
+      positionSupported: _positionSupported(),
     );
-    final geometry = _positionSupported()
-        ? sized
-        : sized.copyWith(clearPosition: true);
-
-    await _port.setResizable(true);
-    // After the splash, which is deliberately smaller than this floor.
-    await _port.setMinimumSize(WindowGeometry.minimumWindowSize);
-    final position = geometry.position;
-    if (position != null) {
-      await _port.setBounds(
-        WindowRect(
-          x: position.x,
-          y: position.y,
-          width: geometry.windowedSize.width,
-          height: geometry.windowedSize.height,
-        ),
-      );
-    } else {
-      await _port.setSize(geometry.windowedSize);
-      await _port.center();
-    }
-
-    switch (geometry.runState) {
-      case WindowRunState.maximized:
-        _handoffTargetSize = null;
-        _handoffFillsDisplay = true;
-        await _port.maximize();
-      case WindowRunState.fullscreen:
-        _handoffTargetSize = null;
-        _handoffFillsDisplay = true;
-        await _port.setFullScreen(true);
-      case WindowRunState.windowed:
-        _handoffTargetSize = geometry.windowedSize;
-        _handoffFillsDisplay = false;
-    }
+    _handoffTargetSize = target.size;
+    _handoffFillsDisplay = target.fillsDisplay;
   }
 
   /// Shows the window again after [prepareHandoff] applied the real geometry
@@ -430,36 +390,22 @@ class DesktopWindowShell {
   }
 
   /// Registers the receiving end of the runners' notification that a second
-  /// launch was turned away in favour of this process: the Linux GtkApplication
-  /// re-entering `activate`, or the Windows runner's named mutex. `main.dart` calls this right after
-  /// [applyInitialGeometry], before there is a [ProviderContainer], since a
-  /// second launch racing the very start of this process is not something
-  /// any later ordering could rule out.
+  /// launch was turned away in favour of this process. `main.dart` calls this
+  /// right after [applyInitialGeometry], before there is a [ProviderContainer],
+  /// since a second launch can race the very start of this process.
   static void registerSecondInstanceHandler() {
     if (currentDesktopPlatform() == null) return;
-    const MethodChannel(
-      _secondInstanceChannelName,
-    ).setMethodCallHandler(_onSecondInstanceCall);
+    _secondInstances.register(raise);
   }
 
-  /// show() is the same call [DesktopTrayController]'s own toggle makes to
-  /// un-hide a tray-hidden window; restore() additionally raises one that
-  /// was only minimised or merely behind other windows - both reuse the
-  /// port's existing methods rather than a second "make it visible" path.
-  /// Best-effort: the process-level dedup this exists for already happened
-  /// natively, in `my_application.cc`'s own early return, before this ran.
-  static Future<void> _onSecondInstanceCall(MethodCall call) async {
-    if (call.method != 'focus') return;
-    _secondLaunches.add(null);
-    await raise();
-  }
-
-  static final _secondLaunches = StreamController<void>.broadcast();
+  static final _secondInstances = SecondInstanceChannel();
 
   /// Fires each time another launch hands over to this running instance.
-  static Stream<void> get secondLaunches => _secondLaunches.stream;
+  static Stream<void> get secondLaunches => _secondInstances.launches;
 
   /// Brings the window forward for a notification click or a second launch.
+  ///
+  /// show() un-hides a tray-hidden window; restore() raises a minimised one.
   static Future<void> raise() async {
     if (currentDesktopPlatform() == null) return;
     try {

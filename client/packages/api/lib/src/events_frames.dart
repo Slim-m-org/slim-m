@@ -35,26 +35,6 @@ class ReactionsChanged extends ServerEvent {
   final List<ReactionTally> reactions;
 }
 
-/// One emoji and its current public count, as broadcast live.
-///
-/// Deliberately a different type from [ReactionSummary] (in models.dart),
-/// which is what a REST read of a message returns: that shape also carries
-/// `reacted`, this one never does, because who reacted is per-viewer and the
-/// server never broadcasts it. Keeping them distinct types means a caller
-/// cannot accidentally read `.reacted` off a live update as if it were a
-/// fetched one.
-class ReactionTally {
-  const ReactionTally({required this.emoji, required this.count});
-
-  final String emoji;
-  final int count;
-
-  factory ReactionTally.fromJson(Map<String, dynamic> json) => ReactionTally(
-        emoji: json['emoji'] as String,
-        count: json['count'] as int,
-      );
-}
-
 /// A fenced code block's shared run result changed: someone ran it, and the
 /// output everyone sees under that block is now [run]. The whole current
 /// result, replacing whatever was there for that block rather than a delta.
@@ -163,23 +143,6 @@ class PollVoted extends ServerEvent {
 
   /// The refreshed instant-runoff count, on a ranked poll only.
   final PollRunoff? runoff;
-}
-
-/// One poll option's position and its current public vote count, as
-/// broadcast live. Unlike [PollOption] (in models.dart), it carries no
-/// `label`: a poll's options and their labels are fixed at creation and never
-/// change, so only the tally needs to travel over the live update.
-class PollOptionTally {
-  const PollOptionTally({required this.position, required this.votes});
-
-  final int position;
-  final int votes;
-
-  factory PollOptionTally.fromJson(Map<String, dynamic> json) =>
-      PollOptionTally(
-        position: json['position'] as int,
-        votes: json['votes'] as int,
-      );
 }
 
 /// A user's presence changed, from this receiving connection's point of view

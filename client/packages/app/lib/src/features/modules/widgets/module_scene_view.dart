@@ -28,8 +28,7 @@ import 'module_scene_bounds.dart';
 import 'module_scene_busy.dart';
 import 'module_scene_images.dart';
 import 'module_scene_inputs.dart';
-import 'module_scene_controls.dart';
-import 'module_scene_expand.dart';
+import 'module_scene_footer.dart';
 import 'module_scene_frame.dart';
 import 'module_scene_keyboard.dart';
 import 'module_scene_pacing.dart';
@@ -429,43 +428,16 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
           Expanded(child: _frame(aspect, tokens, cardWidth))
         else
           _frame(aspect, tokens, cardWidth),
-        if (_scene.status != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            _scene.status!,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.caption.copyWith(
-              fontFamily: AppFonts.mono,
-              color: tokens.textSecondary,
-            ),
-          ),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          AppErrorState(
-            message: _error!,
-            onDismiss: () => setState(() => _error = null),
-          ),
-        ],
-        if (_scene.controls.isNotEmpty || widget.onExpand != null) ...[
-          const SizedBox(height: AppSpacing.s8),
-          // Wraps because a Row overflowed on a phone and clipped what sat last: the full-screen button.
-          Wrap(
-            spacing: AppSpacing.s8,
-            runSpacing: AppSpacing.s8,
-            children: [
-              ...sceneControls(
-                controls: _scene.controls,
-                playing: _playing,
-                onTogglePlay: _togglePlay,
-                onAction: _send,
-              ),
-              if (widget.onExpand case final expand?)
-                SceneExpandButton(onExpand: expand),
-            ],
-          ),
-        ],
+        ModuleSceneFooter(
+          scene: _scene,
+          tokens: tokens,
+          error: _error,
+          onDismissError: () => setState(() => _error = null),
+          playing: _playing,
+          onTogglePlay: _togglePlay,
+          onAction: _send,
+          onExpand: widget.onExpand,
+        ),
       ],
     );
   }
