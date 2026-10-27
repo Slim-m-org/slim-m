@@ -12,6 +12,7 @@ import 'focusable_video_press.dart';
 import 'fullscreen_video_overlay.dart';
 import 'screen_share_stage.dart';
 import 'share_stage_controls.dart';
+import 'stream_quality_row.dart';
 
 const double _shareAspect = 16 / 9;
 const double _gap = AppSpacing.s12;
@@ -48,6 +49,13 @@ Widget shareStageTile(
   streamVolume: !sharer.isLocal && controller.hasScreenAudio(sharer.identity)
       ? streamVolumeSlider(sharer.identity, controller)
       : null,
+  quality: sharer.isLocal
+      ? null
+      : StreamQualityRow(
+          sampler: controller.callStats,
+          identity: sharer.identity,
+          source: CallStatsSource.screenShare,
+        ),
   onExpand: () => showFullscreenVideo(
     context,
     identity: sharer.identity,

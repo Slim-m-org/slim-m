@@ -16,6 +16,7 @@ class ShareStageMenu {
     required this.sharerName,
     this.onPopOut,
     this.streamVolume,
+    this.quality,
     this.onFocus,
     this.focused = false,
     this.onStopWatching,
@@ -27,6 +28,9 @@ class ShareStageMenu {
 
   /// The slider itself, so volume is one drag in the menu and not a second click.
   final Widget? streamVolume;
+
+  /// The read-only received-quality row, for a stream we are watching.
+  final Widget? quality;
   final VoidCallback? onFocus;
   final bool focused;
   final VoidCallback? onStopWatching;
@@ -40,6 +44,7 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
     :sharerName,
     :onPopOut,
     :streamVolume,
+    :quality,
     :onFocus,
     :focused,
     :onStopWatching,
@@ -56,6 +61,7 @@ List<Widget> shareStageMenuItems(VoidCallback close, ShareStageMenu menu) {
   return [
     if (onPopOut != null) row('Pop out stream', AppIcons.popOut, onPopOut),
     if (streamVolume != null) streamVolume,
+    if (quality != null) quality,
     if (onFocus != null)
       row(
         focused ? 'Show all shares' : "Focus $sharerName's screen",
