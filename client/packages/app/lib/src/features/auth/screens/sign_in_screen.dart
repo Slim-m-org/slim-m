@@ -158,12 +158,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     Uri target,
     ServerIdentity? identity,
   ) async {
-    if (identity == null) return ServerIdentityStatus.unknown;
     final pinned = await ref
         .read(keyStoreProvider)
         .read(identityHandleFor(target));
     if (pinned == null) return ServerIdentityStatus.unknown;
-    return pinned == identity.publicKey
+    // A pinned address that reports no identity is a change, not an old server.
+    return pinned == identity?.publicKey
         ? ServerIdentityStatus.confirmed
         : ServerIdentityStatus.mismatch;
   }

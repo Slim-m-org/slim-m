@@ -80,6 +80,7 @@ mod push;
 mod reactions;
 mod read_markers;
 mod read_state;
+pub use read_state::UNREAD_COUNT_CAP;
 mod recovery;
 mod refresh_rotation;
 mod removals;

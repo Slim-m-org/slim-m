@@ -25,7 +25,9 @@ class ServerIdentityChangedStep extends StatefulWidget {
   });
 
   final Uri address;
-  final api.ServerIdentity identity;
+
+  /// What the server presents now; null when it presents no identity at all.
+  final api.ServerIdentity? identity;
   final void Function(bool trusted)? onDecision;
 
   @override
@@ -44,6 +46,7 @@ class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final identity = widget.identity;
 
     return Scaffold(
       body: Center(
@@ -73,35 +76,47 @@ class _ServerIdentityChangedStepState extends State<ServerIdentityChangedStep> {
                   style: AppText.caption.copyWith(color: tokens.textSecondary),
                 ),
                 const SizedBox(height: AppSpacing.s24),
-                const AppCallout(
+                AppCallout(
                   tone: AppCalloutTone.warn,
                   child: Text(
-                    'The key this server presents does not match the one '
-                    'pinned the last time this app connected here. That can '
-                    'be an honest change, a re-key or a move to new '
-                    'hosting, or it can mean this connection no longer '
-                    'reaches the server that was trusted before. Confirm '
-                    'the code below with whoever runs it before trusting '
-                    'it again.',
+                    identity == null
+                        ? 'This server no longer presents an identity, but '
+                              'this app pinned one the last time it connected '
+                              'here. That can mean this connection no longer '
+                              'reaches the server that was trusted before. '
+                              'Ask whoever runs it before carrying on.'
+                        : 'The key this server presents does not match the '
+                              'one pinned the last time this app connected '
+                              'here. That can be an honest change, a re-key '
+                              'or a move to new hosting, or it can mean this '
+                              'connection no longer reaches the server that '
+                              'was trusted before. Confirm the code below '
+                              'with whoever runs it before trusting it again.',
                   ),
                 ),
                 const SizedBox(height: AppSpacing.s24),
-                FingerprintDisplay(identity: widget.identity),
-                const SizedBox(height: AppSpacing.s24),
+                if (identity != null) ...[
+                  FingerprintDisplay(identity: identity),
+                  const SizedBox(height: AppSpacing.s24),
+                ],
                 CheckboxListTile(
                   value: _acknowledged,
                   onChanged: (v) => setState(() => _acknowledged = v ?? false),
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   title: Text(
-                    'I have confirmed this new code with whoever runs this '
-                    'server.',
+                    identity == null
+                        ? 'I have checked with whoever runs this server.'
+                        : 'I have confirmed this new code with whoever runs '
+                              'this server.',
                     style: AppText.caption.copyWith(color: tokens.textPrimary),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.s12),
                 AppButton(
-                  label: 'Trust the new identity',
+                  label: identity == null
+                      ? 'Continue without an identity'
+                      : 'Trust the new identity',
                   variant: AppButtonVariant.danger,
                   full: true,
                   disabled: !_acknowledged,

@@ -215,15 +215,17 @@ impl Previews {
         .unwrap_or_else(|e| Err(io::Error::other(e)))
     }
 
-    /// Removes every preview of `hex`.
+    /// Removes every preview of `hex`, by name: the directory holds every attachment's previews, so it is never listed here.
     pub async fn delete(&self, hex: &str) -> io::Result<()> {
-        let dir = self.dir.clone();
-        let prefix = format!("{hex}.");
+        let paths: Vec<PathBuf> = Variant::ALL
+            .into_iter()
+            .flat_map(|variant| BUCKETS.map(|bucket| self.path(hex, variant, bucket)))
+            .collect();
         tokio::task::spawn_blocking(move || {
-            for entry in std::fs::read_dir(dir)? {
-                let entry = entry?;
-                if entry.file_name().to_string_lossy().starts_with(&prefix) {
-                    std::fs::remove_file(entry.path())?;
+            for path in paths {
+                match std::fs::remove_file(path) {
+                    Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
+                    _ => {}
                 }
             }
             Ok(())
@@ -361,5 +363,24 @@ mod tests {
         media.delete_attachment(&hex).await.unwrap();
 
         assert!(media.previews().files().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn deleting_previews_names_the_files_instead_of_listing_the_directory() {
+        let media = Media::for_tests();
+        let hex = "ab".repeat(32);
+        let dir = media.previews().dir.clone();
+        let decoy = dir.join(format!("{hex}.unlisted"));
+        std::fs::write(&decoy, b"x").unwrap();
+        std::fs::write(dir.join(format!("{hex}.320")), b"x").unwrap();
+        std::fs::write(dir.join(format!("{hex}.still.1280")), b"x").unwrap();
+
+        media.previews().delete(&hex).await.unwrap();
+
+        assert_eq!(media.previews().files().await.unwrap().len(), 1);
+        assert!(
+            decoy.exists(),
+            "a name no variant produces is not scanned for"
+        );
     }
 }

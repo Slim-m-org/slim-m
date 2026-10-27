@@ -140,6 +140,7 @@ async fn deleting_the_original_follows_into_its_copies() {
                 message,
                 forwarded,
                 op_seq,
+                ..
             } if message.id == message_id(&f.noted) => {
                 assert_eq!(message.content, "my own words");
                 assert!(forwarded.expect("the frame carries the marker").removed);

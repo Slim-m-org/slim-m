@@ -19,6 +19,8 @@ use crate::store::AttachmentSummary;
 #[derive(Deserialize)]
 pub(super) struct SelectRequest {
     pub(super) id: String,
+    #[serde(default)]
+    pub(super) channel_id: Option<String>,
 }
 
 /// Downloads the full-resolution image through this server and stores it
@@ -31,7 +33,7 @@ pub(super) async fn select(
     State(state): State<AppState>,
     Json(req): Json<SelectRequest>,
 ) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, req.channel_id.as_deref()).await?;
     let (bytes, title) = state.gifs.download_full(&req.id).await?;
     if bytes.len() as u64 > state.media.max_attachment_bytes() {
         return Err(ApiError::BadRequest("gif is too large to attach"));

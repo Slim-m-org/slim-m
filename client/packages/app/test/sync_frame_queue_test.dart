@@ -119,4 +119,37 @@ void main() {
     await queue.flush();
     expect(seen, isEmpty);
   });
+
+  test('a held queue stops growing past its cap and flags the overflow', () {
+    final queue = SerialFrameQueue(
+      (e) async {},
+      onError: (_, _) {},
+      maxHeld: 3,
+    );
+
+    for (var i = 0; i < 10; i++) {
+      queue.add(_event(i));
+    }
+
+    expect(queue.overflowed, isTrue);
+    expect(queue.heldCount, 0, reason: 'the dropped backlog is freed');
+  });
+
+  test('a live queue is not capped', () async {
+    final seen = <String>[];
+    final queue = SerialFrameQueue(
+      (e) async => seen.add(_id(e)),
+      onError: (_, _) {},
+      maxHeld: 1,
+    );
+    await queue.flush();
+
+    for (var i = 0; i < 5; i++) {
+      queue.add(_event(i));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(queue.overflowed, isFalse);
+    expect(seen, hasLength(5));
+  });
 }

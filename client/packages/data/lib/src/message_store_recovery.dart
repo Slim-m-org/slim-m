@@ -34,7 +34,8 @@ const String interruptedSendReason =
 /// already uses, rather than a method on [MessageStore]: that class sits three
 /// lines under its file's ceiling, and this has exactly one caller.
 Future<int> failInterruptedSends(MessageStore store) =>
-    (store.db.update(store.db.messages)..where((m) => m.pending.equals(true)))
+    (store.db.update(store.db.messages)
+          ..where((m) => m.pending.equalsExp(const Constant(true))))
         .write(
       const MessagesCompanion(
         pending: Value(false),

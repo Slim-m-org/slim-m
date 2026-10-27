@@ -199,6 +199,7 @@ async fn block(
         return Err(ApiError::NotFound("that user was not found"));
     }
     state.store.block_user(ctx.user_id, target).await?;
+    state.hub.blocks_changed();
     evict_blocked_from_shared_call(&state, ctx.user_id, target).await;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -232,6 +233,7 @@ async fn unblock(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let target = UserId(parse_uuid(&user_id)?);
     state.store.unblock_user(ctx.user_id, target).await?;
+    state.hub.blocks_changed();
     Ok(StatusCode::NO_CONTENT)
 }
 

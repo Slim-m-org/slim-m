@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:slimm_api/api.dart' as api;
 
 /// Thrown when the socket closes before the connect that opened it finished.
@@ -18,6 +19,21 @@ class SocketClosedDuringConnect implements Exception {
   String toString() => 'the socket closed before the connect finished';
 }
 
+/// Thrown when more frames arrived during catch-up than the queue will hold.
+///
+/// The held frames were dropped, so the connect fails and the retry resyncs
+/// everything over REST rather than trusting a gap in the live stream.
+class FrameBacklogOverflow implements Exception {
+  const FrameBacklogOverflow();
+
+  @override
+  String toString() => 'too many live frames arrived while catching up';
+}
+
+/// How many frames a connect holds during catch-up before it gives up on them.
+@visibleForTesting
+int heldFrameCap = 5000;
+
 /// Serialises the handling of one socket's frames.
 ///
 /// `Stream.listen` does not wait for an async listener, so without this every
@@ -26,7 +42,11 @@ class SocketClosedDuringConnect implements Exception {
 /// frame's read. It also holds frames back until [flush], which is how a
 /// connect keeps what the socket delivers while it catches up over REST.
 class SerialFrameQueue {
-  SerialFrameQueue(this._handle, {required this.onError});
+  SerialFrameQueue(this._handle, {required this.onError, int? maxHeld})
+    : maxHeld = maxHeld ?? heldFrameCap;
+
+  /// The most frames held before [flush]; past it they are dropped and [overflowed] is set.
+  final int maxHeld;
 
   final Future<void> Function(api.ServerEvent event) _handle;
 
@@ -38,10 +58,21 @@ class SerialFrameQueue {
   bool _held = true;
   bool _pumping = false;
 
+  /// How many frames are waiting to be applied.
+  int get heldCount => _pending.length;
+
+  /// Whether held frames were dropped for exceeding [maxHeld].
+  bool overflowed = false;
+
   /// Whether the socket behind this queue has closed.
   bool closed = false;
 
   void add(api.ServerEvent event) {
+    if (_held && (overflowed || _pending.length >= maxHeld)) {
+      overflowed = true;
+      _pending.clear();
+      return;
+    }
     _pending.add(event);
     if (!_held) unawaited(_pump());
   }

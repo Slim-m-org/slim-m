@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_dto.dart';
 import 'rail_channel.dart';
+import 'transcript_query.dart';
 
 part 'message_store_authorship.dart';
 part 'message_store_batch.dart';
@@ -56,7 +57,7 @@ class MessageStore {
   /// Dart, or a channel holding 200 delivered rows would cut the sender's own
   /// unsent message off the end.
   Stream<List<Message>> watchChannel(String channelId, {int limit = 200}) {
-    return _channelMessagesQuery(channelId, limit)
+    return channelTranscript(db, channelId, limit)
         .watch()
         .distinct(_sameRows)
         .map(
@@ -83,25 +84,8 @@ class MessageStore {
   /// zero-duration cleanup timer pending past the test's end.
   Future<List<Message>> channelSnapshot(String channelId,
       {int limit = 200}) async {
-    final rows = await _channelMessagesQuery(channelId, limit).get();
+    final rows = await channelTranscript(db, channelId, limit).get();
     return rows.reversed.map((r) => r.toDto()).toList(growable: false);
-  }
-
-  /// The newest [limit] rows, pending first so the callers' reverse puts them
-  /// last: the one query [watchChannel] and [channelSnapshot] must agree on.
-  SimpleSelectStatement<$MessagesTable, MessageRow> _channelMessagesQuery(
-      String channelId, int limit) {
-    return db.select(db.messages)
-      ..where((m) => m.channelId.equals(channelId))
-      ..orderBy([
-        (m) => OrderingTerm(
-              expression: m.seq.equals(0),
-              mode: OrderingMode.desc,
-            ),
-        (m) => OrderingTerm(expression: m.seq, mode: OrderingMode.desc),
-        (m) => OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
-      ])
-      ..limit(limit);
   }
 
   /// Rail order over the ordinary list: [watchChannels], [watchRailChannels]
@@ -241,7 +225,9 @@ class MessageStore {
   /// `SyncController` reads to retry each one once on reconnect. Order is
   /// unspecified: nothing downstream cares which failed row goes first.
   Future<List<Message>> failedMessages() async {
-    final query = db.select(db.messages)..where((m) => m.failed.equals(true));
+    // A literal, not a bound variable: only a literal lets sqlite use messages_failed.
+    final query = db.select(db.messages)
+      ..where((m) => m.failed.equalsExp(const Constant(true)));
     final rows = await query.get();
     return rows.map((r) => r.toDto()).toList(growable: false);
   }

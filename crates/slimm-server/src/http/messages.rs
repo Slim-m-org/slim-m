@@ -237,31 +237,21 @@ async fn send(
 
     // Read once and used twice: the live frame and this response need the
     // same summaries, and a fresh message can already have them.
-    let attachments: Vec<_> = state
-        .store
-        .attachments_for_messages(&[id])
-        .await?
+    let ids = [id];
+    let (attachments, forwarded, stored_embeds, stored_components) = tokio::join!(
+        state.store.attachments_for_messages(&ids),
+        state.store.forwards_for_messages(&ids),
+        embeds::store_and_reload(&state, id, sent.fresh, &embeds),
+        message_components::store_and_reload(&state, id, sent.fresh, &components),
+    );
+    let attachments: Vec<_> = attachments?
         .into_iter()
         .next()
         .map(|(_, summaries)| summaries)
         .unwrap_or_default();
-
-    let forwarded = state
-        .store
-        .forwards_for_messages(&[id])
-        .await?
-        .into_iter()
-        .next()
-        .map(|(_, summary)| summary);
-
-    let stored_embeds = after_commit(
-        "its embeds",
-        embeds::store_and_reload(&state, id, sent.fresh, &embeds).await,
-    );
-    let stored_components = after_commit(
-        "its components",
-        message_components::store_and_reload(&state, id, sent.fresh, &components).await,
-    );
+    let forwarded = forwarded?.into_iter().next().map(|(_, summary)| summary);
+    let stored_embeds = after_commit("its embeds", stored_embeds);
+    let stored_components = after_commit("its components", stored_components);
 
     let reply_ping = match sent.message.reply_to_id.filter(|_| mention_reply) {
         Some(parent) => after_commit(
@@ -526,6 +516,7 @@ async fn edit(
                 message: Arc::new(message.clone()),
                 op_seq,
                 forwarded: forwarded.clone().map(Arc::new),
+                lookups: Default::default(),
             });
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {

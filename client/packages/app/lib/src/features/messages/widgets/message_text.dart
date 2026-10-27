@@ -45,6 +45,7 @@ import 'message_code_block_runner.dart';
 import 'message_fences.dart';
 import 'message_inline.dart';
 import 'message_markdown_blocks.dart';
+import 'message_parse_cache.dart';
 import 'message_spoiler.dart';
 
 part 'message_text_spans.dart';
@@ -150,7 +151,7 @@ class MessageBody extends StatelessWidget {
   }
 
   List<Widget> _blockWidgets(Color baseColor) {
-    final blocks = splitMessageBlocks(content);
+    final blocks = cachedMessageBlocks(content);
     final widgets = <Widget>[];
     // Counts only fenced blocks, so a block's index (the shared-run key) is stable regardless of the text around it.
     var codeBlockIndex = 0;
@@ -183,7 +184,7 @@ class MessageBody extends StatelessWidget {
     Color color,
     MessageBlock lastBlock,
   ) {
-    final mds = splitMarkdownBlocks(block.text);
+    final mds = cachedMarkdownBlocks(block.text);
     final endsMessage = identical(block, lastBlock);
     return (
       widgets: [
@@ -394,7 +395,7 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
         style: style,
         children: [
           ..._buildSpans(
-            parseInline(widget.text),
+            cachedInline(widget.text),
             _InlineContext(
               knownUsernames: widget.knownUsernames,
               knownRoleNames: widget.knownRoleNames,

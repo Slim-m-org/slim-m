@@ -65,7 +65,6 @@ use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, GIF, Json, Query};
 use crate::config::Config;
 use crate::media;
-use crate::permissions::Permissions;
 
 use cache::Cache;
 use provider::Provider;
@@ -344,43 +343,42 @@ struct GifResultsDto {
 struct SearchParams {
     q: String,
     limit: Option<u32>,
+    channel_id: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct TrendingParams {
     limit: Option<u32>,
+    channel_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct PreviewParams {
+    channel_id: Option<String>,
 }
 
 const DEFAULT_LIMIT: u32 = 20;
 
 // --- Handlers ---
 
-/// Shared by every handler below: the whole point of this feature is to end
-/// in an attachment, so someone who could not attach one anyway gets nothing
-/// to browse either.
+/// Every handler below ends in an attachment, so someone who could not attach one gets nothing to browse.
+///
+/// Checked in the channel the picker names, so a channel overwrite granting ATTACH_FILES counts; deployment-wide otherwise.
 async fn require_attach_files(
     state: &AppState,
     user_id: crate::ids::UserId,
+    channel_id: Option<&str>,
 ) -> Result<(), ApiError> {
-    if state
-        .store
-        .base_permissions(user_id)
-        .await?
-        .contains(Permissions::ATTACH_FILES)
-    {
-        Ok(())
-    } else {
-        Err(ApiError::Forbidden)
-    }
+    super::attachment_uploads::may_attach(state, user_id, channel_id).await
 }
 
-/// Requires deployment-wide `ATTACH_FILES`; see [`require_attach_files`].
+/// Requires `ATTACH_FILES`; see [`require_attach_files`].
 async fn search(
     AuthedLimited(ctx): AuthedLimited<GIF>,
     Query(params): Query<SearchParams>,
     State(state): State<AppState>,
 ) -> Result<Json<GifResultsDto>, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let query = params.q.trim();
     if query.is_empty() || query.chars().count() > crate::limits::MAX_QUERY_CHARS {
         return Err(ApiError::BadRequest("q must be 1 to 200 characters"));
@@ -394,14 +392,14 @@ async fn search(
 }
 
 /// The picker's default content before a member types a query; see this
-/// module's own doc comment for why it exists. Requires deployment-wide
-/// `ATTACH_FILES`; see [`require_attach_files`].
+/// module's own doc comment for why it exists. Requires `ATTACH_FILES`; see
+/// [`require_attach_files`].
 async fn trending(
     AuthedLimited(ctx): AuthedLimited<GIF>,
     Query(params): Query<TrendingParams>,
     State(state): State<AppState>,
 ) -> Result<Json<GifResultsDto>, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let limit = params
         .limit
         .unwrap_or(DEFAULT_LIMIT)
@@ -423,9 +421,10 @@ async fn trending(
 async fn preview(
     AuthedLimited(ctx): AuthedLimited<ASSET>,
     Path(token): Path<String>,
+    Query(params): Query<PreviewParams>,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let bytes = state.gifs.preview_bytes(&token).await?;
     // Unsniffable is the provider's doing, never the caller's own token.
     let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;

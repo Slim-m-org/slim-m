@@ -3,7 +3,7 @@
 //!
 //! Read state is a per-(user, channel) monotonic `last_read_seq`. Unread is not
 //! stored; it is derived on demand as a range count of live messages past that
-//! seq, which the `(channel_id, seq)` index answers cheaply. Catch-up returns
+//! seq, stopping at [`UNREAD_COUNT_CAP`], which the `(channel_id, seq)` index answers cheaply. Catch-up returns
 //! the messages after a client's per-scope cursor in ascending order, which the
 //! bundled sync endpoint calls once per requested scope.
 
@@ -13,6 +13,9 @@ use sqlx::QueryBuilder;
 
 use super::{Message, Store, now_ms};
 use crate::ids::{ChannelId, MessageId, Seq, UserId};
+
+/// Most unread messages one count reports; the client shows anything past 99 as "99+".
+pub const UNREAD_COUNT_CAP: i64 = 1000;
 
 impl Store {
     /// Advances a user's last-read marker in a channel. Monotonic: a lower seq
@@ -159,23 +162,25 @@ impl Store {
         Ok(seqs)
     }
 
-    /// The count of live messages a user has not read in a channel.
+    /// The count of live messages a user has not read in a channel, capped at [`UNREAD_COUNT_CAP`].
     pub async fn unread_count(
         &self,
         user_id: UserId,
         channel_id: ChannelId,
     ) -> anyhow::Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!: i64"
-               FROM messages
-               WHERE channel_id = ? AND deleted_at IS NULL
-                 AND seq > COALESCE(
-                     (SELECT last_read_seq FROM read_states
-                      WHERE user_id = ? AND channel_id = ?),
-                     0)"#,
+            r#"SELECT COUNT(*) AS "count!: i64" FROM (
+                 SELECT 1 FROM messages
+                 WHERE channel_id = ? AND deleted_at IS NULL
+                   AND seq > COALESCE(
+                       (SELECT last_read_seq FROM read_states
+                        WHERE user_id = ? AND channel_id = ?),
+                       0)
+                 LIMIT ?)"#,
             channel_id,
             user_id,
-            channel_id
+            channel_id,
+            UNREAD_COUNT_CAP
         )
         .fetch_one(&self.pool)
         .await?;
@@ -186,10 +191,9 @@ impl Store {
     /// channels does not pay N round trips; see [`Store::list_dm_conversations`].
     ///
     /// A channel with nothing unread is absent from the map, not present with
-    /// a zero: the `seq >` filter leaves it with no rows to group, and the
-    /// caller reads a missing entry as zero. `read_states` is left-joined so a
-    /// channel the user has never opened still counts every live message,
-    /// matching [`unread_count`]'s `COALESCE(..., 0)`.
+    /// a zero, and the caller reads a missing entry as zero. A channel the
+    /// user has never opened counts from zero, matching [`unread_count`], and
+    /// every count stops at [`UNREAD_COUNT_CAP`].
     pub async fn unread_counts(
         &self,
         user_id: UserId,
@@ -197,29 +201,32 @@ impl Store {
     ) -> anyhow::Result<HashMap<ChannelId, i64>> {
         use sqlx::Row;
 
-        // Reserve one bind for user_id under the chunk limit; empty makes no chunks and returns empty.
+        // Reserve two binds (user_id, cap) under the chunk limit; empty makes no chunks and returns empty.
         let mut counts = HashMap::new();
-        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY - 1) {
+        for chunk in channel_ids.chunks(super::MAX_IDS_PER_QUERY - 2) {
             // Built, not a fixed query!: a variable-length id list with no SQLite array binding, user_profiles' shape.
             let mut builder = QueryBuilder::new(
-                "SELECT m.channel_id, COUNT(*) AS count \
-                 FROM messages m \
-                 LEFT JOIN read_states r \
-                   ON r.channel_id = m.channel_id AND r.user_id = ",
+                "SELECT ch.id AS channel_id, (SELECT COUNT(*) FROM ( \
+                   SELECT 1 FROM messages m \
+                   WHERE m.channel_id = ch.id AND m.deleted_at IS NULL \
+                     AND m.seq > COALESCE((SELECT r.last_read_seq FROM read_states r \
+                                           WHERE r.channel_id = ch.id AND r.user_id = ",
             );
             builder.push_bind(user_id);
-            builder.push(
-                " WHERE m.deleted_at IS NULL AND m.seq > COALESCE(r.last_read_seq, 0) \
-                 AND m.channel_id IN (",
-            );
+            builder.push("), 0) LIMIT ");
+            builder.push_bind(UNREAD_COUNT_CAP);
+            builder.push(")) AS count FROM channels ch WHERE ch.id IN (");
             let mut separated = builder.separated(", ");
             for id in chunk {
                 separated.push_bind(*id);
             }
-            builder.push(") GROUP BY m.channel_id");
+            builder.push(")");
 
             for row in builder.build().fetch_all(&self.pool).await? {
-                counts.insert(row.try_get("channel_id")?, row.try_get("count")?);
+                let count: i64 = row.try_get("count")?;
+                if count > 0 {
+                    counts.insert(row.try_get("channel_id")?, count);
+                }
             }
         }
         Ok(counts)

@@ -35,6 +35,7 @@ pub(crate) async fn publish_detached(store: &Store, hub: &Hub, detached: &[Detac
             message: Arc::new(message),
             op_seq: forward.op_seq,
             forwarded: forwarded.map(Arc::new),
+            lookups: Default::default(),
         });
     }
 }

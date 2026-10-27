@@ -321,6 +321,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       await _catchUp(generation, api, store);
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
+      if (frames.overflowed) throw const FrameBacklogOverflow();
       await frames.flush();
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();

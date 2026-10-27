@@ -20,9 +20,14 @@ import '../../../providers/providers.dart';
 /// of search results without holding on to a previous search's images too.
 final _recent = KeepAliveCache(48);
 
+/// A result token and the channel the GIF is headed for.
+typedef GifPreviewKey = ({String gifId, String? channelId});
+
 final gifPreviewBytesProvider = FutureProvider.autoDispose
-    .family<Uint8List, String>((ref, gifId) async {
-      _recent.hold(ref, gifId);
-      final fetched = await ref.watch(apiProvider).fetchGifPreview(gifId);
+    .family<Uint8List, GifPreviewKey>((ref, key) async {
+      _recent.hold(ref, key.gifId);
+      final fetched = await ref
+          .watch(apiProvider)
+          .fetchGifPreview(key.gifId, channelId: key.channelId);
       return fetched.bytes;
     });

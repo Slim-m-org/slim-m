@@ -63,6 +63,7 @@ double gifGridCeiling(BuildContext context) {
 Future<void> showGifPickerSheet(
   BuildContext context, {
   required ValueChanged<api.Attachment> onPicked,
+  String? channelId,
 }) {
   return showAppSheet<void>(
     context,
@@ -71,6 +72,7 @@ Future<void> showGifPickerSheet(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         child: GifPickerBody(
+          channelId: channelId,
           onPicked: (attachment) {
             Navigator.of(context).pop();
             onPicked(attachment);
@@ -106,6 +108,7 @@ Future<void> stageGif({
 /// The whole flow the composer's touch-density GIF entry point needs: open
 /// the sheet, then [stageGif] once something is picked.
 Future<void> pickGif({
+  String? channelId,
   required BuildContext context,
   required WidgetRef ref,
   required AttachmentStagingController attachments,
@@ -113,6 +116,7 @@ Future<void> pickGif({
 }) {
   return showGifPickerSheet(
     context,
+    channelId: channelId,
     onPicked: (attachment) => stageGif(
       context: context,
       ref: ref,
@@ -133,10 +137,14 @@ class GifPickerBody extends ConsumerStatefulWidget {
   const GifPickerBody({
     super.key,
     required this.onPicked,
+    this.channelId,
     this.initialQuery = '',
   });
 
   final ValueChanged<api.Attachment> onPicked;
+
+  /// The channel the GIF is headed for, so its ATTACH_FILES overwrite counts.
+  final String? channelId;
 
   /// Searched for straight away, as `/gif cats` asks.
   final String initialQuery;
@@ -200,7 +208,9 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       _error = null;
     });
     try {
-      final results = await ref.read(apiProvider).searchGifs(query);
+      final results = await ref
+          .read(apiProvider)
+          .searchGifs(query, channelId: widget.channelId);
       if (!mounted) return;
       setState(() {
         _results = results;
@@ -222,7 +232,9 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
       _error = null;
     });
     try {
-      final attachment = await ref.read(apiProvider).selectGif(result.id);
+      final attachment = await ref
+          .read(apiProvider)
+          .selectGif(result.id, channelId: widget.channelId);
       if (!mounted) return;
       widget.onPicked(attachment);
     } on api.NotFoundException catch (error, stack) {
@@ -255,7 +267,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   Future<void> _reload() {
     final query = _queryController.text.trim();
     if (query.isEmpty) {
-      ref.invalidate(trendingGifsProvider);
+      ref.invalidate(trendingGifsProvider(widget.channelId));
       return Future.value();
     }
     return _search(query);
@@ -264,7 +276,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    final trending = ref.watch(trendingGifsProvider);
+    final trending = ref.watch(trendingGifsProvider(widget.channelId));
     // Only shown once nothing has been searched: a search failure reports through _error instead, and the two must not both claim the one banner slot.
     final trendingError = _results == null && trending.hasError
         ? _describeTrendingFailure(trending.error)
@@ -295,7 +307,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
             AppErrorState(
               message: error,
               onRetry: trendingError != null
-                  ? () => ref.invalidate(trendingGifsProvider)
+                  ? () => ref.invalidate(trendingGifsProvider(widget.channelId))
                   : null,
             ),
             const SizedBox(height: AppSpacing.s12),
@@ -344,6 +356,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
         final result = results[index];
         return _GifTile(
           result: result,
+          channelId: widget.channelId,
           busy: _selectingId != null,
           selecting: _selectingId == result.id,
           onTap: () => unawaited(_pick(result)),
@@ -368,9 +381,11 @@ class _GifTile extends ConsumerStatefulWidget {
     required this.busy,
     required this.selecting,
     required this.onTap,
+    required this.channelId,
   });
 
   final api.GifResult result;
+  final String? channelId;
 
   /// Whether *some* tile in the grid is currently being picked - every tile
   /// is disabled while that is true, not only the one selected.
@@ -406,7 +421,9 @@ class _GifTileState extends ConsumerState<_GifTile> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final result = widget.result;
-    final preview = ref.watch(gifPreviewBytesProvider(result.id));
+    final preview = ref.watch(
+      gifPreviewBytesProvider((gifId: result.id, channelId: widget.channelId)),
+    );
     // Keyboard focus only: a tap focuses too, and a ring on every tap would flash.
     final ringed =
         _focused &&

@@ -211,6 +211,25 @@ async fn revoke_member_invites(
     Ok(())
 }
 
+/// Refuses a change to the two-factor policy from an administrator who has no factor of their own.
+async fn require_own_factor_to_change_policy(
+    state: &AppState,
+    actor: crate::ids::UserId,
+    requested: TotpPolicy,
+) -> Result<(), ApiError> {
+    if state.store.totp_policy().await? == requested || state.store.is_bot(actor).await? {
+        return Ok(());
+    }
+    if state.store.totp_status(actor).await?.enabled {
+        return Ok(());
+    }
+    Err(ApiError::ForbiddenBecause(POLICY_NEEDS_OWN_FACTOR))
+}
+
+/// Refuses with a reason of its own, so a client can tell it from a missing permission.
+pub(crate) const POLICY_NEEDS_OWN_FACTOR: &str =
+    "turn on two-factor sign-in on your own account before changing the two-factor policy";
+
 /// An unrecognised policy is refused rather than coerced, so a typo cannot
 /// silently leave a Space on whichever branch the parser defaults to.
 async fn update(
@@ -256,6 +275,9 @@ async fn update(
         ))?),
         None => None,
     };
+    if let Some(totp) = totp {
+        require_own_factor_to_change_policy(&state, ctx.user_id, totp).await?;
+    }
     if let Some(name) = name {
         state.store.set_deployment_name(name).await?;
     }

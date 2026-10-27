@@ -14,21 +14,39 @@ import '../widgets/server_identity_confirmation.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
 
-/// The identity the server now presents when it differs from the pinned one.
+/// What a pinned server presents instead of its pinned key.
+class IdentityMismatch {
+  const IdentityMismatch(this.presented);
+
+  /// The key now presented; null when the server reports no identity at all.
+  final api.ServerIdentity? presented;
+}
+
+/// The mismatch the server now presents against the pinned identity.
 ///
 /// Null for every case that is not a proven mismatch: signed out, nothing
-/// pinned yet, an unreachable server, or one too old to report a key. Failing
-/// open here matches sign-in, which treats an unreadable probe as unknown.
-/// A mismatch already proven is the exception: a failed re-probe keeps it,
-/// because an unreadable answer is no verdict and must not retract one.
+/// pinned yet, or an unreachable server. Failing open here matches sign-in,
+/// which treats an unreadable probe as unknown. A pinned server that reports
+/// no identity is a mismatch, not an old server: the real server always
+/// reports one. A mismatch already proven is the exception to failing open: a
+/// failed re-probe keeps it, because an unreadable answer is no verdict and
+/// must not retract one.
 final serverIdentityChangeProvider =
-    AsyncNotifierProvider<ServerIdentityChange, api.ServerIdentity?>(
+    AsyncNotifierProvider<ServerIdentityChange, IdentityMismatch?>(
       ServerIdentityChange.new,
     );
 
-class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
+class ServerIdentityChange extends AsyncNotifier<IdentityMismatch?> {
+  bool _missingAccepted = false;
+
+  /// Carries on without an identity for the rest of this run, keeping the pin.
+  void acceptMissingIdentity() {
+    _missingAccepted = true;
+    ref.invalidateSelf();
+  }
+
   @override
-  Future<api.ServerIdentity?> build() async {
+  Future<IdentityMismatch?> build() async {
     final proven = state.valueOrNull;
     ref.watch(syncControllerProvider);
     if (!ref.watch(sessionProvider).isSignedIn) return null;
@@ -41,8 +59,11 @@ class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
 
     try {
       final identity = (await ref.watch(apiProvider).version()).identity;
-      if (identity == null || identity.publicKey == pinned) return null;
-      return identity;
+      if (identity == null) {
+        return _missingAccepted ? null : const IdentityMismatch(null);
+      }
+      if (identity.publicKey == pinned) return null;
+      return IdentityMismatch(identity);
     } catch (error, stack) {
       api.reportFailure(
         api.LogTag.auth,
@@ -50,7 +71,7 @@ class ServerIdentityChange extends AsyncNotifier<api.ServerIdentity?> {
         error,
         stack,
       );
-      return proven?.publicKey == pinned ? null : proven;
+      return proven?.presented?.publicKey == pinned ? null : proven;
     }
   }
 }

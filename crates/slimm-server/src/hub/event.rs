@@ -74,12 +74,11 @@ pub enum Event {
     MessageEdited {
         message: Arc<Message>,
         op_seq: i64,
-        /// Present when the edited message forwards something. An edit
-        /// changes the note, never what was forwarded, so this repeats the
-        /// origin rather than implying it went: a receiver applying the
-        /// frame writes what it is given, and a frame that omitted this
-        /// would read as "no longer a forward".
+        /// Present when the edited message forwards something. Repeated on an
+        /// edit because a frame that omitted it would read as "no longer a forward".
         forwarded: Option<Arc<ForwardSummary>>,
+        /// Mentions and webhook label, looked up once for every subscriber.
+        lookups: Arc<super::CreatedLookups>,
     },
     /// A poll's votes changed. Carries the whole per-option tally rather than
     /// a delta, so a client that missed a frame cannot drift, exactly like

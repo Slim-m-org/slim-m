@@ -305,6 +305,7 @@ impl Store {
 
         // One attachment release for the whole batch.
         let message_ids: Vec<MessageId> = ordered.iter().map(|(id, _)| *id).collect();
+        prune_edit_history(&mut tx, &message_ids).await?;
         let mut freed_of: HashMap<MessageId, Vec<String>> = HashMap::new();
         for (message_id, hex) in release_message_attachments_batch(&mut tx, &message_ids).await? {
             freed_of.entry(message_id).or_default().push(hex);
@@ -413,4 +414,19 @@ async fn release_message_attachments_batch(
         freed.push((*message_id, crate::media::to_hex(sha256)));
     }
     Ok(freed)
+}
+
+/// Edit history is only readable while the message is live, so retention drops it with the message.
+async fn prune_edit_history(
+    tx: &mut sqlx::SqliteConnection,
+    message_ids: &[MessageId],
+) -> Result<(), sqlx::Error> {
+    let mut delete = QueryBuilder::new("DELETE FROM message_edits WHERE message_id IN (");
+    let mut separated = delete.separated(", ");
+    for id in message_ids {
+        separated.push_bind(*id);
+    }
+    delete.push(")");
+    delete.build().execute(tx).await?;
+    Ok(())
 }

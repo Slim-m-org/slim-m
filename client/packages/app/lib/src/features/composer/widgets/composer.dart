@@ -327,6 +327,7 @@ class _ComposerState extends ConsumerState<Composer> {
     query,
     onSelectEmoji: _insertPickedEmoji,
     onPickedGif: _actions.stageGif,
+    channelId: widget.channelId,
   );
 
   Future<void> _send() async {

@@ -33,7 +33,7 @@ use serde::Deserialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use super::super::escalation::escalation_guard;
+use super::super::escalation::peer_guard;
 use super::super::extract::{Authed, Json, enforce};
 use super::super::messages::parse_uuid;
 use super::super::safety::validate_reason;
@@ -210,7 +210,7 @@ async fn authorize_all(
     let caller_granted = state.store.granted_base_permissions(caller).await?;
     for target in targets {
         let target_granted = state.store.granted_base_permissions(*target).await?;
-        escalation_guard(caller_granted, target_granted)?;
+        peer_guard(caller_granted, target_granted)?;
     }
     Ok(())
 }
