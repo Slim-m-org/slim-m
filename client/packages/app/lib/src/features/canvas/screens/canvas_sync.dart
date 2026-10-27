@@ -372,8 +372,7 @@ class CanvasSync {
       case api.CanvasReorderOp(:final objectId, :final zIndex):
         document.setZIndex(objectId, zIndex);
       case api.CanvasEditOp(:final objectId, :final props):
-        final text = props['text'];
-        if (text is String) document.setNoteText(objectId, text);
+        applyEditedProps(document, objectId, props);
       default:
         break;
     }

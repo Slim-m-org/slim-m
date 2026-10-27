@@ -109,6 +109,16 @@ class CanvasToolButtons extends StatelessWidget {
             : null,
       ),
       const SizedBox(width: AppSpacing.s4),
+      AppIconButton(
+        icon: AppIcons.textBox,
+        semanticLabel: 'Text',
+        tooltip: canDraw ? 'Text (T)' : _cannotDrawTooltip,
+        active: tool == CanvasTool.text,
+        onPressed: CanvasTool.text.isAvailable(canDraw: canDraw)
+            ? () => _pick(CanvasTool.text)
+            : null,
+      ),
+      const SizedBox(width: AppSpacing.s4),
       _withOptions(
         CanvasTool.shape,
         'Shape options',

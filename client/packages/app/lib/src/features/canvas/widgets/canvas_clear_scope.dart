@@ -36,7 +36,7 @@ void clearDocumentScope(
 enum CanvasClearTarget {
   drawings('Drawings', ['stroke']),
   images('Images', ['image']),
-  notesAndShapes('Notes and shapes', ['note', 'shape']);
+  notesAndShapes('Notes, shapes and text', ['note', 'shape', 'text']);
 
   const CanvasClearTarget(this.label, this.kinds);
 

@@ -80,6 +80,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onSelectDrag,
     required this.onSelectEnd,
     required this.onNotePlace,
+    this.onTextPlace,
+    this.onSelectLongPress,
     required this.onShapePlace,
     required this.shapeKind,
     required this.onShapeKindChanged,
@@ -201,6 +203,8 @@ class CanvasPaneBody extends StatefulWidget {
   /// The in-place note editor while one is open, drawn over the surface.
   final Widget? noteEditor;
   final ValueChanged<Offset> onNotePlace;
+  final ValueChanged<Offset>? onTextPlace;
+  final ValueChanged<Offset>? onSelectLongPress;
   final ShapePlaced onShapePlace;
 
   /// The primitive the next tap with the shape tool places, and the bar's

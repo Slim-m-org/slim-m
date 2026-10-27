@@ -5,6 +5,8 @@ library;
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_text_props.dart';
+
 /// Converts a wire object into what the document paints, or null for a kind this client does not draw; shared by viewport pages, live placements and the catch-up feed.
 CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
   return switch (object.kind) {
@@ -12,6 +14,7 @@ CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
     'image' => _imageInputFrom(object),
     'note' => _noteInputFrom(object),
     'shape' => _shapeInputFrom(object),
+    'text' => _textInputFrom(object),
     _ => null,
   };
 }
@@ -84,6 +87,28 @@ CanvasStrokeInput? _noteInputFrom(api.CanvasObject object) {
   );
 }
 
+/// A text box carries its text, a font step and a colour key; the last two fall back to the defaults.
+CanvasStrokeInput? _textInputFrom(api.CanvasObject object) {
+  final props = CanvasTextProps.fromWire(object.props);
+  if (props == null) return null;
+  return CanvasStrokeInput(
+    id: object.id,
+    seq: object.seq,
+    zIndex: object.zIndex,
+    x: object.x,
+    y: object.y,
+    w: object.w,
+    h: object.h,
+    points: const [],
+    width: 0,
+    colorKey: props.colorKey,
+    authorId: object.authorId,
+    kind: CanvasObjectKind.text,
+    text: props.text,
+    textSize: props.size,
+  );
+}
+
 CanvasStrokeInput? _shapeInputFrom(api.CanvasObject object) {
   final shapeKind = canvasShapeKindFromWire(object.props['shape']);
   if (shapeKind == null) return null;
@@ -125,3 +150,24 @@ String canvasShapeKindToWire(CanvasShapeKind kind) => switch (kind) {
   CanvasShapeKind.line => 'line',
   CanvasShapeKind.arrow => 'arrow',
 };
+
+/// Applies the props an `edit` wrote: a note takes its text, a text box its text, font step and colour.
+void applyEditedProps(
+  CanvasDocument document,
+  String objectId,
+  Map<String, dynamic> props,
+) {
+  if (document.kindOf(objectId) != CanvasObjectKind.text) {
+    final text = props['text'];
+    if (text is String) document.setNoteText(objectId, text);
+    return;
+  }
+  if (CanvasTextProps.fromWire(props) case final next?) {
+    document.setTextBox(
+      objectId,
+      text: next.text,
+      size: next.size,
+      colorKey: next.colorKey,
+    );
+  }
+}

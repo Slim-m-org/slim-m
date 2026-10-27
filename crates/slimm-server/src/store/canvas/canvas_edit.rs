@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! A note's props replaced after placement (decision 0072), authorized like a
+//! A note's or text box's props replaced after placement (decision 0072), authorized like a
 //! move: your own note needs nothing more, anyone else's needs `MANAGE_CANVAS`,
 //! and a locked note stays as it is.
 
 use super::canvas_object_locks::locked_among;
 use super::canvas_ops_write::SubmitOpError;
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
+
+fn check_text(props: &str) -> Result<(), SubmitOpError> {
+    let value = serde_json::from_str(props)
+        .map_err(|_| SubmitOpError::BadProps("canvas props must be an object"))?;
+    crate::canvas_text::check_text_props(&value).map_err(SubmitOpError::BadProps)
+}
 
 pub(in crate::store) async fn apply_edit(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
@@ -30,8 +36,10 @@ pub(in crate::store) async fn apply_edit(
     if !may_moderate && found.author_id != Some(actor_id) {
         return Err(SubmitOpError::NotAuthorized);
     }
-    if found.kind != "note" {
-        return Err(SubmitOpError::NotEditable);
+    match found.kind.as_str() {
+        "note" => {}
+        "text" => check_text(props)?,
+        _ => return Err(SubmitOpError::NotEditable),
     }
     if !locked_among(tx, &[object_id]).await?.is_empty() {
         return Err(SubmitOpError::Locked);

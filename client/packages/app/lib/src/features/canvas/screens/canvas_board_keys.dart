@@ -24,6 +24,7 @@ class CanvasBoardKeys extends StatefulWidget {
     required this.tool,
     required this.onOpenActions,
     required this.onPlaceNote,
+    this.onPlaceText,
     required this.onPlaceShape,
     this.focusNode,
     required this.child,
@@ -39,6 +40,7 @@ class CanvasBoardKeys extends StatefulWidget {
 
   /// Places with the note or shape tool at a world point.
   final ValueChanged<Offset> onPlaceNote;
+  final ValueChanged<Offset>? onPlaceText;
   final ValueChanged<Offset> onPlaceShape;
 
   /// Optional external node so the pane can return focus to the board after a sheet or inline editor closes.
@@ -205,6 +207,9 @@ class _CanvasBoardKeysState extends State<CanvasBoardKeys> {
     switch (widget.tool) {
       case CanvasTool.note:
         widget.onPlaceNote(centre);
+        return true;
+      case CanvasTool.text:
+        widget.onPlaceText?.call(centre);
         return true;
       case CanvasTool.shape:
         widget.onPlaceShape(centre);

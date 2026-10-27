@@ -6440,7 +6440,7 @@ paths:
         every cell of a client's spatial grid.
 
 
-        `kind` is `stroke`, `image`, `note` or `shape`. It is an allowlist
+        `kind` is `stroke`, `image`, `note`, `shape` or `text`. It is an allowlist
         rather than free text, because the kind decides how every client
         renders a row and an unknown one is a row nobody can draw and nobody
         can remove. There is no `window` kind: a window is a behaviour of an
@@ -6468,7 +6468,10 @@ paths:
         `rectangle`, `ellipse`, `line` or `arrow`; a line or an arrow is
         always the diagonal of the object's own `x`/`y`/`w`/`h` box, so
         reshaping either is an ordinary `move` op against a different box,
-        with no separate points to keep in step.
+        with no separate points to keep in step. For a `text`, `props` carries
+        `text` (1 to 500 characters, no hidden or direction-changing
+        characters, line breaks allowed), `size` (`small`, `medium` or
+        `large`) and `color` (a colour key); a text that breaks these is a 400.
 
 
         A 409 also means the channel's canvas is full: a canvas holds at most
@@ -6623,7 +6626,7 @@ paths:
 
 
         `edit` replaces a live note's props wholesale; it is refused under a
-        timeout and with 409 for a locked note, and only a note can be edited.
+        timeout and with 409 for a locked note, and only a note or a text box can be edited. A text box's new props are checked the same way a placement's are.
 
 
         An object locked in place (`lockCanvasObject`) refuses `move`,
@@ -14743,7 +14746,7 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          description: What the object is. `stroke`, `image`, `note` or `shape`.
+          description: What the object is. `stroke`, `image`, `note`, `shape` or `text`.
         z_index:
           type: integer
           format: int64
@@ -14791,7 +14794,7 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape]
+          enum: [stroke, image, note, shape, text]
         x:
           type: number
           format: double
@@ -14940,7 +14943,7 @@ components:
         props:
           type: object
           additionalProperties: true
-          description: The whole props an `edit` wrote to a note.
+          description: The whole props an `edit` wrote to a note or text box.
 
     CanvasOpPage:
       type: object
@@ -15002,7 +15005,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape] }
+          items: { type: string, enum: [stroke, image, note, shape, text] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -15051,8 +15054,8 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`: the note's whole new props, replacing the old
-            ones. Only a note can be edited (400 otherwise); the same 4 KiB
+            Required for `edit`: the note's or text box's whole new props, replacing the old
+            ones. Only those two can be edited (400 otherwise); the same 4 KiB
             limit as a placement applies, and a locked note answers 409.
 
     CanvasOpResult:

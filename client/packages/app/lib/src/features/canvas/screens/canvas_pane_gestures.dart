@@ -190,7 +190,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final onNote =
         id != null &&
         bounds != null &&
-        _document.kindOf(id) == CanvasObjectKind.note &&
+        (_document.kindOf(id) == CanvasObjectKind.note ||
+            _document.kindOf(id) == CanvasObjectKind.text) &&
         Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h).contains(world);
     if (!onNote) {
       _lastNoteClick = null;
@@ -230,7 +231,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onNoteEditCancel() {
-    _refresh(() => _editingNoteId = null);
+    _refresh(() {
+      _editingNoteId = null;
+      _textDraft = null;
+    });
     _boardFocusNode.requestFocus();
   }
 

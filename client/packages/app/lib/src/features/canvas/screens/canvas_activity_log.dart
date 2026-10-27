@@ -220,7 +220,7 @@ class CanvasActivityLog extends ChangeNotifier {
   /// read - the same "unparseable" case `canvasStrokeInputFrom` already
   /// treats as nothing rather than guessing.
   static String? _noteDetail(api.CanvasObject object) {
-    if (object.kind != 'note') return null;
+    if (object.kind != 'note' && object.kind != 'text') return null;
     final text = object.props['text'];
     if (text is! String) return null;
     final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -341,6 +341,7 @@ const _clearedKindNames = {
   'image': 'images',
   'note': 'notes',
   'shape': 'shapes',
+  'text': 'text boxes',
 };
 
 String _describeCleared(api.CanvasClearScope? scope, String? who) {
@@ -362,6 +363,7 @@ String _describePlaced(CanvasActivityEntry entry, String? who) {
     'image' => 'an image',
     'note' => 'a note',
     'shape' => 'a shape',
+    'text' => 'a text box',
     _ => 'a stroke',
   };
   final detail = entry.detail == null ? '' : ': ${entry.detail}';

@@ -21,6 +21,8 @@ class CanvasPaneSurfaceActions {
     this.onPointerMoved,
     required this.onShapePlace,
     required this.onNotePlace,
+    this.onTextPlace,
+    this.onSelectLongPress,
     this.onSelectTap,
     this.onEraseCancel,
     this.onSelectCancel,
@@ -53,6 +55,8 @@ class CanvasPaneSurfaceActions {
   final PointerMoved? onPointerMoved;
   final ShapePlaced onShapePlace;
   final ValueChanged<Offset> onNotePlace;
+  final ValueChanged<Offset>? onTextPlace;
+  final ValueChanged<Offset>? onSelectLongPress;
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
   final VoidCallback onSelectEnd;
   final ValueChanged<Offset> onSelectDrag;

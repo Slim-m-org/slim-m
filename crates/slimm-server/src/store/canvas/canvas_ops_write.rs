@@ -196,8 +196,10 @@ pub enum SubmitOpError {
     /// `MAX_OBJECT_EXTENT`, or fall outside the bounded world - the same
     /// check a placement itself makes.
     OutOfBounds,
-    /// An `edit` named an object that is not a note.
+    /// An `edit` named an object that is neither a note nor a text box.
     NotEditable,
+    /// An `edit` of a text box carried props that [`crate::canvas_text::check_text_props`] refuses.
+    BadProps(&'static str),
     /// A `move` or `reorder` naming an object locked in place.
     Locked,
     Internal(anyhow::Error),

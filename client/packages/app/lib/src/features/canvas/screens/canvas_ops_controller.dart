@@ -20,6 +20,8 @@ import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_note_sizing.dart';
 import '../providers/canvas_object_inputs.dart';
+import '../providers/canvas_text_props.dart';
+import '../widgets/canvas_text_content.dart';
 import 'canvas_retry.dart';
 
 /// Bring-to-front/send-to-back: split out once resize joined this file and
@@ -265,6 +267,10 @@ class CanvasOpsController {
       objectId,
       fromText,
     ),
+    _TextEditEntry(:final objectId, :final from) => _undoTextEdit(
+      objectId,
+      from,
+    ),
     _NoUndo() => Future.value(const _NoRedo()),
   };
 
@@ -305,6 +311,7 @@ class CanvasOpsController {
       toZIndex,
     ),
     _RedoEdit(:final objectId, :final toText) => _redoEdit(objectId, toText),
+    _RedoTextEdit(:final objectId, :final to) => _redoTextEdit(objectId, to),
     _NoRedo() || _Skipped() => Future.value(const _NoUndo()),
   };
 

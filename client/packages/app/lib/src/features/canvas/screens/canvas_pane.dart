@@ -58,6 +58,8 @@ import '../../composer/widgets/composer_clipboard_image.dart'
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
 import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
+import '../widgets/canvas_text_editor.dart';
+import '../providers/canvas_text_props.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/threads.dart' show openThreadProvider;
@@ -98,6 +100,7 @@ part 'canvas_pane_fullscreen.dart';
 part 'canvas_pane_gestures.dart';
 part 'canvas_pane_helpers.dart';
 part 'canvas_pane_self_presence.dart';
+part 'canvas_pane_text.dart';
 
 /// The channel whose canvas is open, or null.
 ///
@@ -133,6 +136,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
 
   /// The note whose in-place editor is open, if any.
   String? _editingNoteId;
+
+  /// Where the text editor for a box not placed yet is open, in world coordinates.
+  Offset? _textDraft;
 
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
@@ -289,7 +295,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       (_, height) => _document.setBottomInset(_boardInset(height)),
     );
     final noteSpanStyle = _noteSpanStyle(context);
-    final editingNote = _editingNoteId != null;
+    final editingNote = _editingNoteId != null || _textDraft != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
     final partialClear =
@@ -400,17 +406,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),
                   noteSpansRevision: noteSpanStyle.revision,
-                  noteEditor: _editingNoteId == null
-                      ? null
-                      : CanvasNoteEditor(
-                          key: ValueKey(_editingNoteId),
-                          document: _document,
-                          objectId: _editingNoteId!,
-                          onSave: (text) =>
-                              unawaited(_onNoteEditSave(_editingNoteId!, text)),
-                          onCancel: _onNoteEditCancel,
-                        ),
+                  noteEditor: _activeEditor(),
                   onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onTextPlace: _onTextPlace,
+                  onSelectLongPress: _onSelectLongPress,
                   onShapePlace: (world, size, {flipX = false, flipY = false}) =>
                       unawaited(
                         _onShapePlace(world, size, flipX: flipX, flipY: flipY),
