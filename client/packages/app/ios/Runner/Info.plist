@@ -78,6 +78,13 @@
 	<string>slim-m uses the camera when you turn on video in a call or take a profile photo.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>slim-m uses the microphone when you join a voice call.</string>
+	<!-- Plain http only to .local names, unqualified hosts and private or loopback IP literals,
+	     for a self-hosted server on the owner's LAN. Public hosts stay on ATS; server_scheme_policy.dart refuses them too. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>slim-m connects to a server on your local network if the space you join runs on one.</string>
 	<!-- Only shown by iOS when the app-lock setting is on and Face ID is
