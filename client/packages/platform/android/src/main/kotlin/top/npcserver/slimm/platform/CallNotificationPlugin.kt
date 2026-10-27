@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 package top.npcserver.slimm.platform
 
+import android.content.Context
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -21,11 +22,13 @@ private const val CHANNEL_NAME = "top.npcserver.slimm/calls"
 class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var channel: MethodChannel
     private lateinit var notifier: IncomingCallNotifier
+    private lateinit var appContext: Context
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
-        notifier = IncomingCallNotifier(binding.applicationContext)
+        appContext = binding.applicationContext
+        notifier = IncomingCallNotifier(appContext)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
@@ -42,6 +45,15 @@ class CallNotificationPlugin : FlutterPlugin, MethodCallHandler {
             }
             "endIncomingCalls" -> {
                 notifier.endIncomingCalls()
+                result.success(null)
+            }
+            "updateCallService" -> {
+                CallForegroundService.update(
+                    appContext,
+                    call = call.argument<Boolean>("call") ?: false,
+                    camera = call.argument<Boolean>("camera") ?: false,
+                    share = call.argument<Boolean>("share") ?: false,
+                )
                 result.success(null)
             }
             else -> result.notImplemented()

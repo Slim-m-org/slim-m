@@ -15,10 +15,12 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import '../../../api_failure.dart';
+import 'call_foreground_keeper.dart';
 import 'call_recap.dart';
 import 'level_display.dart';
 import 'noise_suppression.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/push_channel_providers.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
@@ -63,6 +65,7 @@ class VoiceController extends StateNotifier<VoiceState>
     this._ref, {
     VoiceSession? session,
     CallLifecycleChannel? callLifecycle,
+    CallForegroundKeeper? foreground,
     this.broadcastStartTimeout = const Duration(seconds: 30),
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
@@ -75,6 +78,13 @@ class VoiceController extends StateNotifier<VoiceState>
                  api.AppLog.at(level, api.LogTag.voice, line),
            ),
        _callLifecycle = callLifecycle ?? CallLifecycleChannel(),
+       _foreground =
+           foreground ??
+           CallForegroundKeeper(
+             requestNotifications: () async {
+               await _ref.read(localNotificationsProvider).requestPermission();
+             },
+           ),
        _heartbeat = VoiceCallHeartbeat(
          _ref,
          interval: voiceHeartbeatInterval,
@@ -98,6 +108,7 @@ class VoiceController extends StateNotifier<VoiceState>
       final sharing = p.any((x) => x.isLocal && x.isScreenSharing);
       final camera = p.any((x) => x.isLocal && x.isCameraOn);
       if (sharing) _cancelBroadcastDeadline();
+      _foreground.media(camera: camera, sharing: sharing);
       state = state.copyWith(
         participants: _shownRoster(p),
         screenSharing: sharing,
@@ -126,6 +137,10 @@ class VoiceController extends StateNotifier<VoiceState>
   Ref get _inputRef => _ref;
 
   final CallLifecycleChannel _callLifecycle;
+  final CallForegroundKeeper _foreground;
+
+  @override
+  CallForegroundKeeper get _shareForeground => _foreground;
   final VoiceCallHeartbeat _heartbeat;
   final VoiceAutoRejoin _autoRejoin;
   @override
@@ -176,6 +191,7 @@ class VoiceController extends StateNotifier<VoiceState>
 
   void _onSessionState(VoiceSessionState s) {
     reportCallLifecycle(_callLifecycle, s, channelId: state.channelId);
+    _foreground.sessionState(s);
     final dropped = _classifiedDisconnect();
     if (s == VoiceSessionState.failed && dropped != null) {
       _heartbeat.stop();
