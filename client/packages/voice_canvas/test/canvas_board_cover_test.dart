@@ -35,7 +35,7 @@ void main() {
   test('zooming out to the floor never shows past the board edge', () {
     for (final pane in panes) {
       final document = _document(pane);
-      document.setCamera(Camera(zoom: 0.01));
+      document.setCamera(const Camera(zoom: 0.01));
       expect(document.camera.zoom, closeTo(document.zoomFloor, 1e-9));
       expect(
           document.zoomFloor, closeTo(boardCoverZoom(canvasBoard, pane), 1e-9));
@@ -46,9 +46,9 @@ void main() {
   test('panning at the floor stays on the board', () {
     for (final pane in panes) {
       final document = _document(pane);
-      document.setCamera(Camera(x: -5000, y: -5000, zoom: 0.01));
+      document.setCamera(const Camera(x: -5000, y: -5000, zoom: 0.01));
       _expectInsideBoard(document);
-      document.setCamera(Camera(x: 9000, y: 9000, zoom: 0.01));
+      document.setCamera(const Camera(x: 9000, y: 9000, zoom: 0.01));
       _expectInsideBoard(document);
     }
   });
@@ -56,9 +56,9 @@ void main() {
   test('the dock inset keeps the view above the dock on the board', () {
     const pane = Size(1200, 900);
     final document = _document(pane, inset: 180);
-    document.setCamera(Camera(x: 9000, y: 9000, zoom: 0.01));
+    document.setCamera(const Camera(x: 9000, y: 9000, zoom: 0.01));
     _expectInsideBoard(document, inset: 180);
-    document.setCamera(Camera(x: -9000, y: -9000, zoom: 0.01));
+    document.setCamera(const Camera(x: -9000, y: -9000, zoom: 0.01));
     _expectInsideBoard(document, inset: 180);
   });
 
@@ -66,7 +66,7 @@ void main() {
     for (final pane in panes) {
       final document = _document(pane);
       final opening = document.camera;
-      document.setCamera(Camera(x: 700, y: 400, zoom: 2));
+      document.setCamera(const Camera(x: 700, y: 400, zoom: 2));
       document.fitBoard();
       expect(document.camera, opening);
       expect(document.isFitted, isTrue);
