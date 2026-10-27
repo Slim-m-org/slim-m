@@ -224,6 +224,9 @@ class CanvasPaneFixture {
   /// The caller's own timeout, Unix milliseconds, served on `/me`.
   int? timedOutUntil;
 
+  /// The server version served on `/version`.
+  String serverVersion = '0.102.0';
+
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
   /// stubbed (the presence-layer suite) appends onto this rather than this
   /// fixture growing a case for every consumer's own needs.
@@ -248,6 +251,16 @@ class CanvasPaneFixture {
         }
         if (request.url.path.endsWith('/permissions')) {
           return jsonResponse({'permissions': channelPermissions});
+        }
+        if (request.url.path == '/version') {
+          return jsonResponse({
+            'name': 'slim-m',
+            'version': serverVersion,
+            'protocol': 1,
+            'push_enabled': false,
+            'invite_required': false,
+            'claimed': true,
+          });
         }
         if (request.method == 'DELETE' &&
             request.url.path.contains('/canvas/objects/')) {

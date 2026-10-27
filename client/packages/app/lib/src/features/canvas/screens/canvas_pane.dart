@@ -61,6 +61,7 @@ import '../widgets/canvas_note_spans.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/threads.dart' show openThreadProvider;
+import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/share_watch.dart';
@@ -232,9 +233,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _disarmIfAlreadyFullscreen();
   }
 
-  /// The engine closes when the last pane for its channel leaves, counted
-  /// through [CanvasEngine.attachPane], so a departing pane cannot tear down
-  /// the engine a second pane for the same channel is still using.
+  /// The engine closes when the last pane for its channel leaves ([CanvasEngine.attachPane]).
   @override
   void dispose() {
     _imagePasteHelper?.stop();
@@ -293,6 +292,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     final editingNote = _editingNoteId != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
+    final partialClear =
+        ref.watch(serverInfoProvider).valueOrNull?.supportsPartialClear ??
+        false;
     final timeoutLapsed =
         engineState.error != null &&
         engineState.error!.startsWith("You're timed out and can't draw") &&
@@ -370,7 +372,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   canManage: manageCanvas,
                   document: _document,
                   onClear: _onClear,
-                  scopedClear: _scopedClear,
+                  scopedClear: partialClear ? _scopedClear : null,
                   onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
                   onAddImageFile: () => unawaited(_pickImageFile()),
                   onPasteImageAt: (world) =>
