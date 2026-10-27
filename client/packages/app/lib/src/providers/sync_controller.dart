@@ -318,7 +318,12 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
-      await _catchUp(generation, api, store);
+      await _catchUp(
+        generation,
+        api,
+        store,
+        shouldStop: () => frames.overflowed,
+      );
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
       if (frames.overflowed) throw const FrameBacklogOverflow();
@@ -340,6 +345,9 @@ class SyncController extends StateNotifier<SyncStatus> {
           isCurrent: () => generation == _generation,
         ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
+    } on FrameBacklogOverflow {
+      // A healthy connection with a busy stream: resync now, with no failure status or backoff.
+      if (generation == _generation) unawaited(start());
     } catch (error, stack) {
       reportFailure(LogTag.sync, 'connect to the server', error, stack);
       if (generation != _generation) return;
