@@ -123,7 +123,8 @@ class VideoSubscriptionCuller {
   /// publication gets touched.
   final void Function() onDue;
 
-  final Duration dwell;
+  /// Changeable so a bandwidth-saving setting can shorten it mid-call.
+  Duration dwell;
 
   Set<String>? _interest;
 

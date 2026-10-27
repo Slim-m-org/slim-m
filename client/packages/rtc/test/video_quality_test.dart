@@ -192,4 +192,17 @@ void main() {
       expect(auto.dimensions, isNotNull);
     });
   });
+
+  group('videoDwellFor', () {
+    test('Data saver gives a hidden track less grace than the rest', () {
+      expect(
+        videoDwellFor(ReceiveVideoQuality.dataSaver),
+        lessThan(videoSubscriptionDwell),
+      );
+      for (final q in ReceiveVideoQuality.values) {
+        if (q == ReceiveVideoQuality.dataSaver) continue;
+        expect(videoDwellFor(q), videoSubscriptionDwell);
+      }
+    });
+  });
 }

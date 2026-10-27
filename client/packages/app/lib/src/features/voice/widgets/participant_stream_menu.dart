@@ -17,6 +17,7 @@ import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart' show voiceParticipantsProvider;
 import 'fullscreen_video_overlay.dart';
 import 'share_stage_controls.dart';
+import 'stream_quality_row.dart';
 
 /// Rows for [identity]'s live streams in the joined call; empty when they are
 /// not publishing one there, which is also every rail row of another channel.
@@ -90,6 +91,13 @@ List<Widget> _screenRows(
               autofocus: autofocusVolume,
             )
           : null,
+      quality: p.isLocal
+          ? null
+          : StreamQualityRow(
+              sampler: controller.callStats,
+              identity: p.identity,
+              source: CallStatsSource.screenShare,
+            ),
       onStopWatching: () => watch.stop(p.identity),
       onFullscreen: withFullscreen
           ? () => showFullscreenVideo(
@@ -134,6 +142,12 @@ List<Widget> _cameraRows(
           close();
           popOut();
         },
+      ),
+    if (!p.isLocal)
+      StreamQualityRow(
+        sampler: controller.callStats,
+        identity: p.identity,
+        source: CallStatsSource.camera,
       ),
     if (!p.isLocal)
       AppMenuItem(

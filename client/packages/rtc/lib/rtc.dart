@@ -24,6 +24,7 @@ export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
 export 'src/capture_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
+export 'src/stream_quality_label.dart';
 export 'src/call_stats_sampler.dart'
     show CallStatsSampler, CallStatsSnapshot, CallStatsTarget;
 export 'src/camera_devices.dart';
