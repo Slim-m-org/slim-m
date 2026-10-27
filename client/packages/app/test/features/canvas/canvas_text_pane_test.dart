@@ -143,7 +143,7 @@ void main() {
     final fixture = await _openPane(tester);
 
     await _placeWithTool(tester, const Offset(150, 150));
-    await tester.enterText(_field, 'a‮b​c\td\r\ne');
+    await tester.enterText(_field, 'a\u202Eb\u200Bc\td\r\ne');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 

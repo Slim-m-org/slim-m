@@ -72,79 +72,85 @@ class CanvasToolButtons extends StatelessWidget {
       );
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      AppIconButton(
-        icon: AppIcons.pan,
-        semanticLabel: 'Pan',
-        tooltip:
-            'Pan (H) · pan the canvas, move an object, or select a stroke '
-            'to reorder it · hold Shift while resizing to flip '
-            'the aspect lock',
-        active: tool == CanvasTool.pan,
-        onPressed: () => onToolChanged(CanvasTool.pan),
-      ),
-      const SizedBox(width: AppSpacing.s4),
-      _withOptions(
-        CanvasTool.pen,
-        'Pen options',
-        _PenButton(
-          pen: pen,
-          active: tool == CanvasTool.pen,
-          canDraw: canDraw,
-          onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
-              ? () => _pick(CanvasTool.pen)
-              : null,
-        ),
-      ),
-      const SizedBox(width: AppSpacing.s4),
-      AppIconButton(
-        icon: AppIcons.note,
-        semanticLabel: 'Note',
-        tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
-        active: tool == CanvasTool.note,
-        onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
-            ? () => _pick(CanvasTool.note)
-            : null,
-      ),
-      const SizedBox(width: AppSpacing.s4),
-      AppIconButton(
-        icon: AppIcons.textBox,
-        semanticLabel: 'Text',
-        tooltip: canDraw ? 'Text (T)' : _cannotDrawTooltip,
-        active: tool == CanvasTool.text,
-        onPressed: CanvasTool.text.isAvailable(canDraw: canDraw)
-            ? () => _pick(CanvasTool.text)
-            : null,
-      ),
-      const SizedBox(width: AppSpacing.s4),
-      _withOptions(
-        CanvasTool.shape,
-        'Shape options',
+  Widget build(BuildContext context) {
+    // Six touch-sized tools plus the armed caret only fit a 360dp dock when they touch.
+    final gap = SizedBox(
+      width: AppTouchTargets.of(context) ? 0 : AppSpacing.s4,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         AppIconButton(
-          // The armed kind's own glyph, not a generic one - state must be visible, not just remembered.
-          icon: canvasShapeKindIcon(shapeKind),
-          semanticLabel: 'Shape',
-          tooltip: canDraw ? _shapeHint : _cannotDrawTooltip,
-          active: tool == CanvasTool.shape,
-          onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
-              ? () => _pick(CanvasTool.shape)
+          icon: AppIcons.pan,
+          semanticLabel: 'Pan',
+          tooltip:
+              'Pan (H) · pan the canvas, move an object, or select a stroke '
+              'to reorder it · hold Shift while resizing to flip '
+              'the aspect lock',
+          active: tool == CanvasTool.pan,
+          onPressed: () => onToolChanged(CanvasTool.pan),
+        ),
+        gap,
+        _withOptions(
+          CanvasTool.pen,
+          'Pen options',
+          _PenButton(
+            pen: pen,
+            active: tool == CanvasTool.pen,
+            canDraw: canDraw,
+            onPressed: CanvasTool.pen.isAvailable(canDraw: canDraw)
+                ? () => _pick(CanvasTool.pen)
+                : null,
+          ),
+        ),
+        gap,
+        AppIconButton(
+          icon: AppIcons.note,
+          semanticLabel: 'Note',
+          tooltip: canDraw ? 'Note (N)' : _cannotDrawTooltip,
+          active: tool == CanvasTool.note,
+          onPressed: CanvasTool.note.isAvailable(canDraw: canDraw)
+              ? () => _pick(CanvasTool.note)
               : null,
         ),
-      ),
-      const SizedBox(width: AppSpacing.s4),
-      AppIconButton(
-        icon: AppIcons.eraser,
-        semanticLabel: 'Eraser',
-        tooltip:
-            'Eraser (E) · erases ink and shapes. Right-click or long-press a '
-            'note or image, then Delete',
-        active: tool == CanvasTool.eraser,
-        onPressed: () => _pick(CanvasTool.eraser),
-      ),
-    ],
-  );
+        gap,
+        AppIconButton(
+          icon: AppIcons.textBox,
+          semanticLabel: 'Text',
+          tooltip: canDraw ? 'Text (T)' : _cannotDrawTooltip,
+          active: tool == CanvasTool.text,
+          onPressed: CanvasTool.text.isAvailable(canDraw: canDraw)
+              ? () => _pick(CanvasTool.text)
+              : null,
+        ),
+        gap,
+        _withOptions(
+          CanvasTool.shape,
+          'Shape options',
+          AppIconButton(
+            // The armed kind's own glyph, not a generic one - state must be visible, not just remembered.
+            icon: canvasShapeKindIcon(shapeKind),
+            semanticLabel: 'Shape',
+            tooltip: canDraw ? _shapeHint : _cannotDrawTooltip,
+            active: tool == CanvasTool.shape,
+            onPressed: CanvasTool.shape.isAvailable(canDraw: canDraw)
+                ? () => _pick(CanvasTool.shape)
+                : null,
+          ),
+        ),
+        gap,
+        AppIconButton(
+          icon: AppIcons.eraser,
+          semanticLabel: 'Eraser',
+          tooltip:
+              'Eraser (E) · erases ink and shapes. Right-click or long-press a '
+              'note or image, then Delete',
+          active: tool == CanvasTool.eraser,
+          onPressed: () => _pick(CanvasTool.eraser),
+        ),
+      ],
+    );
+  }
 }
 
 /// The pen button, with a dot of the armed colour under the glyph.

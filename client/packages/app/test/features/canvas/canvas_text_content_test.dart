@@ -73,10 +73,10 @@ void main() {
     test(
       'hidden and direction characters are stripped, tabs become spaces, line breaks stay',
       () {
-        expect(cleanTextBoxInput('a‮b​c\u0007d'), 'abcd');
+        expect(cleanTextBoxInput('a\u202Eb\u200Bc\u0007d'), 'abcd');
         expect(cleanTextBoxInput('a\tb'), 'a b');
         expect(cleanTextBoxInput('a\r\nb\rc'), 'a\nb\nc');
-        expect(cleanTextBoxInput('café \u{1F600}'), 'café \u{1F600}');
+        expect(cleanTextBoxInput('caf\u00E9 \u{1F600}'), 'caf\u00E9 \u{1F600}');
       },
     );
 
@@ -85,7 +85,7 @@ void main() {
       final formatter = TextBoxInputFormatter(onRefused: () => cut++);
       final result = formatter.formatEditUpdate(
         TextEditingValue.empty,
-        _typed('‮${'x' * (maxTextBoxChars + 50)}'),
+        _typed('\u202E${'x' * (maxTextBoxChars + 50)}'),
       );
       expect(result.text, 'x' * maxTextBoxChars);
       expect(cut, 1);
