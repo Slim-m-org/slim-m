@@ -200,8 +200,15 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
         _timeoutBanner.watch();
         _disarmWhenDrawingIsRefused(error);
       },
-      fireImmediately: true,
     );
+    _timeoutBanner.watch();
+    // Plain assignment: setState is not allowed in initState, and nothing has built yet.
+    if (canvasErrorBlocksDrawing(
+          ref.read(canvasEngineProvider(widget.channelId)).error,
+        ) &&
+        _tool.placesObjects) {
+      _tool = CanvasTool.pan;
+    }
     ref.listenManual(
       meProvider.select((m) => m.valueOrNull?.timedOutUntil),
       (_, _) => _timeoutBanner.watch(),
@@ -304,26 +311,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     final partialClear =
         ref.watch(serverInfoProvider).valueOrNull?.supportsPartialClear ??
         false;
-    final timeoutLapsed =
-        engineState.error != null &&
-        engineState.error!.startsWith("You're timed out and can't draw") &&
-        me?.timedOutUntil != null &&
-        DateTime.fromMillisecondsSinceEpoch(
-          me!.timedOutUntil!,
-        ).isBefore(DateTime.now());
-    final activeError = timeoutLapsed ? null : engineState.error;
-    if (timeoutLapsed) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _engine.reportError(null);
-      });
-    }
-    final canDraw = !canvasErrorBlocksDrawing(
-      activeError,
-      timedOutUntil: me?.timedOutUntil,
-    );
-    if (!canDraw && _tool.placesObjects) {
-      _tool = CanvasTool.pan;
-    }
+    final canDraw = !canvasErrorBlocksDrawing(engineState.error);
     // Held here: the layer reports its release from dispose, when ref can no longer be read.
     final interest = ref.read(videoInterestRelayProvider);
     return CanvasRealWindowScope(
@@ -388,9 +376,10 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                       unawaited(_imagePaste.pasteAt(world)),
                   onRecenter: _onRecenter,
                   onBringIntoBoard: () => unawaited(_onBringIntoBoard()),
-                  error: activeError,
+                  error: engineState.error,
                   onDismissError: () => _engine.reportError(null),
-                  onRetryError: activeError == CanvasEngine.genericLoadError
+                  onRetryError:
+                      engineState.error == CanvasEngine.genericLoadError
                       ? () => unawaited(_engine.fetch())
                       : null,
                   truncated: engineState.truncated,

@@ -67,10 +67,15 @@ class MessageLinkPreviewsRemoved extends ServerEvent {
   const MessageLinkPreviewsRemoved({
     required this.channelId,
     required this.messageId,
+    this.opSeq,
   });
 
   final String channelId;
   final String messageId;
+
+  /// This removal's place in the channel's message-op stream, null against a
+  /// server that has none.
+  final int? opSeq;
 }
 
 /// A thread's reply summary changed: it was just opened, or gained a reply.

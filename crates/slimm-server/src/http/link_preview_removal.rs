@@ -2,8 +2,8 @@
 //! `DELETE /channels/{id}/messages/{id}/link-previews`: remove the link-preview
 //! cards from one message, for everyone.
 //!
-//! The author may do it to their own message, and a member holding
-//! MANAGE_MESSAGES in the channel to anyone's. There is no way back: the cards
+//! The author may do it to their own message while they could still edit it
+//! (SEND_MESSAGES), and a member holding MANAGE_MESSAGES in the channel to anyone's. There is no way back: the cards
 //! are fetched by the client per URL, so the only thing stored is the removal.
 
 use axum::Router;
@@ -54,19 +54,29 @@ async fn remove(
         .await?
         .filter(|m| m.channel_id == channel_id)
         .ok_or(ApiError::NotFound("message not found"))?;
-    if message.author_id != Some(ctx.user_id)
-        && !state
-            .store
-            .has_permission(ctx.user_id, channel_id, Permissions::MANAGE_MESSAGES)
-            .await?
+    // The author needs what an edit needs; anyone else needs moderator reach.
+    let required = if message.author_id == Some(ctx.user_id) {
+        Permissions::SEND_MESSAGES
+    } else {
+        Permissions::MANAGE_MESSAGES
+    };
+    if !state
+        .store
+        .has_permission(ctx.user_id, channel_id, required)
+        .await?
     {
         return Err(ApiError::Forbidden);
     }
 
-    if state.store.suppress_link_previews(message_id).await? {
+    if let Some(op_seq) = state
+        .store
+        .suppress_link_previews(channel_id, message_id, ctx.user_id)
+        .await?
+    {
         state.hub.publish(Event::MessageLinkPreviewsRemoved {
             channel_id,
             message_id,
+            op_seq,
         });
     }
     Ok(StatusCode::NO_CONTENT)

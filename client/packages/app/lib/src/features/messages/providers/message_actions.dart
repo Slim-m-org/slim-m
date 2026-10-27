@@ -177,21 +177,38 @@ bool canRemoveLinkPreviews(
   int myPermissions,
 ) => canDeleteMessage(message, myUserId, myPermissions);
 
+/// Why the last removal of a message's link previews was refused, for the list to show.
+final linkPreviewRemovalErrorProvider = StateProvider.family<String?, String>(
+  (ref, messageId) => null,
+);
+
 /// Hides [message]'s link-preview cards for everyone. Applied locally first;
-/// a refusal puts them back, and nothing else is shown.
+/// a refusal puts them back and leaves the reason in [linkPreviewRemovalErrorProvider].
 Future<void> removeLinkPreviews(WidgetRef ref, Message message) async {
+  // The hide below unmounts the caller, so everything the end needs is read before it.
   final extras = ref.read(messageExtrasProvider.notifier);
-  extras.applyLocalLinkPreviewsRemoved(message.id, true);
+  final error = ref.read(linkPreviewRemovalErrorProvider(message.id).notifier);
+  final request = ref
+      .read(apiProvider)
+      .removeMessageLinkPreviews(
+        channelId: message.channelId,
+        messageId: message.id,
+      );
+  error.state = null;
+  extras.beginLocalLinkPreviewsRemoval(message.id);
   try {
-    await ref
-        .read(apiProvider)
-        .removeMessageLinkPreviews(
-          channelId: message.channelId,
-          messageId: message.id,
-        );
-  } on api.ApiException catch (error, stack) {
-    api.reportFailure(api.LogTag.ui, 'remove link previews', error, stack);
-    extras.applyLocalLinkPreviewsRemoved(message.id, false);
+    await request;
+    extras.confirmLocalLinkPreviewsRemoval(message.id);
+  } on api.ApiException catch (e, stack) {
+    final sentence = reportFailureSentence(
+      api.LogTag.ui,
+      'remove the link previews',
+      e,
+      stack,
+    );
+    if (extras.rollBackLocalLinkPreviewsRemoval(message.id)) {
+      error.state = sentence;
+    }
   }
 }
 

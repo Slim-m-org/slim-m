@@ -27,9 +27,12 @@ MessagesCompanion _rowFor(api.Message message) {
     failed: const Value(false),
     replyToId: Value(message.replyToId),
   );
+  final withPreviews = message.linkPreviewsRemoved
+      ? row.copyWith(linkPreviewsRemoved: const Value(true))
+      : row;
   final forwarded = message.forwarded;
-  if (forwarded == null) return row;
-  return row.copyWith(
+  if (forwarded == null) return withPreviews;
+  return withPreviews.copyWith(
     forwardedMessageId: Value(forwarded.messageId),
     forwardedChannelId: Value(forwarded.channelId),
     forwardedAuthorId: Value(forwarded.authorId),

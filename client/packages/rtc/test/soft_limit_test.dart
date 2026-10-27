@@ -33,4 +33,22 @@ void main() {
     expect(curve.first, closeTo(-curve.last, 1e-6));
     expect(curve.last, lessThanOrEqualTo(1.0));
   });
+
+  test('only a boost goes through the limiter, a trim never does', () {
+    for (final gain in [0.0, 0.5, 0.93, 0.999, 1.0]) {
+      expect(limiterNeeded(gain), isFalse, reason: 'gain $gain');
+    }
+    expect(limiterNeeded(1.01), isTrue);
+    expect(limiterNeeded(2.0), isTrue);
+  });
+
+  test(
+      'a trim reaches the destination at its own gain, a boost is scaled for the curve',
+      () {
+    for (final gain in [0.0, 0.125, 0.5, 1.0]) {
+      expect(shaperInputGain(gain, range: 2), gain, reason: 'gain $gain');
+    }
+    expect(shaperInputGain(2, range: 2), 1);
+    expect(shaperInputGain(1.5, range: 2), 0.75);
+  });
 }

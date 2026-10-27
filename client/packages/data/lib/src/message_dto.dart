@@ -114,6 +114,7 @@ class Message {
     this.editedAt,
     this.replyToId,
     this.forwarded,
+    this.linkPreviewsRemoved = false,
     required this.pending,
     required this.failed,
     this.failureReason,
@@ -146,6 +147,9 @@ class Message {
   /// thing being forwarded is in here and never mixed into that text.
   final ForwardedMessage? forwarded;
 
+  /// The cards under [content] were removed; they stay hidden.
+  final bool linkPreviewsRemoved;
+
   /// True while the send is in flight. The UI shows these differently and
   /// they are replaced in place by the server's copy on acknowledgement.
   final bool pending;
@@ -171,6 +175,7 @@ class Message {
           other.editedAt == editedAt &&
           other.replyToId == replyToId &&
           other.forwarded == forwarded &&
+          other.linkPreviewsRemoved == linkPreviewsRemoved &&
           other.pending == pending &&
           other.failed == failed &&
           other.failureReason == failureReason);
@@ -187,6 +192,7 @@ class Message {
         editedAt,
         replyToId,
         forwarded,
+        linkPreviewsRemoved,
         pending,
         failed,
         failureReason,

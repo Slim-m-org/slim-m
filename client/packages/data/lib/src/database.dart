@@ -250,6 +250,11 @@ class Messages extends Table {
   BoolColumn get forwardedRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// The author or a moderator removed this message's link-preview cards.
+  /// Stored so a cold start hides them without a REST read; nothing clears it.
+  BoolColumn get linkPreviewsRemoved =>
+      boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -296,6 +301,7 @@ extension MessageRowMapping on MessageRow {
                 content: forwardedContent!,
                 removed: forwardedRemoved,
               ),
+        linkPreviewsRemoved: linkPreviewsRemoved,
         pending: pending,
         failed: failed,
         failureReason: failureReason,
@@ -316,7 +322,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -402,6 +408,14 @@ class SlimmDatabase extends _$SlimmDatabase {
         _UpgradeStep(24,
             () => _addColumnOnce(m, channels, channels.defaultNotification)),
         _UpgradeStep(25, () => m.createTable(canvasPersonalLayouts)),
+        // v2's null display names and the pre-op-stream epoch are both
+        // unreachable by a keyset sync. See the doc comment above.
+        _UpgradeStep(7, () async {
+          await m.deleteTable(messages.actualTableName);
+          await m.createTable(messages);
+          await m.database.customStatement('UPDATE channels SET cursor = 0');
+        }),
+        // After the v7 rebuild: dropping the messages table drops its indexes.
         _UpgradeStep(26, () async {
           for (final index in [
             messagesChannelSeq,
@@ -412,13 +426,8 @@ class SlimmDatabase extends _$SlimmDatabase {
             await _createIndexOnce(index);
           }
         }),
-        // v2's null display names and the pre-op-stream epoch are both
-        // unreachable by a keyset sync. See the doc comment above.
-        _UpgradeStep(7, () async {
-          await m.deleteTable(messages.actualTableName);
-          await m.createTable(messages);
-          await m.database.customStatement('UPDATE channels SET cursor = 0');
-        }),
+        _UpgradeStep(27,
+            () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

@@ -21,7 +21,7 @@ class SocketClosedDuringConnect implements Exception {
 
 /// Thrown when more frames arrived during catch-up than the queue will hold.
 ///
-/// The held frames were dropped, so the connect fails and the retry resyncs
+/// The held frames were dropped, so the connect restarts at once and resyncs
 /// everything over REST rather than trusting a gap in the live stream.
 class FrameBacklogOverflow implements Exception {
   const FrameBacklogOverflow();
@@ -33,6 +33,31 @@ class FrameBacklogOverflow implements Exception {
 /// How many frames a connect holds during catch-up before it gives up on them.
 @visibleForTesting
 int heldFrameCap = 5000;
+
+/// How many held-frame overflows in a row restart quietly before the connect is treated as failed.
+const maxQuickOverflowRestarts = 3;
+
+/// Whether the store-side handler does anything with [event].
+///
+/// Everything else is ephemeral or a view signal; it reaches the live-event
+/// stream directly, so holding it during catch-up would only fill the cap.
+bool isAppliedToStore(api.ServerEvent event) => switch (event) {
+  api.MessageCreated() ||
+  api.MessageEdited() ||
+  api.MessageLinkPreviewsRemoved() ||
+  api.MessageDeleted() ||
+  api.ReadStateChanged() ||
+  api.NotificationOverrideChanged() ||
+  api.ChannelCreated() ||
+  api.ChannelUpdated() ||
+  api.ChannelDeleted() ||
+  api.OverwriteChanged() ||
+  api.RoleChanged() ||
+  api.MemberRoleChanged() ||
+  api.CategoryChanged() => true,
+  api.ErrorEvent(:final needsResync) => needsResync,
+  _ => false,
+};
 
 /// Serialises the handling of one socket's frames.
 ///
@@ -68,6 +93,7 @@ class SerialFrameQueue {
   bool closed = false;
 
   void add(api.ServerEvent event) {
+    if (_held && !isAppliedToStore(event)) return;
     if (_held && (overflowed || _pending.length >= maxHeld)) {
       overflowed = true;
       _pending.clear();

@@ -148,6 +148,10 @@ pub(super) async fn edited(
     dto.webhook_username = facts.webhook_username.clone();
     dto.via_module = facts.module_origin.clone().map(ViaModuleDto::from);
     dto.mentions_me = facts.mentioned.contains(&viewer);
+    dto.link_previews_removed = lookups
+        .previews_removed(store, message_id)
+        .await
+        .map_err(|_| ())?;
     Ok(ServerFrame::MessageEdited {
         channel_id,
         seq,

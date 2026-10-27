@@ -31,6 +31,14 @@ extension SyncControllerEvents on SyncController {
           return;
         }
         await store.applyMessage(message);
+      case MessageLinkPreviewsRemoved(
+        :final channelId,
+        :final messageId,
+        :final opSeq,
+      ):
+        if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
+        if (!isCurrent()) return;
+        await store.markLinkPreviewsRemoved(messageId);
       case MessageDeleted(:final channelId, :final messageId, :final opSeq):
         if (!await _placeLiveOp(channelId, opSeq, store, isCurrent)) return;
         if (!isCurrent()) return;

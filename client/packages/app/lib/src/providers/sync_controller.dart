@@ -110,6 +110,7 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// False once [stop] or [dispose] ran, so a resume does not revive a stopped sync.
   bool _wantsConnection = false;
   final ReconnectBackoff _backoff;
+  int _overflowRestarts = 0;
   final _channelRefresher = ChannelRefresher();
 
   /// Channels a refresh on this connection did not bring into the store, such
@@ -271,7 +272,12 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
-      await _catchUp(generation, api, store);
+      await _catchUp(
+        generation,
+        api,
+        store,
+        shouldStop: () => frames.overflowed,
+      );
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
       if (frames.overflowed) throw const FrameBacklogOverflow();
@@ -280,6 +286,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (frames.closed) throw const SocketClosedDuringConnect();
 
       _backoff.connected();
+      _overflowRestarts = 0;
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
       _wasLive = true;
@@ -293,15 +300,20 @@ class SyncController extends StateNotifier<SyncStatus> {
           isCurrent: () => generation == _generation,
         ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
+    } on FrameBacklogOverflow catch (error, stack) {
+      if (generation == _generation) _onBacklogOverflow(error, stack);
     } catch (error, stack) {
-      reportFailure(LogTag.sync, 'connect to the server', error, stack);
-      if (generation != _generation) return;
-      // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
-      state = SyncStatus.offline;
-      _ref.read(hasFailedSinceLiveProvider.notifier).state = true;
-      _ref.read(syncFailureProvider.notifier).state = syncFailureFor(error);
-      _scheduleRetry();
+      if (generation == _generation) _failConnect(error, stack);
     }
+  }
+
+  void _failConnect(Object error, StackTrace stack) {
+    reportFailure(LogTag.sync, 'connect to the server', error, stack);
+    // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
+    state = SyncStatus.offline;
+    _ref.read(hasFailedSinceLiveProvider.notifier).state = true;
+    _ref.read(syncFailureProvider.notifier).state = syncFailureFor(error);
+    _scheduleRetry();
   }
 
   /// Attaches the live socket and returns the queue its frames land in, held

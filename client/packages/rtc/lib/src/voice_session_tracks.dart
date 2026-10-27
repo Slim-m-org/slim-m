@@ -34,6 +34,11 @@ extension VoiceSessionTracks on VoiceSession {
           event.publication.source == lk.TrackSource.microphone) {
         unawaited(_watchFirstRemoteAudio(event.track as lk.RemoteAudioTrack));
       }
+      if (event is lk.LocalTrackUnpublishedEvent &&
+          event.publication.source == lk.TrackSource.screenShareVideo &&
+          !isSharingScreen(room.localParticipant)) {
+        unawaited(_screenShare.shareEnded());
+      }
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }

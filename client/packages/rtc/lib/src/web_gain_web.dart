@@ -112,7 +112,8 @@ final _registry = GainGraphRegistry<_Graph>(
   isCurrent: _isCurrent,
   release: _release,
   setGain: (graph, gain) {
-    graph.gain.gain.value = gain / _range;
+    graph.gain.gain.value = shaperInputGain(gain, range: _range);
+    graph.limiter.curve = limiterNeeded(gain) ? _limiterCurve : null;
     _ctx.resume();
   },
 );

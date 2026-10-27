@@ -29,7 +29,6 @@ import 'mic_release.dart';
 import 'input_gate.dart';
 import 'join_timings.dart';
 import 'mic_failure.dart';
-import 'mic_fallback.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
@@ -58,6 +57,7 @@ import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
 import 'voice_health.dart';
 import 'voice_log.dart';
+import 'voice_session_mic_fallback.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'package:slimm_api/api.dart'
@@ -68,7 +68,6 @@ part 'voice_session_health.dart';
 part 'voice_session_input_gate.dart';
 part 'voice_session_join.dart';
 part 'voice_session_listener_audio.dart';
-part 'voice_session_mic_fallback.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
@@ -90,7 +89,6 @@ class VoiceSession
         VoiceSessionAudioDevices,
         VoiceSessionHealth,
         VoiceSessionInputGate,
-        VoiceSessionMicFallback,
         VoiceSessionMicRecovery,
         VoiceSessionMicRelease,
         VoiceSessionListenerAudio {
@@ -111,6 +109,7 @@ class VoiceSession
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
     JoinTimings? joinTimings,
+    ShareAudioIsolation? shareAudioIsolation,
   })  : _joinTimings = joinTimings ?? JoinTimings(),
         _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
         _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
@@ -144,8 +143,10 @@ class VoiceSession
       enable: () => _trySetMicrophone(true),
       afterRestart: _followPreferredDevices,
     );
-    _screenShare =
-        ScreenShareControl(_broadcast, isolation: ShareAudioIsolation());
+    _screenShare = ScreenShareControl(
+      _broadcast,
+      isolation: shareAudioIsolation ?? ShareAudioIsolation(),
+    );
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
 
@@ -161,6 +162,32 @@ class VoiceSession
       );
 
   late final RoomFactory _roomFactory;
+
+  @override
+  late final MicFallback _fallback = MicFallback(
+    MicFallbackHost(
+      switching: () => _audioSwitching,
+      hasRoom: () => _room != null,
+      micWanted: () => _micWanted,
+      mic: () => _mic,
+      timing: () => _micTiming,
+      watchdog: () => _micWatchdog,
+      log: _logMic,
+      setStatus: _setMicStatus,
+      noteFailure: _noteMicFailure,
+      restartCapture: _restartMicCapture,
+      selectInput: (device) => _selectInput(device, remember: false),
+      selectOutput: (device) => _selectOutput(device, remember: false),
+    ),
+  );
+
+  /// Whether a silent microphone is swapped for another, for this call only.
+  void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
+
+  /// The microphone the call switched to on its own, until dismissed.
+  String? get micFallbackNotice => _fallback.notice;
+  Stream<String?> get micFallbackNotices => _fallback.notices;
+  void dismissMicFallbackNotice() => _fallback.dismissNotice();
   @override
   final JoinTimings _joinTimings;
   final BroadcastBridge _broadcast;

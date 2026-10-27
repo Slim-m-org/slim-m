@@ -72,6 +72,15 @@ class ScreenShareControl {
   /// Keeps the call out of shared desktop audio on Linux; null where nothing needs it.
   final ShareAudioIsolation? _isolation;
 
+  /// How many [setEnabled] starts are running; a stop event seen meanwhile is the previous share's.
+  int _startsInFlight = 0;
+
+  /// The share stopped without [setEnabled] being asked to (the system's stop
+  /// button, the captured window closing); its audio mix must go with it.
+  Future<void> shareEnded() async {
+    if (_startsInFlight == 0) await _isolation?.end();
+  }
+
   /// The iOS hand-off in progress, if a share is still waiting on the system
   /// picker. Held so a second call - a rapid re-tap, or disabling while
   /// pending - cancels it rather than stacking a second listener underneath.
@@ -96,12 +105,13 @@ class ScreenShareControl {
     required bool Function() isSharing,
     required void Function(Object? error) onSettled,
   }) async {
-    await _cancelHandoff();
-    if (enabled && !await _broadcast.isAvailable()) {
-      return ScreenShareOutcome.unsupported;
-    }
-    final onIOS = _broadcast.usesBroadcastExtension;
+    if (enabled) _startsInFlight++;
     try {
+      await _cancelHandoff();
+      if (enabled && !await _broadcast.isAvailable()) {
+        return ScreenShareOutcome.unsupported;
+      }
+      final onIOS = _broadcast.usesBroadcastExtension;
       if (enabled && onIOS) {
         return await _startOnIOS(
           quality: quality,
@@ -141,6 +151,8 @@ class ScreenShareControl {
       reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
       onSettled(e);
       return ScreenShareOutcome.failed;
+    } finally {
+      if (enabled) _startsInFlight--;
     }
   }
 

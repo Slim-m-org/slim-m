@@ -105,4 +105,25 @@ void main() {
 
     expect(channel.opCursor, null);
   });
+
+  test('a v6 cache ends with all four message indexes after the rebuild',
+      () async {
+    final db = SlimmDatabase(NativeDatabase(file));
+    addTearDown(db.close);
+
+    final rows = await db
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND tbl_name = 'messages' AND name LIKE 'messages_%'")
+        .get();
+
+    expect(
+      rows.map((r) => r.read<String>('name')).toSet(),
+      containsAll([
+        'messages_channel_seq',
+        'messages_author',
+        'messages_pending',
+        'messages_failed',
+      ]),
+    );
+  });
 }

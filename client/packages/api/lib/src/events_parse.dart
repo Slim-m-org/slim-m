@@ -66,6 +66,7 @@ ServerEvent? _messageFrame(Map<String, dynamic> decoded) {
       MessageLinkPreviewsRemoved(
         channelId: decoded['channel_id'] as String,
         messageId: decoded['message_id'] as String,
+        opSeq: decoded['op_seq'] as int?,
       ),
     'thread.updated'
         when decoded['channel_id'] is String &&

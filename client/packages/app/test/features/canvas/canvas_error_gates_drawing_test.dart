@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
+import 'package:slimm_app/src/providers/providers.dart' show meProvider;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'canvas_pane_harness.dart';
@@ -132,6 +133,31 @@ void main() {
 
     await tester.pump(const Duration(seconds: 11));
     await tester.pumpAndSettle();
+    expect(_penEnabled(tester), isTrue);
+  });
+
+  testWidgets('a timeout lifted early re-enables the Pen button', (
+    tester,
+  ) async {
+    final until = clock.now().add(const Duration(minutes: 10));
+    final fixture = CanvasPaneFixture()
+      ..timedOutUntil = until.millisecondsSinceEpoch;
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+    await tester.pumpAndSettle();
+    _report(
+      container,
+      canvasDrawForbiddenMessage(until.millisecondsSinceEpoch),
+    );
+    await tester.pumpAndSettle();
+    expect(_penEnabled(tester), isFalse);
+
+    fixture.timedOutUntil = null;
+    container.invalidate(meProvider);
+    await tester.pumpAndSettle();
+
     expect(_penEnabled(tester), isTrue);
   });
 

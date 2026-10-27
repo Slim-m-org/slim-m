@@ -323,11 +323,46 @@ async fn a_timed_out_author_cannot_edit_their_way_around_the_block() {
     assert_eq!(edit(member_token).await, StatusCode::FORBIDDEN);
 }
 
+/// Every route that gates on the equal-rank rule, as (verb, path suffix, body).
+fn peer_gated_routes() -> Vec<(&'static str, &'static str, serde_json::Value)> {
+    vec![
+        ("PUT", "timeout", json!({ "duration_seconds": 300 })),
+        ("DELETE", "timeout", json!(null)),
+        ("PUT", "removal", json!({})),
+        ("PUT", "nickname", json!({ "nickname": "renamed" })),
+        ("DELETE", "nickname", json!(null)),
+    ]
+}
+
+async fn refused_as_equal_rank(
+    app: &axum::Router,
+    token: &str,
+    verb: &str,
+    uri: &str,
+    body: serde_json::Value,
+    label: &str,
+) {
+    let body = (!body.is_null()).then_some(body);
+    let refused = app
+        .clone()
+        .oneshot(request(verb, uri, token, body))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN, "{label}");
+    let bytes = axum::body::to_bytes(refused.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&bytes).contains("equal rank"),
+        "{label} should say why"
+    );
+}
+
 /// Two moderators holding the same bits are peers, and neither may act on the other.
 #[tokio::test]
 async fn a_moderator_cannot_act_on_an_equal_rank_peer() {
     let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
-    let (admin_token, _admin_id, mod_token, mod_id, _member_id) = people(&store).await;
+    let (admin_token, _admin_id, mod_token, mod_id, member_id) = people(&store).await;
     let peer_role = store
         .create_role(
             "mod-two",
@@ -341,41 +376,46 @@ async fn a_moderator_cannot_act_on_an_equal_rank_peer() {
         .await
         .unwrap();
     store.assign_role(peer.id, peer_role).await.unwrap();
+    let peer_token = store
+        .open_session(peer.id, "cli")
+        .await
+        .unwrap()
+        .access_token;
     let app = app(store.clone());
 
-    for (verb, path) in [("PUT", "timeout"), ("PUT", "removal")] {
-        let refused = app
-            .clone()
-            .oneshot(request(
-                verb,
-                &format!("/members/{}/{path}", peer.id),
-                &mod_token,
-                Some(json!({ "duration_seconds": 300 })),
-            ))
-            .await
-            .unwrap();
-        assert_eq!(refused.status(), StatusCode::FORBIDDEN, "{path}");
-        let body = axum::body::to_bytes(refused.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        assert!(
-            String::from_utf8_lossy(&body).contains("equal rank"),
-            "{path}"
-        );
+    for (verb, path, body) in peer_gated_routes() {
+        let label = format!("{verb} {path}");
+        let uri = format!("/members/{}/{path}", peer.id);
+        refused_as_equal_rank(&app, &mod_token, verb, &uri, body.clone(), &label).await;
+        // The rule is symmetric: the peer cannot reach the first moderator either.
+        let back = format!("/members/{mod_id}/{path}");
+        refused_as_equal_rank(&app, &peer_token, verb, &back, body, &label).await;
     }
-    let bulk = app
+
+    // Every bulk route shares `authorize_all`, so each refuses the same way with the same reason.
+    for (path, body) in [
+        (
+            "bulk-timeout",
+            json!({ "user_ids": [peer.id.to_string()], "duration_seconds": 300 }),
+        ),
+        ("bulk-removal", json!({ "user_ids": [peer.id.to_string()] })),
+    ] {
+        let uri = format!("/members/{path}");
+        refused_as_equal_rank(&app, &mod_token, "POST", &uri, body, path).await;
+    }
+
+    // Strictly lower rank is still within reach, and an administrator outranks the peer.
+    let lower = app
         .clone()
         .oneshot(request(
-            "POST",
-            "/members/bulk-timeout",
+            "PUT",
+            &format!("/members/{member_id}/nickname"),
             &mod_token,
-            Some(json!({ "user_ids": [peer.id.to_string()], "duration_seconds": 300 })),
+            Some(json!({ "nickname": "renamed" })),
         ))
         .await
         .unwrap();
-    assert_eq!(bulk.status(), StatusCode::FORBIDDEN, "bulk");
-
-    // An administrator still outranks the peer, and the peer still cannot reach the first moderator.
+    assert_eq!(lower.status(), StatusCode::NO_CONTENT);
     let by_admin = app
         .clone()
         .oneshot(request(
@@ -387,5 +427,4 @@ async fn a_moderator_cannot_act_on_an_equal_rank_peer() {
         .await
         .unwrap();
     assert_eq!(by_admin.status(), StatusCode::OK);
-    assert_ne!(mod_id, peer.id.to_string());
 }

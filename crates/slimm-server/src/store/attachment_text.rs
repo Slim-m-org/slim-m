@@ -26,23 +26,28 @@ pub struct TextCandidate {
 impl Store {
     /// The newest attachments in live, unencrypted messages that have not been
     /// through extraction yet, so recent uploads become searchable first and
-    /// older ones follow as the background pass catches up.
+    /// older ones follow as the background pass catches up. `skip` holds files
+    /// that are backing off, so they cannot occupy the head of the queue.
     pub async fn attachments_awaiting_text(
         &self,
         limit: i64,
+        skip: &[Vec<u8>],
     ) -> anyhow::Result<Vec<TextCandidate>> {
+        let skip: Vec<String> = skip.iter().map(|sha| to_hex(sha)).collect();
         let rows = sqlx::query(
             "SELECT a.sha256 AS sha256, a.content_type AS content_type, a.size AS size,
                     (SELECT ma.filename FROM message_attachments ma
                       WHERE ma.sha256 = a.sha256 AND ma.filename IS NOT NULL LIMIT 1) AS filename
              FROM attachments a
              WHERE NOT EXISTS (SELECT 1 FROM attachment_text t WHERE t.sha256 = a.sha256)
+               AND lower(hex(a.sha256)) NOT IN (SELECT value FROM json_each(?))
                AND EXISTS (SELECT 1 FROM message_attachments ma
                              JOIN messages m ON m.id = ma.message_id
                             WHERE ma.sha256 = a.sha256 AND m.is_encrypted = 0
                               AND m.deleted_at IS NULL)
              ORDER BY a.created_at DESC LIMIT ?",
         )
+        .bind(serde_json::to_string(&skip)?)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
@@ -61,8 +66,8 @@ impl Store {
             .map_err(Into::into)
     }
 
-    /// Marks `sha256` as processed, and indexes `text` when there is any.
-    /// A no-op if the attachment was swept or processed meanwhile.
+    /// Marks `sha256` as processed, and indexes `text` when there is any and
+    /// it is not indexed yet. A no-op if the attachment was swept meanwhile.
     pub async fn record_attachment_text(
         &self,
         sha256: &[u8],
@@ -70,23 +75,26 @@ impl Store {
     ) -> anyhow::Result<()> {
         let mut tx = self.begin_write().await?;
         let now = now_ms();
-        let row = sqlx::query_scalar!(
-            r#"INSERT INTO attachment_text (sha256, extracted_at)
-               SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
-               ON CONFLICT (sha256) DO NOTHING
-               RETURNING fts_rowid AS "fts_rowid!: i64""#,
+        sqlx::query!(
+            "INSERT INTO attachment_text (sha256, extracted_at)
+             SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)
+             ON CONFLICT (sha256) DO NOTHING",
             sha256,
             now,
             sha256,
         )
-        .fetch_optional(&mut *tx)
+        .execute(&mut *tx)
         .await?;
-        if let (Some(rowid), Some(text)) = (row, text) {
-            sqlx::query!(
-                "INSERT INTO attachment_text_fts (rowid, content) VALUES (?, ?)",
-                rowid,
-                text,
+        // Also covers a marker written earlier, before the text was known.
+        if let Some(text) = text {
+            sqlx::query(
+                "INSERT INTO attachment_text_fts (rowid, content)
+                 SELECT t.fts_rowid, ? FROM attachment_text t
+                  WHERE t.sha256 = ?
+                    AND NOT EXISTS (SELECT 1 FROM attachment_text_fts f WHERE f.rowid = t.fts_rowid)",
             )
+            .bind(text)
+            .bind(sha256)
             .execute(&mut *tx)
             .await?;
         }
@@ -111,7 +119,7 @@ impl Store {
              FROM message_attachments ma
              JOIN attachment_text t ON t.sha256 = ma.sha256
              JOIN messages m ON m.id = ma.message_id
-             WHERE t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+             WHERE m.is_encrypted = 0 AND t.fts_rowid IN (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
         );
         builder.push_bind(query.to_owned());
         builder.push(

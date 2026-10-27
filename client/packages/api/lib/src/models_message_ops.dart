@@ -41,6 +41,7 @@ sealed class MessageOp {
           content: json['content'] as String?,
           editedAt: json['edited_at'] as int?,
           forwardedRemoved: json['forwarded_removed'] as bool? ?? false,
+          linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
         ),
       'delete' => MessageDeleteOp(
           seq: seq,
@@ -72,6 +73,7 @@ class MessageEditOp extends MessageOp {
     required this.content,
     required this.editedAt,
     this.forwardedRemoved = false,
+    this.linkPreviewsRemoved = false,
   });
 
   final String? content;
@@ -80,6 +82,10 @@ class MessageEditOp extends MessageOp {
   /// The message forwards something whose original was removed; clear the
   /// snapshot even when [content] is absent.
   final bool forwardedRemoved;
+
+  /// The message's link-preview cards were removed; hide them even when
+  /// [content] is absent.
+  final bool linkPreviewsRemoved;
 }
 
 /// A message was deleted.
