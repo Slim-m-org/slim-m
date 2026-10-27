@@ -23,7 +23,6 @@ import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
-import 'capture_noise_suppression.dart';
 import 'mic_port.dart';
 import 'mic_release.dart';
 import 'input_gate.dart';
@@ -33,6 +32,7 @@ import 'mic_fallback.dart';
 import 'mic_recovery.dart';
 import 'noise_floor_estimator.dart';
 import 'speaking_hold.dart';
+import 'strong_noise_suppression.dart';
 import 'local_audio.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
 
@@ -103,7 +103,6 @@ class VoiceSession
     CameraDevices? cameraDevices,
     InputGateMonitor? inputGate,
     MicPort? micPort,
-    Duration? captureRestartDebounce,
     VoiceLog? audioLog,
     AudioDevices? audioDevices,
     LiveOutputSwitch? liveOutput,
@@ -127,7 +126,7 @@ class VoiceSession
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort, captureRestartDebounce, _restartCapture);
+    _initCapture(micPort);
     _audioSwitching = _switchingFor(
       audioDevices,
       liveOutput,
@@ -156,10 +155,7 @@ class VoiceSession
   /// same as all at full size, plus whatever microphone/speaker Voice
   /// Settings has chosen; see [VoiceSessionAudioDevices].
   lk.Room _buildRoom() => lk.Room(
-        roomOptions: _audioSwitching.roomOptions(
-          receiveRoomOptions(),
-          noiseSuppression: _capture.webrtcNoiseSuppression,
-        ),
+        roomOptions: _audioSwitching.roomOptions(receiveRoomOptions()),
       );
 
   late final RoomFactory _roomFactory;

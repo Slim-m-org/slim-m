@@ -296,7 +296,9 @@ void main() {
     });
   });
 
-  test('effective capture options are logged on change only', () {
+  test(
+      'effective capture options are logged once, with libwebrtc suppression on',
+      () {
     final lines = <String>[];
     final switching = AudioDeviceSwitching(
       _FixedAudioDevices(inputDevices: [_mic('micA')]),
@@ -304,10 +306,8 @@ void main() {
     );
     switching.captureOptions();
     switching.captureOptions();
-    switching.captureOptions(noiseSuppression: false);
     expect(lines, [
       'voice-ns: capture options device=default webrtc_ns=on',
-      'voice-ns: capture options device=default webrtc_ns=off',
     ]);
   });
 }

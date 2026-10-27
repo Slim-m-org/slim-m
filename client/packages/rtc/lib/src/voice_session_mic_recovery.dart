@@ -13,7 +13,6 @@ mixin VoiceSessionMicRecovery {
   Future<void> _applyInputGate();
   LocalAudioState get _audio;
   AudioDeviceSwitching get _audioSwitching;
-  CaptureNoiseSuppression get _capture;
   bool get _fallbackOn;
   Future<void> _fallBackMic();
   Future<void> _logAudioDevices(String why);
@@ -330,7 +329,7 @@ mixin VoiceSessionMicRecovery {
     unawaited(_logAudioDevices('restart: $reason'));
     if (!_mic.hasTrack) return _micRecovery.recoverNow(reason);
     try {
-      await _mic.restart(_currentCaptureOptions());
+      await _mic.restart(_audioSwitching.captureOptions());
       _afterRestart();
       _logMic('Microphone capture restarted ($reason)');
       if (_micStatus == MicStatus.unavailable) _setMicStatus(MicStatus.ok);
@@ -343,60 +342,6 @@ mixin VoiceSessionMicRecovery {
       return _micRecovery.recoverNow('$reason, restart failed');
     }
   }
-
-  Future<void> _restartCapture({required bool webrtcNoiseSuppression}) async {
-    final options = _audioSwitching.captureOptions(
-      noiseSuppression: webrtcNoiseSuppression,
-    );
-    try {
-      if (_mic.open) {
-        await _mic.restart(options);
-      } else {
-        await _reopenWaitingCapture(options);
-      }
-    } on Object {
-      // The failed restart stopped the old capture first; put a live one back.
-      await _revive(webrtcNoiseSuppression: webrtcNoiseSuppression);
-      rethrow;
-    }
-    _afterRestart();
-  }
-
-  /// The key may have gone down mid-reopen, which leaves the track muted.
-  Future<void> _reopenWaitingCapture(lk.AudioCaptureOptions options) async {
-    await _mic.reopenMuted(options);
-    if (_micWanted) await _mic.setEnabled(true, options);
-  }
-
-  Future<void> _revive({required bool webrtcNoiseSuppression}) async {
-    _capture.fallBack();
-    if (!_micWanted) {
-      if (_mic.hasTrack) await _mic.discard();
-      return;
-    }
-    try {
-      if (!webrtcNoiseSuppression) {
-        await _mic.restart(_currentCaptureOptions());
-        _capture.opened(webrtcNoiseSuppression: true);
-        _logMic(
-          'voice-ns: fallback to standard: strong restart failed, mic reopened',
-          level: LogLevel.warning,
-        );
-        return;
-      }
-    } on Object catch (e) {
-      _logMic(
-        'Could not reopen the microphone after a failed restart: $e',
-        level: LogLevel.warning,
-      );
-    }
-    await _micRecovery.recoverNow('restart failed');
-  }
-
-  lk.AudioCaptureOptions _currentCaptureOptions() =>
-      _audioSwitching.captureOptions(
-        noiseSuppression: _capture.webrtcNoiseSuppression,
-      );
 
   /// Force-restarts the capture, bypassing the same-device no-op a picker
   /// selection has; the tap on a mic button that says it is unavailable. A

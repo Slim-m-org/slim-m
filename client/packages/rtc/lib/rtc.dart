@@ -23,7 +23,7 @@ export 'src/audio_publish_options.dart';
 export 'src/screen_share_audio_options.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';
-export 'src/capture_noise_suppression.dart';
+export 'src/strong_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
 export 'src/stream_quality_label.dart';
 export 'src/call_stats_sampler.dart'

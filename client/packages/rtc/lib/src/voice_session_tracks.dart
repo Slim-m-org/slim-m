@@ -92,7 +92,7 @@ extension VoiceSessionTracks on VoiceSession {
     _stopStallWatch();
     _stopMicWatch();
     _stopHealthWatch();
-    _capture.reset();
+    _strong.reset();
     _stopArrivalWatch?.call();
     _stopArrivalWatch = null;
     final cancelEvents = _cancelEvents;
@@ -120,8 +120,6 @@ extension VoiceSessionTracks on VoiceSession {
       await _forgetUnpluggedDevices();
     }
     try {
-      final hadTrack = _mic.hasTrack;
-      final options = _micCaptureOptions();
       final reopen = enabled && _micRelease.onUnmuting();
       final opened = Stopwatch()..start();
       await _mic.setEnabled(
@@ -131,7 +129,7 @@ extension VoiceSessionTracks on VoiceSession {
       if (reopen) {
         _diag('Reopened the microphone in ${opened.elapsedMilliseconds} ms');
       }
-      _noteMicSet(enabled, hadTrack: hadTrack, options: options);
+      _noteMicSet(enabled);
       _refreshParticipants();
       if (enabled) _followPreferredDevices();
       _setMicFailure(null);
@@ -148,19 +146,9 @@ extension VoiceSessionTracks on VoiceSession {
     }
   }
 
-  void _noteMicSet(
-    bool enabled, {
-    required bool hadTrack,
-    required lk.AudioCaptureOptions? options,
-  }) {
+  void _noteMicSet(bool enabled) {
     enabled ? _micRelease.reopened() : _micRelease.onMuted();
-    if (!enabled) return _capture.retry();
-    _joinTimings.mark(JoinStage.micPublished);
-    if (options == null) return;
-    if (!hadTrack) {
-      _capture.opened(webrtcNoiseSuppression: options.noiseSuppression);
-    }
-    _capture.retry();
+    if (enabled) _joinTimings.mark(JoinStage.micPublished);
   }
 
   /// Publishes (or stops) a camera track. Failure is swallowed exactly as

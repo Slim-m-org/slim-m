@@ -83,35 +83,28 @@ class AudioDeviceSwitching {
   /// takes effect from the very first published track rather than only
   /// after a live switch; see [selectInput]/[selectOutput] for the mid-call
   /// path.
-  lk.RoomOptions roomOptions(
-    lk.RoomOptions base, {
-    bool noiseSuppression = true,
-  }) =>
-      base.copyWith(
-        defaultAudioCaptureOptions: captureOptions(
-          noiseSuppression: noiseSuppression,
-        ),
+  lk.RoomOptions roomOptions(lk.RoomOptions base) => base.copyWith(
+        defaultAudioCaptureOptions: captureOptions(),
         defaultAudioOutputOptions: lk.AudioOutputOptions(
           deviceId:
               isPulseDeviceId(_preferredOutputId) ? null : _preferredOutputId,
         ),
       );
 
-  /// [noiseSuppression] is libwebrtc's own; Strong turns it off where rnnoise
-  /// runs instead.
-  lk.AudioCaptureOptions captureOptions({bool noiseSuppression = true}) {
+  /// libwebrtc's own noise suppression stays on; Strong adds rnnoise natively.
+  lk.AudioCaptureOptions captureOptions() {
     // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
     final deviceId =
         isPulseDeviceId(_preferredInputId) ? null : _preferredInputId;
     final line =
-        'voice-ns: capture options device=${deviceId ?? 'default'} webrtc_ns=${noiseSuppression ? 'on' : 'off'}';
+        'voice-ns: capture options device=${deviceId ?? 'default'} webrtc_ns=on';
     if (line != _loggedOptions) {
       _loggedOptions = line;
       log?.call(line);
     }
     return lk.AudioCaptureOptions(
       deviceId: deviceId,
-      noiseSuppression: noiseSuppression,
+      noiseSuppression: true,
       // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
       stopAudioCaptureOnMute: false,
     );

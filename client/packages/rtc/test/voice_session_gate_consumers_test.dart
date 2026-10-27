@@ -71,7 +71,6 @@ class _Rig {
       audioDevices: const NoAudioDevices(),
       roomFactory: ConnectlessRoom.new,
       micPort: mic,
-      captureRestartDebounce: const Duration(milliseconds: 5),
       micRecoveryTiming: const MicRecoveryTiming(
         silence: Duration(milliseconds: 150),
         silentCooldown: Duration(milliseconds: 30),

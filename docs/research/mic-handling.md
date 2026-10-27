@@ -411,6 +411,14 @@ Turning the WebRTC suppressor off under Strong (P4 above) is still right for fan
 It leaves this noise class with nothing, and no code path here is broken, so there is nothing to fix short of a second model (the DeepFilterNet card) or running both suppressors.
 The noise is synthetic and the speech is espeak and flite; a real vacuum with another spectrum may sit on either side of the cliff.
 
+#### Decision 2026-10-27: run libwebrtc's suppression under Strong too
+
+Owner: Strong keeps libwebrtc's noise suppression on, so loud steady noise is actually removed.
+rnnoise alone leaves a steady 2 to 7.5 kHz hiss above about -35 dBFS and a motor hum at any level, and libwebrtc's suppressor in front of it takes a -30 dBFS hiss to -81 dBFS.
+This reverses the 2026-10-26 "one suppressor at a time" decision below, which was made on fan, keyboard and room noise at lower levels and did not cover this class.
+The capture is now always opened with libwebrtc's suppression on, so Strong is a native gate flag with no track restart, and the restart, fallback and push-to-talk reopen machinery that existed for switching it off is gone.
+What stays: the inactive verdict after 2 s, the settings note, and the `voice-ns:` log lines (choice, active and inactive edges, effective capture options).
+
 ### 6.5 Static pops: what was and was not reproduced (2026-10-27)
 
 Card "occasional static pops (Windows tester)": sender or receiver side.
@@ -643,6 +651,8 @@ Nothing was changed in the fork.
 The harness bed should get a second, broadband hum before the card is read as a product defect; a real harmonic hum at a voice's pitch would still pass through Strong.
 
 ### Decision 2026-10-26: one suppressor at a time
+
+Superseded on 2026-10-27, see the decision after 6.4: libwebrtc's suppression now stays on under Strong. The text below is the history.
 
 Owner: when Strong is chosen and running, libwebrtc's noise suppression is off; when Strong reports inactive on a mic, standard stays on, so there is never zero suppression.
 This is what `CaptureNoiseSuppression` already does: it opens the mic with libwebrtc's suppression off, falls back after 2 s of inactive readings, restarts at most once per change, and never while muted, on push-to-talk or disconnected.

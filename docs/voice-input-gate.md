@@ -66,9 +66,9 @@ libwebrtc's own suppressor handles steady hiss well but lets keyboards, fans and
 "Strong" runs rnnoise 0.2 (xiph, BSD-3-Clause, vendored in the fork under `third_party/rnnoise`) first in the capture chain, so the gate and its meter see the cleaned signal.
 It works on 480-sample frames, one 10 ms frame at 48 kHz, so a capture at any other rate (8, 16, 32 or 44.1 kHz, as Bluetooth hands-free headsets deliver) is resampled to 48 kHz for it and back, which costs well under 3 ms of delay; mono and stereo are both handled.
 The client reads that flag on every poll; once Strong is the effective choice in a live call with the mic unmuted and it has read false for about 2 s of polls (whatever the rate), the settings row shows "Strong isn't running on this mic.", and hides it after 0.5 s of active polls in a row. Since the plugin resamples, that now points at a plugin or device problem rather than the sample rate, and the debug log records it.
-While Strong is active the mic is opened with libwebrtc's own noise suppression off, because rnnoise alone measured better than the two in series (docs/research/mic-handling.md, P4).
-If Strong reads inactive for about 2 s, the client reopens the mic with libwebrtc's suppression back on so a call is never left with none, and keeps it on until the input device or the choice changes; reopening is deferred while muted.
-Under push-to-talk the waiting (muted, still open) capture is reopened as soon as the choice changes, so Strong is already running when the key goes down; a key held through a change reopens it on release.
+libwebrtc's own noise suppression stays on while Strong is active: rnnoise alone passes steady hiss above about -35 dBFS and a motor hum at any level, and libwebrtc's suppressor run first removes them (docs/research/mic-handling.md, 6.4 and the 2026-10-27 decision).
+Strong is therefore only a native gate flag: choosing or leaving it never reopens the capture, and the mic is always opened with libwebrtc's suppression on.
+If Strong reads inactive for about 2 s the debug log says so and the settings row shows the note; nothing else changes, because libwebrtc's suppression is already running.
 
 Measured on its own with the e2e fake voice and added white noise: about 0.7% of one core (generic C, no SIMD dispatch), noise alone 30 to 37 dB quieter, speech level unchanged within 0.5 dB.
 It adds about 1.4 MB to the desktop plugin.
@@ -139,9 +139,9 @@ It must not go through a derived `Provider`: those refresh on a frame, and frame
 | Out-of-call preview capture, loopback peers and `getInputGate` poll (`MicPreview`) | a screen holds it, its route is shown, no call is connecting or connected, app resumed | 50 ms; also kept running under a covered route and, minimised, until the next frame | 50 ms; closed (OS mic indicator off) on blur, minimise, background, a covered route, a call, or leaving the screen |
 | In-call gate poll, a meter mounted and shown | dock level bar (mic on), Voice settings meter, setup meter, app resumed | 50 ms always | 50 ms |
 | In-call gate poll, nothing displayed, mic open | a call is connected, unmuted | 50 ms always | 2 s (dead-mic watchdog needs 10 s of silence) |
-| In-call gate poll, nothing displayed, Strong on | same | 50 ms | 1 s (the Strong fallback needs 2 s of polls) |
+| In-call gate poll, nothing displayed, Strong on | same | 50 ms | 1 s (the inactive note needs 2 s of polls) |
 | In-call gate poll, nothing displayed, automatic sensitivity on | same | 50 ms | 200 ms (the estimator weights each reading by the time it covers) |
-| In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the watchdog and Strong fallback only watch an open mic) |
+| In-call gate poll, nothing displayed, mic muted or closed | a call is connected | 50 ms always | none: no reading has a consumer (the watchdog and the Strong note only watch an open mic) |
 | Sender level poll for the watchdog (hosts without the gate) | a call is connected | 1 s | 2 s |
 | Local speaking ring from the gate | the gate is read at the display rate | always during a call | only then; otherwise the SFU's flag, which lags about half a second |
 | Speaking ring pulse (`UserAvatar`) | the avatar is speaking and the app is resumed | ran while the window was unfocused | frozen on blur |
@@ -170,7 +170,7 @@ Verified against the code on 2026-10-27.
 | Setting | Applies | Notes |
 | --- | --- | --- |
 | Microphone, speaker device | Live | Web has no speaker picker. |
-| Noise suppression (Space default, Standard, Strong) | Track restart (mic only) | Needs the native gate (Linux and Windows desktop). Waits while muted; under push-to-talk the waiting capture is reopened at once. The Space default is reread every minute. |
+| Noise suppression (Space default, Standard, Strong) | Live | Needs the native gate (Linux and Windows desktop). A native gate flag, no restart, and libwebrtc's suppression is on either way. The Space default is reread every minute. |
 | Input sensitivity, automatic sensitivity, even out loud | Live | Native gate flags, no restart. |
 | Push to talk | Live | |
 | Per-person voice and screen volume, local mute | Live | Reapplied on every room event; the debug log has a `Volume x...` line per push (applied, failed, or already applied and skipped). |

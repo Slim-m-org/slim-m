@@ -8,11 +8,10 @@ const double _kAutoThresholdStepDb = 0.5;
 
 mixin VoiceSessionInputGate {
   lk.Room? get _room;
-  VoiceSessionState get _state;
   AudioDeviceSwitching get _audioSwitching;
   late final MicPort _mic;
   late final InputGateMonitor _gate;
-  late final CaptureNoiseSuppression _capture;
+  late final StrongNoiseSuppression _strong;
   StreamSubscription<InputGateReading>? _captureReadings;
   bool _gateEnabled = true;
   double _gateThresholdDb = kDefaultInputThresholdDb;
@@ -22,37 +21,20 @@ mixin VoiceSessionInputGate {
   StreamSubscription<InputGateReading>? _autoReadings;
   final _autoThresholds = StreamController<double>.broadcast();
 
-  MicRelease get _micRelease;
   void _diag(String line, {LogLevel level});
   void _refreshParticipants();
 
   bool get supportsInputGate => _gate.supported;
 
-  /// Push to talk's waiting capture, which can be reopened before the key goes down.
-  bool get _micPrimedMuted =>
-      _mic.hasTrack &&
-      !_mic.open &&
-      _micRelease.keepReady &&
-      !_micRelease.released;
-
-  void _initCapture(
-    MicPort? mic,
-    Duration? debounce,
-    Future<void> Function({required bool webrtcNoiseSuppression}) restart,
-  ) {
+  void _initCapture(MicPort? mic) {
     _mic = mic ?? LiveKitMicPort(() => _room);
-    _capture = CaptureNoiseSuppression(
+    _strong = StrongNoiseSuppression(
       supported: _gate.supported,
-      restart: restart,
-      canRestart: () =>
-          _state == VoiceSessionState.connected &&
-          (_micPrimedMuted || (_mic.open && _gateEnabled)),
-      onNativeStrongChanged: () => unawaited(_applyInputGate()),
-      debounce: debounce ?? kCaptureRestartDebounce,
+      onChanged: () => unawaited(_applyInputGate()),
       log: _diag,
     );
     _captureReadings = _gate.readings.listen(
-      (r) => _capture.onReading(
+      (r) => _strong.onReading(
         strongActive: r.strongActive,
         micOpen: _mic.open,
         step: r.step,
@@ -61,22 +43,13 @@ mixin VoiceSessionInputGate {
   }
 
   Future<void> _disposeCapture() async {
-    _capture.dispose();
     await _captureReadings?.cancel();
   }
-
-  /// Null leaves the room's defaults, which is all a host without the gate needs.
-  lk.AudioCaptureOptions? _micCaptureOptions() => _gate.supported
-      ? _audioSwitching.captureOptions(
-          noiseSuppression: _capture.webrtcNoiseSuppression,
-        )
-      : null;
 
   /// What the next [MicPort.setEnabled] opens with. [reopen] makes LiveKit
   /// restart a capture that was released, rather than just unmute it.
   lk.AudioCaptureOptions _openCaptureOptions({required bool reopen}) =>
-      (_micCaptureOptions() ?? _audioSwitching.captureOptions())
-          .copyWith(stopAudioCaptureOnMute: reopen);
+      _audioSwitching.captureOptions().copyWith(stopAudioCaptureOnMute: reopen);
 
   /// Your microphone's level and voice state, while in a call.
   Stream<InputGateReading> get inputGateReadings => _gate.readings;
@@ -139,7 +112,7 @@ mixin VoiceSessionInputGate {
     if (_levelDisplayed) return InputGateRate.display;
     if (!_mic.open) return InputGateRate.off;
     if (_autoThreshold != null) return InputGateRate.adapt;
-    return _capture.watchingStrong ? InputGateRate.watch : InputGateRate.slow;
+    return _strong.watching ? InputGateRate.watch : InputGateRate.slow;
   }
 
   /// Softens shouts and caps sudden peaks on the microphone, where the
@@ -152,7 +125,7 @@ mixin VoiceSessionInputGate {
   /// Runs rnnoise on the microphone ahead of the gate, for keyboards, fans
   /// and room noise libwebrtc's own suppressor lets through.
   void setStrongNoiseSuppression(bool enabled) {
-    _capture.setStrong(enabled);
+    _strong.setStrong(enabled);
     _syncGateRate();
     unawaited(_applyInputGate());
   }
@@ -161,6 +134,6 @@ mixin VoiceSessionInputGate {
         enabled: _gateEnabled,
         thresholdDb: _gateThresholdDb,
         dynamics: _evenOutLoudSounds,
-        strongNoiseSuppression: _capture.nativeStrong,
+        strongNoiseSuppression: _strong.nativeStrong,
       );
 }
