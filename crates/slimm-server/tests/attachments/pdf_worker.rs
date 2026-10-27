@@ -9,10 +9,10 @@ use std::time::{Duration, Instant};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use lopdf::{Document, Object, Stream, dictionary};
-use slimm_server::{PdfParse, PdfWorker};
+use slimm_server::{Limit, PdfParse, PdfWorker};
 
 use super::text_search::{pdf_saying, world, world_with_upload_cap};
-use crate::fixtures::extractor;
+use crate::fixtures::{extractor, register};
 
 const BOMB_INFLATED_BYTES: usize = 1536 * 1024 * 1024;
 
@@ -78,7 +78,7 @@ async fn a_flate_bomb_is_stopped_in_the_child_and_the_parent_stays_small() {
     let parsed = real_worker(Duration::from_secs(20))
         .parse(bomb, || async {})
         .await;
-    assert_eq!(parsed, PdfParse::Limited);
+    assert_eq!(parsed, PdfParse::Limited(Limit::Resources));
     assert!(
         started.elapsed() < Duration::from_secs(19),
         "stopped by the limit, not the clock"
@@ -103,8 +103,21 @@ async fn a_hung_parse_is_killed_at_the_wall_clock() {
     let parsed = shell_worker("sleep 60", Duration::from_millis(300))
         .parse(vec![1, 2, 3], || async {})
         .await;
-    assert_eq!(parsed, PdfParse::Limited);
+    assert_eq!(parsed, PdfParse::Limited(Limit::WallClock));
     assert!(started.elapsed() < Duration::from_secs(10));
+}
+
+#[tokio::test]
+async fn a_resource_kill_is_told_apart_from_an_ordinary_failure() {
+    let wall = Duration::from_secs(10);
+    let aborted = shell_worker("kill -ABRT $$", wall)
+        .parse(vec![], || async {})
+        .await;
+    let failed = shell_worker("exit 3", wall)
+        .parse(vec![], || async {})
+        .await;
+    assert_eq!(aborted, PdfParse::Limited(Limit::Resources));
+    assert_eq!(failed, PdfParse::Limited(Limit::Failed));
 }
 
 #[tokio::test]
@@ -154,7 +167,7 @@ async fn the_attempt_is_recorded_before_the_parse_starts() {
     for _ in 0..30 {
         tokio::time::sleep(Duration::from_millis(50)).await;
         if w.store
-            .attachments_awaiting_text(5)
+            .attachments_awaiting_text(5, &[])
             .await
             .unwrap()
             .is_empty()
@@ -181,7 +194,14 @@ async fn a_transient_read_failure_is_retried_not_recorded() {
     w.media.delete_attachment(&attachment).await.unwrap();
 
     assert_eq!(w.extract().await, 0);
-    assert_eq!(w.store.attachments_awaiting_text(5).await.unwrap().len(), 1);
+    assert_eq!(
+        w.store
+            .attachments_awaiting_text(5, &[])
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
     assert_eq!(w.extract().await, 0, "backing off, not hot-looping");
 
     std::fs::write(w.media.attachment_file(&attachment), original).unwrap();
@@ -191,25 +211,56 @@ async fn a_transient_read_failure_is_retried_not_recorded() {
 }
 
 #[tokio::test]
-async fn a_file_that_keeps_failing_is_given_up_after_a_bounded_number_of_tries() {
+async fn a_file_that_keeps_failing_is_never_marked_done() {
     let mut w = world().await;
     w.extractor = extractor(Duration::from_millis(1));
     let (_, attachment) = w.send("note", "note.txt", b"gone".to_vec()).await;
+    let original = w.media.read_attachment(&attachment).await.unwrap();
     w.media.delete_attachment(&attachment).await.unwrap();
 
-    let mut settled = 0;
-    let mut passes = 0;
-    while settled == 0 && passes < 10 {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-        settled = w.extract().await;
-        passes += 1;
+    for _ in 0..6 {
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        assert_eq!(w.extract().await, 0);
     }
-    assert_eq!((settled, passes), (1, 3));
-    assert!(
+    assert_eq!(
         w.store
-            .attachments_awaiting_text(5)
+            .attachments_awaiting_text(5, &[])
             .await
             .unwrap()
-            .is_empty()
+            .len(),
+        1
     );
+
+    std::fs::write(w.media.attachment_file(&attachment), original).unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(w.extract().await, 1);
+    assert_eq!(w.search("gone").await.len(), 1);
+}
+
+#[tokio::test]
+async fn files_backing_off_do_not_block_the_files_behind_them() {
+    let mut w = world().await;
+    w.extractor = extractor(Duration::from_secs(3600));
+    w.send("good", "good.txt", b"the numbat census".to_vec())
+        .await;
+    for n in 0..22 {
+        if n % 8 == 0 {
+            w.token = register(&w.store, &format!("uploader{n}")).await.0;
+        }
+        let (_, attachment) = w
+            .send(
+                "bad",
+                &format!("bad{n}.txt"),
+                format!("bad {n}").into_bytes(),
+            )
+            .await;
+        w.media.delete_attachment(&attachment).await.unwrap();
+    }
+
+    assert_eq!(
+        w.extract().await,
+        1,
+        "the good file is reached past the failing ones"
+    );
+    assert_eq!(w.search("numbat").await.len(), 1);
 }

@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart'
@@ -380,6 +381,17 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
     ref.listenManual(hasFailedSinceLiveProvider, (_, failed) {
       if (failed) _spendCover();
     });
+    _signOuts = ref.read(sessionProvider).changes.listen((tokens) {
+      if (tokens == null) _spendCover();
+    });
+  }
+
+  StreamSubscription<TokenPair?>? _signOuts;
+
+  @override
+  void dispose() {
+    unawaited(_signOuts?.cancel());
+    super.dispose();
   }
 
   @override

@@ -11,8 +11,8 @@
 //!
 //! A file is marked processed before a PDF is parsed, so a crash mid-parse
 //! cannot repeat on restart. A failure that may pass (an unreadable blob, a
-//! worker that would not start) is not recorded and is retried a bounded
-//! number of times with backoff.
+//! worker that would not start) is never recorded and is retried with
+//! growing backoff.
 
 mod extract;
 mod pdf_worker;
@@ -26,8 +26,8 @@ use tokio::io::AsyncReadExt;
 use crate::media::Media;
 use crate::store::{Store, TextCandidate};
 use extract::{Kind, extract, kind_of};
-pub use pdf_worker::{PdfParse, PdfWorker, WORKER_ARG, run_pdf_worker};
-use retry::{Retries, Verdict};
+pub use pdf_worker::{Limit, PdfParse, PdfWorker, WORKER_ARG, run_pdf_worker};
+use retry::Retries;
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(45);
 const BATCH: i64 = 20;
@@ -65,9 +65,12 @@ impl TextExtractor {
     /// One pass: extracts up to a bounded number of waiting attachments and
     /// returns how many it settled.
     pub async fn run_pass(&self, store: &Store, media: &Media) -> usize {
-        let mut done = 0;
-        while done < MAX_PER_PASS {
-            let batch = match store.attachments_awaiting_text(BATCH).await {
+        let (mut attempted, mut done) = (0, 0);
+        while attempted < MAX_PER_PASS {
+            let batch = match store
+                .attachments_awaiting_text(BATCH, &self.retries.waiting())
+                .await
+            {
                 Ok(batch) if !batch.is_empty() => batch,
                 Ok(_) => break,
                 Err(err) => {
@@ -75,33 +78,25 @@ impl TextExtractor {
                     break;
                 }
             };
-            let mut settled = 0;
             for candidate in batch {
-                if self.retries.is_waiting(&candidate.sha256) {
-                    continue;
-                }
                 if self.process(store, media, &candidate).await {
-                    settled += 1;
+                    done += 1;
                 }
+                attempted += 1;
                 tokio::time::sleep(PAUSE_BETWEEN_FILES).await;
             }
-            if settled == 0 {
-                break;
-            }
-            done += settled;
         }
         done
     }
 
     async fn process(&self, store: &Store, media: &Media, candidate: &TextCandidate) -> bool {
-        let outcome = self.text_of(store, media, candidate).await;
-        let text = match outcome {
+        let text = match self.text_of(store, media, candidate).await {
             Outcome::Text(text) => Some(text),
             Outcome::NothingToExtract => None,
-            Outcome::RetryLater => match self.retries.failed(&candidate.sha256) {
-                Verdict::TryLater => return false,
-                Verdict::GiveUp => None,
-            },
+            Outcome::RetryLater => {
+                self.retries.failed(&candidate.sha256);
+                return false;
+            }
         };
         self.retries.settled(&candidate.sha256);
         if let Err(err) = store
@@ -154,7 +149,11 @@ impl TextExtractor {
         };
         match worker.parse(bytes, mark_attempted).await {
             PdfParse::Text(text) => Outcome::Text(text),
-            PdfParse::NoText | PdfParse::Limited => Outcome::NothingToExtract,
+            PdfParse::NoText => Outcome::NothingToExtract,
+            PdfParse::Limited(limit) => {
+                tracing::info!(attachment = %candidate.hex, ?limit, "pdf worker stopped; nothing extracted");
+                Outcome::NothingToExtract
+            }
             PdfParse::Unavailable => Outcome::RetryLater,
         }
     }

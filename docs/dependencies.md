@@ -83,6 +83,9 @@ lopdf extracts the text layer of an uploaded PDF for search (`crates/slimm-serve
 It inflates every flate stream with no output bound, so a small file can ask for gigabytes; the server therefore never parses in its own process.
 The sweep re-runs the same binary as a child (`slimm-server --extract-pdf-text`, PDF on stdin and text on stdout), one at a time, and the child sets `RLIMIT_AS` (192 MiB, well under the container limit) and `RLIMIT_CPU` (15 s) on itself through `libc::setrlimit` before reading a byte.
 The parent kills it after 20 s of wall clock.
+A PDF the child cannot parse inside those limits is recorded as having no text, and the log says whether it was the resource limits, the clock or an ordinary failure.
+The 8 MiB upload cap is what bounds the input: an 8 MB, 100-page PDF extracted fine in the musl image under the 192 MiB limit, while a file that inflates far past its size (a flate bomb) does not fit.
+An unusually image-heavy PDF near the cap may still hit the limit and go unsearchable; raise `MEMORY_LIMIT_BYTES` if the log shows honest files doing that.
 `main` dispatches that argument before any runtime exists, because a multi-threaded runtime plus jemalloc arenas map more address space than the limit allows.
 `libc` is already in the lockfile through tokio; `tokio`'s `process` feature spawns and kills the child.
 The same binary is used so the distroless image needs no second executable or shell.

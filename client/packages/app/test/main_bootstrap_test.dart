@@ -201,4 +201,35 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
+
+  testWidgets('a sign-out before the first sync spends the cover, so signing '
+      'back in does not bring the splash back', (tester) async {
+    const tokens = TokenPair(
+      userId: 'u',
+      accessToken: 'a',
+      refreshToken: 'r',
+      accessExpiresAt: 1 << 50,
+    );
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container.read(sessionProvider).adopt(tokens);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsOneWidget);
+
+    container.read(sessionProvider).adopt(null);
+    await tester.pump();
+    container.read(sessionProvider).adopt(tokens);
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
 }

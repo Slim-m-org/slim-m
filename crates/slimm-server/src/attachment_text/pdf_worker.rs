@@ -36,9 +36,20 @@ pub enum PdfParse {
     /// The child finished and found no text.
     NoText,
     /// The child hit a limit or crashed: the file is hostile or hopeless.
-    Limited,
+    Limited(Limit),
     /// The child could not be started; worth trying again later.
     Unavailable,
+}
+
+/// Why a child was stopped, so a big honest PDF is told apart from a broken one in the log.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Limit {
+    /// Killed by the memory or CPU rlimit (an allocation failure aborts, the CPU limit signals).
+    Resources,
+    /// Still running when the parent's wall clock ran out.
+    WallClock,
+    /// Exited with an error or died some other way.
+    Failed,
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +63,7 @@ impl PdfWorker {
     /// This binary re-run as the PDF worker.
     pub fn current_exe() -> io::Result<Self> {
         Ok(Self::command(
-            std::env::current_exe()?,
+            own_executable()?,
             vec![WORKER_ARG.into()],
             WALL_LIMIT,
         ))
@@ -96,6 +107,31 @@ impl PdfWorker {
     }
 }
 
+/// `/proc/self/exe` keeps working after the binary on disk is replaced, where `current_exe` yields a " (deleted)" path.
+#[cfg(target_os = "linux")]
+pub(super) fn own_executable() -> io::Result<PathBuf> {
+    Ok(PathBuf::from("/proc/self/exe"))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(super) fn own_executable() -> io::Result<PathBuf> {
+    std::env::current_exe()
+}
+
+#[cfg(unix)]
+fn limit_of(status: std::process::ExitStatus) -> Limit {
+    use std::os::unix::process::ExitStatusExt;
+    match status.signal() {
+        Some(libc::SIGABRT | libc::SIGXCPU | libc::SIGKILL) => Limit::Resources,
+        _ => Limit::Failed,
+    }
+}
+
+#[cfg(not(unix))]
+fn limit_of(_status: std::process::ExitStatus) -> Limit {
+    Limit::Failed
+}
+
 async fn collect(child: &mut Child, bytes: Vec<u8>, wall_limit: Duration) -> PdfParse {
     let (Some(mut stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
         return PdfParse::Unavailable;
@@ -118,9 +154,14 @@ async fn collect(child: &mut Child, bytes: Vec<u8>, wall_limit: Duration) -> Pdf
             Ok(text) if !text.is_empty() => PdfParse::Text(text),
             _ => PdfParse::NoText,
         },
-        _ => {
+        Ok(Ok(status)) => PdfParse::Limited(limit_of(status)),
+        Err(_) => {
             let _ = child.kill().await;
-            PdfParse::Limited
+            PdfParse::Limited(Limit::WallClock)
+        }
+        Ok(Err(_)) => {
+            let _ = child.kill().await;
+            PdfParse::Limited(Limit::Failed)
         }
     }
 }
@@ -167,4 +208,19 @@ fn apply_limits() -> anyhow::Result<()> {
 #[cfg(not(unix))]
 fn apply_limits() -> anyhow::Result<()> {
     Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_worker_binary_is_resolved_through_proc_not_a_path_that_can_go_stale() {
+        let path = own_executable().unwrap();
+        assert_eq!(path, PathBuf::from("/proc/self/exe"));
+        assert_eq!(
+            std::fs::canonicalize(path).unwrap(),
+            std::fs::canonicalize(std::env::current_exe().unwrap()).unwrap()
+        );
+    }
 }

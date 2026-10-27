@@ -62,6 +62,17 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('a drag is not snapped to the key step', (tester) async {
+    final changes = <double>[];
+    await _pump(tester, changes, []);
+
+    await tester.drag(find.byType(Slider), const Offset(3, 0));
+    await tester.pump();
+
+    expect(changes, isNotEmpty);
+    expect(changes.any((v) => v % 5 != 0), isTrue, reason: '$changes');
+  });
+
   testWidgets('a held arrow key commits once, on release', (tester) async {
     final changes = <double>[];
     final commits = <double>[];

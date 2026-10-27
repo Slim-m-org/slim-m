@@ -131,9 +131,7 @@ class _AppSliderState extends State<AppSlider> {
       widget.onChangeEnd?.call(widget.value);
       return KeyEventResult.handled;
     }
-    final next = (widget.value + (up ? step : -step))
-        .clamp(widget.min, widget.max)
-        .toDouble();
+    final next = _stepped(up ? step : -step);
     change(next);
     if (event is KeyRepeatEvent) {
       _commitOnKeyUp = true;
@@ -143,16 +141,35 @@ class _AppSliderState extends State<AppSlider> {
     return KeyEventResult.handled;
   }
 
-  /// Material's own increase and decrease actions move by one division, so the
-  /// key step is also the screen reader's step.
-  int? get _divisions {
-    final given = widget.divisions;
+  double _stepped(double delta) =>
+      (widget.value + delta).clamp(widget.min, widget.max).toDouble();
+
+  void _nudgeBySemantics(double delta) {
+    final next = _stepped(delta);
+    widget.onChanged?.call(next);
+    widget.onChangeEnd?.call(next);
+  }
+
+  /// Material's own increase and decrease move a fixed share of the range, so a
+  /// slider with a key step takes over those two actions and drags stay free.
+  Widget _withStepActions(Widget slider, double value) {
     final step = widget.keyStep;
-    if (given != null || step == null || step <= 0) return given;
-    final steps = (widget.max - widget.min) / step;
-    return steps >= 1 && (steps - steps.round()).abs() < 1e-9
-        ? steps.round()
-        : null;
+    String text(double v) => widget.valueLabel?.call(v) ?? v.round().toString();
+    if (step == null || widget.onChanged == null) return slider;
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      slider: true,
+      enabled: true,
+      focusable: true,
+      focused: _focused,
+      value: text(value),
+      increasedValue: text(_stepped(step)),
+      decreasedValue: text(_stepped(-step)),
+      onIncrease: () => _nudgeBySemantics(step),
+      onDecrease: () => _nudgeBySemantics(-step),
+      child: slider,
+    );
   }
 
   void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);
@@ -314,7 +331,7 @@ class _AppSliderState extends State<AppSlider> {
         value: value,
         min: widget.min,
         max: widget.max,
-        divisions: _divisions,
+        divisions: widget.divisions,
         focusNode: _focusNode,
         autofocus: widget.autofocus,
         onChanged: widget.onChanged,
@@ -341,9 +358,12 @@ class _AppSliderState extends State<AppSlider> {
           borderRadius: BorderRadius.circular(AppRadii.full),
         ),
         // On touch the 24px-tall control grows to the touch floor; the track stays centred and looks the same.
-        child: AppTouchTargets.of(context)
-            ? SizedBox(height: AppSizes.rowTouch, child: slider)
-            : slider,
+        child: _withStepActions(
+          AppTouchTargets.of(context)
+              ? SizedBox(height: AppSizes.rowTouch, child: slider)
+              : slider,
+          value,
+        ),
       ),
     );
 

@@ -152,6 +152,43 @@ void main() {
     expect((await rig.contents()).keys, containsAll(['m1', 'm6']));
   });
 
+  test('a backlog that overflows on every attempt stops restarting quietly '
+      'and goes offline', () async {
+    final previous = heldFrameCap;
+    heldFrameCap = 0;
+    addTearDown(() => heldFrameCap = previous);
+    var syncCalls = 0;
+    final rig = await SyncLiveRig.build(
+      (r) => r.on('POST', '/sync', (_) async {
+        syncCalls++;
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        return _page(const []);
+      }),
+      seeded: [rigMessage('m1', 1, 'msg 1')],
+    );
+    final statuses = <String>[];
+    rig.container.listen(
+      syncControllerProvider,
+      (_, next) => statuses.add(next.name),
+    );
+    final flood = Timer.periodic(
+      const Duration(milliseconds: 20),
+      (_) => rig.server.pushEvent(_created(2)),
+    );
+    addTearDown(flood.cancel);
+    rig.signIn();
+
+    await rig.waitFor(
+      () =>
+          syncCalls > maxQuickOverflowRestarts * 2 &&
+          rig.status.name == 'offline',
+      ms: 15000,
+    );
+
+    expect(rig.container.read(syncFailureProvider), isNotNull);
+    expect(syncCalls, greaterThan(maxQuickOverflowRestarts));
+  });
+
   test('a live message that skips a seq is not applied, and a reconcile '
       'fetches the whole run', () async {
     var served = <Map<String, dynamic>>[];

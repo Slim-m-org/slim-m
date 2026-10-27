@@ -26,23 +26,28 @@ pub struct TextCandidate {
 impl Store {
     /// The newest attachments in live, unencrypted messages that have not been
     /// through extraction yet, so recent uploads become searchable first and
-    /// older ones follow as the background pass catches up.
+    /// older ones follow as the background pass catches up. `skip` holds files
+    /// that are backing off, so they cannot occupy the head of the queue.
     pub async fn attachments_awaiting_text(
         &self,
         limit: i64,
+        skip: &[Vec<u8>],
     ) -> anyhow::Result<Vec<TextCandidate>> {
+        let skip: Vec<String> = skip.iter().map(|sha| to_hex(sha)).collect();
         let rows = sqlx::query(
             "SELECT a.sha256 AS sha256, a.content_type AS content_type, a.size AS size,
                     (SELECT ma.filename FROM message_attachments ma
                       WHERE ma.sha256 = a.sha256 AND ma.filename IS NOT NULL LIMIT 1) AS filename
              FROM attachments a
              WHERE NOT EXISTS (SELECT 1 FROM attachment_text t WHERE t.sha256 = a.sha256)
+               AND lower(hex(a.sha256)) NOT IN (SELECT value FROM json_each(?))
                AND EXISTS (SELECT 1 FROM message_attachments ma
                              JOIN messages m ON m.id = ma.message_id
                             WHERE ma.sha256 = a.sha256 AND m.is_encrypted = 0
                               AND m.deleted_at IS NULL)
              ORDER BY a.created_at DESC LIMIT ?",
         )
+        .bind(serde_json::to_string(&skip)?)
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;

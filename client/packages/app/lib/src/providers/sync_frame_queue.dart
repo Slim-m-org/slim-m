@@ -34,6 +34,9 @@ class FrameBacklogOverflow implements Exception {
 @visibleForTesting
 int heldFrameCap = 5000;
 
+/// How many held-frame overflows in a row restart quietly before the connect is treated as failed.
+const maxQuickOverflowRestarts = 3;
+
 /// Whether the store-side handler does anything with [event].
 ///
 /// Everything else is ephemeral or a view signal; it reaches the live-event
@@ -41,6 +44,7 @@ int heldFrameCap = 5000;
 bool isAppliedToStore(api.ServerEvent event) => switch (event) {
   api.MessageCreated() ||
   api.MessageEdited() ||
+  api.MessageLinkPreviewsRemoved() ||
   api.MessageDeleted() ||
   api.ReadStateChanged() ||
   api.NotificationOverrideChanged() ||
