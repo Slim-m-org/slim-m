@@ -13,6 +13,7 @@ import 'package:slimm_rtc/src/share_audio_graph.dart';
 import 'package:slimm_rtc/src/share_audio_graph_parse.dart';
 
 import 'support/session_fakes.dart';
+import 'support/no_audio_devices.dart';
 
 const _ownPid = 4242;
 
@@ -357,6 +358,7 @@ void _sessionTests() {
     final session = VoiceSession(
       roomFactory: () => room,
       shareAudioIsolation: isolation,
+      audioDevices: const NoAudioDevices(),
     );
     await session.join(url: 'wss://a.invalid', token: 't');
     await isolation.begin();

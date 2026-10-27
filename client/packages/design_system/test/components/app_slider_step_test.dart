@@ -22,6 +22,7 @@ Future<List<double>> _pump(
           builder: (context, setState) => SizedBox(
             width: 300,
             child: AppSlider(
+              semanticLabel: 'Volume',
               value: value,
               min: 0,
               max: 200,
@@ -99,5 +100,15 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
 
     expect(commits, [95]);
+  });
+
+  testWidgets('the stepping slider keeps its accessible name', (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pump(tester, <double>[], []);
+
+    final node =
+        find.semantics.byAction(SemanticsAction.increase).evaluate().single;
+    expect(node.label, 'Volume');
+    handle.dispose();
   });
 }
