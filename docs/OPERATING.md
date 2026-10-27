@@ -79,7 +79,7 @@ The operator sets the deployment policy in Space settings, under Invites, Two-fa
 | --- | --- |
 | Nobody new can turn it on (`off`) | New enrolments are refused. A factor someone already enabled is still enforced. |
 | Anyone who wants to (`optional`, the default) | Members choose. |
-| Expected of admins and moderators (`required_for_elevated`) | Reported to the client only. The server does not enforce it yet (decision 0048). |
+| Required of admins (`required_for_elevated`) | Reported to the client only. The server does not enforce it yet (decision 0048). |
 
 Five wrong codes in a row lock the factor for 15 minutes.
 A code works once, within 30 seconds either side of the current step.

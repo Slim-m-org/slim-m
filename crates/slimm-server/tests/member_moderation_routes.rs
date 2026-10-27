@@ -322,3 +322,70 @@ async fn a_timed_out_author_cannot_edit_their_way_around_the_block() {
 
     assert_eq!(edit(member_token).await, StatusCode::FORBIDDEN);
 }
+
+/// Two moderators holding the same bits are peers, and neither may act on the other.
+#[tokio::test]
+async fn a_moderator_cannot_act_on_an_equal_rank_peer() {
+    let (store, _guard) = support::new_store("slimm-moderation-routes-test").await;
+    let (admin_token, _admin_id, mod_token, mod_id, _member_id) = people(&store).await;
+    let peer_role = store
+        .create_role(
+            "mod-two",
+            Permissions::KICK_MEMBERS.union(Permissions::BAN_MEMBERS),
+            false,
+        )
+        .await
+        .unwrap();
+    let peer = store
+        .create_account("peer", "Peer", "not-a-real-hash")
+        .await
+        .unwrap();
+    store.assign_role(peer.id, peer_role).await.unwrap();
+    let app = app(store.clone());
+
+    for (verb, path) in [("PUT", "timeout"), ("PUT", "removal")] {
+        let refused = app
+            .clone()
+            .oneshot(request(
+                verb,
+                &format!("/members/{}/{path}", peer.id),
+                &mod_token,
+                Some(json!({ "duration_seconds": 300 })),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(refused.status(), StatusCode::FORBIDDEN, "{path}");
+        let body = axum::body::to_bytes(refused.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(
+            String::from_utf8_lossy(&body).contains("equal rank"),
+            "{path}"
+        );
+    }
+    let bulk = app
+        .clone()
+        .oneshot(request(
+            "POST",
+            "/members/bulk-timeout",
+            &mod_token,
+            Some(json!({ "user_ids": [peer.id.to_string()], "duration_seconds": 300 })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(bulk.status(), StatusCode::FORBIDDEN, "bulk");
+
+    // An administrator still outranks the peer, and the peer still cannot reach the first moderator.
+    let by_admin = app
+        .clone()
+        .oneshot(request(
+            "PUT",
+            &format!("/members/{}/timeout", peer.id),
+            &admin_token,
+            Some(json!({ "duration_seconds": 300 })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(by_admin.status(), StatusCode::OK);
+    assert_ne!(mod_id, peer.id.to_string());
+}

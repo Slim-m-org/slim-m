@@ -32,6 +32,10 @@ String describeApiFailure(String whatFailed, api.ApiException e) => switch (e) {
     'Could not $whatFailed: it is too big.',
   api.ServerException(statusCode: 507) =>
     'Could not $whatFailed: this server has no storage left. Tell an admin.',
+  api.ForbiddenException(isEqualRankRefusal: true) =>
+    'Could not $whatFailed: you cannot act on someone of the same rank as you.',
+  api.ForbiddenException(needsOwnSecondFactor: true) =>
+    'Could not $whatFailed: turn on two-factor sign-in on your own account first.',
   api.ForbiddenException() =>
     'Could not $whatFailed: you are not allowed to do that.',
   api.UnauthorizedException() =>

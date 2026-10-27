@@ -4493,6 +4493,16 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Search results, newest-relevance-first as the provider ordered them.
@@ -4551,6 +4561,16 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Trending results, as the provider ordered them.
@@ -4598,6 +4618,17 @@ paths:
         result grid never asks a client to load an image straight from the
         provider's own CDN. Requires the same ATTACH_FILES bit `searchGifs`
         does.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: The thumbnail's raw bytes, sniffed the same way a stored attachment's are.
@@ -4610,6 +4641,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4773,6 +4806,13 @@ paths:
                 id:
                   type: string
                   description: An opaque id from a searchGifs result.
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: >
+                    The channel the GIF is headed for. When given, ATTACH_FILES
+                    is checked in that channel, so a channel overwrite granting
+                    it counts; without it the deployment-wide permission decides.
       responses:
         "201":
           description: The stored attachment's metadata.
