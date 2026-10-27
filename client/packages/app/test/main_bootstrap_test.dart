@@ -73,4 +73,21 @@ void main() {
 
     expect(find.text('Downloading update'), findsOneWidget);
   });
+
+  testWidgets('a phone never shows the desktop startup screen while not '
+      'ready, so MobileBootGate stays its only splash', (tester) async {
+    final container = _container();
+    container.read(appReadyProvider.notifier).state = false;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    expect(find.byType(StartupApp), findsNothing);
+  });
 }

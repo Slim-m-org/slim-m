@@ -338,11 +338,18 @@ bool get _splashIsFrameless =>
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
 class SlimMApp extends ConsumerWidget {
-  const SlimMApp({super.key});
+  const SlimMApp({super.key, this.isDesktopOverride});
+
+  /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
+  final bool? isDesktopOverride;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (!ref.watch(appReadyProvider)) {
+      // A phone has one splash, MobileBootGate's; this holds the native launch ground until the router may build.
+      if (!(isDesktopOverride ?? isDesktopHost)) {
+        return ColoredBox(color: AppTokens.dark.surfaceBase);
+      }
       return StartupApp(
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
