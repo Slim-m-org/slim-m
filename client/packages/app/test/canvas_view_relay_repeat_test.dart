@@ -14,7 +14,7 @@ void main() {
         final sent = <Rect>[];
         final relay = CanvasViewRelay(
           board: const Rect.fromLTWH(0, 0, 1000, 1000),
-          send: (view, {required summon}) => sent.add(view),
+          send: (view, {required summon, tile}) => sent.add(view),
           showView: (_) {},
           isBlocked: (_) => false,
           selfId: () => 'me',

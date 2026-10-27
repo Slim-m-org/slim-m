@@ -31,6 +31,7 @@ import 'package:clock/clock.dart';
 import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -79,8 +80,11 @@ import 'canvas_engine.dart';
 import 'canvas_timeout_banner.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_presence_geometry.dart'
+    show presenceScreenLabel, presenceTileIdentity, presenceTileKind;
 import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
 import 'canvas_fullscreen.dart';
+import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_image_paste.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_note_sheet.dart';
@@ -181,6 +185,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       ref.read(portraitLockedPhoneProvider.notifier),
     );
     _engine.attachPane(); // also forces the late field's ref.read now
+    _engine.viewRelay.followedTile.addListener(_onFollowedTile);
     _timeoutBanner = CanvasTimeoutBanner(
       timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
       error: () => ref.read(canvasEngineProvider(widget.channelId)).error,
@@ -242,6 +247,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _focusNode.dispose();
     _windowHold.release();
     _landscapeHold.release();
+    _engine.viewRelay.followedTile.removeListener(_onFollowedTile);
     _engine.detachPane();
     super.dispose();
   }

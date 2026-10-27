@@ -28,6 +28,25 @@ void main() {
     expect(view.summon, isTrue);
   });
 
+  test('carries the full screen tile key when there is one', () {
+    ServerEvent? parse({String? tile}) => ServerEvent.parse(
+          jsonEncode({
+            'type': 'canvas.view.updated',
+            'channel_id': 'c',
+            'user_id': 'u',
+            'x': 0,
+            'y': 0,
+            'w': 1,
+            'h': 1,
+            'summon': false,
+            if (tile != null) 'tile': tile,
+          }),
+        );
+
+    expect((parse(tile: 'screen:u') as CanvasView).tile, 'screen:u');
+    expect((parse() as CanvasView).tile, isNull);
+  });
+
   test('a frame missing its rectangle is not a view', () {
     final event = ServerEvent.parse(
       jsonEncode({

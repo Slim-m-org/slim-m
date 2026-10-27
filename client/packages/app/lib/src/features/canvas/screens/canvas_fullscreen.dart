@@ -18,3 +18,20 @@ final canvasFocusedTileProvider =
 /// The channel whose fullscreen was entered by focusing a tile, so ending the
 /// focus puts the chrome back. In a provider so a remounted pane remembers it.
 final canvasFullscreenFromFocusProvider = StateProvider<String?>((ref) => null);
+
+/// The channel whose focused tile was opened by following someone, so the camera there is the fit and not a pan to follow.
+final canvasFocusFromFollowProvider = StateProvider<String?>((ref) => null);
+
+/// The tile key [focus] names when it is on [channelId], else null.
+String? focusedTileOf(
+  ({String channelId, String tileKey})? focus,
+  String channelId,
+) => focus?.channelId == channelId ? focus!.tileKey : null;
+
+/// Tells [set] which tile is full screen on [channelId], now and on every change.
+void mirrorFocusedTile(Ref ref, String channelId, void Function(String?) set) =>
+    ref.listen(
+      canvasFocusedTileProvider,
+      (_, focus) => set(focusedTileOf(focus, channelId)),
+      fireImmediately: true,
+    );

@@ -164,6 +164,7 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
         w: (decoded['w'] as num).toDouble(),
         h: (decoded['h'] as num).toDouble(),
         summon: decoded['summon'] as bool,
+        tile: decoded['tile'] is String ? decoded['tile'] as String : null,
       ),
     _ => null,
   };

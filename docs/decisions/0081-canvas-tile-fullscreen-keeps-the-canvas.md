@@ -52,3 +52,30 @@ The feed is no longer a separate layer sized to the pane.
   A camera that was fitted to the board is fitted again rather than copied, so a different window size cannot strand it.
 - The focused tile takes no drag or resize handles, so it cannot be moved from under the camera; its name label still sits over the video.
 - The video is the same view widget at the size it is painted, so a share is subscribed at a resolution fit for the screen.
+
+
+## Addendum 2026-10-27 - rules for full screen, following and summons
+
+The owner agreed the v115 model is right and asked for the open edges to be written down.
+
+- Others' ink and cursors over a full screen share always show.
+  A person who does not want to see them uses their personal view ([0082](0082-personal-canvas-view.md)) or watches from the plain voice call, which has no canvas.
+  There is no hide-ink toggle in full screen.
+- Escape exits, and F toggles full screen for the tile that has keyboard focus (and exits when one is already full screen).
+  Neither key acts while a text field has the keyboard.
+- A screen reader hears "Full screen, <tile name>" on entering and "Exited full screen" on leaving.
+- Full screen from the personal view exits back to the personal view.
+  The fitted camera is never saved as the personal layout, including when the app closes while a tile is full screen.
+- A second full screen request while one is open refits to the new tile.
+- Following: when the person you follow has a tile full screen, you are put into full screen on the same tile, if you can see that share.
+  When they leave full screen you leave too and keep following them.
+  Stopping the follow leaves you where you are.
+  The view frame carries the tile key (`tile`, optional) for this.
+- A summon is a request, not a move.
+  The receiver sees Accept and Decline, and an unanswered request lapses quietly after 30 seconds.
+  On Accept a full screen receiver leaves full screen first, then moves to the summoner's view.
+  Someone you already follow is not asked again, since you move with them anyway.
+- The name chip over a full screen tile sits below the view and zoom pills, so it no longer overlaps them.
+- Phones: full screen already folds the dock, tool row included, behind a handle, same as desktop.
+  This stays; no separate phone rule.
+- Not decided here: the camera stopping at maximum zoom on a small share, a tile at the board edge sitting off-centre, and a pinned dock refitting slightly smaller.

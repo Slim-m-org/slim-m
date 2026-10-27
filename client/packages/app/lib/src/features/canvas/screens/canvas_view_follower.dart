@@ -16,6 +16,7 @@ class CanvasViewFollower {
     required this.relay,
     required this.existingRelay,
     required this.glide,
+    this.holdsFitCamera,
   });
 
   final CanvasDocument document;
@@ -29,6 +30,9 @@ class CanvasViewFollower {
 
   /// How long the camera eases to a followed view; zero under reduce motion.
   final Duration Function() glide;
+
+  /// True while a followed full screen tile owns the camera, so its fit is not the follower panning away.
+  final bool Function()? holdsFitCamera;
 
   Camera? _viewCamera;
   bool _showingView = false;
@@ -101,6 +105,10 @@ class CanvasViewFollower {
     if (resized) {
       showView(relay().viewOf(followed));
     } else if (document.camera != _viewCamera) {
+      if (holdsFitCamera?.call() ?? false) {
+        _viewCamera = document.camera;
+        return;
+      }
       _ease?.cancel();
       relay().stopFollowing();
     }

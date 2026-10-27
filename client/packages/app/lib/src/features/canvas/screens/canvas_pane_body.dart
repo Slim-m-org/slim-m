@@ -12,6 +12,7 @@
 library;
 
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_speaking_sync.dart';
 import 'canvas_summary.dart';
+import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
 import 'canvas_truncated_notice.dart';
@@ -327,6 +329,18 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// Whether this caller has a camera bubble on the canvas at all right now
   /// - the dock's overflow item's own gate for whether "hide my camera
   /// bubble" means anything to offer.
+  void _acceptSummon() {
+    final leave = widget.fullscreen ? widget.onToggleFullscreen : null;
+    unawaited(
+      widget.viewRelay?.acceptSummon(
+            beforeMoving: leave == null
+                ? null
+                : () => leaveFullscreenThenSettle(leave),
+          ) ??
+          Future<void>.value(),
+    );
+  }
+
   bool get _hasSelfBubble => widget.callParticipants.any((p) => p.isLocal);
 
   /// Which tiles are hidden, for the phone header's Show rows; it notifies only when that set changes.
@@ -404,6 +418,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                             relay: widget.viewRelay,
                             selfId: widget.selfId,
                             viewMode: widget.viewMode,
+                            onAcceptSummon: _acceptSummon,
                           ),
                         ),
                       if (widget.paging case final paging?)

@@ -627,6 +627,8 @@ pub enum Event {
         w: f64,
         h: f64,
         summon: bool,
+        /// The call tile `user_id` has full screen, for followers to open too.
+        tile: Option<String>,
     },
     /// A placed object was repositioned.
     ///

@@ -16,7 +16,7 @@ class _Rig {
   _Rig(this.tester, {this.canBring = true}) {
     relay = CanvasViewRelay(
       board: const Rect.fromLTWH(0, 0, 1000, 1000),
-      send: (_, {required summon}) {},
+      send: (_, {required summon, tile}) {},
       showView: (_) {},
       isBlocked: (_) => false,
       selfId: () => 'me',

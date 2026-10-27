@@ -99,5 +99,8 @@ pub(super) enum ClientFrame {
         h: f64,
         #[serde(default)]
         summon: bool,
+        /// The call tile this client has full screen, so a follower can open it too.
+        #[serde(default)]
+        tile: Option<String>,
     },
 }

@@ -266,7 +266,7 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final screen = presenceScreenRect(rect, camera);
     return Positioned(
       left: math.max(screen.left, 0) + AppSpacing.s12,
-      top: math.max(screen.top, 0) + AppSpacing.s12,
+      top: math.max(screen.top, 0) + _clearOfCornerRows(context),
       child: IgnorePointer(
         child: MediaLabelChip(
           icon: isScreen ? AppIcons.screenShare : AppIcons.camera,
@@ -274,6 +274,15 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
         ),
       ),
     );
+  }
+
+  // The view pill and zoom pill sit in the same corner, so the chip starts below them.
+  double _clearOfCornerRows(BuildContext context) {
+    final row = AppTouchTargets.of(context)
+        ? AppSizes.rowTouch
+        : AppSizes.icon28;
+    final top = math.max(MediaQuery.paddingOf(context).top, AppSpacing.s12);
+    return top + 2 * (row + AppSpacing.s8);
   }
 
   String _mediaChipLabel(bool isScreen, VoiceParticipant participant) {

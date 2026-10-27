@@ -183,6 +183,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             w,
             h,
             summon,
+            tile,
         } => ServerFrame::CanvasView {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
@@ -191,6 +192,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             w,
             h,
             summon,
+            tile,
         },
         Event::CanvasObjectMoved {
             channel_id,

@@ -18,7 +18,7 @@ CanvasViewRelay _relay({
   List<Rect>? shown,
 }) => CanvasViewRelay(
   board: _board,
-  send: (view, {required summon}) => sent.add(view),
+  send: (view, {required summon, tile}) => sent.add(view),
   showView: (view) => shown?.add(view),
   isBlocked: (_) => false,
   selfId: () => 'me',

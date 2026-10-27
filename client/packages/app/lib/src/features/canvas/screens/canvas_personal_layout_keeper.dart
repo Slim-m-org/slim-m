@@ -38,6 +38,7 @@ class CanvasPersonalLayoutKeeper {
     required this.mode,
     required this.store,
     this.saveDelay = personalLayoutSaveDelay,
+    this.isHeld,
   }) {
     _kept = mode.layout.encode();
     mode.addListener(_onLayoutMaybeChanged);
@@ -51,6 +52,9 @@ class CanvasPersonalLayoutKeeper {
   /// Resolved once, up front: the provider that made it is gone by [dispose].
   final Future<CanvasLayoutStore?> store;
   final Duration saveDelay;
+
+  /// True while a full screen tile fits the camera, which is not the person's layout and is never saved.
+  final bool Function()? isHeld;
 
   String _kept = '';
   Camera? _camera;
@@ -95,6 +99,7 @@ class CanvasPersonalLayoutKeeper {
 
   void _onCameraMaybeMoved() {
     if (!mode.personal || mode.document.camera == _camera) return;
+    if (isHeld?.call() ?? false) return;
     _camera = mode.document.camera;
     _onLayoutMaybeChanged();
   }
@@ -111,6 +116,10 @@ class CanvasPersonalLayoutKeeper {
 
   void _write() {
     _timer = null;
+    if (isHeld?.call() ?? false) {
+      _timer = Timer(saveDelay, _write);
+      return;
+    }
     // Before the pane is measured the camera is still the default, which is nobody's choice.
     if (mode.personal && mode.document.viewport.isEmpty) return;
     final layout = mode.layout;

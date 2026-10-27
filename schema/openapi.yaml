@@ -17025,7 +17025,12 @@ components:
           default: false
           description: >
             Asks every receiver to jump to this rectangle once ("bring
-            everyone to me").
+            everyone to me"); each receiver is asked to accept first.
+        tile:
+          type: string
+          description: >
+            The call tile this client has full screen, so a follower can open
+            the same one. Omitted when none; a value over 128 bytes is dropped.
 
     ClientCanvasMediaSlotPreview:
       type: object
@@ -17416,7 +17421,12 @@ components:
           type: boolean
           description: >
             Asks every receiver to jump to this rectangle once ("bring
-            everyone to me").
+            everyone to me"); each receiver is asked to accept first.
+        tile:
+          type: string
+          description: >
+            The call tile the sender has full screen, when any, so a follower
+            opens the same one.
 
     CanvasMediaSlotPreviewUpdated:
       type: object

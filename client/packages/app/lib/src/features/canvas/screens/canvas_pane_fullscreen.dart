@@ -25,11 +25,13 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
   void _toggleFullscreen() {
     final notifier = ref.read(canvasFullscreenProvider.notifier);
     if (_fullscreen) {
+      if (_focusedTileKey != null) _announce('Exited full screen');
       notifier.state = null;
       ref.read(canvasFocusedTileProvider.notifier).state = null;
       _windowHold.release();
       _landscapeHold.release();
       ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
+      ref.read(canvasFocusFromFollowProvider.notifier).state = null;
       // A tool picked while fullscreen stays; the pan the entry set gives way to whatever was armed before, or the default if this pane opened straight into fullscreen.
       _refresh(() {
         final before = _toolBeforeFullscreen;
@@ -67,6 +69,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     if (!_mounted) return;
     final focus = ref.read(canvasFocusedTileProvider.notifier);
     if (tileKey != null) {
+      if (focus.state?.tileKey != tileKey) _announceTile(tileKey);
       focus.state = (channelId: widget.channelId, tileKey: tileKey);
       unawaited(_windowHold.enter());
       unawaited(_landscapeHold.enter());
@@ -78,13 +81,71 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
       return;
     }
     if (focus.state?.channelId != widget.channelId) return;
+    ref.read(canvasFocusFromFollowProvider.notifier).state = null;
     _windowHold.release();
     _landscapeHold.release();
     if (ref.read(canvasFullscreenFromFocusProvider) == widget.channelId) {
       _toggleFullscreen();
       return;
     }
+    _announce('Exited full screen');
     focus.state = null;
+  }
+
+  /// Follows the followed person into and out of full screen on the same tile (decision 0081).
+  void _onFollowedTile() {
+    final relay = _engine.viewRelay;
+    final tile = relay.followedTile.value;
+    if (tile != null) {
+      if (!_tileIsLive(tile)) return;
+      ref.read(canvasFocusFromFollowProvider.notifier).state = widget.channelId;
+      _focusTile(tile);
+      return;
+    }
+    // Ending the follow leaves the viewer where they are; only the followed person leaving full screen takes them out.
+    if (relay.following.value == null) {
+      ref.read(canvasFocusFromFollowProvider.notifier).state = null;
+    } else if (ref.read(canvasFocusFromFollowProvider) == widget.channelId) {
+      unawaited(_leaveWithFollowed(relay.following.value!));
+    }
+  }
+
+  // Putting the old camera back would otherwise read as the viewer panning away and end the follow.
+  Future<void> _leaveWithFollowed(String followed) async {
+    await leaveFullscreenThenSettle(() => _focusTile(null));
+    final relay = _engine.viewRelay;
+    if (_mounted && relay.following.value == null) relay.follow(followed);
+  }
+
+  VoiceParticipant? _participantOf(String tileKey) => ref
+      .read(voiceControllerProvider)
+      .participants
+      .where((p) => p.identity == presenceTileIdentity(tileKey))
+      .firstOrNull;
+
+  bool _tileIsLive(String tileKey) {
+    final participant = _participantOf(tileKey);
+    if (participant == null) return false;
+    return presenceTileKind(tileKey) == screenTrackKind
+        ? participant.isScreenSharing
+        : participant.isCameraOn;
+  }
+
+  void _announceTile(String tileKey) {
+    final participant = _participantOf(tileKey);
+    if (participant == null) return;
+    final isScreen = presenceTileKind(tileKey) == screenTrackKind;
+    final label = isScreen
+        ? presenceScreenLabel(participant)
+        : (participant.isLocal ? 'Your camera' : participant.name);
+    _announce('Full screen, $label');
+  }
+
+  void _announce(String text) {
+    final view = View.maybeOf(context);
+    if (view == null) return;
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    unawaited(SemanticsService.sendAnnouncement(view, text, direction));
   }
 
   /// A pane that mounts while its channel is still fullscreen (the provider
@@ -114,6 +175,7 @@ extension _CanvasPaneFullscreen on _CanvasPaneState {
     _windowHold.release();
     _landscapeHold.release();
     ref.read(canvasFullscreenFromFocusProvider.notifier).state = null;
+    ref.read(canvasFocusFromFollowProvider.notifier).state = null;
     ref.read(canvasFocusedTileProvider.notifier).state = null;
     ref.read(canvasFullscreenProvider.notifier).state = null;
     ref.read(canvasOpenProvider.notifier).state = null;

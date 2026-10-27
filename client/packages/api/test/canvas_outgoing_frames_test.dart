@@ -103,4 +103,16 @@ void main() {
       'summon': true,
     });
   });
+
+  test('canvasView names the full screen tile only when there is one',
+      () async {
+    connection.canvasView(
+      'c1',
+      (x: 1, y: 2, w: 3, h: 4),
+      tile: 'screen:u1',
+    );
+    expect((await next())['tile'], 'screen:u1');
+    connection.canvasView('c1', (x: 1, y: 2, w: 3, h: 4));
+    expect((await next()).containsKey('tile'), isFalse);
+  });
 }
