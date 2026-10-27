@@ -202,6 +202,13 @@ class CanvasPersonalLayouts extends Table {
 /// package ever sees. See [MessageRowMapping] below for the one place a row
 /// becomes one.
 @DataClassName('MessageRow')
+@TableIndex
+    .sql('CREATE INDEX messages_channel_seq ON messages (channel_id, seq DESC)')
+@TableIndex.sql('CREATE INDEX messages_author ON messages (author_id)')
+@TableIndex
+    .sql('CREATE INDEX messages_pending ON messages (id) WHERE pending = 1')
+@TableIndex
+    .sql('CREATE INDEX messages_failed ON messages (id) WHERE failed = 1')
 class Messages extends Table {
   TextColumn get id => text()();
   TextColumn get channelId => text()();
@@ -259,6 +266,11 @@ class Messages extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A union, not `pending = 1 OR failed = 1`, because sqlite serves each
+/// partial index only for its own term and scans the table for the OR.
+const pendingOrFailedIdsSql = 'SELECT id FROM messages WHERE pending = 1 '
+    'UNION SELECT id FROM messages WHERE failed = 1';
+
 /// Maps a locally stored row to the DTO everything outside this package
 /// reads instead, so nothing beyond here needs drift at all.
 extension MessageRowMapping on MessageRow {
@@ -304,7 +316,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -320,6 +332,12 @@ class SlimmDatabase extends _$SlimmDatabase {
     if (existing.any((row) => row.read<String>('name') == column.name)) return;
     await m.addColumn(table, column);
   }
+
+  /// Caches from before v26 already hold messages_channel_seq, made by hand at open.
+  Future<void> _createIndexOnce(Index index) => customStatement(
+        index.createStatementsByDialect.values.first
+            .replaceFirst('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '),
+      );
 
   /// Each step runs when the upgrade starts below its version (and at or
   /// above [_UpgradeStep.minFrom]); order matters, a step may rely on earlier ones.
@@ -384,6 +402,16 @@ class SlimmDatabase extends _$SlimmDatabase {
         _UpgradeStep(24,
             () => _addColumnOnce(m, channels, channels.defaultNotification)),
         _UpgradeStep(25, () => m.createTable(canvasPersonalLayouts)),
+        _UpgradeStep(26, () async {
+          for (final index in [
+            messagesChannelSeq,
+            messagesAuthor,
+            messagesPending,
+            messagesFailed,
+          ]) {
+            await _createIndexOnce(index);
+          }
+        }),
         // v2's null display names and the pre-op-stream epoch are both
         // unreachable by a keyset sync. See the doc comment above.
         _UpgradeStep(7, () async {
@@ -406,16 +434,10 @@ class SlimmDatabase extends _$SlimmDatabase {
           }
         },
         beforeOpen: (details) async {
-          // Keyset reads and unread counts both scan a channel newest-first, so the
-          // index has to match that order to be used.
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS messages_channel_seq '
-            'ON messages (channel_id, seq DESC)',
-          );
           // The ids of a send that landed or was discarded have nothing left to retry.
           await customStatement(
             'DELETE FROM pending_attachments WHERE message_id NOT IN '
-            '(SELECT id FROM messages WHERE pending = 1 OR failed = 1)',
+            '($pendingOrFailedIdsSql)',
           );
         },
       );

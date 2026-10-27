@@ -30,6 +30,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
+import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
@@ -61,7 +62,6 @@ const double _stageAspect = 16 / 9;
 class CallStageLayout extends ConsumerWidget {
   const CallStageLayout({
     super.key,
-    required this.voice,
     required this.controller,
     required this.onOpenProfile,
     required this.isDm,
@@ -73,7 +73,6 @@ class CallStageLayout extends ConsumerWidget {
   /// caller where the dock's height varies (a phone with bot controls).
   final double dockClearance;
 
-  final VoiceState voice;
   final VoiceController controller;
 
   /// [BuildContext] is the tapped tile's own - the anchor a popover opened
@@ -99,10 +98,12 @@ class CallStageLayout extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final voice = ref.watch(voiceFlagsProvider);
+    final participants = ref.watch(voiceParticipantsProvider);
     final watch = ref.watch(shareWatchProvider);
     final watching = ref.read(shareWatchProvider.notifier);
     final shares = activeShares(
-      voice.participants,
+      participants,
       stopped: watch.stopped,
       focusedIdentity: watch.focused,
     );
@@ -120,13 +121,13 @@ class CallStageLayout extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _CallHeader(voice: voice),
+          _CallHeader(channelId: voice.channelId),
           // One banner at a time: the reconnect notice already says why the stage is quiet.
           if (voice.rejoining) const VoiceReconnectBanner(),
           if (!isDm && voice.channelId != null)
             WatchSessionGate(
               channelId: voice.channelId!,
-              participantIds: [for (final p in voice.participants) p.identity],
+              participantIds: [for (final p in participants) p.identity],
             ),
           // A live share has no banner: the share control and the stage caption say it (decision 0047, point 8).
           if (voice.awaitingBroadcast)
@@ -151,13 +152,13 @@ class CallStageLayout extends ConsumerWidget {
                       focusedIdentity: focusedIdentity,
                       onStopWatching: watching.stop,
                       onFocus: watching.focus,
-                      participants: voice.participants,
+                      participants: participants,
                       controller: controller,
                       onOpenProfile: onOpenProfile,
                       menuItemsBuilder: menuItemsBuilder,
                     )
                   : _ParticipantGrid(
-                      participants: voice.participants,
+                      participants: participants,
                       controller: controller,
                       onOpenProfile: onOpenProfile,
                       isDm: isDm,
@@ -173,13 +174,13 @@ class CallStageLayout extends ConsumerWidget {
 }
 
 class _CallHeader extends StatelessWidget {
-  const _CallHeader({required this.voice});
+  const _CallHeader({required this.channelId});
 
-  final VoiceState voice;
+  final String? channelId;
 
   @override
   Widget build(BuildContext context) {
-    final channelId = voice.channelId;
+    final channelId = this.channelId;
     if (channelId == null) return const SizedBox.shrink();
     return CallHeaderLine(channelId: channelId, showTitle: false);
   }

@@ -12,6 +12,7 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    - packages/data/test/generated/**
   language:
     strict-casts: true
     strict-inference: true

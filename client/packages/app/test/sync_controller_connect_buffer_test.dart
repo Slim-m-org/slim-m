@@ -9,6 +9,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:slimm_app/src/providers/sync_frame_queue.dart';
+
 import 'support/sync_harness.dart';
 import 'support/sync_live_rig.dart';
 
@@ -114,6 +116,33 @@ void main() {
     expect(rig.status.name, 'offline');
     await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
     expect(rig.status.name, 'live', reason: 'the retry reconnects');
+  });
+
+  test('a backlog past the held-frame cap fails the connect and the retry '
+      'resyncs over REST', () async {
+    final previous = heldFrameCap;
+    heldFrameCap = 2;
+    addTearDown(() => heldFrameCap = previous);
+    final syncs = _Syncs(
+      messages: () => [for (var s = 2; s <= 6; s++) rigMessage('m$s', s, 'm')],
+    );
+    final rig = await SyncLiveRig.build(
+      (r) => r.on('POST', '/sync', syncs.handle),
+      seeded: [rigMessage('m1', 1, 'msg 1')],
+    );
+    rig.signIn();
+    await syncs.heldReached.future.timeout(const Duration(seconds: 5));
+
+    for (var s = 2; s <= 6; s++) {
+      rig.server.pushEvent(_created(s));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    syncs.release.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(rig.status.name, 'offline');
+    await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
+    expect((await rig.contents()).keys, containsAll(['m1', 'm6']));
   });
 
   test('a live message that skips a seq is not applied, and a reconcile '
