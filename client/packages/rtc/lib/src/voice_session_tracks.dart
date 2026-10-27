@@ -100,6 +100,7 @@ extension VoiceSessionTracks on VoiceSession {
     if (cancelEvents != null) await _step(cancelEvents);
     // Not every call-ending path resets it; this one covers all of them.
     _cameraSwitching.resetFacing();
+    _shareRecovery.stop();
     // Awaited before the room disconnects below: the SFU has no bearing on iOS.
     await _step(_screenShare.stopActiveBroadcast);
     await _step(_screenShare.dispose);

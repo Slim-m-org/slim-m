@@ -49,6 +49,8 @@ import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
+import 'screen_share_local.dart';
+import 'screen_share_recovery.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
 import 'share_audio_isolation.dart';
@@ -72,6 +74,7 @@ part 'voice_session_mic_fallback.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
+part 'voice_session_share_recovery.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
@@ -167,6 +170,13 @@ class VoiceSession
   final DesktopSources _desktopSources;
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
+  late final _shareRecovery = ShareRecovery(
+    read: () => readLocalShare(_room?.localParticipant),
+    pause: (paused) => pauseLocalShare(_room?.localParticipant, paused),
+    restart: _restartShare,
+  );
+  final _windowSourceIds = <String>{};
+  ShareRequest? _shareRequest;
   late final VideoSubscriptionCuller _videoCuller;
   final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
     lk.AdaptiveStreamPixelDensity.auto,
@@ -328,11 +338,15 @@ class VoiceSession
   ///
   /// Calling this is what makes a later [setScreenShareEnabled] able to find
   /// anything at all: see [DesktopSources].
-  Future<List<ScreenShareSource>> screenShareSources() => _reported(
-        'list the screens and windows that can be shared',
-        const [],
-        _desktopSources.list,
-      );
+  Future<List<ScreenShareSource>> screenShareSources() async {
+    final sources = await _reported(
+      'list the screens and windows that can be shared',
+      const <ScreenShareSource>[],
+      _desktopSources.list,
+    );
+    _noteWindowSources(sources);
+    return sources;
+  }
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
   Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
@@ -360,6 +374,19 @@ class VoiceSession
     bool includeAudio = false,
     int? maxHeight,
   }) async {
+    _shareRecovery.stop();
+    final request = ShareRequest(quality, sourceId, includeAudio, maxHeight);
+    final outcome = await _applyScreenShare(enabled, request);
+    if (enabled) _watchShare(request, outcome);
+    return outcome;
+  }
+
+  Future<ScreenShareOutcome> _applyScreenShare(
+    bool enabled,
+    ShareRequest request,
+  ) async {
+    final ShareRequest(:quality, :sourceId, :includeAudio, :maxHeight) =
+        request;
     final room = _room;
     if (room == null) return ScreenShareOutcome.failed;
     final outcome = await _screenShare.setEnabled(
@@ -515,6 +542,7 @@ class VoiceSession
     _disposed = true;
     _videoCuller.dispose();
     _receiveDensity.dispose();
+    _shareRecovery.stop();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();
