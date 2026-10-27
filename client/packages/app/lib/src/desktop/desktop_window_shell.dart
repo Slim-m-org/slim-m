@@ -312,13 +312,15 @@ class DesktopWindowShell {
 
   static Future<void> _applyFinalGeometry(ProviderContainer container) async {
     final prefs = await container.read(preferencesProvider.future);
-    final target = await applyFinalGeometry(
+    await applyFinalGeometry(
       _port,
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
+      onTarget: (target) {
+        _handoffTargetSize = target.size;
+        _handoffFillsDisplay = target.fillsDisplay;
+      },
     );
-    _handoffTargetSize = target.size;
-    _handoffFillsDisplay = target.fillsDisplay;
   }
 
   /// Shows the window again after [prepareHandoff] applied the real geometry

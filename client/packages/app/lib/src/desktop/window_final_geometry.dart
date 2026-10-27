@@ -11,13 +11,17 @@ typedef HandoffTarget = ({WindowSize? size, bool fillsDisplay});
 
 /// Hides the window, then applies the saved geometry while nothing is visible.
 ///
+/// [onTarget] fires before the maximize or fullscreen await, so a call that
+/// hangs past the startup timeout still leaves the reveal its target.
+///
 /// Size is clamped to the minimum before the display clamp so a saved size
 /// below the floor is never restored where the OS minimum is not honored
 /// (Wayland); see [clampSizeToMinimum].
-Future<HandoffTarget> applyFinalGeometry(
+Future<void> applyFinalGeometry(
   DesktopWindowPort port,
   WindowGeometryStore store, {
   required bool positionSupported,
+  required void Function(HandoffTarget target) onTarget,
 }) async {
   await port.hide();
 
@@ -50,12 +54,12 @@ Future<HandoffTarget> applyFinalGeometry(
 
   switch (geometry.runState) {
     case WindowRunState.maximized:
+      onTarget((size: null, fillsDisplay: true));
       await port.maximize();
-      return (size: null, fillsDisplay: true);
     case WindowRunState.fullscreen:
+      onTarget((size: null, fillsDisplay: true));
       await port.setFullScreen(true);
-      return (size: null, fillsDisplay: true);
     case WindowRunState.windowed:
-      return (size: geometry.windowedSize, fillsDisplay: false);
+      onTarget((size: geometry.windowedSize, fillsDisplay: false));
   }
 }
