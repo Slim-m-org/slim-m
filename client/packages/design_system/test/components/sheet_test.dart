@@ -206,6 +206,17 @@ void main() {
       );
     });
 
+    testWidgets('the bottom sheet enters over the modal duration token', (
+      tester,
+    ) async {
+      await _pumpOpener(tester, _phone);
+      await tester.pump();
+      await tester.pump(AppMotion.slow - const Duration(milliseconds: 10));
+      expect(tester.hasRunningAnimations, isTrue);
+      await tester.pump(const Duration(milliseconds: 30));
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
     testWidgets('the bottom sheet still animates by default', (tester) async {
       await _pumpOpener(tester, _phone);
       await tester.pump();

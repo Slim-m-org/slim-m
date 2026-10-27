@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cleartext stays off except for names that can only be local. network_security_config
+     cannot express CIDR ranges, so a private IP literal is not listed: the app's Dart http and
+     WebSocket clients are raw sockets this policy does not govern, and server_scheme_policy.dart
+     refuses public http before any request is made. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false"/>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="true">local</domain>
+    </domain-config>
+</network-security-config>

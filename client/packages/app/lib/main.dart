@@ -49,6 +49,9 @@ import 'src/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
 import 'src/providers/media_disk_caches.dart';
 import 'src/providers/providers.dart';
+import 'src/providers/sync_controller.dart'
+    show hasFailedSinceLiveProvider, initialSyncCompleteProvider;
+import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
@@ -340,11 +343,24 @@ bool get _splashIsFrameless =>
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
 class SlimMApp extends ConsumerWidget {
-  const SlimMApp({super.key});
+  const SlimMApp({super.key, this.isDesktopOverride});
+
+  /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
+  final bool? isDesktopOverride;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(appReadyProvider)) {
+    final onDesktop = isDesktopOverride ?? isDesktopHost;
+    // A phone keeps the one splash up past bootstrap, through the first catch-up, so nothing second follows it.
+    final phoneCovered =
+        !onDesktop &&
+        ref.watch(sessionProvider).isSignedIn &&
+        shouldShowBootSplash(
+          isMobile: true,
+          synced: ref.watch(initialSyncCompleteProvider),
+          hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
+        );
+    if (!ref.watch(appReadyProvider) || phoneCovered) {
       return StartupApp(
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
