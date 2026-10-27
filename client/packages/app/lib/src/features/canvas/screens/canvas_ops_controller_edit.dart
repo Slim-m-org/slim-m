@@ -100,3 +100,135 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     );
   }
 }
+
+/// One text box edit and the content and style it replaced, which an undo puts back.
+class _TextEditEntry extends _UndoEntry {
+  _TextEditEntry(this.objectId, this.from);
+
+  final String objectId;
+  final CanvasTextProps from;
+}
+
+/// The content and style an undone text edit left, which a redo writes again.
+class _RedoTextEdit extends _RedoEntry {
+  _RedoTextEdit(this.objectId, this.to);
+
+  final String objectId;
+  final CanvasTextProps to;
+}
+
+/// Editing a placed text box: its text, font step and colour travel together as one edit.
+extension CanvasOpsControllerTextEdit on CanvasOpsController {
+  CanvasTextProps? _textPropsOf(String objectId) {
+    final box = document.textBoxOf(objectId);
+    return box == null
+        ? null
+        : CanvasTextProps(
+            text: box.text,
+            size: box.size,
+            colorKey: box.colorKey,
+          );
+  }
+
+  /// Replaces [objectId]'s props, shown at once and pushed onto the undo stack once the server accepts it. Returns whether anything changed.
+  Future<bool> editText(String objectId, CanvasTextProps next) async {
+    final before = _textPropsOf(objectId);
+    if (before == null || before == next || isLocked(objectId)) return false;
+    final submitted = await _textEditTo(
+      objectId,
+      next,
+      'That text could not be edited.',
+    );
+    if (submitted == null) return false;
+    _pushUndo(_TextEditEntry(objectId, submitted));
+    return true;
+  }
+
+  Future<_RedoEntry?> _undoTextEdit(
+    String objectId,
+    CanvasTextProps props,
+  ) async {
+    final before = await _textEditTo(
+      objectId,
+      props,
+      'That could not be undone.',
+    );
+    return before == null ? null : _RedoTextEdit(objectId, before);
+  }
+
+  Future<_UndoEntry?> _redoTextEdit(
+    String objectId,
+    CanvasTextProps props,
+  ) async {
+    final before = await _textEditTo(
+      objectId,
+      props,
+      'That could not be redone.',
+    );
+    return before == null ? null : _TextEditEntry(objectId, before);
+  }
+
+  /// Writes [next] locally first and returns what it replaced, or null when the request failed (old props restored) or the box is gone.
+  Future<CanvasTextProps?> _textEditTo(
+    String objectId,
+    CanvasTextProps next,
+    String errorMessage,
+  ) async {
+    final before = _textPropsOf(objectId);
+    if (before == null) return null;
+    _applyTextProps(objectId, next);
+    try {
+      await _sendOp(
+        (id) => client.submitCanvasOp(
+          channelId,
+          id: id,
+          kind: 'edit',
+          objectId: objectId,
+          props: next.toWire(),
+        ),
+      );
+    } on api.ApiException {
+      if (_textPropsOf(objectId) == next) _applyTextProps(objectId, before);
+      onError(errorMessage);
+      return null;
+    }
+    await _refitText(objectId, next);
+    return before;
+  }
+
+  void _applyTextProps(String objectId, CanvasTextProps props) {
+    document
+      ..setTextBox(
+        objectId,
+        text: props.text,
+        size: props.size,
+        colorKey: props.colorKey,
+      )
+      ..refresh();
+  }
+
+  /// A text box is exactly as tall as its lines, so a longer or larger text grows it and a shorter one shrinks it.
+  Future<void> _refitText(String objectId, CanvasTextProps props) async {
+    final bounds = document.objectBounds(objectId);
+    if (bounds == null) return;
+    final fitted = textBoxFor(props, width: bounds.w).height;
+    if ((fitted - bounds.h).abs() < 0.5) return;
+    final to = document.boxOnBoard(
+      objectId,
+      bounds.x,
+      bounds.y,
+      bounds.w,
+      fitted,
+    );
+    document
+      ..moveObject(objectId, to.x, to.y, to.w, to.h)
+      ..refresh();
+    await _commitBounds(
+      objectId,
+      bounds,
+      to,
+      'That text could not be resized.',
+      record: false,
+    );
+  }
+}

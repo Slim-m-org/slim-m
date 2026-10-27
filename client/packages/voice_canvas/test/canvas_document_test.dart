@@ -267,7 +267,7 @@ void main() {
       final document = CanvasDocument();
       expect(
         document.liveCountsByKind,
-        (strokes: 0, images: 0, notes: 0, shapes: 0),
+        (strokes: 0, images: 0, notes: 0, shapes: 0, texts: 0),
       );
     });
 
@@ -294,7 +294,7 @@ void main() {
 
       expect(
         document.liveCountsByKind,
-        (strokes: 1, images: 1, notes: 0, shapes: 0),
+        (strokes: 1, images: 1, notes: 0, shapes: 0, texts: 0),
       );
     });
   });

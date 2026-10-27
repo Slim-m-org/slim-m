@@ -35,7 +35,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     if (!enabled) return SystemMouseCursors.basic;
     return switch (tool) {
       CanvasTool.pen || CanvasTool.shape => SystemMouseCursors.precise,
-      CanvasTool.note => SystemMouseCursors.text,
+      CanvasTool.note || CanvasTool.text => SystemMouseCursors.text,
       CanvasTool.eraser => SystemMouseCursors.none,
       CanvasTool.pan => SystemMouseCursors.grab,
     };
@@ -143,7 +143,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _selectDownAt = screen;
         _ownCamera(() => widget.onSelectStart?.call(world));
       case CanvasTool.note:
-        _pendingPlacementTool = CanvasTool.note;
+      case CanvasTool.text:
+        _pendingPlacementTool = tool;
         _pendingPlacementWorld = world;
       case CanvasTool.shape:
         _pendingPlacementTool = CanvasTool.shape;
@@ -221,6 +222,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         }
         _ownCamera(() => widget.onSelectDrag?.call(world));
       case CanvasTool.note:
+      case CanvasTool.text:
         break;
       case CanvasTool.shape:
         _shapeDraft.update(screen);
@@ -293,10 +295,15 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
         _ownCamera(() => widget.onSelectEnd?.call());
         final quick =
             lift != null && lift.timeStamp - gesture.downAt < kLongPressTimeout;
-        if (quick && tapAt != null && !_movedPastTap(tapAt, lift)) {
-          widget.onSelectTap?.call(_toWorld(lift.localPosition), lift.kind);
+        if (lift != null && tapAt != null && !_movedPastTap(tapAt, lift)) {
+          if (quick) {
+            widget.onSelectTap?.call(_toWorld(lift.localPosition), lift.kind);
+          } else if (lift.kind != PointerDeviceKind.mouse) {
+            widget.onSelectLongPress?.call(_toWorld(lift.localPosition));
+          }
         }
       case CanvasTool.note:
+      case CanvasTool.text:
       case CanvasTool.shape:
         if (lift == null) {
           _dropPlacement();
@@ -325,6 +332,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.pen:
         _dropDraft();
       case CanvasTool.note:
+      case CanvasTool.text:
       case CanvasTool.shape:
         break;
     }
@@ -347,6 +355,7 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
       case CanvasTool.pen:
         _dropDraft();
       case CanvasTool.note:
+      case CanvasTool.text:
       case CanvasTool.shape:
         break;
     }
@@ -405,6 +414,8 @@ extension _CanvasSurfaceGestures on _CanvasSurfaceState {
     switch (tool) {
       case CanvasTool.note:
         widget.onNotePlace?.call(world);
+      case CanvasTool.text:
+        widget.onTextPlace?.call(world);
       case CanvasTool.shape:
         final (center, size) = _resolveShapeDrag(world);
         // Read after take(): the draft keeps its direction until the next drag begins.

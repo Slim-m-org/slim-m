@@ -24,6 +24,7 @@ import 'canvas_scene.dart';
 import 'canvas_smooth_path.dart';
 import 'canvas_snap.dart';
 import 'canvas_stroke.dart';
+import 'canvas_text_box.dart';
 import 'spatial_grid.dart' show CullResult;
 
 export 'canvas_stroke.dart';
@@ -252,6 +253,7 @@ class CanvasDocument extends ChangeNotifier {
         h: input.h,
         attachmentId: input.attachmentId,
         text: input.text,
+        textSize: input.textSize,
         shapeKind: input.shapeKind,
         groupId: input.groupId,
         flipX: input.flipX,

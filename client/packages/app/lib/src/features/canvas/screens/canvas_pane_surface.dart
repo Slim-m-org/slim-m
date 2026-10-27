@@ -88,6 +88,7 @@ class CanvasPaneSurface extends StatelessWidget {
     onOpenActions: menuRequests.request,
     onOpenToolWheel: toolWheel.requestOpen,
     onPlaceNote: actions.onNotePlace,
+    onPlaceText: actions.onTextPlace,
     onPlaceShape: (world) => actions.onShapePlace(world, null),
     focusNode: boardFocusNode,
     child: Stack(
@@ -149,6 +150,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onSelectCancel: actions.onSelectCancel,
           onSelectTap: actions.onSelectTap,
           onNotePlace: actions.onNotePlace,
+          onTextPlace: actions.onTextPlace,
+          onSelectLongPress: actions.onSelectLongPress,
           onShapePlace: actions.onShapePlace,
           shapeKind: shapeKind,
           cursors: cursors,

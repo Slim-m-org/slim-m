@@ -26,4 +26,5 @@ mod restore;
 mod restore_permission;
 #[path = "../support/mod.rs"]
 mod support;
+mod text;
 mod write;

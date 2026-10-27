@@ -398,7 +398,8 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
   bool _isNote(String? id) =>
       widget.onEditNote != null &&
       id != null &&
-      widget.document.kindOf(id) == CanvasObjectKind.note;
+      (widget.document.kindOf(id) == CanvasObjectKind.note ||
+          widget.document.kindOf(id) == CanvasObjectKind.text);
 
   Widget _objectMenu() {
     final locks = CanvasObjectLocksScope.maybeOf(context);
@@ -411,7 +412,9 @@ class _CanvasObjectContextMenuState extends State<CanvasObjectContextMenu> {
       children: [
         if (isNote)
           AppMenuItem(
-            label: 'Edit note',
+            label: widget.document.kindOf(id!) == CanvasObjectKind.text
+                ? 'Edit text'
+                : 'Edit note',
             leading: AppIcons.edit,
             onTap: locked || !widget.canDraw ? null : _editNote,
           ),

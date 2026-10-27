@@ -87,6 +87,45 @@ extension CanvasDocumentSelection on CanvasDocument {
     return true;
   }
 
+  /// A live text box's content and style, or null if [id] is unknown, removed, or not a text box.
+  ({String text, String size, String colorKey})? textBoxOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.text) {
+      return null;
+    }
+    return (
+      text: stroke.text ?? '',
+      size: stroke.textSize ?? canvasDefaultTextSize,
+      colorKey: stroke.colorKey,
+    );
+  }
+
+  /// Replaces a live text box's content and style in place; false if [id] is not one.
+  /// The caller repaints with [CanvasDocument.refresh].
+  bool setTextBox(
+    String id, {
+    required String text,
+    required String size,
+    required String colorKey,
+  }) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null ||
+        !stroke.alive ||
+        stroke.kind != CanvasObjectKind.text) {
+      return false;
+    }
+    stroke
+      ..text = text
+      ..textSize = size
+      ..colorKey = colorKey;
+    _changed();
+    return true;
+  }
+
   /// The lowest and highest `zIndex` this document currently holds live, or
   /// null if it holds nothing.
   ///

@@ -16,8 +16,9 @@ import 'package:flutter/painting.dart';
 /// What a placed object is. `stroke` is pen ink; `image` is a pasted picture,
 /// decoded and painted by the app layer, which is the one place this package
 /// steps outside pure geometry; `note` carries typed text inside its own box;
-/// `shape` is one of [CanvasShapeKind] drawn from its own box.
-enum CanvasObjectKind { stroke, image, note, shape }
+/// `shape` is one of [CanvasShapeKind] drawn from its own box; `text` is
+/// typed text with no fill.
+enum CanvasObjectKind { stroke, image, note, shape, text }
 
 /// Which primitive a [CanvasObjectKind.shape] object draws. A line and an
 /// arrow are always the diagonal of the object's own box - top-left corner to
@@ -131,6 +132,7 @@ class CanvasStrokeInput {
     this.kind = CanvasObjectKind.stroke,
     this.attachmentId,
     this.text,
+    this.textSize,
     this.shapeKind,
     this.groupId,
     this.flipX = false,
@@ -172,6 +174,9 @@ class CanvasStrokeInput {
   /// note can be revised after placement ([CanvasDocument.setNoteText]); a
   /// stroke's ink and an image's bytes cannot.
   final String? text;
+
+  /// A [CanvasObjectKind.text]'s font step, a key of [canvasTextFontSizes]. Null for every other kind.
+  final String? textSize;
 
   /// A [CanvasObjectKind.shape]'s own primitive. Null for every other kind.
   final CanvasShapeKind? shapeKind;
@@ -221,6 +226,7 @@ class CanvasStroke {
     this.image,
     this.imageLoadFailed = false,
     this.text,
+    this.textSize,
     this.shapeKind,
     this.groupId,
     this.flipX = false,
@@ -241,7 +247,9 @@ class CanvasStroke {
   /// object cost.
   Path path;
   final double width;
-  final String colorKey;
+
+  /// Mutable only so a text box can be recoloured in place.
+  String colorKey;
 
   /// See [CanvasStrokeInput.authorId].
   final String? authorId;
@@ -277,6 +285,9 @@ class CanvasStroke {
 
   /// See [CanvasStrokeInput.text]. Mutable since a note can be edited.
   String? text;
+
+  /// See [CanvasStrokeInput.textSize]. Mutable since a text box can be restyled.
+  String? textSize;
 
   /// See [CanvasStrokeInput.shapeKind].
   final CanvasShapeKind? shapeKind;

@@ -51,6 +51,8 @@ pub fn map_submit(r: Result<SubmittedOp, SubmitOpError>) -> Result<Got, Fail> {
         Err(SubmitOpError::OutOfBounds) => Err(Fail::OutOfBounds),
         Err(SubmitOpError::NotEditable) => Err(Fail::NotEditable),
         Err(SubmitOpError::Locked) => Err(Fail::Locked),
+        // The fuzz never places a text box, so a props refusal is a harness bug.
+        Err(SubmitOpError::BadProps(why)) => Err(Fail::Internal(why.to_owned())),
         Err(SubmitOpError::Internal(e)) => Err(Fail::Internal(format!("{e:#}"))),
     }
 }

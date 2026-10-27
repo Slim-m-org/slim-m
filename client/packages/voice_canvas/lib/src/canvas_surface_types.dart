@@ -26,9 +26,11 @@ enum CanvasTool {
   pan,
   pen,
   note,
+  text,
   shape,
   eraser;
 
   /// Whether a press starts a new mark, as opposed to selecting or erasing.
-  bool get placesInk => this == pen || this == note || this == shape;
+  bool get placesInk =>
+      this == pen || this == note || this == text || this == shape;
 }

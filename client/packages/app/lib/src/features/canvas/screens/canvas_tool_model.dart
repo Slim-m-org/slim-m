@@ -10,6 +10,7 @@ const canvasToolOrder = [
   CanvasTool.pan,
   CanvasTool.pen,
   CanvasTool.note,
+  CanvasTool.text,
   CanvasTool.shape,
   CanvasTool.eraser,
 ];
@@ -22,6 +23,7 @@ extension CanvasToolInput on CanvasTool {
     CanvasTool.pan => LogicalKeyboardKey.keyH,
     CanvasTool.pen => LogicalKeyboardKey.keyP,
     CanvasTool.note => LogicalKeyboardKey.keyN,
+    CanvasTool.text => LogicalKeyboardKey.keyT,
     CanvasTool.shape => LogicalKeyboardKey.keyS,
     CanvasTool.eraser => LogicalKeyboardKey.keyE,
   };
@@ -30,6 +32,7 @@ extension CanvasToolInput on CanvasTool {
   bool get placesObjects =>
       this == CanvasTool.pen ||
       this == CanvasTool.note ||
+      this == CanvasTool.text ||
       this == CanvasTool.shape;
 
   /// One rule for the button and the key, so the key never does what the button could not.

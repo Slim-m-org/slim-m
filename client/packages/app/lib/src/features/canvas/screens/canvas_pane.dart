@@ -57,8 +57,8 @@ import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
-import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
+import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
 import '../../channels/providers/threads.dart' show openThreadProvider;
@@ -138,6 +138,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// The note whose in-place editor is open, if any.
   String? _editingNoteId;
 
+  late final _text = CanvasTextTool(
+    engine: _engine,
+    placement: () => _quickPlacement,
+    ref: ref,
+    currentTool: () => _tool,
+    changed: _refresh,
+    onPlaced: (id, tool) => _selectPlaced(id, startedWith: tool),
+    focusBoard: _boardFocusNode.requestFocus,
+  );
+
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
 
@@ -154,14 +164,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
 
-  /// Captured once here rather than read fresh from `ref` on every access:
-  /// `ref.read`/`ref.watch` both throw once this element is unmounting (see
-  /// [dispose]'s own doc), so a handle taken while it is still safe to ask
-  /// is the only way [dispose] can reach the engine at all. Bound to
-  /// [widget.channelId] as of this exact call, matching every other
-  /// per-channel field this pane ever bound eagerly at construction - a
-  /// later `didUpdateWidget` with a different channel id was never a case
-  /// this pane handled.
+  /// Captured once: `ref.read` throws while this element unmounts, and [dispose] still needs the engine.
   late final CanvasEngine _engine = ref.read(
     canvasEngineProvider(widget.channelId).notifier,
   );
@@ -295,7 +298,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       (_, height) => _document.setBottomInset(_boardInset(height)),
     );
     final noteSpanStyle = _noteSpanStyle(context);
-    final editingNote = _editingNoteId != null;
+    final editingNote = _editingNoteId != null || _text.draft != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
     final partialClear =
@@ -406,17 +409,15 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),
                   noteSpansRevision: noteSpanStyle.revision,
-                  noteEditor: _editingNoteId == null
-                      ? null
-                      : CanvasNoteEditor(
-                          key: ValueKey(_editingNoteId),
-                          document: _document,
-                          objectId: _editingNoteId!,
-                          onSave: (text) =>
-                              unawaited(_onNoteEditSave(_editingNoteId!, text)),
-                          onCancel: _onNoteEditCancel,
-                        ),
+                  noteEditor: _text.editor(
+                    _editingNoteId,
+                    onCancel: _onNoteEditCancel,
+                    onEditClosed: () => _refresh(() => _editingNoteId = null),
+                    onNoteSave: _onNoteEditSave,
+                  ),
                   onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onTextPlace: _text.place,
+                  onSelectLongPress: _text.longPress,
                   onShapePlace: (world, size, {flipX = false, flipY = false}) =>
                       unawaited(
                         _onShapePlace(world, size, flipX: flipX, flipY: flipY),
