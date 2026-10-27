@@ -50,7 +50,7 @@ import 'screen_share.dart';
 import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
 import 'screen_share_local.dart';
-import 'screen_share_recovery.dart';
+import 'screen_share_watch.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_view.dart';
 import 'share_audio_isolation.dart';
@@ -74,7 +74,6 @@ part 'voice_session_mic_fallback.dart';
 part 'voice_session_mic_recovery.dart';
 part 'voice_session_mic_release.dart';
 part 'voice_session_stall.dart';
-part 'voice_session_share_recovery.dart';
 part 'voice_session_stats.dart';
 part 'voice_session_tracks.dart';
 part 'voice_session_video.dart';
@@ -170,13 +169,10 @@ class VoiceSession
   final DesktopSources _desktopSources;
   final CameraSwitching _cameraSwitching;
   late final ScreenShareControl _screenShare;
-  late final _shareRecovery = ShareRecovery(
-    read: () => readLocalShare(_room?.localParticipant),
-    pause: (paused) => pauseLocalShare(_room?.localParticipant, paused),
-    restart: _restartShare,
+  late final _shareWatch = ScreenShareWatch(
+    participant: () => _room?.localParticipant,
+    apply: _applyScreenShare,
   );
-  final _windowSourceIds = <String>{};
-  ShareRequest? _shareRequest;
   late final VideoSubscriptionCuller _videoCuller;
   final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
     lk.AdaptiveStreamPixelDensity.auto,
@@ -344,7 +340,7 @@ class VoiceSession
       const <ScreenShareSource>[],
       _desktopSources.list,
     );
-    _noteWindowSources(sources);
+    _shareWatch.noteSources(sources);
     return sources;
   }
 
@@ -374,10 +370,10 @@ class VoiceSession
     bool includeAudio = false,
     int? maxHeight,
   }) async {
-    _shareRecovery.stop();
+    _shareWatch.stop();
     final request = ShareRequest(quality, sourceId, includeAudio, maxHeight);
     final outcome = await _applyScreenShare(enabled, request);
-    if (enabled) _watchShare(request, outcome);
+    if (enabled) _shareWatch.watch(request, outcome);
     return outcome;
   }
 
@@ -542,7 +538,7 @@ class VoiceSession
     _disposed = true;
     _videoCuller.dispose();
     _receiveDensity.dispose();
-    _shareRecovery.stop();
+    _shareWatch.stop();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();
