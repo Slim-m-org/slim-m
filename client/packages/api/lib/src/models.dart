@@ -160,6 +160,7 @@ class Message {
     this.forwarded,
     this.mentionsMe = false,
     this.linkPreviewsRemoved = false,
+    this.matchedAttachmentId,
     this.embeds = const [],
     this.webhookUsername,
     this.viaModule,
@@ -264,6 +265,10 @@ class Message {
   /// frame carries the change.
   final bool linkPreviewsRemoved;
 
+  /// On a search result found only through an attachment's extracted text, that
+  /// attachment's id. Null on every other message.
+  final String? matchedAttachmentId;
+
   /// Structured content a webhook or a bot attached; fixed once the message
   /// exists, like [attachments]. Always present, empty when there is none.
   final List<Embed> embeds;
@@ -325,6 +330,7 @@ class Message {
         // Not in the schema's `required` list either, the same tolerance `reactions` above already needs.
         mentionsMe: json['mentions_me'] as bool? ?? false,
         linkPreviewsRemoved: json['link_previews_removed'] as bool? ?? false,
+        matchedAttachmentId: json['matched_attachment_id'] as String?,
         embeds: (json['embeds'] as List<dynamic>?)
                 ?.map((e) => Embed.fromJson(e as Map<String, dynamic>))
                 .toList(growable: false) ??

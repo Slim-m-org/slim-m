@@ -61,6 +61,7 @@ mod moderation_history;
 mod module_data_dir;
 mod modules;
 use modules::{module_health, module_kv, module_permissions, module_stats};
+mod attachment_text;
 mod data_exports;
 mod export_capacity;
 mod export_member;
@@ -118,6 +119,7 @@ pub use analytics::{
 };
 pub use apps::{AppSurface, CreateAppSurfaceError};
 pub use attachment_originals::KeptOriginal;
+pub use attachment_text::TextCandidate;
 pub use attachments::{AttachmentSummary, LinkError, MAX_ATTACHMENTS_PER_MESSAGE, OriginalInfo};
 pub use bootstrap::Bootstrap;
 pub use bot_command_options::BotCommandOption;

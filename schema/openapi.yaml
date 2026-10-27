@@ -15256,6 +15256,13 @@ components:
             that permission. Per-viewer exactly like `reacted`, and always
             false on the sender's own send or edit response: an author is
             never resolved as mentioning themselves.
+        matched_attachment_id:
+          type: string
+          description: >-
+            Only on a search result found through an attachment: the id of the
+            attachment whose extracted text matched. Absent when the message's
+            own text matched. Text and code files and the text layer of PDFs
+            are searched; there is no OCR for images.
         link_previews_removed:
           type: boolean
           description: >-

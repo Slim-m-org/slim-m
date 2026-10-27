@@ -17,6 +17,7 @@ name = "slimm-server"
 path = "src/main.rs"
 
 [dependencies]
+lopdf = { version = "0.42.0", default-features = false }
 axum.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
