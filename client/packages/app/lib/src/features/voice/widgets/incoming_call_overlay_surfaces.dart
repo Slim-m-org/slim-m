@@ -38,6 +38,8 @@ class _CompactIncomingCall extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.s16),
                 Text(
                   name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: AppText.title.copyWith(color: tokens.textPrimary),
                 ),
@@ -129,6 +131,7 @@ class _ExpandedIncomingCallRow extends ConsumerWidget {
               children: [
                 Text(
                   name,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.body.copyWith(
                     color: tokens.textPrimary,

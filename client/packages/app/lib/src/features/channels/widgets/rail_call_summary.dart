@@ -75,6 +75,7 @@ class _RailCallSummaryState extends ConsumerState<RailCallSummary> {
             children: [
               Text(
                 name,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.ui.copyWith(
                   color: tokens.textPrimary,

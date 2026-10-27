@@ -176,6 +176,7 @@ class _RowState extends State<_Row> {
                 Flexible(
                   child: Text(
                     suggestion.label,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppText.ui.copyWith(
                       color: suggestion.offline
@@ -189,6 +190,7 @@ class _RowState extends State<_Row> {
                   Flexible(
                     child: Text(
                       suggestion.detail!,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: AppText.code.copyWith(

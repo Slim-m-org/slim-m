@@ -364,6 +364,7 @@ class MessageRowHeader extends ConsumerWidget {
               semanticLabel: '$name, view profile',
               child: Text(
                 name,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.body.copyWith(
                   color: tokens.textPrimary,

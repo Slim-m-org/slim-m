@@ -421,6 +421,7 @@ class RailUserFooter extends ConsumerWidget {
                         children: [
                           Text(
                             me.valueOrNull?.displayName ?? '',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppText.ui.copyWith(
                               color: tokens.textPrimary,

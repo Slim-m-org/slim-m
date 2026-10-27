@@ -99,6 +99,7 @@ class MemberProfileHeader extends ConsumerWidget {
 
     final name = Text(
       profile.displayName,
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: AppText.body.copyWith(
         color: tokens.textPrimary,

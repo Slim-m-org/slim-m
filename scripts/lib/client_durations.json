@@ -670,6 +670,7 @@
 "test/features/members/home_shell_medium_members_test.dart": 1.7,
 "test/features/members/invite_friend_test.dart": 0.9,
 "test/features/members/invite_landing_section_test.dart": 2.4,
+"test/features/members/long_display_name_test.dart": 6.9,
 "test/features/members/member_card_banner_test.dart": 0.8,
 "test/features/members/member_card_message_test.dart": 0.9,
 "test/features/members/member_handle_line_test.dart": 0.7,

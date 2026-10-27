@@ -383,6 +383,7 @@ class _AppListRowState extends State<AppListRow> {
             constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
             child: Text(
               widget.meta!,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),

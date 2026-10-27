@@ -207,6 +207,7 @@ class _ParticipantList extends StatelessWidget {
                     Expanded(
                       child: Text(
                         person.name,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppText.body.copyWith(color: tokens.textPrimary),
                       ),
