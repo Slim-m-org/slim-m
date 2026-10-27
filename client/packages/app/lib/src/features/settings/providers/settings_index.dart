@@ -297,6 +297,12 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'voice',
+    'Mirror my view',
+    description: 'Others always see you unmirrored.',
+    keywords: ['video', 'webcam', 'flip', 'camera', 'selfie'],
+  ),
+  SettingsEntry(
+    'voice',
     'Share device audio',
     keywords: ['screen share audio', 'system audio'],
   ),

@@ -175,6 +175,7 @@ class _DevicesSection extends StatelessWidget {
       children: [
         AudioDeviceSection(embedded: true),
         CameraOnJoinSection(embedded: true),
+        MirrorSelfViewRow(),
       ],
     );
   }

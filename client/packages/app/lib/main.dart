@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart' show MirrorSelfViewScope;
 
 export 'src/desktop/startup_state.dart';
 
@@ -56,6 +57,7 @@ import 'src/widgets/app_lock_gate.dart';
 import 'src/widgets/ui_scale_frame.dart';
 import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
+import 'src/features/voice/providers/voice_settings_controller.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -413,35 +415,40 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     final motionChoice = ref.watch(motionPreferenceControllerProvider);
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     final scale = uiScaleFactor(ref.watch(uiScaleControllerProvider));
-    return PopOutHost(
-      child: DesktopChrome(
-        child: MediaQuery(
-          data: scaleMediaQuery(
-            keepPortraitShell(
-              overrideMotion(MediaQuery.of(context), motionChoice),
-              lockedPhone: lockedPhone,
+    return MirrorSelfViewScope(
+      mirror: ref.watch(
+        voiceSettingsControllerProvider.select((s) => s.mirrorSelfView),
+      ),
+      child: PopOutHost(
+        child: DesktopChrome(
+          child: MediaQuery(
+            data: scaleMediaQuery(
+              keepPortraitShell(
+                overrideMotion(MediaQuery.of(context), motionChoice),
+                lockedPhone: lockedPhone,
+              ),
+              scale,
             ),
-            scale,
-          ),
-          // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
-          child: UiScaleFrame(
-            scale: scale,
-            child: AppLockGate(
-              child: Stack(
-                children: [
-                  // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-                  ModerationErrorHost(
-                    child: ClientTooOldGate(
-                      child: ServerIdentityChangeGate(
-                        child: PictureInPictureGate(child: densityWrapped),
+            // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
+            child: UiScaleFrame(
+              scale: scale,
+              child: AppLockGate(
+                child: Stack(
+                  children: [
+                    // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
+                    ModerationErrorHost(
+                      child: ClientTooOldGate(
+                        child: ServerIdentityChangeGate(
+                          child: PictureInPictureGate(child: densityWrapped),
+                        ),
                       ),
                     ),
-                  ),
-                  const Positioned.fill(child: ToastOverlay()),
-                  const Positioned.fill(child: WebUpdatePill()),
-                  const Positioned.fill(child: AccountCallPill()),
-                  const Positioned.fill(child: IncomingCallOverlay()),
-                ],
+                    const Positioned.fill(child: ToastOverlay()),
+                    const Positioned.fill(child: WebUpdatePill()),
+                    const Positioned.fill(child: AccountCallPill()),
+                    const Positioned.fill(child: IncomingCallOverlay()),
+                  ],
+                ),
               ),
             ),
           ),

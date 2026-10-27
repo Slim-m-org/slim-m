@@ -1250,6 +1250,7 @@
 "test/features/voice/voice_settings_audio_devices_test.dart": 1.2,
 "test/features/voice/voice_settings_camera_test.dart": 1.0,
 "test/features/voice/voice_settings_input_gate_test.dart": 1.5,
+"test/features/voice/voice_settings_mirror_test.dart": 2.9,
 "test/features/voice/voice_settings_pause_video_test.dart": 1.0,
 "test/features/voice/voice_settings_push_to_talk_test.dart": 1.1,
 "test/features/voice/voice_settings_screen_test.dart": 1.9,

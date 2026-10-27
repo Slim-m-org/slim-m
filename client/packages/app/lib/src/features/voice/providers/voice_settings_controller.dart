@@ -24,6 +24,7 @@ const _holdMusicVolumeKey = 'slimm.voice.hold_music_volume';
 const _callRingSoundKey = 'slimm.voice.call_ring_sound_enabled';
 const _qualityKey = 'slimm.voice.screen_share_quality';
 const _cameraOnJoinKey = 'slimm.voice.camera_on_join';
+const _mirrorSelfViewKey = 'slimm.voice.mirror_self_view';
 const _pushToTalkEnabledKey = 'slimm.voice.push_to_talk_enabled';
 const _pushToTalkKeyIdKey = 'slimm.voice.push_to_talk_key_id';
 const _sensitivityKey = 'slimm.voice.activity_sensitivity';
@@ -149,6 +150,7 @@ class VoiceSettingsState {
     this.receiveVideoQuality = ReceiveVideoQuality.auto,
     this.cameraQuality = CameraQuality.balanced,
     this.cameraOnJoin = false,
+    this.mirrorSelfView = true,
     this.pushToTalkEnabled = false,
     this.pushToTalkKey = kDefaultPushToTalkKey,
     this.voiceActivitySensitivity = 100.0,
@@ -188,6 +190,9 @@ class VoiceSettingsState {
   /// Whether a fresh session's first join should ask for a camera; see
   /// [VoiceSettingsController.setCameraOnJoin].
   final bool cameraOnJoin;
+
+  /// Whether your own camera preview is drawn mirrored; others never see it so.
+  final bool mirrorSelfView;
 
   /// Whether holding [pushToTalkKey] unmutes for the hold and re-mutes on
   /// release; see `push_to_talk_listener.dart`. Off by default and desktop
@@ -247,6 +252,7 @@ class VoiceSettingsState {
     ReceiveVideoQuality? receiveVideoQuality,
     CameraQuality? cameraQuality,
     bool? cameraOnJoin,
+    bool? mirrorSelfView,
     bool? pushToTalkEnabled,
     LogicalKeyboardKey? pushToTalkKey,
     double? voiceActivitySensitivity,
@@ -270,6 +276,7 @@ class VoiceSettingsState {
     receiveVideoQuality: receiveVideoQuality ?? this.receiveVideoQuality,
     cameraQuality: cameraQuality ?? this.cameraQuality,
     cameraOnJoin: cameraOnJoin ?? this.cameraOnJoin,
+    mirrorSelfView: mirrorSelfView ?? this.mirrorSelfView,
     pushToTalkEnabled: pushToTalkEnabled ?? this.pushToTalkEnabled,
     pushToTalkKey: pushToTalkKey ?? this.pushToTalkKey,
     voiceActivitySensitivity:
@@ -327,6 +334,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
         CameraQuality.balanced,
       ),
       cameraOnJoin: prefs.getBool(_cameraOnJoinKey) ?? false,
+      mirrorSelfView: prefs.getBool(_mirrorSelfViewKey) ?? true,
       pushToTalkEnabled: prefs.getBool(_pushToTalkEnabledKey) ?? false,
       // Any key a person picked; `V` for voice until they pick one.
       pushToTalkKey: storedKeyId == null
@@ -412,6 +420,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareIncludeAudio: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_shareAudioKey, enabled);
+  }
+
+  Future<void> setMirrorSelfView(bool enabled) async {
+    state = state.copyWith(mirrorSelfView: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_mirrorSelfViewKey, enabled);
   }
 
   Future<void> setPauseVideoWhenMinimised(bool enabled) async {

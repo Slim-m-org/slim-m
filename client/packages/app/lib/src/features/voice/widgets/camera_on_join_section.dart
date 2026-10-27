@@ -50,6 +50,30 @@ class CameraOnJoinSection extends ConsumerWidget {
       ),
     ];
     if (embedded) return rows.single;
-    return SettingsSectionCard(title: 'Camera', children: rows);
+    return SettingsSectionCard(
+      title: 'Camera',
+      children: [...rows, const MirrorSelfViewRow()],
+    );
+  }
+}
+
+/// Mirrors only your own preview, like a mirror; the description says what others see.
+class MirrorSelfViewRow extends ConsumerWidget {
+  const MirrorSelfViewRow({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mirror = ref.watch(
+      voiceSettingsControllerProvider.select((s) => s.mirrorSelfView),
+    );
+    return SettingsToggleRow(
+      label: 'Mirror my view',
+      description: 'Others always see you unmirrored.',
+      value: mirror,
+      semanticLabel: 'Mirror your own camera preview',
+      onChanged: (value) => ref
+          .read(voiceSettingsControllerProvider.notifier)
+          .setMirrorSelfView(value),
+    );
   }
 }
