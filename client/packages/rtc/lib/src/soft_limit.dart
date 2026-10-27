@@ -25,6 +25,11 @@ double softLimit(double x) {
 /// scale cannot clip until it is boosted, so a trim must pass untouched.
 bool limiterNeeded(double gain) => gain > 1.0;
 
+/// The gain node's value ahead of the waveshaper: its curve scales a limited
+/// signal back up by [range], and with no curve the signal must arrive at full gain.
+double shaperInputGain(double gain, {required double range}) =>
+    limiterNeeded(gain) ? gain / range : gain;
+
 /// A [points]-long lookup table for a waveshaper whose input spans
 /// `[-range, range]` in sample units, so a boosted signal needs no pre-scaling
 /// beyond dividing the gain by [range].
