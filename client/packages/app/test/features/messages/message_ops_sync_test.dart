@@ -108,6 +108,27 @@ void main() {
       expect(row.forwarded!.content, '');
     });
 
+    test('an edit op flagged link_previews_removed hides the cards, even '
+        'with its content collapsed', () async {
+      await store.applyMessage(_message('m1'));
+
+      await applyOps(store, 'chan-1', const [
+        api.MessageEditOp(
+          seq: 9,
+          messageId: 'm1',
+          createdAt: 1,
+          content: null,
+          editedAt: null,
+          linkPreviewsRemoved: true,
+        ),
+      ]);
+
+      final row = (await store.watchChannel('chan-1').first).single;
+      expect(row.content, 'original');
+      expect(row.linkPreviewsRemoved, isTrue);
+      expect(await store.opCursorFor('chan-1'), 9);
+    });
+
     test('a delete removes the cached copy', () async {
       await store.applyMessage(_message('m1'));
 
