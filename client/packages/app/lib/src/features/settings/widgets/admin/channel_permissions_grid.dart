@@ -32,6 +32,7 @@ import 'channel_permissions_body.dart';
 import 'channel_permissions_escalation.dart';
 import 'channel_permissions_grid_rows.dart';
 import 'channel_permissions_card.dart';
+import 'channel_permissions_columns.dart';
 import 'channel_permissions_picker.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
@@ -213,7 +214,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
     // A category's batch removes a target given an all-zero pair, so removals ride along in _save.
     if (_categoryId != null) return;
     for (final key in _removed.toList()) {
-      final (kind, id) = _parseKey(key);
+      final (kind, id) = parseOverwriteKey(key);
       try {
         await ref
             .read(apiProvider)
@@ -254,8 +255,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
           for (final entry in _pending.entries)
             if (_original[entry.key] != entry.value)
               api.ChannelOverwriteEdit(
-                kind: _parseKey(entry.key).$1,
-                id: _parseKey(entry.key).$2,
+                kind: parseOverwriteKey(entry.key).$1,
+                id: parseOverwriteKey(entry.key).$2,
                 allow: entry.value.$1,
                 deny: entry.value.$2,
               ),
@@ -270,8 +271,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
                   ...edits,
                   for (final key in _removed)
                     api.ChannelOverwriteEdit(
-                      kind: _parseKey(key).$1,
-                      id: _parseKey(key).$2,
+                      kind: parseOverwriteKey(key).$1,
+                      id: parseOverwriteKey(key).$2,
                     ),
                 ],
               );
@@ -316,14 +317,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       );
       if (mounted) setActionError('Saved, but could not reload the grid.');
     }
-  }
-
-  static (api.OverwriteTarget, String) _parseKey(String key) {
-    final i = key.indexOf(':');
-    final kind = key.substring(0, i) == 'role'
-        ? api.OverwriteTarget.role
-        : api.OverwriteTarget.member;
-    return (kind, key.substring(i + 1));
   }
 
   @override
@@ -404,8 +397,8 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         ),
       for (final key in _pending.keys)
         if (everyone == null || key != 'role:${everyone.id}')
-          if (_resolve(key, roles, members) case final column?) column,
-    ].map(_withCounts).toList();
+          if (resolveGridColumn(key, roles, members) case final column?) column,
+    ].map((c) => gridColumnWithCounts(c, _pending[c.key] ?? (0, 0))).toList();
   }
 
   Widget _buildGrid(
@@ -466,44 +459,6 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       disabled: !grantable || _saving,
       label: '${spec.label}, ${column.label}',
       onTap: () => _cycle(column, spec.bit, grantable),
-    );
-  }
-
-  GridColumn _withCounts(GridColumn column) {
-    final (allow, deny) = _pending[column.key] ?? (0, 0);
-    return GridColumn(
-      kind: column.kind,
-      id: column.id,
-      label: column.label,
-      isBot: column.isBot,
-      allowCount: _countKnown(allow),
-      denyCount: _countKnown(deny),
-    );
-  }
-
-  static int _countKnown(int mask) => Perm.groups
-      .expand((g) => g.permissions)
-      .where((spec) => mask & spec.bit != 0)
-      .length;
-
-  GridColumn? _resolve(
-    String key,
-    List<api.Role> roles,
-    List<api.UserProfile> members,
-  ) {
-    final (kind, id) = _parseKey(key);
-    if (kind == api.OverwriteTarget.role) {
-      final role = roles.where((r) => r.id == id).firstOrNull;
-      if (role == null) return null;
-      return GridColumn(kind: kind, id: id, label: role.name, isBot: false);
-    }
-    final member = members.where((m) => m.id == id).firstOrNull;
-    if (member == null) return null;
-    return GridColumn(
-      kind: kind,
-      id: id,
-      label: member.displayName,
-      isBot: member.isBot,
     );
   }
 }

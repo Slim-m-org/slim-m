@@ -43,13 +43,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
-import 'package:slimm_rtc/rtc.dart' show MicStatus, VoiceSessionState;
+import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
-import 'level_display_hold.dart';
+import 'mic_call_button.dart';
 import 'mic_options_menu.dart';
 import '../providers/call_shortcut_registry.dart';
 import '../providers/camera_switch.dart';
-import '../providers/mic_status.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -183,8 +182,13 @@ class _CallControlsState extends ConsumerState<CallControls> {
         MicOptionsMenu(
           showCaret: micCaret,
           extraOptions: widget.menuExtras,
-          destructive: _micDestructive(voice, listenOnly),
-          child: _micButton(voice, listenOnly, holdOpensOptions: !micCaret),
+          destructive: micCallDestructive(ref, voice, listenOnly),
+          child: MicCallButton(
+            voice: voice,
+            listenOnly: listenOnly,
+            holdOpensOptions: !micCaret,
+            controller: widget.controller,
+          ),
         ),
         const SizedBox(width: AppSpacing.s8),
         _deafenButton(voice),
@@ -233,58 +237,6 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ],
       ],
     );
-  }
-
-  Widget _micButton(
-    VoiceFlags voice,
-    String? listenOnly, {
-    required bool holdOpensOptions,
-  }) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final micStatus =
-            ref.watch(micStatusProvider).valueOrNull ?? MicStatus.ok;
-        final speaking = voice.microphoneEnabled && listenOnly == null;
-        final trouble = speaking ? micStatus.trouble : null;
-        final lost = micStatus == MicStatus.unavailable;
-        return LevelDisplayHold(
-          active: voice.microphoneEnabled,
-          child: CallDockButton(
-            icon: speaking && !lost ? AppIcons.mic : AppIcons.micOff,
-            tooltip: listenOnly ?? trouble ?? _micTooltip(voice),
-            // Accent is for tools and modes only; on is plain, muted is the danger outline (decision 0047, point 3).
-            active: false,
-            pending: micStatus == MicStatus.reconnecting && trouble != null,
-            unavailable: listenOnly != null,
-            holdOpensOptions: holdOpensOptions,
-            destructive: _micDestructive(voice, listenOnly),
-            level: voice.microphoneEnabled
-                ? ref.watch(localMicLevelProvider)
-                : null,
-            onPressed: trouble != null && lost
-                ? () => unawaited(widget.controller.resetMicrophone())
-                : widget.controller.toggleMicrophone,
-          ),
-        );
-      },
-    );
-  }
-
-  /// The muted (or lost) danger outline, shared by the mic button and its caret.
-  bool _micDestructive(VoiceFlags voice, String? listenOnly) {
-    final lost =
-        ref.watch(micStatusProvider).valueOrNull == MicStatus.unavailable;
-    return (!voice.microphoneEnabled || lost) && listenOnly == null;
-  }
-
-  static String _micTooltip(VoiceFlags voice) {
-    final String label;
-    if (voice.microphoneEnabled) {
-      label = 'Mute';
-    } else {
-      label = voice.joinedMuted ? joinedMutedHint : 'Unmute';
-    }
-    return labelWithShortcut(label, AppAction.toggleMuteCall);
   }
 
   /// One click stops all incoming audio, the same toggle as the user panel's headphones; output devices stay in Voice settings.
