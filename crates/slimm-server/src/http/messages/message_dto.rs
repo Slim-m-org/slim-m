@@ -145,6 +145,14 @@ pub(crate) struct MessageDto {
     /// frames. Always `false` on a caller's own send or edit response: the
     /// resolver that fills this in never mentions its own author.
     pub(crate) mentions_me: bool,
+    /// Whether the author or a moderator removed this message's link-preview
+    /// cards. Set by the read enrichment only; the live created and edited
+    /// frames say `false`, and `message.link_previews_removed` carries the change.
+    pub(crate) link_previews_removed: bool,
+    /// On a search result found only through an attachment's extracted text,
+    /// that attachment's id. Set by the search routes alone.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) matched_attachment_id: Option<String>,
     /// Structured content attached by a webhook or a bot; see decision 0030.
     /// Fixed once a message exists, like `attachments`.
     #[serde(default)]
@@ -294,6 +302,8 @@ impl From<Message> for MessageDto {
             attachments: Vec::new(),
             code_runs: Vec::new(),
             mentions_me: false,
+            link_previews_removed: false,
+            matched_attachment_id: None,
             embeds: Vec::new(),
             webhook_username: None,
             via_module: None,

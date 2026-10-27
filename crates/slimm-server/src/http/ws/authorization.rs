@@ -345,6 +345,13 @@ async fn channel_frame(
             message_id: message_id.to_string(),
             embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
         },
+        Event::MessageLinkPreviewsRemoved {
+            channel_id,
+            message_id,
+        } => ServerFrame::MessageLinkPreviewsRemoved {
+            channel_id: channel_id.to_string(),
+            message_id: message_id.to_string(),
+        },
         Event::TypingStarted {
             channel_id,
             user_id,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The compact call strip must not wedge itself between composer and keyboard.
+/// The compact call strip must not wedge itself between composer and keyboard; with the keyboard up it is a slim pill above the composer.
 ///
 /// Layout follows width (desktop-vs-mobile rule 6, a status row that pushes
 /// content), so the compact shell branch runs on this Linux host unchanged.
@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/composer/widgets/composer.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_keyboard_pill.dart';
 import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
@@ -68,7 +69,9 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(strip, findsOneWidget);
+    final pill = find.byType(CallKeyboardPill);
+    expect(strip, findsNothing, reason: 'the full strip gives way to the pill');
+    expect(pill, findsOneWidget);
     await writeSnapshot(tester, 'phone-in-call-keyboard-open');
     final composer = find.byType(Composer);
     expect(composer, findsOneWidget);
@@ -78,14 +81,15 @@ void main() {
       reason: 'the composer sits directly on the keyboard',
     );
     expect(
-      tester.getBottomLeft(strip).dy,
-      lessThan(tester.getTopLeft(composer).dy),
-      reason: 'the strip moved above the transcript, not between',
+      tester.getBottomLeft(pill).dy,
+      lessThanOrEqualTo(tester.getTopLeft(composer).dy),
+      reason: 'the pill sits directly above the composer',
     );
     expect(find.byTooltip('Leave call').hitTestable(), findsOneWidget);
 
     tester.view.resetViewInsets();
     await tester.pump(const Duration(milliseconds: 350));
+    expect(pill, findsNothing);
     expect(tester.getBottomLeft(strip).dy, closeTo(844, 60));
 
     await teardownFixture(tester, fixture.container, fixture.db);

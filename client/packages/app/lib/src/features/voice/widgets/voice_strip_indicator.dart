@@ -70,11 +70,7 @@ class VoiceStripIndicator extends ConsumerWidget {
             Positioned.fill(
               child: _ReturnToCall(
                 voice: voice,
-                onPressed: () {
-                  // See RailCallSummary's identical line for why.
-                  ref.read(dmCallOpenProvider.notifier).state = channelId;
-                  context.go(Routes.channel(channelId));
-                },
+                onPressed: () => returnToCall(ref, context, channelId),
               ),
             ),
           Padding(
@@ -95,6 +91,13 @@ class VoiceStripIndicator extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Back to the live call's channel; shared by every surface that collapses a call.
+void returnToCall(WidgetRef ref, BuildContext context, String channelId) {
+  // See RailCallSummary's identical line for why.
+  ref.read(dmCallOpenProvider.notifier).state = channelId;
+  context.go(Routes.channel(channelId));
 }
 
 /// The press surface, named for a screen reader as one button that carries the

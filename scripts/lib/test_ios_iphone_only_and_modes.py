@@ -44,10 +44,12 @@ class LocalNetwork(unittest.TestCase):
         self.assertTrue(text.strip())
         self.assertNotIn("\u2014", text)
 
-    def test_no_bonjour_and_no_transport_security_exception(self):
+    def test_no_bonjour_and_only_the_local_networking_exemption(self):
         plist = runner_plist()
         self.assertNotIn("NSBonjourServices", plist)
-        self.assertNotIn("NSAppTransportSecurity", plist)
+        self.assertEqual(
+            plist["NSAppTransportSecurity"], {"NSAllowsLocalNetworking": True}
+        )
 
 
 if __name__ == "__main__":

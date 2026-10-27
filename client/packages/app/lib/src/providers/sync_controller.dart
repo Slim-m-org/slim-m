@@ -64,7 +64,7 @@ final initialSyncCompleteProvider = StateProvider<bool>((ref) => false);
 /// last [SyncStatus.live]: latched true the moment [start]'s catch block
 /// gives up on one, cleared the moment the socket attaches.
 ///
-/// Read by [MobileBootGate] so a phone's retry loop only ever covers the app
+/// Read by `shouldShowBootSplash` so a phone's retry loop only ever covers the app
 /// with the boot splash for the genuine first attempt, and by
 /// [SpaceConnectionDot]/[RailConnectionBar] (through [displaySyncStatus]) so
 /// their reading of the connection does not itself flip between "Connecting"

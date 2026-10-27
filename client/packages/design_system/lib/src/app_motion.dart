@@ -67,6 +67,16 @@ abstract final class AppMotion {
   static Duration reduced(BuildContext context, Duration full) =>
       isReduced(context) ? Duration.zero : full;
 
+  /// A phone bottom sheet's entrance and exit: the modal ceiling in, the panel step out, or none when reduced.
+  static AnimationStyle sheet(BuildContext context) => isReduced(context)
+      ? AnimationStyle.noAnimation
+      : const AnimationStyle(
+          duration: slow,
+          reverseDuration: base,
+          curve: entrance,
+          reverseCurve: exit,
+        );
+
   /// [reduced], except an [AnimatedSize] must never actually receive the
   /// zero it returns.
   ///

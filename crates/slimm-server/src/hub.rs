@@ -138,6 +138,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::PollVoted { .. }
         | Event::MessageComponentsChanged { .. }
         | Event::MessageEmbedsChanged { .. }
+        | Event::MessageLinkPreviewsRemoved { .. }
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)
@@ -237,6 +238,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::PollVoted { .. }
         | Event::MessageComponentsChanged { .. }
         | Event::MessageEmbedsChanged { .. }
+        | Event::MessageLinkPreviewsRemoved { .. }
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)

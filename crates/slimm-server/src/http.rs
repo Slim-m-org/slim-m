@@ -97,6 +97,7 @@ mod module_slot_nodes;
 mod module_slots;
 pub use module_events::{EventConsumer, spawn_module_events};
 pub use module_schedule::run_due as run_scheduled_modules;
+mod link_preview_removal;
 mod module_permissions;
 mod notification_schedule;
 mod overwrites;
@@ -277,6 +278,7 @@ pub fn router(state: AppState) -> Router {
         .merge(reactions::routes())
         .merge(push::routes())
         .merge(notification_schedule::routes())
+        .merge(link_preview_removal::routes())
         .merge(pins::routes())
         .merge(saved_messages::routes())
         .merge(recovery::routes())

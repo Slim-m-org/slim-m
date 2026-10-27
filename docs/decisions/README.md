@@ -102,3 +102,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0090](0090-modules-as-the-extension-surface.md) | Modules become the extension surface: events, interceptors, data, settings and UI slots, with connectors for the rest | accepted |
 | [0091](0091-module-platform-phase-1-contracts.md) | Module platform, phase 1 contracts | accepted |
 | [0092](0092-server-hardening-review-answers.md) | Server hardening review answers: strict peer moderation, own factor for TOTP policy, the rest accepted | accepted |
+| [0093](0093-attachment-text-extraction.md) | Search matches text inside text, code and PDF attachments, extracted in the background and bounded | accepted |

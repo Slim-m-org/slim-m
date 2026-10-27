@@ -62,6 +62,7 @@ import '../downloads/download_failures.dart';
 import '../widgets/update_banner_host.dart';
 import '../features/voice/providers/push_to_talk_gate.dart';
 import '../features/voice/providers/shortcut_overrides.dart';
+import '../features/voice/widgets/call_keyboard_pill.dart' show ShellKeyboard;
 import '../features/voice/widgets/voice_strip_indicator.dart';
 import '../widgets/whats_new_gate.dart';
 import '../features/messages/widgets/bot_form_gate.dart';
@@ -322,7 +323,7 @@ class HomeShell extends ConsumerWidget {
     final showVoiceStrip =
         voiceState == VoiceSessionState.connected &&
         voiceChannelId != channelId;
-    // Above the transcript while typing, so the composer sits on the keyboard.
+    // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
     return _withChannelKind(ref, channelId, (isDm) {
       // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
@@ -343,20 +344,24 @@ class HomeShell extends ConsumerWidget {
         showRail: !facts.canvasOpen,
         showMembers: !(isDm || facts.notFound),
         membersByEdgeDrag: !facts.canvasOpen,
-        body: Column(
-          children: [
-            const RailConnectionBar(),
-            if (showVoiceStrip && keyboardUp)
-              const VoiceStripIndicator(atTop: true),
-            // Its own semantics node for the same reason the wide layout gives the pane one: the modal barrier inside this pane's navigator drops everything painted before it, which here is the connection bar.
-            Expanded(
-              child: Semantics(
-                container: true,
-                child: CallMiniPlayerHost(keyboardUp: keyboardUp, child: child),
+        body: ShellKeyboard(
+          up: keyboardUp,
+          child: Column(
+            children: [
+              const RailConnectionBar(),
+              // Its own semantics node for the same reason the wide layout gives the pane one: the modal barrier inside this pane's navigator drops everything painted before it, which here is the connection bar.
+              Expanded(
+                child: Semantics(
+                  container: true,
+                  child: CallMiniPlayerHost(
+                    keyboardUp: keyboardUp,
+                    child: child,
+                  ),
+                ),
               ),
-            ),
-            if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
-          ],
+              if (showVoiceStrip && !keyboardUp) const VoiceStripIndicator(),
+            ],
+          ),
         ),
       );
     });

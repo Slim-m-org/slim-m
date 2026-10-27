@@ -93,9 +93,8 @@ Future<T?> showAppSheet<T>(
     );
   }
 
-  // Only overridden when reduced, so a full-motion viewer keeps Flutter's own stock timing rather than this app's own scale.
-  final noAnimation =
-      AppMotion.isReduced(context) ? AnimationStyle.noAnimation : null;
+  // Reduced is AnimationStyle.noAnimation; otherwise the app's own timing, not Flutter's stock sheet curve.
+  final animation = AppMotion.sheet(context);
   if (MediaQuery.sizeOf(context).width < kCompactWidth) {
     return showModalBottomSheet<T>(
       context: context,
@@ -104,7 +103,7 @@ Future<T?> showAppSheet<T>(
       isScrollControlled: true,
       // Material's handle reserves a 48dp box above every sheet; this one is a slim bar.
       showDragHandle: false,
-      sheetAnimationStyle: noAnimation,
+      sheetAnimationStyle: animation,
       builder: (context) => SafeArea(
         top: false,
         child: Column(
@@ -125,7 +124,8 @@ Future<T?> showAppSheet<T>(
   }
   return showInWindowDialog<T>(
     context: context,
-    animationStyle: noAnimation,
+    animationStyle:
+        AppMotion.isReduced(context) ? AnimationStyle.noAnimation : null,
     builder: (context) => _SheetDialog(
       maxWidth: maxWidth,
       scrolls: scrolls,

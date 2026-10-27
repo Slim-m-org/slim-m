@@ -134,8 +134,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byTooltip('Offline, retrying'), findsOneWidget);
-    // AppStatusDot's own baked-in label would instead say "Offline" here.
-    expect(find.bySemanticsLabel('Offline'), findsNothing);
+    // AppStatusDot's own baked-in label would instead say "Offline" on the dot itself.
+    expect(
+      find.descendant(
+        of: find.byType(SpaceConnectionDot),
+        matching: find.bySemanticsLabel('Offline'),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets(

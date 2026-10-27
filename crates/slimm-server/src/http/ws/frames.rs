@@ -100,6 +100,11 @@ pub(super) enum ServerFrame {
         message_id: String,
         components: Vec<crate::components::ComponentRow>,
     },
+    #[serde(rename = "message.link_previews_removed")]
+    MessageLinkPreviewsRemoved {
+        channel_id: String,
+        message_id: String,
+    },
     #[serde(rename = "message.embeds")]
     MessageEmbedsChanged {
         channel_id: String,

@@ -56,7 +56,10 @@ allow = ["MPL-2.0"]
 
 # Advisories run on a schedule in advisory-watchdog.yml, not per PR (docs/ci.md); an `ignore` entry is a dated decision, never a way to quiet it.
 [advisories]
-ignore = []
+ignore = [
+  # 2026-10-26: unmaintained, not a vulnerability; pulled by lopdf for font handling, revisit when lopdf can be upgraded past the cipher pin.
+  "RUSTSEC-2026-0192",
+]
 
 [bans]
 multiple-versions = "allow"

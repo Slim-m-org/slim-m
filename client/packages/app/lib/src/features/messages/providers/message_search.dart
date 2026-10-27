@@ -143,3 +143,14 @@ Future<MessageSearchResult> _runSearch(
     return const MessageSearchFailed();
   }
 }
+
+/// The file a search hit matched through, or null when the message's own text
+/// matched. Falls back to a generic name when the attachment is not on the hit.
+String? matchedAttachmentName(api.Message message) {
+  final id = message.matchedAttachmentId;
+  if (id == null) return null;
+  for (final attachment in message.attachments) {
+    if (attachment.id == id) return attachment.filename;
+  }
+  return 'an attachment';
+}

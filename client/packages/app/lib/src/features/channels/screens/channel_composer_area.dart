@@ -25,6 +25,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../composer/providers/composer_extent.dart';
 import '../../messages/providers/message_selection.dart';
+import '../../voice/providers/voice_controller.dart';
+import '../../voice/widgets/call_keyboard_pill.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
 import '../../../providers/providers.dart';
 import '../../composer/widgets/composer.dart';
@@ -93,6 +95,21 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     });
   }
 
+  // The main pane only: a docked thread shares the call's channel page and its keyboard.
+  bool _showsCallPill(BuildContext context) {
+    if (!widget.reportsExtent) return false;
+    final (state, callChannelId) = ref.watch(
+      voiceControllerProvider.select((s) => (s.state, s.channelId)),
+    );
+    return showsCallKeyboardPill(
+      width: MediaQuery.sizeOf(context).width,
+      keyboardUp: ShellKeyboard.isUp(context),
+      state: state,
+      callChannelId: callChannelId,
+      channelId: widget.channelId,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final content = _content(context);
@@ -147,6 +164,7 @@ class _ChannelComposerAreaState extends ConsumerState<ChannelComposerArea> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (_showsCallPill(context)) const CallKeyboardPill(),
         AppRevealBand(
           child: stillTimedOut
               ? TimeoutBanner(until: timedOutUntil, reason: me?.timeoutReason)

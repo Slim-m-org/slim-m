@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO attachment_text (sha256, extracted_at)\n               SELECT ?, ? WHERE EXISTS (SELECT 1 FROM attachments WHERE sha256 = ?)\n               ON CONFLICT (sha256) DO NOTHING\n               RETURNING fts_rowid AS \"fts_rowid!: i64\"",
+  "describe": {
+    "columns": [
+      {
+        "name": "fts_rowid!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "9f05085e075dca8e5eb7c2382adad3e35055c318ef9a9e85021a5e69962a8e5c"
+}

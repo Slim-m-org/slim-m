@@ -23,6 +23,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::PollVoted { channel_id, .. } => *channel_id,
         Event::MessageComponentsChanged { channel_id, .. } => *channel_id,
         Event::MessageEmbedsChanged { channel_id, .. } => *channel_id,
+        Event::MessageLinkPreviewsRemoved { channel_id, .. } => *channel_id,
         Event::TypingStarted { channel_id, .. } | Event::TypingStopped { channel_id, .. } => {
             *channel_id
         }

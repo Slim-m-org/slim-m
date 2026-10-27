@@ -42,6 +42,7 @@ export 'src/input_gate.dart'
         InputGateRate;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
+export 'src/mirror_self_view.dart';
 export 'src/mic_failure.dart';
 export 'src/mic_fallback.dart' show fallbackCandidates;
 export 'src/os_mic_block.dart' show osBlocksMicrophone;

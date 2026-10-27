@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
+import '../../messages/providers/message_search.dart'
+    show matchedAttachmentName;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -211,7 +213,9 @@ List<PaletteResultItem> buildMessageItems(
 }) => [
   for (final message in messages)
     PaletteResultItem(
-      label: message.content,
+      label: message.content.isEmpty
+          ? (matchedAttachmentName(message) ?? '')
+          : message.content,
       kind: PaletteKind.message,
       message: message,
       messageChannelLabel: _messageChannelLabel(

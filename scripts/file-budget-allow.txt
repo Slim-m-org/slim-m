@@ -18,6 +18,6 @@ client/packages/api/test/new_routes_test.dart 596 # the REST routes of PR #36 in
 crates/slimm-server/tests/polls.rs 605 # create, vote, close and the permission matrix
 crates/slimm-server/tests/dms.rs 594 # pair membership, the deliberately skipped ADMINISTRATOR bypass, and fan-out
 client/packages/app/test/session_persistence_test.dart 588 # restore, refresh and revocation paths
-crates/slimm-server/src/hub/event.rs 750 # one exhaustive Event enum; each new broadcast adds a variant and cannot be split out. Ceiling moves in steps of 50
+crates/slimm-server/src/hub/event.rs 800 # one exhaustive Event enum; each new broadcast adds a variant and cannot be split out. Ceiling moves in steps of 50
 crates/slimm-server/src/http/ws/authorization.rs 550 # exhaustive per-connection frame authorization match; each new event adds an arm. Ceiling moves in steps of 50
-crates/slimm-server/src/hub.rs 600 # two exhaustive event classifiers gating the durable/ephemeral split; each new event adds an arm. Ceiling moves in steps of 50
+crates/slimm-server/src/hub.rs 650 # two exhaustive event classifiers gating the durable/ephemeral split; each new event adds an arm. Ceiling moves in steps of 50

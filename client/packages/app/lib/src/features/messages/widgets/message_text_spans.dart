@@ -207,6 +207,8 @@ class _MentionChip extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: AppText.body.copyWith(
           color: tokens.accent,
           fontWeight: AppWeights.medium,
