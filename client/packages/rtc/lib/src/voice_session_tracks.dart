@@ -37,7 +37,7 @@ extension VoiceSessionTracks on VoiceSession {
       if (event is lk.LocalTrackUnpublishedEvent &&
           event.publication.source == lk.TrackSource.screenShareVideo &&
           !isSharingScreen(room.localParticipant)) {
-        unawaited(_screenShare.shareEnded());
+        unawaited(_share.control.shareEnded());
       }
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
@@ -64,14 +64,14 @@ extension VoiceSessionTracks on VoiceSession {
     if (_disposed) return;
     if (reason == lk.DisconnectReason.clientInitiated) return;
     _audio.cancelRetry();
-    await _screenShare.stopActiveBroadcast();
+    await _share.control.stopActiveBroadcast();
     _lastDisconnect = mapDisconnectReason(reason);
     _participants = const [];
     if (!_participantsController.isClosed) {
       _participantsController.add(_participants);
     }
     _setState(VoiceSessionState.failed);
-    await _screenShare.dispose();
+    await _share.control.dispose();
   }
 
   /// Drops this session's room, and everything holding it open, in the order
@@ -105,10 +105,10 @@ extension VoiceSessionTracks on VoiceSession {
     if (cancelEvents != null) await _step(cancelEvents);
     // Not every call-ending path resets it; this one covers all of them.
     _cameraSwitching.resetFacing();
-    _shareWatch.stop();
+    _share.watch.stop();
     // Awaited before the room disconnects below: the SFU has no bearing on iOS.
-    await _step(_screenShare.stopActiveBroadcast);
-    await _step(_screenShare.dispose);
+    await _step(_share.control.stopActiveBroadcast);
+    await _step(_share.control.dispose);
     if (room != null) {
       await _step(room.disconnect);
       await _step(room.dispose);
