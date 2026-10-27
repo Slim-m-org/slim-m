@@ -30,7 +30,8 @@ class ShareAudioIsolation {
   int? _mixNode;
   Timer? _follow;
   bool _following = false;
-  Future<void> _queue = Future<void>.value();
+  // Null while idle, so no future is made in whichever zone built this object.
+  Future<void>? _queue;
   int _ends = 0;
 
   bool get active => _mixNode != null;
@@ -44,8 +45,12 @@ class ShareAudioIsolation {
   }
 
   Future<T> _serially<T>(Future<T> Function() run) {
-    final result = _queue.then((_) => run());
-    _queue = result.then<void>((_) {}, onError: (Object _) {});
+    final pending = _queue;
+    final result = pending == null ? run() : pending.then((_) => run());
+    final tail = _queue = result.then<void>((_) {}, onError: (Object _) {});
+    unawaited(tail.whenComplete(() {
+      if (identical(_queue, tail)) _queue = null;
+    }));
     return result;
   }
 

@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
@@ -294,6 +295,13 @@ void main() {
   });
 
   _sessionTests();
+
+  test('one built under a fake clock still ends in the real zone', () async {
+    late ShareAudioIsolation built;
+    fakeAsync((_) => built = ShareAudioIsolation(graph: _FakeGraph()));
+
+    await built.end().timeout(const Duration(seconds: 2));
+  });
 
   test('a dump that is not a graph yields nothing to link', () {
     expect(foreignPlayback('not json', 1), isEmpty);
