@@ -150,13 +150,8 @@ pub(super) async fn presence_status(
     target: UserId,
 ) -> anyhow::Result<Option<Status>> {
     let tracker = hub.presence();
-    // Prefer the cache; a miss falls back to the exact store query this always made (its `None` still means a gone account).
-    let visibility = match tracker.visibility(target) {
-        Some(cached) => cached,
-        None => match store.presence_visibility(target).await? {
-            Some(visibility) => visibility,
-            None => return Ok(None),
-        },
+    let Some(visibility) = visibility_of(store, hub, target).await? else {
+        return Ok(None);
     };
     Ok(Some(presence::status_for(
         viewer,
@@ -165,6 +160,19 @@ pub(super) async fn presence_status(
         tracker.is_connected(target),
         tracker.is_idle(target),
     )))
+}
+
+/// `target`'s chosen visibility, from the presence cache or else the store; `None` when the account is gone.
+pub(super) async fn visibility_of(
+    store: &Store,
+    hub: &Hub,
+    target: UserId,
+) -> anyhow::Result<Option<presence::Visibility>> {
+    // A miss falls back to the exact store query this always made.
+    match hub.presence().visibility(target) {
+        Some(cached) => Ok(Some(cached)),
+        None => store.presence_visibility(target).await,
+    }
 }
 
 /// Whether `viewer` may be told that `target`'s typing ended.

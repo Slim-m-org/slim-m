@@ -516,6 +516,7 @@ async fn edit(
                 message: Arc::new(message.clone()),
                 op_seq,
                 forwarded: forwarded.clone().map(Arc::new),
+                lookups: Default::default(),
             });
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {

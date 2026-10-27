@@ -292,6 +292,17 @@ impl Store {
         Ok(blocked)
     }
 
+    /// Everyone `viewer` has blocked, for a caller that checks many candidates against one list.
+    pub async fn blocked_ids(&self, viewer: UserId) -> anyhow::Result<HashSet<UserId>> {
+        let ids = sqlx::query_scalar!(
+            r#"SELECT blocked_id AS "blocked_id: UserId" FROM user_blocks WHERE blocker_id = ?"#,
+            viewer
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(ids.into_iter().collect())
+    }
+
     pub async fn has_blocked(&self, blocker: UserId, blocked: UserId) -> anyhow::Result<bool> {
         let found = sqlx::query_scalar!(
             r#"SELECT 1 AS "one!: i64" FROM user_blocks

@@ -14,7 +14,7 @@ use super::super::link_preview::LinkPreviews;
 use super::super::message_dto::{CallDto, CodeRunDto, ViaModuleDto};
 use super::super::polls::PollDto;
 use super::{AttachmentDto, MessageDto, frames::ServerFrame};
-use crate::hub::Event;
+use crate::hub::{CreatedLookups, Event};
 use crate::ids::UserId;
 use crate::store::{
     AppSurface, AttachmentSummary, CallRecord, CodeRunSummary, Embed, ForwardSummary, Message,
@@ -129,7 +129,7 @@ fn created(
     }
 }
 
-/// [`created`]'s own sibling for an edit, which carries the message-op
+/// [`created`]'s own sibling for an edit, sharing its lookups, which carries the message-op
 /// stream's own `op_seq` rather than nothing extra.
 pub(super) async fn edited(
     store: &Store,
@@ -137,25 +137,17 @@ pub(super) async fn edited(
     message: Message,
     op_seq: i64,
     forwarded: Option<ForwardSummary>,
+    lookups: &CreatedLookups,
 ) -> Result<ServerFrame, ()> {
     let channel_id = message.channel_id.to_string();
     let seq = message.seq.0;
     let message_id = message.id;
     let mut dto = MessageDto::from(message);
     dto.forwarded = forwarded.map(Into::into);
-    dto.webhook_username = store
-        .webhook_message_username(message_id)
-        .await
-        .map_err(|_| ())?;
-    dto.via_module = store
-        .module_origin(message_id)
-        .await
-        .map_err(|_| ())?
-        .map(ViaModuleDto::from);
-    dto.mentions_me = store
-        .is_mentioned(message_id, viewer)
-        .await
-        .map_err(|_| ())?;
+    let facts = lookups.get(store, message_id).await.map_err(|_| ())?;
+    dto.webhook_username = facts.webhook_username.clone();
+    dto.via_module = facts.module_origin.clone().map(ViaModuleDto::from);
+    dto.mentions_me = facts.mentioned.contains(&viewer);
     Ok(ServerFrame::MessageEdited {
         channel_id,
         seq,
