@@ -62,8 +62,8 @@ final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
 /// instead, the same place a member list gives a person their own status.
 ///
 /// While offline the dot alone was easy to miss at desktop width, so an
-/// "Offline" word sits beside the name (owner decision, 2026-10-26), or the
-/// refusal sentence when the server refused the session; the wide layout still
+/// "Offline" word sits beside the name (owner decision, 2026-10-26), or
+/// "Refused" when the server refused the session; the wide layout still
 /// shows no banner.
 class RailHeader extends ConsumerWidget {
   const RailHeader({super.key});
@@ -122,9 +122,9 @@ class RailHeader extends ConsumerWidget {
                                 left: AppSpacing.s8,
                               ),
                               child: Text(
-                                // A refusal must not read as a retryable offline; the short word is only for that.
+                                // A refusal must not read as a retryable offline; the pane below carries the sentence.
                                 failure == SyncFailure.refused
-                                    ? connectionLabel(syncStatus, failure)
+                                    ? 'Refused'
                                     : 'Offline',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

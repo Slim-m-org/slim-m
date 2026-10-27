@@ -100,7 +100,7 @@ void main() {
       failure: SyncFailure.refused,
     );
 
-    expect(find.text('The server refused this session'), findsOneWidget);
+    expect(find.text('Refused'), findsOneWidget);
     expect(find.text('Offline'), findsNothing);
 
     await teardownFixture(tester, fixture.container, fixture.db);
