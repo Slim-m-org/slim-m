@@ -138,4 +138,67 @@ void main() {
 
     expect(find.byType(StartupScreen), findsNothing);
   });
+
+  testWidgets('signing in after a signed-out launch never swaps the app for '
+      'the splash', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('a sign-out and sign-in after the first sync does not bring '
+      'the splash back', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    container.read(initialSyncCompleteProvider.notifier).state = true;
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsNothing);
+
+    container.invalidate(initialSyncCompleteProvider);
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
 }
