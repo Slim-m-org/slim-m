@@ -20,7 +20,8 @@ use super::extract::{Kind, MAX_PDF_BYTES, extract};
 
 /// The hidden subcommand `main` routes to [`run_pdf_worker`].
 pub const WORKER_ARG: &str = "--extract-pdf-text";
-const MEMORY_LIMIT_BYTES: u64 = 1024 * 1024 * 1024;
+/// Well under the 512 MiB the compose file gives the whole container, so the cgroup OOM killer never has to choose.
+const MEMORY_LIMIT_BYTES: u64 = 192 * 1024 * 1024;
 const CPU_LIMIT_SECONDS: u64 = 15;
 const WALL_LIMIT: Duration = Duration::from_secs(20);
 const MAX_OUTPUT_BYTES: u64 = 1024 * 1024;
