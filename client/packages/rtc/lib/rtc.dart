@@ -7,6 +7,7 @@
 /// session without a real SFU behind it.
 library;
 
+export 'src/android_capture_permission.dart';
 export 'src/audio_device_switching.dart';
 export 'src/audio_devices.dart';
 export 'src/pulse_audio.dart';

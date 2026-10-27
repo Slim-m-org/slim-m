@@ -10,6 +10,7 @@ export 'src/orientation_channel.dart';
 export 'src/biometric_auth_channel.dart';
 export 'src/call_lifecycle_channel.dart';
 export 'src/call_notifications.dart';
+export 'src/call_service.dart';
 export 'src/clipboard_image_png.dart' show isPng, toPng;
 export 'src/clipboard_image_writer.dart';
 export 'src/cross_tab.dart';

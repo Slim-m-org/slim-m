@@ -16,6 +16,7 @@ import 'package:http/testing.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/diagnostics/debug_log.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/features/voice/providers/call_foreground_keeper.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_auto_rejoin.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_platform/platform.dart';
@@ -150,6 +151,7 @@ class VoiceHarness {
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     CallLifecycleChannel? callLifecycle,
+    CallForegroundKeeper? foreground,
     DateTime Function()? now,
     List<Override> extraOverrides = const [],
   }) {
@@ -174,6 +176,7 @@ class VoiceHarness {
             voiceHeartbeatInterval: voiceHeartbeatInterval,
             autoRejoinDelays: autoRejoinDelays,
             callLifecycle: callLifecycle,
+            foreground: foreground,
             now: now,
           ),
         ),

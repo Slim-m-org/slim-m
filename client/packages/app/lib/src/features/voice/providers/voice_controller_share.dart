@@ -12,6 +12,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   void _log(String message, {Object? detail});
   bool get supportsScreenShareAudio;
   Duration get broadcastStartTimeout;
+  CallForegroundKeeper get _shareForeground;
 
   Timer? _broadcastDeadline;
 
@@ -35,6 +36,15 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   }) async {
     _cancelBroadcastDeadline();
     if (enabled && sourceId != null) lastShareSourceId = sourceId;
+    if (enabled && !await _shareForeground.beforeShare()) {
+      _shareForeground.shareSettled(started: false);
+      state = state.copyWith(
+        screenSharing: false,
+        error: 'Screen sharing needs permission to capture the screen.',
+        retryable: true,
+      );
+      return;
+    }
     final outcome = await _shareSession.setScreenShareEnabled(
       enabled,
       quality: quality,
@@ -42,6 +52,9 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
       // Defended here too, not only in the UI: a settings value can outlive a platform switch.
       includeAudio: includeAudio && supportsScreenShareAudio,
       maxHeight: maxHeight,
+    );
+    _shareForeground.shareSettled(
+      started: outcome == ScreenShareOutcome.started,
     );
     switch (outcome) {
       case ScreenShareOutcome.started:
