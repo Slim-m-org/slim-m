@@ -159,6 +159,7 @@ class _AppSliderState extends State<AppSlider> {
     return Semantics(
       container: true,
       excludeSemantics: true,
+      label: widget.semanticLabel,
       slider: true,
       enabled: true,
       focusable: true,
