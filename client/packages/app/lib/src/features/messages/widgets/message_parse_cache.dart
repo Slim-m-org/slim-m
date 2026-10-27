@@ -6,12 +6,17 @@ import 'message_inline.dart';
 import 'message_fences.dart';
 import 'message_markdown_blocks.dart';
 
+/// Room for a 200-message window at about four text runs a message, with headroom.
+///
+/// An LRU smaller than the set being scrolled over gets no hits at all, and an entry is a short string plus its tree.
+const kParseCacheCapacity = 2048;
+
 /// A bounded least-recently-used map from text to its parsed value.
 ///
 /// Keyed on the text itself: the parsers are pure, so an edit (new content)
 /// misses by construction and a message id or revision adds nothing to the key.
 class ParseCache<T> {
-  ParseCache(this._parse, {this.capacity = 512});
+  ParseCache(this._parse, {this.capacity = kParseCacheCapacity});
 
   final T Function(String text) _parse;
   final int capacity;

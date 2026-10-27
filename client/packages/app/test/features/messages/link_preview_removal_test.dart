@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -114,6 +115,32 @@ void main() {
       expect(extras.extrasFor('m1').linkPreviewsRemoved, isTrue);
     });
 
+    test(
+      'a refused removal rolls back only while nothing confirmed it',
+      () async {
+        final extras = container.read(messageExtrasProvider.notifier);
+
+        extras.beginLocalLinkPreviewsRemoval('m1');
+        expect(extras.extrasFor('m1').linkPreviewsRemoved, isTrue);
+        expect(extras.rollBackLocalLinkPreviewsRemoval('m1'), isTrue);
+        expect(extras.extrasFor('m1').linkPreviewsRemoved, isFalse);
+
+        extras.beginLocalLinkPreviewsRemoval('m1');
+        events.add(
+          api.ServerEvent.parse(
+            jsonEncode({
+              'type': 'message.link_previews_removed',
+              'channel_id': 'c1',
+              'message_id': 'm1',
+            }),
+          )!,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(extras.rollBackLocalLinkPreviewsRemoval('m1'), isFalse);
+        expect(extras.extrasFor('m1').linkPreviewsRemoved, isTrue);
+      },
+    );
+
     test('a fetched page carrying the flag sets it', () {
       final extras = container.read(messageExtrasProvider.notifier);
       extras.applyMessages([_wire(removed: true)]);
@@ -127,6 +154,7 @@ void main() {
       required int permissions,
       required String authorId,
       bool failing = false,
+      List<String> urls = const ['https://example.com/a'],
     }) async {
       SharedPreferences.setMockInitialValues({});
       final requests = <http.Request>[];
@@ -161,7 +189,7 @@ void main() {
             theme: buildTheme(Brightness.light, AppTokens.light),
             home: Scaffold(
               body: LinkPreviewList(
-                urls: const ['https://example.com/a'],
+                urls: urls,
                 message: message(authorId: authorId),
               ),
             ),
@@ -208,6 +236,66 @@ void main() {
       await hover(tester);
 
       expect(find.byTooltip('Remove link preview'), findsNothing);
+    });
+
+    testWidgets(
+      'the X is in the semantics tree and focusable without a hover',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await pump(tester, permissions: Perm.manageMessages, authorId: 'other');
+        final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await mouse.addPointer(location: const Offset(700, 500));
+        addTearDown(mouse.removePointer);
+        await tester.pump();
+
+        expect(find.bySemanticsLabel('Remove link preview'), findsOneWidget);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final opacity = tester.widget<AnimatedOpacity>(
+          find.ancestor(
+            of: find.byType(AppIconButton),
+            matching: find.byType(AnimatedOpacity),
+          ),
+        );
+        expect(opacity.opacity, 1);
+        handle.dispose();
+      },
+    );
+
+    testWidgets('two links label the X as removing all of them', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        permissions: Perm.manageMessages,
+        authorId: 'other',
+        urls: const ['https://example.com/a', 'https://example.com/b'],
+      );
+
+      expect(find.byTooltip('Remove all link previews'), findsNWidgets(2));
+    });
+
+    testWidgets('a refused removal restores the cards and says why', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        permissions: Perm.manageMessages,
+        authorId: 'other',
+        failing: true,
+      );
+      await hover(tester);
+
+      await tester.tap(find.byTooltip('Remove link preview'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+
+      expect(find.byType(AppErrorState), findsOneWidget);
+      expect(find.textContaining('remove the link previews'), findsOneWidget);
     });
   });
 }
