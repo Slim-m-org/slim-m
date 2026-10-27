@@ -334,6 +334,19 @@ extension SlimmApiMessages on SlimmApi {
         expectNoContent: true,
       );
 
+  /// Removes the link-preview cards from one message, for everyone. Allowed to
+  /// the author, or to a member holding MANAGE_MESSAGES in the channel. There
+  /// is no way back, and a repeat succeeds.
+  Future<void> removeMessageLinkPreviews({
+    required String channelId,
+    required String messageId,
+  }) =>
+      _send(
+        'DELETE',
+        '/channels/$channelId/messages/$messageId/link-previews',
+        expectNoContent: true,
+      );
+
   /// Keeps a message in the caller's own saved list. Idempotent: saving
   /// something already saved leaves the original `savedAt` alone rather than
   /// moving it to the top, so a double tap cannot reorder the list.

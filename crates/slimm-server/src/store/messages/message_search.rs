@@ -175,14 +175,20 @@ impl Store {
                       m.seq, m.content, m.created_at, m.edited_at, m.reply_to_id
                FROM messages m"#,
         );
-        if query.is_some() {
-            builder.push(" JOIN messages_fts ON messages_fts.rowid = m.fts_rowid");
-        }
         builder.push(" LEFT JOIN users u ON u.id = m.author_id AND u.deleted_at IS NULL WHERE ");
         if let Some(q) = query {
-            builder.push("messages_fts MATCH ");
+            // A message matches on its own text or on text extracted from one of its attachments.
+            builder
+                .push("(m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
             builder.push_bind(q.to_owned());
-            builder.push(" AND ");
+            builder.push(
+                ") OR EXISTS (SELECT 1 FROM message_attachments ma \
+                 JOIN attachment_text t ON t.sha256 = ma.sha256 \
+                 WHERE ma.message_id = m.id AND t.fts_rowid IN \
+                 (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+            );
+            builder.push_bind(q.to_owned());
+            builder.push("))) AND ");
         }
         builder.push("m.channel_id IN (");
         {

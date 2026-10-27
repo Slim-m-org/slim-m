@@ -7,6 +7,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
+import '../../messages/providers/message_search.dart'
+    show matchedAttachmentName;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../settings/providers/display_density.dart';
@@ -239,17 +241,49 @@ class SearchResultRow extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s4),
-                  MessageBody(
-                    content: message.content,
-                    knownUsernames: knownUsernames,
-                    knownRoleNames: knownRoleNames,
-                    customEmoji: customEmoji,
-                  ),
+                  if (message.content.isNotEmpty)
+                    MessageBody(
+                      content: message.content,
+                      knownUsernames: knownUsernames,
+                      knownRoleNames: knownRoleNames,
+                      customEmoji: customEmoji,
+                    ),
+                  if (matchedAttachmentName(message) case final file?)
+                    _AttachmentMatchLine(file: file),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Says a hit was found inside a file rather than in the message text.
+class _AttachmentMatchLine extends StatelessWidget {
+  const _AttachmentMatchLine({required this.file});
+
+  final String file;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.s4),
+      child: Row(
+        children: [
+          Icon(AppIcons.attachFile, size: 12, color: tokens.textSecondary),
+          const SizedBox(width: AppSpacing.s4),
+          Flexible(
+            child: Text(
+              'Found in $file',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
+        ],
       ),
     );
   }

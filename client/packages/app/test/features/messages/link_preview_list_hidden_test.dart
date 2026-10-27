@@ -12,14 +12,19 @@ import 'package:slimm_app/src/features/messages/widgets/link_preview_card.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'message_row_harness.dart';
+
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
         theme: buildTheme(Brightness.light, AppTokens.light),
-        home: const Scaffold(
-          body: LinkPreviewList(urls: ['https://example.com/a']),
+        home: Scaffold(
+          body: LinkPreviewList(
+            urls: const ['https://example.com/a'],
+            message: message(),
+          ),
         ),
       ),
     ),

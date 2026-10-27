@@ -405,6 +405,14 @@ pub(super) async fn message_calls(c: &mut Contract, root: &str, channel: &str) -
     )
     .await;
 
+    // Before the list, so listMessages validates a message carrying link_previews_removed: true.
+    c.bare(
+        "removeMessageLinkPreviews",
+        "DELETE",
+        &format!("{messages}/{message}/link-previews"),
+        root,
+    )
+    .await;
     c.get("listMessages", &format!("{messages}?limit=50"), root)
         .await;
     c.get(

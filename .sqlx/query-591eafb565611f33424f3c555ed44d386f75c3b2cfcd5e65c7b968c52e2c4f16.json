@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO message_link_preview_suppressions\n                 (message_id, suppressed_at) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "591eafb565611f33424f3c555ed44d386f75c3b2cfcd5e65c7b968c52e2c4f16"
+}

@@ -81,6 +81,18 @@ class CodeRunsCleared extends ServerEvent {
   final String messageId;
 }
 
+/// The author or a moderator removed a message's link-preview cards. One way
+/// only, so a receiver hides them and keeps them hidden.
+class MessageLinkPreviewsRemoved extends ServerEvent {
+  const MessageLinkPreviewsRemoved({
+    required this.channelId,
+    required this.messageId,
+  });
+
+  final String channelId;
+  final String messageId;
+}
+
 /// A thread's reply summary changed: it was just opened, or gained a reply.
 /// Carries the current count rather than a delta, the same "whole current
 /// answer" shape [PollVoted] already uses, so a client that missed a frame
