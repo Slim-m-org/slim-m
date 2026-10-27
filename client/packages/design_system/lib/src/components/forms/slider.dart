@@ -48,6 +48,7 @@ class AppSlider extends StatefulWidget {
     this.semanticLabel,
     this.autofocus = false,
     this.valueLabel,
+    this.valueBubble = true,
     this.splitTrack = false,
   });
 
@@ -87,6 +88,9 @@ class AppSlider extends StatefulWidget {
 
   /// Formats the value for a bubble over the thumb, shown only while dragging or focused, and for screen readers.
   final String Function(double value)? valueLabel;
+
+  /// False keeps [valueLabel] for screen readers only, for a slider that shows its value beside it.
+  final bool valueBubble;
 
   /// A `tall` trough drawn in two tones either side of the thumb: quiet before it, heard after.
   final bool splitTrack;
@@ -321,8 +325,10 @@ class _AppSliderState extends State<AppSlider> {
     );
 
     final label = widget.valueLabel;
-    final showBubble =
-        label != null && widget.onChanged != null && (_dragging || _focused);
+    final showBubble = label != null &&
+        widget.valueBubble &&
+        widget.onChanged != null &&
+        (_dragging || _focused);
     final withBubble = label == null
         ? ring
         : Stack(

@@ -227,6 +227,7 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
             keyStep: _keyStepPercent.toDouble(),
             semanticLabel: _label,
             valueLabel: (v) => '${v.round()}%',
+            valueBubble: false,
             autofocus: widget.autofocus,
             muted: muted,
             onChanged: (next) => _setVolume(next / 100),
