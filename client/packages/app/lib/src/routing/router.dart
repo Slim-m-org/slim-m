@@ -52,7 +52,6 @@ import '../features/voice/screens/call_stats_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/sign_in_screen.dart';
 import '../features/messages/screens/thread_screen.dart';
-import '../widgets/mobile_boot_gate.dart';
 import 'breakpoints.dart';
 import 'modal_page.dart';
 import 'page_transitions.dart';
@@ -270,8 +269,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // the child pages fade through so switching one for another reads as a
       // navigation rather than an instant swap.
       ShellRoute(
-        builder: (context, state, child) =>
-            MobileBootGate(child: HomeShell(child: child)),
+        builder: (context, state, child) => HomeShell(child: child),
         routes: [
           GoRoute(
             path: Routes.channels,
