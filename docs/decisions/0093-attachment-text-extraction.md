@@ -1,4 +1,4 @@
-# 0092 - Searching text inside attachments
+# 0093 - Searching text inside attachments
 
 Status: accepted
 Date: 2026-10-26
@@ -35,4 +35,6 @@ It is MIT, pure Rust and maintained.
 0.41 and earlier abort the process on a deeply nested PDF (RUSTSEC-2026-0187), which cannot be caught, so 0.42 is the floor.
 0.43 to 0.46 need `cipher` 0.5 final, which conflicts with the `=0.5.0-rc.1` pin `crypto_secretbox` holds, so 0.42.0 is the only version that resolves today.
 Revisit when that pin moves.
-It pulls `ttf-parser`, which carries an unmaintained advisory; nothing here touches fonts.
+It pulls `ttf-parser` unconditionally, which carries an unmaintained advisory (RUSTSEC-2026-0192).
+It is not a vulnerability and nothing here touches fonts.
+The advisory is ignored in `deny.toml` with a date, to be revisited when lopdf can move past the cipher pin.
