@@ -68,7 +68,7 @@ def rejoins_after_a_network_drop(a, b, room_id, channel=L.VOICE_CHANNEL):
         assert ok, "alice never rejoined the call after her network came back"
         parts = participants_with_mics(room_id)
         assert len(parts) == 2, f"SFU has {len(parts)} participants, expected 2"
-        audio_actually_arrives(a, b)
+        audio_actually_arrives(a, b, room_id)
         print("  alice is back in the call and audio flows both ways")
     finally:
         a.go_online()
