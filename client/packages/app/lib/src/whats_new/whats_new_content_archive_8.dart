@@ -256,4 +256,37 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.119.0',
+    headline: 'Full screen canvas, search inside files, steadier calls',
+    points: [
+      WhatsNewPoint(
+        'Sharing screen audio on Linux no longer plays the call back to '
+        'everyone, and the share menu can mute the shared audio.',
+      ),
+      WhatsNewPoint(
+        'Strong noise suppression now also takes out loud steady noise like '
+        'a vacuum, and a mic that stops working can switch to another.',
+      ),
+      WhatsNewPoint(
+        'On the canvas, F puts the focused tile full screen and Escape '
+        'leaves it, a summon asks first, and holding right click opens a '
+        'tool wheel with a new text tool.',
+      ),
+      WhatsNewPoint(
+        'Search finds text inside text, code and PDF attachments, and you '
+        'can remove link previews from your own messages.',
+      ),
+      WhatsNewPoint(
+        'Phones pause your camera while the app is in the background, and '
+        'Android keeps a call going with a notification.',
+      ),
+      WhatsNewPoint(
+        'Moderators can no longer kick, ban, time out or rename someone of '
+        'the same rank, and changing the two-factor rule needs two-factor '
+        'on your own account.',
+        warn: true,
+      ),
+    ],
+  ),
 ];
