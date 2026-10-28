@@ -43,6 +43,7 @@ run_gate "comment cap" bash scripts/check-comment-cap.sh
 run_gate "no API failure is caught and shown with a SnackBar" python3 scripts/check-error-surface.py
 run_gate "data.dart exports Message as a plain DTO" python3 scripts/check-message-dto-boundary.py
 run_gate "no migration collides or changes under a deployed database" python3 scripts/check-migration-versions.py
+run_gate "find.byType and pumpAndSettle counts only go down" python3 scripts/check-test-patterns.py
 run_gate "no unscoped MediaQuery.of(context) outside the allowlist" python3 scripts/check-media-query-scope.py
 run_gate "every workflow is in the docs/ci.md table" python3 scripts/check-ci-docs.py
 

@@ -255,7 +255,15 @@ An entry whose file has dropped back under 500, or which no longer names a check
 Nothing in that list is a judgement that the file is acceptable.
 The two worst are production code, not tests: `store/sessions.rs` at 815 lines carries tokens, refresh rotation, ws tickets and account deletion together, and `push.rs` at 600 carries envelope sealing, the relay client and fan-out triggering.
 Splitting them is real work with real regression risk and does not belong in the change that introduces the gate.
-`schema/openapi.yaml` and `release.yml` are the two that will most likely stay: one OpenAPI document split across `$ref` files would give `tests/openapi_contract.rs` two sources to reconcile, and the release workflow's ten publish jobs share release-please's outputs.
+`schema/openapi.yaml` is the one that will most likely stay: one OpenAPI document split across `$ref` files would give `tests/openapi_contract.rs` two sources to reconcile.
+`release.yml` left the list when the steps of `linux-client`, `android-client`, `ios-testflight` and the COPR submit moved into the `release-*` composite actions.
+
+### The test-pattern ratchet
+
+`scripts/check-test-patterns.py` stops the app tests gaining `find.byType` or `pumpAndSettle`.
+A type finder pins a widget's name and `pumpAndSettle` waits out an animation that never settles instead of failing on it, so neither is banned, but no file may hold more than the count listed for it in `scripts/test-pattern-allow.txt` (zero when unlisted).
+Prefer `expectSettled`, `waitUntil` (`test/support/async_wait.dart`) and the geometry helpers (`test/support/geometry.dart`).
+`python3 scripts/check-test-patterns.py --update` lowers the ceilings after a cleanup and never raises one.
 
 ### The comment cap
 
