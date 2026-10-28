@@ -87,6 +87,7 @@ class AudioGlitchWatch {
     _timer?.cancel();
     _timer = null;
     _previous.clear();
+    health.clearPing();
   }
 
   /// Ends the call: logs its summary and keeps it in [VoiceHealth.lastCall].

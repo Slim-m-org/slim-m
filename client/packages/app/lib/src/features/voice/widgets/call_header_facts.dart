@@ -9,7 +9,9 @@ import 'package:slimm_rtc/rtc.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../providers/voice_controller.dart';
+import '../providers/voice_ping.dart';
 import 'call_participant_tiles.dart';
+import 'voice_ping_readout.dart';
 
 /// Channel name, then [mode] when the canvas is open, then count and timer.
 ///
@@ -70,6 +72,10 @@ class CallHeaderLine extends ConsumerWidget {
         if (voice.connectedAt != null) ...[
           Text(' · ', style: facts),
           CallDuration(since: voice.connectedAt!, style: facts),
+        ],
+        if (ref.watch(voicePingProvider) != null) ...[
+          Text(' · ', style: facts),
+          VoicePingReadout(style: facts),
         ],
       ],
     );

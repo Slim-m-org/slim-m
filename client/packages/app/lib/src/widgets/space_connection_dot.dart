@@ -24,6 +24,7 @@ class SpaceConnectionDot extends StatelessWidget {
     this.failure,
     this.direct = false,
     this.haloed = false,
+    this.voicePingMs,
   });
 
   final SyncStatus status;
@@ -34,6 +35,9 @@ class SpaceConnectionDot extends StatelessWidget {
 
   /// Requests reach the server over its own network.
   final bool direct;
+
+  /// Round trip to the voice server while in a call; added to the tooltip.
+  final int? voicePingMs;
 
   /// Ring cut-out in the rail colour, for a badge drawn over a Space icon.
   final bool haloed;
@@ -76,8 +80,9 @@ class SpaceConnectionDot extends StatelessWidget {
               backgroundColor: tokens.surfaceSunken,
             ),
           );
+    final ping = voicePingMs;
     final dot = Tooltip(
-      message: label,
+      message: ping == null ? label : '$label\nVoice ping $ping ms',
       child: Semantics(
         label: label,
         // Cross-fades on [AppStatusDot]'s own clock; the key scopes the swap to the state.

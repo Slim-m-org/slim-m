@@ -64,6 +64,7 @@ class AudioSendSample {
     this.totalAudioEnergy,
     this.totalSamplesDuration,
     this.rttMs,
+    this.pingMs,
     this.packetsLost,
     this.jitterSeconds,
   });
@@ -80,6 +81,9 @@ class AudioSendSample {
   final num? totalSamplesDuration;
   final double? rttMs;
 
+  /// The transport's own round trip, whichever stream is being read.
+  final double? pingMs;
+
   /// Packets the far end reports missing from what we sent.
   final num? packetsLost;
   final num? jitterSeconds;
@@ -88,7 +92,9 @@ class AudioSendSample {
 bool _isAudio(StatsEntry e) =>
     (e.text('kind') ?? e.text('mediaType') ?? 'audio') == 'audio';
 
-double? _pairRttMs(List<StatsEntry> entries) {
+/// Milliseconds of the selected candidate pair's `currentRoundTripTime`, the
+/// round trip to the voice server; null when no pair has reported one.
+double? candidatePairRttMs(List<StatsEntry> entries) {
   final pairs = entries.where((e) => e.type == 'candidate-pair').toList();
   final selectedId = entries
       .where((e) => e.type == 'transport')
@@ -124,7 +130,7 @@ AudioReceiveSample? parseAudioReceive(List<StatsEntry> entries) {
     jitterBufferDelay: inbound.number('jitterBufferDelay'),
     jitterBufferEmittedCount: inbound.number('jitterBufferEmittedCount'),
     audioLevel: inbound.number('audioLevel'),
-    rttMs: _pairRttMs(entries),
+    rttMs: candidatePairRttMs(entries),
   );
 }
 
@@ -145,7 +151,8 @@ AudioSendSample? parseAudioSend(List<StatsEntry> entries) {
     audioLevel: source?.number('audioLevel'),
     totalAudioEnergy: source?.number('totalAudioEnergy'),
     totalSamplesDuration: source?.number('totalSamplesDuration'),
-    rttMs: remoteRtt == null ? _pairRttMs(entries) : remoteRtt * 1000,
+    rttMs: remoteRtt == null ? candidatePairRttMs(entries) : remoteRtt * 1000,
+    pingMs: candidatePairRttMs(entries),
     packetsLost: remote?.number('packetsLost'),
     jitterSeconds: remote?.number('jitter'),
   );
