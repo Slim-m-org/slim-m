@@ -177,53 +177,24 @@ class _UpdateStatusRowsState extends ConsumerState<UpdateStatusRows> {
   }
 }
 
-/// The app's mark: three grey dots and an accent square on a dark tile.
+/// The brand mark on a sunken tile.
 class AppIconTile extends StatelessWidget {
   const AppIconTile({super.key});
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
-    Widget dot(double x, double y) => Positioned(
-      left: x,
-      top: y,
-      child: Container(
-        width: 6,
-        height: 6,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: tokens.textSecondary,
-        ),
-      ),
-    );
     return ExcludeSemantics(
       child: Container(
         width: 48,
         height: 48,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: tokens.surfaceSunken,
           border: Border.all(color: tokens.borderStrong),
           borderRadius: BorderRadius.circular(AppRadii.card),
         ),
-        child: Stack(
-          children: [
-            dot(11, 11),
-            dot(20, 11),
-            dot(11, 20),
-            Positioned(
-              left: 23,
-              top: 23,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: tokens.accent,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: const AppBrandMark(size: 32),
       ),
     );
   }
