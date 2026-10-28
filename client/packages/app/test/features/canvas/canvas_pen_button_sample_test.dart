@@ -25,15 +25,19 @@ Finder get _dot => find.descendant(
 );
 
 void main() {
-  for (final width in canvasPenWidths) {
+  for (final width in [
+    canvasPenMinWidth,
+    canvasDefaultPenWidth,
+    canvasPenMaxWidth,
+  ]) {
     for (final color in [canvasPenColors.first, canvasPenColors[3]]) {
-      testWidgets('${width.label} ${color.label} shows as a round dot in that '
+      testWidgets('$width px ${color.label} shows as a round dot in that '
           'colour', (tester) async {
         await tester.pumpWidget(
           wrapCanvasToolsRow(
             buildCanvasToolsRow(
               tool: CanvasTool.pan,
-              pen: CanvasPenStyle(colorKey: color.key, width: width.width),
+              pen: CanvasPenStyle(colorKey: color.key, width: width),
             ),
           ),
         );

@@ -61,7 +61,13 @@ class CanvasStrokePreviewRelay {
 
   /// Sends this device's own buffered points onward for [objectId], already
   /// throttled and capped by the time this is called.
-  final void Function(String objectId, List<double> points, bool ended) send;
+  final void Function(
+    String objectId,
+    List<double> points,
+    bool ended, {
+    bool cancelled,
+  })
+  send;
 
   final bool Function(String userId) isBlocked;
 
@@ -117,6 +123,18 @@ class CanvasStrokePreviewRelay {
     pen = null;
   }
 
+  /// Cancels an in-flight local draft and notifies peers it was abandoned.
+  void cancelLocalDraft() {
+    final objectId = _activeObjectId;
+    if (objectId == null) return;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _pending.clear();
+    _activeObjectId = null;
+    pen = null;
+    send(objectId, const [], true, cancelled: true);
+  }
+
   void _flush({bool ended = false}) {
     final objectId = _activeObjectId;
     if (objectId == null) return;
@@ -156,10 +174,15 @@ class CanvasStrokePreviewRelay {
     String objectId,
     List<double> points,
     bool ended, {
+    bool cancelled = false,
     String? color,
     double? width,
   }) {
     if (userId == selfId() || isBlocked(userId)) return;
+    if (cancelled) {
+      drafts.end(objectId);
+      return;
+    }
     if (points.isNotEmpty) {
       _append(userId, objectId, points, color: color, width: width);
     }

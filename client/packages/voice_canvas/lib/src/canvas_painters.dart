@@ -27,6 +27,7 @@ import 'package:flutter/rendering.dart';
 import 'canvas_document.dart';
 import 'canvas_ink_cache.dart';
 import 'canvas_snap.dart' show gridSpacingFor;
+import 'canvas_text_box.dart';
 import 'note_label_cache.dart';
 
 export 'canvas_live_painters.dart';
@@ -314,6 +315,10 @@ class StrokePainter extends CustomPainter {
             shapeColor ?? ink,
             elevated: isElevated,
           );
+          continue;
+        case CanvasObjectKind.text:
+          noteIds.add(stroke.id);
+          _paintText(canvas, stroke, camera);
           continue;
         case CanvasObjectKind.stroke:
           break;

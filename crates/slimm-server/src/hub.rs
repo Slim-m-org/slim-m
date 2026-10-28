@@ -94,6 +94,7 @@ pub struct Hub {
     typing: TypingTracker,
     ephemeral_budget: EphemeralBudget,
     permissions_epoch: Arc<AtomicU64>,
+    blocks_epoch: Arc<AtomicU64>,
     idle_poll_interval: Duration,
     memory_guard: Arc<MemoryGuard>,
     moderation: Arc<ModerationClock>,
@@ -137,6 +138,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::PollVoted { .. }
         | Event::MessageComponentsChanged { .. }
         | Event::MessageEmbedsChanged { .. }
+        | Event::MessageLinkPreviewsRemoved { .. }
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)
@@ -236,6 +238,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::PollVoted { .. }
         | Event::MessageComponentsChanged { .. }
         | Event::MessageEmbedsChanged { .. }
+        | Event::MessageLinkPreviewsRemoved { .. }
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)
@@ -299,6 +302,7 @@ impl Hub {
             typing: TypingTracker::new(),
             ephemeral_budget: EphemeralBudget::default(),
             permissions_epoch: Arc::new(AtomicU64::new(0)),
+            blocks_epoch: Arc::new(AtomicU64::new(0)),
             idle_poll_interval: IDLE_POLL_INTERVAL,
             memory_guard: Arc::new(MemoryGuard::new()),
             moderation: Arc::new(ModerationClock::new()),
@@ -399,6 +403,17 @@ impl Hub {
     /// of these.
     pub fn permissions_epoch(&self) -> u64 {
         self.permissions_epoch.load(Ordering::Acquire)
+    }
+
+    /// Moves whenever anyone's block list changes, so a connection's cached
+    /// block list is read again; see `http::ws::permission_cache`.
+    pub fn blocks_epoch(&self) -> u64 {
+        self.blocks_epoch.load(Ordering::Acquire)
+    }
+
+    /// Called by the block and unblock handlers once the change has committed.
+    pub fn blocks_changed(&self) {
+        self.blocks_epoch.fetch_add(1, Ordering::Release);
     }
 
     /// Subscribes a new connection to the durable event stream: messages,
@@ -556,6 +571,7 @@ mod epoch_tests {
             object_id: crate::ids::CanvasObjectId::generate(),
             points: Arc::new(vec![0.0, 0.0]),
             ended: false,
+            cancelled: false,
             color: None,
             width: None,
         });
@@ -567,6 +583,7 @@ mod epoch_tests {
             w: 1.0,
             h: 1.0,
             summon: false,
+            tile: None,
         });
         hub.publish(Event::CanvasObjectPreview {
             channel_id: ChannelId::generate(),

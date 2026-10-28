@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT blocked_id AS \"blocked_id: UserId\" FROM user_blocks WHERE blocker_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "blocked_id: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ef47d4525f4af3e51a213f6a47fe0f307e305362879a144bd47084765bd91bb5"
+}

@@ -35,6 +35,7 @@ class MessageExtras {
     this.threadLastReplyAt,
     this.threadUnreadCount,
     this.mentionsMe = false,
+    this.linkPreviewsRemoved = false,
   });
 
   final List<api.ReactionSummary> reactions;
@@ -89,6 +90,10 @@ class MessageExtras {
   /// viewer, so only a REST fetch can clear it.
   final bool mentionsMe;
 
+  /// The message's link-preview cards were removed. One way: a fetch or a
+  /// `message.link_previews_removed` frame sets it, and nothing clears it.
+  final bool linkPreviewsRemoved;
+
   MessageExtras copyWith({
     List<api.ReactionSummary>? reactions,
     List<api.Attachment>? attachments,
@@ -98,6 +103,7 @@ class MessageExtras {
     api.CallRecord? call,
     List<api.Embed>? embeds,
     List<api.ComponentRow>? components,
+    bool? linkPreviewsRemoved,
     String? threadChannelId,
     int? threadReplyCount,
     int? threadLastReplyAt,
@@ -117,6 +123,7 @@ class MessageExtras {
     threadLastReplyAt: threadLastReplyAt ?? this.threadLastReplyAt,
     threadUnreadCount: threadUnreadCount,
     mentionsMe: mentionsMe,
+    linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
   );
 
   static const empty = MessageExtras();
@@ -152,6 +159,12 @@ class MessageExtrasController
         _set(messageId, extrasFor(messageId).copyWith(components: components));
       case api.MessageEmbedsChanged(:final messageId, :final embeds):
         _set(messageId, extrasFor(messageId).copyWith(embeds: embeds));
+      case api.MessageLinkPreviewsRemoved(:final messageId):
+        _unconfirmedRemovals.remove(messageId);
+        _set(
+          messageId,
+          extrasFor(messageId).copyWith(linkPreviewsRemoved: true),
+        );
       case api.ThreadUpdated(
         :final parentMessageId,
         :final threadChannelId,
@@ -169,11 +182,33 @@ class MessageExtrasController
     }
   }
 
+  final _unconfirmedRemovals = <String>{};
+
+  /// Hides [messageId]'s cards before the server answers.
+  void beginLocalLinkPreviewsRemoval(String messageId) {
+    _unconfirmedRemovals.add(messageId);
+    _set(messageId, extrasFor(messageId).copyWith(linkPreviewsRemoved: true));
+  }
+
+  /// The server answered the removal; nothing is left to roll back.
+  void confirmLocalLinkPreviewsRemoval(String messageId) =>
+      _unconfirmedRemovals.remove(messageId);
+
+  /// Restores the cards after a refused removal, unless a frame or a fetch has
+  /// since confirmed the removal, in which case they stay hidden. Whether it rolled back.
+  bool rollBackLocalLinkPreviewsRemoval(String messageId) {
+    if (!_unconfirmedRemovals.remove(messageId)) return false;
+    _set(messageId, extrasFor(messageId).copyWith(linkPreviewsRemoved: false));
+    return true;
+  }
+
   /// Merges in whatever [message] carries. See the file doc comment for why
   /// a merge, never an overwrite, is what makes this safe to call from a
   /// live socket frame that may have omitted all three fields.
-  void applyMessage(api.Message message) =>
-      _set(message.id, _merged(message, state[message.id]));
+  void applyMessage(api.Message message) {
+    if (message.linkPreviewsRemoved) _unconfirmedRemovals.remove(message.id);
+    _set(message.id, _merged(message, state[message.id]));
+  }
 
   /// Applies a fetched page in one state write. A fetch is authoritative for
   /// reactions, so an empty list clears a tally removed while away; the other
@@ -182,6 +217,7 @@ class MessageExtrasController
     final next = {...state};
     var changed = false;
     for (final message in messages) {
+      if (message.linkPreviewsRemoved) _unconfirmedRemovals.remove(message.id);
       next[message.id] = _merged(
         message,
         next[message.id],
@@ -238,6 +274,8 @@ class MessageExtrasController
     mentionsMe: authoritative
         ? message.mentionsMe
         : message.mentionsMe || (existing?.mentionsMe ?? false),
+    linkPreviewsRemoved:
+        message.linkPreviewsRemoved || (existing?.linkPreviewsRemoved ?? false),
   );
 
   static List<T> _list<T>(

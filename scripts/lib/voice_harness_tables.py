@@ -89,10 +89,11 @@ def desktop(root):
                          _num(n["typing_speech"].get("excess_over_speech_db"), 1),
                          _num(n["bark_speech"].get("excess_over_speech_db"), 1),
                          _num(n["speech_level_change_db"], 1),
-                         n["onsets"]["clipped"], _num(n["onsets"]["mean_lost_ms"])])
+                         n["onsets"]["clipped"], _num(n["onsets"]["mean_lost_ms"]),
+                         n["onsets"].get("loud", {}).get("clipped", "-")])
     return _md(["arm", "network", "hum floor dB", "typing in gap dB", "bark in gap dB",
                 "typing over speech: excess dB", "bark over speech: excess dB",
-                "speech level dB", "clipped onsets", "mean onset lost ms"], rows)
+                "speech level dB", "clipped onsets", "mean onset lost ms", "clipped onsets over -35 dBFS"], rows)
 
 
 KINDS = {"latency": latency, "joins": joins, "speaking": speaking, "cut": cut, "desktop": desktop}

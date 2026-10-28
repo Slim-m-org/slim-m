@@ -26,14 +26,21 @@ class ServerIdentityChangeGate extends ConsumerWidget {
     final changed = ref.watch(serverIdentityChangeProvider).valueOrNull;
     if (changed == null) return child;
     final server = ref.watch(serverUrlProvider);
+    final presented = changed.presented;
     return ServerIdentityChangedStep(
       address: server,
-      identity: changed,
+      identity: presented,
       onDecision: (trusted) async {
         if (trusted) {
+          if (presented == null) {
+            ref
+                .read(serverIdentityChangeProvider.notifier)
+                .acceptMissingIdentity();
+            return;
+          }
           await ref
               .read(keyStoreProvider)
-              .put(identityHandleFor(server), changed.publicKey);
+              .put(identityHandleFor(server), presented.publicKey);
           ref.invalidate(serverIdentityChangeProvider);
           return;
         }

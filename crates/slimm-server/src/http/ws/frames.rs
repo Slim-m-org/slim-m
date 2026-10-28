@@ -100,6 +100,12 @@ pub(super) enum ServerFrame {
         message_id: String,
         components: Vec<crate::components::ComponentRow>,
     },
+    #[serde(rename = "message.link_previews_removed")]
+    MessageLinkPreviewsRemoved {
+        channel_id: String,
+        message_id: String,
+        op_seq: i64,
+    },
     #[serde(rename = "message.embeds")]
     MessageEmbedsChanged {
         channel_id: String,
@@ -315,6 +321,8 @@ pub(super) enum ServerFrame {
         object_id: String,
         points: Vec<f64>,
         ended: bool,
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        cancelled: bool,
         color: Option<String>,
         width: Option<f64>,
     },
@@ -350,6 +358,8 @@ pub(super) enum ServerFrame {
         w: f64,
         h: f64,
         summon: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        tile: Option<String>,
     },
     #[serde(rename = "canvas.object.moved")]
     CanvasObjectMoved {

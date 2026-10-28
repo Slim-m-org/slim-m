@@ -15,7 +15,6 @@ mixin VoiceSessionMicRelease {
   late final lk.AudioCaptureOptions Function() _plainOpenOptions;
   void _diag(String line, {LogLevel level});
   late final MicRelease _micRelease;
-  CaptureNoiseSuppression get _capture;
 
   void _initMicRelease({
     required Duration grace,
@@ -64,7 +63,6 @@ mixin VoiceSessionMicRelease {
       await _mic.reopenMuted(_plainOpenOptions());
       _joinTimings.mark(JoinStage.micPublished);
       _micRelease.onMuted();
-      _capture.opened(webrtcNoiseSuppression: _capture.webrtcNoiseSuppression);
     } catch (e) {
       _diag('Could not ready the microphone: $e', level: LogLevel.warning);
     }

@@ -53,6 +53,11 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       return KeyEventResult.ignored;
     }
     if (textInputHasFocus()) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.keyF &&
+        _focusedTileKey != null) {
+      _focusTile(null);
+      return KeyEventResult.handled;
+    }
     for (final tool in canvasToolOrder) {
       if (tool.shortcutKey != event.logicalKey) continue;
       if (!tool.isAvailable(canDraw: canDraw)) return KeyEventResult.ignored;
@@ -190,7 +195,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
     final onNote =
         id != null &&
         bounds != null &&
-        _document.kindOf(id) == CanvasObjectKind.note &&
+        (_document.kindOf(id) == CanvasObjectKind.note ||
+            _document.kindOf(id) == CanvasObjectKind.text) &&
         Rect.fromLTWH(bounds.x, bounds.y, bounds.w, bounds.h).contains(world);
     if (!onNote) {
       _lastNoteClick = null;
@@ -230,7 +236,10 @@ extension _CanvasPaneGestures on _CanvasPaneState {
   }
 
   void _onNoteEditCancel() {
-    _refresh(() => _editingNoteId = null);
+    _refresh(() {
+      _editingNoteId = null;
+      _text.cancelDraft();
+    });
     _boardFocusNode.requestFocus();
   }
 
@@ -247,8 +256,15 @@ extension _CanvasPaneGestures on _CanvasPaneState {
 
   /// Whether the roster is docked beside the canvas, as the shell decides it.
   bool get _memberPaneDocked =>
+      !_threadPaneDocked &&
       memberPaneWanted(ref, MediaQuery.sizeOf(context)) &&
       LayoutClass.of(context).fitsMemberPane(MediaQuery.sizeOf(context).width);
+
+  bool get _threadPaneDocked =>
+      ref.read(openThreadProvider) != null &&
+      LayoutClass.of(context).fitsThreadPane(MediaQuery.sizeOf(context).width);
+
+  void _closeThreadPane() => ref.read(openThreadProvider.notifier).state = null;
 
   void _closeMemberPane() =>
       ref.read(memberPaneVisibleProvider.notifier).state = false;
@@ -383,6 +399,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
       manageCanvas: manageCanvas,
       selfId: ref.read(meProvider).valueOrNull?.id,
     );
+    // The undo entry lands after the document's own refresh, so the dock's Undo needs this rebuild.
+    _refresh();
     if (result.moved == 0 &&
         !result.failed &&
         _mounted &&
@@ -393,6 +411,8 @@ extension _CanvasPaneGestures on _CanvasPaneState {
             : 'You can only bring in objects you placed.',
       );
     }
+    if (result.moved > 0) _engine.hydrator.hydrateVisible();
+    if (_mounted) _refresh();
   }
 
   /// Fits the camera to what is drawn, or the whole board when the canvas is empty.

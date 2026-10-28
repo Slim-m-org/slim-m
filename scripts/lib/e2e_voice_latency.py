@@ -2,7 +2,7 @@
 """Mouth-to-ear delay through a real call, per network profile.
 
 Both browsers play the latency clip (make_speech_clip.py) and tap their microphone and the other's decoded track on one epoch clock (e2e_xp_js.py); the receiver's jitter buffer delay is reported beside it.
-Opt in with E2E_ONLY="voice latency"; E2E_VQ_PROFILES and E2E_VQ_SECONDS apply as for the quality scenario.
+Opt in with E2E_ONLY="voice latency"; E2E_VQ_PROFILES, E2E_VQ_SECONDS, E2E_VQ_PROCESSING and E2E_VQ_VARIANT (its sender settings) apply as for the quality scenario.
 """
 import json
 import os
@@ -82,6 +82,10 @@ def a_timed_call(server, secret, admin_api, sign_in):
     with xp.two_browsers(server, secret, admin_api, sign_in, clips) as (a, b):
         for client in (a, b):
             xp.join(client)
+        sender = vq.VARIANTS.get(os.environ.get("E2E_VQ_VARIANT", "baseline"), {}).get("_sender")
+        for client in (a, b):
+            if sender:
+                client.ev(f"window.__vq.setSender({json.dumps(sender)})")
         time.sleep(SETTLE)
         try:
             for profile in wanted:

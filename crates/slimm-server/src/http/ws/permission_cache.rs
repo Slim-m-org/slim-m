@@ -5,10 +5,10 @@
 //! for writes that publish nothing; errors are never cached. Why it is
 //! keyed on the epoch and not on events is in docs/internals.md.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use crate::ids::{CanvasObjectId, ChannelId};
+use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
 
 /// How long an answer may be reused before it is asked again.
@@ -28,6 +28,14 @@ pub(super) struct PermissionCache {
     entries: HashMap<ChannelId, Entry>,
     timeout: Option<TimeoutEntry>,
     previewable: HashMap<(ChannelId, CanvasObjectId), Instant>,
+    blocked: Option<BlockedEntry>,
+}
+
+/// Who this member has blocked, as last read; see [`PermissionCache::blocked`].
+struct BlockedEntry {
+    ids: HashSet<UserId>,
+    asked_at: Instant,
+    epoch: u64,
 }
 
 /// The member's timeout expiry as last read, kept as an instant rather than a
@@ -50,7 +58,25 @@ impl PermissionCache {
             entries: HashMap::new(),
             timeout: None,
             previewable: HashMap::new(),
+            blocked: None,
         }
+    }
+
+    /// The members this viewer has blocked, or `None` to go and ask. Stale on the
+    /// same two counts as [`Self::get`]: a block change moves the hub's blocks epoch, and `TTL` covers any that did not.
+    pub(super) fn blocked(&self, now: Instant, epoch: u64) -> Option<&HashSet<UserId>> {
+        let entry = self.blocked.as_ref()?;
+        let fresh = now.duration_since(entry.asked_at) < TTL && entry.epoch == epoch;
+        fresh.then_some(&entry.ids)
+    }
+
+    /// Records the block list against the epoch read before it was queried, never after.
+    pub(super) fn insert_blocked(&mut self, ids: HashSet<UserId>, now: Instant, epoch: u64) {
+        self.blocked = Some(BlockedEntry {
+            ids,
+            asked_at: now,
+            epoch,
+        });
     }
 
     /// Whether the member was just found able to move this object, so a drag's

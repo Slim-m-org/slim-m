@@ -40,10 +40,16 @@ const canvasUnavailableMessage = 'The canvas is not available in this channel.';
 /// Shown for any other failed canvas fetch.
 const canvasLoadFailedMessage = 'The canvas could not be loaded.';
 
+/// Whether [error] is the timed-out banner, which stops being true when the timeout lapses.
+bool canvasErrorIsTimeout(String? error) =>
+    error != null && error.startsWith(_timedOutPrefix);
+
 /// Whether [error] says placing would fail the same way again: a refusal or a
 /// timeout freeze. Any other banner, a failed load included, leaves drawing available.
+///
+/// A timeout banner blocks until `CanvasTimeoutBanner` clears it when the
+/// timeout lapses or is lifted, so that is the one place expiry is decided.
 bool canvasErrorBlocksDrawing(String? error) =>
-    error != null &&
-    (error == _drawRefusedMessage ||
-        error == canvasUnavailableMessage ||
-        error.startsWith(_timedOutPrefix));
+    error == _drawRefusedMessage ||
+    error == canvasUnavailableMessage ||
+    canvasErrorIsTimeout(error);

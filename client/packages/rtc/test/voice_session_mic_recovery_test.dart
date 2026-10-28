@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A microphone that dies under a call comes back: ended tracks, device
-/// changes, a silent capture and a failed Strong reopen, driven through the
+/// changes and a silent capture, driven through the
 /// mic, gate and device seams.
 library;
 
@@ -19,7 +19,6 @@ class _FakeMic implements MicPort {
   int enables = 0;
   int discards = 0;
   int enableFailures = 0;
-  bool Function(bool noiseSuppression) restartFails = (_) => false;
   final restarts = <bool>[];
   final restartDevices = <String?>[];
   final _lost = StreamController<void>.broadcast();
@@ -50,7 +49,6 @@ class _FakeMic implements MicPort {
   Future<void> restart(lk.AudioCaptureOptions options) async {
     restarts.add(options.noiseSuppression);
     restartDevices.add(options.deviceId);
-    if (restartFails(options.noiseSuppression)) throw StateError('restart');
   }
 
   @override
@@ -127,7 +125,6 @@ class _Rig {
       audioDevices: devices,
       micRecoveryTiming: _timing,
       audioLog: (message, {level = LogLevel.info}) => logs.add(message),
-      captureRestartDebounce: const Duration(milliseconds: 10),
       inputGate: InputGateMonitor(
         interval: const Duration(milliseconds: 5),
         invoke: (method, [args]) async {
@@ -366,9 +363,9 @@ void main() {
     final before = rig.gateConfigures;
 
     rig.mic.end();
-    await _until(() => rig.mic.enables == 2);
+    await _until(() => rig.mic.enables == 2 && rig.gateConfigures > before);
 
-    expect(rig.gateConfigures, greaterThan(before));
+    expect(rig.mic.enables, 2);
   });
 
   test('a quiet room under active Strong suppression is not restarted',
@@ -394,36 +391,6 @@ void main() {
 
     expect(live.mic.restarts, isEmpty);
     expect(muted.mic.restarts, isEmpty);
-  });
-
-  test('a Strong reopen that fails leaves the mic open on libwebrtc', () async {
-    final rig = _Rig();
-    addTearDown(rig.session.dispose);
-    await rig.join();
-    rig.mic.restartFails = (ns) => !ns;
-
-    rig.session.setStrongNoiseSuppression(true);
-    await _until(() => rig.mic.restarts.length >= 2);
-    await _settle();
-
-    expect(rig.mic.restarts, [false, true]);
-    expect(rig.mic.open, isTrue);
-    expect(rig.mic.discards, 0);
-  });
-
-  test('a Strong reopen that fails every way republishes the track', () async {
-    final rig = _Rig();
-    addTearDown(rig.session.dispose);
-    await rig.join();
-    rig.mic.restartFails = (_) => true;
-
-    rig.session.setStrongNoiseSuppression(true);
-    await _until(() => rig.mic.discards == 1);
-    await _until(() => rig.mic.enables == 2);
-    await _settle();
-
-    expect(rig.mic.open, isTrue);
-    expect(rig.session.micStatus, MicStatus.ok);
   });
 
   test('Reset microphone restarts an open capture with the current options',

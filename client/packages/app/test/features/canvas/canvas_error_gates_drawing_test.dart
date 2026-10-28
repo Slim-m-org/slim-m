@@ -4,11 +4,13 @@
 /// delete is just a banner.
 library;
 
+import 'package:clock/clock.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_forbidden_message.dart';
+import 'package:slimm_app/src/providers/providers.dart' show meProvider;
 import 'package:slimm_design_system/design_system.dart';
 
 import 'canvas_pane_harness.dart';
@@ -28,10 +30,25 @@ bool _penEnabled(WidgetTester tester) =>
         .onPressed !=
     null;
 
+AppIconButton _button(WidgetTester tester, Pattern label) =>
+    tester.widget<AppIconButton>(
+      find
+          .ancestor(
+            of: find.bySemanticsLabel(label),
+            matching: find.byType(AppIconButton),
+          )
+          .first,
+    );
+
+final _penLabel = RegExp(r"^(Pen|Can't draw right now)$");
+
 const _refused = "You don't have permission to draw here right now.";
 
-Future<ProviderContainer> _pump(WidgetTester tester) async {
-  final fixture = CanvasPaneFixture();
+Future<ProviderContainer> _pump(
+  WidgetTester tester, {
+  int? timedOutUntil,
+}) async {
+  final fixture = CanvasPaneFixture()..timedOutUntil = timedOutUntil;
   final container = fixture.container();
   addTearDown(container.dispose);
   addTearDown(fixture.events.close);
@@ -87,18 +104,61 @@ void main() {
     expect(_penEnabled(tester), isFalse);
   });
 
-  testWidgets('a timeout freeze disables the Pen button', (tester) async {
+  testWidgets('a refusal puts the armed pen back to Pan', (tester) async {
     final container = await _pump(tester);
+    expect(_button(tester, 'Pen').active, isTrue, reason: 'baseline');
+
+    _report(container, _refused);
+    await tester.pumpAndSettle();
+
+    expect(_button(tester, 'Pan').active, isTrue);
+    expect(_button(tester, _penLabel).active, isFalse);
+  });
+
+  testWidgets('a timeout freeze disables the Pen button until it lapses', (
+    tester,
+  ) async {
+    final until = clock.now().add(const Duration(seconds: 10));
+    final container = await _pump(
+      tester,
+      timedOutUntil: until.millisecondsSinceEpoch,
+    );
 
     _report(
       container,
-      canvasDrawForbiddenMessage(
-        DateTime.now().add(const Duration(minutes: 5)).millisecondsSinceEpoch,
-      ),
+      canvasDrawForbiddenMessage(until.millisecondsSinceEpoch),
     );
     await tester.pumpAndSettle();
-
     expect(_penEnabled(tester), isFalse);
+
+    await tester.pump(const Duration(seconds: 11));
+    await tester.pumpAndSettle();
+    expect(_penEnabled(tester), isTrue);
+  });
+
+  testWidgets('a timeout lifted early re-enables the Pen button', (
+    tester,
+  ) async {
+    final until = clock.now().add(const Duration(minutes: 10));
+    final fixture = CanvasPaneFixture()
+      ..timedOutUntil = until.millisecondsSinceEpoch;
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+    await tester.pumpAndSettle();
+    _report(
+      container,
+      canvasDrawForbiddenMessage(until.millisecondsSinceEpoch),
+    );
+    await tester.pumpAndSettle();
+    expect(_penEnabled(tester), isFalse);
+
+    fixture.timedOutUntil = null;
+    container.invalidate(meProvider);
+    await tester.pumpAndSettle();
+
+    expect(_penEnabled(tester), isTrue);
   });
 
   testWidgets(

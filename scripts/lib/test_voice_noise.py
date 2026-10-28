@@ -67,6 +67,27 @@ class Noise(unittest.TestCase):
         self.assertEqual(got["onsets"]["clipped"], 3)
         self.assertGreaterEqual(got["onsets"]["mean_lost_ms"], 70)
 
+    def test_a_suppressed_soft_lead_in_is_not_a_clipped_word_start(self):
+        lead = [0.0] * len(self.clean[0])
+        for a, _ in SPANS:
+            for i in range(int((a - 0.12) * RATE), int(a * RATE)):
+                lead[i] = 0.02 * math.sin(2 * math.pi * 300 * i / RATE)
+        clean = (_sum(self.clean[0], lead), RATE)
+        mix = (_sum(clean[0], _noise()), RATE)
+        rec = [0.0 if v else m for v, m in zip(lead, _sum(self.clean[0], _noise()))]
+        spans = [(a - 0.12, b) for a, b in SPANS]
+        got = vn.analyze(clean, mix, (rec, RATE), spans, EVENTS)
+        self.assertEqual(got["onsets"]["clipped"], 3)
+        self.assertEqual(got["onsets"]["loud"]["clipped"], 0)
+
+    def test_a_late_gate_clips_loud_word_starts_too(self):
+        rec = list(self.mix[0])
+        for a, _ in SPANS:
+            for i in range(int(a * RATE), int((a + 0.1) * RATE)):
+                rec[i] = 0.0
+        got = self.run_with(rec)
+        self.assertEqual(got["onsets"]["loud"]["clipped"], 3)
+
     def test_a_quieter_call_reads_as_a_speech_level_change(self):
         rec = [v * 0.5 for v in self.mix[0]]
         got = self.run_with(rec)

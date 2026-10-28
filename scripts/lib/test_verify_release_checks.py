@@ -174,7 +174,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq})
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("required checks passed", result.stdout)
+        self.assertIn("required checks passed", (result.stdout + result.stderr))
 
     def test_a_failure_fails(self):
         seq = self._seq_dir("checkruns", [[
@@ -183,8 +183,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq})
         self.assertEqual(result.returncode, 1)
-        self.assertIn("required check(s) failed", result.stdout)
-        self.assertIn("test:failure", result.stdout)
+        self.assertIn("required check(s) failed", (result.stdout + result.stderr))
+        self.assertIn("test:failure", (result.stdout + result.stderr))
 
     def test_a_cancelled_check_is_pinned_as_a_failure(self):
         """Current, deliberate behaviour: a cancelled check is not a pass and
@@ -197,8 +197,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq})
         self.assertEqual(result.returncode, 1)
-        self.assertIn("required check(s) failed", result.stdout)
-        self.assertIn("test:cancelled", result.stdout)
+        self.assertIn("required check(s) failed", (result.stdout + result.stderr))
+        self.assertIn("test:cancelled", (result.stdout + result.stderr))
 
     def test_a_pending_check_keeps_waiting_then_passes(self):
         seq = self._seq_dir("checkruns", [
@@ -213,8 +213,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
         ])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq})
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("waiting on", result.stdout)
-        self.assertIn("required checks passed", result.stdout)
+        self.assertIn("waiting on", (result.stdout + result.stderr))
+        self.assertIn("required checks passed", (result.stdout + result.stderr))
 
     def test_a_genuinely_absent_check_fails_after_the_grace_period(self):
         seq = self._seq_dir("checkruns", [[
@@ -225,8 +225,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             "FAKE_ACTIONSRUNS_COUNT": "0",
         })
         self.assertEqual(result.returncode, 1)
-        self.assertIn("no check run named", result.stdout)
-        self.assertIn("test", result.stdout)
+        self.assertIn("no check run named", (result.stdout + result.stderr))
+        self.assertIn("test", (result.stdout + result.stderr))
 
     def test_the_release_run_itself_does_not_count_as_something_still_running(self):
         """This script runs inside the release run, which is in progress the
@@ -244,8 +244,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             ]}),
         }, required_checks="build|bogus-name")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("no check run named bogus-name", result.stdout)
-        self.assertNotIn("timed out", result.stdout)
+        self.assertIn("no check run named bogus-name", (result.stdout + result.stderr))
+        self.assertNotIn("timed out", (result.stdout + result.stderr))
 
     def test_another_workflow_still_running_on_the_commit_keeps_waiting(self):
         checkruns = self._seq_dir("checkruns", [
@@ -264,8 +264,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
                 {"id": 200, "status": "queued"},
             ]}),
         }, required_checks="build|late")
-        self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertIn("required checks passed", result.stdout)
+        self.assertEqual(result.returncode, 0, (result.stdout + result.stderr))
+        self.assertIn("required checks passed", (result.stdout + result.stderr))
 
     def test_an_absent_check_with_a_run_still_queued_keeps_waiting(self):
         """The distinction bug 1's own gate exists for: absent-and-nothing-
@@ -285,7 +285,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             "FAKE_ACTIONSRUNS_SEQ_DIR": actionsruns,
         })
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("required checks passed", result.stdout)
+        self.assertIn("required checks passed", (result.stdout + result.stderr))
 
     def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_pending_one(self):
         """Two workflows both made a check named `check`; the newest one was read alone."""
@@ -294,9 +294,9 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("timed out", result.stdout)
-        self.assertNotIn("required checks passed", result.stdout)
+        self.assertEqual(result.returncode, 1, (result.stdout + result.stderr))
+        self.assertIn("timed out", (result.stdout + result.stderr))
+        self.assertNotIn("required checks passed", (result.stdout + result.stderr))
 
     def test_a_newer_green_run_of_the_same_name_from_another_workflow_does_not_mask_a_failure(self):
         seq = self._seq_dir("checkruns", [[
@@ -304,8 +304,8 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=2),
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
-        self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("check:failure", result.stdout)
+        self.assertEqual(result.returncode, 1, (result.stdout + result.stderr))
+        self.assertIn("check:failure", (result.stdout + result.stderr))
 
     def test_a_rerun_in_the_same_suite_replaces_its_failed_attempt(self):
         seq = self._seq_dir("checkruns", [[
@@ -313,7 +313,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             _check_run("check", "completed", "success", started_at="2026-01-01T00:09:00Z", suite=1),
         ]])
         result = self._run({"FAKE_CHECKRUNS_SEQ_DIR": seq}, required_checks="check")
-        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(result.returncode, 0, (result.stdout + result.stderr))
 
     def test_a_tag_works_wherever_a_ref_is_accepted(self):
         """Bug 3 exactly: `actions/runs?head_sha=` accepts a SHA only, so a
@@ -330,7 +330,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             "FAKE_ACTIONSRUNS_COUNT": "0",
         }, required_checks="build|test")
         self.assertEqual(result.returncode, 1)
-        self.assertIn("no check run named", result.stdout)
+        self.assertIn("no check run named", (result.stdout + result.stderr))
 
         calls = self._log()
         resolve_calls = [c for c in calls if "/commits/client-v0.21.1" in c[1]]
@@ -349,7 +349,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             "FAKE_RESOLVE_STDERR": "gh: Not Found\n",
         })
         self.assertEqual(result.returncode, 1)
-        self.assertIn("could not resolve", result.stdout)
+        self.assertIn("could not resolve", (result.stdout + result.stderr))
 
     def test_missing_check_before_the_grace_period_keeps_waiting(self):
         checkruns = self._seq_dir("checkruns", [
@@ -365,7 +365,7 @@ class VerifyReleaseChecksTest(unittest.TestCase):
             "DEADLINE_SECONDS": "9999",
         })
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("required checks passed", result.stdout)
+        self.assertIn("required checks passed", (result.stdout + result.stderr))
 
 
 if __name__ == "__main__":

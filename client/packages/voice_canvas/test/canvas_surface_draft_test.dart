@@ -207,4 +207,40 @@ void main() {
       expect(ended, 0, reason: 'kind: $tool');
     }
   });
+
+  testWidgets(
+    'onDraftCancel fires when a second pointer cancels an in-flight draft',
+    (tester) async {
+      final document = CanvasDocument();
+      addTearDown(document.dispose);
+      var ended = 0;
+      var cancelled = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CanvasSurface(
+            document: document,
+            ink: const Color(0xFFE86A5C),
+            onStroke: (_) {},
+            onDraftEnded: () => ended++,
+            onDraftCancel: () => cancelled++,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final first = await tester.startGesture(const Offset(20, 20));
+      await first.moveTo(const Offset(40, 40));
+      final second = await tester.startGesture(const Offset(200, 200));
+      await tester.pump();
+
+      expect(cancelled, 1);
+      expect(ended, 0);
+
+      await first.up();
+      await second.up();
+      await tester.pump();
+      expect(cancelled, 1);
+      expect(ended, 0);
+    },
+  );
 }

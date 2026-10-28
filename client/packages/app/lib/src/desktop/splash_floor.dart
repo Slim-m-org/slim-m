@@ -4,11 +4,9 @@
 /// splash rather than flashing invisibly, per the owner's own report that no
 /// splash was perceptible on desktop at all.
 ///
-/// Desktop only. [MobileBootGate] already covers the perceptible gap on a
-/// phone - the first sync catch-up, not this pre-`runApp` bootstrap - with
-/// its own splash; forcing this floor there too would only add latency to
-/// every phone cold start for a screen [MobileBootGate] already makes
-/// redundant.
+/// Desktop only. A phone's splash is held to the first sync catch-up instead
+/// (`shouldShowBootSplash`); forcing this floor there too would only add
+/// latency to every phone cold start.
 ///
 /// Not gated on reduce-motion. [minSplashDuration] holds a static frame on
 /// screen for longer, it does not animate one: [StartupScreen]'s own

@@ -35,6 +35,7 @@ pub(super) mod message_components;
 pub(super) mod message_embeds;
 pub(super) mod message_forwards;
 pub(super) mod message_history;
+pub(super) mod message_link_previews;
 pub(super) mod message_mentions;
 pub(super) mod message_module_origins;
 pub(super) mod message_ops;

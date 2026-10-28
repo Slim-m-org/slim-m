@@ -41,7 +41,10 @@ void main() {
 
       await unprocessShareAudio(track, platform: lk.PlatformType.web);
 
-      expect(track.applied, [unprocessedAudioConstraints]);
+      expect(track.applied, [
+        unprocessedAudioConstraints,
+        ownAudioExcludedConstraints,
+      ]);
       expect(unprocessedAudioConstraints, {
         'echoCancellation': false,
         'noiseSuppression': false,
@@ -63,7 +66,7 @@ void main() {
 
       await unprocessShareAudio(track, platform: lk.PlatformType.web);
 
-      expect(track.applied, hasLength(1));
+      expect(track.applied, hasLength(2), reason: 'each ask is tried alone');
     });
   });
 

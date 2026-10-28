@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../../format.dart';
 import '../../settings/providers/display_density.dart';
 import '../../settings/providers/display_preferences.dart';
 import '../../members/providers/user_profiles.dart';
@@ -116,11 +117,20 @@ class MessageTimeMark extends ConsumerWidget {
     } else {
       final use24Hour = watchUse24Hour(ref, context);
       // Always natural size (see [compact]): never scaled below the floor.
-      mark = Text(
-        formatMessageTime(message.createdAt, use24Hour: use24Hour),
-        style: mono,
-        maxLines: 1,
-        softWrap: false,
+      final full = formatDateTime(message.createdAt, use24Hour: use24Hour);
+      mark = Tooltip(
+        message: full,
+        excludeFromSemantics: true,
+        child: Semantics(
+          label: full,
+          excludeSemantics: true,
+          child: Text(
+            formatMessageTime(message.createdAt, use24Hour: use24Hour),
+            style: mono,
+            maxLines: 1,
+            softWrap: false,
+          ),
+        ),
       );
     }
     // Keyed on the state, never the text, so a minute tick never replays.
@@ -155,10 +165,13 @@ class MessageTimeMark extends ConsumerWidget {
 /// never affects its [Stack]'s own size, so the message content beside it
 /// never shifts.
 ///
-/// The always-present [SizedBox.shrink] child is load-bearing, not
-/// decorative: a [Stack] with only [Positioned] children and an unbounded
-/// parent height has no way to size itself and asserts, so this gives it
-/// one non-positioned child to size against instead.
+/// The always-present [SizedBox] child is load-bearing, not decorative: a
+/// [Stack] with only [Positioned] children and an unbounded parent height has
+/// no way to size itself and asserts, and a zero-height gutter cannot be
+/// hit-tested, so the mark's tooltip would never open. The band is the height
+/// of one body line, so it never grows the row.
+const double _gutterMarkBand = 18;
+
 class _ContinuationGutterMark extends StatelessWidget {
   const _ContinuationGutterMark({
     required this.message,
@@ -181,7 +194,7 @@ class _ContinuationGutterMark extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        const SizedBox.shrink(),
+        const SizedBox(height: _gutterMarkBand),
         if (show && railBacking != null)
           Positioned(
             top: 3,
@@ -351,6 +364,7 @@ class MessageRowHeader extends ConsumerWidget {
               semanticLabel: '$name, view profile',
               child: Text(
                 name,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.body.copyWith(
                   color: tokens.textPrimary,

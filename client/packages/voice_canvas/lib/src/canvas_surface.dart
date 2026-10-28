@@ -67,6 +67,8 @@ class CanvasSurface extends StatefulWidget {
     this.onSelectEnd,
     this.onSelectCancel,
     this.onNotePlace,
+    this.onTextPlace,
+    this.onSelectLongPress,
     this.onShapePlace,
     this.shapeKind = CanvasShapeKind.rectangle,
     this.tool = CanvasTool.pen,
@@ -95,6 +97,7 @@ class CanvasSurface extends StatefulWidget {
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
+    this.onDraftCancel,
   });
 
   final CanvasDocument document;
@@ -188,6 +191,9 @@ class CanvasSurface extends StatefulWidget {
   /// signal to tell other participants the gesture is over.
   final VoidCallback? onDraftEnded;
 
+  /// Fires when a draft is explicitly cancelled without committing ink.
+  final VoidCallback? onDraftCancel;
+
   /// Which gesture a pointer draws. Resolving a world point to an object is
   /// the caller's job, over [onErase], so this widget stays free of any
   /// notion of hit testing or permission.
@@ -243,6 +249,12 @@ class CanvasSurface extends StatefulWidget {
   /// pointer-down, so a second pointer touching down first (a pinch
   /// starting) can still cancel it - see [_resolvePendingPlacement].
   final ValueChanged<Offset>? onNotePlace;
+
+  /// Fires like [onNotePlace] while [tool] is [CanvasTool.text]: a tap names where the text box goes.
+  final ValueChanged<Offset>? onTextPlace;
+
+  /// Fires after [onSelectEnd] for a select gesture a finger or pen held still past the long-press time, at the point it went down.
+  final ValueChanged<Offset>? onSelectLongPress;
 
   /// Fires once [tool] is [CanvasTool.shape] and every pointer has lifted -
   /// a tap places at the default size, the same deferred single-tap

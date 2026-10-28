@@ -183,3 +183,26 @@ async fn a_moderator_below_administrator_is_not_asked_for_a_factor() {
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 }
+
+#[tokio::test]
+async fn changing_the_policy_needs_the_admins_own_factor() {
+    let (store, auth, _guard) = new_store("slimm-totp-policy-own-factor").await;
+    let router = app(store.clone(), auth.clone());
+    let (admin_token, _) = member(&store, &auth, "alice").await;
+    let body = || Some(json!({ "totp_policy": "required_for_elevated" }));
+
+    let (status, error) =
+        status_and_error(&router, "PATCH", "/space/settings", &admin_token, body()).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert!(error.contains("changing the two-factor policy"), "{error}");
+    assert_eq!(store.totp_policy().await.unwrap(), TotpPolicy::Optional);
+
+    enrol_and_confirm(&router, &admin_token).await;
+    let (status, _) =
+        status_and_error(&router, "PATCH", "/space/settings", &admin_token, body()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        store.totp_policy().await.unwrap(),
+        TotpPolicy::RequiredForElevated
+    );
+}

@@ -62,29 +62,31 @@ Future<void> _press(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('the strip draws pan, pen, note, shape, eraser left to right', (
-    tester,
-  ) async {
-    await _pump(tester, CanvasPaneFixture(), const Size(1000, 700));
+  testWidgets(
+    'the strip draws pan, pen, note, text, shape, eraser left to right',
+    (tester) async {
+      await _pump(tester, CanvasPaneFixture(), const Size(1000, 700));
 
-    final shape = find.byWidgetPredicate(
-      (w) => w is AppIconButton && w.semanticLabel == 'Shape',
-    );
-    final xs = [
-      tester.getCenter(_button(AppIcons.pan)).dx,
-      tester.getCenter(_button(AppIcons.pen)).dx,
-      tester.getCenter(_button(AppIcons.note)).dx,
-      tester.getCenter(shape).dx,
-      tester.getCenter(_button(AppIcons.eraser)).dx,
-    ];
-    expect([...xs]..sort(), xs, reason: 'left to right');
-    final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
-    // Pan opens selected and has no caret, so the rhythm is even.
-    for (final gap in gaps) {
-      expect(gap, closeTo(gaps.first, 0.01), reason: 'even rhythm');
-    }
-    expect(gaps.first, greaterThan(AppSpacing.s4));
-  });
+      final shape = find.byWidgetPredicate(
+        (w) => w is AppIconButton && w.semanticLabel == 'Shape',
+      );
+      final xs = [
+        tester.getCenter(_button(AppIcons.pan)).dx,
+        tester.getCenter(_button(AppIcons.pen)).dx,
+        tester.getCenter(_button(AppIcons.note)).dx,
+        tester.getCenter(_button(AppIcons.textBox)).dx,
+        tester.getCenter(shape).dx,
+        tester.getCenter(_button(AppIcons.eraser)).dx,
+      ];
+      expect([...xs]..sort(), xs, reason: 'left to right');
+      final gaps = [for (var i = 1; i < xs.length; i++) xs[i] - xs[i - 1]];
+      // Pan opens selected and has no caret, so the rhythm is even.
+      for (final gap in gaps) {
+        expect(gap, closeTo(gaps.first, 0.01), reason: 'even rhythm');
+      }
+      expect(gaps.first, greaterThan(AppSpacing.s4));
+    },
+  );
 
   testWidgets('the hand glyph is drawn and no tool wears the old move glyph', (
     tester,

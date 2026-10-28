@@ -13,7 +13,19 @@ on:
       - "!client/CHANGELOG.md"
       - "!client/pubspec.yaml"
       - "!client/packages/app/pubspec.yaml"
-  # Also nightly and by hand, and off pull requests: it gates nothing, so a PR push should not take a slot for it.
+  pull_request:
+    paths:
+      - "client/packages/*/windows/**"
+      # A plugin bump is how a Windows link break usually arrives, and it lands only in these.
+      - "client/pubspec.yaml"
+      - "client/pubspec.lock"
+      - "client/packages/*/pubspec.yaml"
+      - "packaging/windows/**"
+      - ".github/workflows/client-windows-ci.yml"
+      - ".github/actions/install-inno-setup/**"
+      - ".github/actions/native-hooks-cache/**"
+      - ".github/actions/native-hooks-diagnose/**"
+  # Also nightly and by hand; PRs are path-gated to Windows native files and the dependency pins.
   schedule:
     - cron: "41 3 * * *"
   workflow_dispatch:

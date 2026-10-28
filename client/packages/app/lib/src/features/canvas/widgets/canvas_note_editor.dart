@@ -7,16 +7,12 @@
 /// has no way to delete the note.
 library;
 
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_editor_layout.dart';
 import 'canvas_note_field.dart';
-
-/// The narrowest the editor gets, so a small note still has room to type.
-const double canvasNoteEditorMinWidth = 280;
 
 class CanvasNoteEditor extends StatefulWidget {
   const CanvasNoteEditor({
@@ -109,7 +105,7 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
               final camera = widget.document.camera;
               final board = widget.document.board;
               return CustomSingleChildLayout(
-                delegate: _EditorLayout(
+                delegate: CanvasEditorLayout(
                   area: board == null
                       ? null
                       : Rect.fromLTWH(
@@ -122,8 +118,9 @@ class _CanvasNoteEditorState extends State<CanvasNoteEditor> {
                     (bounds.x - camera.x) * camera.zoom,
                     (bounds.y - camera.y) * camera.zoom,
                   ),
-                  noteWidth: bounds.w * camera.zoom,
+                  objectWidth: bounds.w * camera.zoom,
                   keyboardInset: inset,
+                  bottomInset: widget.document.bottomInset,
                 ),
                 child: _Panel(
                   controller: _controller,
@@ -211,72 +208,4 @@ class _Panel extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Puts the panel over the note's top left, slid back inside [area] (the
-/// board on screen) when the note is near an edge or the keyboard covers it.
-class _EditorLayout extends SingleChildLayoutDelegate {
-  const _EditorLayout({
-    required this.area,
-    required this.anchor,
-    required this.noteWidth,
-    required this.keyboardInset,
-  });
-
-  static const double _margin = AppSpacing.s8;
-
-  final Rect? area;
-  final Offset anchor;
-  final double noteWidth;
-  final double keyboardInset;
-
-  Rect _bounds(Size size) {
-    final screen = Offset.zero & size;
-    return area == null ? screen : screen.intersect(area!);
-  }
-
-  /// The lowest the panel may reach: the board's bottom, or the keyboard's top.
-  double _floor(Size size, Rect bounds) =>
-      math.min(bounds.bottom, size.height - keyboardInset);
-
-  @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    final room = math.max(
-      0.0,
-      _bounds(constraints.biggest).width - _margin * 2,
-    );
-    final width = noteWidth
-        .clamp(math.min(canvasNoteEditorMinWidth, room), room)
-        .toDouble();
-    return BoxConstraints(
-      minWidth: width,
-      maxWidth: width,
-      maxHeight:
-          (_floor(constraints.biggest, _bounds(constraints.biggest)) -
-                  _bounds(constraints.biggest).top -
-                  _margin * 2)
-              .clamp(0, double.infinity)
-              .toDouble(),
-    );
-  }
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final bounds = _bounds(size);
-    final minX = bounds.left + _margin;
-    final minY = bounds.top + _margin;
-    final maxX = bounds.right - childSize.width - _margin;
-    final maxY = _floor(size, bounds) - childSize.height - _margin;
-    return Offset(
-      anchor.dx.clamp(minX, maxX < minX ? minX : maxX).toDouble(),
-      anchor.dy.clamp(minY, maxY < minY ? minY : maxY).toDouble(),
-    );
-  }
-
-  @override
-  bool shouldRelayout(_EditorLayout old) =>
-      old.area != area ||
-      old.anchor != anchor ||
-      old.noteWidth != noteWidth ||
-      old.keyboardInset != keyboardInset;
 }

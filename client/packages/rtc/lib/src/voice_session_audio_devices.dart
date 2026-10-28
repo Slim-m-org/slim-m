@@ -23,9 +23,9 @@ part of 'voice_session.dart';
 mixin VoiceSessionAudioDevices {
   lk.Room? get _room;
   set _lastError(Object? value);
-  CaptureNoiseSuppression get _capture;
   MicPort get _mic;
   bool get supportsInputGate;
+  void _diag(String line, {LogLevel level});
   Future<void> _applyInputGate();
   set _osMicBlocked(OsMicBlockProbe value);
 
@@ -37,8 +37,9 @@ mixin VoiceSessionAudioDevices {
   AudioDeviceSwitching _switchingFor(
     AudioDevices? devices,
     LiveOutputSwitch? liveOutput,
-    OsMicBlockProbe? osMicBlocked,
-  ) {
+    OsMicBlockProbe? osMicBlocked, [
+    LiveInputSwitch? liveInput,
+  ]) {
     if (osMicBlocked != null) _osMicBlocked = osMicBlocked;
     return AudioDeviceSwitching(
       devices ??
@@ -47,6 +48,8 @@ mixin VoiceSessionAudioDevices {
             chosenInput: () => _audioSwitching.chosenInput,
           ),
       liveOutput: liveOutput,
+      log: _diag,
+      liveInput: liveInput,
     );
   }
 
@@ -126,28 +129,26 @@ mixin VoiceSessionAudioDevices {
   /// default), live where this platform honours it, and remembered for the
   /// next join either way; see [AudioDeviceSwitching.selectInput].
   Future<bool> selectAudioInputDevice(AudioDevice? device) =>
+      _selectInput(device, remember: true);
+
+  /// [remember] false moves only the live capture, for a call-only fallback.
+  Future<bool> _selectInput(AudioDevice? device, {required bool remember}) =>
       _trySelectAudio(() async {
-        _capture.deviceChanged();
         // The reopen a switch does reuses the track's own options, not the room's.
         if (supportsInputGate) {
-          _mic.adoptOptions(
-            _audioSwitching.captureOptions(
-              noiseSuppression: _capture.webrtcNoiseSuppression,
-            ),
-          );
+          _mic.adoptOptions(_audioSwitching.captureOptions());
         }
-        final reopened = await _audioSwitching.selectInput(_room, device);
-        if (reopened && supportsInputGate && _mic.open) {
-          _capture.opened(
-            webrtcNoiseSuppression: _capture.webrtcNoiseSuppression,
-          );
-        }
-        _capture.retry();
+        await _audioSwitching.selectInput(_room, device, remember: remember);
       });
 
   /// [selectAudioInputDevice]'s counterpart for local playback.
   Future<bool> selectAudioOutputDevice(AudioDevice? device) =>
-      _trySelectAudio(() => _audioSwitching.selectOutput(_room, device));
+      _selectOutput(device, remember: true);
+
+  Future<bool> _selectOutput(AudioDevice? device, {required bool remember}) =>
+      _trySelectAudio(
+        () => _audioSwitching.selectOutput(_room, device, remember: remember),
+      );
 
   Future<bool> _trySelectAudio(Future<void> Function() run) async {
     try {

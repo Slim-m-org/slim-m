@@ -22,6 +22,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
 import 'screen_share.dart';
+import 'share_audio_isolation.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 /// Publishes or unpublishes a screen share track with the given options.
@@ -63,9 +64,22 @@ typedef ScreenSharePublish = Future<void> Function(
 /// same notification resolves to `unmute()` on the publication this class
 /// just created rather than a second, option-less publish clobbering it.
 class ScreenShareControl {
-  ScreenShareControl(this._broadcast);
+  ScreenShareControl(this._broadcast, {ShareAudioIsolation? isolation})
+      : _isolation = isolation;
 
   final BroadcastBridge _broadcast;
+
+  /// Keeps the call out of shared desktop audio on Linux; null where nothing needs it.
+  final ShareAudioIsolation? _isolation;
+
+  /// How many [setEnabled] starts are running; a stop event seen meanwhile is the previous share's.
+  int _startsInFlight = 0;
+
+  /// The share stopped without [setEnabled] being asked to (the system's stop
+  /// button, the captured window closing); its audio mix must go with it.
+  Future<void> shareEnded() async {
+    if (_startsInFlight == 0) await _isolation?.end();
+  }
 
   /// The iOS hand-off in progress, if a share is still waiting on the system
   /// picker. Held so a second call - a rapid re-tap, or disabling while
@@ -91,12 +105,13 @@ class ScreenShareControl {
     required bool Function() isSharing,
     required void Function(Object? error) onSettled,
   }) async {
-    await _cancelHandoff();
-    if (enabled && !await _broadcast.isAvailable()) {
-      return ScreenShareOutcome.unsupported;
-    }
-    final onIOS = _broadcast.usesBroadcastExtension;
+    if (enabled) _startsInFlight++;
     try {
+      await _cancelHandoff();
+      if (enabled && !await _broadcast.isAvailable()) {
+        return ScreenShareOutcome.unsupported;
+      }
+      final onIOS = _broadcast.usesBroadcastExtension;
       if (enabled && onIOS) {
         return await _startOnIOS(
           quality: quality,
@@ -108,6 +123,7 @@ class ScreenShareControl {
           onSettled: onSettled,
         );
       }
+      if (enabled && includeAudio) await _isolation?.begin();
       try {
         await publish(
           enabled,
@@ -124,15 +140,19 @@ class ScreenShareControl {
       } finally {
         // The platform recorder must end even when dropping the track threw.
         if (!enabled) await _broadcast.requestStop();
+        if (!enabled) await _isolation?.end();
       }
       if (!enabled) return ScreenShareOutcome.stopped;
       return isSharing()
           ? ScreenShareOutcome.started
           : ScreenShareOutcome.pendingBroadcast;
     } catch (e, stack) {
+      await _isolation?.end();
       reportFailure(LogTag.voice, 'start sharing the screen', e, stack);
       onSettled(e);
       return ScreenShareOutcome.failed;
+    } finally {
+      if (enabled) _startsInFlight--;
     }
   }
 
@@ -247,6 +267,7 @@ class ScreenShareControl {
   /// again in case some future call-ending path is added that reaches
   /// disposal without going through the ordered call first.
   Future<void> dispose() async {
+    await _isolation?.end();
     await _cancelHandoff();
     await stopActiveBroadcast();
   }

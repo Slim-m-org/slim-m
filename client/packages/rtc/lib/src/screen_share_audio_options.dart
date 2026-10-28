@@ -31,12 +31,25 @@ Future<void> unprocessShareAudio(
   @visibleForTesting lk.PlatformType? platform,
 }) async {
   if ((platform ?? lk.lkPlatform()) != lk.PlatformType.web) return;
+  await _tryConstraints(track, unprocessedAudioConstraints);
+  await _tryConstraints(track, ownAudioExcludedConstraints);
+}
+
+/// Asks a browser to leave this page's own output, the call, out of captured system audio; one that lacks it ignores or refuses it.
+const Map<String, dynamic> ownAudioExcludedConstraints = {
+  'restrictOwnAudio': true,
+};
+
+Future<void> _tryConstraints(
+  rtc.MediaStreamTrack track,
+  Map<String, dynamic> constraints,
+) async {
   try {
-    await track.applyConstraints(unprocessedAudioConstraints);
+    await track.applyConstraints(constraints);
   } on Object catch (error, stack) {
     AppLog.swallowed(
       LogTag.voice,
-      'The browser kept voice processing on shared audio',
+      'The browser kept its default for shared audio: ${constraints.keys.join(', ')}',
       error,
       stack,
     );

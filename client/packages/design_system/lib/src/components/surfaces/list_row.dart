@@ -19,57 +19,9 @@ import '../../app_tokens.dart';
 import '../../app_typography.dart';
 import '../../touch_targets.dart';
 import 'list_row_label.dart';
+import 'list_row_scopes.dart';
 
-/// Reads every [AppListRow] label below it in `text-primary` at rest, for a
-/// settings card where each label names a control rather than a destination.
-/// Marks rows that sit edge to edge inside a settings card: taller, inset by
-/// the card's own padding, and square, so the card's hairlines and a row's
-/// hover fill both run the card's full width.
-class AppCardRowScope extends InheritedWidget {
-  const AppCardRowScope({required super.child, super.key});
-
-  /// The least height of a row in a card, the design's 56.
-  static const double minHeight = 56;
-
-  /// A row's own horizontal inset in a card.
-  static const double inset = AppSpacing.s16;
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppCardRowScope>() != null;
-
-  @override
-  bool updateShouldNotify(AppCardRowScope oldWidget) => false;
-}
-
-class AppStrongLabelScope extends InheritedWidget {
-  const AppStrongLabelScope({required super.child, super.key});
-
-  static bool of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppStrongLabelScope>() != null;
-
-  @override
-  bool updateShouldNotify(AppStrongLabelScope oldWidget) => false;
-}
-
-/// Marks a subtree whose selection marker is drawn by an ancestor, so the
-/// rows inside it do not draw their own.
-///
-/// The channel rail owns one accent bar that slides between rows, which is
-/// the whole point of it travelling. An [AppListRow] inside that layer still
-/// wants everything else `selected` gives it - the soft fill, the weight -
-/// and wants exactly one bar, not its own on top of the layer's. Without
-/// this the rail drew two, and had since the travelling marker landed.
-class AppSelectionMarkerScope extends InheritedWidget {
-  const AppSelectionMarkerScope({required super.child, super.key});
-
-  /// Whether something above [context] is already drawing the marker.
-  static bool ownedAbove(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppSelectionMarkerScope>() !=
-      null;
-
-  @override
-  bool updateShouldNotify(AppSelectionMarkerScope oldWidget) => false;
-}
+export 'list_row_scopes.dart';
 
 /// A single-line row with optional leading content, a meta caption and a
 /// trailing widget, and states that combine freely:
@@ -383,6 +335,7 @@ class _AppListRowState extends State<AppListRow> {
             constraints: BoxConstraints(maxWidth: box.maxWidth * 0.5),
             child: Text(
               widget.meta!,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),

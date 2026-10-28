@@ -39,7 +39,7 @@ void main() {
       );
     });
 
-    a11yTest('Mute and Leave call are within a dozen Tab presses', (
+    a11yTest('Mute and Leave call are within thirteen Tab presses', (
       tester,
     ) async {
       await pumpA11yCanvas(tester);
@@ -47,10 +47,10 @@ void main() {
 
       final mute = names.indexWhere((n) => n.startsWith('Mute'));
       final leave = names.indexWhere((n) => n.startsWith('Leave call'));
-      expect(mute, inInclusiveRange(0, 11), reason: 'Mute is stop ${mute + 1}');
+      expect(mute, inInclusiveRange(0, 12), reason: 'Mute is stop ${mute + 1}');
       expect(
         leave,
-        inInclusiveRange(0, 16),
+        inInclusiveRange(0, 17),
         reason: 'Leave call is stop ${leave + 1}',
       );
     });

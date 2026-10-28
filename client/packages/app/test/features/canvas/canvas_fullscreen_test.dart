@@ -203,4 +203,25 @@ void main() {
 
     expect(container.read(canvasFullscreenProvider), isNull);
   });
+
+  testWidgets('fullscreen insets for a left cutout', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.padding = const FakeViewPadding(left: 36);
+    addTearDown(() {
+      tester.view.resetPadding();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final fixture = CanvasPaneFixture();
+    final container = fixture.container();
+    addTearDown(container.dispose);
+    addTearDown(fixture.events.close);
+    await pumpCanvasPane(tester, container);
+
+    expect(tester.getTopLeft(find.byType(CanvasSurface)).dx, 0);
+
+    await _enterFullscreen(tester);
+
+    expect(tester.getTopLeft(find.byType(CanvasSurface)).dx, 36);
+  });
 }

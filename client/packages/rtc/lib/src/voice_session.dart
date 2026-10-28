@@ -18,47 +18,48 @@ import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart'
+    show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
 
+import 'audio_device_switching.dart';
+import 'audio_devices.dart';
 import 'audio_event_scope.dart';
 import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
-import 'capture_noise_suppression.dart';
-import 'mic_port.dart';
-import 'mic_release.dart';
-import 'input_gate.dart';
-import 'join_timings.dart';
-import 'mic_failure.dart';
-import 'mic_recovery.dart';
-import 'noise_floor_estimator.dart';
-import 'speaking_hold.dart';
-import 'local_audio.dart';
-import 'screen_share_audio.dart' as rtc_share_audio;
-
-import 'audio_device_switching.dart';
-import 'audio_devices.dart';
 import 'broadcast_bridge.dart';
 import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
 import 'camera_switching.dart';
-import 'camera_view.dart';
 import 'desktop_sources.dart';
+import 'input_gate.dart';
+import 'join_timings.dart';
+import 'local_audio.dart';
+import 'mic_failure.dart';
+import 'mic_port.dart';
+import 'mic_recovery.dart';
+import 'mic_release.dart';
+import 'noise_floor_estimator.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
+import 'screen_share_audio.dart' as rtc_share_audio;
 import 'screen_share_control.dart';
-import 'screen_share_publish.dart';
-import 'screen_share_view.dart';
-import 'voice_disconnect_reason.dart';
+import 'screen_share_local.dart';
+import 'share_audio_isolation.dart';
+import 'speaking_hold.dart';
+import 'strong_noise_suppression.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
+import 'voice_disconnect_reason.dart';
 import 'voice_health.dart';
 import 'voice_log.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
-import 'package:slimm_api/api.dart'
-    show AppLog, LogLevel, LogTag, reportFailure, ignoreError;
+import 'voice_session_camera.dart';
+import 'voice_session_mic_fallback.dart';
+import 'voice_session_screen_share.dart';
 
 part 'voice_session_audio_devices.dart';
 part 'voice_session_health.dart';
@@ -96,18 +97,17 @@ class VoiceSession
     CameraDevices? cameraDevices,
     InputGateMonitor? inputGate,
     MicPort? micPort,
-    Duration? captureRestartDebounce,
     VoiceLog? audioLog,
     AudioDevices? audioDevices,
     LiveOutputSwitch? liveOutput,
+    LiveInputSwitch? liveInput,
     OsMicBlockProbe? osMicBlocked,
     MicRecoveryTiming micRecoveryTiming = const MicRecoveryTiming(),
     Duration micReleaseGrace = kMicReleaseGrace,
     bool? mobile,
     JoinTimings? joinTimings,
+    ShareAudioIsolation? shareAudioIsolation,
   })  : _joinTimings = joinTimings ?? JoinTimings(),
-        _broadcast = broadcast ?? const MethodChannelBroadcastBridge(),
-        _desktopSources = desktopSources ?? const WebrtcDesktopSources(),
         _cameraSwitching = CameraSwitching(
           cameraDevices ?? const HardwareCameraDevices(),
         ) {
@@ -119,8 +119,13 @@ class VoiceSession
             ? InputGateMonitor()
             : InputGateMonitor.disabled());
     _gate.setRate(InputGateRate.watch);
-    _initCapture(micPort, captureRestartDebounce, _restartCapture);
-    _audioSwitching = _switchingFor(audioDevices, liveOutput, osMicBlocked);
+    _initCapture(micPort);
+    _audioSwitching = _switchingFor(
+      audioDevices,
+      liveOutput,
+      osMicBlocked,
+      liveInput,
+    );
     _initMicRelease(
       grace: micReleaseGrace,
       mobile: mobile ?? lk.lkPlatformIsMobile(),
@@ -133,7 +138,22 @@ class VoiceSession
       enable: () => _trySetMicrophone(true),
       afterRestart: _followPreferredDevices,
     );
-    _screenShare = ScreenShareControl(_broadcast);
+    _share = VoiceScreenShare(
+      VoiceScreenShareHost(
+        room: () => _room,
+        noteError: (error) => _lastError = error,
+        refresh: _refreshParticipants,
+        reported: _reported,
+      ),
+      broadcast: broadcast ?? const MethodChannelBroadcastBridge(),
+      desktopSources: desktopSources ?? const WebrtcDesktopSources(),
+      isolation: shareAudioIsolation ?? ShareAudioIsolation(),
+    );
+    _camera = VoiceCamera(
+      _share.host,
+      _cameraSwitching,
+      _receiveDensity,
+    );
     _videoCuller = VideoSubscriptionCuller(onDue: _applyVideoInterest);
   }
 
@@ -142,19 +162,41 @@ class VoiceSession
   /// same as all at full size, plus whatever microphone/speaker Voice
   /// Settings has chosen; see [VoiceSessionAudioDevices].
   lk.Room _buildRoom() => lk.Room(
-        roomOptions: _audioSwitching.roomOptions(
-          receiveRoomOptions(),
-          noiseSuppression: _capture.webrtcNoiseSuppression,
-        ),
+        roomOptions: _audioSwitching.roomOptions(receiveRoomOptions()),
       );
 
   late final RoomFactory _roomFactory;
+
+  @override
+  late final MicFallback _fallback = MicFallback(
+    MicFallbackHost(
+      switching: () => _audioSwitching,
+      hasRoom: () => _room != null,
+      micWanted: () => _micWanted,
+      mic: () => _mic,
+      timing: () => _micTiming,
+      watchdog: () => _micWatchdog,
+      log: _logMic,
+      setStatus: _setMicStatus,
+      noteFailure: _noteMicFailure,
+      restartCapture: _restartMicCapture,
+      selectInput: (device) => _selectInput(device, remember: false),
+      selectOutput: (device) => _selectOutput(device, remember: false),
+    ),
+  );
+
+  /// Whether a silent microphone is swapped for another, for this call only.
+  void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
+
+  /// The microphone the call switched to on its own, until dismissed.
+  String? get micFallbackNotice => _fallback.notice;
+  Stream<String?> get micFallbackNotices => _fallback.notices;
+  void dismissMicFallbackNotice() => _fallback.dismissNotice();
   @override
   final JoinTimings _joinTimings;
-  final BroadcastBridge _broadcast;
-  final DesktopSources _desktopSources;
   final CameraSwitching _cameraSwitching;
-  late final ScreenShareControl _screenShare;
+  late final VoiceCamera _camera;
+  late final VoiceScreenShare _share;
   late final VideoSubscriptionCuller _videoCuller;
   final _receiveDensity = ValueNotifier<lk.AdaptiveStreamPixelDensity>(
     lk.AdaptiveStreamPixelDensity.auto,
@@ -225,6 +267,7 @@ class VoiceSession
   /// kept for the next join.
   void setReceiveVideoQuality(ReceiveVideoQuality quality) {
     _receiveQuality = quality;
+    _videoCuller.dwell = videoDwellFor(quality);
     _receiveDensity.value = pixelDensityFor(quality);
     _refreshParticipants();
   }
@@ -305,21 +348,18 @@ class VoiceSession
   }
 
   /// Whether starting a share here must name a source first.
-  bool get screenShareNeedsSource => _desktopSources.required;
+  bool get screenShareNeedsSource => _share.desktopSources.required;
 
   /// Whether more than one enumerated source is worth asking a person to
   /// pick between; see [DesktopSources.sourcePickerUseful].
-  bool get screenShareSourcePickerUseful => _desktopSources.sourcePickerUseful;
+  bool get screenShareSourcePickerUseful =>
+      _share.desktopSources.sourcePickerUseful;
 
   /// The screens this desktop will let the app capture.
   ///
   /// Calling this is what makes a later [setScreenShareEnabled] able to find
   /// anything at all: see [DesktopSources].
-  Future<List<ScreenShareSource>> screenShareSources() => _reported(
-        'list the screens and windows that can be shared',
-        const [],
-        _desktopSources.list,
-      );
+  Future<List<ScreenShareSource>> screenShareSources() => _share.sources();
 
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
   Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
@@ -346,32 +386,21 @@ class VoiceSession
     String? sourceId,
     bool includeAudio = false,
     int? maxHeight,
-  }) async {
-    final room = _room;
-    if (room == null) return ScreenShareOutcome.failed;
-    final outcome = await _screenShare.setEnabled(
-      enabled,
-      quality: quality,
-      sourceId: sourceId,
-      includeAudio: includeAudio,
-      maxHeight: maxHeight,
-      publish: (enabled, options, audio) => publishScreenShare(
-        room.localParticipant,
-        enabled: enabled,
-        options: options,
-        includeAudio: audio,
-        quality: quality,
-        maxHeight: maxHeight,
-      ),
-      isSharing: () => isSharingScreen(room.localParticipant),
-      onSettled: (error) {
-        if (error != null) _lastError = error;
-        _refreshParticipants();
-      },
-    );
-    _refreshParticipants();
-    return outcome;
-  }
+  }) =>
+      _share.setEnabled(
+        enabled,
+        ShareRequest(quality, sourceId, includeAudio, maxHeight),
+      );
+
+  /// Whether the running share carries an audio track to switch.
+  bool get screenShareHasAudio => _share.hasAudio;
+
+  /// Whether the running share's audio is silenced.
+  bool get screenShareAudioMuted => _share.audioMuted;
+
+  /// Silences or restores the share's audio while it keeps running.
+  Future<bool> setScreenShareAudioMuted(bool muted) =>
+      _share.setAudioMuted(muted);
 
   /// The widget that renders [identity]'s shared screen, live.
   ///
@@ -380,36 +409,20 @@ class VoiceSession
   /// events itself so a share track arriving a beat after the roster flips
   /// still appears. Out of a call it renders nothing, not a placeholder:
   /// there is no room to watch.
-  Widget screenShareViewFor(String identity) {
-    final room = _room;
-    if (room == null) return const SizedBox.shrink();
-    return ScreenShareView(
-      room: room,
-      identity: identity,
-      density: _receiveDensity,
-    );
-  }
+  Widget screenShareViewFor(String identity) =>
+      _share.view(identity, _receiveDensity);
 
-  /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
-  /// exact counterpart: a plain [Widget] backed by [CameraView], working for
-  /// the local participant exactly as it works for anyone else, which is
-  /// what makes a self camera preview possible.
   /// Per tile key (`<kind>:<identity>`), what each remote video's tile should
   /// say beyond its picture: paused by the server, stalled and recovering, or
   /// stopped. A tile missing from the map is playing normally.
   ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
       _stallWatchdog.health;
 
-  Widget cameraViewFor(String identity) {
-    final room = _room;
-    if (room == null) return const SizedBox.shrink();
-    return CameraView(
-      room: room,
-      identity: identity,
-      facing: _cameraSwitching.facing,
-      density: _receiveDensity,
-    );
-  }
+  /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
+  /// exact counterpart: a plain [Widget] backed by [CameraView], working for
+  /// the local participant exactly as it works for anyone else, which is
+  /// what makes a self camera preview possible.
+  Widget cameraViewFor(String identity) => _camera.view(identity);
 
   /// Declares which presence tiles currently want video, by the same
   /// `'<kind>:<identity>'` key the canvas already keys a tile with, so a
@@ -441,43 +454,18 @@ class VoiceSession
   /// The cameras this desktop (or browser) offers, for the picker. Calling
   /// this is what makes a later [selectCameraDevice] able to find anything,
   /// the same reason [screenShareSources] has to run first.
-  Future<List<CameraDevice>> cameraDevices() =>
-      _reported('list cameras', const [], _cameraSwitching.devices);
+  Future<List<CameraDevice>> cameraDevices() => _camera.devices();
 
   /// Flips the published camera between front and back, mobile only.
-  Future<bool> flipCamera() => _reported(
-        'switch the camera',
-        false,
-        () => _cameraSwitching.flip(_room?.localParticipant),
-      );
+  Future<bool> flipCamera() => _camera.flip();
 
   /// Switches the published camera to [device], desktop's answer to
   /// [flipCamera] where more than one webcam can exist.
-  Future<bool> selectCameraDevice(CameraDevice device) async {
-    final room = _room;
-    if (room == null) return false;
-    return _reported('choose the camera', false, () async {
-      await _cameraSwitching.select(room, device);
-      _refreshParticipants();
-      return true;
-    });
-  }
+  Future<bool> selectCameraDevice(CameraDevice device) =>
+      _camera.select(device);
 
-  /// Runs [run]; a failure is reported, kept as [lastError], and answered
-  /// with [fallback] so a picker or toggle never throws into the UI.
-  Future<T> _reported<T>(
-    String action,
-    T fallback,
-    Future<T> Function() run,
-  ) async {
-    try {
-      return await run();
-    } catch (e, stack) {
-      reportFailure(LogTag.voice, action, e, stack);
-      _lastError = e;
-      return fallback;
-    }
-  }
+  Future<T> _reported<T>(String action, T fallback, Future<T> Function() run) =>
+      runReported(action, fallback, run, (error) => _lastError = error);
 
   @override
   void _refreshParticipants() => _rebuildRoster();
@@ -487,6 +475,7 @@ class VoiceSession
     _disposed = true;
     _videoCuller.dispose();
     _receiveDensity.dispose();
+    _share.watch.stop();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();

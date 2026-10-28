@@ -5,6 +5,7 @@
 //! provider lives in `tests/gif_picker.rs` instead, since that needs a real
 //! router and a real fake HTTP server neither of which belongs in a unit test.
 
+use super::filename::{extension_for, slug_filename};
 use super::*;
 
 #[test]

@@ -104,4 +104,9 @@ mixin VoiceControllerVideoMixin on StateNotifier<VoiceState> {
       clearError: !failed,
     );
   }
+
+  /// Starts or stops publishing the camera without touching the user's choice
+  /// of device; the roster repaint reports the result.
+  Future<bool> setCameraPublishing(bool on) async =>
+      (await setCameraWithin(_videoSession, on)).$1;
 }

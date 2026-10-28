@@ -150,6 +150,18 @@ class Version {
         .toList(growable: false);
   }
 
+  /// Whether this server build supports partial (scoped) clear ops on the canvas.
+  /// Introduced in slimm-server 0.98.0.
+  bool get supportsPartialClear {
+    final numbers = _parseVersion(version);
+    if (numbers == null) return false;
+    const floor = [0, 98, 0];
+    for (var i = 0; i < 3; i++) {
+      if (numbers[i] != floor[i]) return numbers[i] > floor[i];
+    }
+    return true;
+  }
+
   factory Version.fromJson(Map<String, dynamic> json) => Version(
         name: json['name'] as String,
         spaceName: json['space_name'] as String?,
@@ -182,4 +194,16 @@ class Version {
         minClientVersion: json['min_client_version'] as String?,
         buildId: json['build_id'] as String?,
       );
+}
+
+List<int>? _parseVersion(String raw) {
+  final parts = raw.split(RegExp('[-+]')).first.split('.');
+  if (parts.length != 3) return null;
+  final numbers = <int>[];
+  for (final part in parts) {
+    final value = int.tryParse(part);
+    if (value == null) return null;
+    numbers.add(value);
+  }
+  return numbers;
 }

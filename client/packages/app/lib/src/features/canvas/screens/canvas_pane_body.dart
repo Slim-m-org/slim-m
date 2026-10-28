@@ -12,6 +12,7 @@
 library;
 
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
+import 'dart:async';
 import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
+import 'canvas_tool_wheel_layer.dart';
 import '../providers/canvas_pen_style.dart';
 import 'canvas_pane_hints.dart';
 import 'canvas_pane_overlays.dart';
@@ -38,6 +40,7 @@ import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_speaking_sync.dart';
 import 'canvas_summary.dart';
+import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
 import 'canvas_truncated_notice.dart';
@@ -80,6 +83,8 @@ class CanvasPaneBody extends StatefulWidget {
     required this.onSelectDrag,
     required this.onSelectEnd,
     required this.onNotePlace,
+    this.onTextPlace,
+    this.onSelectLongPress,
     required this.onShapePlace,
     required this.shapeKind,
     required this.onShapeKindChanged,
@@ -97,6 +102,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.remoteDrafts,
     this.onDraftPoint,
     this.onDraftEnded,
+    this.onDraftCancel,
     this.callParticipants = const [],
     required this.cameraViewFor,
     required this.screenShareViewFor,
@@ -200,6 +206,8 @@ class CanvasPaneBody extends StatefulWidget {
   /// The in-place note editor while one is open, drawn over the surface.
   final Widget? noteEditor;
   final ValueChanged<Offset> onNotePlace;
+  final ValueChanged<Offset>? onTextPlace;
+  final ValueChanged<Offset>? onSelectLongPress;
   final ShapePlaced onShapePlace;
 
   /// The primitive the next tap with the shape tool places, and the bar's
@@ -241,6 +249,7 @@ class CanvasPaneBody extends StatefulWidget {
   final RemoteStrokeDrafts? remoteDrafts;
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onDraftEnded;
+  final VoidCallback? onDraftCancel;
 
   /// Who is on this channel's call right now, already filtered for
   /// blocking - empty whenever there is no call here, or this viewer has not
@@ -318,6 +327,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// which object a right-click or a screen-reader action is asking about
   /// right now outlives nothing beyond this body's own lifetime.
   final _menuRequests = CanvasObjectMenuRequests();
+  final _toolWheel = CanvasToolWheelController();
 
   /// One resolution of the call tiles for both the backdrop and the layer.
   final _presenceFrames = CanvasPresenceFrameResolver();
@@ -325,6 +335,18 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   /// Whether this caller has a camera bubble on the canvas at all right now
   /// - the dock's overflow item's own gate for whether "hide my camera
   /// bubble" means anything to offer.
+  void _acceptSummon() {
+    final leave = widget.fullscreen ? widget.onToggleFullscreen : null;
+    unawaited(
+      widget.viewRelay?.acceptSummon(
+            beforeMoving: leave == null
+                ? null
+                : () => leaveFullscreenThenSettle(leave),
+          ) ??
+          Future<void>.value(),
+    );
+  }
+
   bool get _hasSelfBubble => widget.callParticipants.any((p) => p.isLocal);
 
   /// Which tiles are hidden, for the phone header's Show rows; it notifies only when that set changes.
@@ -347,6 +369,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
   void dispose() {
     _hiddenKeys?.dispose();
     _menuRequests.dispose();
+    _toolWheel.dispose();
     super.dispose();
   }
 
@@ -357,11 +380,11 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
     final compact = size.width < kCompactWidth;
     // A short window gives the header's height to the board; the dock repeats its controls and the member toggle floats.
     final shortWindow = size.height < kShortHeight && !compact;
-    // No AppBar sits above CanvasBar, so this pane insets itself for top/bottom; left stays unconsumed because a rail, not this pane, ever occupies the true left edge.
+    // Left stays unconsumed in windowed mode because a rail occupies the true left edge; fullscreen claims the edge and respects its cutout.
     return Container(
       color: tokens.surfaceBase,
       child: SafeArea(
-        left: false,
+        left: widget.fullscreen,
         child: Column(
           children: [
             // Fullscreen can drop the header whole without taking an action with it: its controls are the dock's, repeated.
@@ -402,6 +425,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                             relay: widget.viewRelay,
                             selfId: widget.selfId,
                             viewMode: widget.viewMode,
+                            onAcceptSummon: _acceptSummon,
                           ),
                         ),
                       if (widget.paging case final paging?)

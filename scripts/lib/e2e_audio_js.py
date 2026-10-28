@@ -18,7 +18,7 @@ PROBE = r"""
   if (window.__e2eAudio) return;
   var AC = window.AudioContext || window.webkitAudioContext;
   var st = {t0: performance.now(), taps: [], sources: new Map(),
-            pcs: [], series: {}, streams: new Map(), video: {}};
+            pcs: [], series: {}, peaks: {}, streams: new Map(), video: {}};
   window.__e2eAudio = st;
   var origSrc = AC.prototype.createMediaStreamSource;
   var origConnect = AudioNode.prototype.connect;
@@ -33,7 +33,10 @@ PROBE = r"""
     try {
       if (this instanceof MediaStreamAudioSourceNode && dest instanceof GainNode) {
         dest.__e2eStream = st.sources.get(this);
-      } else if (this instanceof GainNode && dest instanceof AudioDestinationNode) {
+      } else if (this instanceof GainNode && dest instanceof WaveShaperNode) {
+        dest.__e2eStream = this.__e2eStream;
+      } else if ((this instanceof GainNode || this instanceof WaveShaperNode)
+                 && dest instanceof AudioDestinationNode) {
         var an = this.context.createAnalyser();
         an.fftSize = 2048;
         origConnect.call(this, an);
@@ -70,6 +73,13 @@ PROBE = r"""
     for (var i = 0; i < buf.length; i++) s += buf[i] * buf[i];
     return Math.sqrt(s / buf.length);
   }
+  function peak(an){
+    var buf = new Float32Array(an.fftSize);
+    an.getFloatTimeDomainData(buf);
+    var m = 0;
+    for (var i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i]));
+    return m;
+  }
   function preGain(stream){
     var rec = st.streams.get(stream.id);
     if (rec && rec.stream === stream) return rec.an;
@@ -102,12 +112,18 @@ PROBE = r"""
       if (flag) eff = 0;
       var list = st.series[stream.id] || (st.series[stream.id] = []);
       list.push([now, eff, pre, flag]);
+      var peaks = st.peaks[stream.id] || (st.peaks[stream.id] = []);
+      peaks.push([now, tap && !flag ? peak(tap.analyser) : 0, peak(preGain(stream))]);
+      if (peaks.length > 4000) peaks.splice(0, peaks.length - 4000);
       if (list.length > 4000) list.splice(0, list.length - 4000);
       st.series[stream.id].elementId = el.id;
     });
   }
   setInterval(function(){ try { own.resume(); sample(); } catch (e) {} }, 50);
   st.now = function(){ return performance.now() - st.t0; };
+  st.peaksSince = function(id, from){
+    return (st.peaks[id] || []).filter(function(r){ return r[0] >= from; });
+  };
   st.since = function(id, from){
     return (st.series[id] || []).filter(function(r){ return r[0] >= from; });
   };

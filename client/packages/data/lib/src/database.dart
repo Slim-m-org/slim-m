@@ -202,6 +202,13 @@ class CanvasPersonalLayouts extends Table {
 /// package ever sees. See [MessageRowMapping] below for the one place a row
 /// becomes one.
 @DataClassName('MessageRow')
+@TableIndex
+    .sql('CREATE INDEX messages_channel_seq ON messages (channel_id, seq DESC)')
+@TableIndex.sql('CREATE INDEX messages_author ON messages (author_id)')
+@TableIndex
+    .sql('CREATE INDEX messages_pending ON messages (id) WHERE pending = 1')
+@TableIndex
+    .sql('CREATE INDEX messages_failed ON messages (id) WHERE failed = 1')
 class Messages extends Table {
   TextColumn get id => text()();
   TextColumn get channelId => text()();
@@ -243,6 +250,11 @@ class Messages extends Table {
   BoolColumn get forwardedRemoved =>
       boolean().withDefault(const Constant(false))();
 
+  /// The author or a moderator removed this message's link-preview cards.
+  /// Stored so a cold start hides them without a REST read; nothing clears it.
+  BoolColumn get linkPreviewsRemoved =>
+      boolean().withDefault(const Constant(false))();
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   BoolColumn get pending => boolean().withDefault(const Constant(false))();
@@ -258,6 +270,11 @@ class Messages extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+/// A union, not `pending = 1 OR failed = 1`, because sqlite serves each
+/// partial index only for its own term and scans the table for the OR.
+const pendingOrFailedIdsSql = 'SELECT id FROM messages WHERE pending = 1 '
+    'UNION SELECT id FROM messages WHERE failed = 1';
 
 /// Maps a locally stored row to the DTO everything outside this package
 /// reads instead, so nothing beyond here needs drift at all.
@@ -284,6 +301,7 @@ extension MessageRowMapping on MessageRow {
                 content: forwardedContent!,
                 removed: forwardedRemoved,
               ),
+        linkPreviewsRemoved: linkPreviewsRemoved,
         pending: pending,
         failed: failed,
         failureReason: failureReason,
@@ -304,7 +322,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 27;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -320,6 +338,12 @@ class SlimmDatabase extends _$SlimmDatabase {
     if (existing.any((row) => row.read<String>('name') == column.name)) return;
     await m.addColumn(table, column);
   }
+
+  /// Caches from before v26 already hold messages_channel_seq, made by hand at open.
+  Future<void> _createIndexOnce(Index index) => customStatement(
+        index.createStatementsByDialect.values.first
+            .replaceFirst('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '),
+      );
 
   /// Each step runs when the upgrade starts below its version (and at or
   /// above [_UpgradeStep.minFrom]); order matters, a step may rely on earlier ones.
@@ -391,6 +415,19 @@ class SlimmDatabase extends _$SlimmDatabase {
           await m.createTable(messages);
           await m.database.customStatement('UPDATE channels SET cursor = 0');
         }),
+        // After the v7 rebuild: dropping the messages table drops its indexes.
+        _UpgradeStep(26, () async {
+          for (final index in [
+            messagesChannelSeq,
+            messagesAuthor,
+            messagesPending,
+            messagesFailed,
+          ]) {
+            await _createIndexOnce(index);
+          }
+        }),
+        _UpgradeStep(27,
+            () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the
@@ -406,16 +443,10 @@ class SlimmDatabase extends _$SlimmDatabase {
           }
         },
         beforeOpen: (details) async {
-          // Keyset reads and unread counts both scan a channel newest-first, so the
-          // index has to match that order to be used.
-          await customStatement(
-            'CREATE INDEX IF NOT EXISTS messages_channel_seq '
-            'ON messages (channel_id, seq DESC)',
-          );
           // The ids of a send that landed or was discarded have nothing left to retry.
           await customStatement(
             'DELETE FROM pending_attachments WHERE message_id NOT IN '
-            '(SELECT id FROM messages WHERE pending = 1 OR failed = 1)',
+            '($pendingOrFailedIdsSql)',
           );
         },
       );

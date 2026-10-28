@@ -52,6 +52,9 @@ pub struct MessageOpEntry {
     /// The message is a forward whose original has since been removed, joined
     /// at read time like `content`. Only ever true on an `edit`.
     pub forwarded_removed: bool,
+    /// The message's link-preview cards were removed, joined at read time like
+    /// `forwarded_removed`. Only ever true on an `edit`.
+    pub link_previews_removed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -151,11 +154,13 @@ impl Store {
                       o.kind AS "kind!", o.actor_id AS "actor_id: UserId",
                       o.created_at AS "created_at!: i64",
                       m.content AS "content?: String", m.edited_at AS "edited_at?: i64",
-                      (f.origin_removed_at IS NOT NULL) AS "forwarded_removed!: bool"
+                      (f.origin_removed_at IS NOT NULL) AS "forwarded_removed!: bool",
+                      (s.message_id IS NOT NULL) AS "link_previews_removed!: bool"
                FROM message_ops o
                LEFT JOIN messages m
                  ON m.id = o.message_id AND o.kind = 'edit' AND m.deleted_at IS NULL
                LEFT JOIN message_forwards f ON f.message_id = m.id
+               LEFT JOIN message_link_preview_suppressions s ON s.message_id = m.id
                WHERE o.channel_id = ? AND o.seq > ?
                ORDER BY o.seq ASC
                LIMIT ?"#,
@@ -179,6 +184,7 @@ impl Store {
                     content: row.content,
                     edited_at: row.edited_at,
                     forwarded_removed: row.forwarded_removed,
+                    link_previews_removed: row.link_previews_removed,
                 })
             })
             .collect();

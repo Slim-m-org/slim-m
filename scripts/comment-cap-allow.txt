@@ -53,7 +53,7 @@ client/packages/app/lib/src/features/palette/widgets/command_palette.dart 1
 client/packages/app/lib/src/features/palette/widgets/command_palette_items.dart 1
 client/packages/app/lib/src/features/channels/widgets/compact_channel_app_bar.dart 1
 client/packages/app/lib/src/features/composer/widgets/composer.dart 1
-client/packages/app/lib/src/features/composer/widgets/composer_extras.dart 4
+client/packages/app/lib/src/features/composer/widgets/composer_field.dart 4
 client/packages/app/lib/src/widgets/confirm_dialog.dart 1
 client/packages/app/lib/src/features/messages/widgets/fullscreen_image_viewer.dart 2
 client/packages/app/lib/src/features/settings/widgets/join_policy_row.dart 1
@@ -109,7 +109,7 @@ client/packages/app/test/features/voice/voice_screen_test.dart 3
 client/packages/app/test/features/voice/voice_settings_screen_test.dart 1
 client/packages/app/test/features/voice/voice_share_indicator_test.dart 1
 client/packages/data/lib/src/connection/web.dart 1
-client/packages/data/lib/src/database.dart 3
+client/packages/data/lib/src/database.dart 2
 client/packages/data/lib/src/message_store.dart 1
 client/packages/data/test/message_store_test.dart 3
 client/packages/data/test/migration_test.dart 2

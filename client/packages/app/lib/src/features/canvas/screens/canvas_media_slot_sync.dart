@@ -21,6 +21,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_cursor_relay.dart' show cursorSendInterval;
+import 'canvas_forbidden_message.dart' show canvasDrawForbiddenMessage;
 import 'canvas_retry.dart';
 import 'canvas_presence_geometry.dart'
     show presenceTileIdentity, presenceTileKeyForSlot, presenceTileKind;
@@ -34,6 +35,7 @@ class CanvasMediaSlotSync {
     this.sendPreview,
     this.selfId,
     this.isBlocked,
+    this.timedOutUntil,
   }) {
     overrides.onSharedRectDragged = (key, rect) => reportDrag(key, rect);
   }
@@ -51,6 +53,15 @@ class CanvasMediaSlotSync {
   final String? Function()? selfId;
   final bool Function(String userId)? isBlocked;
 
+  /// The caller's current timeout deadline in Unix milliseconds, or null.
+  final int? Function()? timedOutUntil;
+
+  bool get _isTimedOut {
+    final until = timedOutUntil?.call();
+    return until != null &&
+        DateTime.fromMillisecondsSinceEpoch(until).isAfter(DateTime.now());
+  }
+
   final Map<String, Future<void>> _tails = {};
   final Map<String, Timer> _abandon = {};
   DateTime? _lastPreview;
@@ -60,6 +71,7 @@ class CanvasMediaSlotSync {
 
   /// Call on every shared-view drag step; throttled like the other ephemeral previews.
   void reportDrag(String key, Rect rect, {DateTime? now}) {
+    if (_isTimedOut) return;
     final send = sendPreview;
     if (send == null) return;
     final at = now ?? DateTime.now();
@@ -135,6 +147,14 @@ class CanvasMediaSlotSync {
     // A personal-view move is this viewer's alone, so nothing is sent.
     if (overrides.personal) return Future.value();
     _abandon.remove(key)?.cancel();
+    final until = timedOutUntil?.call();
+    if (until != null &&
+        DateTime.fromMillisecondsSinceEpoch(until).isAfter(DateTime.now())) {
+      overrides.revertToServer(key);
+      sendPreview?.call(key, overrides.stateFor(key).rect ?? rect, ended: true);
+      onError?.call(canvasDrawForbiddenMessage(until));
+      return Future.value();
+    }
     final previous = _tails[key] ?? Future<void>.value();
     final next = previous.then((_) => _put(key, rect));
     _tails[key] = next;
@@ -167,15 +187,22 @@ class CanvasMediaSlotSync {
       );
       overrides.revertToServer(key);
       sendPreview?.call(key, overrides.stateFor(key).rect ?? rect, ended: true);
-      onError?.call(_explain(error));
+      onError?.call(_explain(error, timedOutUntil?.call()));
     }
   }
 
-  static String _explain(api.ApiException error) => switch (error) {
-    api.ForbiddenException() =>
-      'That tile is locked or you cannot move it now.',
-    _ => 'That tile change could not be saved.',
-  };
+  static String _explain(api.ApiException error, [int? timedOutUntil]) =>
+      switch (error) {
+        api.ConflictException() => 'That tile is locked in place.',
+        api.ForbiddenException() =>
+          timedOutUntil != null &&
+                  DateTime.fromMillisecondsSinceEpoch(
+                    timedOutUntil,
+                  ).isAfter(DateTime.now())
+              ? canvasDrawForbiddenMessage(timedOutUntil)
+              : 'You cannot move tiles in this channel right now.',
+        _ => 'That tile change could not be saved.',
+      };
 
   /// Applies a live `canvas.media_slot.changed` frame naming this channel.
   void applyRemote(api.CanvasMediaSlotChanged event) {

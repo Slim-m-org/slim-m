@@ -43,32 +43,28 @@
 
 mod cache;
 mod filename;
+mod gif_select;
 mod provider;
 #[cfg(test)]
 mod tests;
 
-use filename::{extension_for, slug_filename};
+use self::gif_select::select;
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
 use axum::extract::{Path, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderValue, header};
 use axum::response::Response;
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{ASSET, AuthedLimited, GIF, Json, Query};
-use super::message_dto::AttachmentDto;
-use super::storage_room::room_for;
 use crate::config::Config;
 use crate::media;
-use crate::permissions::Permissions;
-use crate::store::AttachmentSummary;
 
 use cache::Cache;
 use provider::Provider;
@@ -347,48 +343,42 @@ struct GifResultsDto {
 struct SearchParams {
     q: String,
     limit: Option<u32>,
+    channel_id: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct TrendingParams {
     limit: Option<u32>,
+    channel_id: Option<String>,
 }
 
 #[derive(Deserialize)]
-struct SelectRequest {
-    id: String,
+struct PreviewParams {
+    channel_id: Option<String>,
 }
 
 const DEFAULT_LIMIT: u32 = 20;
 
 // --- Handlers ---
 
-/// Shared by every handler below: the whole point of this feature is to end
-/// in an attachment, so someone who could not attach one anyway gets nothing
-/// to browse either.
+/// Every handler below ends in an attachment, so someone who could not attach one gets nothing to browse.
+///
+/// Checked in the channel the picker names, so a channel overwrite granting ATTACH_FILES counts; deployment-wide otherwise.
 async fn require_attach_files(
     state: &AppState,
     user_id: crate::ids::UserId,
+    channel_id: Option<&str>,
 ) -> Result<(), ApiError> {
-    if state
-        .store
-        .base_permissions(user_id)
-        .await?
-        .contains(Permissions::ATTACH_FILES)
-    {
-        Ok(())
-    } else {
-        Err(ApiError::Forbidden)
-    }
+    super::attachment_uploads::may_attach(state, user_id, channel_id).await
 }
 
-/// Requires deployment-wide `ATTACH_FILES`; see [`require_attach_files`].
+/// Requires `ATTACH_FILES`; see [`require_attach_files`].
 async fn search(
     AuthedLimited(ctx): AuthedLimited<GIF>,
     Query(params): Query<SearchParams>,
     State(state): State<AppState>,
 ) -> Result<Json<GifResultsDto>, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let query = params.q.trim();
     if query.is_empty() || query.chars().count() > crate::limits::MAX_QUERY_CHARS {
         return Err(ApiError::BadRequest("q must be 1 to 200 characters"));
@@ -402,14 +392,14 @@ async fn search(
 }
 
 /// The picker's default content before a member types a query; see this
-/// module's own doc comment for why it exists. Requires deployment-wide
-/// `ATTACH_FILES`; see [`require_attach_files`].
+/// module's own doc comment for why it exists. Requires `ATTACH_FILES`; see
+/// [`require_attach_files`].
 async fn trending(
     AuthedLimited(ctx): AuthedLimited<GIF>,
     Query(params): Query<TrendingParams>,
     State(state): State<AppState>,
 ) -> Result<Json<GifResultsDto>, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let limit = params
         .limit
         .unwrap_or(DEFAULT_LIMIT)
@@ -431,9 +421,10 @@ async fn trending(
 async fn preview(
     AuthedLimited(ctx): AuthedLimited<ASSET>,
     Path(token): Path<String>,
+    Query(params): Query<PreviewParams>,
     State(state): State<AppState>,
 ) -> Result<Response, ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
+    require_attach_files(&state, ctx.user_id, params.channel_id.as_deref()).await?;
     let bytes = state.gifs.preview_bytes(&token).await?;
     // Unsniffable is the provider's doing, never the caller's own token.
     let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;
@@ -446,56 +437,4 @@ async fn preview(
         HeaderValue::from_static("private, max-age=600"),
     );
     Ok(response)
-}
-
-/// Downloads the full-resolution image through this server and stores it
-/// exactly the way `uploadAttachment` stores a client-supplied body -
-/// content-addressed, sniffed rather than trusted, checked against both size
-/// ceilings - so what a send later references is an ordinary attachment with
-/// no lingering dependency on the provider or the token that named it.
-async fn select(
-    AuthedLimited(ctx): AuthedLimited<GIF>,
-    State(state): State<AppState>,
-    Json(req): Json<SelectRequest>,
-) -> Result<(StatusCode, Json<AttachmentDto>), ApiError> {
-    require_attach_files(&state, ctx.user_id).await?;
-    let (bytes, title) = state.gifs.download_full(&req.id).await?;
-    if bytes.len() as u64 > state.media.max_attachment_bytes() {
-        return Err(ApiError::BadRequest("gif is too large to attach"));
-    }
-    room_for(&state, bytes.len() as i64).await?;
-    // Unsniffable is the provider's doing, never the caller's own token.
-    let content_type = media::sniff_content_type(&bytes).ok_or(ApiError::Unavailable)?;
-    // Named after the provider's title (slugged, falling back to "gif"), so a saved GIF is findable later rather than a wall of identical "gif.gif".
-    let filename = format!("{}.{}", slug_filename(&title), extension_for(content_type));
-
-    let sha256 = Sha256::digest(&bytes).to_vec();
-    let hex_id = media::to_hex(&sha256);
-    let size = bytes.len() as i64;
-
-    let placing = state.media.blob_guard().await;
-    state
-        .media
-        .write_attachment(&hex_id, bytes)
-        .await
-        .map_err(|err| {
-            tracing::error!(error = %err, "failed to write a selected gif's bytes");
-            ApiError::Internal
-        })?;
-    state
-        .store
-        .store_attachment(&sha256, size, content_type, &filename, Some(ctx.user_id))
-        .await?;
-    drop(placing);
-    Ok((
-        StatusCode::CREATED,
-        Json(AttachmentDto::from(AttachmentSummary {
-            id: hex_id,
-            filename,
-            content_type: content_type.to_owned(),
-            size,
-            spoiler: false,
-            original: None,
-        })),
-    ))
 }

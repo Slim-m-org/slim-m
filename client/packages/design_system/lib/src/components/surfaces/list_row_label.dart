@@ -23,8 +23,12 @@ class AppListRowLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text =
-        Text(label, overflow: TextOverflow.ellipsis, style: labelStyle);
+    final text = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: labelStyle,
+    );
     final subtitle = this.subtitle;
     if (subtitle == null) return text;
     final tokens = Theme.of(context).extension<AppTokens>()!;

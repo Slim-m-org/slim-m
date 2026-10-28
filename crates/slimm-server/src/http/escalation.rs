@@ -34,3 +34,20 @@ pub(super) fn escalation_guard(
         Err(ApiError::Forbidden)
     }
 }
+
+/// The reason a peer is refused, which the client matches to say so in plain words.
+pub(crate) const EQUAL_RANK_REFUSED: &str = "you cannot act on someone of equal rank";
+
+/// [`escalation_guard`] for acts on a person: an equal-rank peer is refused too.
+///
+/// An administrator is exempt, since their grant contains every bit and no one ranks above them.
+pub(super) fn peer_guard(
+    caller_granted: Permissions,
+    target_granted: Permissions,
+) -> Result<(), ApiError> {
+    escalation_guard(caller_granted, target_granted)?;
+    if caller_granted == target_granted && !caller_granted.contains(Permissions::ADMINISTRATOR) {
+        return Err(ApiError::ForbiddenBecause(EQUAL_RANK_REFUSED));
+    }
+    Ok(())
+}

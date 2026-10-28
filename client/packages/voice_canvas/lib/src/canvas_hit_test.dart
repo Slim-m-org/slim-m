@@ -163,6 +163,7 @@ bool _hits(CanvasStroke stroke, Offset world, double lineSlop, double boxSlop) {
           math.max(stroke.width, 1) / 2 + lineSlop;
     case CanvasObjectKind.image:
     case CanvasObjectKind.note:
+    case CanvasObjectKind.text:
       return world.dx >= stroke.x - boxSlop &&
           world.dx <= stroke.x + stroke.w + boxSlop &&
           world.dy >= stroke.y - boxSlop &&

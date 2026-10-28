@@ -83,7 +83,7 @@ func copyFile(from, to string) error {
 
 // settled is true once the app has cleared `pending`; a launcher is only swapped after that.
 func settled(root string) bool {
-	return read(root, "current") != "" && read(root, "pending") == ""
+	return read(root, currentFile) != "" && read(root, pendingFile) == ""
 }
 
 // swapLauncher replaces the launcher at self with the one in the current version
@@ -94,7 +94,7 @@ func (s swapper) swapLauncher(root, self string) error {
 	}
 	old := self + ".old"
 	_ = os.Remove(old)
-	candidate := filepath.Join(versionDir(root, read(root, "current")), launcherName)
+	candidate := filepath.Join(versionDir(root, read(root, currentFile)), launcherName)
 	want, err := digest(candidate)
 	if err != nil {
 		return nil

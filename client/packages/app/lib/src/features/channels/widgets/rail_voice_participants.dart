@@ -126,6 +126,7 @@ class _ParticipantRowState extends ConsumerState<_ParticipantRow> {
           Flexible(
             child: Text(
               participant.name,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: tokens.textSecondary),
             ),

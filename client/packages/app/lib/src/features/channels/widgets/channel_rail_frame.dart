@@ -60,6 +60,11 @@ final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
 /// connected" with "what did I set my status to" in the one place a person's
 /// own identity lives. It is a dedicated indicator beside the Space's name
 /// instead, the same place a member list gives a person their own status.
+///
+/// While offline the dot alone was easy to miss at desktop width, so an
+/// "Offline" word sits beside the name (owner decision, 2026-10-26), or
+/// "Refused" when the server refused the session; the wide layout still
+/// shows no banner.
 class RailHeader extends ConsumerWidget {
   const RailHeader({super.key});
 
@@ -72,6 +77,7 @@ class RailHeader extends ConsumerWidget {
       ref.watch(syncControllerProvider),
       ref.watch(hasFailedSinceLiveProvider),
     );
+    final failure = ref.watch(syncFailureProvider);
     // The decoration bleeds to the screen edge while [SafeArea] insets only
     // the content, so the rail's own colour fills the status-bar strip.
     return Container(
@@ -97,7 +103,7 @@ class RailHeader extends ConsumerWidget {
                         SpaceIdentityMark(
                           iconUpdatedAt: server.valueOrNull?.iconUpdatedAt,
                           status: syncStatus,
-                          failure: ref.watch(syncFailureProvider),
+                          failure: failure,
                         ),
                         Flexible(
                           child: Text(
@@ -109,6 +115,25 @@ class RailHeader extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (syncStatus == SyncStatus.offline)
+                          Flexible(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                left: AppSpacing.s8,
+                              ),
+                              child: Text(
+                                // A refusal must not read as a retryable offline; the pane below carries the sentence.
+                                failure == SyncFailure.refused
+                                    ? 'Refused'
+                                    : 'Offline',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.caption.copyWith(
+                                  color: tokens.warnText,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -406,6 +431,7 @@ class RailUserFooter extends ConsumerWidget {
                         children: [
                           Text(
                             me.valueOrNull?.displayName ?? '',
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppText.ui.copyWith(
                               color: tokens.textPrimary,

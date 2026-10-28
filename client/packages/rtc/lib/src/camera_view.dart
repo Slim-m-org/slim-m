@@ -24,6 +24,7 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'camera_switching.dart';
 import 'first_frame_gate.dart';
+import 'mirror_self_view.dart';
 import 'video_quality.dart';
 import 'track_tile_state.dart';
 
@@ -141,6 +142,8 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
           (debugCameraViewBuildCounts[widget.identity] ?? 0) + 1;
       return true;
     }());
+    // Read before any early return so the view always tracks the choice.
+    final mirrorSelf = MirrorSelfViewScope.of(context);
     final track = currentTrack();
     // Unlike a screen share, no placeholder text for a camera not here yet.
     if (track == null) return const SizedBox.shrink();
@@ -158,8 +161,11 @@ class _CameraViewState extends State<CameraView> with TrackTileState {
           (density) => lk.VideoTrackRenderer(
             track,
             fit: lk.VideoViewFit.cover,
-            mirrorMode:
-                mirrorModeFor(isLocal: _isLocal, facing: widget.facing.value),
+            mirrorMode: mirrorModeFor(
+              isLocal: _isLocal,
+              facing: widget.facing.value,
+              mirrorSelf: mirrorSelf,
+            ),
             cachedRenderer: renderer,
             autoDisposeRenderer: false,
             adaptiveStreamPixelDensity: density,

@@ -18,6 +18,7 @@ import '../providers/canvas_pen_style.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_layer.dart';
 import 'canvas_selection_semantics.dart';
+import 'canvas_tool_wheel_layer.dart';
 import 'canvas_world_edge_glow.dart';
 import 'canvas_zoom_indicator.dart';
 
@@ -45,6 +46,7 @@ class CanvasPaneSurface extends StatelessWidget {
     required this.tool,
     required this.tokens,
     required this.menuRequests,
+    required this.toolWheel,
     required this.presenceFrames,
     this.focusedTileKey,
     this.boardFocusNode,
@@ -70,6 +72,7 @@ class CanvasPaneSurface extends StatelessWidget {
   final CanvasTool tool;
   final AppTokens tokens;
   final CanvasObjectMenuRequests menuRequests;
+  final CanvasToolWheelController toolWheel;
   final CanvasPresenceFrameResolver presenceFrames;
 
   /// The call tile whose feed fills the pane under the ink, if any.
@@ -83,7 +86,9 @@ class CanvasPaneSurface extends StatelessWidget {
     document: document,
     tool: tool,
     onOpenActions: menuRequests.request,
+    onOpenToolWheel: toolWheel.requestOpen,
     onPlaceNote: actions.onNotePlace,
+    onPlaceText: actions.onTextPlace,
     onPlaceShape: (world) => actions.onShapePlace(world, null),
     focusNode: boardFocusNode,
     child: Stack(
@@ -145,6 +150,8 @@ class CanvasPaneSurface extends StatelessWidget {
           onSelectCancel: actions.onSelectCancel,
           onSelectTap: actions.onSelectTap,
           onNotePlace: actions.onNotePlace,
+          onTextPlace: actions.onTextPlace,
+          onSelectLongPress: actions.onSelectLongPress,
           onShapePlace: actions.onShapePlace,
           shapeKind: shapeKind,
           cursors: cursors,
@@ -157,6 +164,7 @@ class CanvasPaneSurface extends StatelessWidget {
           remoteDrafts: remoteDrafts,
           onDraftPoint: actions.onDraftPoint,
           onDraftEnded: actions.onDraftEnded,
+          onDraftCancel: actions.onDraftCancel,
         ),
         CanvasObjectContextMenu(
           document: document,
@@ -173,6 +181,27 @@ class CanvasPaneSurface extends StatelessWidget {
           canDraw: !canvasErrorBlocksDrawing(error),
           onRecenter: actions.onRecenter,
           onToolChanged: actions.onToolChanged,
+          wheel: toolWheel,
+        ),
+        CanvasToolWheelLayer(
+          document: document,
+          controller: toolWheel,
+          tool: tool,
+          shapeKind: shapeKind,
+          canDraw: !canvasErrorBlocksDrawing(error),
+          isObjectAt: (world) =>
+              hitTestTopmost(
+                document,
+                world,
+                allowed: (stroke) => canvasMayActOn(
+                  stroke,
+                  canManage: canManage,
+                  selfId: selfId,
+                ),
+              ) !=
+              null,
+          onToolChanged: actions.onToolChanged,
+          onPasteImageAt: actions.onPasteImageAt,
         ),
         CanvasBoardObjectSemantics(
           document: document,

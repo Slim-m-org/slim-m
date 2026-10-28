@@ -256,28 +256,7 @@ class CanvasCallDock extends ConsumerWidget {
         final width = constraints.maxWidth;
         return FloatingDockCard(
           trailing: leave,
-          rows: [
-            ?bots,
-            ...width >= _oneRowMinWidth + extra
-                ? [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(child: CanvasDockToolsRow(canvas: canvas)),
-                        const SizedBox(width: AppSpacing.s8),
-                        const DockVerticalDivider(),
-                        const SizedBox(width: AppSpacing.s8),
-                        _callRow(call, toggle: _toggle(canvas), alone: alone),
-                      ],
-                    ),
-                  ]
-                : width >= _twoRowMinWidth + extra
-                ? [
-                    CanvasDockToolsRow(canvas: canvas),
-                    _callRow(call, toggle: _toggle(canvas), alone: alone),
-                  ]
-                : [..._stackedCanvasRows(canvas), _callRow(call, tight: true)],
-          ],
+          rows: [?bots, ..._dockRows(canvas, call, width, extra, alone)],
         );
       },
     );
@@ -293,6 +272,37 @@ class CanvasCallDock extends ConsumerWidget {
 
   /// Tools on their own row so the eraser never scrolls out of reach; undo,
   /// the overflow and the canvas toggle share the row beneath.
+  /// Tools and call controls in one row, two rows, or stacked, by available width.
+  List<Widget> _dockRows(
+    CanvasDockData canvas,
+    CallDockData call,
+    double width,
+    double extra,
+    bool alone,
+  ) {
+    if (width >= _oneRowMinWidth + extra) {
+      return [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: CanvasDockToolsRow(canvas: canvas)),
+            const SizedBox(width: AppSpacing.s8),
+            const DockVerticalDivider(),
+            const SizedBox(width: AppSpacing.s8),
+            _callRow(call, toggle: _toggle(canvas), alone: alone),
+          ],
+        ),
+      ];
+    }
+    if (width >= _twoRowMinWidth + extra) {
+      return [
+        CanvasDockToolsRow(canvas: canvas),
+        _callRow(call, toggle: _toggle(canvas), alone: alone),
+      ];
+    }
+    return [..._stackedCanvasRows(canvas), _callRow(call, tight: true)];
+  }
+
   static List<Widget> _stackedCanvasRows(CanvasDockData canvas) {
     return [
       if (!canvas.activityLogOpen)

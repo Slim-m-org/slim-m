@@ -1294,6 +1294,16 @@ class $MessagesTable extends Messages
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("forwarded_removed" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _linkPreviewsRemovedMeta =
+      const VerificationMeta('linkPreviewsRemoved');
+  @override
+  late final GeneratedColumn<bool> linkPreviewsRemoved = GeneratedColumn<bool>(
+      'link_previews_removed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("link_previews_removed" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _pendingMeta =
       const VerificationMeta('pending');
   @override
@@ -1338,6 +1348,7 @@ class $MessagesTable extends Messages
         forwardedCreatedAt,
         forwardedContent,
         forwardedRemoved,
+        linkPreviewsRemoved,
         pending,
         failed,
         failureReason
@@ -1449,6 +1460,12 @@ class $MessagesTable extends Messages
           forwardedRemoved.isAcceptableOrUnknown(
               data['forwarded_removed']!, _forwardedRemovedMeta));
     }
+    if (data.containsKey('link_previews_removed')) {
+      context.handle(
+          _linkPreviewsRemovedMeta,
+          linkPreviewsRemoved.isAcceptableOrUnknown(
+              data['link_previews_removed']!, _linkPreviewsRemovedMeta));
+    }
     if (data.containsKey('pending')) {
       context.handle(_pendingMeta,
           pending.isAcceptableOrUnknown(data['pending']!, _pendingMeta));
@@ -1508,6 +1525,8 @@ class $MessagesTable extends Messages
           DriftSqlType.string, data['${effectivePrefix}forwarded_content']),
       forwardedRemoved: attachedDatabase.typeMapping.read(
           DriftSqlType.bool, data['${effectivePrefix}forwarded_removed'])!,
+      linkPreviewsRemoved: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}link_previews_removed'])!,
       pending: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}pending'])!,
       failed: attachedDatabase.typeMapping
@@ -1563,6 +1582,10 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   /// The forward's original was deleted or aged out; the snapshot is blank.
   final bool forwardedRemoved;
 
+  /// The author or a moderator removed this message's link-preview cards.
+  /// Stored so a cold start hides them without a REST read; nothing clears it.
+  final bool linkPreviewsRemoved;
+
   /// True while the send is in flight. The UI shows these differently and they
   /// are replaced in place by the server's copy on acknowledgement.
   final bool pending;
@@ -1592,6 +1615,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       this.forwardedCreatedAt,
       this.forwardedContent,
       required this.forwardedRemoved,
+      required this.linkPreviewsRemoved,
       required this.pending,
       required this.failed,
       this.failureReason});
@@ -1639,6 +1663,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       map['forwarded_content'] = Variable<String>(forwardedContent);
     }
     map['forwarded_removed'] = Variable<bool>(forwardedRemoved);
+    map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved);
     map['pending'] = Variable<bool>(pending);
     map['failed'] = Variable<bool>(failed);
     if (!nullToAbsent || failureReason != null) {
@@ -1690,6 +1715,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ? const Value.absent()
           : Value(forwardedContent),
       forwardedRemoved: Value(forwardedRemoved),
+      linkPreviewsRemoved: Value(linkPreviewsRemoved),
       pending: Value(pending),
       failed: Value(failed),
       failureReason: failureReason == null && nullToAbsent
@@ -1725,6 +1751,8 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       forwardedCreatedAt: serializer.fromJson<int?>(json['forwardedCreatedAt']),
       forwardedContent: serializer.fromJson<String?>(json['forwardedContent']),
       forwardedRemoved: serializer.fromJson<bool>(json['forwardedRemoved']),
+      linkPreviewsRemoved:
+          serializer.fromJson<bool>(json['linkPreviewsRemoved']),
       pending: serializer.fromJson<bool>(json['pending']),
       failed: serializer.fromJson<bool>(json['failed']),
       failureReason: serializer.fromJson<String?>(json['failureReason']),
@@ -1753,6 +1781,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       'forwardedCreatedAt': serializer.toJson<int?>(forwardedCreatedAt),
       'forwardedContent': serializer.toJson<String?>(forwardedContent),
       'forwardedRemoved': serializer.toJson<bool>(forwardedRemoved),
+      'linkPreviewsRemoved': serializer.toJson<bool>(linkPreviewsRemoved),
       'pending': serializer.toJson<bool>(pending),
       'failed': serializer.toJson<bool>(failed),
       'failureReason': serializer.toJson<String?>(failureReason),
@@ -1777,6 +1806,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           Value<int?> forwardedCreatedAt = const Value.absent(),
           Value<String?> forwardedContent = const Value.absent(),
           bool? forwardedRemoved,
+          bool? linkPreviewsRemoved,
           bool? pending,
           bool? failed,
           Value<String?> failureReason = const Value.absent()}) =>
@@ -1814,6 +1844,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
             ? forwardedContent.value
             : this.forwardedContent,
         forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
+        linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
         pending: pending ?? this.pending,
         failed: failed ?? this.failed,
         failureReason:
@@ -1857,6 +1888,9 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
       forwardedRemoved: data.forwardedRemoved.present
           ? data.forwardedRemoved.value
           : this.forwardedRemoved,
+      linkPreviewsRemoved: data.linkPreviewsRemoved.present
+          ? data.linkPreviewsRemoved.value
+          : this.linkPreviewsRemoved,
       pending: data.pending.present ? data.pending.value : this.pending,
       failed: data.failed.present ? data.failed.value : this.failed,
       failureReason: data.failureReason.present
@@ -1886,6 +1920,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           ..write('forwardedCreatedAt: $forwardedCreatedAt, ')
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
+          ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason')
@@ -1894,27 +1929,29 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      channelId,
-      authorId,
-      authorDisplayName,
-      seq,
-      content,
-      createdAt,
-      editedAt,
-      replyToId,
-      forwardedMessageId,
-      forwardedChannelId,
-      forwardedAuthorId,
-      forwardedAuthorDisplayName,
-      forwardedAuthorAvatarUpdatedAt,
-      forwardedCreatedAt,
-      forwardedContent,
-      forwardedRemoved,
-      pending,
-      failed,
-      failureReason);
+  int get hashCode => Object.hashAll([
+        id,
+        channelId,
+        authorId,
+        authorDisplayName,
+        seq,
+        content,
+        createdAt,
+        editedAt,
+        replyToId,
+        forwardedMessageId,
+        forwardedChannelId,
+        forwardedAuthorId,
+        forwardedAuthorDisplayName,
+        forwardedAuthorAvatarUpdatedAt,
+        forwardedCreatedAt,
+        forwardedContent,
+        forwardedRemoved,
+        linkPreviewsRemoved,
+        pending,
+        failed,
+        failureReason
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1937,6 +1974,7 @@ class MessageRow extends DataClass implements Insertable<MessageRow> {
           other.forwardedCreatedAt == this.forwardedCreatedAt &&
           other.forwardedContent == this.forwardedContent &&
           other.forwardedRemoved == this.forwardedRemoved &&
+          other.linkPreviewsRemoved == this.linkPreviewsRemoved &&
           other.pending == this.pending &&
           other.failed == this.failed &&
           other.failureReason == this.failureReason);
@@ -1960,6 +1998,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
   final Value<int?> forwardedCreatedAt;
   final Value<String?> forwardedContent;
   final Value<bool> forwardedRemoved;
+  final Value<bool> linkPreviewsRemoved;
   final Value<bool> pending;
   final Value<bool> failed;
   final Value<String?> failureReason;
@@ -1982,6 +2021,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedCreatedAt = const Value.absent(),
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
+    this.linkPreviewsRemoved = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2005,6 +2045,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     this.forwardedCreatedAt = const Value.absent(),
     this.forwardedContent = const Value.absent(),
     this.forwardedRemoved = const Value.absent(),
+    this.linkPreviewsRemoved = const Value.absent(),
     this.pending = const Value.absent(),
     this.failed = const Value.absent(),
     this.failureReason = const Value.absent(),
@@ -2031,6 +2072,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     Expression<int>? forwardedCreatedAt,
     Expression<String>? forwardedContent,
     Expression<bool>? forwardedRemoved,
+    Expression<bool>? linkPreviewsRemoved,
     Expression<bool>? pending,
     Expression<bool>? failed,
     Expression<String>? failureReason,
@@ -2059,6 +2101,8 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
         'forwarded_created_at': forwardedCreatedAt,
       if (forwardedContent != null) 'forwarded_content': forwardedContent,
       if (forwardedRemoved != null) 'forwarded_removed': forwardedRemoved,
+      if (linkPreviewsRemoved != null)
+        'link_previews_removed': linkPreviewsRemoved,
       if (pending != null) 'pending': pending,
       if (failed != null) 'failed': failed,
       if (failureReason != null) 'failure_reason': failureReason,
@@ -2084,6 +2128,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       Value<int?>? forwardedCreatedAt,
       Value<String?>? forwardedContent,
       Value<bool>? forwardedRemoved,
+      Value<bool>? linkPreviewsRemoved,
       Value<bool>? pending,
       Value<bool>? failed,
       Value<String?>? failureReason,
@@ -2108,6 +2153,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
       forwardedCreatedAt: forwardedCreatedAt ?? this.forwardedCreatedAt,
       forwardedContent: forwardedContent ?? this.forwardedContent,
       forwardedRemoved: forwardedRemoved ?? this.forwardedRemoved,
+      linkPreviewsRemoved: linkPreviewsRemoved ?? this.linkPreviewsRemoved,
       pending: pending ?? this.pending,
       failed: failed ?? this.failed,
       failureReason: failureReason ?? this.failureReason,
@@ -2171,6 +2217,9 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
     if (forwardedRemoved.present) {
       map['forwarded_removed'] = Variable<bool>(forwardedRemoved.value);
     }
+    if (linkPreviewsRemoved.present) {
+      map['link_previews_removed'] = Variable<bool>(linkPreviewsRemoved.value);
+    }
     if (pending.present) {
       map['pending'] = Variable<bool>(pending.value);
     }
@@ -2207,6 +2256,7 @@ class MessagesCompanion extends UpdateCompanion<MessageRow> {
           ..write('forwardedCreatedAt: $forwardedCreatedAt, ')
           ..write('forwardedContent: $forwardedContent, ')
           ..write('forwardedRemoved: $forwardedRemoved, ')
+          ..write('linkPreviewsRemoved: $linkPreviewsRemoved, ')
           ..write('pending: $pending, ')
           ..write('failed: $failed, ')
           ..write('failureReason: $failureReason, ')
@@ -3199,6 +3249,14 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
       $PendingAttachmentsTable(this);
   late final $CanvasPersonalLayoutsTable canvasPersonalLayouts =
       $CanvasPersonalLayoutsTable(this);
+  late final Index messagesChannelSeq = Index('messages_channel_seq',
+      'CREATE INDEX messages_channel_seq ON messages (channel_id, seq DESC)');
+  late final Index messagesAuthor = Index('messages_author',
+      'CREATE INDEX messages_author ON messages (author_id)');
+  late final Index messagesPending = Index('messages_pending',
+      'CREATE INDEX messages_pending ON messages (id) WHERE pending = 1');
+  late final Index messagesFailed = Index('messages_failed',
+      'CREATE INDEX messages_failed ON messages (id) WHERE failed = 1');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3209,7 +3267,11 @@ abstract class _$SlimmDatabase extends GeneratedDatabase {
         channelCategories,
         channelDrafts,
         pendingAttachments,
-        canvasPersonalLayouts
+        canvasPersonalLayouts,
+        messagesChannelSeq,
+        messagesAuthor,
+        messagesPending,
+        messagesFailed
       ];
 }
 
@@ -3684,6 +3746,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   Value<int?> forwardedCreatedAt,
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
+  Value<bool> linkPreviewsRemoved,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3707,6 +3770,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<int?> forwardedCreatedAt,
   Value<String?> forwardedContent,
   Value<bool> forwardedRemoved,
+  Value<bool> linkPreviewsRemoved,
   Value<bool> pending,
   Value<bool> failed,
   Value<String?> failureReason,
@@ -3780,6 +3844,10 @@ class $$MessagesTableFilterComposer
 
   ColumnFilters<bool> get forwardedRemoved => $composableBuilder(
       column: $table.forwardedRemoved,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get linkPreviewsRemoved => $composableBuilder(
+      column: $table.linkPreviewsRemoved,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get pending => $composableBuilder(
@@ -3861,6 +3929,10 @@ class $$MessagesTableOrderingComposer
       column: $table.forwardedRemoved,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get linkPreviewsRemoved => $composableBuilder(
+      column: $table.linkPreviewsRemoved,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get pending => $composableBuilder(
       column: $table.pending, builder: (column) => ColumnOrderings(column));
 
@@ -3933,6 +4005,9 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<bool> get forwardedRemoved => $composableBuilder(
       column: $table.forwardedRemoved, builder: (column) => column);
 
+  GeneratedColumn<bool> get linkPreviewsRemoved => $composableBuilder(
+      column: $table.linkPreviewsRemoved, builder: (column) => column);
+
   GeneratedColumn<bool> get pending =>
       $composableBuilder(column: $table.pending, builder: (column) => column);
 
@@ -3983,6 +4058,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<int?> forwardedCreatedAt = const Value.absent(),
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
+            Value<bool> linkPreviewsRemoved = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4006,6 +4082,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedCreatedAt: forwardedCreatedAt,
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
+            linkPreviewsRemoved: linkPreviewsRemoved,
             pending: pending,
             failed: failed,
             failureReason: failureReason,
@@ -4029,6 +4106,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             Value<int?> forwardedCreatedAt = const Value.absent(),
             Value<String?> forwardedContent = const Value.absent(),
             Value<bool> forwardedRemoved = const Value.absent(),
+            Value<bool> linkPreviewsRemoved = const Value.absent(),
             Value<bool> pending = const Value.absent(),
             Value<bool> failed = const Value.absent(),
             Value<String?> failureReason = const Value.absent(),
@@ -4052,6 +4130,7 @@ class $$MessagesTableTableManager extends RootTableManager<
             forwardedCreatedAt: forwardedCreatedAt,
             forwardedContent: forwardedContent,
             forwardedRemoved: forwardedRemoved,
+            linkPreviewsRemoved: linkPreviewsRemoved,
             pending: pending,
             failed: failed,
             failureReason: failureReason,

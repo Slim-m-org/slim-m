@@ -86,6 +86,49 @@ extension _StrokePainterShapes on StrokePainter {
     canvas.restore();
   }
 
+  /// A text box: glyphs only, in the box's own colour, wrapped at its width and clipped to its height.
+  void _paintText(
+    Canvas canvas,
+    CanvasStroke stroke,
+    Camera camera,
+  ) {
+    final text = stroke.text;
+    final fontSize = canvasTextFontSizes[stroke.textSize] ??
+        canvasTextFontSizes[canvasDefaultTextSize]!;
+    if (text == null ||
+        text.isEmpty ||
+        stroke.w <= canvasTextPad * 2 ||
+        fontSize * camera.zoom < minNoteTextScreenPx) {
+      return;
+    }
+    // The key's third and fourth slots carry the font size and the colour: a text box's layout does not depend on its height.
+    final painter = _noteLabels.painterFor(
+      stroke.id,
+      (text, stroke.w, fontSize, stroke.colorKey.hashCode),
+      () => TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(
+            fontFamily: textFontFamily,
+            fontSize: fontSize,
+            color: inkColors[stroke.colorKey] ?? ink,
+            height: canvasTextLineHeight,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: stroke.w - canvasTextPad * 2, minWidth: 0),
+    );
+    canvas.save();
+    canvas.translate(
+      (stroke.x - camera.x) * camera.zoom,
+      (stroke.y - camera.y) * camera.zoom,
+    );
+    canvas.scale(camera.zoom);
+    canvas.clipRect(Rect.fromLTWH(0, 0, stroke.w, stroke.h));
+    painter.paint(canvas, const Offset(canvasTextPad, canvasTextPad));
+    canvas.restore();
+  }
+
   InlineSpan _noteSpan(String text, double fontSize, double height) {
     final base = TextStyle(
       fontFamily: textFontFamily,

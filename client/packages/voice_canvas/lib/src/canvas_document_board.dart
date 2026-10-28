@@ -21,10 +21,12 @@ extension CanvasDocumentBoard on CanvasDocument {
   /// The region every viewer frames in the shared view; null when no board is set.
   ui.Rect? get sharedArea => _board == null ? null : _sharedArea ?? _board;
 
-  /// The zoom at which the shared area fills the view, 100% on the zoom pill.
+  /// The zoom at which the shared area fills the view, 100% on the zoom pill; the board's floor when a tall pane cannot show it whole.
   double get sharedFitZoom {
     final shared = sharedArea;
-    return shared == null ? 1 : boardFitZoom(shared, _fitView);
+    final board = _board;
+    if (shared == null || board == null) return 1;
+    return math.max(boardFitZoom(shared, _fitView), zoomFloor);
   }
 
   ui.Rect get _sharedRect => _sharedArea ?? _board!;

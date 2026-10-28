@@ -11,16 +11,17 @@ void main() {
   const board = Rect.fromLTWH(0, 0, 1600, 900);
   const viewport = Size(1600, 900);
 
-  test('the fitted board ends above the dock', () {
+  test('the fitted shared area ends above the dock', () {
     final document = CanvasDocument()
       ..setViewport(viewport)
-      ..setBoard(board);
+      ..setBoard(canvasBoard, sharedArea: canvasSharedArea);
     addTearDown(document.dispose);
 
     document.setBottomInset(120);
 
     final camera = document.camera;
-    final boardBottomOnScreen = (board.bottom - camera.y) * camera.zoom;
+    final boardBottomOnScreen =
+        (canvasSharedArea.bottom - camera.y) * camera.zoom;
     expect(
         boardBottomOnScreen, lessThanOrEqualTo(viewport.height - 120 + 1e-6));
     expect(document.isFitted, isTrue);

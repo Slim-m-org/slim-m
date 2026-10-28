@@ -402,6 +402,52 @@ void main() {
       ]);
     });
 
+    test('removing link previews is a DELETE on the message, and parses',
+        () async {
+      final calls = <String>[];
+      final api = SlimmApi(
+        baseUrl: _base,
+        session: SessionStore(tokens: _tokens()),
+        httpClient: MockClient((request) async {
+          calls.add('${request.method} ${request.url.path}');
+          return http.Response('', 204);
+        }),
+      );
+      await api.removeMessageLinkPreviews(channelId: 'c', messageId: 'm');
+      expect(calls, ['DELETE /channels/c/messages/m/link-previews']);
+
+      final frame = ServerEvent.parse(
+        jsonEncode({
+          'type': 'message.link_previews_removed',
+          'channel_id': 'c',
+          'message_id': 'm',
+        }),
+      );
+      expect(frame, isA<MessageLinkPreviewsRemoved>());
+      expect((frame as MessageLinkPreviewsRemoved).messageId, 'm');
+      expect(frame.opSeq, isNull);
+      final withOp = ServerEvent.parse(
+        jsonEncode({
+          'type': 'message.link_previews_removed',
+          'channel_id': 'c',
+          'message_id': 'm',
+          'op_seq': 12,
+        }),
+      );
+      expect((withOp as MessageLinkPreviewsRemoved).opSeq, 12);
+      expect(
+        Message.fromJson({
+          'id': 'm',
+          'channel_id': 'c',
+          'seq': 1,
+          'content': '',
+          'created_at': 1,
+          'link_previews_removed': true,
+        }).linkPreviewsRemoved,
+        isTrue,
+      );
+    });
+
     test('listPinnedMessages parses the flattened message plus pin metadata',
         () async {
       final api = SlimmApi(

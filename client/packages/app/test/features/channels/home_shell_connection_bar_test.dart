@@ -7,6 +7,9 @@
 /// 2026-08-03): its offline state now surfaces through the header's
 /// `SpaceConnectionDot`, beside the Space name, rather than a banner pushed
 /// above the profile footer - see `channel_rail_frame.dart`'s own doc.
+/// Owner decision 2026-10-26: the dot stays and an "Offline" word joins it
+/// while disconnected, because an 8px dot alone was the only cue at desktop
+/// width and went unnoticed in the UI audit.
 library;
 
 import 'package:flutter/material.dart';
@@ -14,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
+import 'package:slimm_app/src/providers/sync_failure.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -26,6 +30,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
   Size size, {
   SyncStatus status = SyncStatus.offline,
   bool hasFailedSinceLive = false,
+  SyncFailure? failure,
 }) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
@@ -33,6 +38,7 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpOffline(
         (ref) => StubSyncController(ref, status),
       ),
       hasFailedSinceLiveProvider.overrideWith((ref) => hasFailedSinceLive),
+      syncFailureProvider.overrideWith((ref) => failure),
     ],
   );
   tester.view.physicalSize = size;
@@ -78,10 +84,27 @@ void main() {
       expect(find.byType(RailConnectionBar), findsNothing);
       expect(find.byType(SpaceConnectionDot), findsOneWidget);
       expect(find.byTooltip('Offline, retrying'), findsOneWidget);
+      expect(find.text('Offline'), findsOneWidget);
+      expect(find.text('Offline, retrying'), findsNothing);
 
       await teardownFixture(tester, fixture.container, fixture.db);
     },
   );
+
+  testWidgets('a wide header says the session was refused, not Offline', (
+    tester,
+  ) async {
+    final fixture = await _pumpOffline(
+      tester,
+      const Size(1400, 880),
+      failure: SyncFailure.refused,
+    );
+
+    expect(find.text('Refused'), findsOneWidget);
+    expect(find.text('Offline'), findsNothing);
+
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 
   testWidgets(
     'a retry attempt after a real failure still reads Offline, not Connecting',
@@ -99,4 +122,18 @@ void main() {
       await teardownFixture(tester, fixture.container, fixture.db);
     },
   );
+
+  testWidgets('a wide layout shows no Offline label while live', (
+    tester,
+  ) async {
+    final fixture = await _pumpOffline(
+      tester,
+      const Size(1400, 880),
+      status: SyncStatus.live,
+    );
+
+    expect(find.text('Offline'), findsNothing);
+
+    await teardownFixture(tester, fixture.container, fixture.db);
+  });
 }

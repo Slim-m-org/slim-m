@@ -166,6 +166,23 @@ void main() {
       expect(link.style.decoration, TextDecoration.underline);
       expect(link.style.color, style.linkInk);
     });
+
+    test('revision changes when a member is renamed without count change', () {
+      const a = NoteSpanStyle(
+        knownUsernames: {'alice'},
+        mentionInk: Color(0xFF111111),
+        mentionFill: Color(0xFF222222),
+        linkInk: Color(0xFF333333),
+      );
+      const b = NoteSpanStyle(
+        knownUsernames: {'bob'},
+        mentionInk: Color(0xFF111111),
+        mentionFill: Color(0xFF222222),
+        linkInk: Color(0xFF333333),
+      );
+
+      expect(a.revision, isNot(b.revision));
+    });
   });
 
   testWidgets('Enter while an IME composition is open leaves the text alone', (

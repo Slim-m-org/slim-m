@@ -35,6 +35,18 @@ Voice over a tunnel needs TURN reachable separately (see [Voice and screen share
 The same trap applies to a forwarded deployment that forwards only 80 and 443: signalling works from anywhere, media does not, and calls fail only for people outside your network.
 If calls work at home and not away, the media ports are the first thing to check, not the caller's device.
 
+### Running on a LAN only
+
+Phones need a little care here, so it is worth reading before you pick plain http.
+
+- **https is still the smoothest path.** A real domain with a DNS-01 certificate (see `deploy/Caddyfile`) works on every client with no exceptions.
+- **Plain http to a private address** (`http://192.168.x.x:8080`, `http://box.local`) is accepted by the apps. Public addresses always need https, and the app refuses plain http for them.
+- **iOS** allows it through App Transport Security's local-networking exception, which covers `.local` names, unqualified hosts and private IP literals only.
+- **Android** cannot express IP ranges in its network security config, so the config permits cleartext only for `localhost` and `.local` names. The app's own http and WebSocket traffic does not go through that policy, so a private IP address works in practice, but anything handled by the OS media stack would still refuse cleartext to an IP. Use a `.local` name or https if something like that misbehaves.
+- **Voice and screen share** need the LiveKit server reachable on the LAN. Set `SLIMM_LIVEKIT_URL` to the host's LAN address.
+- **The web client** cannot use the microphone or screen capture from a plain `http://` page, because browsers require a secure context. Desktop and phone apps are not affected.
+- **What degrades offline:** push notifications (they go through the push relay to FCM and APNs), link previews and GIF search. Text, DMs, attachments, voice and the canvas do not depend on the internet.
+
 ## One-command walkthrough
 
 ```bash

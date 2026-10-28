@@ -4,11 +4,22 @@
 /// shares.
 library;
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'device_choice_sheet.dart';
+
+/// The line under the title; on Windows, where a window share can lose its source, it says which windows those are.
+String screenSourceCaption(List<ScreenShareSource> sources, {bool? windows}) {
+  const base = 'Everyone in the call will see it until you stop sharing.';
+  final onWindows = windows ?? defaultTargetPlatform == TargetPlatform.windows;
+  if (!onWindows || !sources.any((s) => s.isWindow)) return base;
+  return '$base Minimized windows and exclusive fullscreen games cannot be '
+      'captured as a window; share the screen instead.';
+}
 
 /// Returns the chosen source, or null if the sheet was dismissed.
 ///
@@ -27,7 +38,7 @@ Future<ScreenShareSource?> showScreenSourceSheet(
       title: sources.any((s) => s.isWindow)
           ? 'Share a screen or window'
           : 'Share a screen',
-      caption: 'Everyone in the call will see it until you stop sharing.',
+      caption: screenSourceCaption(sources),
       icon: AppIcons.screenShare,
       iconOf: (s) => s.isWindow ? AppIcons.windowRestore : AppIcons.screenShare,
       items: sources,

@@ -441,4 +441,19 @@ void main() {
     expect(lines.last, contains('x0.5'));
     expect(lines.last, contains('failed: Bad state: boom'));
   });
+
+  test('a push the cache skips is logged once per track and gain', () async {
+    final lines = <String>[];
+    final state = LocalAudioState()
+      ..log = (m, {level = LogLevel.info}) => lines.add(m);
+    final track = FakeAudioTrack('maya');
+    state.setVolumeFor('maya', 1.5);
+
+    await state.applyToRefs([track.ref]);
+    await state.applyToRefs([track.ref]);
+    await state.applyToRefs([track.ref]);
+
+    expect(lines, hasLength(2));
+    expect(lines.last, contains('already applied, push skipped'));
+  });
 }

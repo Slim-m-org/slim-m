@@ -4,13 +4,16 @@
 /// own async-bootstrap sequencing, checked without ever calling `main()`.
 library;
 
+import 'package:flutter/widgets.dart' show SizedBox;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/features/auth/screens/onboarding_screen.dart';
 import 'package:slimm_app/src/desktop/startup_screen.dart';
+import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_platform/testing.dart';
 
 ProviderContainer _container() {
@@ -72,5 +75,161 @@ void main() {
     await tester.pump();
 
     expect(find.text('Downloading update'), findsOneWidget);
+  });
+
+  testWidgets('a phone shows the lattice splash while not ready, and no '
+      'second splash exists', (tester) async {
+    final container = _container();
+    container.read(appReadyProvider.notifier).state = false;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsOneWidget);
+  });
+
+  testWidgets('a signed-in phone keeps the same splash up until the first '
+      'catch-up lands, then hands straight to the app', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsOneWidget);
+
+    container.read(initialSyncCompleteProvider.notifier).state = true;
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('a signed-out phone is not held past bootstrap', (tester) async {
+    final container = _container();
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+  });
+
+  testWidgets('signing in after a signed-out launch never swaps the app for '
+      'the splash', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('a sign-out and sign-in after the first sync does not bring '
+      'the splash back', (tester) async {
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container
+        .read(sessionProvider)
+        .adopt(
+          const TokenPair(
+            userId: 'u',
+            accessToken: 'a',
+            refreshToken: 'r',
+            accessExpiresAt: 1 << 50,
+          ),
+        );
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    container.read(initialSyncCompleteProvider.notifier).state = true;
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsNothing);
+
+    container.invalidate(initialSyncCompleteProvider);
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
+
+  testWidgets('a sign-out before the first sync spends the cover, so signing '
+      'back in does not bring the splash back', (tester) async {
+    const tokens = TokenPair(
+      userId: 'u',
+      accessToken: 'a',
+      refreshToken: 'r',
+      accessExpiresAt: 1 << 50,
+    );
+    final container = ProviderContainer(
+      overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
+    );
+    container.read(sessionProvider).adopt(tokens);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const SlimMApp(isDesktopOverride: false),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(StartupScreen), findsOneWidget);
+
+    container.read(sessionProvider).adopt(null);
+    await tester.pump();
+    container.read(sessionProvider).adopt(tokens);
+    await tester.pump();
+
+    expect(find.byType(StartupScreen), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
   });
 }

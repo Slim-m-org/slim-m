@@ -54,6 +54,8 @@ pub(super) enum ClientFrame {
         points: Vec<f64>,
         #[serde(default)]
         ended: bool,
+        #[serde(default)]
+        cancelled: bool,
         color: Option<String>,
         width: Option<f64>,
     },
@@ -97,5 +99,8 @@ pub(super) enum ClientFrame {
         h: f64,
         #[serde(default)]
         summon: bool,
+        /// The call tile this client has full screen, so a follower can open it too.
+        #[serde(default)]
+        tile: Option<String>,
     },
 }

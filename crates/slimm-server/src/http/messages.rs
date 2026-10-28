@@ -16,10 +16,10 @@ use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::get;
-use serde::Deserialize;
 
 use self::message_get::get_message;
 use self::message_history::history;
+use self::message_requests::{EditRequest, ListParams, SendRequest};
 use super::AppState;
 use super::attachment_ids::parse_attachment_ids;
 use super::channel_slow_mode::enforce_slow_mode;
@@ -43,6 +43,7 @@ pub(super) mod message_forwards;
 pub(super) mod message_get;
 pub(super) mod message_history;
 pub(super) mod message_mentions;
+pub(super) mod message_requests;
 pub(super) mod message_validation;
 pub(super) mod messages_bulk;
 pub(super) mod messages_bulk_window;
@@ -67,63 +68,6 @@ pub fn routes() -> Router<AppState> {
             get(history),
         )
         .layer(DefaultBodyLimit::max(MESSAGE_BODY_LIMIT))
-}
-
-// --- Request bodies (the response DTO lives in `message_dto.rs`) ---
-
-#[derive(Deserialize)]
-struct SendRequest {
-    /// Client-generated UUID (v7 preferred) that makes the send idempotent.
-    id: String,
-    content: String,
-    /// Hex sha256 ids of attachments already uploaded through
-    /// `POST /attachments`, in display order. Capped at
-    /// [`MAX_ATTACHMENTS_PER_MESSAGE`]; referencing an id that was never
-    /// uploaded (or was already swept as an orphan) is a 400, not a silent
-    /// drop.
-    #[serde(default)]
-    attachment_ids: Vec<String>,
-    /// The subset of `attachment_ids` shown behind a spoiler.
-    #[serde(default)]
-    spoiler_attachment_ids: Vec<String>,
-    /// The message this one replies to, if any. Must already exist in this
-    /// same channel (live or soft-deleted); anything else is a 400.
-    #[serde(default)]
-    reply_to_id: Option<String>,
-    /// On a reply, whether to ping the replied-to author (Discord's "@ On"):
-    /// they are added to this message's mentions. Off by default, so a client
-    /// that never sends it keeps a reply silent.
-    #[serde(default)]
-    mention_reply: bool,
-    /// The message this one forwards, if any. Unlike `reply_to_id` it may
-    /// live in any channel the sender can see, and only its id is accepted:
-    /// the server reads the original's author, timestamp and text for
-    /// itself, so a request cannot dress its own text up as someone else's.
-    /// `content` stays the sender's own note alongside the forward, and may
-    /// be empty.
-    #[serde(default)]
-    forwarded_from_id: Option<String>,
-    /// Structured content, honoured only from a bot; see [`send`].
-    #[serde(default)]
-    embeds: Vec<embeds::RawEmbed>,
-    /// Buttons, honoured only from a bot; see decision 0039.
-    #[serde(default)]
-    components: Vec<crate::components::ComponentRow>,
-}
-
-#[derive(Deserialize)]
-struct EditRequest {
-    content: String,
-    /// A replacement for the message's embeds, honoured only from the bot
-    /// that wrote it; see [`embeds::honored_for_edit`].
-    #[serde(default)]
-    embeds: Option<Vec<embeds::RawEmbed>>,
-}
-
-#[derive(Deserialize)]
-struct ListParams {
-    before: Option<i64>,
-    limit: Option<i64>,
 }
 
 // --- Handlers ---
@@ -237,31 +181,21 @@ async fn send(
 
     // Read once and used twice: the live frame and this response need the
     // same summaries, and a fresh message can already have them.
-    let attachments: Vec<_> = state
-        .store
-        .attachments_for_messages(&[id])
-        .await?
+    let ids = [id];
+    let (attachments, forwarded, stored_embeds, stored_components) = tokio::join!(
+        state.store.attachments_for_messages(&ids),
+        state.store.forwards_for_messages(&ids),
+        embeds::store_and_reload(&state, id, sent.fresh, &embeds),
+        message_components::store_and_reload(&state, id, sent.fresh, &components),
+    );
+    let attachments: Vec<_> = attachments?
         .into_iter()
         .next()
         .map(|(_, summaries)| summaries)
         .unwrap_or_default();
-
-    let forwarded = state
-        .store
-        .forwards_for_messages(&[id])
-        .await?
-        .into_iter()
-        .next()
-        .map(|(_, summary)| summary);
-
-    let stored_embeds = after_commit(
-        "its embeds",
-        embeds::store_and_reload(&state, id, sent.fresh, &embeds).await,
-    );
-    let stored_components = after_commit(
-        "its components",
-        message_components::store_and_reload(&state, id, sent.fresh, &components).await,
-    );
+    let forwarded = forwarded?.into_iter().next().map(|(_, summary)| summary);
+    let stored_embeds = after_commit("its embeds", stored_embeds);
+    let stored_components = after_commit("its components", stored_components);
 
     let reply_ping = match sent.message.reply_to_id.filter(|_| mention_reply) {
         Some(parent) => after_commit(
@@ -526,6 +460,7 @@ async fn edit(
                 message: Arc::new(message.clone()),
                 op_seq,
                 forwarded: forwarded.clone().map(Arc::new),
+                lookups: Default::default(),
             });
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {
@@ -539,6 +474,7 @@ async fn edit(
     };
     let mut dto: MessageDto = updated.into();
     dto.forwarded = forwarded.map(Into::into);
+    dto.link_previews_removed = state.store.link_previews_suppressed(message_id).await?;
     dto.embeds = embeds::after_edit(&state, channel_id, message_id, replacement).await?;
     Ok(Json(dto))
 }

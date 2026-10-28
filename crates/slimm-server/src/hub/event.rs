@@ -74,12 +74,11 @@ pub enum Event {
     MessageEdited {
         message: Arc<Message>,
         op_seq: i64,
-        /// Present when the edited message forwards something. An edit
-        /// changes the note, never what was forwarded, so this repeats the
-        /// origin rather than implying it went: a receiver applying the
-        /// frame writes what it is given, and a frame that omitted this
-        /// would read as "no longer a forward".
+        /// Present when the edited message forwards something. Repeated on an
+        /// edit because a frame that omitted it would read as "no longer a forward".
         forwarded: Option<Arc<ForwardSummary>>,
+        /// Mentions and webhook label, looked up once for every subscriber.
+        lookups: Arc<super::CreatedLookups>,
     },
     /// A poll's votes changed. Carries the whole per-option tally rather than
     /// a delta, so a client that missed a frame cannot drift, exactly like
@@ -104,6 +103,14 @@ pub enum Event {
         channel_id: ChannelId,
         message_id: MessageId,
         embeds: Arc<Vec<Embed>>,
+    },
+    /// The author or a moderator removed a message's link-preview cards. One
+    /// way only: a removed preview stays removed. `op_seq` is its place in the
+    /// message-op stream, where an offline client finds it as an edit.
+    MessageLinkPreviewsRemoved {
+        channel_id: ChannelId,
+        message_id: MessageId,
+        op_seq: i64,
     },
     /// A message was soft-deleted; carries only the ids a live connection
     /// needs to drop it from view, not the content it no longer shows.
@@ -564,16 +571,15 @@ pub enum Event {
     /// real object: a receiver drops the preview the instant it sees this
     /// rather than waiting for staleness to age it out.
     ///
-    /// `object_id` never names a row in `canvas_objects`: it is an id the
-    /// client mints purely to key this preview session, since the object(s)
-    /// a finished stroke actually commits are decided later, by
-    /// `POST .../canvas/objects`, and one long stroke can split into several.
+    /// `object_id` never names a row in `canvas_objects`: it is a client-minted
+    /// id keying this preview, since the committed objects are decided later.
     CanvasStrokePreview {
         channel_id: ChannelId,
         user_id: UserId,
         object_id: CanvasObjectId,
         points: Arc<Vec<f64>>,
         ended: bool,
+        cancelled: bool,
         /// The drawer's pen colour key, when the sender named a valid one.
         color: Option<String>,
         /// The drawer's pen width in world units, when valid.
@@ -623,6 +629,8 @@ pub enum Event {
         w: f64,
         h: f64,
         summon: bool,
+        /// The call tile `user_id` has full screen, for followers to open too.
+        tile: Option<String>,
     },
     /// A placed object was repositioned.
     ///

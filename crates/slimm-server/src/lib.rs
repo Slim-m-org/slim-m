@@ -4,10 +4,12 @@
 //! The binary in `main.rs` is a thin wrapper; the server logic lives here as a
 //! library so it can be exercised by integration tests.
 
+mod attachment_text;
 pub mod auth;
 pub mod blobs;
 pub mod bot_ui;
 pub mod call_history;
+pub mod canvas_text;
 pub mod code_runner;
 pub mod components;
 pub mod config;
@@ -47,6 +49,8 @@ pub mod totp;
 pub mod voice;
 mod voice_session_sweeps;
 
+pub use attachment_text::WORKER_ARG as PDF_WORKER_ARG;
+pub use attachment_text::{Limit, PdfParse, PdfWorker, TextExtractor, run_pdf_worker};
 pub use sweeps::{
     run_attachment_sweep_pass, run_message_retention_sweep_pass, run_token_sweep_pass,
     sweep_stale_call_rings, sweep_stale_call_rings_at, sweep_stale_voice_calls,
@@ -138,6 +142,7 @@ pub async fn run() -> anyhow::Result<()> {
     export::spawn_export_sweep(store.clone(), media.clone());
     sweeps::spawn_canvas_op_sweep(store.clone());
     forward_backfill::spawn_forward_backfill(store.clone(), media.clone());
+    attachment_text::spawn_attachment_text_sweep(store.clone(), media.clone());
     let auth = auth::Auth::new(config.hash_concurrency)?;
     let hub = hub::Hub::new();
     tracing::info!(

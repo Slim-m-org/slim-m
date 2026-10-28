@@ -115,7 +115,7 @@ pub(super) async fn authorize_unstamped(
     if !passes_presence_gates(store, hub, ctx, &event).await {
         return Authorization::Withhold;
     }
-    channel_frame(store, link_previews, ctx, event).await
+    channel_frame(store, hub, link_previews, ctx, cache, event).await
 }
 
 /// This connection's permissions in `channel_id`, from the cache or the store, or `None` when the store could not answer.
@@ -178,7 +178,7 @@ async fn passes_presence_gates(
         && user_id != ctx.user_id
     {
         let hidden = matches!(
-            store.presence_visibility(user_id).await,
+            signals::visibility_of(store, hub, user_id).await,
             Ok(Some(crate::presence::Visibility::Hidden))
         );
         if hidden {
@@ -191,8 +191,10 @@ async fn passes_presence_gates(
 /// The wire frame for a channel-scoped event that has passed every check above.
 async fn channel_frame(
     store: &Store,
+    hub: &Hub,
     link_previews: &LinkPreviews,
     ctx: &SessionContext,
+    cache: &mut PermissionCache,
     event: Event,
 ) -> Authorization {
     let event = match super::canvas_frames::to_frame(event) {
@@ -217,12 +219,14 @@ async fn channel_frame(
             message,
             op_seq,
             forwarded,
+            lookups,
         } => match super::message_frames::edited(
             store,
             ctx.user_id,
             (*message).clone(),
             op_seq,
             forwarded.as_deref().cloned(),
+            &lookups,
         )
         .await
         {
@@ -243,7 +247,9 @@ async fn channel_frame(
             channel_id,
             message_id,
             reactors,
-        } => match reactions_frame(store, ctx, channel_id, message_id, &reactors).await {
+        } => match reactions_frame(store, hub, ctx, cache, (channel_id, message_id), &reactors)
+            .await
+        {
             Ok(frame) => frame,
             Err(()) => return Authorization::Unknown,
         },
@@ -338,6 +344,15 @@ async fn channel_frame(
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
+        },
+        Event::MessageLinkPreviewsRemoved {
+            channel_id,
+            message_id,
+            op_seq,
+        } => ServerFrame::MessageLinkPreviewsRemoved {
+            channel_id: channel_id.to_string(),
+            message_id: message_id.to_string(),
+            op_seq,
         },
         Event::TypingStarted {
             channel_id,
@@ -472,21 +487,13 @@ async fn channel_frame(
 /// The reaction counts this viewer sees: blocked reactors left out, ordered by this viewer's own first reaction per emoji.
 async fn reactions_frame(
     store: &Store,
+    hub: &Hub,
     ctx: &SessionContext,
-    channel_id: ChannelId,
-    message_id: MessageId,
+    cache: &mut PermissionCache,
+    (channel_id, message_id): (ChannelId, MessageId),
     reactors: &[(String, Vec<(UserId, i64)>)],
 ) -> Result<ServerFrame, ()> {
-    let reactor_ids: Vec<_> = reactors
-        .iter()
-        .flat_map(|(_, entries)| entries.iter().map(|(id, _)| *id))
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .collect();
-    let blocked = match store.blocked_among(ctx.user_id, &reactor_ids).await {
-        Ok(blocked) => blocked,
-        Err(_) => return Err(()),
-    };
+    let blocked = viewer_blocks(store, hub, ctx, cache).await?;
     // This viewer's own `first_at` per emoji, reduced only from unblocked reactors - same as the old `reactions_for_messages` query did.
     let mut visible: Vec<(String, i64, i64)> = reactors
         .iter()
@@ -509,4 +516,21 @@ async fn reactions_frame(
             .map(|(emoji, count, _)| ReactionCountDto { emoji, count })
             .collect(),
     })
+}
+
+/// Who this viewer has blocked, from the connection's cache or else the store.
+async fn viewer_blocks<'a>(
+    store: &Store,
+    hub: &Hub,
+    ctx: &SessionContext,
+    cache: &'a mut PermissionCache,
+) -> Result<&'a std::collections::HashSet<UserId>, ()> {
+    let now = Instant::now();
+    // Read before the query, never after; see `PermissionCache::insert_blocked`.
+    let epoch = hub.blocks_epoch();
+    if cache.blocked(now, epoch).is_none() {
+        let ids = store.blocked_ids(ctx.user_id).await.map_err(|_| ())?;
+        cache.insert_blocked(ids, now, epoch);
+    }
+    cache.blocked(now, epoch).ok_or(())
 }

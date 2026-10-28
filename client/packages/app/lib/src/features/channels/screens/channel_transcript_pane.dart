@@ -130,8 +130,12 @@ class ChannelTranscriptPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final search = ref.watch(channelSearchProvider(channelId));
-    final knownUsernames = knownUsernamesFrom(ref.watch(membersProvider));
-    final knownRoleNames = knownRoleNamesFrom(ref.watch(membersProvider));
+    final knownUsernames = ref.watch(
+      membersProvider.select(knownUsernamesFrom),
+    );
+    final knownRoleNames = ref.watch(
+      membersProvider.select(knownRoleNamesFrom),
+    );
     final customEmoji = ref.watch(customEmojiIndexProvider);
     final blocked = ref.watch(blocksProvider.select((state) => state.ids));
     final history = ref.watch(channelHistoryProvider(channelId));

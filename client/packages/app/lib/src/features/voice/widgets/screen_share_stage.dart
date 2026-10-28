@@ -48,6 +48,7 @@ class ScreenShareStage extends ConsumerWidget {
     this.focused = false,
     this.showCaption = true,
     this.streamVolume,
+    this.quality,
   });
 
   /// Off where a caption under the tile already names the sharer, as in the share grid.
@@ -55,6 +56,7 @@ class ScreenShareStage extends ConsumerWidget {
 
   /// Opens this share's own volume, anchored to the given context; null when it carries no sound.
   final Widget? streamVolume;
+  final Widget? quality;
 
   /// Stops watching this share; null where the tile is not a choosable share.
   final VoidCallback? onStopWatching;
@@ -140,6 +142,7 @@ class ScreenShareStage extends ConsumerWidget {
                 )
               : null,
           streamVolume: streamVolume,
+          quality: quality,
           onFocus: onFocus,
           focused: focused,
           onStopWatching: onStopWatching,

@@ -235,12 +235,14 @@ jobs:
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
-  # Keeps the check-run name release.yml's verify-client-ci waits on. It gates
-  # on every shard above, so a red shard leaves this skipped rather than
-  # successful and the release gate still refuses the commit.
+  # dart2js resolves conditional imports that `dart analyze` never does:
+  # a symbol present in one branch of a `dart.library.js_interop` export
+  # and missing from the other compiles fine here and fails only on web.
+  # That is exactly how main shipped a web build that could not compile,
+  # with analyze, format and every test green. Runs in parallel with the
+  # test shards so its compile and bundle-budget cost is not on the critical path.
   test-web:
-    name: test and web build
-    needs: [test-shards]
+    name: web build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -259,11 +261,6 @@ jobs:
         working-directory: client
         run: flutter pub get --enforce-lockfile
 
-      # dart2js resolves conditional imports that `dart analyze` never does:
-      # a symbol present in one branch of a `dart.library.js_interop` export
-      # and missing from the other compiles fine here and fails only on web.
-      # That is exactly how main shipped a web build that could not compile,
-      # with analyze, format and every test green.
       - name: web compiles
         working-directory: client/packages/app
         run: flutter build web --release
@@ -272,6 +269,18 @@ jobs:
         run: scripts/check-web-bundle-budget.sh
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
+
+  # Keeps the check-run name release.yml's verify-client-ci waits on. It gates
+  # on every test shard and the web build, so a red shard or web compile leaves
+  # this skipped rather than successful and the release gate still refuses the commit.
+  test-and-web-gate:
+    name: test and web build
+    needs: [test-shards, test-web]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: verify tests and web build passed
+        run: echo "test-shards and web build both passed"
 
   # Dart compiled to JavaScript, which the VM suites cannot see: see docs/ci.md, `client-ci`.
   test-chrome:

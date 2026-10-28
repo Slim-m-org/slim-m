@@ -13,7 +13,7 @@ repository = "https://github.com/Slim-m-org/slim-m"
 # Why each crate and feature set is what it is: docs/dependencies.md.
 [workspace.dependencies]
 axum = { version = "0.8", features = ["ws"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "io-util", "sync", "time", "fs"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "process", "net", "io-util", "sync", "time", "fs"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "timeout", "catch-panic"] }
 # Splitting a WebSocket into independent read and write halves (StreamExt/SinkExt).
 futures-util = "0.3"

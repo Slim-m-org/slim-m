@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <!-- A normal permission, granted at install with no runtime prompt; required to register the self-managed PhoneAccount SlimmConnectionService answers for. -->
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS"/>
+    <!-- Keeps the mic, camera and screen capture alive while a call is backgrounded; see CallForegroundService. Normal permissions, granted at install. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"/>
     <!-- No ADB/cloud backup of the app's data (cached messages, session tokens),
          and no cleartext traffic: v1 is transport-encrypted (HTTPS/WSS) only. -->
     <application
@@ -17,6 +22,12 @@
                 <action android:name="top.npcserver.slimm.action.DECLINE_CALL"/>
             </intent-filter>
         </receiver>
+        <!-- The types are narrowed at runtime to those whose permission is held; stopWithTask ends it with the app. -->
+        <service
+            android:name=".CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|camera|mediaProjection"
+            android:stopWithTask="true"/>
         <service
             android:name=".SlimmConnectionService"
             android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"

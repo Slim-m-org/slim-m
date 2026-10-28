@@ -3,6 +3,8 @@
 /// is here, and the call-and-canvas dock.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -17,6 +19,7 @@ import 'canvas_dock_collapse.dart';
 import 'canvas_hidden_tiles.dart';
 import 'canvas_follow_controls.dart';
 import 'canvas_presence_roster.dart';
+import 'canvas_summon_request.dart';
 import 'canvas_view_relay.dart';
 
 /// Follow and bring-everyone when a [relay] is wired, else the plain roster.
@@ -29,7 +32,11 @@ class CanvasPeerControls extends StatelessWidget {
     required this.relay,
     required this.selfId,
     this.viewMode,
+    this.onAcceptSummon,
   });
+
+  /// Runs when the person accepts a summon; the pane leaves full screen first.
+  final VoidCallback? onAcceptSummon;
 
   final CanvasDocument document;
   final List<VoiceParticipant> participants;
@@ -51,19 +58,46 @@ class CanvasPeerControls extends StatelessWidget {
       );
     }
     if (cursors == null) return const SizedBox.shrink();
-    return ListenableBuilder(
-      listenable: viewMode ?? relay.following,
-      builder: (context, _) => CanvasFollowControls(
-        relay: relay,
-        cursors: cursors,
-        participants: participants,
-        selfId: selfId,
-        canBringEveryone: !(viewMode?.personal ?? false),
-        onBringEveryone: () =>
-            relay.summonEveryone(document.visibleBoard ?? canvasSharedArea),
-      ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ListenableBuilder(
+          listenable: viewMode ?? relay.following,
+          builder: (context, _) => CanvasFollowControls(
+            relay: relay,
+            cursors: cursors,
+            participants: participants,
+            selfId: selfId,
+            canBringEveryone: !(viewMode?.personal ?? false),
+            onBringEveryone: () =>
+                relay.summonEveryone(document.visibleBoard ?? canvasSharedArea),
+          ),
+        ),
+        Align(
+          alignment: Alignment.topCenter,
+          child: SafeArea(
+            minimum: EdgeInsets.fromLTRB(
+              AppSpacing.s12,
+              canvasCornerRowsInset(context),
+              AppSpacing.s12,
+              AppSpacing.s12,
+            ),
+            child: CanvasSummonRequestCard(
+              relay: relay,
+              nameOf: _nameOf,
+              onAccept: onAcceptSummon ?? () => unawaited(relay.acceptSummon()),
+            ),
+          ),
+        ),
+      ],
     );
   }
+
+  String? _nameOf(String userId) => canvasFollowTargets(
+    cursors: cursors?.all ?? const [],
+    participants: participants,
+    selfId: selfId,
+  ).where((t) => t.id == userId).firstOrNull?.name;
 }
 
 /// The dock pinned to the bottom edge, height-reported so the surface can

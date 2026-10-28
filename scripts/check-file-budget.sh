@@ -48,6 +48,7 @@ mapfile -t files < <(
     grep -v '^\.sqlx/' |
     grep -Fxv 'schema/openapi.yaml' |
     grep -Ev '\.(g|freezed|pb|pbenum|pbjson|pbserver)\.dart$' |
+    grep -Ev '^client/packages/data/test/generated/' |
     sort
 )
 

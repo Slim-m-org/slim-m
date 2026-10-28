@@ -79,7 +79,7 @@ pub(in crate::http) const MAX_BODY_BYTES: usize = 8 * 1024;
 /// exception the way `image` does, since neither carries a field this route
 /// authorizes against - a note's text and a shape's own primitive both stay
 /// inside the opaque `props` every other kind's fields already do.
-const KINDS: [&str; 4] = ["stroke", "image", "note", "shape"];
+const KINDS: [&str; 5] = ["stroke", "image", "note", "shape", "text"];
 
 /// The only kind-specific field this server reads out of an otherwise opaque
 /// `props`: which attachment an `image` object names. A raw sha256, not a hex
@@ -147,6 +147,9 @@ pub(in crate::http) async fn place(
     let props = serde_json::to_string(&params.props).map_err(|_| ApiError::Internal)?;
     if props.len() > MAX_PROPS_BYTES {
         return Err(ApiError::BadRequest("canvas props are too large"));
+    }
+    if params.kind == "text" {
+        crate::canvas_text::check_text_props(&params.props).map_err(ApiError::BadRequest)?;
     }
     let attachment = if params.kind == "image" {
         Some(image_attachment(&params.props)?)

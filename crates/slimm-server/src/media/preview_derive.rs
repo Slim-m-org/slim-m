@@ -51,6 +51,8 @@ pub enum Variant {
 }
 
 impl Variant {
+    pub(super) const ALL: [Variant; 2] = [Self::Preview, Self::Still];
+
     /// The part of a preview file name that tells the variants apart.
     pub(super) fn tag(self) -> &'static str {
         match self {

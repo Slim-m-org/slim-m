@@ -245,6 +245,9 @@ abstract final class AppIcons {
   /// typed text, and the shape tool's primitives are picked from the overflow
   /// menu while it is active.
   static const IconData note = LucideIcons.stickyNote300;
+
+  /// The text tool: type straight onto the canvas with no card behind it.
+  static const IconData textBox = LucideIcons.type300;
   static const IconData shapeRectangle = LucideIcons.square300;
   static const IconData shapeEllipse = LucideIcons.circle300;
   static const IconData shapeLine = LucideIcons.minus300;

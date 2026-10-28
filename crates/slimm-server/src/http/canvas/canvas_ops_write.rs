@@ -36,7 +36,7 @@ use crate::store::{
 };
 
 /// The object kinds a scoped clear may name; the same set `place` accepts.
-const CLEAR_KINDS: [&str; 4] = ["stroke", "image", "note", "shape"];
+const CLEAR_KINDS: [&str; 5] = ["stroke", "image", "note", "shape", "text"];
 
 /// Widest `z_index` a reorder may carry: a client adds one for "bring to front", so it stays far inside the 2^53 integers every client holds exactly.
 const Z_INDEX_LIMIT: i64 = 1 << 52;
@@ -139,8 +139,11 @@ pub(in crate::http) async fn submit_op(
             return Err(ApiError::Conflict("that object is locked in place"));
         }
         Err(SubmitOpError::NotEditable) => {
-            return Err(ApiError::BadRequest("only a note can be edited"));
+            return Err(ApiError::BadRequest(
+                "only a note or a text box can be edited",
+            ));
         }
+        Err(SubmitOpError::BadProps(reason)) => return Err(ApiError::BadRequest(reason)),
         Err(SubmitOpError::Internal(err)) => return Err(err.into()),
     };
 

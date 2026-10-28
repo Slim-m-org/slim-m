@@ -17,6 +17,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../app_metrics.dart';
 import '../../app_tokens.dart';
@@ -38,6 +39,7 @@ class AppSlider extends StatefulWidget {
     this.min = 0,
     this.max = 100,
     this.divisions,
+    this.keyStep,
     this.tall = false,
     this.meter,
     this.meterActive = true,
@@ -46,6 +48,7 @@ class AppSlider extends StatefulWidget {
     this.semanticLabel,
     this.autofocus = false,
     this.valueLabel,
+    this.valueBubble = true,
     this.splitTrack = false,
   });
 
@@ -57,6 +60,9 @@ class AppSlider extends StatefulWidget {
   final double min;
   final double max;
   final int? divisions;
+
+  /// How far one arrow-key press, or one screen-reader increase, moves the value; null keeps Material's step.
+  final double? keyStep;
 
   /// The microphone-meter shape: a 22px trough instead of a 4px round track.
   final bool tall;
@@ -83,6 +89,9 @@ class AppSlider extends StatefulWidget {
   /// Formats the value for a bubble over the thumb, shown only while dragging or focused, and for screen readers.
   final String Function(double value)? valueLabel;
 
+  /// False keeps [valueLabel] for screen readers only, for a slider that shows its value beside it.
+  final bool valueBubble;
+
   /// A `tall` trough drawn in two tones either side of the thumb: quiet before it, heard after.
   final bool splitTrack;
 
@@ -99,7 +108,69 @@ class _AppSliderState extends State<AppSlider> {
   void initState() {
     super.initState();
     _focusNode.addListener(_handleFocusChange);
+    _focusNode.onKeyEvent = _stepByKey;
     FocusManager.instance.addHighlightModeListener(_onHighlightModeChange);
+  }
+
+  bool _commitOnKeyUp = false;
+
+  /// A held key repeats fast; each repeat moves the value and the release commits it once.
+  KeyEventResult _stepByKey(FocusNode _, KeyEvent event) {
+    final step = widget.keyStep;
+    final change = widget.onChanged;
+    if (step == null || change == null) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    final up = key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowUp;
+    final down = key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowDown;
+    if (!up && !down) return KeyEventResult.ignored;
+    if (event is KeyUpEvent) {
+      if (!_commitOnKeyUp) return KeyEventResult.ignored;
+      _commitOnKeyUp = false;
+      widget.onChangeEnd?.call(widget.value);
+      return KeyEventResult.handled;
+    }
+    final next = _stepped(up ? step : -step);
+    change(next);
+    if (event is KeyRepeatEvent) {
+      _commitOnKeyUp = true;
+    } else {
+      widget.onChangeEnd?.call(next);
+    }
+    return KeyEventResult.handled;
+  }
+
+  double _stepped(double delta) =>
+      (widget.value + delta).clamp(widget.min, widget.max).toDouble();
+
+  void _nudgeBySemantics(double delta) {
+    final next = _stepped(delta);
+    widget.onChanged?.call(next);
+    widget.onChangeEnd?.call(next);
+  }
+
+  /// Material's own increase and decrease move a fixed share of the range, so a
+  /// slider with a key step takes over those two actions and drags stay free.
+  Widget _withStepActions(Widget slider, double value) {
+    final step = widget.keyStep;
+    String text(double v) => widget.valueLabel?.call(v) ?? v.round().toString();
+    if (step == null || widget.onChanged == null) return slider;
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      label: widget.semanticLabel,
+      slider: true,
+      enabled: true,
+      focusable: true,
+      focused: _focused,
+      value: text(value),
+      increasedValue: text(_stepped(step)),
+      decreasedValue: text(_stepped(-step)),
+      onIncrease: () => _nudgeBySemantics(step),
+      onDecrease: () => _nudgeBySemantics(-step),
+      child: slider,
+    );
   }
 
   void _handleFocusChange() => setState(() => _focused = _focusNode.hasFocus);
@@ -288,15 +359,20 @@ class _AppSliderState extends State<AppSlider> {
           borderRadius: BorderRadius.circular(AppRadii.full),
         ),
         // On touch the 24px-tall control grows to the touch floor; the track stays centred and looks the same.
-        child: AppTouchTargets.of(context)
-            ? SizedBox(height: AppSizes.rowTouch, child: slider)
-            : slider,
+        child: _withStepActions(
+          AppTouchTargets.of(context)
+              ? SizedBox(height: AppSizes.rowTouch, child: slider)
+              : slider,
+          value,
+        ),
       ),
     );
 
     final label = widget.valueLabel;
-    final showBubble =
-        label != null && widget.onChanged != null && (_dragging || _focused);
+    final showBubble = label != null &&
+        widget.valueBubble &&
+        widget.onChanged != null &&
+        (_dragging || _focused);
     final withBubble = label == null
         ? ring
         : Stack(

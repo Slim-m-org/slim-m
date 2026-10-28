@@ -33,55 +33,17 @@ import 'providers.dart';
 import 'rate_limit_retry.dart';
 import 'reconnect_backoff.dart';
 import 'sync_failure.dart';
+import 'sync_ephemeral_reset.dart';
 import 'sync_frame_queue.dart';
-import '../features/messages/providers/typing_controller.dart';
-import '../features/members/providers/user_profiles.dart';
-import '../features/voice/providers/watch_room.dart';
+
+import 'sync_status.dart';
+
+export 'sync_status.dart';
 
 part 'sync_controller_catchup.dart';
 part 'sync_controller_events.dart';
 part 'sync_controller_reset.dart';
 part 'sync_controller_resume.dart';
-
-/// How the connection is doing, for the UI to show honestly rather than
-/// pretending everything is fine while messages silently stop arriving.
-enum SyncStatus { offline, connecting, live }
-
-/// Whether this session's first catch-up round has completed, independent of
-/// whether the live socket then attaches.
-///
-/// Read by the transcript ([MessageTranscript.historyKnown]) so an optimistic
-/// send made before the very first catch-up lands does not briefly anchor a
-/// day divider it does not really own - see `isNewDay`'s own doc comment.
-/// Deliberately not folded into [SyncStatus]: that flips back to
-/// `connecting`/`offline` on every later reconnect, while this only ever
-/// needs to become true once and stay true for the session, since a
-/// reconnect's catch-up can only confirm history already known, never
-/// un-confirm it.
-final initialSyncCompleteProvider = StateProvider<bool>((ref) => false);
-
-/// Whether this session has had a connect attempt actually fail since it was
-/// last [SyncStatus.live]: latched true the moment [start]'s catch block
-/// gives up on one, cleared the moment the socket attaches.
-///
-/// Read by [MobileBootGate] so a phone's retry loop only ever covers the app
-/// with the boot splash for the genuine first attempt, and by
-/// [SpaceConnectionDot]/[RailConnectionBar] (through [displaySyncStatus]) so
-/// their reading of the connection does not itself flip between "Connecting"
-/// and "Offline" on every retry - once a session has genuinely failed to
-/// connect, the reader has already seen that, and re-announcing it every
-/// backoff cycle tells them nothing new.
-final hasFailedSinceLiveProvider = StateProvider<bool>((ref) => false);
-
-/// The [SyncStatus] to actually show, collapsing a retry's
-/// [SyncStatus.connecting] attempt into [SyncStatus.offline] once
-/// [hasFailedSinceLiveProvider] has latched: a session that has already
-/// failed once is not made newly "connecting" by trying again on the same
-/// backoff loop.
-SyncStatus displaySyncStatus(SyncStatus status, bool hasFailedSinceLive) {
-  if (status == SyncStatus.live || !hasFailedSinceLive) return status;
-  return SyncStatus.offline;
-}
 
 /// Drives synchronisation.
 ///
@@ -148,6 +110,7 @@ class SyncController extends StateNotifier<SyncStatus> {
   /// False once [stop] or [dispose] ran, so a resume does not revive a stopped sync.
   bool _wantsConnection = false;
   final ReconnectBackoff _backoff;
+  int _overflowRestarts = 0;
   final _channelRefresher = ChannelRefresher();
 
   /// Channels a refresh on this connection did not bring into the store, such
@@ -226,6 +189,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     String objectId,
     List<double> points, {
     bool ended = false,
+    bool cancelled = false,
     String? color,
     double? width,
   }) => _connection?.canvasStrokePreview(
@@ -233,6 +197,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     objectId,
     points,
     ended: ended,
+    cancelled: cancelled,
     color: color,
     width: width,
   );
@@ -269,7 +234,8 @@ class SyncController extends StateNotifier<SyncStatus> {
     String channelId,
     ({double x, double y, double w, double h}) view, {
     bool summon = false,
-  }) => _connection?.canvasView(channelId, view, summon: summon);
+    String? tile,
+  }) => _connection?.canvasView(channelId, view, summon: summon, tile: tile);
 
   /// Starts, or restarts, synchronisation. Safe to call repeatedly: a call
   /// superseded by a later [start] or a [stop] before it reaches a given
@@ -284,17 +250,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     if (generation != _generation) return;
     state = SyncStatus.connecting;
     _unlistedChannels.clear();
-    // No cursor over a rename to catch up from, so forget every cached name on a fresh connect.
-    _ref.read(batchProfilesControllerProvider.notifier).clear();
-    // A missed voice.activity frame while disconnected is otherwise unrecoverable.
-    _ref.read(dmCallActivityProvider.notifier).clear();
-    _ref.read(dmCallRingControllerProvider.notifier).clear();
-    // Same: typing.stopped is ephemeral, so one missed frame sticks forever.
-    _ref.invalidate(typingControllerProvider);
-    // A watch tick is ephemeral too: the session may have moved on or ended while offline.
-    _ref.invalidate(watchRoomProvider);
-    // Listens for private answers from here on; created lazily it would miss the first one.
-    _ref.read(ephemeralMessagesProvider);
+    resetEphemeralSessionState(_ref);
     try {
       final api = _ref.read(apiProvider);
       final store = await _ref.read(storeProvider.future);
@@ -316,14 +272,21 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
-      await _catchUp(generation, api, store);
+      await _catchUp(
+        generation,
+        api,
+        store,
+        shouldStop: () => frames.overflowed,
+      );
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
+      if (frames.overflowed) throw const FrameBacklogOverflow();
       await frames.flush();
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
 
       _backoff.connected();
+      _overflowRestarts = 0;
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
       _wasLive = true;
@@ -337,15 +300,20 @@ class SyncController extends StateNotifier<SyncStatus> {
           isCurrent: () => generation == _generation,
         ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
+    } on FrameBacklogOverflow catch (error, stack) {
+      if (generation == _generation) _onBacklogOverflow(error, stack);
     } catch (error, stack) {
-      reportFailure(LogTag.sync, 'connect to the server', error, stack);
-      if (generation != _generation) return;
-      // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
-      state = SyncStatus.offline;
-      _ref.read(hasFailedSinceLiveProvider.notifier).state = true;
-      _ref.read(syncFailureProvider.notifier).state = syncFailureFor(error);
-      _scheduleRetry();
+      if (generation == _generation) _failConnect(error, stack);
     }
+  }
+
+  void _failConnect(Object error, StackTrace stack) {
+    reportFailure(LogTag.sync, 'connect to the server', error, stack);
+    // Both show offline and retry with backoff, but the reader is told which: see syncFailureProvider.
+    state = SyncStatus.offline;
+    _ref.read(hasFailedSinceLiveProvider.notifier).state = true;
+    _ref.read(syncFailureProvider.notifier).state = syncFailureFor(error);
+    _scheduleRetry();
   }
 
   /// Attaches the live socket and returns the queue its frames land in, held

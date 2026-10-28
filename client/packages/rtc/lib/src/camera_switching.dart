@@ -27,12 +27,15 @@ enum CameraFacing { front, back }
 /// camera mirrors; a local back one does not, since a rear camera already
 /// shows the world the way everyone else sees it; and a remote
 /// participant's camera is never mirrored regardless of [facing], because
-/// that value only ever describes this device's own camera.
+/// that value only ever describes this device's own camera. [mirrorSelf]
+/// is the person's own "Mirror my view" choice and only ever turns the local
+/// mirror off.
 lk.VideoViewMirrorMode mirrorModeFor({
   required bool isLocal,
   required CameraFacing facing,
+  bool mirrorSelf = true,
 }) {
-  if (!isLocal) return lk.VideoViewMirrorMode.off;
+  if (!isLocal || !mirrorSelf) return lk.VideoViewMirrorMode.off;
   return facing == CameraFacing.front
       ? lk.VideoViewMirrorMode.mirror
       : lk.VideoViewMirrorMode.off;

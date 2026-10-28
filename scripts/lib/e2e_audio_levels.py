@@ -56,6 +56,11 @@ def slider_to_gain(slider):
     return slider ** 3 if slider <= 1.0 else slider
 
 
+def boost_is_limited(out_peak, ceiling=1.0):
+    """Whether a boosted level stayed at or under full scale, so nothing clipped."""
+    return out_peak <= ceiling
+
+
 def volume_to_db(volume):
     """The level change a playback multiplier should produce; silence for 0."""
     if volume <= 0:

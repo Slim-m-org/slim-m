@@ -203,6 +203,9 @@ class CanvasPaneFixture {
   /// The head `GET .../canvas/ops` reports; null echoes the caller's cursor.
   int? opsHead;
 
+  /// Whether `GET .../canvas/ops` reports that the client must hard-reset.
+  bool opsReset = false;
+
   /// Every `GET .../canvas/ops` the pane sent: every viewport fetch runs a
   /// catch-up afterward, so this file's own tests only need the default
   /// answer below to keep paging correct - it is not itself under test here.
@@ -217,6 +220,12 @@ class CanvasPaneFixture {
   /// The status a Delete is answered with; anything but 200 refuses it.
   int deleteStatus = 200;
   var _opSeq = 0;
+
+  /// The caller's own timeout, Unix milliseconds, served on `/me`.
+  int? timedOutUntil;
+
+  /// The server version served on `/version`.
+  String serverVersion = '0.102.0';
 
   /// A caller that also needs `voiceControllerProvider` or `blocksProvider`
   /// stubbed (the presence-layer suite) appends onto this rather than this
@@ -237,10 +246,21 @@ class CanvasPaneFixture {
             'display_name': 'Me',
             'created_at': 0,
             'permissions': mePermissions,
+            if (timedOutUntil != null) 'timed_out_until': timedOutUntil,
           });
         }
         if (request.url.path.endsWith('/permissions')) {
           return jsonResponse({'permissions': channelPermissions});
+        }
+        if (request.url.path == '/version') {
+          return jsonResponse({
+            'name': 'slim-m',
+            'version': serverVersion,
+            'protocol': 1,
+            'push_enabled': false,
+            'invite_required': false,
+            'claimed': true,
+          });
         }
         if (request.method == 'DELETE' &&
             request.url.path.contains('/canvas/objects/')) {
@@ -321,7 +341,7 @@ class CanvasPaneFixture {
             'ops': <Object>[],
             'latest_seq': opsHead ?? afterSeq,
             'has_more': false,
-            'reset': false,
+            'reset': opsReset,
           });
         }
         if (request.url.path.endsWith('/canvas/media-slots')) {

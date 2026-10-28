@@ -93,6 +93,25 @@ void main() {
     expect(message, contains('you cannot grant Manage roles'));
   });
 
+  test('an equal-rank refusal and a policy refusal say why', () {
+    expect(
+      describeApiFailure(
+        'remove Sam',
+        const api.ForbiddenException(api.ForbiddenException.equalRankRefusal),
+      ),
+      'Could not remove Sam: you cannot act on someone of the same rank as you.',
+    );
+    expect(
+      describeApiFailure(
+        'change the two-factor policy',
+        const api.ForbiddenException(
+          api.ForbiddenException.ownSecondFactorRefusal,
+        ),
+      ),
+      'Could not change the two-factor policy: turn on two-factor sign-in on your own account first.',
+    );
+  });
+
   test('a forbidden and an unauthorized read differently', () {
     final forbidden = describeApiFailure(
       'delete the role',

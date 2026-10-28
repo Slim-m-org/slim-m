@@ -9,8 +9,6 @@
 //! the account-destroying calls (`logout`, `deleteAccount`, `resetPassword`)
 //! run last, against accounts nothing else still needs.
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use serde_json::{Value, json};
 
 use super::world::{Contract, Payload};
@@ -32,6 +30,7 @@ mod member_account;
 mod members_bulk;
 mod notification_schedule_calls;
 mod people;
+mod push_invite_calls;
 mod read_state;
 mod refusals;
 mod space_banner;
@@ -52,6 +51,7 @@ use farewell::farewell_calls;
 use gifs::gif_calls;
 use link_preview::link_preview_calls;
 use people::{moderation_calls, profile_calls, safety_calls};
+use push_invite_calls::{channel_retention_calls, invite_calls, push_calls};
 use space_banner::banner_calls;
 use space_icon::icon_calls;
 use threads::thread_calls;
@@ -376,128 +376,4 @@ pub async fn run(c: &mut Contract) {
     // Last: a refusal leaves no state behind.
     refusals::refusal_calls(c, bob_token, &admin_id, &code).await;
     farewell_calls(c, root, &bob_id, &code, &channel).await;
-}
-
-async fn push_calls(c: &mut Contract, root: &str, channel: &str, bob_id: &str) {
-    c.get("getNotificationPreference", "/push/preference", root)
-        .await;
-    c.json(
-        "setNotificationPreference",
-        "PUT",
-        "/push/preference",
-        root,
-        json!({ "preference": "mentions" }),
-    )
-    .await;
-    c.get("getPushPreview", "/push/preview", root).await;
-    c.json(
-        "setPushPreview",
-        "PUT",
-        "/push/preview",
-        root,
-        json!({ "include_content": false }),
-    )
-    .await;
-    c.json(
-        "registerPush",
-        "PUT",
-        "/push",
-        root,
-        json!({
-            "platform": "ios",
-            "push_token": "a-device-token",
-            "voip_push_token": "a-voip-token",
-            "push_public_key": BASE64.encode([7u8; 32]),
-        }),
-    )
-    .await;
-    c.json(
-        "reportPushLifecycle",
-        "PUT",
-        "/push/lifecycle",
-        root,
-        json!({ "state": "background" }),
-    )
-    .await;
-    channel_notification_override_calls(c, root, channel).await;
-    c.get("getDirectRoute", "/direct-route", root).await;
-    c.get("diagnosticsPing", "/diagnostics/ping", root).await;
-    notification_schedule_calls::notification_schedule_calls(c, root, channel, bob_id).await;
-    c.bare("deregisterPush", "DELETE", "/push", root).await;
-}
-
-/// Set, list, and clear a per-channel override, in that order so the list
-/// call sees a real, non-empty answer rather than only the empty case.
-async fn channel_notification_override_calls(c: &mut Contract, root: &str, channel: &str) {
-    c.json(
-        "setChannelNotificationOverride",
-        "PUT",
-        &format!("/notification-preferences/channels/{channel}"),
-        root,
-        json!({ "preference": "everything" }),
-    )
-    .await;
-    c.get(
-        "listChannelNotificationOverrides",
-        "/notification-preferences/channels",
-        root,
-    )
-    .await;
-    c.bare(
-        "clearChannelNotificationOverride",
-        "DELETE",
-        &format!("/notification-preferences/channels/{channel}"),
-        root,
-    )
-    .await;
-}
-
-/// A second, unlimited code, so redeeming and revoking it cannot spend or
-/// close the one the remaining registrations below still need. Checking this
-/// one as well as the capped one above is what puts a null through the
-/// optional halves of the invite preview.
-async fn invite_calls(c: &mut Contract, root: &str, bob_token: &str) {
-    let spare = c
-        .json("createInvite", "POST", "/invites", root, json!({}))
-        .await;
-    let spare = text(&spare, "code");
-    c.call(
-        "checkInvite",
-        "GET",
-        &format!("/invites/{spare}/check"),
-        None,
-        Payload::None,
-    )
-    .await;
-    c.bare(
-        "redeemInvite",
-        "POST",
-        &format!("/invites/{spare}/redeem"),
-        bob_token,
-    )
-    .await;
-    c.bare("revokeInvite", "DELETE", &format!("/invites/{spare}"), root)
-        .await;
-}
-
-/// A channel's own retention, set and cleared again so the rest of the pass keeps following the Space.
-async fn channel_retention_calls(c: &mut Contract, root: &str, channel: &str) {
-    let path = format!("/channels/{channel}/retention");
-    c.get("getChannelRetention", &path, root).await;
-    c.get(
-        "previewChannelRetention",
-        &format!("{path}/preview?days=30"),
-        root,
-    )
-    .await;
-    for days in [json!(30), json!(null)] {
-        c.json(
-            "updateChannelRetention",
-            "PUT",
-            &path,
-            root,
-            json!({ "retention_days": days }),
-        )
-        .await;
-    }
 }

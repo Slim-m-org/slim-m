@@ -17,6 +17,9 @@ name = "slimm-server"
 path = "src/main.rs"
 
 [dependencies]
+# Resource limits (setrlimit) for the PDF worker child; already in the lockfile through tokio.
+libc = "0.2"
+lopdf = { version = "0.42.0", default-features = false }
 axum.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
@@ -57,6 +60,8 @@ tikv-jemallocator = "0.7.0"
 criterion = { version = "0.5", features = ["html_reports"] }
 # Compiles hand-written WAT fixtures at test time so their behavior is readable in the test.
 wat = "1"
+# Builds a decompression-bomb PDF in tests/attachments/pdf_worker.rs.
+flate2 = "1"
 # A real client for the fan-out test; the round-trip tests use tower above.
 tokio-tungstenite = "0.24"
 # Validates responses against schema/openapi.yaml in tests/response_contract.rs; default-features cut is deliberate (docs/dependencies.md).

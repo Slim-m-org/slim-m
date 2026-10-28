@@ -52,7 +52,7 @@ bool probeFails = false;
 Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required KeyStore keyStore,
-  required String presentedKey,
+  required String? presentedKey,
   bool signedIn = true,
 }) async {
   final client = MockClient((request) async {
@@ -63,7 +63,7 @@ Future<ProviderContainer> _pump(
           'name': 'slim-m',
           'version': '1.0.0',
           'protocol': 1,
-          'identity': _identity(presentedKey),
+          if (presentedKey != null) 'identity': _identity(presentedKey),
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -171,5 +171,38 @@ void main() {
 
     expect(find.text("This server's identity changed"), findsOneWidget);
     expect(find.text('the app'), findsNothing);
+  });
+
+  testWidgets('a pinned server that reports no identity stops the app', (
+    tester,
+  ) async {
+    final store = InMemoryKeyStore();
+    await store.put(_handle, _keyA);
+    await _pump(tester, keyStore: store, presentedKey: null);
+
+    expect(find.text('the app'), findsNothing);
+    expect(find.text("This server's identity changed"), findsOneWidget);
+    expect(find.text('Continue without an identity'), findsOneWidget);
+  });
+
+  testWidgets('no pin and no identity leaves the app alone', (tester) async {
+    await _pump(tester, keyStore: InMemoryKeyStore(), presentedKey: null);
+    expect(find.text('the app'), findsOneWidget);
+  });
+
+  testWidgets('continuing without an identity keeps the pin and resumes', (
+    tester,
+  ) async {
+    final store = InMemoryKeyStore();
+    await store.put(_handle, _keyA);
+    await _pump(tester, keyStore: store, presentedKey: null);
+
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pump();
+    await tester.tap(find.text('Continue without an identity'));
+    await tester.pumpAndSettle();
+
+    expect(await store.read(_handle), _keyA);
+    expect(find.text('the app'), findsOneWidget);
   });
 }

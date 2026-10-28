@@ -8,23 +8,28 @@ import 'package:slimm_app/src/features/canvas/screens/canvas_tool_model.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 void main() {
-  test('the order is pan, pen, note, shape, eraser and covers every tool', () {
-    expect(canvasToolOrder, [
-      CanvasTool.pan,
-      CanvasTool.pen,
-      CanvasTool.note,
-      CanvasTool.shape,
-      CanvasTool.eraser,
-    ]);
-    expect(canvasToolOrder.first, CanvasTool.pan);
-    expect(canvasToolOrder.toSet(), CanvasTool.values.toSet());
-  });
+  test(
+    'the order is pan, pen, note, text, shape, eraser and covers every tool',
+    () {
+      expect(canvasToolOrder, [
+        CanvasTool.pan,
+        CanvasTool.pen,
+        CanvasTool.note,
+        CanvasTool.text,
+        CanvasTool.shape,
+        CanvasTool.eraser,
+      ]);
+      expect(canvasToolOrder.first, CanvasTool.pan);
+      expect(canvasToolOrder.toSet(), CanvasTool.values.toSet());
+    },
+  );
 
-  test('the keys are H P N S E in strip order, one per tool', () {
+  test('the keys are H P N T S E in strip order, one per tool', () {
     expect(canvasToolOrder.map((tool) => tool.shortcutKey), [
       LogicalKeyboardKey.keyH,
       LogicalKeyboardKey.keyP,
       LogicalKeyboardKey.keyN,
+      LogicalKeyboardKey.keyT,
       LogicalKeyboardKey.keyS,
       LogicalKeyboardKey.keyE,
     ]);
@@ -43,6 +48,7 @@ void main() {
         CanvasTool.pan: true,
         CanvasTool.pen: false,
         CanvasTool.note: false,
+        CanvasTool.text: false,
         CanvasTool.shape: false,
         CanvasTool.eraser: true,
       },

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) AS \"count!: i64\" FROM (\n                 SELECT 1 FROM messages\n                 WHERE channel_id = ? AND deleted_at IS NULL\n                   AND seq > COALESCE(\n                       (SELECT last_read_seq FROM read_states\n                        WHERE user_id = ? AND channel_id = ?),\n                       0)\n                 LIMIT ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "count!: i64",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "78e8a657ea9aa31d53e6bbc1a9f6ceb6f1f06d1b6c3c4fad1ad890e8520e7c07"
+}

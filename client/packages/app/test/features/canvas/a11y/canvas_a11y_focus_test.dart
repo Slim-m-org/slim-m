@@ -89,7 +89,7 @@ void main() {
     await pressKey(tester, LogicalKeyboardKey.enter);
     await settle(tester);
 
-    for (final swatch in ['Coral', 'Amber', 'Thin']) {
+    for (final swatch in ['Coral', 'Amber', 'Size']) {
       expect(await tabTo(tester, swatch), isTrue, reason: swatch);
       expect(await _focusShows(rig), isTrue, reason: swatch);
     }

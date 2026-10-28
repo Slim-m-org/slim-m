@@ -31,6 +31,7 @@ import 'package:clock/clock.dart';
 import 'package:desktop_drop/desktop_drop.dart' show DropItem;
 import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsService;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
@@ -56,10 +57,12 @@ import '../providers/canvas_self_presence.dart';
 import '../../composer/widgets/composer_clipboard_image.dart'
     show pasteKeystrokeReadsClipboardImage;
 import '../widgets/canvas_clear_scope.dart' show CanvasScopedClear;
-import '../widgets/canvas_note_editor.dart';
 import '../widgets/canvas_note_spans.dart';
+import 'canvas_text_tool.dart';
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../../channels/providers/channel_permissions.dart';
+import '../../channels/providers/threads.dart' show openThreadProvider;
+import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import '../../../providers/providers.dart';
 import '../../voice/providers/fullscreen_video.dart';
 import '../../voice/providers/share_watch.dart';
@@ -74,10 +77,14 @@ import 'canvas_cursor_relay.dart';
 import 'canvas_object_preview_relay.dart';
 import 'canvas_text_focus.dart';
 import 'canvas_engine.dart';
+import 'canvas_timeout_banner.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_presence_geometry.dart'
+    show presenceScreenLabel, presenceTileIdentity, presenceTileKind;
 import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
 import 'canvas_fullscreen.dart';
+import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_image_paste.dart';
 import 'canvas_media_slot_sync.dart';
 import 'canvas_note_sheet.dart';
@@ -131,6 +138,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   /// The note whose in-place editor is open, if any.
   String? _editingNoteId;
 
+  late final _text = CanvasTextTool(
+    engine: _engine,
+    placement: () => _quickPlacement,
+    ref: ref,
+    currentTool: () => _tool,
+    changed: _refresh,
+    onPlaced: (id, tool) => _selectPlaced(id, startedWith: tool),
+    focusBoard: _boardFocusNode.requestFocus,
+  );
+
   /// The last mouse click on a note, so a second one soon after is a double click.
   ({String id, DateTime at})? _lastNoteClick;
 
@@ -138,22 +155,16 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
   String? _selectedBeforeDown;
   final _focusNode = FocusNode(debugLabel: 'canvas pane');
   final _boardFocusNode = FocusNode(debugLabel: 'canvas board');
+  late final CanvasTimeoutBanner _timeoutBanner;
 
   /// How many pointers are down inside the pane right now.
   int _pointersDown = 0;
-  late CanvasPenStyle _pen = _profilePen();
+  late CanvasPenStyle _pen;
   final _dragPan = CanvasDragPan();
   CanvasImagePaste? _imagePasteHelper;
   CanvasQuickPlacement? _quickPlacementHelper;
 
-  /// Captured once here rather than read fresh from `ref` on every access:
-  /// `ref.read`/`ref.watch` both throw once this element is unmounting (see
-  /// [dispose]'s own doc), so a handle taken while it is still safe to ask
-  /// is the only way [dispose] can reach the engine at all. Bound to
-  /// [widget.channelId] as of this exact call, matching every other
-  /// per-channel field this pane ever bound eagerly at construction - a
-  /// later `didUpdateWidget` with a different channel id was never a case
-  /// this pane handled.
+  /// Captured once: `ref.read` throws while this element unmounts, and [dispose] still needs the engine.
   late final CanvasEngine _engine = ref.read(
     canvasEngineProvider(widget.channelId).notifier,
   );
@@ -177,11 +188,38 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       ref.read(portraitLockedPhoneProvider.notifier),
     );
     _engine.attachPane(); // also forces the late field's ref.read now
+    _engine.viewRelay.followedTile.addListener(_onFollowedTile);
+    _timeoutBanner = CanvasTimeoutBanner(
+      timedOutUntil: () => ref.read(meProvider).valueOrNull?.timedOutUntil,
+      error: () => ref.read(canvasEngineProvider(widget.channelId)).error,
+      clear: () => _engine.reportError(null),
+    );
+    ref.listenManual(
+      canvasEngineProvider(widget.channelId).select((s) => s.error),
+      (_, error) {
+        _timeoutBanner.watch();
+        _disarmWhenDrawingIsRefused(error);
+      },
+    );
+    _timeoutBanner.watch();
+    // Plain assignment: setState is not allowed in initState, and nothing has built yet.
+    if (canvasErrorBlocksDrawing(
+          ref.read(canvasEngineProvider(widget.channelId)).error,
+        ) &&
+        _tool.placesObjects) {
+      _tool = CanvasTool.pan;
+    }
+    ref.listenManual(
+      meProvider.select((m) => m.valueOrNull?.timedOutUntil),
+      (_, _) => _timeoutBanner.watch(),
+    );
     // This pane is the only content mounted while it exists, so one listener for the whole mount is safe: nothing else here could hold it at the same time.
     _imagePaste.start();
     _document.setBottomInset(
       _boardInset(ref.read(bottomDockReservationProvider)),
     );
+    _pen = ref.read(canvasActivePenStyleProvider) ?? _profilePen();
+    _shapeKind = ref.read(canvasActiveShapeKindProvider);
   }
 
   /// Starts the pen in the colour nearest the user's profile colour, when one is set.
@@ -210,18 +248,25 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     _disarmIfAlreadyFullscreen();
   }
 
-  /// The engine closes when the last pane for its channel leaves, counted
-  /// through [CanvasEngine.attachPane], so a departing pane cannot tear down
-  /// the engine a second pane for the same channel is still using.
+  /// The engine closes when the last pane for its channel leaves ([CanvasEngine.attachPane]).
   @override
   void dispose() {
     _imagePasteHelper?.stop();
+    _timeoutBanner.dispose();
     _boardFocusNode.dispose();
     _focusNode.dispose();
     _windowHold.release();
     _landscapeHold.release();
+    _engine.viewRelay.followedTile.removeListener(_onFollowedTile);
     _engine.detachPane();
     super.dispose();
+  }
+
+  /// A refused canvas cannot take ink, so an armed pen, note or shape goes back to Pan rather than failing on every press.
+  void _disarmWhenDrawingIsRefused(String? error) {
+    if (canvasErrorBlocksDrawing(error) && _tool.placesObjects) {
+      _refresh(() => _tool = CanvasTool.pan);
+    }
   }
 
   /// The same bridge [_refresh] is, for a caller that needs the raw
@@ -260,9 +305,13 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
       (_, height) => _document.setBottomInset(_boardInset(height)),
     );
     final noteSpanStyle = _noteSpanStyle(context);
-    final editingNote = _editingNoteId != null;
+    final editingNote = _editingNoteId != null || _text.draft != null;
     final focusedTile = _focusedTileKey;
     final voiceFlags = ref.watch(voiceFlagsProvider);
+    final partialClear =
+        ref.watch(serverInfoProvider).valueOrNull?.supportsPartialClear ??
+        false;
+    final canDraw = !canvasErrorBlocksDrawing(engineState.error);
     // Held here: the layer reports its release from dispose, when ref can no longer be read.
     final interest = ref.read(videoInterestRelayProvider);
     return CanvasRealWindowScope(
@@ -278,6 +327,8 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             else if (fullscreen)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _escapeFullscreen
+            else if (_threadPaneDocked)
+              const SingleActivator(LogicalKeyboardKey.escape): _closeThreadPane
             else if (_memberPaneDocked)
               const SingleActivator(LogicalKeyboardKey.escape):
                   _closeMemberPane,
@@ -293,12 +344,9 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
             child: Focus(
               skipTraversal: true,
               focusNode: _focusNode,
-              onKeyEvent: (_, event) => _onToolKey(
-                event,
-                canDraw: !canvasErrorBlocksDrawing(engineState.error),
-              ),
+              onKeyEvent: (_, event) => _onToolKey(event, canDraw: canDraw),
               child: AppDropZone(
-                enabled: !canvasErrorBlocksDrawing(engineState.error),
+                enabled: canDraw,
                 label: 'Drop an image to place it',
                 icon: AppIcons.image,
                 onDrop: (items) => unawaited(_dropImage(items)),
@@ -321,7 +369,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   canManage: manageCanvas,
                   document: _document,
                   onClear: _onClear,
-                  scopedClear: _scopedClear,
+                  scopedClear: partialClear ? _scopedClear : null,
                   onPasteImage: () => unawaited(_imagePaste.pasteFromButton()),
                   onAddImageFile: () => unawaited(_pickImageFile()),
                   onPasteImageAt: (world) =>
@@ -350,26 +398,30 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   noteSpans: (text, base) =>
                       buildNoteSpans(text, base, noteSpanStyle),
                   noteSpansRevision: noteSpanStyle.revision,
-                  noteEditor: _editingNoteId == null
-                      ? null
-                      : CanvasNoteEditor(
-                          key: ValueKey(_editingNoteId),
-                          document: _document,
-                          objectId: _editingNoteId!,
-                          onSave: (text) =>
-                              unawaited(_onNoteEditSave(_editingNoteId!, text)),
-                          onCancel: _onNoteEditCancel,
-                        ),
+                  noteEditor: _text.editor(
+                    _editingNoteId,
+                    onCancel: _onNoteEditCancel,
+                    onEditClosed: () => _refresh(() => _editingNoteId = null),
+                    onNoteSave: _onNoteEditSave,
+                  ),
                   onNotePlace: (world) => unawaited(_onNotePlace(world)),
+                  onTextPlace: _text.place,
+                  onSelectLongPress: _text.longPress,
                   onShapePlace: (world, size, {flipX = false, flipY = false}) =>
                       unawaited(
                         _onShapePlace(world, size, flipX: flipX, flipY: flipY),
                       ),
                   shapeKind: _shapeKind,
-                  onShapeKindChanged: (kind) =>
-                      setState(() => _shapeKind = kind),
+                  onShapeKindChanged: (kind) {
+                    ref.read(canvasActiveShapeKindProvider.notifier).state =
+                        kind;
+                    setState(() => _shapeKind = kind);
+                  },
                   pen: _pen,
-                  onPenChanged: (pen) => setState(() => _pen = pen),
+                  onPenChanged: (pen) {
+                    ref.read(canvasActivePenStyleProvider.notifier).state = pen;
+                    setState(() => _pen = pen);
+                  },
                   onBringToFront: (id) => unawaited(_onBringToFront(id)),
                   onSendToBack: (id) => unawaited(_onSendToBack(id)),
                   onDeleteSelected: (id) => unawaited(_onDeleteSelected(id)),
@@ -391,6 +443,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                     ),
                   ),
                   onDraftEnded: _strokePreview.endLocalDraft,
+                  onDraftCancel: _strokePreview.cancelLocalDraft,
                   callParticipants: _callParticipants(),
                   cameraViewFor: (identity) => ref
                       .read(voiceControllerProvider.notifier)

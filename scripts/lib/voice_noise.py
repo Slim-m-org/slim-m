@@ -15,6 +15,8 @@ SPEECH_DB = -45.0
 ONSET_WINDOW = 20
 ONSET_DROP_DB = 10.0
 CLIPPED_MS = 30
+# Onsets that cross this level are real words; the -45 dB ones include breath and room tone a suppressor should remove.
+LOUD_ONSET_DB = -35.0
 QUIET_FRAMES = 50
 MARGIN_S = 0.3
 
@@ -69,19 +71,19 @@ def _excess(view, level, frames, gain):
                  - _power_mean([view.clean[i] for i in talk]), 2)
 
 
-def _onsets(view, speech):
-    """Frames where speech starts after half a second of quiet."""
+def _onsets(view, speech, level=SPEECH_DB):
+    """Frames where speech above `level` starts after half a second of quiet."""
     inside = set(speech)
     return [i for i in range(QUIET_FRAMES, view.frames)
-            if i in inside and view.clean[i] > SPEECH_DB
-            and all(v <= SPEECH_DB for v in view.clean[i - QUIET_FRAMES:i])]
+            if i in inside and view.clean[i] > level
+            and all(v <= level for v in view.clean[i - QUIET_FRAMES:i])]
 
 
-def _onset_loss(view, gain, speech):
+def _onset_loss(view, gain, speech, level=SPEECH_DB):
     lost = []
-    for i in _onsets(view, speech):
+    for i in _onsets(view, speech, level):
         window = range(i, min(view.frames, i + ONSET_WINDOW))
-        lost.append(10 * sum(1 for j in window if view.clean[j] > SPEECH_DB
+        lost.append(10 * sum(1 for j in window if view.clean[j] > level
                              and view.rec[j] < view.clean[j] + gain - ONSET_DROP_DB))
     return {"count": len(lost),
             "mean_lost_ms": round(statistics.mean(lost), 1) if lost else 0.0,
@@ -108,4 +110,5 @@ def analyze(clean, mix, rec, speech_spans, events):
             pair["sent_excess_over_speech_db"] = _excess(view, view.mix, frames, 0.0)
         out[event["kind"]] = pair
     out["onsets"] = _onset_loss(view, gain, speech)
+    out["onsets"]["loud"] = _onset_loss(view, gain, speech, LOUD_ONSET_DB)
     return out

@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:slimm_api/api.dart' as api;
+import '../../messages/providers/message_search.dart'
+    show matchedAttachmentName;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/widgets/channel_kind_icon.dart';
@@ -378,6 +380,7 @@ class PaletteMessageMeta extends StatelessWidget {
       color: tokens.textSecondary,
     );
     final day = formatMessageDay(message.createdAt);
+    final file = matchedAttachmentName(message);
     return Row(
       children: [
         PaletteMessageAuthor(
@@ -387,7 +390,7 @@ class PaletteMessageMeta extends StatelessWidget {
         ),
         Flexible(
           child: Text(
-            ' in $channelLabel \u00B7 $day',
+            ' in $channelLabel \u00B7 $day${file == null ? '' : ' \u00B7 in $file'}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: style,

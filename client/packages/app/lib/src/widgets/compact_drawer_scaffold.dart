@@ -27,12 +27,14 @@ class CompactDrawerScaffold extends ConsumerStatefulWidget {
     required this.showRail,
     required this.showMembers,
     this.membersByEdgeDrag = true,
+    this.onBack,
     super.key,
   });
 
   final String channelId;
   final Widget body;
   final bool showAppBar;
+  final VoidCallback? onBack;
 
   /// False where the pane above also claims the left edge itself (the canvas).
   final bool showRail;
@@ -66,8 +68,12 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
     final showMembers = widget.showMembers;
     final edgeWidth = drawerEdgeDragWidth(context);
     final chatOverCall = voiceChatOverCall(ref, channelId);
+    final onBack = widget.onBack;
+    final customBack = onBack != null || chatOverCall;
     void back() {
-      if (chatOverCall) {
+      if (onBack != null) {
+        onBack();
+      } else if (chatOverCall) {
         ref.read(voiceChatPaneVisibleProvider.notifier).state = false;
       } else {
         context.go(Routes.channels);
@@ -75,7 +81,7 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
     }
 
     return PopScope(
-      canPop: !chatOverCall,
+      canPop: !customBack,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) back();
       },

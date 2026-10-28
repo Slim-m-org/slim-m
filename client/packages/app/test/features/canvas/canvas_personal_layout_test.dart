@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_fullscreen.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_personal_layout_keeper.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_data/data.dart';
@@ -47,6 +48,9 @@ class _Session {
     container = fixture.container(
       extraOverrides: [
         databaseProvider.overrideWith((ref) async => db),
+        canvasPersonalLayoutSaveDelayProvider.overrideWithValue(
+          const Duration(milliseconds: 10),
+        ),
         mockApiOverride((request) async {
           if (request.method != 'GET') writes.add(request);
           return jsonResponse(_get(request.url.path));
@@ -214,6 +218,59 @@ void main() {
     },
   );
 
+  for (final settleBeforeClosing in [false, true]) {
+    test(
+      'a full screen tile fit is never saved as the personal camera '
+      '(${settleBeforeClosing ? 'after the save delay' : 'closed at once'})',
+      () async {
+        final first = _Session(db, writes);
+        final engine = await first.open('c1');
+        _arrange(engine);
+        await _settle();
+        final camera = engine.document.camera;
+
+        first.container.read(canvasFocusedTileProvider.notifier).state = (
+          channelId: 'c1',
+          tileKey: 'screen:a',
+        );
+        engine.document.setCamera(const Camera(x: 10, y: 20, zoom: 4));
+        if (settleBeforeClosing) await _settle();
+        await first.close();
+
+        final second = _Session(db, writes);
+        addTearDown(second.close);
+        final reopened = await second.open('c1');
+        expect(reopened.viewMode.personal, isTrue);
+        expect(reopened.document.camera, camera);
+      },
+    );
+  }
+
+  test(
+    'leaving full screen puts the personal camera back and saves it',
+    () async {
+      final first = _Session(db, writes);
+      final engine = await first.open('c1');
+      _arrange(engine);
+      final camera = engine.document.camera;
+      final focus = first.container.read(canvasFocusedTileProvider.notifier);
+      focus.state = (channelId: 'c1', tileKey: 'screen:a');
+      engine.document.setCamera(const Camera(x: 10, y: 20, zoom: 4));
+      await _settle();
+
+      focus.state = null;
+      engine.document.setCamera(camera.copyWith(x: camera.x + 50));
+      await _settle();
+      final moved = engine.document.camera;
+      await first.close();
+
+      final second = _Session(db, writes);
+      addTearDown(second.close);
+      final reopened = await second.open('c1');
+      expect(reopened.document.camera, moved);
+    },
+  );
+
   test('being summoned shows the shared view and keeps the layout', () async {
     final session = _Session(db, writes);
     addTearDown(session.close);
@@ -225,6 +282,7 @@ void main() {
       const Rect.fromLTWH(500, 400, 800, 450),
       summon: true,
     );
+    await engine.viewRelay.acceptSummon();
 
     expect(engine.viewMode.personal, isFalse);
     expect(engine.viewMode.hasLayout, isTrue);
@@ -275,7 +333,7 @@ void main() {
     final session = _Session(db, writes);
     addTearDown(session.close);
     await session.open('c1');
-    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     final rows = await db.select(db.canvasPersonalLayouts).get();
     expect(rows.single.updatedAt, 1, reason: 'restoring is not an edit');
@@ -287,7 +345,7 @@ void main() {
     final engine = await session.open('c1');
     engine.viewMode.showPersonal();
     engine.tileOverrides.setRect('screen:a', _place);
-    await Future<void>.delayed(personalLayoutSaveDelay * 3);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     final saved = CanvasPersonalLayout.decode(
       (await CanvasLayoutStore(db).load('c1'))!,
@@ -331,7 +389,7 @@ void main() {
     engine.document.setCamera(_zoomedCamera());
 
     expect(await CanvasLayoutStore(db).load('c1'), isNull);
-    await Future<void>.delayed(personalLayoutSaveDelay * 2);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
 
     expect(await CanvasLayoutStore(db).load('c1'), isNotNull);
   });

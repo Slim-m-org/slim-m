@@ -17,6 +17,19 @@ mixin VideoQualityRecorder {
     const {},
   );
 
+  /// What the share-audio getters answer; [setScreenShareAudioMuted] writes the second.
+  bool shareHasAudio = false;
+  bool shareAudioMuted = false;
+
+  bool get screenShareHasAudio => shareHasAudio;
+
+  bool get screenShareAudioMuted => shareAudioMuted;
+
+  Future<bool> setScreenShareAudioMuted(bool muted) async {
+    shareAudioMuted = muted;
+    return true;
+  }
+
   ReceiveVideoQuality? lastReceiveVideoQuality;
   CameraQuality? lastCameraQuality;
 
@@ -59,6 +72,19 @@ mixin VideoQualityRecorder {
 
   /// The speaker the test says playback is routed to.
   String? audioOutputInUse;
+
+  bool? lastMicFallbackEnabled;
+  String? micFallbackNotice;
+  final micFallbackNoticeChanges = StreamController<String?>.broadcast();
+
+  Stream<String?> get micFallbackNotices => micFallbackNoticeChanges.stream;
+
+  void setMicFallbackEnabled(bool enabled) => lastMicFallbackEnabled = enabled;
+
+  void dismissMicFallbackNotice() {
+    micFallbackNotice = null;
+    micFallbackNoticeChanges.add(null);
+  }
 
   Future<bool> resetMicrophone() async {
     microphoneResets++;

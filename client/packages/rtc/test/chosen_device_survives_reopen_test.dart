@@ -100,7 +100,6 @@ class _Rig {
       liveOutput: (room, device) async => outputs.add(device.deviceId),
       micRecoveryTiming: _timing,
       micReleaseGrace: const Duration(milliseconds: 30),
-      captureRestartDebounce: const Duration(milliseconds: 10),
       inputGate: InputGateMonitor(
         interval: const Duration(milliseconds: 5),
         invoke: (method, [args]) async => method == 'getInputGate'
@@ -174,16 +173,6 @@ void main() {
   test('the silent-capture restart uses the chosen microphone', () async {
     await start(levelDb: kInputFloorDb);
     await _until(() => rig.mic.opened.length >= 2);
-    rig.expectAllChosen();
-  });
-
-  test('turning Strong on or off reopens the chosen microphone', () async {
-    await start();
-    final before = rig.mic.opened.length;
-    rig.session.setStrongNoiseSuppression(true);
-    await _until(() => rig.mic.opened.length > before);
-    rig.session.setStrongNoiseSuppression(false);
-    await _until(() => rig.mic.opened.length > before + 1);
     rig.expectAllChosen();
   });
 

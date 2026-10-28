@@ -28,26 +28,43 @@ pub(crate) async fn with_reactions(
     messages: Vec<Message>,
 ) -> anyhow::Result<Vec<MessageDto>> {
     let ids: Vec<MessageId> = messages.iter().map(|m| m.id).collect();
-    let mut by_message = state.store.reactions_for_messages(&ids, viewer).await?;
-    let mut attachments_by_message = state.store.attachments_for_messages(&ids).await?;
-    let mut threads_by_message = state.store.thread_summaries_for_messages(&ids).await?;
-    let mut forwards_by_message = super::message_forwards::for_messages(state, &ids).await?;
-    let mut code_runs_by_message = state.store.code_runs_for_messages(&ids).await?;
-    let mut calls_by_message = state.store.calls_for_messages(&ids).await?;
-    let mut embeds_by_message = state.store.embeds_for_messages(&ids).await?;
-    let mut webhook_usernames = state.store.webhook_usernames_for_messages(&ids).await?;
-    let mut module_origins = state.store.module_origins_for_messages(&ids).await?;
-    let mut components_by_message = state.store.components_for_messages(&ids).await?;
-    let mentioned = state.store.mentioned_messages_for(viewer, &ids).await?;
-    // One more batched query; empty when no message on this page has a thread, which is the common case.
+    // Four reads at a time: a page's reads are independent, but all of them at once would take most of the 8-connection pool.
+    let (
+        mut by_message,
+        mut attachments_by_message,
+        mut threads_by_message,
+        mut forwards_by_message,
+    ) = tokio::try_join!(
+        state.store.reactions_for_messages(&ids, viewer),
+        state.store.attachments_for_messages(&ids),
+        state.store.thread_summaries_for_messages(&ids),
+        super::message_forwards::for_messages(state, &ids),
+    )?;
+    let (
+        mut code_runs_by_message,
+        mut calls_by_message,
+        mut embeds_by_message,
+        mut webhook_usernames,
+    ) = tokio::try_join!(
+        state.store.code_runs_for_messages(&ids),
+        state.store.calls_for_messages(&ids),
+        state.store.embeds_for_messages(&ids),
+        state.store.webhook_usernames_for_messages(&ids),
+    )?;
+    // The thread unread counts need the thread channels found above; empty when no message on this page has a thread.
     let thread_channel_ids: Vec<ChannelId> = threads_by_message
         .iter()
         .map(|(_, s)| s.channel_id)
         .collect();
-    let unread_by_channel = state
-        .store
-        .thread_unread_counts(&thread_channel_ids, viewer)
-        .await?;
+    let (mut module_origins, mut components_by_message, mentioned, unread_by_channel) = tokio::try_join!(
+        state.store.module_origins_for_messages(&ids),
+        state.store.components_for_messages(&ids),
+        state.store.mentioned_messages_for(viewer, &ids),
+        state
+            .store
+            .thread_unread_counts(&thread_channel_ids, viewer),
+    )?;
+    let previews_removed = state.store.link_preview_suppressed_among(&ids).await?;
 
     let mut dtos: Vec<MessageDto> = Vec::with_capacity(messages.len());
     for message in messages {
@@ -105,6 +122,7 @@ pub(crate) async fn with_reactions(
         }
         dto.forwarded = forwards_by_message.remove(&id);
         dto.mentions_me = mentioned.contains(&id);
+        dto.link_previews_removed = previews_removed.contains(&id);
         dto.webhook_username = webhook_usernames.remove(&id);
         dto.via_module = module_origins.remove(&id).map(ViaModuleDto::from);
         if let Some(pos) = embeds_by_message.iter().position(|(mid, _)| *mid == id) {

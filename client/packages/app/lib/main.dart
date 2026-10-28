@@ -10,8 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:slimm_api/api.dart' show TokenPair;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
+import 'package:slimm_rtc/rtc.dart'
+    show MirrorSelfViewScope, applyCallMediaRole;
 
 export 'src/desktop/startup_state.dart';
 
@@ -48,6 +51,9 @@ import 'src/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
 import 'src/providers/media_disk_caches.dart';
 import 'src/providers/providers.dart';
+import 'src/providers/sync_controller.dart'
+    show hasFailedSinceLiveProvider, initialSyncCompleteProvider;
+import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
 import 'src/routing/router.dart';
@@ -56,6 +62,7 @@ import 'src/widgets/app_lock_gate.dart';
 import 'src/widgets/ui_scale_frame.dart';
 import 'src/features/auth/widgets/client_too_old_gate.dart';
 import 'src/features/auth/widgets/server_identity_change_gate.dart';
+import 'src/features/voice/providers/voice_settings_controller.dart';
 import 'src/features/voice/widgets/incoming_call_overlay.dart';
 import 'src/features/voice/widgets/picture_in_picture_gate.dart';
 import 'src/features/voice/widgets/popout_host.dart';
@@ -94,6 +101,8 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 /// size. Waiting for the real first frame avoids that race entirely.
 Future<void> main([List<String> args = const []]) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Before any audio stack opens: libpulse reads the role once per context.
+  applyCallMediaRole();
   // First, so a launch that dies in any later step still counts toward a rollback.
   await countLaunch();
   // The browser's own menu otherwise lands on top of every in-app one.
@@ -337,12 +346,67 @@ bool get _splashIsFrameless =>
 /// router's redirect: a revoked session lands on sign-in from wherever the user
 /// was, without any screen checking for itself. How it looks follows the
 /// stored appearance choice, which is restored before the first frame.
-class SlimMApp extends ConsumerWidget {
-  const SlimMApp({super.key});
+class SlimMApp extends ConsumerStatefulWidget {
+  const SlimMApp({super.key, this.isDesktopOverride});
+
+  /// Lets a widget test take the phone branch; `flutter test` on Linux is a desktop host.
+  final bool? isDesktopOverride;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!ref.watch(appReadyProvider)) {
+  ConsumerState<SlimMApp> createState() => _SlimMAppState();
+}
+
+class _SlimMAppState extends ConsumerState<SlimMApp> {
+  /// Only a cold launch is covered: swapping the app for the splash later would drop the call overlay, dialogs and router stack.
+  bool _coldLaunchCover = true;
+
+  bool get _onDesktop => widget.isDesktopOverride ?? isDesktopHost;
+
+  void _spendCover() {
+    if (_coldLaunchCover) setState(() => _coldLaunchCover = false);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(appReadyProvider) && !ref.read(sessionProvider).isSignedIn) {
+      _coldLaunchCover = false;
+    }
+    ref.listenManual(appReadyProvider, (_, ready) {
+      if (ready && !ref.read(sessionProvider).isSignedIn) _spendCover();
+    });
+    ref.listenManual(initialSyncCompleteProvider, (_, synced) {
+      if (synced) _spendCover();
+    });
+    ref.listenManual(hasFailedSinceLiveProvider, (_, failed) {
+      if (failed) _spendCover();
+    });
+    _signOuts = ref.read(sessionProvider).changes.listen((tokens) {
+      if (tokens == null) _spendCover();
+    });
+  }
+
+  StreamSubscription<TokenPair?>? _signOuts;
+
+  @override
+  void dispose() {
+    unawaited(_signOuts?.cancel());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // A phone keeps the one splash up past bootstrap, through the first catch-up, so nothing second follows it.
+    final phoneCovered =
+        _coldLaunchCover &&
+        !_onDesktop &&
+        ref.watch(sessionProvider).isSignedIn &&
+        shouldShowBootSplash(
+          isMobile: true,
+          synced: ref.watch(initialSyncCompleteProvider),
+          hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
+        );
+    if (!ref.watch(appReadyProvider) || phoneCovered) {
       return StartupApp(
         status: ref.watch(startupStatusProvider),
         prompt: ref.watch(startupPromptProvider),
@@ -413,35 +477,40 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
     final motionChoice = ref.watch(motionPreferenceControllerProvider);
     final lockedPhone = ref.watch(portraitLockedPhoneProvider);
     final scale = uiScaleFactor(ref.watch(uiScaleControllerProvider));
-    return PopOutHost(
-      child: DesktopChrome(
-        child: MediaQuery(
-          data: scaleMediaQuery(
-            keepPortraitShell(
-              overrideMotion(MediaQuery.of(context), motionChoice),
-              lockedPhone: lockedPhone,
+    return MirrorSelfViewScope(
+      mirror: ref.watch(
+        voiceSettingsControllerProvider.select((s) => s.mirrorSelfView),
+      ),
+      child: PopOutHost(
+        child: DesktopChrome(
+          child: MediaQuery(
+            data: scaleMediaQuery(
+              keepPortraitShell(
+                overrideMotion(MediaQuery.of(context), motionChoice),
+                lockedPhone: lockedPhone,
+              ),
+              scale,
             ),
-            scale,
-          ),
-          // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
-          child: UiScaleFrame(
-            scale: scale,
-            child: AppLockGate(
-              child: Stack(
-                children: [
-                  // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-                  ModerationErrorHost(
-                    child: ClientTooOldGate(
-                      child: ServerIdentityChangeGate(
-                        child: PictureInPictureGate(child: densityWrapped),
+            // Above the routed tree, its dialogs, toasts and the call overlay: a locked screen covers all of them and takes them out of focus and semantics.
+            child: UiScaleFrame(
+              scale: scale,
+              child: AppLockGate(
+                child: Stack(
+                  children: [
+                    // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
+                    ModerationErrorHost(
+                      child: ClientTooOldGate(
+                        child: ServerIdentityChangeGate(
+                          child: PictureInPictureGate(child: densityWrapped),
+                        ),
                       ),
                     ),
-                  ),
-                  const Positioned.fill(child: ToastOverlay()),
-                  const Positioned.fill(child: WebUpdatePill()),
-                  const Positioned.fill(child: AccountCallPill()),
-                  const Positioned.fill(child: IncomingCallOverlay()),
-                ],
+                    const Positioned.fill(child: ToastOverlay()),
+                    const Positioned.fill(child: WebUpdatePill()),
+                    const Positioned.fill(child: AccountCallPill()),
+                    const Positioned.fill(child: IncomingCallOverlay()),
+                  ],
+                ),
               ),
             ),
           ),

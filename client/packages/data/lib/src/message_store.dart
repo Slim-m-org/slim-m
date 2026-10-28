@@ -9,6 +9,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'database.dart';
 import 'message_dto.dart';
 import 'rail_channel.dart';
+import 'transcript_query.dart';
 
 part 'message_store_authorship.dart';
 part 'message_store_batch.dart';
@@ -56,7 +57,7 @@ class MessageStore {
   /// Dart, or a channel holding 200 delivered rows would cut the sender's own
   /// unsent message off the end.
   Stream<List<Message>> watchChannel(String channelId, {int limit = 200}) {
-    return _channelMessagesQuery(channelId, limit)
+    return channelTranscript(db, channelId, limit)
         .watch()
         .distinct(_sameRows)
         .map(
@@ -83,25 +84,8 @@ class MessageStore {
   /// zero-duration cleanup timer pending past the test's end.
   Future<List<Message>> channelSnapshot(String channelId,
       {int limit = 200}) async {
-    final rows = await _channelMessagesQuery(channelId, limit).get();
+    final rows = await channelTranscript(db, channelId, limit).get();
     return rows.reversed.map((r) => r.toDto()).toList(growable: false);
-  }
-
-  /// The newest [limit] rows, pending first so the callers' reverse puts them
-  /// last: the one query [watchChannel] and [channelSnapshot] must agree on.
-  SimpleSelectStatement<$MessagesTable, MessageRow> _channelMessagesQuery(
-      String channelId, int limit) {
-    return db.select(db.messages)
-      ..where((m) => m.channelId.equals(channelId))
-      ..orderBy([
-        (m) => OrderingTerm(
-              expression: m.seq.equals(0),
-              mode: OrderingMode.desc,
-            ),
-        (m) => OrderingTerm(expression: m.seq, mode: OrderingMode.desc),
-        (m) => OrderingTerm(expression: m.createdAt, mode: OrderingMode.desc),
-      ])
-      ..limit(limit);
   }
 
   /// Rail order over the ordinary list: [watchChannels], [watchRailChannels]
@@ -241,22 +225,15 @@ class MessageStore {
   /// `SyncController` reads to retry each one once on reconnect. Order is
   /// unspecified: nothing downstream cares which failed row goes first.
   Future<List<Message>> failedMessages() async {
-    final query = db.select(db.messages)..where((m) => m.failed.equals(true));
+    // A literal, not a bound variable: only a literal lets sqlite use messages_failed.
+    final query = db.select(db.messages)
+      ..where((m) => m.failed.equalsExp(const Constant(true)));
     final rows = await query.get();
     return rows.map((r) => r.toDto()).toList(growable: false);
   }
 
   /// Every channel's cursors, for a bundled catch-up request.
-  Future<List<api.ScopeCursor>> allCursors() async {
-    final rows = await db.select(db.channels).get();
-    return rows
-        .map((c) => api.ScopeCursor(
-              channelId: c.id,
-              afterSeq: c.cursor,
-              afterOpSeq: c.opCursor,
-            ))
-        .toList(growable: false);
-  }
+  Future<List<api.ScopeCursor>> allCursors() => _allCursors(this);
 
   // --- Writes ---
 
@@ -454,29 +431,23 @@ class MessageStore {
   Future<void> removeForwardSnapshot(String messageId) =>
       _removeForwardSnapshot(db, messageId);
 
+  /// Hides a message's link-preview cards for good; a message not held is skipped.
+  Future<void> markLinkPreviewsRemoved(String messageId) =>
+      (db.update(db.messages)..where((m) => m.id.equals(messageId)))
+          .write(const MessagesCompanion(linkPreviewsRemoved: Value(true)));
+
   /// Mirrors the server's read marker.
   Future<void> setReadMarker(
     String channelId,
     int seq, {
     bool? manuallyUnread,
-  }) async {
-    await db.transaction(() async {
-      final row = await (db.select(db.channels)
-            ..where((c) => c.id.equals(channelId)))
-          .getSingleOrNull();
-      if (row == null) return;
-      // The marker only moves forward; the flag is independent of it.
-      final advancing = seq > row.lastReadSeq;
-      if (!advancing && manuallyUnread == null) return;
-      await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-          .write(ChannelsCompanion(
-        lastReadSeq: advancing ? Value(seq) : const Value.absent(),
-        manuallyUnread: manuallyUnread == null
-            ? const Value.absent()
-            : Value(manuallyUnread),
-      ));
-    });
-  }
+  }) =>
+      _setReadMarker(
+        this,
+        channelId,
+        seq,
+        manuallyUnread: manuallyUnread,
+      );
 
   /// [setReadMarker] for many channels in one transaction, so streams over the
   /// channel list wake once rather than once per channel.
@@ -498,23 +469,11 @@ class MessageStore {
 
   /// Moves a channel's cursor forward. Never backwards: the cursor is the
   /// high-water mark of what has been applied.
-  Future<void> _advanceCursor(String channelId, int seq) async {
-    final row = await (db.select(db.channels)
-          ..where((c) => c.id.equals(channelId)))
-        .getSingleOrNull();
-    if (row == null || row.cursor >= seq) return;
-    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-        .write(ChannelsCompanion(cursor: Value(seq)));
-  }
+  Future<void> _advanceCursor(String channelId, int seq) =>
+      _advanceCursorHelper(this, channelId, seq);
 
   /// [_advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.
-  Future<void> _advanceMentionCursor(String channelId, int seq) async {
-    final row = await (db.select(db.channels)
-          ..where((c) => c.id.equals(channelId)))
-        .getSingleOrNull();
-    if (row == null || row.mentionedSeq >= seq) return;
-    await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
-        .write(ChannelsCompanion(mentionedSeq: Value(seq)));
-  }
+  Future<void> _advanceMentionCursor(String channelId, int seq) =>
+      _advanceMentionCursorHelper(this, channelId, seq);
 }

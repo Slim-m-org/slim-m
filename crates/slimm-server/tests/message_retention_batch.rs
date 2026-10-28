@@ -262,3 +262,46 @@ async fn a_pruned_pinned_message_reports_that_it_was_pinned() {
     assert!(pinned_flag(ids[0]));
     assert!(!pinned_flag(ids[1]));
 }
+
+async fn edit_rows(pool: &SqlitePool, id: MessageId) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM message_edits WHERE message_id = ?")
+        .bind(id)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn retention_prunes_the_edit_history_of_the_messages_it_deletes() {
+    let (s, pool, _guard) = harness("slimm-retention-edit-history").await;
+    let admin = register(&s, "root").await;
+    let channel = general(&s).await;
+    s.set_message_retention_days(30).await.unwrap();
+
+    let send = |content: &'static str| {
+        s.send_message(NewMessage {
+            channel_id: channel,
+            author_id: admin,
+            id: MessageId::generate(),
+            content,
+            attachment_ids: &[],
+            spoiler_ids: &[],
+            reply_to_id: None,
+            forward: None,
+        })
+    };
+    let old = send("old").await.unwrap().message.id;
+    let fresh = send("fresh").await.unwrap().message.id;
+    for id in [old, fresh] {
+        s.edit_message(id, "v2", admin).await.unwrap();
+        s.edit_message(id, "v3", admin).await.unwrap();
+    }
+    backdate_message(&pool, old, -60 * DAY_MS).await;
+    assert_eq!(edit_rows(&pool, old).await, 2);
+
+    let swept = s.sweep_message_retention().await.unwrap();
+    assert_eq!(swept.pruned.len(), 1);
+
+    assert_eq!(edit_rows(&pool, old).await, 0, "history left behind");
+    assert_eq!(edit_rows(&pool, fresh).await, 2, "live history untouched");
+}

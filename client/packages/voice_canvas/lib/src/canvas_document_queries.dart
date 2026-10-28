@@ -89,7 +89,9 @@ extension CanvasDocumentQueries on CanvasDocument {
   List<({String id, String attachmentId})> get visibleImagesAwaitingBitmap => [
         for (final slot in scene.visible)
           if (strokeIfAlive(slot) case final stroke?)
-            if (imageAwaitsBitmap(stroke.id) && stroke.attachmentId != null)
+            if (!_outsideIds.contains(stroke.id) &&
+                imageAwaitsBitmap(stroke.id) &&
+                stroke.attachmentId != null)
               (id: stroke.id, attachmentId: stroke.attachmentId!),
       ];
 
@@ -136,11 +138,13 @@ extension CanvasDocumentQueries on CanvasDocument {
   /// server itself measured a plain scan at 20,000 rows as 1.56ms), and it
   /// is only ever asked for when a screen-reader user opens the activity
   /// panel, never once per frame the way [objectCount] is.
-  ({int strokes, int images, int notes, int shapes}) get liveCountsByKind {
+  ({int strokes, int images, int notes, int shapes, int texts})
+      get liveCountsByKind {
     var strokes = 0;
     var images = 0;
     var notes = 0;
     var shapes = 0;
+    var texts = 0;
     for (final stroke in _strokes) {
       if (stroke == null || !stroke.alive) continue;
       switch (stroke.kind) {
@@ -150,11 +154,19 @@ extension CanvasDocumentQueries on CanvasDocument {
           notes++;
         case CanvasObjectKind.shape:
           shapes++;
+        case CanvasObjectKind.text:
+          texts++;
         case CanvasObjectKind.stroke:
           strokes++;
       }
     }
-    return (strokes: strokes, images: images, notes: notes, shapes: shapes);
+    return (
+      strokes: strokes,
+      images: images,
+      notes: notes,
+      shapes: shapes,
+      texts: texts,
+    );
   }
 
   /// The union of every live object's box, or null with nothing drawn -
@@ -189,6 +201,12 @@ extension CanvasDocumentQueries on CanvasDocument {
     }
     if (existing.kind == CanvasObjectKind.note && input.text != null) {
       existing.text = input.text;
+    }
+    if (existing.kind == CanvasObjectKind.text && input.text != null) {
+      existing
+        ..text = input.text
+        ..textSize = input.textSize
+        ..colorKey = input.colorKey;
     }
   }
 

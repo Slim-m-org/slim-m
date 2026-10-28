@@ -65,11 +65,14 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
     child: CanvasPaneSurface(
       actions: CanvasPaneSurfaceActions(
         onDraftEnded: widget.onDraftEnded,
+        onDraftCancel: widget.onDraftCancel,
         onDraftPoint: widget.onDraftPoint,
         onPointerLeft: widget.onPointerLeft,
         onPointerMoved: widget.onPointerMoved,
         onShapePlace: widget.onShapePlace,
         onNotePlace: widget.onNotePlace,
+        onTextPlace: widget.onTextPlace,
+        onSelectLongPress: widget.onSelectLongPress,
         onSelectTap: widget.onSelectTap,
         onSelectEnd: widget.onSelectEnd,
         onSelectDrag: widget.onSelectDrag,
@@ -113,6 +116,7 @@ extension _CanvasPaneBodyBuilders on _CanvasPaneBodyState {
       tool: widget.tool,
       tokens: tokens,
       menuRequests: _menuRequests,
+      toolWheel: _toolWheel,
       presenceFrames: _presenceFrames,
       focusedTileKey: widget.focusedTileKey,
       boardFocusNode: widget.boardFocusNode,

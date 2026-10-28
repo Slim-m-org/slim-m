@@ -22,6 +22,14 @@ Closed, unverified on hardware like everything else in this file: `client/packag
 What this closes is the *ringing* phase getting proper Telecom treatment (audio focus and routing, Bluetooth, Do Not Disturb, the system's own ongoing-call bookkeeping) while the notification is on screen; what it does not close is first-class system-call status for the whole lifetime of an answered call, which needs the voice-session bridge named above.
 Compiled and manifest-merged for real: a debug `flutter build apk` succeeded with this code in the tree, and the merged `AndroidManifest.xml` under `build/app/intermediates/merged_manifest/` carries `MANAGE_OWN_CALLS`, the `SlimmConnectionService` `<service>` entry, and both notification actions - not run on a device, the same evidentiary bar as everything else here.
 
+**A connected call runs a foreground service (microphone, plus camera while video is on) and a screen share adds a mediaProjection type; both stop on leave.**
+`CallForegroundService` in `client/packages/platform/android` owns the ongoing-call notification (`call_ongoing_v1`) and narrows its declared types to the runtime permissions held, because Android 14 throws on a type without its permission.
+`VoiceController` drives it through `CallForegroundKeeper` from the session state, so join, leave, a drop, a camera toggle and a share all report the same way.
+A share asks `Helper.requestCapturePermission()` first and starts the service only after consent, since Android 14 refuses a mediaProjection service before consent (seen on an API 35 emulator as a `SecurityException`).
+`stopWithTask` ends it when the app is swiped away.
+Verified on a headless API 35 emulator by starting the service over adb with the app backgrounded: `types=0x80` for a call, `0xC0` with camera, gone after stop, notification removed.
+Not verified: a real call through LiveKit, the capture consent flow with a real share, and the POST_NOTIFICATIONS prompt, because the emulator crashed whenever Flutter rendered; real-device acceptance stays with the owner.
+
 **`NotificationManagerCompat.canUseFullScreenIntent` is checked per call rather than once, because Android 14 lets the user revoke full-screen-notification permission live while the app is running.**
 Confirmed by reading `IncomingCallNotifier.kt`'s doc comment directly. Recorded as a rule worth keeping: any future touch of this notifier should not "optimize" that into a cached, checked-once value.
 

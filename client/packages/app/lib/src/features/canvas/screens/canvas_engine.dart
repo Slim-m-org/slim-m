@@ -38,6 +38,7 @@ import 'canvas_board_pager.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_cursor_relay.dart';
 import 'canvas_forbidden_message.dart';
+import 'canvas_fullscreen.dart';
 import 'canvas_image_hydrator.dart';
 import 'canvas_live_event_dispatch.dart';
 import 'canvas_load_retry.dart';
@@ -142,11 +143,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       (_, snap) => document.snapToGrid.value = snap,
       fireImmediately: true,
     );
+    // Mirrored: the keeper's last write runs after the container stopped answering reads.
+    mirrorFocusedTile(_ref, channelId, (key) => _focusedTile = key);
     unawaited(slotSync.fetch());
     unawaited(objectLocks.fetch());
     unawaited(_layoutKeeper.restore());
   }
 
+  String? _focusedTile;
   final Ref _ref;
   final String channelId;
 
@@ -189,6 +193,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         channelId: channelId,
         mode: viewMode,
         store: openLayoutStore(_ref.read(canvasLayoutStoreProvider.future)),
+        saveDelay: _ref.read(canvasPersonalLayoutSaveDelayProvider),
+        isHeld: () => _focusedTile != null,
       );
 
   late final CanvasActivityLog activityLog = CanvasActivityLog(
@@ -213,6 +219,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
         ),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
+    timedOutUntil: () => _ref.read(meProvider).valueOrNull?.timedOutUntil,
   );
 
   /// Which objects are locked in place; see `CanvasObjectLocks`.
@@ -298,13 +305,15 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   CanvasViewRelay? _viewRelay;
   CanvasViewRelay get viewRelay => _viewRelay ??= CanvasViewRelay(
     board: canvasSharedArea,
-    send: (view, {required summon}) =>
-        _ref.read(syncControllerProvider.notifier).notifyCanvasView(channelId, (
-          x: view.left,
-          y: view.top,
-          w: view.width,
-          h: view.height,
-        ), summon: summon),
+    send: (view, {required summon, tile}) => _ref
+        .read(syncControllerProvider.notifier)
+        .notifyCanvasView(
+          channelId,
+          (x: view.left, y: view.top, w: view.width, h: view.height),
+          summon: summon,
+          tile: tile,
+        ),
+    focusedTile: () => _focusedTile,
     showView: _follower.showView,
     isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
     selfId: () => _ref.read(meProvider).valueOrNull?.id,
@@ -317,6 +326,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     relay: () => viewRelay,
     existingRelay: () => _viewRelay,
     glide: () => objectPreviewGlide,
+    holdsFitCamera: () => _ref.read(canvasFocusFromFollowProvider) == channelId,
   );
 
   bool _cursorHasAudience() {
@@ -336,13 +346,14 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       _strokePreviewRelay ??= CanvasStrokePreviewRelay(
         drafts: remoteDrafts,
         paletteSize: AppCanvasColors.cursors.length,
-        send: (objectId, points, ended) => _ref
+        send: (objectId, points, ended, {bool cancelled = false}) => _ref
             .read(syncControllerProvider.notifier)
             .notifyCanvasStrokePreview(
               channelId,
               objectId,
               points,
               ended: ended,
+              cancelled: cancelled,
               color: _strokePreviewRelay?.pen?.colorKey,
               width: _strokePreviewRelay?.pen?.width,
             ),
@@ -392,6 +403,9 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
 
   /// Sets or clears the sentence `CanvasPaneBody` shows for a failed fetch or
   /// a refused write; null clears it.
+  /// The message the pane is showing, if any.
+  String? get error => state.error;
+
   void reportError(String? message) {
     if (!mounted) return;
     state = state.copyWith(error: message, clearError: message == null);
@@ -452,6 +466,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     activityLog.recordResync();
     _objectPreviewRelay?.previews.clear();
     _boardPaged = false;
+    _emit((s) => s.copyWith(loading: true));
   }
 
   /// Reads the padded view, then replays the feed from the cursor. Reads that

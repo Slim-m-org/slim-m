@@ -57,6 +57,13 @@ def ports_in_use(env):
     return busy
 
 
+def planned_names(names, only, include_opt_in):
+    """The scenarios a run deals out; opt-in ones need E2E_PAR_OPT_IN and an E2E_ONLY that names them."""
+    allowed = include_opt_in and bool(only)
+    return [n for n in names
+            if (OPT_IN not in n or allowed) and e2e_run.selected(n, only, None)]
+
+
 def parse_shards(value):
     if value in (None, "", "auto"):
         return auto_shards()
@@ -175,9 +182,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     args.work = safe_work_dir(args.work)
 
-    names = [n for n in e2e_run.scenario_names() if OPT_IN not in n]
     only = [o for o in os.environ.get("E2E_ONLY", "").split("|") if o]
-    names = [n for n in names if e2e_run.selected(n, only, None)]
+    names = planned_names(e2e_run.scenario_names(), only, bool(os.environ.get("E2E_PAR_OPT_IN")))
     count = parse_shards(args.shards)
     chunks = e2e_groups.deal(names, count)
     durations = e2e_groups.load_durations()

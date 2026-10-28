@@ -36,15 +36,6 @@ void _readSparedObjects(CanvasSync sync, VoidCallback forgetFetchedRegion) {
   unawaited(sync.coldFetch());
 }
 
-void _applyEditedText(
-  CanvasDocument document,
-  String objectId,
-  Map<String, dynamic> props,
-) {
-  final text = props['text'];
-  if (text is String) document.setNoteText(objectId, text);
-}
-
 /// Applies one server event to [document] if it names [paneChannelId], the
 /// exact switch `CanvasPane._onEvent` used to carry directly.
 ///
@@ -196,6 +187,7 @@ void dispatchCanvasLiveEvent(
           :final objectId,
           :final points,
           :final ended,
+          :final cancelled,
           :final color,
           :final width,
         )
@@ -206,6 +198,7 @@ void dispatchCanvasLiveEvent(
         objectId,
         points,
         ended,
+        cancelled: cancelled,
         color: color,
         width: width,
       );
@@ -237,6 +230,7 @@ void dispatchCanvasLiveEvent(
           :final w,
           :final h,
           :final summon,
+          :final tile,
         )
         when channelId == paneChannelId:
       // Never through sync.applyLive: a view carries no seq.
@@ -244,6 +238,7 @@ void dispatchCanvasLiveEvent(
         userId,
         Rect.fromLTWH(x, y, w, h),
         summon: summon,
+        tile: tile,
       );
     case api.CanvasObjectMoved(
           :final channelId,
@@ -317,7 +312,7 @@ void dispatchCanvasLiveEvent(
       sync.applyLive(
         seq,
         () {
-          _applyEditedText(document, objectId, props);
+          applyEditedProps(document, objectId, props);
           document.refresh();
           activityLog?.recordEditedLive(opId);
         },

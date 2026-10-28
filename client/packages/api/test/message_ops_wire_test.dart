@@ -203,5 +203,24 @@ void main() {
       expect(flagged.forwardedRemoved, isTrue);
       expect(plain.forwardedRemoved, isFalse);
     });
+
+    test('an edit op carries link_previews_removed, defaulting to false', () {
+      final flagged = MessageOp.fromJson({
+        'seq': 3,
+        'kind': 'edit',
+        'message_id': 'm1',
+        'created_at': 1,
+        'link_previews_removed': true,
+      }) as MessageEditOp;
+      final plain = MessageOp.fromJson({
+        'seq': 4,
+        'kind': 'edit',
+        'message_id': 'm1',
+        'created_at': 1,
+      }) as MessageEditOp;
+
+      expect(flagged.linkPreviewsRemoved, isTrue);
+      expect(plain.linkPreviewsRemoved, isFalse);
+    });
   });
 }

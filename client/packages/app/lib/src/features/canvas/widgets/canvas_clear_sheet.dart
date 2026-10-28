@@ -38,14 +38,32 @@ Future<void> requestScopedCanvasClear(
   if (confirmed) await control.clear(choice.scope);
 }
 
-class _CanvasClearSheet extends StatelessWidget {
+class _CanvasClearSheet extends ConsumerWidget {
   const _CanvasClearSheet({required this.authorIds});
 
   final List<String> authorIds;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
+    final profiles = ref.watch(batchProfilesControllerProvider);
+
+    final uncached = authorIds.where((id) => !profiles.containsKey(id)).toSet();
+    if (uncached.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          ref.read(batchProfilesControllerProvider.notifier).resolve(uncached);
+        }
+      });
+    }
+
+    final sortedAuthorIds = authorIds.toList()
+      ..sort((a, b) {
+        final nameA = profiles[a]?.displayName ?? profiles[a]?.username ?? a;
+        final nameB = profiles[b]?.displayName ?? profiles[b]?.username ?? b;
+        return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+      });
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -90,7 +108,7 @@ class _CanvasClearSheet extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (authorIds.isNotEmpty) ...[
+                  if (sortedAuthorIds.isNotEmpty) ...[
                     const SizedBox(height: AppSpacing.s12),
                     Text(
                       'One person\'s content (people in view)',
@@ -99,7 +117,7 @@ class _CanvasClearSheet extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.s4),
-                    for (final id in authorIds) _AuthorRow(authorId: id),
+                    for (final id in sortedAuthorIds) _AuthorRow(authorId: id),
                   ],
                 ],
               ),
@@ -118,9 +136,8 @@ class _AuthorRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final name =
-        ref.watch(userProfileProvider(authorId)).valueOrNull?.displayName ??
-        'Unknown member';
+    final profile = ref.watch(userProfileProvider(authorId)).valueOrNull;
+    final name = profile?.displayName ?? profile?.username ?? 'Unknown member';
     return AppListRow(
       label: name,
       leading: UserAvatar(

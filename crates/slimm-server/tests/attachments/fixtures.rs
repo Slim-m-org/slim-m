@@ -18,6 +18,12 @@ use tower::ServiceExt;
 pub const TEST_MAX_ATTACHMENT_BYTES: u64 = 4096;
 
 pub async fn new_store() -> (Store, crate::support::TestDbGuard) {
+    let (store, _pool, guard) = new_store_and_pool().await;
+    (store, guard)
+}
+
+/// [`new_store`] that also hands back the pool, for tests that need raw SQL.
+pub async fn new_store_and_pool() -> (Store, sqlx::SqlitePool, crate::support::TestDbGuard) {
     let (path, guard) = crate::support::TestDbGuard::new("slimm-attachments-test");
     let config = Config {
         port: 0,
@@ -26,11 +32,21 @@ pub async fn new_store() -> (Store, crate::support::TestDbGuard) {
         ..Config::default()
     };
     let pool = db::connect(&config).await.expect("connect + migrate");
-    (Store::new(pool), guard)
+    (Store::new(pool.clone()), pool, guard)
 }
 
 pub fn media_for_test() -> Media {
     Media::for_tests().with_attachment_max(TEST_MAX_ATTACHMENT_BYTES)
+}
+
+/// An extractor whose PDF child is the built server binary, never the test harness.
+pub fn extractor(retry_backoff: std::time::Duration) -> slimm_server::TextExtractor {
+    let worker = slimm_server::PdfWorker::command(
+        env!("CARGO_BIN_EXE_slimm-server").into(),
+        vec![slimm_server::PDF_WORKER_ARG.into()],
+        std::time::Duration::from_secs(20),
+    );
+    slimm_server::TextExtractor::with_worker(Some(worker), retry_backoff)
 }
 
 pub fn app(store: Store) -> Router {

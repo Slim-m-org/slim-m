@@ -8,6 +8,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:livekit_client/livekit_client.dart' as lk;
 import 'package:slimm_rtc/rtc.dart';
 
@@ -293,5 +294,20 @@ void main() {
       expect((await switching.inputs()).single.id, 'mic-1');
       expect((await switching.outputs()).single.id, 'spk-1');
     });
+  });
+
+  test(
+      'effective capture options are logged once, with libwebrtc suppression on',
+      () {
+    final lines = <String>[];
+    final switching = AudioDeviceSwitching(
+      _FixedAudioDevices(inputDevices: [_mic('micA')]),
+      log: (m, {level = LogLevel.info}) => lines.add(m),
+    );
+    switching.captureOptions();
+    switching.captureOptions();
+    expect(lines, [
+      'voice-ns: capture options device=default webrtc_ns=on',
+    ]);
   });
 }

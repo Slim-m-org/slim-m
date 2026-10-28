@@ -12,6 +12,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   void _log(String message, {Object? detail});
   bool get supportsScreenShareAudio;
   Duration get broadcastStartTimeout;
+  CallForegroundKeeper get _shareForeground;
 
   Timer? _broadcastDeadline;
 
@@ -35,6 +36,15 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   }) async {
     _cancelBroadcastDeadline();
     if (enabled && sourceId != null) lastShareSourceId = sourceId;
+    if (enabled && !await _shareForeground.beforeShare()) {
+      _shareForeground.shareSettled(started: false);
+      state = state.copyWith(
+        screenSharing: false,
+        error: 'Screen sharing needs permission to capture the screen.',
+        retryable: true,
+      );
+      return;
+    }
     final outcome = await _shareSession.setScreenShareEnabled(
       enabled,
       quality: quality,
@@ -43,11 +53,22 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
       includeAudio: includeAudio && supportsScreenShareAudio,
       maxHeight: maxHeight,
     );
+    _shareForeground.shareSettled(
+      started: outcome == ScreenShareOutcome.started,
+    );
     switch (outcome) {
       case ScreenShareOutcome.started:
-        state = state.copyWith(screenSharing: true, clearError: true);
+        state = state.copyWith(
+          screenSharing: true,
+          shareAudio: _shareAudioNow(),
+          clearError: true,
+        );
       case ScreenShareOutcome.stopped:
-        state = state.copyWith(screenSharing: false, clearError: true);
+        state = state.copyWith(
+          screenSharing: false,
+          shareAudio: ShareAudio.none,
+          clearError: true,
+        );
       case ScreenShareOutcome.pendingBroadcast:
         state = state.copyWith(awaitingBroadcast: true, clearError: true);
         _broadcastDeadline = Timer(
@@ -78,6 +99,27 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
               : 'Could not stop sharing. ${cause ?? ''}'.trim(),
         );
     }
+  }
+
+  ShareAudio _shareAudioNow() {
+    if (!_shareSession.screenShareHasAudio) return ShareAudio.none;
+    return _shareSession.screenShareAudioMuted
+        ? ShareAudio.muted
+        : ShareAudio.on;
+  }
+
+  /// Silences or restores the running share's audio without ending the share.
+  Future<void> setScreenShareAudioOn(bool on) async {
+    if (state.shareAudio == ShareAudio.none) return;
+    final done = await _shareSession.setScreenShareAudioMuted(!on);
+    if (!done) {
+      _log(
+        'Could not switch the shared audio',
+        detail: _shareSession.lastError,
+      );
+      return;
+    }
+    state = state.copyWith(shareAudio: on ? ShareAudio.on : ShareAudio.muted);
   }
 
   /// The user was shown a broadcast picker and nothing came of it: they

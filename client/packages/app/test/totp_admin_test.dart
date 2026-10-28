@@ -183,7 +183,7 @@ void main() {
       _Server(totpPolicy: 'required_for_elevated'),
       const TotpPolicyRow(),
     );
-    expect(find.text('Expected of admins and moderators'), findsOneWidget);
+    expect(find.text('Required of admins'), findsOneWidget);
   });
 
   /// `off` is worded as "nobody new" because it does not turn an existing factor

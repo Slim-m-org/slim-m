@@ -15,11 +15,14 @@ import 'canvas_presence_geometry.dart';
 class CanvasPaneSurfaceActions {
   const CanvasPaneSurfaceActions({
     this.onDraftEnded,
+    this.onDraftCancel,
     this.onDraftPoint,
     this.onPointerLeft,
     this.onPointerMoved,
     required this.onShapePlace,
     required this.onNotePlace,
+    this.onTextPlace,
+    this.onSelectLongPress,
     this.onSelectTap,
     this.onEraseCancel,
     this.onSelectCancel,
@@ -46,11 +49,14 @@ class CanvasPaneSurfaceActions {
   });
 
   final VoidCallback? onDraftEnded;
+  final VoidCallback? onDraftCancel;
   final DraftPointAdded? onDraftPoint;
   final VoidCallback? onPointerLeft;
   final PointerMoved? onPointerMoved;
   final ShapePlaced onShapePlace;
   final ValueChanged<Offset> onNotePlace;
+  final ValueChanged<Offset>? onTextPlace;
+  final ValueChanged<Offset>? onSelectLongPress;
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
   final VoidCallback onSelectEnd;
   final ValueChanged<Offset> onSelectDrag;

@@ -87,6 +87,7 @@ class _RailParticipantDraggableState
         feedback: Material(
           color: Colors.transparent,
           child: Container(
+            constraints: const BoxConstraints(maxWidth: 240),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.s12,
               vertical: AppSpacing.s4,
@@ -98,6 +99,8 @@ class _RailParticipantDraggableState
             ),
             child: Text(
               widget.data.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppText.caption.copyWith(color: tokens.textPrimary),
             ),
           ),

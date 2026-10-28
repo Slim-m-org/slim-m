@@ -119,4 +119,60 @@ void main() {
       expect(_version({}).displayName, 'slim-m');
     });
   });
+
+  group('supportsPartialClear', () {
+    test('reports true for version at or above 0.98.0', () {
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': '0.98.0',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isTrue,
+      );
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': '0.102.0',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isTrue,
+      );
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': '1.0.0',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isTrue,
+      );
+    });
+
+    test('reports false for version below 0.98.0 or invalid semver', () {
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': '0.92.0',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isFalse,
+      );
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': '0.97.9',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isFalse,
+      );
+      expect(
+        Version.fromJson({
+          'name': 'slim-m',
+          'version': 'dev-build',
+          'protocol': 1,
+        }).supportsPartialClear,
+        isFalse,
+      );
+    });
+  });
 }

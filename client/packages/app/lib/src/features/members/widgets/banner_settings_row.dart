@@ -27,9 +27,6 @@ import 'identity_row.dart';
 import 'profile_banner.dart';
 import 'profile_colour_field.dart';
 
-/// Width over height of the banner on a profile card.
-const double kProfileBannerAspect = 3;
-
 /// The server's cap on a profile picture, less room for the encoder's overhead.
 const int _maxBytes = 2 * 1024 * 1024 - 64 * 1024;
 

@@ -79,6 +79,7 @@ pub(super) struct StrokePreviewFrame {
     pub(super) object_id: String,
     pub(super) points: Vec<f64>,
     pub(super) ended: bool,
+    pub(super) cancelled: bool,
     pub(super) color: Option<String>,
     pub(super) width: Option<f64>,
 }
@@ -163,6 +164,7 @@ pub(super) async fn handle_canvas_stroke_preview(
         object_id,
         points: Arc::new(frame.points),
         ended: frame.ended,
+        cancelled: frame.cancelled,
         color: valid_preview_color(frame.color),
         width: valid_preview_width(frame.width),
     });
@@ -174,7 +176,11 @@ pub(super) struct ViewFrame {
     /// `[x, y, w, h]` in world units.
     pub(super) rect: [f64; 4],
     pub(super) summon: bool,
+    pub(super) tile: Option<String>,
 }
+
+/// Longest tile key relayed; a longer one is dropped rather than echoed.
+const MAX_TILE_KEY_LEN: usize = 128;
 
 /// Relays the world rectangle a member is looking at. Gated exactly like a
 /// cursor (view plus `USE_CANVAS`, no timeout check) and silent on every
@@ -218,6 +224,7 @@ pub(super) async fn handle_canvas_view(
         w,
         h,
         summon: frame.summon,
+        tile: frame.tile.filter(|t| t.len() <= MAX_TILE_KEY_LEN),
     });
 }
 

@@ -35,5 +35,6 @@ export 'src/canvas_scene.dart';
 export 'src/canvas_snap.dart';
 export 'src/canvas_stroke_drafts.dart';
 export 'src/canvas_surface.dart';
+export 'src/canvas_text_box.dart';
 export 'src/spatial_grid.dart';
 export 'src/stroke_splitter.dart';

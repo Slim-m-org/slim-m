@@ -2,6 +2,11 @@
 //! Unit tests for token minting and signing; split out of `mod.rs` for the
 //! line budget. `roster.rs` carries its own tests beside it instead.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as BASE64URL;
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
 use super::*;
 
 fn decode_payload(token: &str) -> serde_json::Value {

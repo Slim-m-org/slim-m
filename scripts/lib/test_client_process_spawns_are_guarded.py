@@ -25,6 +25,8 @@ GUARDED = {
         "createGameSource returns null off linux, windows and macos",
     "client/packages/rtc/lib/src/os_mic_block_io.dart":
         "osBlocksMicrophone reads the consent store with reg.exe on windows only, false elsewhere",
+    "client/packages/rtc/lib/src/share_audio_graph_io.dart":
+        "ShareAudioGraph is supported on linux only and spawns pw-cli, pw-dump and pw-link only when supported",
     "client/packages/rtc/lib/src/pulse_audio_io.dart":
         "PulseAudio spawns pactl on linux only; every method returns empty elsewhere",
     "client/packages/platform/lib/src/persistent_key_store.dart":

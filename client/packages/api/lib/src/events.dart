@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'client.dart';
 import 'models.dart';
+import 'events_tallies.dart';
 import 'socket_liveness.dart';
 import 'logging/app_log.dart';
 

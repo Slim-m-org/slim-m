@@ -23,14 +23,19 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show LinkPreview;
+import 'package:slimm_data/data.dart' show Message;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/link_preview.dart';
 import '../providers/media_preferences.dart';
+import '../providers/message_actions.dart';
+import '../../channels/providers/channel_permissions.dart';
+import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/modal_page.dart' show kScrimColor;
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
@@ -40,11 +45,13 @@ import 'youtube_inline_player.dart';
 import '../../../widgets/animation_gate.dart';
 
 /// One card per URL, below a message's own text. Callers cap [urls] before
-/// handing them here; this renders exactly what it is given.
+/// handing them here; this renders exactly what it is given. Whoever may
+/// remove [message]'s previews gets an X on each card, which removes them all.
 class LinkPreviewList extends ConsumerWidget {
-  const LinkPreviewList({super.key, required this.urls});
+  const LinkPreviewList({super.key, required this.urls, required this.message});
 
   final List<String> urls;
+  final Message message;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,13 +59,43 @@ class LinkPreviewList extends ConsumerWidget {
         ref.watch(linkPreviewDisplayControllerProvider) ==
         LinkPreviewDisplay.hide;
     if (urls.isEmpty || hidden) return const SizedBox.shrink();
+    final canRemove = canRemoveLinkPreviews(
+      message,
+      ref.watch(sessionProvider.select((s) => s.tokens?.userId)),
+      ref.watch(myChannelPermissionsProvider(message.channelId)),
+    );
+    final failure = ref.watch(linkPreviewRemovalErrorProvider(message.id));
+    void remove() => unawaited(removeLinkPreviews(ref, message));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final url in urls)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s4),
-            child: LinkPreviewCard(url: url),
+            child: LinkPreviewCard(
+              url: url,
+              onRemove: canRemove ? remove : null,
+              removeLabel: urls.length > 1
+                  ? 'Remove all link previews'
+                  : 'Remove link preview',
+            ),
+          ),
+        if (failure != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.s4),
+            child: AppErrorState(
+              message: failure,
+              onRetry: remove,
+              onDismiss: () =>
+                  ref
+                          .read(
+                            linkPreviewRemovalErrorProvider(
+                              message.id,
+                            ).notifier,
+                          )
+                          .state =
+                      null,
+            ),
           ),
       ],
     );
@@ -66,9 +103,23 @@ class LinkPreviewList extends ConsumerWidget {
 }
 
 class LinkPreviewCard extends ConsumerStatefulWidget {
-  const LinkPreviewCard({super.key, required this.url});
+  const LinkPreviewCard({
+    super.key,
+    required this.url,
+    this.onRemove,
+    this.removeLabel = 'Remove link preview',
+  });
 
   final String url;
+
+  /// An X over the card, faded in while the pointer or keyboard focus is on
+  /// it and always shown where there is no pointer to hover with. It stays
+  /// mounted so it can be tabbed to and announced. Null for a reader who may
+  /// not remove it.
+  final VoidCallback? onRemove;
+
+  /// What the X is called, which says how much it removes.
+  final String removeLabel;
 
   @override
   ConsumerState<LinkPreviewCard> createState() => _LinkPreviewCardState();
@@ -83,6 +134,11 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
   /// [_handlePlayTap]. Always false on every other platform, since there the
   /// tap opens the system browser instead of swapping in an inline player.
   bool _playing = false;
+
+  bool _hovered = false;
+  bool _removeFocused = false;
+
+  bool get _hasMouse => RendererBinding.instance.mouseTracker.mouseIsConnected;
 
   Future<void> _open() async => openExternalHttpUrl(widget.url);
 
@@ -122,89 +178,128 @@ class _LinkPreviewCardState extends ConsumerState<LinkPreviewCard> {
       onTap: onCardTap,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           onTap: onCardTap,
           child: SelectionContainer.disabled(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: kMessageColumnMax),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: tokens.borderSubtle),
-                  borderRadius: BorderRadius.circular(AppRadii.control),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.s8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (preview.siteName case final siteName?)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            AppIcons.link,
-                            size: 12,
-                            color: tokens.textSecondary,
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: tokens.borderSubtle),
+                      borderRadius: BorderRadius.circular(AppRadii.control),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.s8,
+                      AppSpacing.s8,
+                      widget.onRemove == null
+                          ? AppSpacing.s8
+                          : AppSizes.controlSm,
+                      AppSpacing.s8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (preview.siteName case final siteName?)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                AppIcons.link,
+                                size: 12,
+                                color: tokens.textSecondary,
+                              ),
+                              const SizedBox(width: AppSpacing.s4),
+                              Flexible(
+                                child: Text(
+                                  siteName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.caption.copyWith(
+                                    color: tokens.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: AppSpacing.s4),
-                          Flexible(
+                        if (preview.title case final title?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.s4),
                             child: Text(
-                              siteName,
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.body.copyWith(
+                                fontWeight: AppWeights.semi,
+                                color: tokens.textPrimary,
+                              ),
+                            ),
+                          ),
+                        if (preview.authorName case final authorName?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.s4),
+                            child: _AuthorRow(
+                              name: authorName,
+                              url: preview.authorUrl,
+                            ),
+                          ),
+                        if (preview.description case final description?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.s4),
+                            child: Text(
+                              description,
+                              maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                               style: AppText.caption.copyWith(
                                 color: tokens.textSecondary,
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    if (preview.title case final title?)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.s4),
-                        child: Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.body.copyWith(
-                            fontWeight: AppWeights.semi,
-                            color: tokens.textPrimary,
+                        if (preview.imageToken != null ||
+                            preview.isPlayableVideo)
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.s8),
+                            child: _LinkPreviewMedia(
+                              url: widget.url,
+                              preview: preview,
+                              revealed: _revealed,
+                              onReveal: () => setState(() => _revealed = true),
+                              playing: _playing,
+                              onPlay: _handlePlayTap,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (widget.onRemove != null)
+                    Positioned(
+                      top: AppSpacing.s4,
+                      right: AppSpacing.s4,
+                      child: Focus(
+                        canRequestFocus: false,
+                        onFocusChange: (focused) =>
+                            setState(() => _removeFocused = focused),
+                        child: AnimatedOpacity(
+                          opacity: _hovered || _removeFocused || !_hasMouse
+                              ? 1
+                              : 0,
+                          duration: AppMotion.fast,
+                          alwaysIncludeSemantics: true,
+                          child: AppIconButton(
+                            icon: AppIcons.dismiss,
+                            semanticLabel: widget.removeLabel,
+                            tooltip: widget.removeLabel,
+                            size: AppIconButtonSize.sm,
+                            iconSize: AppSizes.icon16,
+                            onPressed: widget.onRemove,
                           ),
                         ),
                       ),
-                    if (preview.authorName case final authorName?)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.s4),
-                        child: _AuthorRow(
-                          name: authorName,
-                          url: preview.authorUrl,
-                        ),
-                      ),
-                    if (preview.description case final description?)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.s4),
-                        child: Text(
-                          description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.caption.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
-                      ),
-                    if (preview.imageToken != null || preview.isPlayableVideo)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.s8),
-                        child: _LinkPreviewMedia(
-                          url: widget.url,
-                          preview: preview,
-                          revealed: _revealed,
-                          onReveal: () => setState(() => _revealed = true),
-                          playing: _playing,
-                          onPlay: _handlePlayTap,
-                        ),
-                      ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
           ),

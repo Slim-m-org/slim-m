@@ -175,14 +175,21 @@ impl Store {
                       m.seq, m.content, m.created_at, m.edited_at, m.reply_to_id
                FROM messages m"#,
         );
-        if query.is_some() {
-            builder.push(" JOIN messages_fts ON messages_fts.rowid = m.fts_rowid");
-        }
         builder.push(" LEFT JOIN users u ON u.id = m.author_id AND u.deleted_at IS NULL WHERE ");
         if let Some(q) = query {
-            builder.push("messages_fts MATCH ");
+            // One IN over both id sets keeps the FTS-first plan; an OR with a correlated EXISTS walks the channel.
+            builder
+                .push("m.fts_rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ");
             builder.push_bind(q.to_owned());
-            builder.push(" AND ");
+            builder.push(
+                " UNION ALL SELECT am.fts_rowid FROM attachment_text t \
+                 JOIN message_attachments ma ON ma.sha256 = t.sha256 \
+                 JOIN messages am ON am.id = ma.message_id \
+                 WHERE am.is_encrypted = 0 AND t.fts_rowid IN \
+                 (SELECT rowid FROM attachment_text_fts WHERE attachment_text_fts MATCH ",
+            );
+            builder.push_bind(q.to_owned());
+            builder.push(")) AND ");
         }
         builder.push("m.channel_id IN (");
         {

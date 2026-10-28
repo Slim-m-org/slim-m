@@ -169,6 +169,49 @@ bool canManageMessagePin(Message message, int myPermissions) =>
     !message.failed &&
     myPermissions.hasPermission(Perm.manageMessages);
 
+/// Own message, or MANAGE_MESSAGES, like [canDeleteMessage]; the server
+/// applies the same rule to the removal.
+bool canRemoveLinkPreviews(
+  Message message,
+  String? myUserId,
+  int myPermissions,
+) => canDeleteMessage(message, myUserId, myPermissions);
+
+/// Why the last removal of a message's link previews was refused, for the list to show.
+final linkPreviewRemovalErrorProvider = StateProvider.family<String?, String>(
+  (ref, messageId) => null,
+);
+
+/// Hides [message]'s link-preview cards for everyone. Applied locally first;
+/// a refusal puts them back and leaves the reason in [linkPreviewRemovalErrorProvider].
+Future<void> removeLinkPreviews(WidgetRef ref, Message message) async {
+  // The hide below unmounts the caller, so everything the end needs is read before it.
+  final extras = ref.read(messageExtrasProvider.notifier);
+  final error = ref.read(linkPreviewRemovalErrorProvider(message.id).notifier);
+  final request = ref
+      .read(apiProvider)
+      .removeMessageLinkPreviews(
+        channelId: message.channelId,
+        messageId: message.id,
+      );
+  error.state = null;
+  extras.beginLocalLinkPreviewsRemoval(message.id);
+  try {
+    await request;
+    extras.confirmLocalLinkPreviewsRemoval(message.id);
+  } on api.ApiException catch (e, stack) {
+    final sentence = reportFailureSentence(
+      api.LogTag.ui,
+      'remove the link previews',
+      e,
+      stack,
+    );
+    if (extras.rollBackLocalLinkPreviewsRemoval(message.id)) {
+      error.state = sentence;
+    }
+  }
+}
+
 /// MANAGE_MESSAGES only, matching bulk-delete's own server-side gate with no
 /// author exception - unlike [canDeleteMessage], which a plain member also
 /// satisfies for their own message. That gap matters here specifically:

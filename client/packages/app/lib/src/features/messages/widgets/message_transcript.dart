@@ -27,6 +27,7 @@ import 'ephemeral_row.dart';
 import 'transcript_items.dart';
 import 'transcript_selection.dart';
 import 'message_transcript_widgets.dart';
+import 'transcript_slots.dart';
 
 /// What a viewer may do to one message, decided by the screen because it is
 /// the screen that knows who is looking and what they hold. The bool is
@@ -307,36 +308,6 @@ class _MessageTranscriptState extends State<MessageTranscript> {
     });
   }
 
-  /// The slot at the very top of the loaded window: always present, never
-  /// absent, so the list's own item count never shifts by one right where the
-  /// reader is scrolled when a page lands - only what fills it changes.
-  ///
-  /// Returning null here for a DM once history reached its true start used to
-  /// be exactly that shift: paging only ever triggers near the far end of the
-  /// loaded list, so the one item that could vanish always vanished right
-  /// under the reader's own scroll offset. [ChannelStartHeader] renders
-  /// generic copy for a DM now instead of nothing, closing the gap without
-  /// reopening the "Welcome to # a person's name" wording it was never meant
-  /// to say.
-  Widget _topSlot() {
-    if (!widget.history.atStart) {
-      return HistoryTopAffordance(
-        failed: widget.history.failed,
-        loading: widget.history.loading,
-        onRetry: widget.onRetryOlder,
-      );
-    }
-    if (widget.channelIsThread) {
-      return widget.threadParent ?? const SizedBox.shrink();
-    }
-    return ChannelStartHeader(
-      name: widget.channelName,
-      topic: widget.channelTopic,
-      isThread: widget.channelIsThread,
-      isVoice: widget.channelIsVoice,
-    );
-  }
-
   /// A short thread reads from the top (parent, replies, free space below); a channel stays bottom-anchored against its composer.
   @override
   Widget build(BuildContext context) => widget.channelIsThread
@@ -355,11 +326,28 @@ class _MessageTranscriptState extends State<MessageTranscript> {
   Widget _transcript(BuildContext context) {
     final messages = widget.messages;
     final items = mergePrivateAnswers(messages, widget.privateAnswers);
-    final start = _topSlot();
+    final start = TranscriptTopSlot(
+      history: widget.history,
+      onRetryOlder: widget.onRetryOlder,
+      channelName: widget.channelName,
+      channelTopic: widget.channelTopic,
+      channelIsThread: widget.channelIsThread,
+      channelIsVoice: widget.channelIsVoice,
+      threadParent: widget.threadParent,
+    );
     // Shrink-wrapped, a thread lays out every row: affordable only while it is short.
     final shrinkWrap =
         widget.channelIsThread && items.length <= _shrinkWrapThreadMax;
-    if (items.isEmpty) return _emptyTranscript(start, shrinkWrap);
+    if (items.isEmpty) {
+      return EmptyTranscript(
+        start: start,
+        shrinkWrap: shrinkWrap,
+        syncStatus: widget.syncStatus,
+        scrollController: widget.scrollController,
+        channelIsThread: widget.channelIsThread,
+        threadParent: widget.threadParent,
+      );
+    }
 
     _checkAfterLayout();
     _estimateJumpScroll();
@@ -392,32 +380,6 @@ class _MessageTranscriptState extends State<MessageTranscript> {
           estimator: _extent,
         ),
       ),
-    );
-  }
-
-  Widget _emptyTranscript(Widget start, bool shrinkWrap) {
-    // Reverse-anchored like the populated list, so the welcome sits above the composer, not at the top of an empty pane.
-    if (widget.syncStatus == SyncStatus.live) {
-      return ListView(
-        controller: widget.scrollController,
-        reverse: true,
-        shrinkWrap: shrinkWrap,
-        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-        children: [
-          if (widget.channelIsThread)
-            const ChannelStartHeader(name: null, isThread: true),
-          start,
-        ],
-      );
-    }
-    final waiting = EmptyMessages(syncStatus: widget.syncStatus);
-    if (!widget.channelIsThread) return waiting;
-    // The parent is known without the sync, so it shows even while the replies cannot.
-    return Column(
-      children: [
-        widget.threadParent ?? const SizedBox.shrink(),
-        Expanded(child: waiting),
-      ],
     );
   }
 

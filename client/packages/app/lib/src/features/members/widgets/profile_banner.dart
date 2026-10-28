@@ -15,8 +15,11 @@ import '../providers/banner_bytes.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import 'profile_colour.dart';
 
-/// Height of the band; the card's width is whatever it sits in.
+/// Height of the band on the 300 wide desktop popover, the card the shape is drawn from.
 const double kProfileBannerHeight = 56;
+
+/// Width over height of the band on every surface, and of the crop a person frames for it.
+const double kProfileBannerAspect = 300 / kProfileBannerHeight;
 
 /// The widest a banner is decoded for, in logical pixels: a card is never wider.
 const double _decodeWidth = 520;
@@ -27,7 +30,7 @@ class ProfileBanner extends ConsumerWidget {
     required this.userId,
     required this.bannerUpdatedAt,
     required this.colour,
-    this.height = kProfileBannerHeight,
+    this.height,
   });
 
   final String userId;
@@ -38,7 +41,8 @@ class ProfileBanner extends ConsumerWidget {
   /// Drawn when there is no image, and under it while it loads.
   final Color? colour;
 
-  final double height;
+  /// A fixed height for a thumbnail; null keeps the shared banner shape at any width.
+  final double? height;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,23 +56,24 @@ class ProfileBanner extends ConsumerWidget {
                 bannerBytesProvider((userId: userId, updatedAt: updatedAt)),
               )
               .valueOrNull;
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: ExcludeSemantics(
-        child: bytes == null
-            ? fill
-            : AnimationGate(
-                child: Image.memory(
-                  bytes,
-                  fit: BoxFit.cover,
-                  gaplessPlayback: true,
-                  cacheWidth: decodeEdge(context, _decodeWidth),
-                  errorBuilder: (context, error, stack) => fill,
-                ),
+    final band = ExcludeSemantics(
+      child: bytes == null
+          ? fill
+          : AnimationGate(
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                cacheWidth: decodeEdge(context, _decodeWidth),
+                errorBuilder: (context, error, stack) => fill,
               ),
-      ),
+            ),
     );
+    final fixed = height;
+    if (fixed != null) {
+      return SizedBox(height: fixed, width: double.infinity, child: band);
+    }
+    return AspectRatio(aspectRatio: kProfileBannerAspect, child: band);
   }
 }
 

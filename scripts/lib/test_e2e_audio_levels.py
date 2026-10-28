@@ -54,6 +54,7 @@ class VolumeTest(unittest.TestCase):
         self.assertAlmostEqual(lv.slider_to_gain(0.5), 0.125)
         self.assertEqual(lv.slider_to_gain(1.0), 1.0)
         self.assertEqual(lv.slider_to_gain(1.5), 1.5)
+        self.assertEqual(lv.slider_to_gain(2.0), 2.0)
 
     def test_zero_is_silence(self):
         self.assertEqual(lv.volume_to_db(0.0), lv.SILENCE_DB)
@@ -201,6 +202,14 @@ class NoisyFixtureTest(unittest.TestCase):
             with wave.open(path) as w:
                 self.assertEqual((w.getnchannels(), w.getsampwidth(),
                                   w.getframerate()), (1, 2, 48000))
+
+
+class BoostIsLimitedTests(unittest.TestCase):
+    def test_under_full_scale_is_fine(self):
+        self.assertTrue(lv.boost_is_limited(0.97))
+
+    def test_output_past_full_scale_is_a_clip(self):
+        self.assertFalse(lv.boost_is_limited(1.3))
 
 
 if __name__ == "__main__":

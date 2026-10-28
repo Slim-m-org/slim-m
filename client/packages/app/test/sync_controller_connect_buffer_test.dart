@@ -9,6 +9,10 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_app/src/providers/sync_failure.dart';
+import 'package:slimm_app/src/providers/sync_frame_queue.dart';
+
 import 'support/sync_harness.dart';
 import 'support/sync_live_rig.dart';
 
@@ -114,6 +118,75 @@ void main() {
     expect(rig.status.name, 'offline');
     await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
     expect(rig.status.name, 'live', reason: 'the retry reconnects');
+  });
+
+  test('a backlog past the held-frame cap restarts at once with no offline '
+      'status and resyncs over REST', () async {
+    final previous = heldFrameCap;
+    heldFrameCap = 2;
+    addTearDown(() => heldFrameCap = previous);
+    final syncs = _Syncs(
+      messages: () => [for (var s = 2; s <= 6; s++) rigMessage('m$s', s, 'm')],
+    );
+    final rig = await SyncLiveRig.build(
+      (r) => r.on('POST', '/sync', syncs.handle),
+      seeded: [rigMessage('m1', 1, 'msg 1')],
+    );
+    final statuses = <String>[];
+    rig.container.listen(
+      syncControllerProvider,
+      (_, next) => statuses.add(next.name),
+    );
+    rig.signIn();
+    await syncs.heldReached.future.timeout(const Duration(seconds: 5));
+
+    for (var s = 2; s <= 6; s++) {
+      rig.server.pushEvent(_created(s));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    syncs.release.complete();
+    await rig.waitFor(() => rig.status.name == 'live', ms: 6000);
+
+    expect(statuses, isNot(contains('offline')));
+    expect(rig.container.read(syncFailureProvider), isNull);
+    expect((await rig.contents()).keys, containsAll(['m1', 'm6']));
+  });
+
+  test('a backlog that overflows on every attempt stops restarting quietly '
+      'and goes offline', () async {
+    final previous = heldFrameCap;
+    heldFrameCap = 0;
+    addTearDown(() => heldFrameCap = previous);
+    var syncCalls = 0;
+    final rig = await SyncLiveRig.build(
+      (r) => r.on('POST', '/sync', (_) async {
+        syncCalls++;
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        return _page(const []);
+      }),
+      seeded: [rigMessage('m1', 1, 'msg 1')],
+    );
+    final statuses = <String>[];
+    rig.container.listen(
+      syncControllerProvider,
+      (_, next) => statuses.add(next.name),
+    );
+    final flood = Timer.periodic(
+      const Duration(milliseconds: 20),
+      (_) => rig.server.pushEvent(_created(2)),
+    );
+    addTearDown(flood.cancel);
+    rig.signIn();
+
+    await rig.waitFor(
+      () =>
+          syncCalls > maxQuickOverflowRestarts * 2 &&
+          rig.status.name == 'offline',
+      ms: 15000,
+    );
+
+    expect(rig.container.read(syncFailureProvider), isNotNull);
+    expect(syncCalls, greaterThan(maxQuickOverflowRestarts));
   });
 
   test('a live message that skips a seq is not applied, and a reconcile '

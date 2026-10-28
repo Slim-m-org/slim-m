@@ -142,7 +142,7 @@ void main() {
     ) async {
       document
         ..setViewport(const Size(800, 600))
-        ..setBoard(canvasBoard);
+        ..setBoard(const Rect.fromLTWH(0, 0, 100, 100));
       final calls = await _pump(tester, document);
       final gesture = await tester.startGesture(const Offset(20, 20));
       await gesture.moveTo(const Offset(150, 150));

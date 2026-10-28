@@ -4493,6 +4493,16 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Search results, newest-relevance-first as the provider ordered them.
@@ -4551,6 +4561,16 @@ paths:
           description: Most results to return. Defaults to 20, capped at 50.
           schema:
             type: integer
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Trending results, as the provider ordered them.
@@ -4598,6 +4618,17 @@ paths:
         result grid never asks a client to load an image straight from the
         provider's own CDN. Requires the same ATTACH_FILES bit `searchGifs`
         does.
+      parameters:
+        - name: channel_id
+          in: query
+          required: false
+          description: >
+            The channel the GIF is headed for. When given, ATTACH_FILES is
+            checked in that channel, so a channel overwrite granting it counts;
+            without it the deployment-wide permission decides.
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: The thumbnail's raw bytes, sniffed the same way a stored attachment's are.
@@ -4610,6 +4641,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -4773,6 +4806,13 @@ paths:
                 id:
                   type: string
                   description: An opaque id from a searchGifs result.
+                channel_id:
+                  type: string
+                  format: uuid
+                  description: >
+                    The channel the GIF is headed for. When given, ATTACH_FILES
+                    is checked in that channel, so a channel overwrite granting
+                    it counts; without it the deployment-wide permission decides.
       responses:
         "201":
           description: The stored attachment's metadata.
@@ -4989,6 +5029,42 @@ paths:
                   $ref: "#/components/schemas/SavedMessage"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /channels/{channelId}/messages/{messageId}/link-previews:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+      - name: messageId
+        in: path
+        required: true
+        description: The message's UUID.
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: removeMessageLinkPreviews
+      tags: [messages]
+      summary: Remove the link-preview cards from one message.
+      description: >
+        Idempotent, and permanent: the cards stay removed for everyone and
+        there is no restore. Allowed to the message's author while they hold
+        SEND_MESSAGES (the same as an edit), or to a member holding
+        MANAGE_MESSAGES in this channel. Live connections are told over the
+        WebSocket (`message.link_previews_removed`), and `/sync` reports it to
+        a client that was offline as an `edit` message op carrying
+        `link_previews_removed: true`. Later reads carry the same flag.
+      responses:
+        "204":
+          description: The cards were removed (or already had been).
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -6366,7 +6442,7 @@ paths:
         every cell of a client's spatial grid.
 
 
-        `kind` is `stroke`, `image`, `note` or `shape`. It is an allowlist
+        `kind` is `stroke`, `image`, `note`, `shape` or `text`. It is an allowlist
         rather than free text, because the kind decides how every client
         renders a row and an unknown one is a row nobody can draw and nobody
         can remove. There is no `window` kind: a window is a behaviour of an
@@ -6394,7 +6470,10 @@ paths:
         `rectangle`, `ellipse`, `line` or `arrow`; a line or an arrow is
         always the diagonal of the object's own `x`/`y`/`w`/`h` box, so
         reshaping either is an ordinary `move` op against a different box,
-        with no separate points to keep in step.
+        with no separate points to keep in step. For a `text`, `props` carries
+        `text` (1 to 500 characters, no hidden or direction-changing
+        characters, line breaks allowed), `size` (`small`, `medium` or
+        `large`) and `color` (a colour key); a text that breaks these is a 400.
 
 
         A 409 also means the channel's canvas is full: a canvas holds at most
@@ -6549,7 +6628,7 @@ paths:
 
 
         `edit` replaces a live note's props wholesale; it is refused under a
-        timeout and with 409 for a locked note, and only a note can be edited.
+        timeout and with 409 for a locked note, and only a note or a text box can be edited. A text box's new props are checked the same way a placement's are.
 
 
         An object locked in place (`lockCanvasObject`) refuses `move`,
@@ -6842,6 +6921,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -14463,6 +14544,7 @@ components:
         unread:
           type: integer
           format: int64
+          description: Live count of unread messages, reported as at most 1000 (clients show 99+).
         created_at:
           type: integer
           format: int64
@@ -14666,7 +14748,7 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          description: What the object is. `stroke`, `image`, `note` or `shape`.
+          description: What the object is. `stroke`, `image`, `note`, `shape` or `text`.
         z_index:
           type: integer
           format: int64
@@ -14714,7 +14796,7 @@ components:
           description: Client-generated UUIDv7; also the idempotency key.
         kind:
           type: string
-          enum: [stroke, image, note, shape]
+          enum: [stroke, image, note, shape, text]
         x:
           type: number
           format: double
@@ -14863,7 +14945,7 @@ components:
         props:
           type: object
           additionalProperties: true
-          description: The whole props an `edit` wrote to a note.
+          description: The whole props an `edit` wrote to a note or text box.
 
     CanvasOpPage:
       type: object
@@ -14925,7 +15007,7 @@ components:
             canvas `seq` is removed.
         kinds:
           type: array
-          items: { type: string, enum: [stroke, image, note, shape] }
+          items: { type: string, enum: [stroke, image, note, shape, text] }
           description: >-
             `clear_scoped` only. Removes only objects of these kinds; omit
             for every kind.
@@ -14974,8 +15056,8 @@ components:
           type: object
           additionalProperties: true
           description: >-
-            Required for `edit`: the note's whole new props, replacing the old
-            ones. Only a note can be edited (400 otherwise); the same 4 KiB
+            Required for `edit`: the note's or text box's whole new props, replacing the old
+            ones. Only those two can be edited (400 otherwise); the same 4 KiB
             limit as a placement applies, and a locked note answers 409.
 
     CanvasOpResult:
@@ -15222,6 +15304,20 @@ components:
             that permission. Per-viewer exactly like `reacted`, and always
             false on the sender's own send or edit response: an author is
             never resolved as mentioning themselves.
+        matched_attachment_id:
+          type: string
+          description: >-
+            Only on a search result found through an attachment: the id of the
+            attachment whose extracted text matched. Absent when the message's
+            own text matched. Text and code files and the text layer of PDFs
+            are searched; there is no OCR for images.
+        link_previews_removed:
+          type: boolean
+          description: >-
+            Whether the author or a moderator removed this message's
+            link-preview cards. Set on reads, on an edit response and on a
+            `message.edited` frame; a `message.created` frame says false, and
+            `message.link_previews_removed` carries the change.
         webhook_username:
           type: [string, "null"]
           description: >-
@@ -16559,7 +16655,7 @@ components:
         unread:
           type: integer
           format: int64
-          description: Live count of messages past the marker.
+          description: Live count of messages past the marker, reported as at most 1000 (clients show 99+).
         manually_unread:
           type: boolean
           description: The caller asked to see this as unread despite the marker.
@@ -16716,6 +16812,11 @@ components:
             On an `edit`, present and true when the message is a forward whose
             original was removed, so the snapshot should be cleared. Applies
             even when `content` is absent.
+        link_previews_removed:
+          type: boolean
+          description: >
+            On an `edit`, present and true when the message's link-preview
+            cards were removed. Applies even when `content` is absent.
 
     ClientFrame:
       description: A frame sent by the client over the WebSocket.
@@ -16884,6 +16985,11 @@ components:
           description: >
             Marks this as the gesture's last frame, whether or not it went
             on to commit a real object.
+        cancelled:
+          type: boolean
+          default: false
+          description: >
+            Marks this draft as cancelled or abandoned without committing ink.
         color:
           type: string
           description: >
@@ -16929,7 +17035,12 @@ components:
           default: false
           description: >
             Asks every receiver to jump to this rectangle once ("bring
-            everyone to me").
+            everyone to me"); each receiver is asked to accept first.
+        tile:
+          type: string
+          description: >
+            The call tile this client has full screen, so a follower can open
+            the same one. Omitted when none; a value over 128 bytes is dropped.
 
     ClientCanvasMediaSlotPreview:
       type: object
@@ -17016,6 +17127,7 @@ components:
         - $ref: "#/components/schemas/ReactionsChanged"
         - $ref: "#/components/schemas/CodeRunChanged"
         - $ref: "#/components/schemas/CodeRunsCleared"
+        - $ref: "#/components/schemas/MessageLinkPreviewsRemoved"
         - $ref: "#/components/schemas/ThreadUpdated"
         - $ref: "#/components/schemas/MessagePinned"
         - $ref: "#/components/schemas/MessageUnpinned"
@@ -17273,6 +17385,10 @@ components:
           items: { type: number, format: double }
         ended:
           type: boolean
+        cancelled:
+          type: boolean
+          default: false
+          description: Whether the gesture was cancelled without committing ink.
         color:
           type: string
           nullable: true
@@ -17315,7 +17431,12 @@ components:
           type: boolean
           description: >
             Asks every receiver to jump to this rectangle once ("bring
-            everyone to me").
+            everyone to me"); each receiver is asked to accept first.
+        tile:
+          type: string
+          description: >
+            The call tile the sender has full screen, when any, so a follower
+            opens the same one.
 
     CanvasMediaSlotPreviewUpdated:
       type: object
@@ -17741,6 +17862,27 @@ components:
         message_id:
           type: string
           format: uuid
+
+    MessageLinkPreviewsRemoved:
+      type: object
+      required: [type, channel_id, message_id]
+      description: >
+        The author or a moderator removed this message's link-preview cards.
+        One way only, so a client hides them and keeps them hidden.
+      properties:
+        type:
+          type: string
+          enum: [message.link_previews_removed]
+        channel_id:
+          type: string
+          format: uuid
+        message_id:
+          type: string
+          format: uuid
+        op_seq:
+          type: integer
+          format: int64
+          description: This removal's place in the message-op stream.
 
     ReactionCount:
       type: object

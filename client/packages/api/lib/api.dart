@@ -21,30 +21,17 @@ export 'src/logging/log_redaction.dart'
 export 'src/client.dart'
     show
         SlimmApi,
-        SessionStore,
-        SessionSync,
-        SessionStoreTabs,
-        AnalyticsDayCount,
-        AnalyticsMemorySample,
-        AnalyticsStats,
         Bot,
         ChannelRetention,
-        ChannelStorage,
         DbPoolStats,
-        MemberAttachmentUsage,
         NewBot,
         NewWebhook,
         RequestClassCount,
         RouteMetric,
         ServerMetrics,
-        SpaceAnalytics,
         SpaceRules,
-        SpaceSettings,
-        SpaceSettingsUpdate,
         ChannelUpdate,
         JoinGate,
-        SpaceStorage,
-        SweepStatus,
         Webhook,
         SlimmApiAdmin,
         SlimmApiAdminAudit,
@@ -92,10 +79,11 @@ export 'src/client.dart'
         SlimmApiVoiceCalls,
         SlimmApiVoiceRooms,
         SlimmApiWatchSession,
-        SlimmApiWebhooks,
-        JoinPolicy;
+        SlimmApiWebhooks;
+export 'src/session_store.dart' show SessionStore, SessionSync;
 export 'src/connection_test.dart';
 export 'src/upload_source.dart';
+export 'src/events_tallies.dart';
 export 'src/events.dart'
     show
         CanvasCleared,
@@ -134,6 +122,7 @@ export 'src/events.dart'
         InteractionForm,
         MessageComponentsChanged,
         MessageEmbedsChanged,
+        MessageLinkPreviewsRemoved,
         MessageEphemeral,
         MessageEdited,
         MessagePinned,
@@ -142,14 +131,12 @@ export 'src/events.dart'
         NotificationOverrideChanged,
         OverwriteChanged,
         PollVoted,
-        PollOptionTally,
         PongEvent,
         PresenceChanged,
         ProfileChanged,
         BotUiChanged,
         ReactionsChanged,
         ReadStateChanged,
-        ReactionTally,
         CodeRunChanged,
         CodeRunsCleared,
         ReportsChanged,

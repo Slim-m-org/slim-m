@@ -42,6 +42,33 @@ String _fieldText(WidgetTester tester) =>
     tester.widget<TextField>(find.byType(TextField)).controller!.text;
 
 void main() {
+  testWidgets('the field border takes the focus ring while it holds focus', (
+    tester,
+  ) async {
+    await _open(tester);
+    final tokens = Theme.of(
+      tester.element(find.byType(TextField)),
+    ).extension<AppTokens>()!;
+    Color border() {
+      final box = tester
+          .widgetList<Container>(
+            find.ancestor(
+              of: find.byType(TextField),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .firstWhere((d) => d.border != null && d.color == tokens.surfaceBase);
+      return (box.border! as Border).top.color;
+    }
+
+    expect(border(), tokens.focusRing);
+    tester.widget<TextField>(find.byType(TextField)).focusNode!.unfocus();
+    await tester.pumpAndSettle();
+    expect(border(), tokens.borderSubtle);
+  });
+
   test('noteWireBytes is the exact JSON-escaped, UTF-8 encoded wire cost', () {
     expect(noteWireBytes('a'), '{"text":"a"}'.length);
     // serde_json never escapes a 3-byte UTF-8 char; the wrapper is 11 bytes.
