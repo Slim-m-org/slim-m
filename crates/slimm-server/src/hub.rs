@@ -125,7 +125,9 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::OverwriteChanged { .. }
         | Event::ChannelCreated(..)
         | Event::ChannelUpdated(..)
-        | Event::ChannelDeleted { .. } => true,
+        | Event::ChannelDeleted { .. }
+        // A roster change is a permission change for the person added or removed.
+        | Event::DmChanged { .. } => true,
         Event::MessageCreated { .. }
         | Event::MessageEdited { .. }
         | Event::MessageDeleted { .. }
@@ -272,6 +274,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceScreenShareChanged { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
+        | Event::DmChanged { .. }
         | Event::ReportsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }

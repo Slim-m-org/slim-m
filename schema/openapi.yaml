@@ -95,7 +95,8 @@ tags:
     description: Channel listing and creation.
   - name: dms
     description: >
-      Direct-message conversations between two users on the same deployment.
+      Direct-message conversations between two users on the same deployment,
+      and group DMs of 3 to 8 people.
       A DM is a channel under the hood, so once opened it is read, sent to,
       searched, and synced through the ordinary channel and message routes.
   - name: messages
@@ -2704,7 +2705,9 @@ paths:
         Each entry is a DM channel: its id (used with the ordinary
         `/channels/{channelId}/messages`, search, and `/sync` routes exactly
         like any other channel), the other participant's public profile, and
-        the caller's unread count in it. Most recently active first.
+        the caller's unread count in it. Most recently active first. A group
+        DM also carries `group`, and `user` is then its first other
+        participant.
       responses:
         "200":
           description: The caller's DM conversations.
@@ -2716,6 +2719,173 @@ paths:
                   $ref: "#/components/schemas/DmConversation"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /dms/groups:
+    post:
+      operationId: createGroupDirectMessage
+      tags: [dms]
+      summary: Start a group DM with 2 to 7 other people.
+      description: >
+        A group DM is a DM channel with 3 to 8 participants, the caller
+        included (decision 0095). Repeated or self ids in `user_ids` are
+        ignored before the count is checked. Refused with 403 if any two of
+        the people involved have a block between them, in either direction;
+        the message says a block is the reason without saying whose. Pass a
+        UUIDv7 as `id` to make the request safe to retry: a replay by a
+        participant returns the group already made with 200, and an id
+        belonging to anything else is a 409. Participants are announced with
+        a `dm.changed` event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_ids]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: The new channel's id, chosen by the client.
+                user_ids:
+                  type: array
+                  description: The other people, 2 to 7 of them.
+                  items:
+                    type: string
+                    format: uuid
+                name:
+                  type: [string, "null"]
+                  description: An optional custom name, with the limits of a channel name.
+      responses:
+        "200":
+          description: The group already existed under this id.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmConversation"
+        "201":
+          description: The group was created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmConversation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /dms/groups/{channelId}:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    patch:
+      operationId: renameGroupDirectMessage
+      tags: [dms]
+      summary: Set or clear a group DM's custom name.
+      description: >
+        Any participant may. A null or empty `name` goes back to the default,
+        which each client builds from the other participants' names. Announced
+        with a `dm.changed` event. A caller outside the group gets 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: [string, "null"]
+      responses:
+        "200":
+          description: The group as the caller sees it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmConversation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /dms/groups/{channelId}/members:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: addGroupDirectMessageMember
+      tags: [dms]
+      summary: Add one person to a group DM.
+      description: >
+        Any participant may. Refused with 403 if the person has a block, in
+        either direction, with anyone already in the group (the message says
+        a block is the reason, not whose), with 409 if the group already has
+        8 people or the person is already in it, and with 404 if the caller
+        is not in the group. Announced with a `dm.changed` event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: The group with its new roster.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DmConversation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /dms/groups/{channelId}/leave:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    post:
+      operationId: leaveGroupDirectMessage
+      tags: [dms]
+      summary: Leave a group DM.
+      description: >
+        The group and its history stay for everyone else; the caller loses
+        access to all of it, and is removed from its call. The last person to
+        leave deletes the group. Announced to the people left with a
+        `dm.changed` event. A caller outside the group gets 404.
+      responses:
+        "204":
+          description: The caller is no longer in the group.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -7414,22 +7584,22 @@ paths:
     post:
       operationId: ringDmCall
       tags: [voice]
-      summary: Ring the other side of a DM call.
+      summary: Ring everyone else in a DM call.
       description: >
         Requires `VIEW_CHANNEL` and `CONNECT`, the same gate minting a token
         already needs; a blocked party never reaches this far, since `CONNECT`
         is one of the bits a block removes.
 
 
-        Refuses anything that is not a DM between the caller and exactly one
-        other account with a 404: ringing is meaningless for any other channel
-        shape, and a caller's own personal space has nobody on the other end
-        to ring.
+        Refuses anything that is not a DM the caller is in with a 404:
+        ringing is meaningless for any other channel shape, and a caller's own
+        personal space has nobody on the other end to ring. A group DM rings
+        every other participant, and the first to join answers for all.
 
 
-        Publishes a live `call.ringing` event to the other participant and, in
-        the background, a push notification if their account's notification
-        preference allows it - see `call.ringing`'s own schema doc for exactly
+        Publishes a live `call.ringing` event to the other participants and, in
+        the background, a push notification to each whose account's
+        notification preference allows it - see `call.ringing`'s own schema doc for exactly
         what that means. A second ring for the same channel replaces whatever
         was already outstanding rather than stacking a second one.
 
@@ -7498,6 +7668,11 @@ paths:
         No `CONNECT` check, unlike every other voice route but
         `forgetVoiceHeartbeat`: declining reveals and grants nothing about the
         room itself, only that this caller chose not to join it.
+
+
+        In a group DM the ring goes on for the others: the event and the
+        eviction below happen only when the last person it was ringing
+        declines.
 
 
         Idempotent: declining a ring that already ended some other way
@@ -14549,6 +14724,19 @@ components:
           type: integer
           format: int64
           description: Unix milliseconds the DM channel was first opened.
+        group:
+          type: object
+          description: Present only for a group DM (decision 0095).
+          required: [name, members]
+          properties:
+            name:
+              type: [string, "null"]
+              description: The custom name, or null when each client shows the default built from the members.
+            members:
+              type: array
+              description: Every participant, the caller included, oldest member first.
+              items:
+                $ref: "#/components/schemas/UserProfile"
 
     Role:
       type: object
@@ -17156,6 +17344,7 @@ components:
         - $ref: "#/components/schemas/WatchTick"
         - $ref: "#/components/schemas/CallRinging"
         - $ref: "#/components/schemas/CallRingEnded"
+        - $ref: "#/components/schemas/DmChanged"
         - $ref: "#/components/schemas/CanvasObjectPlaced"
         - $ref: "#/components/schemas/CanvasObjectsRemoved"
         - $ref: "#/components/schemas/CanvasCleared"
@@ -18722,6 +18911,21 @@ components:
         outcome:
           type: string
           enum: [answered, declined, canceled, timed_out]
+    DmChanged:
+      type: object
+      required: [type, channel_id]
+      description: >
+        A group DM's roster or custom name changed. Carries only the channel
+        id: re-read `GET /dms`. Delivered through the ordinary VIEW_CHANNEL
+        check, so it reaches the people in the group now; a person who just
+        left learns from their own request.
+      properties:
+        type:
+          type: string
+          enum: [dm.changed]
+        channel_id:
+          type: string
+          format: uuid
     ServerPong:
       type: object
       required: [type]

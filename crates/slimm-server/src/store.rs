@@ -45,6 +45,7 @@ mod dms;
 mod dock_sources;
 mod emoji;
 mod forward_cascade;
+mod group_dms;
 mod interactions;
 mod invite_reuse;
 mod invites;
@@ -161,12 +162,15 @@ pub use data_exports::{
 };
 pub use deployment_identity::MAX_SPACE_NAME_CHARS;
 pub(crate) use dms::DM_CHANNEL_KIND;
-pub use dms::{DmConversation, OpenDmError};
+pub use dms::{DmConversation, GroupDm, OpenDmError};
 pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use export_capacity::DEFAULT_EXPORT_CEILING_BYTES;
 pub use export_rows::RowStream;
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
+pub use group_dms::{
+    GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
+};
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};

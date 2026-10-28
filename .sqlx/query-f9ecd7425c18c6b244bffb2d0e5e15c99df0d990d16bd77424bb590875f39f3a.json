@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO group_dm_members (channel_id, user_id, added_by, joined_at)\n             VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "f9ecd7425c18c6b244bffb2d0e5e15c99df0d990d16bd77424bb590875f39f3a"
+}

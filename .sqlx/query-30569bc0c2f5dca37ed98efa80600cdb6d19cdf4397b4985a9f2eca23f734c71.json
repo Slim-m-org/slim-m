@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\"\n               FROM dm_channels\n               WHERE user_a = ? OR user_b = ?\n               UNION\n               SELECT g.channel_id\n               FROM group_dm_members g\n               JOIN channels c ON c.id = g.channel_id AND c.deleted_at IS NULL\n               WHERE g.user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "30569bc0c2f5dca37ed98efa80600cdb6d19cdf4397b4985a9f2eca23f734c71"
+}

@@ -18,6 +18,7 @@ mod bots;
 mod content;
 mod content_dm_calls;
 mod content_emoji;
+mod content_group_dm_calls;
 mod content_media_slots;
 mod content_messages_window;
 mod content_roles;
@@ -43,6 +44,7 @@ mod webhooks;
 use content::{channel_calls, message_calls};
 use content_dm_calls::dm_call_ring_calls;
 use content_emoji::emoji_calls;
+use content_group_dm_calls::group_dm_calls;
 use content_media_slots::{canvas_more_calls, media_slot_calls, object_lock_calls};
 use content_messages_window::bulk_delete_by_author_call;
 use content_roles::{overwrite_calls, role_calls};
@@ -281,6 +283,7 @@ pub async fn run(c: &mut Contract) {
 
     let (channel, dm_channel) = channel_calls(c, root, &bob_id).await;
     dm_call_ring_calls(c, root, bob_token, &dm_channel).await;
+    group_dm_calls(c, root, bob_token, &bob_id).await;
     gif_calls(c, root).await;
     let upstream = c.upstream.clone();
     link_preview_calls(c, root, &upstream).await;

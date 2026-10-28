@@ -441,6 +441,9 @@ async fn channel_frame(
             ring_id: ring_id.to_string(),
             outcome: outcome.as_str().to_owned(),
         },
+        Event::DmChanged { channel_id } => ServerFrame::DmChanged {
+            channel_id: channel_id.to_string(),
+        },
         // canvas_frames::to_frame already answered Ok for any of these.
         Event::CanvasObjectPlaced { .. }
         | Event::CanvasObjectsRemoved { .. }

@@ -467,6 +467,12 @@ pub enum Event {
         ring_id: CallRingId,
         outcome: CallRingOutcome,
     },
+    /// A group DM's roster or custom name changed. Carries only the channel
+    /// id: a receiving client re-reads its DM list, which already applies
+    /// per-viewer nicknames. Reaches the current participants through the
+    /// ordinary `VIEW_CHANNEL` check, so it is the roster as it is now that
+    /// decides, and a person who just left learns from their own request.
+    DmChanged { channel_id: ChannelId },
     /// An object was placed on a channel's canvas.
     ///
     /// Carries the whole row for the same reason [`Event::MessageCreated`]
