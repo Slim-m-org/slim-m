@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.119.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.119.0...client-v0.119.1) (2026-10-28)
+
+
+### Bug Fixes
+
+* **client:** 0.119.1 - voice ping, voice activity while unfocused, footer camera, quicker tool wheel, phone sheet gap, splash fade, what's new ([#2323](https://github.com/Slim-m-org/slim-m/issues/2323)) ([9543062](https://github.com/Slim-m-org/slim-m/commit/95430624d8e5f36554cca41b37e8f9c2e5577e80))
+
 ## [0.119.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.118.0...client-v0.119.0) (2026-10-28)
 
 
