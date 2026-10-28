@@ -133,6 +133,7 @@ client/packages/app/test/download_failures_test.dart 9 0
 client/packages/app/test/emoji_name_hover_test.dart 2 0
 client/packages/app/test/features/accounts/account_switcher_snapshot_test.dart 0 3
 client/packages/app/test/features/accounts/account_switcher_test.dart 1 9
+client/packages/app/test/features/admin_setup/admin_setup_flow_test.dart 3 0
 client/packages/app/test/features/auth/banner_hosts_keep_child_state_test.dart 3 0
 client/packages/app/test/features/auth/capability_handshake_test.dart 0 1
 client/packages/app/test/features/auth/change_password_test.dart 4 5
@@ -320,6 +321,7 @@ client/packages/app/test/features/channels/dm_row_context_menu_test.dart 1 12
 client/packages/app/test/features/channels/dm_row_presence_test.dart 2 0
 client/packages/app/test/features/channels/drawer_edge_drag_test.dart 11 8
 client/packages/app/test/features/channels/emoji_wiring_test.dart 8 0
+client/packages/app/test/features/channels/group_dm_test.dart 6 13
 client/packages/app/test/features/channels/home_shell_connection_bar_test.dart 3 0
 client/packages/app/test/features/channels/home_shell_test.dart 23 9
 client/packages/app/test/features/channels/jump_to_latest_threshold_test.dart 1 0
@@ -413,7 +415,7 @@ client/packages/app/test/features/members/edit_display_name_astral_test.dart 2 1
 client/packages/app/test/features/members/edit_display_name_sheet_test.dart 10 3
 client/packages/app/test/features/members/home_shell_dm_member_pane_test.dart 3 0
 client/packages/app/test/features/members/home_shell_medium_members_test.dart 3 1
-client/packages/app/test/features/members/invite_friend_test.dart 0 6
+client/packages/app/test/features/members/invite_friend_test.dart 0 8
 client/packages/app/test/features/members/invite_landing_section_test.dart 10 11
 client/packages/app/test/features/members/member_card_banner_test.dart 1 0
 client/packages/app/test/features/members/member_card_message_test.dart 0 1
@@ -660,7 +662,7 @@ client/packages/app/test/features/settings/home_shell_harness.dart 0 1
 client/packages/app/test/features/settings/invite_role_grant_test.dart 4 4
 client/packages/app/test/features/settings/invites_expiry_options_test.dart 0 2
 client/packages/app/test/features/settings/invites_screen_rows_test.dart 2 5
-client/packages/app/test/features/settings/invites_screen_test.dart 5 10
+client/packages/app/test/features/settings/invites_screen_test.dart 5 12
 client/packages/app/test/features/settings/join_gate_test.dart 9 11
 client/packages/app/test/features/settings/join_policy_test.dart 5 10
 client/packages/app/test/features/settings/layout_polish_test.dart 1 1
@@ -809,6 +811,7 @@ client/packages/app/test/features/voice/voice_mic_fallback_setting_test.dart 1 2
 client/packages/app/test/features/voice/voice_noise_suppression_test.dart 1 7
 client/packages/app/test/features/voice/voice_options_test.dart 3 11
 client/packages/app/test/features/voice/voice_ping_test.dart 2 0
+client/packages/app/test/features/voice/voice_processing_settings_test.dart 3 3
 client/packages/app/test/features/voice/voice_recap_back_test.dart 0 4
 client/packages/app/test/features/voice/voice_recap_test.dart 5 6
 client/packages/app/test/features/voice/voice_reconnect_layout_test.dart 3 0
@@ -816,7 +819,7 @@ client/packages/app/test/features/voice/voice_reconnecting_label_test.dart 5 0
 client/packages/app/test/features/voice/voice_screen_canvas_roundtrip_test.dart 1 0
 client/packages/app/test/features/voice/voice_screen_canvas_toggle_test.dart 0 2
 client/packages/app/test/features/voice/voice_screen_compact_reachability_test.dart 5 12
-client/packages/app/test/features/voice/voice_screen_fullscreen_test.dart 5 6
+client/packages/app/test/features/voice/voice_screen_fullscreen_test.dart 5 7
 client/packages/app/test/features/voice/voice_screen_rebuild_test.dart 0 1
 client/packages/app/test/features/voice/voice_screen_rejoin_overlay_test.dart 3 0
 client/packages/app/test/features/voice/voice_screen_test.dart 4 7
@@ -930,6 +933,7 @@ client/packages/app/test/ui_snapshot_density_test.dart 0 1
 client/packages/app/test/ui_snapshot_dock_music_test.dart 0 1
 client/packages/app/test/ui_snapshot_dock_settings_test.dart 1 1
 client/packages/app/test/ui_snapshot_failed_row_test.dart 0 1
+client/packages/app/test/ui_snapshot_group_dm_test.dart 2 0
 client/packages/app/test/ui_snapshot_hold_music_test.dart 0 1
 client/packages/app/test/ui_snapshot_image_menu_test.dart 4 1
 client/packages/app/test/ui_snapshot_input_gate_test.dart 0 3
