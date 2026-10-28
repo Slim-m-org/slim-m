@@ -116,6 +116,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "role.module_revoke",
         ROLE,
     ),
+    route(
+        Method::PATCH,
+        "/bots/{bot_id}/prefix",
+        "bot.prefix",
+        Some("bot_id"),
+    ),
     route(Method::POST, "/channels", "channel.create", None),
     route(Method::PUT, "/channels/order", "channel.reorder", None),
     route(
@@ -386,6 +392,11 @@ fn detail(route: &AuditedRoute, mut params: Map<String, Value>, body: Option<&Va
         if let Some(Value::String(name)) = fields.get("name") {
             let name: String = name.chars().take(MAX_NAME_CHARS).collect();
             detail.insert("name".into(), Value::from(name));
+        }
+        if route.action == "bot.prefix"
+            && let Some(Value::String(prefix)) = fields.get("prefix")
+        {
+            detail.insert("prefix".into(), Value::from(prefix.trim()));
         }
     }
     Value::Object(detail).to_string()

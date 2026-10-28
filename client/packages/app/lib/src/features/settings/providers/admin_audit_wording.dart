@@ -96,6 +96,13 @@ class _Describer {
     return plain ? 'module $id' : 'a module';
   }
 
+  String _botPrefix() {
+    final prefix = change.detail['prefix'];
+    return prefix is String
+        ? 'changed the prefix of ${_user()} to $prefix'
+        : 'changed the prefix of ${_user()}';
+  }
+
   bool get _onlyName {
     final fields = change.fields;
     return fields.length == 1 && fields.first == 'name';
@@ -134,6 +141,7 @@ class _Describer {
       'removed ${_role(change.param('role_id'))} from ${_user()}',
     'role.module_grant' => 'granted a module permission to ${_role()}',
     'role.module_revoke' => 'revoked a module permission from ${_role()}',
+    'bot.prefix' => _botPrefix(),
     'channel.create' => 'created ${_channel()}',
     'channel.reorder' => 'reordered channels',
     'channel.update' => _update(_channel()),

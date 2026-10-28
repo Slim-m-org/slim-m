@@ -178,6 +178,11 @@ void main() {
       _change('category.overwrites', target: 'k1'),
       'changed permissions on category Text',
     ),
+    (
+      _change('bot.prefix', target: 'u1', detail: {'prefix': '~'}),
+      'changed the prefix of Ada to ~',
+    ),
+    (_change('bot.prefix', target: 'u1'), 'changed the prefix of Ada'),
     (_change('invite.create', target: 'abc'), 'created an invite'),
     (_change('invite.revoke', target: 'abc'), 'revoked invite abc'),
     (_change('emoji.create', target: 'e1'), 'added :party:'),

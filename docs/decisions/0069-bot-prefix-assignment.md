@@ -28,7 +28,15 @@ The server assigns the prefix, and refuses a clash when a bot registers.
 
 `GET /channels/{channelId}/bot-commands` answers each `(prefix, name)` once. Rows registered before refusal existed can still clash; the older registration is listed and the later one is left out, matching which registration would have won. Each row keeps showing its bot's real prefix, and the bot name stays on the row.
 
+## Changing a prefix later
+
+An admin (MANAGE_SERVER, holding what the bot's role holds) can move a bot with `PATCH /bots/{botId}/prefix`.
+The same overlap rule applies as at registration: a prefix may be shared only while no command name is on both bots, so the change is refused with 409 naming the commands another live bot already answers to under it.
+A bot that never registered moves freely.
+On success the bot's registered commands move with it, and the change is written to the admin audit log as `bot.prefix` with the new prefix.
+The bot itself still cannot change it: one that registers under the old prefix afterwards gets the usual 409 until it reconnects and reads the new one from `/me`, so the settings sheet says it takes effect on reconnect.
+`x-slimm-dropped-commands` is untouched: names are only dropped at registration, never by a prefix change, which refuses instead.
+
 ## Not decided here
 
-- Whether a prefix may be changed after assignment. For now it cannot be changed by the bot, and an admin has no route to change it either; revoke and recreate.
 - Matching on the first word of the typed text. The server only knows registered names, so a bot that accepts commands it never registered is outside this check.

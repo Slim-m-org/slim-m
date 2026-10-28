@@ -130,6 +130,7 @@ pub use bot_commands::{
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
     SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
+pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};

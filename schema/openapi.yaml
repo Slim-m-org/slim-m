@@ -8487,6 +8487,57 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /bots/{botId}/prefix:
+    parameters:
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The bot's user id.
+    patch:
+      operationId: setBotPrefix
+      tags: [bots]
+      summary: Change the prefix a bot answers to.
+      description: >-
+        For an administrator fixing a clash without removing and re-adding the
+        bot. Needs MANAGE_SERVER and the permissions the bot's role holds,
+        like `setBotPermissions`. The `prefix` follows the same shape rules as
+        one sent to `createBot`. Two bots may share a prefix only when no
+        command name is on both, the rule registration applies: the change is
+        refused with 409 when a command this bot registered is already
+        answered by another live bot under the new prefix, and the 409 names
+        them. The bot's registered commands move with it, and a bot that
+        registers under the old prefix afterwards is refused with 409 until it
+        reconnects and reads the new one from `/me`. Recorded in the admin
+        audit log as `bot.prefix`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetBotPrefixRequest"
+      responses:
+        "200":
+          description: The bot, with its new prefix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /webhooks/{webhookId}/{token}:
     parameters:
       - name: webhookId
@@ -13297,6 +13348,14 @@ components:
             no-escalation check a human-assigned role goes through; a bot may
             hold any bit a human role could, including ADMINISTRATOR. See
             docs/decisions/0028-bot-accounts.md.
+    SetBotPrefixRequest:
+      type: object
+      required: [prefix]
+      properties:
+        prefix:
+          type: string
+          description: >-
+            1 to 16 characters with no whitespace and not `/`, `@` or `:`.
     SetBotPermissionsRequest:
       type: object
       required: [permissions]

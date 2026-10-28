@@ -66,6 +66,26 @@ void main() {
     expect(await api.suggestedBotPrefix(), '?');
   });
 
+  test('setBotPrefix patches the bot and reads the moved bot back', () async {
+    late http.Request seen;
+    final api = _api((request) async {
+      seen = request;
+      return http.Response(jsonEncode({..._bot, 'prefix': '?'}), 200);
+    });
+    final moved = await api.setBotPrefix('b1', '?');
+    expect(seen.method, 'PATCH');
+    expect(seen.url.path, '/bots/b1/prefix');
+    expect(jsonDecode(seen.body), {'prefix': '?'});
+    expect(moved.prefix, '?');
+  });
+
+  test('setBotPrefix surfaces a clash as a conflict', () async {
+    final api = _api((request) async => http.Response(
+        jsonEncode({'error': 'another bot already answers to watch under !'}),
+        409));
+    expect(api.setBotPrefix('b1', '!'), throwsA(isA<ConflictException>()));
+  });
+
   test('memberPermissions reads one member\'s bits', () async {
     final api = _api((request) async {
       expect(request.url.path, '/members/u2/permissions');

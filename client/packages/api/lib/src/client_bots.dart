@@ -144,4 +144,15 @@ extension SlimmApiBots on SlimmApi {
     );
     return Bot.fromJson(json as Map<String, dynamic>);
   }
+
+  /// Moves a bot to another command prefix; refused with a 409 naming the
+  /// commands another live bot already answers to under it.
+  Future<Bot> setBotPrefix(String botUserId, String prefix) async {
+    final json = await _send(
+      'PATCH',
+      '/bots/$botUserId/prefix',
+      body: {'prefix': prefix},
+    );
+    return Bot.fromJson(json as Map<String, dynamic>);
+  }
 }

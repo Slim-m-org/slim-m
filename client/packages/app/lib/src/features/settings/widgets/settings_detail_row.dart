@@ -50,6 +50,7 @@ class SettingsDetailRow extends StatelessWidget {
     this.error,
     this.onErrorDismiss,
     this.stackTrailingWhenNarrow = false,
+    this.stackBelowWidth = 520,
     this.detailMaxLines,
   });
 
@@ -83,7 +84,8 @@ class SettingsDetailRow extends StatelessWidget {
   /// Drops a wide [trailing] (several buttons) under the text on a narrow card.
   final bool stackTrailingWhenNarrow;
 
-  static const _stackBelow = 520.0;
+  /// The row width under which a stacked trailing moves under the text; more buttons need more.
+  final double stackBelowWidth;
 
   Widget? _detailLine(AppTokens tokens) {
     final style = AppText.caption.copyWith(
@@ -149,7 +151,7 @@ class SettingsDetailRow extends StatelessWidget {
             final stacked =
                 stackTrailingWhenNarrow &&
                 trailing != null &&
-                constraints.maxWidth < _stackBelow;
+                constraints.maxWidth < stackBelowWidth;
             final lead = Row(
               spacing: 14,
               children: [

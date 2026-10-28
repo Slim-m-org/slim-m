@@ -24,7 +24,8 @@ use crate::ids::UserId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::store::{
-    Bot, CreateBotError, ReissueError, Role, UpdateBotPermissionsError, validate_bot_prefix,
+    Bot, CreateBotError, ReissueError, Role, SetBotPrefixError, UpdateBotPermissionsError,
+    validate_bot_prefix,
 };
 
 const BODY_LIMIT: usize = 1024;
@@ -36,6 +37,7 @@ pub fn routes() -> Router<AppState> {
         .route("/bots/{bot_id}/revoke", post(revoke))
         .route("/bots/{bot_id}/token", post(reissue_token))
         .route("/bots/{bot_id}/permissions", patch(set_permissions))
+        .route("/bots/{bot_id}/prefix", patch(set_prefix))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
@@ -58,6 +60,11 @@ struct SuggestedPrefixDto {
 #[derive(Deserialize)]
 struct SetBotPermissionsRequest {
     permissions: i64,
+}
+
+#[derive(Deserialize)]
+struct SetBotPrefixRequest {
+    prefix: String,
 }
 
 #[derive(Deserialize)]
@@ -311,4 +318,43 @@ async fn set_permissions(
         Err(UpdateBotPermissionsError::NoSuchBot) => Err(ApiError::NotFound("no such bot")),
         Err(UpdateBotPermissionsError::Internal(err)) => Err(err.into()),
     }
+}
+
+/// Moves a bot to another prefix, refusing one where a command it registered
+/// is already answered by another live bot; see
+/// `docs/decisions/0069-bot-prefix-assignment.md`.
+async fn set_prefix(
+    State(state): State<AppState>,
+    parts: Parts,
+    Authed(ctx): Authed,
+    Path(bot_id): Path<String>,
+    Json(req): Json<SetBotPrefixRequest>,
+) -> Result<Json<BotDto>, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::Write)?;
+    require_manage_server(&state, ctx.user_id).await?;
+    require_human(&state, ctx.user_id).await?;
+    let bot_id = UserId(parse_uuid(&bot_id)?);
+    guard_over_bot(&state, ctx.user_id, bot_id).await?;
+    let prefix = req.prefix.trim();
+    validate_bot_prefix(prefix).map_err(ApiError::BadRequest)?;
+
+    match state.store.set_bot_prefix(bot_id, prefix).await {
+        Ok(()) => {}
+        Err(SetBotPrefixError::NoSuchBot) => return Err(ApiError::NotFound("no such bot")),
+        Err(SetBotPrefixError::Overlap(names)) => {
+            return Err(ApiError::ConflictDetail(format!(
+                "another bot already answers to {} under {prefix}",
+                names.join(", ")
+            )));
+        }
+        Err(SetBotPrefixError::Internal(err)) => return Err(err.into()),
+    }
+    let bot = state
+        .store
+        .list_bots(true)
+        .await?
+        .into_iter()
+        .find(|bot| bot.user_id == bot_id)
+        .ok_or(ApiError::NotFound("no such bot"))?;
+    Ok(Json(bot_dto(&state, bot)))
 }
