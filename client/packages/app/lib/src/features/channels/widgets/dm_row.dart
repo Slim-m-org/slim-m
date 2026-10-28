@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// One direct-message row in the rail: open on tap, and a right-click or
 /// long-press menu to close it, mute it, narrow it to mentions only, or
-/// report or block the person on the other end of it.
+/// report or block the person on the other end of it. A group DM shows
+/// stacked avatars and offers its members sheet instead of close, report
+/// and block.
 ///
 /// Also the in-app half of `docs/IMPLIED-GAPS.md` #2: a call already
 /// happening in this DM shows as an icon, and tapping the row while it is
@@ -40,6 +42,9 @@ import '../../members/providers/blocks_controller.dart';
 import '../providers/channel_notification_overrides_controller.dart';
 import '../../voice/providers/dm_call_activity.dart';
 import '../providers/dms.dart';
+import '../../../providers/providers.dart' show sessionProvider;
+import 'group_avatar_stack.dart';
+import 'group_dm_members_sheet.dart';
 import '../../messages/providers/unread_indicator_rules.dart';
 import '../../../routing/routes.dart';
 import '../../voice/screens/dm_call_pane.dart' show dmCallOpenProvider;
@@ -84,6 +89,15 @@ class DmRow extends ConsumerWidget {
           context.go(Routes.channel(channel.id));
         },
       ),
+      if (channel.isGroupDm)
+        AppMenuItem(
+          label: 'Group members',
+          leading: AppIcons.members,
+          onTap: () {
+            close();
+            unawaited(showGroupDmMembersSheet(context, channel.id));
+          },
+        ),
       if (peerId != null)
         AppMenuItem(
           label: 'Close DM',
@@ -170,12 +184,19 @@ class DmRow extends ConsumerWidget {
           unread: indicator.unread,
           mentioned: indicator.mentioned,
           muted: muted,
-          leading: UserAvatar(
-            name: channel.name,
-            userId: channel.dmParticipantId,
-            size: AppAvatarSize.s28,
-            presence: true,
-          ),
+          leading: channel.isGroupDm
+              ? GroupAvatarStack(
+                  memberIds: [
+                    for (final id in channel.groupMemberIds)
+                      if (id != ref.watch(sessionProvider).tokens?.userId) id,
+                  ],
+                )
+              : UserAvatar(
+                  name: channel.name,
+                  userId: channel.dmParticipantId,
+                  size: AppAvatarSize.s28,
+                  presence: true,
+                ),
           trailing: inCall
               ? Icon(
                   AppIcons.startCall,

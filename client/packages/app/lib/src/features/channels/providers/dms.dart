@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
+import 'group_dm.dart' show channelFromGroupDm;
 
 /// The wire kind a DM channel's local row is stored under. Matches the
 /// server's own `kind = 'dm'` column value (see `store/dms.rs`), so a
@@ -71,6 +72,7 @@ const String personalSpaceName = 'Notes';
 /// persisted as [api.Channel.dmParticipantId], so a caller that needs it
 /// (blocking) reads it off the local row rather than fetching `/dms` again.
 api.Channel channelFromDm(api.DmConversation dm, {required String? selfId}) {
+  if (dm.isGroup) return channelFromGroupDm(dm, selfId: selfId);
   final isSelf = dm.user.id == selfId;
   return api.Channel(
     id: dm.channelId,

@@ -103,6 +103,7 @@ export 'src/events.dart'
         CallRinging,
         CallRingEnded,
         CategoryChanged,
+        DmChanged,
         ChannelCreated,
         ChannelDeleted,
         ChannelUpdated,

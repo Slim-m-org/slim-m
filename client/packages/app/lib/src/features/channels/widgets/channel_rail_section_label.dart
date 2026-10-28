@@ -181,6 +181,38 @@ class AddChannelGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return SectionAddGlyph(
+      revealed: revealed,
+      onFocusChange: onFocusChange,
+      semanticLabel: 'Create a channel in $categoryName',
+      onPressed: () => showCreateChannelSheet(
+        context,
+        initialKind: 'text',
+        categoryId: categoryId,
+        categoryName: categoryId == null ? null : categoryName,
+      ),
+    );
+  }
+}
+
+/// The reveal and spacing every section header's `+` shares; what it does is
+/// the caller's.
+class SectionAddGlyph extends StatelessWidget {
+  const SectionAddGlyph({
+    super.key,
+    required this.revealed,
+    required this.onFocusChange,
+    required this.semanticLabel,
+    required this.onPressed,
+  });
+
+  final bool revealed;
+  final ValueChanged<bool> onFocusChange;
+  final String semanticLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
     // The exact inset ChannelRow gives its kebab, from an edge already matching AppListRow's; both glyphs land on one line.
     final inset = AppTouchTargets.of(context) ? 0.0 : 4.0;
     return Padding(
@@ -196,14 +228,9 @@ class AddChannelGlyph extends StatelessWidget {
           alwaysIncludeSemantics: true,
           child: AppIconButton(
             icon: AppIcons.add,
-            semanticLabel: 'Create a channel in $categoryName',
+            semanticLabel: semanticLabel,
             size: AppIconButtonSize.sm,
-            onPressed: () => showCreateChannelSheet(
-              context,
-              initialKind: 'text',
-              categoryId: categoryId,
-              categoryName: categoryId == null ? null : categoryName,
-            ),
+            onPressed: onPressed,
           ),
         ),
       ),

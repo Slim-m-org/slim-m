@@ -52,6 +52,7 @@ bool isAppliedToStore(api.ServerEvent event) => switch (event) {
   api.ChannelUpdated() ||
   api.ChannelDeleted() ||
   api.OverwriteChanged() ||
+  api.DmChanged() ||
   api.RoleChanged() ||
   api.MemberRoleChanged() ||
   api.CategoryChanged() => true,

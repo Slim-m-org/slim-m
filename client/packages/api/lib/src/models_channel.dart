@@ -16,6 +16,7 @@ class Channel {
     this.position = 0,
     this.isPersonalSpace = false,
     this.dmParticipantId,
+    this.dmMemberIds = const [],
     this.parentMessageId,
     this.categoryId,
     this.permissions,
@@ -60,6 +61,14 @@ class Channel {
   /// place, so a caller that needs to know who a DM is with (blocking) can
   /// read it off the local row instead of fetching the whole `/dms` listing.
   final String? dmParticipantId;
+
+  /// Every participant of a group DM, the caller included. Empty for a pair,
+  /// a personal space and any non-DM channel. Set at the same place as
+  /// [dmParticipantId] and never sent on the wire.
+  final List<String> dmMemberIds;
+
+  /// Whether this row is a group DM (decision 0095).
+  bool get isGroupDm => dmMemberIds.isNotEmpty;
 
   /// The message this channel is a thread of, or null for an ordinary
   /// channel. A thread's `VIEW_CHANNEL`/`SEND_MESSAGES` inherit the parent
