@@ -62,6 +62,10 @@ abstract class DesktopSources {
   bool get sourcePickerUseful;
 
   Future<List<ScreenShareSource>> list();
+
+  /// The id of a running capture its platform gave up on, such as a shared
+  /// window that was closed. Empty when the platform names no source.
+  Stream<String> get captureErrors;
 }
 
 /// The plugin's own method channel; `resetDesktopSources` exists only in a
@@ -81,6 +85,11 @@ class WebrtcDesktopSources implements DesktopSources {
 
   @override
   bool get sourcePickerUseful => !_linux;
+
+  @override
+  Stream<String> get captureErrors => required
+      ? webrtc.desktopCapturer.onCaptureError.stream
+      : const Stream.empty();
 
   /// flutter_webrtc caches the portal session for the life of the process, so
   /// a share started after the first one would silently reuse its screen.

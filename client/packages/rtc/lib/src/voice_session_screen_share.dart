@@ -14,6 +14,7 @@ import 'screen_share.dart';
 import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
 import 'screen_share_local.dart';
+import 'screen_share_source_watch.dart';
 import 'screen_share_publish.dart';
 import 'screen_share_watch.dart';
 import 'screen_share_view.dart';
@@ -65,12 +66,25 @@ class VoiceScreenShare {
       participant: () => host.room()?.localParticipant,
       apply: _apply,
     );
+    sourceWatch = ShareSourceWatch(
+      captureErrors: () => desktopSources.captureErrors,
+      stop: (request) async {
+        watch.stop();
+        await _apply(false, request);
+      },
+    );
   }
 
   final VoiceScreenShareHost host;
   final DesktopSources desktopSources;
   final ScreenShareControl control;
   late final ScreenShareWatch watch;
+  late final ShareSourceWatch sourceWatch;
+
+  void dispose() {
+    watch.stop();
+    sourceWatch.dispose();
+  }
 
   Future<List<ScreenShareSource>> sources() async {
     final found = await host.reported(
@@ -86,6 +100,9 @@ class VoiceScreenShare {
       bool enabled, ShareRequest request) async {
     watch.stop();
     final outcome = await _apply(enabled, request);
+    sourceWatch.running(
+      enabled && outcome == ScreenShareOutcome.started ? request : null,
+    );
     if (enabled) watch.watch(request, outcome);
     return outcome;
   }

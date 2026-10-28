@@ -101,6 +101,16 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     }
   }
 
+  /// The shared window or screen went away; the session already ended the share.
+  void _reportShareSourceLost() {
+    _log('The shared window or screen is gone; sharing stopped');
+    state = state.copyWith(
+      screenSharing: false,
+      shareAudio: ShareAudio.none,
+      error: 'The window you were sharing closed, so sharing stopped.',
+    );
+  }
+
   ShareAudio _shareAudioNow() {
     if (!_shareSession.screenShareHasAudio) return ShareAudio.none;
     return _shareSession.screenShareAudioMuted

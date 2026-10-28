@@ -100,6 +100,9 @@ class VoiceController extends StateNotifier<VoiceState>
     });
     listenLevelDisplayed(_ref, _session.setLevelDisplayed);
     _states = _session.states.listen(_onSessionState);
+    _shareSourceLost = _session.screenShareSourceLost.listen(
+      (_) => _reportShareSourceLost(),
+    );
     _participants = _session.participantChanges.listen((p) {
       _activity.observe(p);
       unawaited(_adoptServerCallStart());
@@ -151,6 +154,7 @@ class VoiceController extends StateNotifier<VoiceState>
   final CallActivityTracker _activity;
   late final StreamSubscription<VoiceSessionState> _states;
   late final StreamSubscription<List<VoiceParticipant>> _participants;
+  late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<void> _endCallRequests;
 
   /// Bumped by every [join] and [leave], so a stale call's continuation can
@@ -517,6 +521,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _autoRejoin.reset();
     unawaited(_states.cancel());
     unawaited(_participants.cancel());
+    unawaited(_shareSourceLost.cancel());
     unawaited(_endCallRequests.cancel());
     unawaited(_session.dispose());
     _callLifecycle.dispose();

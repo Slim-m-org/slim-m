@@ -14,7 +14,8 @@ import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'audio_publish_options.dart';
 import 'video_publish_options.dart';
-import 'video_subscription_culler.dart' show videoSubscriptionDwell;
+import 'video_subscription_culler.dart'
+    show videoSubscriptionDwell, videoSubscriptionKey;
 
 /// How sharp the remote video you watch should be.
 enum ReceiveVideoQuality {
@@ -82,9 +83,34 @@ Widget withReceiveDensity(
             builder: (context, value, child) => build(value),
           );
 
+/// The tiles shown fullscreen or popped out, counted so two holds on one tile
+/// share it until both let go.
+class EnlargedVideo {
+  final _holds = <String, int>{};
+
+  Set<String> get keys => _holds.keys.toSet();
+
+  /// Holds [tileKey], then calls [onChange]; the result releases it and calls [onChange] again.
+  VoidCallback hold(String tileKey, void Function() onChange) {
+    _holds.update(tileKey, (n) => n + 1, ifAbsent: () => 1);
+    onChange();
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      final left = (_holds[tileKey] ?? 1) - 1;
+      left <= 0 ? _holds.remove(tileKey) : _holds[tileKey] = left;
+      onChange();
+    };
+  }
+}
+
 /// One remote video publication reduced to what quality selection needs.
 typedef RemoteVideoQualityRef = ({
   String sid,
+
+  /// The `'<kind>:<identity>'` tile key, so an enlarged tile can be matched.
+  String key,
   lk.TrackSource source,
   bool subscribed,
   Future<void> Function(lk.VideoQuality quality) setQuality,
@@ -101,14 +127,18 @@ typedef RemoteVideoQualityRef = ({
 /// only as a restore. Max is the exception: it asks for HIGH everywhere on purpose,
 /// and its renderers report [maxQualityPixelDensity] so adaptive stream stays on.
 ///
+/// A tile in [enlarged] (fullscreen or popped out) is never held below the top
+/// layer: the cap is for the grid, and a big tile left soft defeats watching it.
+///
 /// Unsubscribed publications are skipped because LiveKit ignores a manual
 /// setting on them and logs a warning instead; the session reapplies this on
 /// every room event, so a track picks the choice up when it subscribes.
 Future<void> applyReceiveVideoQuality(
   Iterable<RemoteVideoQualityRef> publications,
   ReceiveVideoQuality quality,
-  Set<String> lowered,
-) async {
+  Set<String> lowered, {
+  Set<String> enlarged = const {},
+}) async {
   for (final pub in publications) {
     if (!pub.subscribed) continue;
     final screenShare = switch (pub.source) {
@@ -117,7 +147,9 @@ Future<void> applyReceiveVideoQuality(
       _ => null,
     };
     if (screenShare == null) continue;
-    final layer = quality.layerFor(screenShare: screenShare);
+    final layer = enlarged.contains(pub.key)
+        ? lk.VideoQuality.HIGH
+        : quality.layerFor(screenShare: screenShare);
     if (quality == ReceiveVideoQuality.max) {
       lowered.remove(pub.sid);
     } else if (layer == lk.VideoQuality.HIGH) {
@@ -136,6 +168,10 @@ Iterable<RemoteVideoQualityRef> remoteVideoQualityRefs(lk.Room room) sync* {
     for (final pub in participant.videoTrackPublications.toList()) {
       yield (
         sid: pub.sid,
+        key: videoSubscriptionKey(
+          identity: participant.identity,
+          screenShare: pub.source == lk.TrackSource.screenShareVideo,
+        ),
         source: pub.source,
         subscribed: pub.subscribed,
         setQuality: pub.setVideoQuality,

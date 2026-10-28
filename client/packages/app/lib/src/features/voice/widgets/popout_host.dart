@@ -11,7 +11,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../desktop/popout/popout_windowing.dart';
 import '../providers/call_mini_player.dart';
+import '../providers/picture_in_picture.dart' show pictureInPictureTileKey;
 import '../providers/popout_window.dart';
+import '../providers/voice_controller.dart';
 import 'popout_window_view.dart';
 
 const _windowSize = Size(640, 400);
@@ -28,6 +30,7 @@ class PopOutHost extends ConsumerStatefulWidget {
 class _PopOutHostState extends ConsumerState<PopOutHost> {
   PopOutWindowHandle? _handle;
   MiniPlayerFeed? _feed;
+  VoidCallback? _releaseEnlarged;
 
   @override
   void initState() {
@@ -39,13 +42,25 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
 
   @override
   void dispose() {
+    _releaseEnlarged?.call();
     _handle?.destroy();
     super.dispose();
   }
 
   void _close() => ref.read(popOutFeedProvider.notifier).state = null;
 
+  /// A popped-out feed has its own window, so Data saver must not cap it.
+  void _holdSharp(MiniPlayerFeed? feed) {
+    _releaseEnlarged?.call();
+    _releaseEnlarged = feed == null
+        ? null
+        : ref
+              .read(voiceControllerProvider.notifier)
+              .holdEnlargedVideo(pictureInPictureTileKey(feed));
+  }
+
   void _sync(MiniPlayerFeed? next) {
+    _holdSharp(next);
     if (next == null) {
       ref.read(popOutFeedProvider.notifier).state = null;
       if (_handle == null) return;
