@@ -47,12 +47,14 @@ mod event_util;
 mod handshake;
 mod memory_guard;
 mod moderation_seq;
+mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
+pub use screen_annotation::{ScreenAnnotationEvent, ScreenAnnotationKind};
 
 /// How many events the durable channel buffers per subscriber before the
 /// slowest one starts losing the oldest and receives a `Lagged` error.
@@ -152,6 +154,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -220,6 +223,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }

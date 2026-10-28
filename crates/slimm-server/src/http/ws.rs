@@ -56,6 +56,7 @@ mod message_frames;
 mod permission_cache;
 mod signals;
 mod signals_canvas;
+mod signals_screen_annotation;
 
 /// How long a single send may block before the peer is treated as dead. Without
 /// this a peer that completes the handshake and then stops reading could wedge
@@ -297,6 +298,41 @@ async fn serve(
                                         rect: [x, y, w, h],
                                         ended,
                                     },
+                                )
+                                .await;
+                            }
+                            Ok(ClientFrame::CanvasScreenAnnotation {
+                                channel_id,
+                                target_user_id,
+                                kind,
+                                annotation_id,
+                                points,
+                                color,
+                                text: note,
+                                ended,
+                                allowed,
+                                aspect,
+                            }) => {
+                                let frame_bytes = text.as_str().len();
+                                signals_screen_annotation::handle_canvas_screen_annotation(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals_screen_annotation::ScreenAnnotationFrame {
+                                        channel_id,
+                                        target_user_id,
+                                        kind,
+                                        annotation_id,
+                                        points,
+                                        color,
+                                        text: note,
+                                        ended,
+                                        allowed,
+                                        aspect,
+                                    },
+                                    frame_bytes,
                                 )
                                 .await;
                             }

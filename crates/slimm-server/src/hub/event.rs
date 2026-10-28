@@ -21,6 +21,7 @@ use crate::store::{
 use crate::voice::CallRingOutcome;
 
 use super::event_util::Reactors;
+use super::screen_annotation::ScreenAnnotationEvent;
 
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
@@ -615,6 +616,12 @@ pub enum Event {
         h: f64,
         ended: bool,
     },
+    /// A viewer's annotation over, or a sharer's consent about, a screen share.
+    ///
+    /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored,
+    /// the sharer's overlay fades it within seconds. Boxed so the payload does
+    /// not widen every other variant.
+    CanvasScreenAnnotation(Box<ScreenAnnotationEvent>),
     /// The part of the shared board a member is looking at, in world units.
     ///
     /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, a
