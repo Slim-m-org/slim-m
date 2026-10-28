@@ -42,6 +42,11 @@ mixin VideoQualityRecorder {
 
   void setEvenOutLoudSounds(bool enabled) => lastEvenOutLoudSounds = enabled;
 
+  VoiceProcessing? lastVoiceProcessing;
+
+  Future<void> setVoiceProcessing(VoiceProcessing next) async =>
+      lastVoiceProcessing = next;
+
   bool? lastStrongNoiseSuppression;
 
   void setStrongNoiseSuppression(bool enabled) =>

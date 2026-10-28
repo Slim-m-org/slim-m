@@ -32,6 +32,7 @@ mixin VoiceSessionInputGate {
       supported: _gate.supported,
       onChanged: () => unawaited(_applyInputGate()),
       log: _diag,
+      webrtcNoiseSuppression: () => _audioSwitching.processing.noiseSuppression,
     );
     _captureReadings = _gate.readings.listen(
       (r) => _strong.onReading(

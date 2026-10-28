@@ -11,6 +11,7 @@ import 'screen_share_audio_options.dart';
 import 'pulse_audio.dart';
 import 'voice_log.dart';
 import 'voice_models.dart';
+import 'voice_processing.dart';
 
 /// Points a live [lk.Room]'s capture at [device]. A seam so tests can see
 /// what a mid-call pick sends without a native audio stack.
@@ -40,6 +41,9 @@ class AudioDeviceSwitching {
   final VoiceLog? log;
 
   String? _loggedOptions;
+
+  /// Which of libwebrtc's filters the next capture opens with.
+  VoiceProcessing processing = const VoiceProcessing();
 
   final AudioDevices _devices;
   final LiveInputSwitch _liveInput;
@@ -95,20 +99,22 @@ class AudioDeviceSwitching {
         ),
       );
 
-  /// libwebrtc's own noise suppression stays on; Strong adds rnnoise natively.
+  /// Strong adds rnnoise natively on top of whichever libwebrtc filters are on.
   lk.AudioCaptureOptions captureOptions() {
     // libwebrtc cannot open a sound server node; [applyServerRouting] moves the stream instead.
     final deviceId =
         isPulseDeviceId(_preferredInputId) ? null : _preferredInputId;
     final line =
-        'voice-ns: capture options device=${deviceId ?? 'default'} webrtc_ns=on';
+        'voice-ns: capture options device=${deviceId ?? 'default'} ${processing.summary}';
     if (line != _loggedOptions) {
       _loggedOptions = line;
       log?.call(line);
     }
     return lk.AudioCaptureOptions(
       deviceId: deviceId,
-      noiseSuppression: true,
+      echoCancellation: processing.echoCancellation,
+      autoGainControl: processing.autoGainControl,
+      noiseSuppression: processing.noiseSuppression,
       // The session releases a muted capture after a grace period; reopening on every unmute flips Bluetooth profiles and clips the first syllable.
       stopAudioCaptureOnMute: false,
     );

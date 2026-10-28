@@ -35,6 +35,7 @@ import '../widgets/video_health_overlay.dart';
 import 'voice_participant_volume_store.dart';
 import 'volume_drag_throttle.dart';
 import 'voice_settings_controller.dart';
+import 'voice_processing.dart';
 import 'voice_sfu_security.dart';
 import 'voice_state.dart';
 

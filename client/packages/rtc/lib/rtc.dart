@@ -20,6 +20,7 @@ export 'src/call_media_role.dart'
         pulsePropWithCallRole;
 export 'src/audio_gain.dart';
 export 'src/audio_publish_options.dart';
+export 'src/voice_processing.dart';
 export 'src/screen_share_audio_options.dart';
 export 'src/broadcast_bridge.dart';
 export 'src/call_stats.dart';

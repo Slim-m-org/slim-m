@@ -55,6 +55,8 @@ import 'video_subscription_culler.dart';
 import 'voice_disconnect_reason.dart';
 import 'voice_health.dart';
 import 'voice_log.dart';
+import 'voice_processing.dart';
+import 'voice_processing_control.dart';
 import 'voice_models.dart';
 import 'voice_roster_snapshot.dart';
 import 'voice_session_camera.dart';
@@ -184,6 +186,20 @@ class VoiceSession
       selectOutput: (device) => _selectOutput(device, remember: false),
     ),
   );
+
+  late final _processing = VoiceProcessingControl(
+    switching: _audioSwitching,
+    mic: _mic,
+    release: _micRelease,
+    micWanted: () => _micWanted,
+    restartCapture: _restartMicCapture,
+    reopenMuted: () => _mic.reopenMuted(_plainOpenOptions()),
+    log: _diag,
+  );
+
+  /// Reopens the capture when it changed; echo, gain and suppression are fixed at open.
+  Future<void> setVoiceProcessing(VoiceProcessing next) =>
+      _processing.set(next, inCall: _room != null);
 
   /// Whether a silent microphone is swapped for another, for this call only.
   void setMicFallbackEnabled(bool enabled) => _fallback.enabled = enabled;
