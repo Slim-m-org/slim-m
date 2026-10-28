@@ -24,6 +24,7 @@ import 'relaunch.dart';
 import 'rpm_updater.dart';
 import 'self_update/self_update_controller.dart';
 import 'self_update/self_update_failure.dart';
+import 'self_update/windows_adopt.dart' show canAdoptWindowsInstall;
 import 'startup_screen.dart';
 import 'startup_state.dart';
 import 'update_check.dart';
@@ -52,6 +53,7 @@ class StartupUpdateDeps {
     this.format,
     this.currentVersion,
     this.selfApplies,
+    this.adoptable,
     this.deadline = startupUpdateDeadline,
   });
 
@@ -61,6 +63,10 @@ class StartupUpdateDeps {
   final InstallFormat? format;
   final String? currentVersion;
   final bool? selfApplies;
+
+  /// Whether this is a bare Windows copy that can move into the per-user
+  /// layout; defaults to asking the running executable.
+  final bool? adoptable;
   final Duration deadline;
 }
 
@@ -77,6 +83,7 @@ Future<void> runStartupUpdates(
     :format,
     :currentVersion,
     :selfApplies,
+    :adoptable,
     :deadline,
   ) = deps;
   if (!isDesktopHost || updateChecksDisabled()) return;
@@ -101,6 +108,11 @@ Future<void> runStartupUpdates(
     if (update.format == InstallFormat.tarball &&
         (selfApplies ?? selfApplyTarget() != null)) {
       await _installInPlace(container, version, update, relaunch, deadline);
+      return;
+    }
+    if (update.format == InstallFormat.tarball &&
+        (adoptable ?? _runsAsBareWindowsCopy())) {
+      await _adoptAndInstall(container, version, update, relaunch, deadline);
       return;
     }
     await _offerManually(container, update);
@@ -174,6 +186,69 @@ Future<void> _installInPlace(
       SelfUpdateFailureKind.downloadFailed,
       'The update was taking too long, so slim-m started without it. '
       'It will pick up where it left off next time.',
+    );
+    return;
+  }
+  if (installed == null) return;
+  container.read(startupStatusProvider.notifier).state =
+      'Restarting into $installed';
+  await relaunch();
+}
+
+bool _runsAsBareWindowsCopy() =>
+    Platform.isWindows && canAdoptWindowsInstall(Platform.resolvedExecutable);
+
+/// A bare Windows copy: ask once, since adopting moves the app, then move it
+/// into the per-user layout, install from there and relaunch through the
+/// launcher. Declining is remembered like any other turned-down version.
+Future<void> _adoptAndInstall(
+  ProviderContainer container,
+  String currentVersion,
+  ClientUpdate update,
+  Relaunch relaunch,
+  Duration deadline,
+) async {
+  final prefs = await container.read(preferencesProvider.future);
+  if (updateWasDismissed(
+    dismissed: prefs.getString(dismissedUpdateVersionKey),
+    candidate: update.version,
+  )) {
+    return;
+  }
+  final answer = Completer<bool>();
+  container.read(startupPromptProvider.notifier).state = StartupPrompt(
+    title: 'Version ${update.version} is available',
+    detail:
+        'This copy moves into your account\'s app folder so it can update itself.',
+    primaryLabel: 'Move and update',
+    onPrimary: () => answer.complete(true),
+    secondaryLabel: 'Not now',
+    onSecondary: () => answer.complete(false),
+  );
+  final accepted = await answer.future;
+  container.read(startupPromptProvider.notifier).state = null;
+  if (!accepted) {
+    await prefs.setString(dismissedUpdateVersionKey, update.version);
+    return;
+  }
+  container.read(startupStatusProvider.notifier).state =
+      'Installing ${update.version}';
+  final String? installed;
+  try {
+    installed = await container
+        .read(selfUpdateProvider)
+        .adoptAndInstall(
+          currentVersion: currentVersion,
+          releaseUrl: update.releaseUrl,
+        )
+        .timeout(deadline);
+  } on TimeoutException {
+    container
+        .read(selfUpdateFailureProvider.notifier)
+        .state = SelfUpdateFailure(
+      SelfUpdateFailureKind.downloadFailed,
+      'The update was taking too long, so slim-m started without it.',
+      releaseUrl: update.releaseUrl,
     );
     return;
   }

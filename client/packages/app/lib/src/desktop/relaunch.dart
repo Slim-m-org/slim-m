@@ -55,12 +55,17 @@ const windowsRelaunchArgument = '--relaunch';
   };
 }
 
+/// Set once a bare Windows copy has moved itself into the per-user layout:
+/// this process still runs from the old folder, but a restart belongs to the
+/// launcher there.
+String? relaunchLauncherOverride;
+
 /// In the per-user layout the launcher, so a restart lands on whichever
 /// version `current` names; otherwise the running executable.
 String _executableToRun() {
   final executable = Platform.resolvedExecutable;
   final target = installTargetFor(executable, Platform.operatingSystem);
-  return target?.launcher.path ?? executable;
+  return target?.launcher.path ?? relaunchLauncherOverride ?? executable;
 }
 
 ({String program, List<String> arguments})? _thisProcessCommand([
