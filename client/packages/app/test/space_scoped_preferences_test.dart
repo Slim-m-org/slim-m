@@ -141,9 +141,11 @@ const _deviceKeys = <String>{
   'slimm.voice.activity_sensitivity',
   'slimm.voice.audio_input_device_id',
   'slimm.voice.audio_output_device_id',
+  'slimm.voice.auto_gain',
   'slimm.voice.camera_on_join',
   'slimm.voice.mirror_self_view',
   'slimm.voice.camera_quality',
+  'slimm.voice.echo_cancellation',
   'slimm.voice.even_out_loud',
   'slimm.voice.hidden_cameras',
   'slimm.voice.input_threshold_auto',
@@ -159,5 +161,6 @@ const _deviceKeys = <String>{
   'slimm.voice.screen_share_include_audio',
   'slimm.voice.screen_share_quality',
   'slimm.voice.shortcut_overrides',
+  'slimm.voice.webrtc_noise_suppression',
   'slimm.whats_new.last_seen_version',
 };
