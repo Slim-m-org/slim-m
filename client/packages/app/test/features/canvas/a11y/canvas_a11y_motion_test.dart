@@ -58,6 +58,20 @@ void main() {
     expect(partway, lessThan(open));
   });
 
+  a11yTest('the folded dock handle is its own small semantics node', (
+    tester,
+  ) async {
+    final rig = await pumpA11yCanvas(tester);
+    rig.container.read(canvasFullscreenProvider.notifier).state = 'c1';
+    await settle(tester);
+
+    expect(
+      tester.getSize(find.bySemanticsLabel('Show controls')).height,
+      lessThan(100),
+      reason: 'merged into the pane it reads as one full-screen button',
+    );
+  });
+
   for (final mode in _modes.entries) {
     group('with ${mode.key}', () {
       a11yTest('the speaking ring stops ticking', (tester) async {

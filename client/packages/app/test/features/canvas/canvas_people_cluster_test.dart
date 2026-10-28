@@ -6,9 +6,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_sheet.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_roster_avatar.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_roster_cluster.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_cluster.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -69,7 +69,7 @@ Future<void> _pump(
             alignment: Alignment.topLeft,
             child: Padding(
               padding: EdgeInsets.all(12),
-              child: CanvasRosterCluster(),
+              child: CanvasPeopleCluster(),
             ),
           ),
         ),
@@ -82,7 +82,7 @@ Finder _row(String name) =>
     find.ancestor(of: find.text(name), matching: find.byType(AppListRow)).first;
 
 Future<void> _openList(WidgetTester tester) async {
-  await tester.tap(find.byTooltip('People in this call'));
+  await tester.tap(find.byTooltip('People here'));
   // A speaking ring never settles.
   await tester.pump(const Duration(milliseconds: 400));
 }
@@ -142,7 +142,7 @@ void main() {
     await tester.tapAt(const Offset(600, 600));
     await tester.pumpAndSettle();
 
-    expect(find.text('In this call'), findsNothing);
+    expect(find.text('People here'), findsNothing);
   });
 
   testWidgets('right-clicking a row opens the same menu a call tile has', (
@@ -166,7 +166,7 @@ void main() {
     ], width: 390);
     await _openList(tester);
 
-    expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
+    expect(find.byType(CanvasPeopleSheet), findsOneWidget);
     expect(_row('BOB'), findsOneWidget);
   });
 

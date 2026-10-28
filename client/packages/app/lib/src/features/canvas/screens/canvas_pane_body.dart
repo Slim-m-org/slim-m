@@ -27,6 +27,7 @@ import 'canvas_call_dock.dart';
 import 'canvas_compact_dock.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_hidden_tiles.dart';
+import 'canvas_people_session.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_object_context_menu.dart';
 import 'canvas_tool_wheel_layer.dart';
@@ -406,99 +407,108 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                     : null,
               ),
             Expanded(
-              // Canvas content panned past the top edge must never paint over the header above it.
-              child: ClipRect(
-                // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
-                child: FocusTraversalGroup(
-                  policy: OrderedTraversalPolicy(),
-                  child: Stack(
-                    children: [
-                      FocusTraversalOrder(
-                        key: const ValueKey('canvas-surface'),
-                        order: const NumericFocusOrder(1),
-                        child: _activityLogOpen ? _panel() : _surface(tokens),
-                      ),
-                      CanvasSpeakingSync(cursors: widget.cursors),
-                      if (!_activityLogOpen)
+              child: CanvasPeopleHost(
+                relay: widget.viewRelay,
+                cursors: widget.cursors,
+                selfId: widget.selfId,
+                viewMode: widget.viewMode,
+                onBringEveryone: () => widget.viewRelay?.summonEveryone(
+                  widget.document.visibleBoard ?? canvasSharedArea,
+                ),
+                // Canvas content panned past the top edge must never paint over the header above it.
+                child: ClipRect(
+                  // Tab goes banner action, board, dock, call tiles, view controls: reading order put the board's corners first.
+                  child: FocusTraversalGroup(
+                    policy: OrderedTraversalPolicy(),
+                    child: Stack(
+                      children: [
                         FocusTraversalOrder(
-                          key: const ValueKey('canvas-peer-controls'),
-                          order: const NumericFocusOrder(4),
-                          child: CanvasPeerControls(
-                            document: widget.document,
-                            participants: widget.callParticipants,
-                            cursors: widget.cursors,
-                            relay: widget.viewRelay,
-                            selfId: widget.selfId,
-                            viewMode: widget.viewMode,
-                            onAcceptSummon: _acceptSummon,
-                          ),
+                          key: const ValueKey('canvas-surface'),
+                          order: const NumericFocusOrder(1),
+                          child: _activityLogOpen ? _panel() : _surface(tokens),
                         ),
-                      if (widget.paging case final paging?)
-                        CanvasPagingIndicator(paging: paging),
-                      // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
-                      if (widget.callError != null ||
-                          widget.error != null ||
-                          widget.truncated)
-                        FocusTraversalOrder(
-                          key: const ValueKey('canvas-banners'),
-                          order: const NumericFocusOrder(0),
-                          child: Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (widget.callError != null)
-                                  Padding(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.s12,
-                                    ),
-                                    child: AppErrorState(
-                                      message: widget.callError!,
-                                      onRetry: widget.onRetryCall,
-                                    ),
-                                  ),
-                                if (widget.error != null)
-                                  Padding(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.s12,
-                                    ),
-                                    child: AppErrorState(
-                                      message: widget.error!,
-                                      onDismiss: widget.onDismissError,
-                                      onRetry: widget.onRetryError,
-                                    ),
-                                  ),
-                                if (widget.truncated)
-                                  const CanvasTruncatedNotice(),
-                              ],
+                        CanvasSpeakingSync(cursors: widget.cursors),
+                        if (!_activityLogOpen)
+                          FocusTraversalOrder(
+                            key: const ValueKey('canvas-peer-controls'),
+                            order: const NumericFocusOrder(4),
+                            child: CanvasPeerControls(
+                              participants: widget.callParticipants,
+                              cursors: widget.cursors,
+                              relay: widget.viewRelay,
+                              selfId: widget.selfId,
+                              onAcceptSummon: _acceptSummon,
                             ),
                           ),
-                        ),
-                      FocusTraversalOrder(
-                        key: const ValueKey('canvas-dock'),
-                        order: const NumericFocusOrder(2),
-                        child: CanvasDockOverlay(
-                          call: widget.callDock,
-                          canvas: _dockData,
-                          tileOverrides: widget.tileOverrides,
-                          compact: compact,
-                        ),
-                      ),
-                      if (shortWindow && !widget.fullscreen)
+                        if (widget.paging case final paging?)
+                          CanvasPagingIndicator(paging: paging),
+                        // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
+                        if (widget.callError != null ||
+                            widget.error != null ||
+                            widget.truncated)
+                          FocusTraversalOrder(
+                            key: const ValueKey('canvas-banners'),
+                            order: const NumericFocusOrder(0),
+                            child: Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (widget.callError != null)
+                                    Padding(
+                                      padding: const EdgeInsets.all(
+                                        AppSpacing.s12,
+                                      ),
+                                      child: AppErrorState(
+                                        message: widget.callError!,
+                                        onRetry: widget.onRetryCall,
+                                      ),
+                                    ),
+                                  if (widget.error != null)
+                                    Padding(
+                                      padding: const EdgeInsets.all(
+                                        AppSpacing.s12,
+                                      ),
+                                      child: AppErrorState(
+                                        message: widget.error!,
+                                        onDismiss: widget.onDismissError,
+                                        onRetry: widget.onRetryError,
+                                      ),
+                                    ),
+                                  if (widget.truncated)
+                                    const CanvasTruncatedNotice(),
+                                ],
+                              ),
+                            ),
+                          ),
                         FocusTraversalOrder(
-                          key: const ValueKey('canvas-short-toggle'),
-                          order: const NumericFocusOrder(3),
-                          child: CanvasShortToggle(channelId: widget.channelId),
+                          key: const ValueKey('canvas-dock'),
+                          order: const NumericFocusOrder(2),
+                          child: CanvasDockOverlay(
+                            call: widget.callDock,
+                            canvas: _dockData,
+                            tileOverrides: widget.tileOverrides,
+                            compact: compact,
+                          ),
                         ),
-                      const FocusTraversalOrder(
-                        key: ValueKey('canvas-music-badge'),
-                        order: NumericFocusOrder(5),
-                        child: CanvasMusicBadge(),
-                      ),
-                    ],
+                        if (shortWindow && !widget.fullscreen)
+                          FocusTraversalOrder(
+                            key: const ValueKey('canvas-short-toggle'),
+                            order: const NumericFocusOrder(3),
+                            child: CanvasShortToggle(
+                              channelId: widget.channelId,
+                            ),
+                          ),
+                        const FocusTraversalOrder(
+                          key: ValueKey('canvas-music-badge'),
+                          order: NumericFocusOrder(5),
+                          child: CanvasMusicBadge(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

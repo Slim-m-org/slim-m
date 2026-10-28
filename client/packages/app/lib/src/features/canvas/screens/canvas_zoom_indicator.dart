@@ -24,14 +24,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../voice/providers/call_solo.dart';
 import '../widgets/canvas_pill_surface.dart';
-import '../widgets/canvas_roster_cluster.dart';
 
 import 'canvas_outside_board_notice.dart';
+import 'canvas_people_cluster.dart';
+import 'canvas_people_panel.dart';
+import 'canvas_people_session.dart';
 import 'canvas_view_mode_controls.dart';
 
-/// The canvas's top-left cluster: who is in the call, the view pill and the zoom readout, clear of the bottom dock at any width.
+/// The canvas's top-left cluster: who is here, the view pill and the zoom readout, clear of the bottom dock at any width.
 class CanvasZoomIndicator extends StatelessWidget {
   const CanvasZoomIndicator({
     super.key,
@@ -66,7 +67,11 @@ class CanvasZoomIndicator extends StatelessWidget {
       children: [
         Consumer(
           builder: (context, ref, _) {
-            final people = ref.watch(callHasOthersProvider);
+            final session = CanvasPeopleScope.maybeOf(context);
+            final people = canvasPeople(
+              call: ref.watch(canvasCallPeopleProvider),
+              onCanvas: session?.onCanvas ?? const [],
+            ).any((p) => !p.isSelf);
             if (!people && viewMode == null) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s8),
@@ -74,7 +79,7 @@ class CanvasZoomIndicator extends StatelessWidget {
                 spacing: AppSpacing.s8,
                 runSpacing: AppSpacing.s8,
                 children: [
-                  if (people) const CanvasRosterCluster(),
+                  if (people) const CanvasPeopleCluster(),
                   if (viewMode case final mode?)
                     CanvasViewModeControls(mode: mode, tokens: tokens),
                 ],

@@ -26,7 +26,7 @@ import '../../../widgets/confirm_dialog.dart';
 import '../providers/canvas_grid_snap.dart';
 import '../widgets/canvas_clear_scope.dart';
 import '../widgets/canvas_clear_sheet.dart';
-import '../widgets/canvas_participants_sheet.dart';
+import 'canvas_people_sheet.dart';
 import '../../../widgets/context_menu_focus.dart';
 import 'canvas_dock_collapse.dart' show CanvasDockPopupPin;
 import 'canvas_shape_icons.dart';
@@ -192,7 +192,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
   }
 
   void _openParticipants() =>
-      _openAfterClose(() => showCanvasParticipantsSheet(context));
+      _openAfterClose(() => showCanvasPeopleSheet(context));
 
   void _requestScopedClear(CanvasScopedClear control) =>
       _openAfterClose(() => requestScopedCanvasClear(context, control));

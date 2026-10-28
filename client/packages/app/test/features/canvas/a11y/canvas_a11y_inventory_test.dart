@@ -173,7 +173,7 @@ void main() {
     ) async {
       await pumpA11yCanvas(tester);
       // Mute state is told in the call list the corner cluster opens (decision 0086).
-      await tester.tap(find.byTooltip('People in this call'));
+      await tester.tap(find.byTooltip('People here'));
       await tester.pump(const Duration(milliseconds: 400));
       final sam = semanticsRows(tester).where((r) => r.label.startsWith('Sam'));
 
@@ -324,7 +324,7 @@ void main() {
         final rows = semanticsRows(tester);
 
         expect(
-          rows.where((r) => r.flags.isHeader && r.label == 'In this call'),
+          rows.where((r) => r.flags.isHeader && r.label == 'People here'),
           isNotEmpty,
           reason:
               'the title is plain text and the route is named '

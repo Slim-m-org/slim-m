@@ -106,7 +106,7 @@ void main() {
     a11yTest('the Participants sheet takes keyboard focus', (tester) async {
       await pumpA11yCanvas(tester);
       await runOverflowItem(tester, 'Participants');
-      expect(find.text('In this call'), findsOneWidget);
+      expect(find.text('People here'), findsOneWidget);
 
       expect(
         focusIsInModal(),
@@ -122,7 +122,7 @@ void main() {
     ) async {
       await pumpA11yCanvas(tester, size: phoneSize);
       await runOverflowItem(tester, 'Participants');
-      expect(find.text('In this call'), findsOneWidget);
+      expect(find.text('People here'), findsOneWidget);
 
       expect(focusIsInModal(), isTrue, reason: focusedName(tester));
     });
@@ -188,7 +188,7 @@ void main() {
         await settle(tester);
 
         expect(
-          find.text('In this call'),
+          find.text('People here'),
           findsNothing,
           reason: 'sheet still open',
         );

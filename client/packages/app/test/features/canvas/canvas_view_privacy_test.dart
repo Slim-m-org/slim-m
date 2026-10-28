@@ -75,12 +75,14 @@ void main() {
     engine.cursors.upsert(id: 'amy', x: 1, y: 1, label: 'Amy', colorIndex: 0);
     await tester.pump();
 
-    expect(find.byTooltip('Bring everyone to me'), findsOneWidget);
+    await tester.tap(find.byTooltip('People here'));
+    await tester.pump();
+    expect(find.text('Bring everyone to me'), findsOneWidget);
 
     engine.viewMode.showPersonal();
     await tester.pump();
 
-    expect(find.byTooltip('Bring everyone to me'), findsNothing);
+    expect(find.text('Bring everyone to me'), findsNothing);
     expect(find.byTooltip('Follow Amy'), findsOneWidget);
   });
 }
