@@ -16,9 +16,8 @@ import '../../../api_failure.dart';
 /// [SignInErrorField.form] is the fallback for failures no one field owns.
 enum SignInErrorField { server, username, displayName, password, form }
 
-/// The longest display name the server accepts, in characters (`validate_label`
-/// in the server's `http/auth.rs`).
-const displayNameMaxLength = 64;
+/// The longest display name the server accepts, in characters.
+const displayNameMaxLength = InputLimits.name;
 
 /// What to tell someone whose display name is past the server's limit, or null.
 String? displayNameError(String text) =>
