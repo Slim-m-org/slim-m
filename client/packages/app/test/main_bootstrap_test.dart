@@ -4,7 +4,7 @@
 /// own async-bootstrap sequencing, checked without ever calling `main()`.
 library;
 
-import 'package:flutter/widgets.dart' show SizedBox;
+import 'package:flutter/widgets.dart' show Router, SizedBox;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +14,7 @@ import 'package:slimm_app/src/desktop/startup_screen.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
+import 'package:slimm_design_system/design_system.dart' show AppMotion;
 import 'package:slimm_platform/testing.dart';
 
 ProviderContainer _container() {
@@ -94,7 +95,9 @@ void main() {
   });
 
   testWidgets('a signed-in phone keeps the same splash up until the first '
-      'catch-up lands, then hands straight to the app', (tester) async {
+      'catch-up lands, then fades into the app built beneath it', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [keyStoreProvider.overrideWithValue(InMemoryKeyStore())],
     );
@@ -118,7 +121,20 @@ void main() {
     await tester.pump();
     expect(find.byType(StartupScreen), findsOneWidget);
 
+    expect(
+      find.byType(Router<Object>),
+      findsOneWidget,
+      reason: 'the app builds under the splash, so it is drawn when revealed',
+    );
+
     container.read(initialSyncCompleteProvider.notifier).state = true;
+    await tester.pump();
+    expect(
+      find.byType(StartupScreen),
+      findsOneWidget,
+      reason: 'the splash fades out over the app rather than cutting',
+    );
+    await tester.pump(AppMotion.slow + AppMotion.fast);
     await tester.pump();
     expect(find.byType(StartupScreen), findsNothing);
     await tester.pumpWidget(const SizedBox());
@@ -191,11 +207,11 @@ void main() {
       ),
     );
     container.read(initialSyncCompleteProvider.notifier).state = true;
-    await tester.pump();
+    await _pastFade(tester);
     expect(find.byType(StartupScreen), findsNothing);
 
     container.invalidate(initialSyncCompleteProvider);
-    await tester.pump();
+    await _pastFade(tester);
 
     expect(find.byType(StartupScreen), findsNothing);
     await tester.pumpWidget(const SizedBox());
@@ -224,12 +240,19 @@ void main() {
     expect(find.byType(StartupScreen), findsOneWidget);
 
     container.read(sessionProvider).adopt(null);
-    await tester.pump();
+    // The router stays up under the cover now, and a sign-in the very next frame is no real user.
+    await _pastFade(tester);
     container.read(sessionProvider).adopt(tokens);
-    await tester.pump();
+    await _pastFade(tester);
 
     expect(find.byType(StartupScreen), findsNothing);
     await tester.pumpWidget(const SizedBox());
     container.dispose();
   });
+}
+
+Future<void> _pastFade(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(AppMotion.slow + AppMotion.fast);
+  await tester.pump();
 }

@@ -53,6 +53,7 @@ import 'src/providers/media_disk_caches.dart';
 import 'src/providers/providers.dart';
 import 'src/providers/sync_controller.dart'
     show hasFailedSinceLiveProvider, initialSyncCompleteProvider;
+import 'src/widgets/launch_cover.dart';
 import 'src/widgets/mobile_boot_gate.dart';
 import 'src/providers/startup_restores.dart';
 import 'src/push/android_push_messages.dart';
@@ -406,16 +407,24 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
           synced: ref.watch(initialSyncCompleteProvider),
           hasFailedSinceLive: ref.watch(hasFailedSinceLiveProvider),
         );
-    if (!ref.watch(appReadyProvider) || phoneCovered) {
-      return StartupApp(
-        status: ref.watch(startupStatusProvider),
-        prompt: ref.watch(startupPromptProvider),
-        leaving: ref.watch(startupLeavingProvider),
-        rounded: currentDesktopPlatform() == DesktopPlatform.linux,
-        windowPort: _splashIsFrameless ? DesktopWindowShell.port : null,
-      );
-    }
+    final splash = StartupApp(
+      status: ref.watch(startupStatusProvider),
+      prompt: ref.watch(startupPromptProvider),
+      leaving: ref.watch(startupLeavingProvider),
+      rounded: currentDesktopPlatform() == DesktopPlatform.linux,
+      windowPort: _splashIsFrameless ? DesktopWindowShell.port : null,
+    );
+    final ready = ref.watch(appReadyProvider);
+    if (_onDesktop) return ready ? _app() : splash;
+    // One splash element from launch to fade, so its own animation never restarts at the handoff.
+    return LaunchCover(
+      covered: !ready || phoneCovered,
+      cover: splash,
+      child: ready ? _app() : const SizedBox.shrink(),
+    );
+  }
 
+  Widget _app() {
     final choice = ref.watch(themeControllerProvider);
     final highContrast = ref.watch(highContrastControllerProvider);
     final lightTokens = highContrast
