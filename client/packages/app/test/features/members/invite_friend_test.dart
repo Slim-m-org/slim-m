@@ -176,6 +176,33 @@ void main() {
     expect(lifetime, closeTo(const Duration(hours: 24).inMilliseconds, 60000));
   });
 
+  testWidgets('a member who may only invite can open their invites from the '
+      'Space menu', (tester) async {
+    final world = _World(permissions: 0, membersCanInvite: true);
+    addTearDown(world.container.dispose);
+    await world.pump(tester, _menu);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My invites'), findsOneWidget);
+  });
+
+  testWidgets('someone with Space settings finds invites there, not twice in '
+      'the menu', (tester) async {
+    final world = _World(
+      permissions: Perm.createInvite,
+      membersCanInvite: false,
+    );
+    addTearDown(world.container.dispose);
+    await world.pump(tester, _menu);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My invites'), findsNothing);
+  });
+
   testWidgets('the member list header invites in one tap', (tester) async {
     final world = _World(permissions: 0, membersCanInvite: true);
     addTearDown(world.container.dispose);

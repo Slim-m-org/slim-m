@@ -158,6 +158,7 @@ Playback goes through a `SoundPlayer` seam so a test never touches a real audio 
 The alone-in-a-call hold music (`hold_music_player.dart`) reuses the same package and the same no-audio-focus configuration.
 It plays one of four bundled CC0 tracks (`assets/audio/music/`, credited in its `CREDITS.md`), as MP3 because `audioplayers` on Windows and iOS cannot decode OGG.
 It goes to the device's own player and is never published to the room.
+On iPhone it skips `audioplayers`, which resets the call's audio session, and plays through `HoldMusicChannel.swift`: an `AVAudioEngine` beside the call that reads the session's category and never sets it.
 `audioplayers` has no output-device selection, so the music plays on the system default output rather than the speaker chosen in Voice settings.
 
 ### No charting package, for the Space analytics screen

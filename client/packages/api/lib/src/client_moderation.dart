@@ -94,9 +94,17 @@ extension SlimmApiModeration on SlimmApi {
         expectNoContent: true,
       );
 
-  /// Lists every invite. Requires CREATE_INVITE.
-  Future<List<Invite>> listInvites() async {
-    final json = await _send('GET', '/invites');
+  /// Lists one page of invites, newest first; [before] is the code of the
+  /// last invite of the previous page. Requires CREATE_INVITE.
+  Future<List<Invite>> listInvites({int? limit, String? before}) async {
+    final json = await _send(
+      'GET',
+      '/invites',
+      query: {
+        if (limit != null) 'limit': '$limit',
+        if (before != null) 'before': before,
+      },
+    );
     return (json as List<dynamic>)
         .map((i) => Invite.fromJson(i as Map<String, dynamic>))
         .toList(growable: false);

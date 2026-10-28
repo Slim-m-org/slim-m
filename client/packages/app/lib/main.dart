@@ -25,6 +25,7 @@ import 'src/features/accounts/providers/account_providers.dart';
 import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
 import 'src/features/accounts/providers/account_slot.dart';
+import 'src/providers/app_badge_sync.dart';
 import 'src/features/accounts/providers/account_store.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
@@ -298,6 +299,7 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
 
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
+  container.listen(appBadgeSyncProvider, (_, _) {});
   container.read(deepLinkControllerProvider);
   container.read(desktopCallNotifierProvider);
   await DesktopWindowShell.registerListenersAndTray(container);

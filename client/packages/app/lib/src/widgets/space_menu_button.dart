@@ -72,6 +72,16 @@ class _SpaceMenuButtonState extends ConsumerState<SpaceMenuButton> {
                 inviteAFriend(context);
               },
             ),
+          // Space settings is the way in for anyone who holds a settings permission; a member who may only invite has none, so this is theirs.
+          if (watchCanInviteFriend(ref) && !spaceSettingsReachable(permissions))
+            AppMenuItem(
+              label: 'My invites',
+              leading: AppIcons.link,
+              onTap: () {
+                _controller.hide();
+                context.push(Routes.adminInvites);
+              },
+            ),
           // Settings stays behind the gate that makes its screen worth opening.
           if (spaceSettingsReachable(permissions))
             AppMenuItem(

@@ -51,6 +51,11 @@
 		7A11C0DE0006000000000019 /* NotificationSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000600000000000D /* NotificationSound.swift */; };
 		7A11C0DE0006000000000028 /* NotificationSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000600000000000D /* NotificationSound.swift */; };
 		7A11C0DE0006000000000029 /* NotificationSoundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000600000000000E /* NotificationSoundTests.swift */; };
+		7A11C0DE000B000000000011 /* BadgeCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000001 /* BadgeCount.swift */; };
+		7A11C0DE000B000000000012 /* BadgeCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000001 /* BadgeCount.swift */; };
+		7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000002 /* BadgeCountTests.swift */; };
+		7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000003 /* AppBadgeChannel.swift */; };
+		7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE000B000000000004 /* HoldMusicChannel.swift */; };
 		7A11C0DE0008000000000005 /* callkit_ringtone.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000002 /* callkit_ringtone.wav */; };
 		7A11C0DE0008000000000006 /* direct_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000003 /* direct_message.wav */; };
 		7A11C0DE0008000000000007 /* group_message.wav in Resources */ = {isa = PBXBuildFile; fileRef = 7A11C0DE0008000000000004 /* group_message.wav */; };
@@ -159,6 +164,10 @@
 		7A11C0DE000600000000000C /* push_envelope_cases.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = push_envelope_cases.json; sourceTree = "<group>"; };
 		7A11C0DE000600000000000D /* NotificationSound.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationSound.swift; sourceTree = "<group>"; };
 		7A11C0DE000600000000000E /* NotificationSoundTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NotificationSoundTests.swift; sourceTree = "<group>"; };
+		7A11C0DE000B000000000001 /* BadgeCount.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BadgeCount.swift; sourceTree = "<group>"; };
+		7A11C0DE000B000000000002 /* BadgeCountTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BadgeCountTests.swift; sourceTree = "<group>"; };
+		7A11C0DE000B000000000003 /* AppBadgeChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppBadgeChannel.swift; sourceTree = "<group>"; };
+		7A11C0DE000B000000000004 /* HoldMusicChannel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HoldMusicChannel.swift; sourceTree = "<group>"; };
 		7A11C0DE0008000000000002 /* callkit_ringtone.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/callkit_ringtone.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000003 /* direct_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/direct_message.wav"; sourceTree = "<group>"; };
 		7A11C0DE0008000000000004 /* group_message.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "../../../../assets/audio/notifications/group_message.wav"; sourceTree = "<group>"; };
@@ -201,6 +210,7 @@
 				7A11C0DE000600000000000B /* PushSealedBoxTests.swift */,
 				7A11C0DE000600000000000C /* push_envelope_cases.json */,
 				7A11C0DE000600000000000E /* NotificationSoundTests.swift */,
+				7A11C0DE000B000000000002 /* BadgeCountTests.swift */,
 			);
 			path = RunnerTests;
 			sourceTree = "<group>";
@@ -242,6 +252,7 @@
 				7A11C0DE0006000000000006 /* Salsa20.swift */,
 				7A11C0DE0006000000000007 /* Poly1305.swift */,
 				7A11C0DE000600000000000D /* NotificationSound.swift */,
+				7A11C0DE000B000000000001 /* BadgeCount.swift */,
 				7A11C0DE0006000000000008 /* Info.plist */,
 				7A11C0DE0006000000000009 /* NotificationService.entitlements */,
 			);
@@ -303,6 +314,8 @@
 				7A11C0DE0005000000000003 /* ClipboardPasteBridge.h */,
 				7A11C0DE0003000000000001 /* VoiceCallReporter.swift */,
 				7A11C0DE000200000000000A /* BroadcastChannel.swift */,
+				7A11C0DE000B000000000003 /* AppBadgeChannel.swift */,
+				7A11C0DE000B000000000004 /* HoldMusicChannel.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				7A11C0DE0009000000000001 /* AppLockWindowChannel.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -531,6 +544,8 @@
 				7A11C0DE0006000000000026 /* Poly1305.swift in Sources */,
 				7A11C0DE0006000000000028 /* NotificationSound.swift in Sources */,
 				7A11C0DE0006000000000029 /* NotificationSoundTests.swift in Sources */,
+				7A11C0DE000B000000000012 /* BadgeCount.swift in Sources */,
+				7A11C0DE000B000000000013 /* BadgeCountTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -546,6 +561,8 @@
 				7A11C0DE0005000000000002 /* ClipboardPasteBridge.m in Sources */,
 				7A11C0DE0003000000000002 /* VoiceCallReporter.swift in Sources */,
 				7A11C0DE0002000000000018 /* BroadcastChannel.swift in Sources */,
+				7A11C0DE000B000000000014 /* AppBadgeChannel.swift in Sources */,
+				7A11C0DE000B000000000015 /* HoldMusicChannel.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				7A11C0DE0009000000000002 /* AppLockWindowChannel.swift in Sources */,
@@ -577,6 +594,7 @@
 				7A11C0DE0006000000000016 /* Salsa20.swift in Sources */,
 				7A11C0DE0006000000000017 /* Poly1305.swift in Sources */,
 				7A11C0DE0006000000000019 /* NotificationSound.swift in Sources */,
+				7A11C0DE000B000000000011 /* BadgeCount.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
