@@ -278,6 +278,9 @@ pub struct PoolStats {
 #[derive(Clone)]
 pub struct Store {
     pool: SqlitePool,
+    /// Lets one [`Store::begin_write`] at a time wait for SQLite's write lock, so
+    /// queued writers cannot hold every connection in `pool` while they wait.
+    write_gate: Arc<tokio::sync::Semaphore>,
     /// Backs [`canvas_op_clock::Store::now_ms_unique`]. `Arc`-shared so every
     /// clone of one `Store` sees the same clock, and fresh on every new
     /// `Store` - which is what makes it fresh on every process restart too,
@@ -296,6 +299,7 @@ impl Store {
     pub fn new(pool: SqlitePool) -> Self {
         Self {
             pool,
+            write_gate: Arc::new(tokio::sync::Semaphore::new(1)),
             canvas_op_clock: Arc::default(),
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
@@ -315,7 +319,7 @@ impl Store {
     }
 
     /// Live occupancy of the shared SQLite pool, for `/metrics`'s pool
-    /// gauges: every read and every write share the same eight connections,
+    /// gauges: reads and non-transactional writes share these eight connections,
     /// so how many are checked out is the most direct signal of contention
     /// this server has. `max` is read off the pool's own configuration
     /// rather than duplicated as a constant, so it can never drift from
@@ -332,8 +336,9 @@ impl Store {
 
     /// Opens a transaction that takes SQLite's write lock immediately.
     ///
-    /// The pool hands out eight connections and any of them may write, so two
-    /// requests really can be inside a transaction at once. A plain `BEGIN` is
+    /// Only one caller at a time waits for the lock, holding a connection; the
+    /// rest queue on [`Store::write_gate`] without one, so a burst of writers
+    /// cannot take every connection from the readers. A plain `BEGIN` is
     /// deferred: it takes a read snapshot on its first statement and only tries
     /// for the write lock later. If another connection took that lock in
     /// between, the upgrade cannot wait, because two readers both waiting to
@@ -347,6 +352,10 @@ impl Store {
     pub(crate) async fn begin_write(
         &self,
     ) -> Result<sqlx::Transaction<'_, sqlx::Sqlite>, sqlx::Error> {
+        let _turn = tokio::time::timeout(crate::db::ACQUIRE_TIMEOUT, self.write_gate.acquire())
+            .await
+            .map_err(|_| sqlx::Error::PoolTimedOut)?
+            .map_err(|_| sqlx::Error::PoolClosed)?;
         self.pool.begin_with("BEGIN IMMEDIATE").await
     }
 
