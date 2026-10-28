@@ -4,6 +4,7 @@
 library;
 
 export 'src/apns_token_channel.dart';
+export 'src/app_badge_channel.dart';
 export 'src/callkit_incoming_channel.dart';
 export 'src/app_lock_window_channel.dart';
 export 'src/orientation_channel.dart';
