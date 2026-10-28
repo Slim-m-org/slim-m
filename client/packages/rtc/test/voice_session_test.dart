@@ -472,4 +472,7 @@ class _FakeSources implements DesktopSources {
 
   @override
   Future<List<ScreenShareSource>> list() async => _sources;
+
+  @override
+  Stream<String> get captureErrors => const Stream.empty();
 }

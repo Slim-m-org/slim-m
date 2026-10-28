@@ -252,6 +252,7 @@ class VoiceSession
 
   ReceiveVideoQuality _receiveQuality = ReceiveVideoQuality.auto;
   final _loweredVideoSids = <String>{};
+  final _enlargedVideo = EnlargedVideo();
   CameraQuality _cameraQuality = CameraQuality.balanced;
 
   /// See [SpeakingHold]; the timer drops a held ring when its time is up.
@@ -287,6 +288,10 @@ class VoiceSession
     _receiveDensity.value = pixelDensityFor(quality);
     _refreshParticipants();
   }
+
+  /// Keeps the tile [tileKey] at full sharpness, whatever the receive quality, until the result is called.
+  VoidCallback holdEnlargedVideo(String tileKey) => _enlargedVideo.hold(
+      tileKey, () => _disposed ? null : _refreshParticipants());
 
   /// How sharp your camera publishes. Read when the camera turns on, since
   /// capture parameters cannot change on a live track; the app cycles a live
@@ -408,6 +413,9 @@ class VoiceSession
         ShareRequest(quality, sourceId, includeAudio, maxHeight),
       );
 
+  /// The source id of a share that stopped because its window or screen went away.
+  Stream<String> get screenShareSourceLost => _share.sourceWatch.lost;
+
   /// Whether the running share carries an audio track to switch.
   bool get screenShareHasAudio => _share.hasAudio;
 
@@ -491,7 +499,7 @@ class VoiceSession
     _disposed = true;
     _videoCuller.dispose();
     _receiveDensity.dispose();
-    _share.watch.stop();
+    _share.dispose();
     await _stallStats?.cancel();
     _stallWatchdog.dispose();
     await callStats.dispose();

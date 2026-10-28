@@ -49,6 +49,11 @@ mixin VoiceControllerVideoMixin on StateNotifier<VoiceState> {
   void setVideoInterest(Set<String>? tileKeys) =>
       _videoSession.setVideoInterest(tileKeys);
 
+  /// Keeps one tile sharp while it is fullscreen or popped out, even under
+  /// Data saver; call the result when it shrinks again.
+  VoidCallback holdEnlargedVideo(String tileKey) =>
+      _videoSession.holdEnlargedVideo(tileKey);
+
   /// Whether switching cameras is a bare flip (mobile) rather than a picker.
   bool get canFlipCamera => _videoSession.canFlipCamera;
 

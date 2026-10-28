@@ -94,9 +94,19 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   late final PhoneLandscapeHold _landscape;
 
+  late final VoidCallback _releaseEnlarged;
+
   @override
   void initState() {
     super.initState();
+    _releaseEnlarged = ref
+        .read(voiceControllerProvider.notifier)
+        .holdEnlargedVideo(
+          videoSubscriptionKey(
+            identity: widget.identity,
+            screenShare: widget.kind == FullscreenVideoKind.screenShare,
+          ),
+        );
     _landscape = PhoneLandscapeHold(
       ref.read(orientationChannelProvider),
       ref.read(portraitLockedPhoneProvider.notifier),
@@ -121,6 +131,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _releaseEnlarged();
     _windowHold.release();
     _landscape.release();
     super.dispose();

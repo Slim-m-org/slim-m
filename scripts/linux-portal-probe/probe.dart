@@ -45,6 +45,12 @@ Future<void> main() async {
       await Future<void>.delayed(const Duration(seconds: 35));
       await share(2);
       await share(3);
+    case 'window':
+      await _channel.invokeMethod<void>('resetDesktopSources');
+      final windows = await desktopCapturer.getSources(
+        types: [SourceType.Window],
+      );
+      stdout.writeln('PROBE windows=${windows.length}');
     case 'noenum':
       await share(1, enumerate: false);
     default:
