@@ -17,6 +17,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [OPERATING.md](OPERATING.md): running a server, every setting, two-factor, modules, webhooks, bots, updating.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): problems by symptom.
 - [sizing.md](sizing.md): how big a machine a deployment needs.
+- [capacity-guidance.md](capacity-guidance.md): how the setup screen turns cores, memory and disk into a range of people.
 - [PRODUCT.md](PRODUCT.md): what the app does today.
 - [data-export-format.md](data-export-format.md): what a data export or space export archive holds, for anyone reading or importing one.
 - [bots/building-bots.md](bots/building-bots.md), [modules/](modules/README.md) and [webhooks/pointing-tools-at-slim-m.md](webhooks/pointing-tools-at-slim-m.md): extending a deployment.

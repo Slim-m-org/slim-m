@@ -9329,6 +9329,51 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/setup:
+    get:
+      operationId: getSpaceSetup
+      tags: [space]
+      summary: Read what this machine has, what it can carry, and the setup state.
+      description: >
+        Gated on MANAGE_SERVER. `capacity.estimate` is a range worked out from
+        measured load figures, not a promise; the assumptions are in
+        docs/capacity-guidance.md. The voice figures assume LiveKit shares this
+        machine and are absent when voice is not configured. `claimed_by_me` is
+        true only for the admin whose registration claimed the deployment, who
+        is offered the first-run setup once; a deployment claimed before this
+        route existed reports `completed` true.
+      responses:
+        "200":
+          description: The machine, its estimate, and the setup state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceSetup"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/setup/complete:
+    post:
+      operationId: completeSpaceSetup
+      tags: [space]
+      summary: Mark the first-run setup as finished or dismissed.
+      description: >
+        Gated on MANAGE_SERVER and further on being the admin who claimed the
+        deployment, so another admin cannot close the offer for them. Safe to
+        repeat; the first completion time is kept. Recorded in the admin audit
+        log as `space.setup_complete`.
+      responses:
+        "204":
+          description: The setup is recorded as done.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules:
     get:
       operationId: listDockModules
@@ -11955,6 +12000,65 @@ components:
         enabled:
           type: boolean
           description: Whether this space unfurls pasted links into preview cards.
+    SpaceSetup:
+      type: object
+      required: [claimed_by_me, completed, capacity]
+      properties:
+        claimed_by_me:
+          type: boolean
+          description: Whether the caller is the admin who claimed this deployment.
+        completed:
+          type: boolean
+          description: Whether the first-run setup was finished or dismissed.
+        capacity:
+          $ref: "#/components/schemas/SpaceCapacity"
+    SpaceCapacity:
+      type: object
+      required: [cores, voice_configured, estimate]
+      properties:
+        cores:
+          type: integer
+          description: Cores this process may use, counting a container quota.
+        memory_total_bytes:
+          type: [integer, "null"]
+          description: The host's RAM, or null when it could not be read.
+        memory_limit_bytes:
+          type: [integer, "null"]
+          description: The cgroup memory limit, or null when the server is not limited.
+        disk_free_bytes:
+          type: [integer, "null"]
+          description: Space an unprivileged process may still use on the uploads volume.
+        disk_total_bytes:
+          type: [integer, "null"]
+          description: Size of the uploads volume.
+        voice_configured:
+          type: boolean
+          description: Whether this server has a LiveKit to send calls to.
+        estimate:
+          $ref: "#/components/schemas/SpaceCapacityEstimate"
+    SpaceCapacityEstimate:
+      type: object
+      required: [binding, connection_limit, members_min, members_max]
+      properties:
+        binding:
+          type: string
+          enum: [connections, memory, processor]
+          description: The first thing to run out.
+        connection_limit:
+          type: integer
+          description: Simultaneous connections this machine is planned to hold.
+        members_min:
+          type: integer
+          description: Low end of the range of people connected at once.
+        members_max:
+          type: integer
+          description: High end of the range of people connected at once.
+        voice_min:
+          type: [integer, "null"]
+          description: Low end of people in one call, if LiveKit shares this machine.
+        voice_max:
+          type: [integer, "null"]
+          description: High end of people in one call, if LiveKit shares this machine.
     DockIndexEntry:
       type: object
       required: [id, name, version, summary, shadowed]

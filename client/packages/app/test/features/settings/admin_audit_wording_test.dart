@@ -48,6 +48,7 @@ void main() {
     (_change('space.screen_share'), 'changed the screen share limit'),
     (_change('space.link_previews'), 'changed link previews'),
     (_change('space.attachment_limit'), 'changed the attachment size limit'),
+    (_change('space.setup_complete'), 'finished the first-run setup'),
     (_change('space.icon_set'), 'set the space icon'),
     (_change('space.icon_clear'), 'removed the space icon'),
     (_change('space.banner_set'), 'set the space banner'),

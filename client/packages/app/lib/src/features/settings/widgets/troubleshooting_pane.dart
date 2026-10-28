@@ -51,6 +51,7 @@ class TroubleshootingPane extends ConsumerWidget {
               _DebugLogRow(),
               CallStatsRow(),
               RunSetupAgainRow(),
+              RunAdminSetupRow(),
             ],
           ),
         ),

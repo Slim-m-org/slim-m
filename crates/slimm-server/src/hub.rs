@@ -51,7 +51,7 @@ pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
-pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, memory_limit_bytes};
+pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
 
 /// How many events the durable channel buffers per subscriber before the
@@ -76,7 +76,7 @@ pub(crate) const CHANNEL_CAPACITY: usize = 1024;
 pub(crate) const EPHEMERAL_CHANNEL_CAPACITY: usize = 4096;
 
 /// Ceiling on simultaneously open WebSocket connections.
-const MAX_CONNECTIONS: usize = 1024;
+pub const MAX_CONNECTIONS: usize = 1024;
 
 /// A cloneable handle to the broadcast channel and the connection limiter,
 /// shared through app state.

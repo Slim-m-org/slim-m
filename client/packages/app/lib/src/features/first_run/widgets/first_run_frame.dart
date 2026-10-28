@@ -24,6 +24,7 @@ class FirstRunFrame extends StatelessWidget {
     this.busy = false,
     this.continueFocus,
     this.error,
+    this.cardWidth = kFirstRunCardWidth,
   });
 
   final int step;
@@ -37,6 +38,9 @@ class FirstRunFrame extends StatelessWidget {
   final String continueLabel;
   final bool busy;
   final FocusNode? continueFocus;
+
+  /// Width of the card on a wide window; a step with wide sections asks for more.
+  final double cardWidth;
 
   /// Why the last save was refused, shown above the actions until the next try.
   final String? error;
@@ -70,10 +74,7 @@ class FirstRunFrame extends StatelessWidget {
       color: Colors.black54,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: kFirstRunCardWidth,
-            maxHeight: 680,
-          ),
+          constraints: BoxConstraints(maxWidth: cardWidth, maxHeight: 680),
           child: Material(
             color: tokens.surfaceRaised,
             elevation: 0,
