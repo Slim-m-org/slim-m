@@ -92,14 +92,25 @@ Future<void> _capture(
     ..upsert(id: 'user-cy', x: 900, y: 500, label: 'Cy', colorIndex: 2);
   await tester.pump(const Duration(milliseconds: 350));
   engine.viewRelay.follow('user-ada');
-  for (var i = 0; i < 40; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
+  await _untilViewStops(tester);
   await tester.tap(find.byTooltip('People here'));
-  await tester.pump(const Duration(milliseconds: 600));
+  // On a phone the sheet covers part of the board, so the followed view refits once more.
+  await _untilViewStops(tester);
   await expectSettled(tester, name, allowNoText: true);
   await writeSnapshot(tester, name);
   expect(tester.takeException(), isNull);
+}
+
+/// The follow camera eases toward its target, so its zoom label creeps for a while; wait until it holds still.
+Future<void> _untilViewStops(WidgetTester tester) async {
+  var last = renderedText(tester);
+  for (var i = 0; i < 100; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    final now = renderedText(tester);
+    if (now.join('|') == last.join('|')) return;
+    last = now;
+  }
+  fail('the followed view never came to rest');
 }
 
 void main() {
