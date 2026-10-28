@@ -63,6 +63,9 @@ part 'canvas_engine_reads.dart';
 class CanvasEngine extends StateNotifier<CanvasEngineState> {
   CanvasEngine(this._ref, this.channelId) : super(const CanvasEngineState()) {
     _live = _ref.read(liveEventsProvider).listen(_onEvent);
+    _unwatch = _ref
+        .read(syncControllerProvider.notifier)
+        .watchCanvas(channelId);
     sync = CanvasSync(
       channelId: channelId,
       client: _client,
@@ -195,6 +198,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   late final CanvasSync sync;
 
   StreamSubscription<api.ServerEvent>? _live;
+  late final void Function() _unwatch;
   ProviderSubscription<SyncStatus>? _syncStatusSubscription;
   Timer? _panDebounce;
 
@@ -225,6 +229,8 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     },
     onEraseOnConfirm: (id) => unawaited(ops.eraseOnConfirm(id)),
     timedOutUntil: () => _ref.read(meProvider).valueOrNull?.timedOutUntil,
+    onUnsaved: (id, {required unsaved}) =>
+        document.setUnsaved(id, unsaved: unsaved),
   );
 
   CanvasOpsController? _opsController;
@@ -240,6 +246,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     },
     isLocked: objectLocks.isLocked,
     onObjectPlaced: hydrator.hydrate,
+    onUnknownOutcome: sync.catchUp,
   );
 
   CanvasCursorRelay? _cursorRelay;
@@ -340,10 +347,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
   /// tree can read.
   Duration objectPreviewGlide = objectPreviewGlideDuration;
 
-  /// [state.error]'s exact text for an almost-certainly-transient fetch
-  /// failure - shared with `CanvasPane`'s `onRetryError` gate, so the one
-  /// error this engine can meaningfully retry (re-running [fetch]) is
-  /// identified by more than a string literal repeated in two places.
+  /// [state.error]'s text for a transient fetch failure, shared with `CanvasPane`'s retry gate.
   static const genericLoadError = canvasLoadFailedMessage;
 
   void _emit(CanvasEngineState Function(CanvasEngineState current) change) {
@@ -453,15 +457,11 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
     unawaited(fetch());
   }
 
-  /// Idempotent: `CanvasPane` calls this directly, synchronously, from its
-  /// own `dispose()` (see that call site's own doc for why), and
-  /// `canvasEngineProvider` - being `.autoDispose` - independently calls it
-  /// again once it notices the last listener is gone. [StateNotifier]'s own
-  /// `dispose()` asserts it is never called twice, so this guards on
-  /// [mounted] rather than let that second, harmless call crash the first.
+  /// Idempotent: `CanvasPane` and the `.autoDispose` provider both call it, and [StateNotifier] asserts against a second dispose.
   @override
   void dispose() {
     if (!mounted) return;
+    _unwatch();
     hydrator.dispose();
     _loadRetry.cancel();
     _panDebounce?.cancel();

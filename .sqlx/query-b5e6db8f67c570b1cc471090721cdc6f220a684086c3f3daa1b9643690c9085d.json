@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT author_id AS \"author_id: UserId\", kind AS \"kind!\",\n                  deleted_at AS \"deleted_at: i64\", props AS \"props!\"\n           FROM canvas_objects WHERE id = ? AND channel_id = ?",
+  "query": "SELECT o.author_id AS \"author_id: UserId\", o.kind AS \"kind!\",\n                  o.deleted_at AS \"deleted_at: i64\", p.props AS \"props!\"\n           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id\n           WHERE o.id = ? AND o.channel_id = ?",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       false
     ]
   },
-  "hash": "d4ce39097e8bb009671427624934e086076883343b8f5e477d031d9717876613"
+  "hash": "b5e6db8f67c570b1cc471090721cdc6f220a684086c3f3daa1b9643690c9085d"
 }

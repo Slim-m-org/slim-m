@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", id AS \"id!: CanvasObjectId\",\n                  kind AS \"kind!\", z_index AS \"z_index!: i64\",\n                  x AS \"x!: f64\", y AS \"y!: f64\", w AS \"w!: f64\", h AS \"h!: f64\",\n                  props AS \"props!\", author_id AS \"author_id: UserId\",\n                  seq AS \"seq!: Seq\", created_at AS \"created_at!: i64\",\n                  deleted_at AS \"deleted_at: i64\"\n           FROM canvas_objects WHERE id = ?",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", id AS \"id!: CanvasObjectId\",\n                  kind AS \"kind!\", z_index AS \"z_index!: i64\",\n                  x AS \"x!: f64\", y AS \"y!: f64\", w AS \"w!: f64\", h AS \"h!: f64\",\n                  p.props AS \"props!\", author_id AS \"author_id: UserId\",\n                  seq AS \"seq!: Seq\", created_at AS \"created_at!: i64\",\n                  deleted_at AS \"deleted_at: i64\"\n           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id\n           WHERE o.id = ?",
   "describe": {
     "columns": [
       {
@@ -88,5 +88,5 @@
       true
     ]
   },
-  "hash": "b2dfb4d18b96b45ed33da5681334ac1a4099b93fe1fb3b11fce44cd1c9c4185c"
+  "hash": "3be84b6909ab4c50e86038a6055cf8139ad2d303852a1f35def19c547be241b8"
 }

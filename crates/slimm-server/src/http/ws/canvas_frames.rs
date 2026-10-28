@@ -263,6 +263,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             locked,
             sent_to_back,
+            version,
         } => ServerFrame::CanvasMediaSlotChanged {
             channel_id: channel_id.to_string(),
             kind: kind.as_str().to_owned(),
@@ -273,15 +274,18 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             locked,
             sent_to_back,
+            version,
         },
         Event::CanvasObjectLockChanged {
             channel_id,
             object_id,
             locked,
+            version,
         } => ServerFrame::CanvasObjectLockChanged {
             channel_id: channel_id.to_string(),
             object_id: object_id.to_string(),
             locked,
+            version,
         },
         other => return Err(Box::new(other)),
     })

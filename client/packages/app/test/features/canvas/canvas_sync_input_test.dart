@@ -28,6 +28,39 @@ api.CanvasObject _object({
 );
 
 void main() {
+  test(
+    'a note reads its stored text size, clamped, and falls back without one',
+    () {
+      double? sizeOf(Object? raw) => canvasStrokeInputFrom(
+        _object(kind: 'note', props: {'text': 'hi', 'font_size': ?raw}),
+      )!.fontSize;
+
+      expect(sizeOf(null), isNull);
+      expect(sizeOf(18), 18);
+      expect(sizeOf(1e6), maxNoteFontSize);
+      expect(sizeOf(0.5), minNoteFontSize);
+      expect(sizeOf('big'), isNull);
+      expect(sizeOf(double.nan), isNull);
+    },
+  );
+
+  test('a forged stroke width is clamped, and a sane one is kept', () {
+    double widthOf(Object? width) => canvasStrokeInputFrom(
+      _object(
+        kind: 'stroke',
+        props: {
+          'points': [0.0, 0.0, 1.0, 1.0],
+          'width': width,
+        },
+      ),
+    )!.width;
+
+    expect(widthOf(1e5), maxWireStrokeWidth);
+    expect(widthOf(12.5), 12.5);
+    expect(widthOf(double.infinity), 3);
+    expect(widthOf(-4), 3);
+  });
+
   test('a note carries its own kind and text through', () {
     final input = canvasStrokeInputFrom(
       _object(kind: 'note', props: {'text': 'buy milk'}),

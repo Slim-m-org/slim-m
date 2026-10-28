@@ -63,6 +63,7 @@ class _Harness {
       onRemoved: (id) => removed.add(id),
       onEraseOnConfirm: (id) => armedLanded.add(id),
       timedOutUntil: timedOutUntil ?? () => null,
+      onUnsaved: (id, {required unsaved}) => unsavedLog.add((id, unsaved)),
     );
   }
 
@@ -72,9 +73,53 @@ class _Harness {
   final List<(String, String)> failed = [];
   final List<String> removed = [];
   final List<String> armedLanded = [];
+  final List<(String, bool)> unsavedLog = [];
 }
 
 void main() {
+  test(
+    'ink is unsaved while its save is retried, and settled once it lands',
+    () {
+      fakeAsync((async) {
+        var calls = 0;
+        final harness = _Harness(
+          _fakeApi(() {
+            calls++;
+            return calls < 3
+                ? _json({'error': 'down'}, 503)
+                : _json(
+                    _objectFor({
+                      'id': 'a',
+                      'x': 0.0,
+                      'y': 0.0,
+                      'w': 10.0,
+                      'h': 10.0,
+                      'props': <String, dynamic>{},
+                    }),
+                  );
+          }),
+        );
+        harness.queue.add(_commit('a'));
+        async.flushMicrotasks();
+        expect(harness.unsavedLog, [('a', true)]);
+
+        async.elapse(const Duration(seconds: 2));
+        expect(harness.placed.map((o) => o.id), ['a']);
+        expect(harness.unsavedLog.last, ('a', false));
+      });
+    },
+  );
+
+  test('ink queued behind a stuck save is unsaved too', () {
+    fakeAsync((async) {
+      final harness = _Harness(_fakeApi(() => _json({'error': 'down'}, 503)));
+      harness.queue.add(_commit('a'));
+      async.flushMicrotasks();
+      harness.queue.add(_commit('b'));
+      expect(harness.unsavedLog, contains(('b', true)));
+    });
+  });
+
   test('a successful placement calls onPlaced', () {
     fakeAsync((async) {
       final harness = _Harness(

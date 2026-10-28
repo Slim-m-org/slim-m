@@ -64,12 +64,18 @@ void main() {
         onError: (_) => fail('must not error'),
       );
 
-      final expected = noteBoxFor(longText);
+      final expected = noteBoxFor(
+        longText,
+        width: defaultNoteWidth,
+        minHeight: defaultNoteHeight,
+        fontSize: defaultNoteFontSize,
+      );
       expect(requests.single['w'], expected.width);
       expect(requests.single['h'], expected.height);
+      expect(requests.single['props']['font_size'], defaultNoteFontSize);
       expect(
         requests.single['h'],
-        greaterThan(140),
+        greaterThan(defaultNoteHeight),
         reason: 'the whole point: a long note gets more than the default',
       );
     },

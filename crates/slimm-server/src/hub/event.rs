@@ -714,12 +714,16 @@ pub enum Event {
         h: f64,
         locked: bool,
         sent_to_back: bool,
+        /// Orders this against every other lock or slot change in the channel; see `store::canvas_state_version`.
+        version: i64,
     },
     /// A canvas object was locked in place or unlocked; current state, not op history.
     CanvasObjectLockChanged {
         channel_id: ChannelId,
         object_id: CanvasObjectId,
         locked: bool,
+        /// Orders this against every other lock or slot change in the channel.
+        version: i64,
     },
     /// A report was filed or resolved: the moderation queue changed and a
     /// moderator watching it should refetch.

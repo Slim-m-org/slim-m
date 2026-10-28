@@ -261,6 +261,7 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         locked: decoded['locked'] as bool,
         sentToBack: decoded['sent_to_back'] as bool,
+        version: (decoded['version'] as num?)?.toInt() ?? 0,
       ),
     'canvas.object.lock_changed'
         when decoded['channel_id'] is String &&
@@ -270,6 +271,7 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         objectId: decoded['object_id'] as String,
         locked: decoded['locked'] as bool,
+        version: (decoded['version'] as num?)?.toInt() ?? 0,
       ),
     _ => null,
   };

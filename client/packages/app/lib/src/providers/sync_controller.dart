@@ -154,6 +154,18 @@ class SyncController extends StateNotifier<SyncStatus> {
   void notifyViewing(Iterable<String> channelIds, {bool active = false}) =>
       _connection?.viewing(channelIds, active: active);
 
+  final _watchedCanvases = <String>[];
+
+  /// Tells the server a canvas is open here so it sends its live frames; call the result when it closes.
+  void Function() watchCanvas(String channelId) {
+    _watchedCanvases.add(channelId);
+    _connection?.canvasWatch(_watchedCanvases.toSet());
+    return () {
+      _watchedCanvases.remove(channelId);
+      _connection?.canvasWatch(_watchedCanvases.toSet());
+    };
+  }
+
   /// Whether the person is at this device, asked at each connect; set by the
   /// presence activity reporter. Unset sends no claim, keeping ping-based presence.
   bool Function()? activeAtHello;
@@ -368,6 +380,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       return null;
     }
     _connection = connection;
+    connection.canvasWatch(_watchedCanvases.toSet());
 
     final frames = SerialFrameQueue(
       (event) => _applyServerEvent(generation, api, store, event),

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT o.id AS \"id!: CanvasObjectId\", o.kind AS \"kind!\",\n                  o.z_index AS \"z_index!: i64\",\n                  o.x AS \"x!: f64\", o.y AS \"y!: f64\",\n                  o.w AS \"w!: f64\", o.h AS \"h!: f64\",\n                  o.props AS \"props!\", o.author_id AS \"author_id: UserId\",\n                  o.seq AS \"seq!: Seq\", o.created_at AS \"created_at!: i64\"\n           FROM canvas_rtree r\n           CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id\n           WHERE r.min_key <= ? AND r.max_key >= ?\n             AND r.max_x >= ? AND r.min_x <= ?\n             AND r.max_y >= ? AND r.min_y <= ?\n             AND o.channel_id = ? AND o.deleted_at IS NULL\n             AND o.x <= ? AND o.x + o.w >= ?\n             AND o.y <= ? AND o.y + o.h >= ?\n             AND (? = 0 OR o.seq > ?\n                  OR NOT (o.x <= ? AND o.x + o.w >= ?\n                          AND o.y <= ? AND o.y + o.h >= ?))\n           ORDER BY o.z_index DESC, o.seq DESC\n           LIMIT ?",
+  "query": "SELECT o.id AS \"id!: CanvasObjectId\", o.kind AS \"kind!\",\n                      o.z_index AS \"z_index!: i64\",\n                      o.x AS \"x!: f64\", o.y AS \"y!: f64\",\n                      o.w AS \"w!: f64\", o.h AS \"h!: f64\",\n                      p.props AS \"props!\", o.author_id AS \"author_id: UserId\",\n                      o.seq AS \"seq!: Seq\", o.created_at AS \"created_at!: i64\"\n               FROM (SELECT o.rt_id AS rt_id, o.seq AS seq\n                     FROM canvas_rtree r\n                     CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id\n                     WHERE r.min_key <= ? AND r.max_key >= ?\n                       AND r.max_x >= ? AND r.min_x <= ?\n                       AND r.max_y >= ? AND r.min_y <= ?\n                       AND o.channel_id = ? AND o.deleted_at IS NULL AND o.seq > ?\n                       AND o.x <= ? AND o.x + o.w >= ?\n                       AND o.y <= ? AND o.y + o.h >= ?\n                     ORDER BY o.seq ASC\n                     LIMIT ?) page\n               JOIN canvas_objects o ON o.rt_id = page.rt_id\n               JOIN canvas_object_props p ON p.object_id = o.id\n               ORDER BY page.seq ASC",
   "describe": {
     "columns": [
       {
@@ -60,7 +60,7 @@
       }
     ],
     "parameters": {
-      "Right": 18
+      "Right": 13
     },
     "nullable": [
       false,
@@ -76,5 +76,5 @@
       false
     ]
   },
-  "hash": "e291453b454c6b9a20bf5a7d47aa9725c23a14a8ac32cf33d1bc85354ce4edfd"
+  "hash": "1559d3e5d69d27c61c556ef629d4f6e20918f296e08a8fbb0287c4b80d39e1e8"
 }

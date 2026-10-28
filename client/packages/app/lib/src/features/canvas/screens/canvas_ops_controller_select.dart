@@ -343,7 +343,8 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
   }) async {
     if (to == from) return true;
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
@@ -359,8 +360,9 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         _pushUndo(_MoveEntry(objectId, from.x, from.y, from.w, from.h));
       }
       return true;
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       _rollBackBounds(objectId, from, to);
+      _settleUnknownOutcome(error);
       onError(errorMessage);
       return false;
     }
@@ -419,7 +421,8 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
     document.moveObject(objectId, x, y, w, h);
     document.refresh();
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
@@ -432,10 +435,11 @@ extension CanvasOpsControllerSelect on CanvasOpsController {
         ),
       );
       return before;
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       if (before != null) {
         _rollBackBounds(objectId, before, (x: x, y: y, w: w, h: h));
       }
+      _settleUnknownOutcome(error);
       onError('That could not be $verb.');
       return null;
     }

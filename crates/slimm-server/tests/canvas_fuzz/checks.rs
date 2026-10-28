@@ -27,8 +27,9 @@ fn intersects(b: Bounds, view: Rect) -> bool {
 impl World {
     pub async fn table(&self) -> Result<BTreeMap<CanvasObjectId, TableRow>, String> {
         let rows = sqlx::query(
-            "SELECT id, kind, author_id, seq, x, y, w, h, z_index, props, deleted_at
-             FROM canvas_objects WHERE channel_id = ?",
+            "SELECT o.id, o.kind, o.author_id, o.seq, o.x, o.y, o.w, o.h, o.z_index, p.props, o.deleted_at
+             FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id
+             WHERE o.channel_id = ?",
         )
         .bind(self.channel)
         .fetch_all(&self.pool)
@@ -131,6 +132,7 @@ impl World {
             .list_canvas_object_locks(self.channel)
             .await
             .map_err(|e| v("locks:read", i, e.to_string()))?
+            .1
             .into_iter()
             .collect();
         let want: HashSet<CanvasObjectId> = self

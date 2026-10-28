@@ -77,3 +77,16 @@ pub async fn remove_via_op(
         .await
         .unwrap_or_else(|_| panic!("remove op for {object_id:?} refused"));
 }
+
+/// Gives every object inserted by raw SQL its props row, which the store's reads join on.
+#[allow(dead_code)]
+pub async fn backfill_props(pool: &SqlitePool) {
+    sqlx::query(
+        "INSERT INTO canvas_object_props (object_id, props)
+         SELECT id, '{}' FROM canvas_objects
+         WHERE id NOT IN (SELECT object_id FROM canvas_object_props)",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+}

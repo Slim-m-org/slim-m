@@ -34,6 +34,10 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         active: bool,
     },
+    /// The canvases this connection has open, replacing its previous report.
+    /// Until one arrives the connection receives every canvas's live cursors and previews.
+    #[serde(rename = "canvas.watch")]
+    CanvasWatch { channel_ids: Vec<String> },
     /// A pointer position on a channel's canvas, rate-limited and authorized like the canvas HTTP routes (view plus `USE_CANVAS`); see [`super::signals::handle_canvas_cursor`].
     /// There is no "stop" frame, for the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
     #[serde(rename = "canvas.cursor")]

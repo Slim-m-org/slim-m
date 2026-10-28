@@ -136,9 +136,10 @@ async fn the_viewport_read_drives_from_the_rtree() {
         .expect("the viewport query plans");
     let plan: Vec<String> = rows.iter().map(|r| r.get::<String, _>("detail")).collect();
 
-    let driving = plan.first().expect("a non-empty plan");
-    let index = driving
-        .strip_prefix("SCAN r VIRTUAL TABLE INDEX 2:")
+    // The read is a page of ids picked first, then joined to the row and its props; the R-Tree must drive that inner pick.
+    let index = plan
+        .iter()
+        .find_map(|step| step.strip_prefix("SCAN r VIRTUAL TABLE INDEX 2:"))
         .unwrap_or_else(|| {
             panic!("the R-Tree is not driving the viewport read; the plan is {plan:?}")
         });
@@ -187,6 +188,7 @@ async fn raw_sql_writes_still_maintain_the_index() {
     .execute(&pool)
     .await
     .unwrap();
+    support::canvas::backfill_props(&pool).await;
     assert_eq!(indexed(pool.clone()).await, 2);
 
     sqlx::query("DELETE FROM canvas_objects WHERE seq = 99")
