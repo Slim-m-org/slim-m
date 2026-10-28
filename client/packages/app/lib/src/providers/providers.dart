@@ -18,6 +18,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../backoff.dart';
 import '../features/accounts/providers/account_slot.dart';
 import '../features/auth/providers/database_key_store.dart';
 import 'background_key_store.dart';
@@ -237,14 +238,15 @@ final _restoreRetryProvider = Provider<_RestoreRetry>((ref) {
 
 /// Retries an unreadable restore with doubling waits, until it reads or someone signs in.
 class _RestoreRetry {
-  static const _maxWait = Duration(seconds: 30);
   Timer? _timer;
-  Duration? _next;
+  int _attempt = 0;
 
   void schedule(ProviderContainer container, Duration first) {
     if (_timer?.isActive ?? false) return;
-    final wait = _next ?? first;
-    _next = wait * 2 > _maxWait ? _maxWait : wait * 2;
+    final wait = Backoff(
+      base: first,
+      cap: const Duration(seconds: 30),
+    ).delay(_attempt++);
     _timer = Timer(wait, () {
       if (container.read(sessionProvider).isSignedIn) return cancel();
       unawaited(restoreSession(container, firstRetry: first));
@@ -254,7 +256,7 @@ class _RestoreRetry {
   void cancel() {
     _timer?.cancel();
     _timer = null;
-    _next = null;
+    _attempt = 0;
   }
 }
 

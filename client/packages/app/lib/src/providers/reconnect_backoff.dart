@@ -5,6 +5,8 @@ library;
 import 'dart:async';
 import 'dart:math';
 
+import '../backoff.dart';
+
 /// Exponential backoff with jitter, so a server restart does not bring every
 /// client back online in the same instant (a thundering herd).
 ///
@@ -33,13 +35,17 @@ class ReconnectBackoff {
   final Duration step;
   int _attempt = 0;
 
+  Backoff get _policy => Backoff(
+    base: step,
+    cap: step * maxSeconds,
+    jitter: Duration(milliseconds: jitterMs),
+  );
+
   /// The delay before the next reconnect attempt. Advances the sequence, so
   /// each call backs off further until [maxSeconds] is reached.
   Duration next() {
     _attempt = (_attempt + 1).clamp(1, maxAttempt);
-    final seconds = (1 << (_attempt - 1)).clamp(1, maxSeconds);
-    final jitter = Duration(milliseconds: _random.nextInt(jitterMs));
-    return step * seconds + jitter;
+    return _policy.delay(_attempt - 1, random: _random);
   }
 
   Timer? _stableTimer;
