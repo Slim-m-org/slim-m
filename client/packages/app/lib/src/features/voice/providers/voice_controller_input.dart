@@ -122,6 +122,9 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
 
   void _applyNoiseSuppression() => _inputSession.setStrongNoiseSuppression(
     _noiseSuppression.isStrong(spaceStrong: _spaceStrongNoiseSuppression),
+    strongest: _noiseSuppression.isStrongest(
+      supported: _inputRef.read(strongestSupportedProvider),
+    ),
   );
 
   /// Push-to-talk decides when you are heard, so the gate only meters then.

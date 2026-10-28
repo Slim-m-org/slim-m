@@ -41,7 +41,8 @@ export 'src/input_gate.dart'
         kDefaultInputThresholdDb,
         kInputFloorDb,
         kInputGateDisplayInterval,
-        InputGateRate;
+        InputGateRate,
+        supportsStrongestNoiseSuppression;
 export 'src/local_audio.dart';
 export 'src/media_capabilities.dart';
 export 'src/mirror_self_view.dart';

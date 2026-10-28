@@ -44,8 +44,12 @@ mixin VideoQualityRecorder {
 
   bool? lastStrongNoiseSuppression;
 
-  void setStrongNoiseSuppression(bool enabled) =>
-      lastStrongNoiseSuppression = enabled;
+  bool? lastStrongestNoiseSuppression;
+
+  void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) {
+    lastStrongNoiseSuppression = enabled;
+    lastStrongestNoiseSuppression = strongest;
+  }
 
   bool? lastKeepMicReady;
   bool? lastAppBackgrounded;

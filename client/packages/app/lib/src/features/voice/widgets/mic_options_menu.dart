@@ -28,6 +28,7 @@ const _labels = {
   NoiseSuppressionChoice.spaceDefault: 'Space default',
   NoiseSuppressionChoice.standard: 'Standard',
   NoiseSuppressionChoice.strong: 'Strong',
+  NoiseSuppressionChoice.strongest: 'Strongest',
 };
 
 class MicOptionsMenu extends ConsumerStatefulWidget {
@@ -98,7 +99,9 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
         ),
         if (controller.supportsInputGate) ...[
           const ControlOptionHeading('Noise suppression'),
-          for (final choice in NoiseSuppressionChoice.values)
+          for (final choice in NoiseSuppressionChoice.offered(
+            supported: ref.watch(strongestSupportedProvider),
+          ))
             ControlOption(
               label: _labels[choice]!,
               selected: choice == noise,

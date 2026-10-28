@@ -21,12 +21,17 @@ bool get supportsInputGate =>
     lk.lkPlatformIs(lk.PlatformType.linux) ||
     lk.lkPlatformIs(lk.PlatformType.windows);
 
+/// DeepFilterNet ("Strongest") is built into the same Linux and Windows
+/// plugin; a build without its model falls back to Strong inside the plugin.
+bool get supportsStrongestNoiseSuppression => supportsInputGate;
+
 /// One read of the native gate.
 class InputGateReading {
   const InputGateReading({
     required this.levelDb,
     required this.voice,
     this.strongActive = false,
+    this.strongestActive = false,
     this.step = kInputGateDisplayInterval,
   });
 
@@ -43,6 +48,10 @@ class InputGateReading {
   /// Whether rnnoise processed the last frame; false when it is off, or on a
   /// plugin too old to resample a capture that is not 48 kHz.
   final bool strongActive;
+
+  /// Whether DeepFilterNet processed the last frame; false with Strongest on
+  /// means rnnoise alone is running because the model could not.
+  final bool strongestActive;
 
   /// The poll interval this reading covers, so consumers that count time
   /// stay right when the rate changes.
@@ -148,12 +157,14 @@ class InputGateMonitor {
       rtc.WebRTC.invokeMethod<Object?, Object?>(method, args);
 
   /// [dynamics] turns on the compressor and limiter that run after the gate;
-  /// [strongNoiseSuppression] the rnnoise stage that runs before it.
+  /// [strongNoiseSuppression] the rnnoise stage that runs before it, and
+  /// [strongestNoiseSuppression] DeepFilterNet beside it.
   Future<void> configure({
     required bool enabled,
     required double thresholdDb,
     required bool dynamics,
     bool strongNoiseSuppression = false,
+    bool strongestNoiseSuppression = false,
   }) async {
     if (!_supported) return;
     try {
@@ -162,6 +173,7 @@ class InputGateMonitor {
         'thresholdDb': thresholdDb,
         'dynamics': dynamics,
         'strongNoiseSuppression': strongNoiseSuppression,
+        'strongestNoiseSuppression': strongestNoiseSuppression,
       });
     } on Object catch (error, stack) {
       AppLog.swallowed(
@@ -198,6 +210,7 @@ class InputGateMonitor {
         levelDb: (raw['levelDb'] as num?)?.toDouble() ?? kInputFloorDb,
         voice: raw['voice'] == true,
         strongActive: raw['strongNoiseSuppression'] == true,
+        strongestActive: raw['strongestNoiseSuppression'] == true,
         step: kInputGateDisplayInterval * _rate.multiple,
       );
       if (!_levels.isClosed) _levels.add(reading);

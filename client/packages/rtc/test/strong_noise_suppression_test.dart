@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:livekit_client/livekit_client.dart' as lk;
+import 'package:slimm_api/api.dart' show LogLevel;
 import 'package:slimm_rtc/rtc.dart';
 
 void main() {
@@ -36,6 +37,51 @@ void main() {
     strong.setStrong(false);
     expect(strong.nativeStrong, isFalse);
     expect(changes, 2);
+  });
+
+  test('Strongest keeps rnnoise on beside DeepFilterNet', () {
+    var changes = 0;
+    final strong = StrongNoiseSuppression(
+      supported: true,
+      supportsStrongest: true,
+      onChanged: () => changes++,
+    )..setStrong(true, strongest: true);
+    expect(strong.nativeStrong, isTrue);
+    expect(strong.nativeStrongest, isTrue);
+    strong.setStrong(true);
+    expect(strong.nativeStrongest, isFalse);
+    expect(changes, 2);
+  });
+
+  test('a host that cannot run Strongest asks for Strong instead', () {
+    final strong = StrongNoiseSuppression(
+      supported: true,
+      supportsStrongest: false,
+      onChanged: () {},
+    )..setStrong(true, strongest: true);
+    expect(strong.nativeStrongest, isFalse);
+    expect(strong.nativeStrong, isTrue, reason: 'never less than was chosen');
+  });
+
+  test('Strongest is judged on DeepFilterNet, not on rnnoise', () {
+    final lines = <String>[];
+    final strong = StrongNoiseSuppression(
+      supported: true,
+      supportsStrongest: true,
+      onChanged: () {},
+      log: (line, {level = LogLevel.info}) => lines.add(line),
+    )..setStrong(true, strongest: true);
+    for (var i = 0; i < kStrongInactivePolls; i++) {
+      strong.onReading(
+          strongActive: true, strongestActive: false, micOpen: true);
+    }
+    expect(lines.where((l) => l.contains('strongest inactive')), hasLength(1));
+    for (var i = 0; i < kStrongActivePolls; i++) {
+      strong.onReading(
+          strongActive: false, strongestActive: true, micOpen: true);
+    }
+    expect(
+        lines.where((l) => l.contains('strongest active again')), hasLength(1));
   });
 
   test('a host without the native gate never watches for rnnoise', () {
