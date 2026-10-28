@@ -37,6 +37,46 @@ void main() {
     expect(m.eventsDropped, 0);
   });
 
+  test('the queue depth, the fuel limit and each command\'s fuel are read', () {
+    final m = InstalledDockModule.fromJson(_installed({
+      'queue_depth': 7,
+      'fuel_limit': 50000000,
+      'run_stats': [
+        {
+          'command': 'run',
+          'run_count': 2,
+          'failure_count': 0,
+          'last_run_at': 1,
+          'last_duration_ms': 3,
+          'max_duration_ms': 4,
+          'last_fuel_used': 1200000,
+          'max_fuel_used': 3400000,
+        },
+        {
+          'command': 'slot',
+          'run_count': 1,
+          'failure_count': 0,
+          'last_run_at': 1,
+          'last_duration_ms': 1,
+          'max_duration_ms': 1,
+          'max_fuel_used': 0,
+        },
+      ],
+    }));
+    expect(m.queueDepth, 7);
+    expect(m.fuelLimit, 50000000);
+    expect(m.runStats![0].lastFuelUsed, 1200000);
+    expect(m.runStats![0].maxFuelUsed, 3400000);
+    expect(m.runStats![1].lastFuelUsed, isNull,
+        reason: 'no reading is not zero');
+  });
+
+  test('a server that predates them reads as nothing waiting and no limit', () {
+    final m = InstalledDockModule.fromJson(_installed());
+    expect(m.queueDepth, 0);
+    expect(m.fuelLimit, 0);
+  });
+
   test('subscriptions and the data schema are read', () {
     final m = InstalledDockModule.fromJson(_installed({
       'subscriptions': [

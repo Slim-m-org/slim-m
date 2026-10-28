@@ -189,6 +189,33 @@ void main() {
     (_change('emoji.bulk_create'), 'added several emoji'),
     (_change('emoji.delete', target: 'e1'), 'deleted :party:'),
     (_change('module.install', target: 'polls'), 'installed module polls'),
+    (
+      _change(
+        'module.install',
+        target: 'xp',
+        detail: {
+          'approved': ['data.store', 'events'],
+          'local_network': true,
+        },
+      ),
+      'installed module xp, approved for data.store, events, local network',
+    ),
+    (
+      _change('module.install', target: 'xp', detail: {'approved': <String>[]}),
+      'installed module xp',
+    ),
+    (
+      _change('module.clear_storage', target: 'polls'),
+      'cleared the stored data of module polls',
+    ),
+    (
+      _change('module.settings', target: 'polls'),
+      'changed the settings of module polls',
+    ),
+    (
+      _change('module.auto_disable', target: 'polls'),
+      'turned off module polls after repeated failures',
+    ),
     (_change('module.uninstall', target: 'polls'), 'removed module polls'),
     (_change('module.enable', target: 'polls'), 'turned on module polls'),
     (_change('module.disable', target: 'polls'), 'turned off module polls'),

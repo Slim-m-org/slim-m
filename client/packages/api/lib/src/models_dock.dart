@@ -364,6 +364,8 @@ class InstalledDockModule {
     this.consecutiveFailures = 0,
     this.disabledReason,
     this.eventsDropped = 0,
+    this.queueDepth = 0,
+    this.fuelLimit = 0,
   });
 
   /// Event kinds it was installed to receive.
@@ -380,6 +382,12 @@ class InstalledDockModule {
 
   /// Pushed events its queue dropped because it fell behind.
   final int eventsDropped;
+
+  /// Pushed events waiting for it right now; only `GET /space/dock/installed` fills it.
+  final int queueDepth;
+
+  /// The fuel one run may burn, which each command's fuel is read against; 0 from an older server.
+  final int fuelLimit;
 
   /// Whether it declares settings an admin can fill.
   final bool declaresSettings;
@@ -467,5 +475,7 @@ class InstalledDockModule {
         consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
         disabledReason: json['disabled_reason'] as String?,
         eventsDropped: json['events_dropped'] as int? ?? 0,
+        queueDepth: json['queue_depth'] as int? ?? 0,
+        fuelLimit: json['fuel_limit'] as int? ?? 0,
       );
 }

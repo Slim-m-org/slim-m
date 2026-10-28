@@ -12533,6 +12533,18 @@ components:
           type: integer
           format: int64
           description: Pushed events its queue dropped because it fell behind.
+        queue_depth:
+          type: integer
+          format: int64
+          description: >
+            Pushed events waiting for it right now. Only the installed
+            listing carries it.
+        fuel_limit:
+          type: integer
+          format: int64
+          description: >
+            The fuel one run may burn, which `last_fuel_used` and
+            `max_fuel_used` on its run stats are read against.
     DockRunStat:
       type: object
       required:
@@ -12570,6 +12582,16 @@ components:
         max_duration_ms:
           type: integer
           format: int64
+        last_fuel_used:
+          type: integer
+          format: int64
+          description: >
+            Fuel the last run burned; absent when it could not be read (a run
+            that timed out, or one recorded before fuel was measured).
+        max_fuel_used:
+          type: integer
+          format: int64
+          description: The most fuel any run of this command has burned.
     DockStorage:
       type: object
       required: [entries, bytes, max_entries, max_bytes]
