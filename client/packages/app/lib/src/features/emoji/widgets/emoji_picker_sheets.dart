@@ -73,8 +73,8 @@ Future<void> showSpaceEmojiSheet(
   );
 }
 
-/// The shape both sheets share: keyboard-inset aware, safe-area aware, and
-/// measured so its child is handed the width it really has.
+/// The shape both sheets share: safe-area aware, and measured so its child
+/// is handed the width it really has.
 Future<void> _sheet(
   BuildContext context,
   Widget Function(BuildContext context, double width) build,
@@ -83,12 +83,7 @@ Future<void> _sheet(
     context,
     maxWidth: 520,
     builder: (context) => Padding(
-      padding: EdgeInsets.only(
-        left: _sheetInset,
-        right: _sheetInset,
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      // Inside the keyboard inset, cancelling the route's own top padding.
+      padding: const EdgeInsets.symmetric(horizontal: _sheetInset),
       child: SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

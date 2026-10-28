@@ -37,17 +37,23 @@ enum CanvasWheelItem {
 }
 
 /// Distance from the wheel's centre to each tool's centre.
-const double canvasWheelRadius = 76;
+const double canvasWheelRadius = 48;
 
-/// Each tool's diameter; at the touch target floor so a flick need not be exact.
-const double canvasWheelItemSize = 44;
+/// Each tool's diameter; the large pointer control size, so a flick need not be exact.
+const double canvasWheelItemSize = AppSizes.controlLg;
 
 /// Room a wheel needs on every side of its centre.
 const double canvasWheelExtent =
-    canvasWheelRadius + canvasWheelItemSize / 2 + 8;
+    canvasWheelRadius + canvasWheelItemSize / 2 + 6;
+
+/// How far past the wheel's edge a mouse may stray before the wheel closes.
+const double canvasWheelLeaveTolerance = 8;
+
+/// How long a right button is held on empty canvas before the wheel opens.
+const Duration canvasWheelHoldDelay = Duration(milliseconds: 150);
 
 /// A press must travel this far from the wheel's centre before it names a tool.
-const double canvasWheelDeadZone = 24;
+const double canvasWheelDeadZone = 18;
 
 /// The tool a pointer at [pointer] points at from [center], or null inside the dead zone.
 int? canvasWheelSector({
@@ -98,6 +104,7 @@ class CanvasToolWheel extends StatefulWidget {
     required this.canDraw,
     required this.onPick,
     required this.onDismiss,
+    this.openedByPointer = true,
   });
 
   /// Overlay-local, already held inside the overlay by [canvasWheelCenter].
@@ -111,12 +118,26 @@ class CanvasToolWheel extends StatefulWidget {
   final ValueChanged<CanvasWheelItem> onPick;
   final VoidCallback onDismiss;
 
+  /// A keyboard-opened wheel only closes on leaving once the mouse has been over it.
+  final bool openedByPointer;
+
   @override
   State<CanvasToolWheel> createState() => _CanvasToolWheelState();
 }
 
 class _CanvasToolWheelState extends State<CanvasToolWheel> {
   CanvasWheelItem? _reached;
+  late bool _enteredWheel = widget.openedByPointer;
+
+  void _hover(PointerHoverEvent event) {
+    final distance = (event.localPosition - widget.center).distance;
+    if (distance <= canvasWheelExtent) {
+      _enteredWheel = true;
+    } else if (_enteredWheel &&
+        distance > canvasWheelExtent + canvasWheelLeaveTolerance) {
+      widget.onDismiss();
+    }
+  }
 
   IconData _icon(CanvasWheelItem item) => switch (item) {
     CanvasWheelItem.move => AppIcons.pan,
@@ -156,11 +177,14 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
               child: Stack(
                 children: [
                   Positioned.fill(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: widget.onDismiss,
-                      onSecondaryTap: widget.onDismiss,
-                      excludeFromSemantics: true,
+                    child: MouseRegion(
+                      onHover: _hover,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: widget.onDismiss,
+                        onSecondaryTap: widget.onDismiss,
+                        excludeFromSemantics: true,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -168,20 +192,32 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
                     top: widget.center.dy - diameter / 2,
                     width: diameter,
                     height: diameter,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceRaised,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: tokens.borderSubtle),
-                        boxShadow: AppShadows.float,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: 1),
+                      duration: AppMotion.reduced(context, AppMotion.fast),
+                      curve: Curves.easeOut,
+                      builder: (context, t, child) => Opacity(
+                        opacity: t,
+                        child: Transform.scale(
+                          scale: 0.9 + 0.1 * t,
+                          child: child,
+                        ),
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          _centreLabel(tokens),
-                          for (final item in CanvasWheelItem.values)
-                            _positioned(item),
-                        ],
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceRaised,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: tokens.borderSubtle),
+                          boxShadow: AppShadows.float,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            _centreLabel(tokens),
+                            for (final item in CanvasWheelItem.values)
+                              _positioned(item),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -198,9 +234,15 @@ class _CanvasToolWheelState extends State<CanvasToolWheel> {
     child: ExcludeSemantics(
       child: ValueListenableBuilder<CanvasWheelItem?>(
         valueListenable: widget.highlight,
-        builder: (context, flicked, _) => Text(
-          (flicked ?? _reached)?.label ?? 'Tools',
-          style: AppText.caption.copyWith(color: tokens.textSecondary),
+        builder: (context, flicked, _) => SizedBox(
+          width: 2 * (canvasWheelRadius - canvasWheelItemSize / 2),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              (flicked ?? _reached)?.label ?? 'Tools',
+              style: AppText.caption.copyWith(color: tokens.textSecondary),
+            ),
+          ),
         ),
       ),
     ),

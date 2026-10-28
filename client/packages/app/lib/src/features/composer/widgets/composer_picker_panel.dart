@@ -215,31 +215,29 @@ class _ComposerPickerSheetState extends State<_ComposerPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _pickerBody(
-            tab: _tab,
-            onSelectTab: (i) =>
-                setState(() => _tab = ComposerPickerTab.values[i]),
-            showGifTab: widget.showGifTab,
-            // Space list only: a phone's keyboard already has every native emoji.
-            emojiBody: SpaceEmojiSheetBody(
-              onSelect: (emoji) {
-                Navigator.of(context).pop();
-                widget.onSelectEmoji(emoji);
-              },
-            ),
-            onPickedGif: (attachment) {
+    // showAppSheet already lifts the sheet above the keyboard.
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _pickerBody(
+          tab: _tab,
+          onSelectTab: (i) =>
+              setState(() => _tab = ComposerPickerTab.values[i]),
+          showGifTab: widget.showGifTab,
+          // Space list only: a phone's keyboard already has every native emoji.
+          emojiBody: SpaceEmojiSheetBody(
+            onSelect: (emoji) {
               Navigator.of(context).pop();
-              widget.onPickedGif(attachment);
+              widget.onSelectEmoji(emoji);
             },
-            channelId: widget.channelId,
-            gifQuery: widget.gifQuery,
           ),
+          onPickedGif: (attachment) {
+            Navigator.of(context).pop();
+            widget.onPickedGif(attachment);
+          },
+          channelId: widget.channelId,
+          gifQuery: widget.gifQuery,
         ),
       ),
     );

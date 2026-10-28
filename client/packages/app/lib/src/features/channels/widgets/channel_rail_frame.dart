@@ -3,6 +3,8 @@
 /// and the signed-in user's footer.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,6 +22,7 @@ import '../../../providers/sync_failure.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';
+import '../../voice/widgets/call_availability.dart';
 import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../../members/widgets/presence_menu.dart';
@@ -229,7 +232,7 @@ VoidCallback? _micAction({
       : voiceController.toggleMicrophone;
 }
 
-/// The mic/deafen toggle pair in [RailUserFooter]'s row.
+/// The mic/deafen toggles in [RailUserFooter]'s row, plus the camera while in a call.
 ///
 /// Takes [VoiceFlags] rather than the full [VoiceState] on purpose: the
 /// footer has no use for the roster, and typing this as the narrower flags
@@ -238,6 +241,7 @@ List<Widget> railVoiceToggleButtons({
   required VoiceFlags voice,
   required VoiceController voiceController,
   MicStatus micStatus = MicStatus.ok,
+  String? listenOnly,
 }) {
   final inCall = voice.state == VoiceSessionState.connected;
   final trouble = voice.microphoneEnabled ? micStatus.trouble : null;
@@ -263,6 +267,20 @@ List<Widget> railVoiceToggleButtons({
       tooltip: inCall ? null : 'Not in a call',
       onPressed: inCall ? voiceController.toggleDeafen : null,
     ),
+    if (inCall)
+      AppIconButton(
+        icon: voice.cameraEnabled && listenOnly == null
+            ? AppIcons.camera
+            : AppIcons.cameraOff,
+        semanticLabel: voice.cameraEnabled
+            ? 'Turn off camera'
+            : 'Turn on camera',
+        active: voice.cameraEnabled && listenOnly == null,
+        tooltip: listenOnly,
+        onPressed: listenOnly != null || voice.cameraPending
+            ? null
+            : () => unawaited(voiceController.toggleCamera()),
+      ),
   ];
 }
 
@@ -395,6 +413,7 @@ class RailUserFooter extends ConsumerWidget {
                   voice: voice,
                   voiceController: voiceController,
                   micStatus: micStatus,
+                  listenOnly: listenOnlyReason(ref, voice),
                 ),
                 if (inCallElsewhere) railLeaveCallButton(voiceController.leave),
                 railSettingsButton(context),

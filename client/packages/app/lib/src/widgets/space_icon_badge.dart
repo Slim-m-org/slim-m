@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../features/voice/providers/voice_ping.dart';
 import '../providers/direct_route.dart';
 import '../providers/sync_controller.dart';
 import '../providers/sync_failure.dart';
@@ -30,6 +31,7 @@ class SpaceIdentityMark extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final direct = ref.watch(directRouteProvider).valueOrNull ?? false;
+    final ping = ref.watch(voicePingProvider);
     if (iconUpdatedAt == null) {
       return Padding(
         padding: const EdgeInsets.only(right: 6),
@@ -37,6 +39,7 @@ class SpaceIdentityMark extends ConsumerWidget {
           status: status,
           failure: failure,
           direct: direct,
+          voicePingMs: ping,
         ),
       );
     }
@@ -60,6 +63,7 @@ class SpaceIdentityMark extends ConsumerWidget {
                 failure: failure,
                 direct: direct,
                 haloed: true,
+                voicePingMs: ping,
               ),
             ),
           ],

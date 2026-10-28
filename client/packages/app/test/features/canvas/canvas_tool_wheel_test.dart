@@ -248,6 +248,102 @@ void main() {
     });
   });
 
+  group('a compact, quick, self-dismissing wheel', () {
+    testWidgets('opens within a short hold, not the long-press timeout', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      await _rightDown(tester, const Offset(400, 300));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(_wheel, findsOneWidget);
+    });
+
+    testWidgets('is no wider than 150 logical pixels', (tester) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      await _rightDown(tester, const Offset(400, 300));
+      await tester.pump(const Duration(milliseconds: 200));
+      final disc = find.descendant(
+        of: _wheel,
+        matching: find.byType(DecoratedBox),
+      );
+      final size = tester.getSize(disc.first);
+      expect(size.width, lessThanOrEqualTo(150));
+      expect(size.width, size.height);
+    });
+
+    testWidgets('every item keeps a pointer-sized target', (tester) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      rig.wheel.requestOpen();
+      await tester.pumpAndSettle();
+      for (final item in CanvasWheelItem.values) {
+        final size = tester.getSize(find.bySemanticsLabel(item.label));
+        expect(size.shortestSide, greaterThanOrEqualTo(AppSizes.rowPointer));
+      }
+    });
+
+    testWidgets('hovering past the wheel edge dismisses it, inside does not', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      const anchor = Offset(400, 300);
+      final held = await _rightDown(tester, anchor);
+      await tester.pump(const Duration(milliseconds: 200));
+      await held.up();
+      await tester.pump();
+      final mouse = held;
+      await mouse.moveTo(anchor + const Offset(6, 0));
+      await tester.pump();
+      await mouse.moveTo(anchor + const Offset(canvasWheelExtent - 4, 0));
+      await tester.pump();
+      expect(_wheel, findsOneWidget);
+
+      await mouse.moveTo(anchor + const Offset(canvasWheelExtent + 20, 0));
+      await tester.pump();
+      expect(_wheel, findsNothing);
+      expect(rig.tools, isEmpty);
+    });
+
+    testWidgets('the square corner of the wheel box is outside the circle', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      const anchor = Offset(400, 300);
+      final held = await _rightDown(tester, anchor);
+      await tester.pump(const Duration(milliseconds: 200));
+      await held.up();
+      await tester.pump();
+      final mouse = held;
+      await mouse.moveTo(anchor + const Offset(6, 0));
+      await tester.pump();
+      const corner = canvasWheelExtent - 2;
+      await mouse.moveTo(anchor + const Offset(corner, corner));
+      await tester.pump();
+      expect(_wheel, findsNothing);
+    });
+
+    testWidgets('clicking an item arms the tool and closes the wheel', (
+      tester,
+    ) async {
+      final rig = _Rig();
+      await tester.pumpWidget(rig.build());
+      const anchor = Offset(400, 300);
+      final held = await _rightDown(tester, anchor);
+      await tester.pump(const Duration(milliseconds: 200));
+      await held.up();
+      await tester.pump();
+      await tester.tapAt(_itemAt(anchor, CanvasWheelItem.shape));
+      await tester.pump();
+
+      expect(rig.tools, [CanvasTool.shape]);
+      expect(_wheel, findsNothing);
+    });
+  });
+
   group('a quick right-click', () {
     testWidgets('keeps the quick actions and opens no wheel', (tester) async {
       final rig = _Rig();

@@ -84,11 +84,11 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
     final tokens = Theme.of(context).extension<AppTokens>()!;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
+      padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
         0,
         AppSpacing.s16,
-        MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s16,
+        AppSpacing.s16,
       ),
       child: SingleChildScrollView(
         child: Column(

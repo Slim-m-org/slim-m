@@ -68,16 +68,13 @@ Future<void> showGifPickerSheet(
   return showAppSheet<void>(
     context,
     maxWidth: 480,
-    builder: (context) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        child: GifPickerBody(
-          channelId: channelId,
-          onPicked: (attachment) {
-            Navigator.of(context).pop();
-            onPicked(attachment);
-          },
-        ),
+    builder: (context) => SafeArea(
+      child: GifPickerBody(
+        channelId: channelId,
+        onPicked: (attachment) {
+          Navigator.of(context).pop();
+          onPicked(attachment);
+        },
       ),
     ),
   );

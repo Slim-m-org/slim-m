@@ -65,6 +65,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
   bool _flicked = false;
   Offset _center = Offset.zero;
   Offset _world = Offset.zero;
+  bool _byPointer = true;
 
   @override
   void initState() {
@@ -112,7 +113,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
     _pointer = event.pointer;
     _pressLocal = event.localPosition;
     _pressGlobal = event.position;
-    _holdTimer = Timer(kLongPressTimeout, () {
+    _holdTimer = Timer(canvasWheelHoldDelay, () {
       _holdTimer = null;
       _openHeld();
     });
@@ -157,7 +158,11 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
   void _openHeld() {
     if (widget.isObjectAt(_toWorld(_pressLocal))) return;
     widget.controller.holdOpened();
-    _open(anchorGlobal: _pressGlobal, world: _toWorld(_pressLocal));
+    _open(
+      anchorGlobal: _pressGlobal,
+      world: _toWorld(_pressLocal),
+      byPointer: true,
+    );
   }
 
   void _openAtMiddle() {
@@ -166,15 +171,21 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
     _open(
       anchorGlobal: box.localToGlobal(box.size.center(Offset.zero)),
       world: widget.document.worldView.center,
+      byPointer: false,
     );
   }
 
-  void _open({required Offset anchorGlobal, required Offset world}) {
+  void _open({
+    required Offset anchorGlobal,
+    required Offset world,
+    required bool byPointer,
+  }) {
     final overlay = _overlayBox;
     if (overlay == null || _portal.isShowing) return;
     _flicked = false;
     _highlight.value = null;
     _world = world;
+    _byPointer = byPointer;
     setState(() {
       _center = canvasWheelCenter(
         overlay.globalToLocal(anchorGlobal),
@@ -210,6 +221,7 @@ class _CanvasToolWheelLayerState extends State<CanvasToolWheelLayer> {
       canDraw: widget.canDraw,
       onPick: _pick,
       onDismiss: _close,
+      openedByPointer: _byPointer,
     ),
     child: Listener(
       behavior: HitTestBehavior.translucent,

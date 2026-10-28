@@ -117,9 +117,9 @@ class UserAvatar extends ConsumerWidget {
       semanticLabel: semanticLabel,
       placeholder: placeholder,
     );
-    // The ring's pulse is a ticker; an unfocused window should not run it.
+    // The ring's pulse is a ticker; a hidden window should not run it, but an unfocused one is still watched.
     return TickerMode(
-      enabled: !speaking || ref.watch(appFocusedProvider),
+      enabled: !speaking || ref.watch(appVisibleProvider),
       child: avatar,
     );
   }

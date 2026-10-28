@@ -118,6 +118,13 @@ class VoiceHealth {
   /// Identities whose connection is bad right now; empty while all is well.
   final ValueNotifier<Set<String>> poorConnections = ValueNotifier(const {});
 
+  /// Round trip to the voice server in whole milliseconds, null before the
+  /// first sample and once the call ends.
+  final ValueNotifier<int?> pingMs = ValueNotifier(null);
+
+  double? _localPing;
+  double? _remotePing;
+
   /// The previous call's summary, kept until the next call ends.
   final ValueNotifier<CallHealthSummary?> lastCall = ValueNotifier(null);
 
@@ -126,6 +133,8 @@ class VoiceHealth {
       (_local?.history.isNotEmpty ?? false);
 
   void observeRemote(String id, String name, AudioReceiveSample now) {
+    _remotePing = now.rttMs;
+    _publishPing();
     final stream = _remote.putIfAbsent(id, () => _Stream(name))
       ..name = name
       ..present = true;
@@ -151,6 +160,8 @@ class VoiceHealth {
   }
 
   void observeLocal(String id, AudioSendSample now) {
+    _localPing = now.pingMs;
+    _publishPing();
     final stream = _local ??= _Stream(id);
     _localId = id;
     final before = stream.previousSend;
@@ -242,11 +253,15 @@ class VoiceHealth {
     _local = null;
     _localId = null;
     _lastLogAt = null;
+    _localPing = null;
+    _remotePing = null;
+    _publishPing();
     _publish();
   }
 
   void dispose() {
     poorConnections.dispose();
+    pingMs.dispose();
     lastCall.dispose();
   }
 
@@ -266,6 +281,20 @@ class VoiceHealth {
     final changed =
         stream.gate.update(seconds: seconds, bad: bad, clear: clear);
     if (changed) _publish();
+  }
+
+  /// Drops the reading while sampling is paused, so a reconnecting call does
+  /// not show a stale number.
+  void clearPing() {
+    _localPing = null;
+    _remotePing = null;
+    _publishPing();
+  }
+
+  void _publishPing() {
+    final ping = _localPing ?? _remotePing;
+    final rounded = ping?.round();
+    if (rounded != pingMs.value) pingMs.value = rounded;
   }
 
   void _publish() {

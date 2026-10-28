@@ -38,7 +38,7 @@ final levelDisplayHoldsProvider = Provider<LevelDisplayHolds>((ref) {
 });
 
 /// Calls [onChange] with whether a meter is mounted and visible while the
-/// app is resumed, now and on every change.
+/// window is on screen, focused or not, now and on every change.
 ///
 /// Listens to the two state notifiers themselves: a derived [Provider] only
 /// refreshes on a frame, and frames stop while the window is hidden, which
@@ -46,8 +46,7 @@ final levelDisplayHoldsProvider = Provider<LevelDisplayHolds>((ref) {
 void listenLevelDisplayed(Ref ref, void Function(bool displayed) onChange) {
   final holds = ref.read(levelDisplayHoldsProvider);
   bool displayed() =>
-      holds.value > 0 &&
-      ref.read(appLifecycleProvider) == AppLifecycleState.resumed;
+      holds.value > 0 && isWindowVisible(ref.read(appLifecycleProvider));
   var last = displayed();
   void check(Object? _, Object? next) {
     final now = displayed();

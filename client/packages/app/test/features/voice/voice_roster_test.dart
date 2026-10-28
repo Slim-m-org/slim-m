@@ -9,6 +9,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -26,7 +27,6 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 4102444800000,
 );
 
-final _focus = StateProvider<bool>((ref) => true);
 final _socketLive = StateProvider<bool>((ref) => false);
 
 ProviderContainer _containerWith(
@@ -42,7 +42,6 @@ ProviderContainer _containerWith(
   final container = ProviderContainer(
     overrides: [
       apiProvider.overrideWithValue(apiClient),
-      appFocusedProvider.overrideWith((ref) => ref.watch(_focus)),
       voiceRosterSocketLiveProvider.overrideWith(
         (ref) => ref.watch(_socketLive),
       ),
@@ -57,6 +56,8 @@ http.Response _roster(List<Map<String, String>> participants) =>
     http.Response(jsonEncode({'participants': participants}), 200);
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('a successful fetch surfaces the roster it was given', () {
     fakeAsync((async) {
       final container = _containerWith(
@@ -377,7 +378,7 @@ void main() {
     });
   });
 
-  test('a hidden window stops polling and refetches once on focus', () {
+  test('a hidden window stops polling and refetches once shown', () {
     fakeAsync((async) {
       var calls = 0;
       final container = _containerWith(
@@ -390,16 +391,21 @@ void main() {
       async.flushMicrotasks();
       expect(calls, 1);
 
-      container.read(_focus.notifier).state = false;
+      final lifecycle = container.read(appLifecycleProvider.notifier);
+      lifecycle.didChangeAppLifecycleState(AppLifecycleState.inactive);
+      async.elapse(voiceRosterPollInterval);
+      expect(calls, 2, reason: 'an unfocused window on screen keeps polling');
+
+      lifecycle.didChangeAppLifecycleState(AppLifecycleState.hidden);
       async.flushMicrotasks();
       async.elapse(const Duration(hours: 1));
-      expect(calls, 1, reason: 'a window in the tray must not poll');
+      expect(calls, 2, reason: 'a window in the tray must not poll');
 
-      container.read(_focus.notifier).state = true;
+      lifecycle.didChangeAppLifecycleState(AppLifecycleState.resumed);
       async.elapse(const Duration(milliseconds: 1));
-      expect(calls, 2, reason: 'one refresh on focus');
+      expect(calls, 3, reason: 'one refresh when shown');
       async.elapse(voiceRosterPollInterval);
-      expect(calls, 3, reason: 'and the poll resumes');
+      expect(calls, 4, reason: 'and the poll resumes');
       sub.close();
     });
   });
