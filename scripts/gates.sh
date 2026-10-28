@@ -8,7 +8,7 @@
 # check-shellcheck.sh).
 set -u
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 failed=()
 
