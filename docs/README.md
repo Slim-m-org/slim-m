@@ -30,6 +30,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [RELEASING.md](RELEASING.md): the release runbook; [APP-STORE.md](APP-STORE.md) for the iOS listing and review.
 - [dependencies.md](dependencies.md): why each dependency is there.
 - [internals.md](internals.md): how and why individual modules work, moved out of long doc comments.
+- [notifier-migration.md](notifier-migration.md): why new StateNotifiers are gated, and the plan to move the 69 existing ones to Notifier.
 - [video-quality.md](video-quality.md) and [voice-input-gate.md](voice-input-gate.md): how call media is tuned.
 - [agents/job-template.md](agents/job-template.md): the job file format for agent work.
 
