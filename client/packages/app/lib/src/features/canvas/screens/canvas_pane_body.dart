@@ -44,7 +44,7 @@ import 'canvas_summary.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
 import 'canvas_board_pager.dart' show CanvasPaging;
 import 'canvas_paging_indicator.dart';
-import 'canvas_truncated_notice.dart';
+import 'canvas_banners.dart';
 
 part 'canvas_pane_body_builders.dart';
 
@@ -442,48 +442,19 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
                           ),
                         if (widget.paging case final paging?)
                           CanvasPagingIndicator(paging: paging),
-                        // Over the board, not above it: a banner that took height re-fitted the board mid-draw.
-                        if (widget.callError != null ||
-                            widget.error != null ||
-                            widget.truncated)
-                          FocusTraversalOrder(
-                            key: const ValueKey('canvas-banners'),
-                            order: const NumericFocusOrder(0),
-                            child: Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (widget.callError != null)
-                                    Padding(
-                                      padding: const EdgeInsets.all(
-                                        AppSpacing.s12,
-                                      ),
-                                      child: AppErrorState(
-                                        message: widget.callError!,
-                                        onRetry: widget.onRetryCall,
-                                      ),
-                                    ),
-                                  if (widget.error != null)
-                                    Padding(
-                                      padding: const EdgeInsets.all(
-                                        AppSpacing.s12,
-                                      ),
-                                      child: AppErrorState(
-                                        message: widget.error!,
-                                        onDismiss: widget.onDismissError,
-                                        onRetry: widget.onRetryError,
-                                      ),
-                                    ),
-                                  if (widget.truncated)
-                                    const CanvasTruncatedNotice(),
-                                ],
-                              ),
-                            ),
+                        FocusTraversalOrder(
+                          key: const ValueKey('canvas-banners'),
+                          order: const NumericFocusOrder(0),
+                          child: CanvasBanners(
+                            callError: widget.callError,
+                            onRetryCall: widget.onRetryCall,
+                            error: widget.error,
+                            onDismissError: widget.onDismissError,
+                            onRetryError: widget.onRetryError,
+                            truncated: widget.truncated,
+                            unsavedInk: widget.document.unsavedInk.count,
                           ),
+                        ),
                         FocusTraversalOrder(
                           key: const ValueKey('canvas-dock'),
                           order: const NumericFocusOrder(2),

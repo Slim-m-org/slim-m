@@ -14,11 +14,12 @@ use crate::fixtures::{
 };
 
 async fn props_of(pool: &sqlx::SqlitePool, object_id: &str) -> serde_json::Value {
-    let raw: String = sqlx::query_scalar("SELECT props FROM canvas_objects WHERE id = ?")
-        .bind(Uuid::parse_str(object_id).unwrap())
-        .fetch_one(pool)
-        .await
-        .unwrap();
+    let raw: String =
+        sqlx::query_scalar("SELECT props FROM canvas_object_props WHERE object_id = ?")
+            .bind(Uuid::parse_str(object_id).unwrap())
+            .fetch_one(pool)
+            .await
+            .unwrap();
     serde_json::from_str(&raw).unwrap()
 }
 

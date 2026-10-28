@@ -195,13 +195,13 @@ extension SlimmApiCanvas on SlimmApi {
         CanvasMediaSlot.fromJson);
   }
 
-  /// The ids of this channel's live objects locked in place.
-  Future<Set<String>> canvasObjectLocks(String channelId) async {
+  /// The ids of this channel's live objects locked in place, with the state version they were read at.
+  Future<CanvasObjectLockPage> canvasObjectLocks(String channelId) async {
     final json = await _send('GET', '/channels/$channelId/canvas/object-locks');
     return _decodeShape(
       json,
       'GET /channels/$channelId/canvas/object-locks',
-      (map) => (map['object_ids'] as List<dynamic>).cast<String>().toSet(),
+      CanvasObjectLockPage.fromJson,
     );
   }
 

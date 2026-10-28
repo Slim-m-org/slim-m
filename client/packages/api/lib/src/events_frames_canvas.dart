@@ -339,6 +339,7 @@ class CanvasMediaSlotChanged extends ServerEvent {
     required this.h,
     required this.locked,
     required this.sentToBack,
+    this.version = 0,
   });
 
   final String channelId;
@@ -350,6 +351,9 @@ class CanvasMediaSlotChanged extends ServerEvent {
   final double h;
   final bool locked;
   final bool sentToBack;
+
+  /// Orders this against every lock and slot change in the channel; 0 from a server that sends none.
+  final int version;
 }
 
 /// A canvas object was locked in place or unlocked. Carries no seq: a lock is
@@ -359,11 +363,15 @@ class CanvasObjectLockChanged extends ServerEvent {
     required this.channelId,
     required this.objectId,
     required this.locked,
+    this.version = 0,
   });
 
   final String channelId;
   final String objectId;
   final bool locked;
+
+  /// Orders this against every lock and slot change in the channel; 0 from a server that sends none.
+  final int version;
 }
 
 /// A placed object's paint order changed.

@@ -148,6 +148,18 @@ void main() {
       );
     });
 
+    test('a server that advertises the field is believed over its version', () {
+      Version version(String number, Object? field) => Version.fromJson({
+            'name': 'slim-m',
+            'version': number,
+            'protocol': 1,
+            if (field != null) 'canvas_scoped_clear': field,
+          });
+      expect(version('dev-build', true).supportsPartialClear, isTrue);
+      expect(version('9.0.0', false).supportsPartialClear, isFalse);
+      expect(version('0.50.0', null).supportsPartialClear, isFalse);
+    });
+
     test('reports false for version below 0.98.0 or invalid semver', () {
       expect(
         Version.fromJson({

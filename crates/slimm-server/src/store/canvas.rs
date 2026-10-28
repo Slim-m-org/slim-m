@@ -49,6 +49,7 @@ pub(super) mod canvas_ops_apply;
 pub(super) mod canvas_ops_sweep;
 pub(super) mod canvas_ops_write;
 pub(super) mod canvas_purge;
+pub(super) mod canvas_state_version;
 
 /// A placed canvas object.
 #[derive(Debug, Clone)]
@@ -234,9 +235,9 @@ impl Store {
         // order things were drawn in and raising an object is a later edit.
         sqlx::query!(
             r#"INSERT INTO canvas_objects
-                   (id, channel_id, channel_key, kind, z_index, x, y, w, h, props,
+                   (id, channel_id, channel_key, kind, z_index, x, y, w, h,
                     author_id, seq, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
             id,
             channel_id,
             key,
@@ -246,10 +247,16 @@ impl Store {
             y,
             w,
             h,
-            props,
             author_id,
             seq,
             now
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "INSERT INTO canvas_object_props (object_id, props) VALUES (?, ?)",
+            id,
+            props
         )
         .execute(&mut *tx)
         .await?;
@@ -343,18 +350,22 @@ impl Store {
                       o.z_index AS "z_index!: i64",
                       o.x AS "x!: f64", o.y AS "y!: f64",
                       o.w AS "w!: f64", o.h AS "h!: f64",
-                      o.props AS "props!", o.author_id AS "author_id: UserId",
+                      p.props AS "props!", o.author_id AS "author_id: UserId",
                       o.seq AS "seq!: Seq", o.created_at AS "created_at!: i64"
-               FROM canvas_rtree r
-               CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id
-               WHERE r.min_key <= ? AND r.max_key >= ?
-                 AND r.max_x >= ? AND r.min_x <= ?
-                 AND r.max_y >= ? AND r.min_y <= ?
-                 AND o.channel_id = ? AND o.deleted_at IS NULL AND o.seq > ?
-                 AND o.x <= ? AND o.x + o.w >= ?
-                 AND o.y <= ? AND o.y + o.h >= ?
-               ORDER BY o.seq ASC
-               LIMIT ?"#,
+               FROM (SELECT o.rt_id AS rt_id, o.seq AS seq
+                     FROM canvas_rtree r
+                     CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id
+                     WHERE r.min_key <= ? AND r.max_key >= ?
+                       AND r.max_x >= ? AND r.min_x <= ?
+                       AND r.max_y >= ? AND r.min_y <= ?
+                       AND o.channel_id = ? AND o.deleted_at IS NULL AND o.seq > ?
+                       AND o.x <= ? AND o.x + o.w >= ?
+                       AND o.y <= ? AND o.y + o.h >= ?
+                     ORDER BY o.seq ASC
+                     LIMIT ?) page
+               JOIN canvas_objects o ON o.rt_id = page.rt_id
+               JOIN canvas_object_props p ON p.object_id = o.id
+               ORDER BY page.seq ASC"#,
             key,
             key,
             rt_min_x,
@@ -402,21 +413,25 @@ where
                   o.z_index AS "z_index!: i64",
                   o.x AS "x!: f64", o.y AS "y!: f64",
                   o.w AS "w!: f64", o.h AS "h!: f64",
-                  o.props AS "props!", o.author_id AS "author_id: UserId",
+                  p.props AS "props!", o.author_id AS "author_id: UserId",
                   o.seq AS "seq!: Seq", o.created_at AS "created_at!: i64"
-           FROM canvas_rtree r
-           CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id
-           WHERE r.min_key <= ? AND r.max_key >= ?
-             AND r.max_x >= ? AND r.min_x <= ?
-             AND r.max_y >= ? AND r.min_y <= ?
-             AND o.channel_id = ? AND o.deleted_at IS NULL
-             AND o.x <= ? AND o.x + o.w >= ?
-             AND o.y <= ? AND o.y + o.h >= ?
-             AND (? = 0 OR o.seq > ?
-                  OR NOT (o.x <= ? AND o.x + o.w >= ?
-                          AND o.y <= ? AND o.y + o.h >= ?))
-           ORDER BY o.z_index DESC, o.seq DESC
-           LIMIT ?"#,
+           FROM (SELECT o.rt_id AS rt_id, o.z_index AS z_index, o.seq AS seq
+                 FROM canvas_rtree r
+                 CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id
+                 WHERE r.min_key <= ? AND r.max_key >= ?
+                   AND r.max_x >= ? AND r.min_x <= ?
+                   AND r.max_y >= ? AND r.min_y <= ?
+                   AND o.channel_id = ? AND o.deleted_at IS NULL
+                   AND o.x <= ? AND o.x + o.w >= ?
+                   AND o.y <= ? AND o.y + o.h >= ?
+                   AND (? = 0 OR o.seq > ?
+                        OR NOT (o.x <= ? AND o.x + o.w >= ?
+                                AND o.y <= ? AND o.y + o.h >= ?))
+                 ORDER BY o.z_index DESC, o.seq DESC
+                 LIMIT ?) page
+           JOIN canvas_objects o ON o.rt_id = page.rt_id
+           JOIN canvas_object_props p ON p.object_id = o.id
+           ORDER BY page.z_index DESC, page.seq DESC"#,
         key,
         key,
         rt_min_x,
@@ -476,10 +491,11 @@ async fn fetch_object(
         r#"SELECT channel_id AS "channel_id!: ChannelId", id AS "id!: CanvasObjectId",
                   kind AS "kind!", z_index AS "z_index!: i64",
                   x AS "x!: f64", y AS "y!: f64", w AS "w!: f64", h AS "h!: f64",
-                  props AS "props!", author_id AS "author_id: UserId",
+                  p.props AS "props!", author_id AS "author_id: UserId",
                   seq AS "seq!: Seq", created_at AS "created_at!: i64",
                   deleted_at AS "deleted_at: i64"
-           FROM canvas_objects WHERE id = ?"#,
+           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id
+           WHERE o.id = ?"#,
         id
     )
     .fetch_optional(&mut **tx)

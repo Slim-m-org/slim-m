@@ -11075,6 +11075,13 @@ components:
           description: >
             Whether any member, not only holders of CREATE_INVITE, may create
             invites. Absent on older servers, which a client reads as false.
+        canvas_scoped_clear:
+          type: boolean
+          description: >
+            Whether the canvas accepts a `clear_scoped` op, which removes only
+            some kinds or one author's objects. A client hides the scoped
+            clear choices when it is false. Absent on servers older than this
+            field, which a client reads from the server version instead.
         max_attachment_bytes:
           type: integer
           format: int64
@@ -15526,6 +15533,11 @@ components:
         updated_at:
           type: integer
           format: int64
+        version:
+          type: integer
+          format: int64
+          description: >-
+            On the reply to a write only: the canvas state version the write was given. Absent on listed slots and on servers older than this field.
 
     CanvasMediaSlotUpdate:
       type: object
@@ -15556,6 +15568,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CanvasMediaSlot"
+        version:
+          type: integer
+          format: int64
+          description: >-
+            The canvas state version the list was read at; see `CanvasObjectLockList`. Absent on servers older than this field.
 
     Message:
       type: object
@@ -17223,6 +17240,7 @@ components:
         - $ref: "#/components/schemas/ClientActive"
         - $ref: "#/components/schemas/ClientTyping"
         - $ref: "#/components/schemas/ClientViewing"
+        - $ref: "#/components/schemas/ClientCanvasWatch"
         - $ref: "#/components/schemas/ClientCanvasCursor"
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
         - $ref: "#/components/schemas/ClientCanvasObjectPreview"
@@ -17318,6 +17336,26 @@ components:
             other devices are skipped; calls and security alerts are not.
             Absent means false. A client may send this frame with an empty
             channel_ids and active true, for example from a settings screen.
+
+    ClientCanvasWatch:
+      type: object
+      required: [type, channel_ids]
+      description: >
+        The canvases this connection has open, replacing its previous report;
+        an empty list says none is open. Live cursors, stroke previews, object
+        previews and tile previews are then sent only for the listed channels,
+        and never back to the member who sent them. A connection that has not
+        sent this frame receives them for every channel it can view. It is
+        never broadcast, and at most 8 ids are honoured.
+      properties:
+        type:
+          type: string
+          enum: [canvas.watch]
+        channel_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
 
     ClientCanvasCursor:
       type: object
@@ -18128,6 +18166,11 @@ components:
           items:
             type: string
             format: uuid
+        version:
+          type: integer
+          format: int64
+          description: >-
+            The canvas state version the list was read at: a lock or slot frame with a version at or below it is already in the list, one above it is newer. Absent on servers older than this field.
     CanvasObjectLockChanged:
       type: object
       required: [type, channel_id, object_id, locked]
@@ -18150,6 +18193,11 @@ components:
           format: uuid
         locked:
           type: boolean
+        version:
+          type: integer
+          format: int64
+          description: >-
+            Orders this against every lock and slot change in the channel. Absent on servers older than this field.
     CanvasMediaSlotChanged:
       type: object
       required: [type, channel_id, kind, user_id, x, y, w, h, locked, sent_to_back]
@@ -18193,6 +18241,11 @@ components:
           type: boolean
         sent_to_back:
           type: boolean
+        version:
+          type: integer
+          format: int64
+          description: >-
+            Orders this against every lock and slot change in the channel. Absent on servers older than this field.
 
     ServerHello:
       type: object

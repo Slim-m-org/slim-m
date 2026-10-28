@@ -25,6 +25,7 @@ import 'canvas_smooth_path.dart';
 import 'canvas_snap.dart';
 import 'canvas_stroke.dart';
 import 'canvas_text_box.dart';
+import 'canvas_unsaved_ink.dart';
 import 'spatial_grid.dart' show CullResult;
 
 export 'canvas_stroke.dart';
@@ -78,6 +79,16 @@ class CanvasDocument extends ChangeNotifier {
   /// something broke. Never flips for [setViewport]'s own re-clamp on a
   /// resize, which is not a gesture anyone is pushing against.
   final ValueNotifier<bool> worldEdgeHit = ValueNotifier<bool>(false);
+
+  /// Strokes drawn here whose save is being retried; they paint faded until the server has them.
+  final unsavedInk = UnsavedInk();
+
+  /// Marks a stroke as waiting on a retry, or as settled; repaints only on a change.
+  void setUnsaved(String id, {required bool unsaved}) {
+    if (!unsavedInk.set(id, unsaved: unsaved)) return;
+    _changed();
+    notifyListeners();
+  }
 
   /// Pointers `CanvasSurface` itself never receives a down event for - see
   /// `canvas_external_pointers.dart`'s own doc.
@@ -258,6 +269,7 @@ class CanvasDocument extends ChangeNotifier {
         groupId: input.groupId,
         flipX: input.flipX,
         flipY: input.flipY,
+        fontSize: input.fontSize,
       ),
     );
     if (input.groupId case final group?) {
@@ -331,6 +343,7 @@ class CanvasDocument extends ChangeNotifier {
     final stroke = slot == null ? null : _strokes[slot];
     if (stroke == null || !stroke.alive) return;
     stroke.alive = false;
+    unsavedInk.set(id, unsaved: false);
     _releaseSelection(id);
     _trackOutside(stroke);
     objectCount.value = objectCount.value - 1;
@@ -411,6 +424,7 @@ class CanvasDocument extends ChangeNotifier {
     _slotsByGroup.clear();
     _paintOrder.clear();
     _removed.clear();
+    unsavedInk.clear();
     scene.reset();
     _outsideIds.clear();
     outsideBoardCount.value = 0;
@@ -425,6 +439,7 @@ class CanvasDocument extends ChangeNotifier {
   void _freeSlot(int slot) {
     final stroke = _strokes[slot];
     if (stroke == null) return;
+    unsavedInk.set(stroke.id, unsaved: false);
     _releaseSelection(stroke.id);
     scene.remove(slot);
     if (_outsideIds.remove(stroke.id)) {
@@ -471,6 +486,7 @@ class CanvasDocument extends ChangeNotifier {
     snapGuides.dispose();
     snapToGrid.dispose();
     worldEdgeHit.dispose();
+    unsavedInk.dispose();
     scene.dispose();
     super.dispose();
   }

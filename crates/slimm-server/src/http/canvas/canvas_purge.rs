@@ -50,12 +50,13 @@ async fn purge(
             .set_canvas_object_lock(channel_id, object_id, ctx.user_id, true, false)
             .await
         {
-            Ok(true) => state.hub.publish(Event::CanvasObjectLockChanged {
+            Ok(Some(version)) => state.hub.publish(Event::CanvasObjectLockChanged {
                 channel_id,
                 object_id,
                 locked: false,
+                version,
             }),
-            Ok(false) | Err(LockError::NotFound) => {}
+            Ok(None) | Err(LockError::NotFound) => {}
             Err(LockError::NotAuthorized) => return Err(ApiError::Forbidden),
             Err(LockError::Internal(err)) => return Err(err.into()),
         }

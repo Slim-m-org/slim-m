@@ -145,6 +145,15 @@ class EventConnection {
         }),
       );
 
+  /// Reports the canvases open on this device, replacing the previous report; empty says none.
+  /// Until the first report the server sends live canvas frames for every channel.
+  void canvasWatch(Iterable<String> channelIds) => _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.watch',
+          'channel_ids': channelIds.toList(),
+        }),
+      );
+
   /// Tells the server the person used this device recently. After the first
   /// one, this connection's pings stop counting as activity, so a client that
   /// sends it must keep sending it, about once a minute, while they are here.

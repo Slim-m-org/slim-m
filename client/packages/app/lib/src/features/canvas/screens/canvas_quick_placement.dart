@@ -29,8 +29,11 @@ import 'canvas_sync.dart';
 /// A note's default box: wide enough for a few sentences before wrapping,
 /// tall enough that a short note is not mostly empty padding - the floor
 /// [noteBoxFor] grows a longer note's height past, never the ceiling.
-const double defaultNoteWidth = 220;
-const double defaultNoteHeight = 140;
+const double defaultNoteWidth = 330;
+const double defaultNoteHeight = 210;
+
+/// The text size a new note is stored with, in world units: legible at the zoom a board fits at, where the old 12 read as 2 to 7 px.
+const double defaultNoteFontSize = 18;
 
 /// A shape's default box, centered on the tapped point. Not square, so a
 /// freshly placed rectangle or ellipse reads as a shape rather than a dot,
@@ -83,13 +86,15 @@ class CanvasQuickPlacement {
       text,
       width: defaultNoteWidth,
       minHeight: defaultNoteHeight,
+      fit: document.board?.size,
+      fontSize: defaultNoteFontSize,
     );
     return _place(
       kind: 'note',
       world: world,
       w: box.width,
       h: box.height,
-      props: {'text': text},
+      props: {'text': text, 'font_size': defaultNoteFontSize},
       onError: onError,
     );
   }

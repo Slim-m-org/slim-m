@@ -277,9 +277,9 @@ async fn a_restore_past_the_object_ceiling_is_refused() {
     sqlx::query(
         "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
          INSERT INTO canvas_objects
-             (id, channel_id, channel_key, kind, z_index, x, y, w, h, props,
+             (id, channel_id, channel_key, kind, z_index, x, y, w, h,
               author_id, seq, created_at)
-         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, '{}', ?, i, 0 FROM n",
+         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, ?, i, 0 FROM n",
     )
     .bind(MAX_OBJECTS_PER_CHANNEL)
     .bind(channel)
@@ -287,6 +287,7 @@ async fn a_restore_past_the_object_ceiling_is_refused() {
     .execute(&pool)
     .await
     .expect("filled the canvas to the ceiling");
+    crate::support::canvas::backfill_props(&pool).await;
     sqlx::query(
         "UPDATE channel_seq_counters SET next_seq = ? WHERE channel_id = ? AND stream = 'canvas'",
     )

@@ -302,7 +302,7 @@ async fn run_seed(seed: u64, steps: usize) -> Value {
         "the feed is dense: one op per seq"
     );
     let page = get_objects(&router, channel, &admin_token).await;
-    let locked = store.list_canvas_object_locks(channel).await.unwrap();
+    let locked = store.list_canvas_object_locks(channel).await.unwrap().1;
     json!({
         "seed": seed,
         "latest_seq": latest,

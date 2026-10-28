@@ -433,9 +433,9 @@ async fn a_full_canvas_refuses_the_next_object() {
     sqlx::query(
         "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
          INSERT INTO canvas_objects
-             (id, channel_id, channel_key, kind, z_index, x, y, w, h, props,
+             (id, channel_id, channel_key, kind, z_index, x, y, w, h,
               author_id, seq, created_at)
-         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, '{}', ?, i, 0 FROM n",
+         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, ?, i, 0 FROM n",
     )
     .bind(MAX_OBJECTS_PER_CHANNEL)
     .bind(channel)
@@ -443,6 +443,7 @@ async fn a_full_canvas_refuses_the_next_object() {
     .execute(&pool)
     .await
     .expect("filled the canvas");
+    crate::support::canvas::backfill_props(&pool).await;
 
     let (status, body) = post(&app(store), channel, &token, stroke(&id())).await;
     assert_eq!(status, StatusCode::CONFLICT);
@@ -465,9 +466,9 @@ async fn a_lowered_cap_refuses_the_next_object() {
     sqlx::query(
         "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
          INSERT INTO canvas_objects
-             (id, channel_id, channel_key, kind, z_index, x, y, w, h, props,
+             (id, channel_id, channel_key, kind, z_index, x, y, w, h,
               author_id, seq, created_at)
-         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, '{}', ?, i, 0 FROM n",
+         SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, ?, i, 0 FROM n",
     )
     .bind(3_i64)
     .bind(channel)
@@ -475,6 +476,7 @@ async fn a_lowered_cap_refuses_the_next_object() {
     .execute(&pool)
     .await
     .expect("filled the canvas to the low cap");
+    crate::support::canvas::backfill_props(&pool).await;
 
     let (status, body) = post(&app(store), channel, &token, stroke(&id())).await;
     assert_eq!(status, StatusCode::CONFLICT);

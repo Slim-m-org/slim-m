@@ -66,6 +66,7 @@ class CanvasCommitQueue {
     required this.onRemoved,
     required this.onEraseOnConfirm,
     required this.timedOutUntil,
+    this.onUnsaved,
   });
 
   final api.SlimmApi client;
@@ -92,6 +93,9 @@ class CanvasCommitQueue {
   /// remove.
   final void Function(String id) onEraseOnConfirm;
 
+  /// Told when a stroke's save starts being retried, and again when it settles either way.
+  final void Function(String id, {required bool unsaved})? onUnsaved;
+
   final List<CanvasCommit> _pending = <CanvasCommit>[];
   final Set<String> _armedForRemoval = <String>{};
   final Set<String> _attempted = <String>{};
@@ -102,8 +106,12 @@ class CanvasCommitQueue {
   bool _expired = false;
   Timer? _closeDeadline;
 
+  /// True while the commit at the head is being retried, so what waits behind it is unsaved too.
+  bool _retrying = false;
+
   void add(CanvasCommit commit) {
     if (_closed) return;
+    if (_retrying) onUnsaved?.call(commit.id, unsaved: true);
     _pending.add(commit);
     unawaited(_drain());
   }
@@ -175,6 +183,7 @@ class CanvasCommitQueue {
         () => _place(commit),
         maxAttempts: _attemptsBeforeRotating,
         giveUp: () => _expired,
+        onRetry: () => _markRetrying(commit),
       );
       _confirm(commit, object);
       return true;
@@ -216,7 +225,17 @@ class CanvasCommitQueue {
         onTimeout: () => throw const api.TransportException('timed out'),
       );
 
+  void _markRetrying(CanvasCommit commit) {
+    _retrying = true;
+    onUnsaved?.call(commit.id, unsaved: true);
+    for (final waiting in _pending) {
+      onUnsaved?.call(waiting.id, unsaved: true);
+    }
+  }
+
   void _confirm(CanvasCommit commit, api.CanvasObject object) {
+    _retrying = false;
+    onUnsaved?.call(commit.id, unsaved: false);
     if (_closed) return;
     if (_armedForRemoval.remove(commit.id)) {
       onEraseOnConfirm(commit.id);
@@ -226,6 +245,8 @@ class CanvasCommitQueue {
   }
 
   void _refuse(CanvasCommit commit, api.ApiException? error) {
+    _retrying = false;
+    onUnsaved?.call(commit.id, unsaved: false);
     if (_closed) return;
     _armedForRemoval.remove(commit.id);
     if (error != null && _isRemovedConflict(error)) {

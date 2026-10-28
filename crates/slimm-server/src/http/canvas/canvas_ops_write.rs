@@ -433,10 +433,14 @@ async fn republish_locks(state: &AppState, channel_id: ChannelId, restored: &[Ca
         return;
     };
     for object_id in locked {
+        let Ok(version) = state.store.next_canvas_state_version(channel_id).await else {
+            return;
+        };
         state.hub.publish(Event::CanvasObjectLockChanged {
             channel_id,
             object_id,
             locked: true,
+            version,
         });
     }
 }

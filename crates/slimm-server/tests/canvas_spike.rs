@@ -83,6 +83,15 @@ async fn seed(pool: &SqlitePool, channel: ChannelId, count: usize) {
         .execute(&mut *tx)
         .await
         .expect("seed insert");
+        sqlx::query(
+            "INSERT INTO canvas_object_props (object_id, props)
+             SELECT id, '{}' FROM canvas_objects WHERE channel_id = ? AND seq = ?",
+        )
+        .bind(channel)
+        .bind(seq)
+        .execute(&mut *tx)
+        .await
+        .expect("seed props");
     }
     // The store allocates from this counter; seeding around it would leave
     // `latest_canvas_seq` reading zero and every cursor comparison trivially true.

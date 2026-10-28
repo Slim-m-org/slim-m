@@ -23,7 +23,8 @@ export 'src/canvas_painters.dart'
         DraftStroke,
         NoteSpanBuilder,
         RemoteDraftPainter,
-        StrokePainter;
+        StrokePainter,
+        noteWorldFontSize;
 export 'src/canvas_personal_layout.dart';
 export 'src/canvas_presence_layout.dart';
 export 'src/canvas_presence_tile_overrides.dart';
