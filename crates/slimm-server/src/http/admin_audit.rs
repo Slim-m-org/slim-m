@@ -398,8 +398,28 @@ fn detail(route: &AuditedRoute, mut params: Map<String, Value>, body: Option<&Va
         {
             detail.insert("prefix".into(), Value::from(prefix.trim()));
         }
+        if route.action == "module.install" {
+            insert_approvals(&mut detail, fields);
+        }
     }
     Value::Object(detail).to_string()
+}
+
+/// Which host capabilities an install approved, and whether it also approved local network access,
+/// so the log says what an admin granted and not only that they installed.
+fn insert_approvals(detail: &mut Map<String, Value>, body: &Map<String, Value>) {
+    if let Some(Value::Array(approved)) = body.get("approved_host_capabilities") {
+        let names: Vec<Value> = approved
+            .iter()
+            .filter_map(Value::as_str)
+            .take(MAX_FIELDS)
+            .map(|name| Value::from(name.chars().take(MAX_NAME_CHARS).collect::<String>()))
+            .collect();
+        detail.insert("approved".into(), Value::Array(names));
+    }
+    if body.get("approve_local_network") == Some(&Value::Bool(true)) {
+        detail.insert("local_network".into(), Value::Bool(true));
+    }
 }
 
 #[derive(Deserialize)]
@@ -456,4 +476,61 @@ async fn list(
     let limit = query.limit.unwrap_or(PAGE_DEFAULT).clamp(1, PAGE_MAX);
     let entries = state.store.admin_changes(query.before, limit).await?;
     Ok(Json(entries.into_iter().map(Into::into).collect()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn install_route() -> &'static AuditedRoute {
+        AUDITED_ROUTES
+            .iter()
+            .find(|r| r.action == "module.install")
+            .unwrap()
+    }
+
+    fn detail_of(route: &AuditedRoute, body: &Value) -> Value {
+        serde_json::from_str(&detail(route, Map::new(), Some(body))).unwrap()
+    }
+
+    #[test]
+    fn an_install_records_what_the_admin_approved_and_not_the_version_text() {
+        let body = json!({
+            "version": "0.2.0",
+            "approved_host_capabilities": ["data.store", "message.post"],
+            "approve_local_network": true,
+            "reviewed_digest": "abc",
+        });
+        let detail = detail_of(install_route(), &body);
+        assert_eq!(detail["approved"], json!(["data.store", "message.post"]));
+        assert_eq!(detail["local_network"], json!(true));
+        assert!(detail.get("version").is_none() && detail.get("reviewed_digest").is_none());
+    }
+
+    #[test]
+    fn an_install_that_approves_nothing_says_so_and_one_that_omits_it_says_nothing() {
+        let none = detail_of(
+            install_route(),
+            &json!({"version": "1", "approved_host_capabilities": []}),
+        );
+        assert_eq!(none["approved"], json!([]));
+        let omitted = detail_of(install_route(), &json!({"version": "1"}));
+        assert!(omitted.get("approved").is_none());
+    }
+
+    #[test]
+    fn approvals_are_only_read_for_an_install_and_are_bounded() {
+        let body = json!({"approved_host_capabilities": ["x".repeat(500)]});
+        let other = AUDITED_ROUTES
+            .iter()
+            .find(|r| r.action == "module.enable")
+            .unwrap();
+        assert!(detail_of(other, &body).get("approved").is_none());
+        let long = detail_of(install_route(), &body);
+        assert_eq!(
+            long["approved"][0].as_str().unwrap().chars().count(),
+            MAX_NAME_CHARS
+        );
+    }
 }

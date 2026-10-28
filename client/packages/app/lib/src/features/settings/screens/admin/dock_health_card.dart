@@ -17,7 +17,8 @@ bool dockHasHealthNews(api.InstalledDockModule? installed) =>
     installed != null &&
     ((installed.disabledReason != null && !installed.enabled) ||
         installed.consecutiveFailures > 0 ||
-        installed.eventsDropped > 0);
+        installed.eventsDropped > 0 ||
+        installed.queueDepth > 0);
 
 class DockHealthCard extends StatelessWidget {
   const DockHealthCard({
@@ -60,6 +61,12 @@ class DockHealthCard extends StatelessWidget {
             installed.consecutiveFailures == 1
                 ? '1 run failed in a row.'
                 : '${installed.consecutiveFailures} runs failed in a row.',
+          ),
+        if (installed.queueDepth > 0)
+          SettingsInfoLine(
+            installed.queueDepth == 1
+                ? '1 event is waiting for it.'
+                : '${installed.queueDepth} events are waiting for it.',
           ),
         if (installed.eventsDropped > 0)
           SettingsInfoLine(

@@ -62,6 +62,7 @@ ModuleScene? parseModuleScene(String raw) {
     controls: _stringList(decoded['controls']),
     status: _string(decoded['status']),
     live: decoded['live'] == true,
+    isPrivate: decoded['private'] == true,
   );
   return ModuleScene(
     width: scene.width,
@@ -72,6 +73,7 @@ ModuleScene? parseModuleScene(String raw) {
     controls: scene.controls,
     status: scene.status,
     live: scene.live,
+    isPrivate: scene.isPrivate,
     crop: sceneContentBounds(scene),
   );
 }

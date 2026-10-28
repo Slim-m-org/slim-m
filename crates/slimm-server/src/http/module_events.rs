@@ -6,6 +6,7 @@
 //! lane, one event of a module at a time.
 
 mod build;
+mod depths;
 mod dispatch;
 mod queue;
 mod wire;
@@ -17,6 +18,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 
 use self::build::{ReactionTally, build, classify};
+pub(super) use self::depths::QueueDepths;
 use self::queue::{Origin, QUEUE_CAPACITY, Queues};
 use self::wire::ModuleEvent;
 use super::AppState;
@@ -42,7 +44,7 @@ pub struct EventConsumer {
 }
 
 pub fn spawn_module_events(state: AppState) -> EventConsumer {
-    let queues = Queues::new(QUEUE_CAPACITY);
+    let queues = Queues::with_depths(QUEUE_CAPACITY, state.dock.queue_depths());
     let lagged = Arc::new(AtomicU64::new(0));
     // Subscribed before the task starts, so nothing published after this call is missed.
     let events = state.hub.subscribe();

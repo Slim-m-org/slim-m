@@ -145,9 +145,11 @@ pub(in crate::http) async fn list_installed(
                 let stats = stats.remove(&m.id).unwrap_or_default();
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
                 let health = health.remove(&m.id).unwrap_or_default();
+                let depth = state.dock.queue_depths().get(&m.id);
                 InstalledModuleDto::from(m)
                     .with_activity(stats, usage)
                     .with_health(health)
+                    .with_queue_depth(depth)
             })
             .collect(),
     ))
