@@ -39,7 +39,6 @@ use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
-use super::code_fences::code_block;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE};
 use super::hidden_chars::is_hidden_char;
@@ -49,6 +48,7 @@ use super::module_commands::{
 };
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
+use crate::code_fences::code_block;
 use crate::hub::Event;
 use crate::ids::MessageId;
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};

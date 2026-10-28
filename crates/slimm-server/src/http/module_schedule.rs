@@ -98,6 +98,24 @@ async fn text_channel(state: &AppState, raw: &str) -> Result<ChannelId, ApiError
     }
 }
 
+/// How often due module schedules are checked; the shortest interval a
+/// manifest may declare is five minutes, so this is precise enough.
+const MODULE_SCHEDULE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Runs modules' scheduled commands; see [`run_due`].
+pub(crate) fn spawn_sweep(state: AppState) {
+    crate::sweeps::spawn_sweep(MODULE_SCHEDULE_INTERVAL, move || {
+        let state = state.clone();
+        async move {
+            match run_due(&state, crate::store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::debug!(count, "ran scheduled module commands"),
+                Err(err) => tracing::warn!(error = %err, "module schedule sweep failed"),
+            }
+        }
+    });
+}
+
 /// Whether `schedule` is due at `now`, given when it last ran.
 pub(crate) fn is_due(schedule: &ModuleSchedule, last_run_at: Option<i64>, now: i64) -> bool {
     let every_ms = i64::from(schedule.every_minutes) * 60_000;
