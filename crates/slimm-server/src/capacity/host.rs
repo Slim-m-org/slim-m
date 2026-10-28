@@ -68,7 +68,7 @@ mod tests {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(test, unix))]
 mod unix_tests {
     use super::disk_bytes;
 
