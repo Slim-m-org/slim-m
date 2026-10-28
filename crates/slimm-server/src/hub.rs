@@ -92,6 +92,7 @@ pub struct Hub {
     sender: broadcast::Sender<Event>,
     ephemeral_sender: broadcast::Sender<Event>,
     slots: Arc<Semaphore>,
+    max_connections: usize,
     presence: PresenceTracker,
     typing: TypingTracker,
     ephemeral_budget: EphemeralBudget,
@@ -302,6 +303,7 @@ impl Hub {
             sender,
             ephemeral_sender,
             slots: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
+            max_connections: MAX_CONNECTIONS,
             presence: PresenceTracker::new(),
             typing: TypingTracker::new(),
             ephemeral_budget: EphemeralBudget::default(),
@@ -311,6 +313,15 @@ impl Hub {
             memory_guard: Arc::new(MemoryGuard::new()),
             moderation: Arc::new(ModerationClock::new()),
             handshake: handshake::Handshake::new(),
+        }
+    }
+
+    /// Builds a hub with a small connection ceiling, so a test can reach it with a few sockets.
+    pub fn with_connection_limit(limit: usize) -> Self {
+        Self {
+            slots: Arc::new(Semaphore::new(limit)),
+            max_connections: limit,
+            ..Self::new()
         }
     }
 
@@ -446,7 +457,7 @@ impl Hub {
     /// Derived from the semaphore's own remaining permits rather than a
     /// second counter, so it cannot drift from what actually gates a connect.
     pub fn connection_count(&self) -> usize {
-        MAX_CONNECTIONS - self.slots.available_permits()
+        self.max_connections - self.slots.available_permits()
     }
 
     /// Whether the memory guard admits a new connection right now; see
