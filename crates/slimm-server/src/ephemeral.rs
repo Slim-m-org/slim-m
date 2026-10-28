@@ -7,9 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use uuid::Uuid;
 
-use crate::http::embeds::EmbedDto;
 use crate::ids::{ChannelId, MessageId, UserId};
-use crate::store::AttachmentSummary;
+use crate::store::{AttachmentSummary, Embed};
 
 /// How long after a member's message a bot may still answer it privately.
 pub const ANCHOR_WINDOW_MS: i64 = 15 * 60 * 1000;
@@ -27,7 +26,15 @@ pub struct EphemeralMessage {
     pub created_at: i64,
     /// Files the recipient could already fetch; the message owns no bytes.
     pub attachments: Vec<AttachmentSummary>,
-    pub(crate) embeds: Vec<EmbedDto>,
+    pub(crate) embeds: Vec<EphemeralEmbed>,
+}
+
+/// A stored-shape embed plus the image tokens resolved when it was sent.
+#[derive(Debug, Clone)]
+pub(crate) struct EphemeralEmbed {
+    pub(crate) embed: Embed,
+    pub(crate) image_token: Option<String>,
+    pub(crate) thumbnail_token: Option<String>,
 }
 
 /// Most private messages one bot may send about one anchor.

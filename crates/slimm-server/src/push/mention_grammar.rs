@@ -182,7 +182,7 @@ mod tests {
                 .iter()
                 .map(|m| m.as_str().unwrap().to_owned())
                 .collect();
-            let prose = crate::http::code_fences::prose_outside_code(content);
+            let prose = crate::code_fences::prose_outside_code(content);
             assert_eq!(
                 mentioned_usernames(&prose),
                 expected,

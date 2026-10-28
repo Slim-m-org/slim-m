@@ -133,7 +133,7 @@ mod tests {
     #[test]
     fn matches_the_shared_vectors_the_client_asserts() {
         let vectors: Vec<Value> =
-            serde_json::from_str(include_str!("../../tests/fixtures/code_fence_vectors.json"))
+            serde_json::from_str(include_str!("../tests/fixtures/code_fence_vectors.json"))
                 .unwrap();
         assert!(vectors.len() >= 10);
         for v in vectors {
