@@ -597,7 +597,9 @@ client/packages/app/test/features/modules/module_scene_keyboard_test.dart 4 4
 client/packages/app/test/features/modules/module_scene_layout_stability_test.dart 3 3
 client/packages/app/test/features/modules/module_scene_play_refusal_test.dart 1 0
 client/packages/app/test/features/modules/module_scene_play_test.dart 5 12
+client/packages/app/test/features/modules/module_scene_private_test.dart 1 6
 client/packages/app/test/features/modules/module_scene_rate_limit_test.dart 5 2
+client/packages/app/test/features/modules/module_scene_secondary_test.dart 2 2
 client/packages/app/test/features/modules/module_scene_sweep_test.dart 2 0
 client/packages/app/test/features/modules/module_scene_test.dart 1 2
 client/packages/app/test/features/modules/module_scene_unexpected_failure_test.dart 2 0
@@ -616,6 +618,7 @@ client/packages/app/test/features/settings/appearance_new_preferences_test.dart 
 client/packages/app/test/features/settings/attachment_limit_section_test.dart 2 11
 client/packages/app/test/features/settings/audit_log_pane_test.dart 2 2
 client/packages/app/test/features/settings/bot_permissions_sheet_test.dart 1 4
+client/packages/app/test/features/settings/bot_prefix_sheet_test.dart 4 5
 client/packages/app/test/features/settings/bots_reissue_test.dart 2 15
 client/packages/app/test/features/settings/bots_screen_test.dart 12 18
 client/packages/app/test/features/settings/category_permissions_test.dart 1 6
