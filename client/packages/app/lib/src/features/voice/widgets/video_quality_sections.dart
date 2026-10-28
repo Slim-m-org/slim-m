@@ -97,7 +97,7 @@ class VideoQualitySection extends ConsumerWidget {
             // Absent, never disabled, on a desktop that cannot host the overlay; see decision 0096.
             if (ref.watch(screenOverlaySupportedProvider))
               SettingsToggleRow(
-                label: 'Let viewers draw on my screen',
+                label: 'Viewers draw on my screen',
                 description:
                     'Their marks show on the screen you share for a few seconds.',
                 value: settings.screenShareAllowAnnotations,

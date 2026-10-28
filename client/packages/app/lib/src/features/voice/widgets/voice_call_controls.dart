@@ -361,7 +361,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         ),
       if (ref.watch(screenOverlaySupportedProvider))
         ControlOption(
-          label: 'Let viewers draw on my screen',
+          label: 'Viewers draw on my screen',
           icon: AppIcons.pen,
           selected: ref
               .watch(voiceSettingsControllerProvider)

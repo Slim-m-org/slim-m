@@ -12,7 +12,7 @@ Decision on 2026-10-28: build it in v120 for Linux and Windows.
 
 ## Decision
 
-- The overlay is off by default and per user: "Let viewers draw on my screen", in Voice settings under "Sharing and preview" and in the share options menu while sharing.
+- The overlay is off by default and per user: "Viewers draw on my screen", in Voice settings under "Sharing and preview" and in the share options menu while sharing.
   It only exists on a desktop that can host it; elsewhere the control is absent, never disabled.
 - It is up only while all of these hold: the setting is on, a whole screen is being shared, and the desktop can host it.
   A window share never opens it (see "What it covers").
