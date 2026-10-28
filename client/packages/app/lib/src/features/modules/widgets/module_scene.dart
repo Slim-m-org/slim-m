@@ -46,6 +46,7 @@ class CellsOp extends SceneOp {
     required this.palette,
     this.gap = 0,
     this.tap,
+    this.alt,
     this.tapBatch = false,
     this.box,
   });
@@ -77,6 +78,11 @@ class CellsOp extends SceneOp {
   final List<String> palette;
   final double gap;
   final String? tap;
+
+  /// The action for a secondary press (right click, or a long press on touch)
+  /// on a cell, reported as `"$alt:row,col"` like [tap]. Null leaves a
+  /// secondary press on the grid doing nothing, so it never reveals by mistake.
+  final String? alt;
 
   /// Where the grid sits, in scene units, or null for the whole scene.
   ///
@@ -115,6 +121,7 @@ class RectOp extends SceneOp {
     this.strokeWidth = 1,
     this.radius = 0,
     this.tap,
+    this.alt,
     this.sweep,
   });
 
@@ -131,6 +138,9 @@ class RectOp extends SceneOp {
   final double strokeWidth;
   final double radius;
   final String? tap;
+
+  /// The bare action for a secondary press, as [CellsOp.alt] is for a cell.
+  final String? alt;
 
   /// Motion the client plays across this op; see `module_scene_sweep.dart`.
   final SceneSweep? sweep;
@@ -421,6 +431,15 @@ class ModuleScene {
     status: status,
     live: live,
     crop: crop,
+  );
+
+  /// Whether any op answers a right click or a long press.
+  bool get hasSecondary => ops.any(
+    (op) => switch (op) {
+      CellsOp() => op.alt != null,
+      RectOp() => op.alt != null,
+      _ => false,
+    },
   );
 
   double get viewLeft => crop?.left ?? 0;

@@ -346,6 +346,11 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
     if (action != null) _enqueue(action);
   }
 
+  void _handleSecondary(Offset at, Size size) {
+    final action = sceneTapAction(_scene, at, size, secondary: true);
+    if (action != null) _enqueue(action);
+  }
+
   /// Paints the cell the finger actually landed on, then the one the drag was
   /// recognised in. The dedupe set makes the common case, where they are the
   /// same cell, a single paint.
@@ -465,6 +470,13 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
               onPointerDown: _handlePointerDown,
               child: GestureDetector(
                 onTapUp: (d) => _handleTapUp(d, size),
+                onSecondaryTapUp: _scene.hasSecondary
+                    ? (d) => _handleSecondary(d.localPosition, size)
+                    : null,
+                // Only a scene that answers one: a held tap otherwise still reads as a tap.
+                onLongPressStart: _scene.hasSecondary
+                    ? (d) => _handleSecondary(d.localPosition, size)
+                    : null,
                 onPanStart: (d) => _handlePanStart(d, size),
                 onPanUpdate: (d) => _handlePanUpdate(d, size),
                 child: Stack(

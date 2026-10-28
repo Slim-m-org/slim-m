@@ -338,8 +338,8 @@ Prefer tokens; a module that hard-codes hex will look wrong in one theme or the 
 
 | op | fields |
 | --- | --- |
-| `cells` | `cols`, `rows`, `data` (one char per cell, row-major, each a palette index `'0'`..), `palette` (list of colours), `gap`, `tap`, and optionally `x`, `y`, `w`, `h` |
-| `rect` | `x`, `y`, `w`, `h`, `fill`, `stroke`, `sw` (stroke width), `r` (corner radius), `tap` |
+| `cells` | `cols`, `rows`, `data` (one char per cell, row-major, each a palette index `'0'`..), `palette` (list of colours), `gap`, `tap`, `alt`, and optionally `x`, `y`, `w`, `h` |
+| `rect` | `x`, `y`, `w`, `h`, `fill`, `stroke`, `sw` (stroke width), `r` (corner radius), `tap`, `alt` |
 | `circle` | `cx`, `cy`, `r`, `fill`, `stroke`, `sw`, `tap` |
 | `line` | `x1`, `y1`, `x2`, `y2`, `stroke`, `sw` |
 | `text` | `x`, `y`, `s` (the string), `fill`, `size`, `align` (`left`/`center`/`right`) |
@@ -486,6 +486,9 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
 - An op's `tap` makes it interactive.
   A `cells` op with `tap: "toggle"` reports a tapped cell as the action `"toggle:row,col"`.
   A `rect` or `circle` with `tap: "spin"` reports the bare action `"spin"`.
+- An op's `alt` (on `cells` and `rect`) is the action for a secondary press: a right click with a mouse, a long press with a finger.
+  It reports like `tap` does, `"flag:row,col"` for a cell and the bare name for a rect, so a board can dig on a tap and flag on a right click.
+  An op with no `alt` ignores a secondary press, and a scene with none keeps reading a held tap as a tap.
 - `live` tells the client the scene can still change; a control press or tap while `live` re-invokes the module.
 
 When a member presses a control or taps, slim calls the module's command again, with the `input` being a JSON object:
