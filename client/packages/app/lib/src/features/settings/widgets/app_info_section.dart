@@ -15,12 +15,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../providers/auto_update_preference.dart';
-import '../features/settings/widgets/settings_section_header.dart';
-import '../features/settings/widgets/settings_toggle_row.dart';
-import 'update_status_rows.dart';
-import 'windows_install_offer.dart';
-import 'whats_new_sheet.dart';
+import '../../../providers/auto_update_preference.dart';
+import 'settings_section_header.dart';
+import 'settings_toggle_row.dart';
+import '../../../widgets/update_status_rows.dart';
+import '../../../widgets/windows_install_offer.dart';
+import '../../../widgets/whats_new_sheet.dart';
 
 class AppInfoSection extends ConsumerWidget {
   const AppInfoSection({super.key});

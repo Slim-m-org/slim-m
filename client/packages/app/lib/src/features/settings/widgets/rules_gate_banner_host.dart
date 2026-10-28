@@ -11,10 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' show SlimmApiJoinGate;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../features/settings/providers/join_gate_providers.dart';
-import '../providers/providers.dart';
-import 'banner_host_layout.dart';
-import 'run_guarded.dart';
+import '../providers/join_gate_providers.dart';
+import '../../../providers/providers.dart';
+import '../../../widgets/banner_host_layout.dart';
+import '../../../widgets/run_guarded.dart';
 
 class RulesGateBannerHost extends ConsumerWidget {
   const RulesGateBannerHost({super.key, required this.child});

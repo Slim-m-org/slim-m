@@ -20,13 +20,12 @@ import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../features/channels/widgets/channel_rail_reorder.dart'
-    show ChannelSection;
-import '../features/channels/widgets/rail_autoscroll.dart';
-import '../features/channels/widgets/rail_drop_slots.dart';
-import '../features/channels/widgets/rail_move_actions.dart';
-import '../features/channels/widgets/rail_carry_overlay.dart';
-import '../features/channels/widgets/rail_carry_slot.dart';
+import 'channel_rail_reorder.dart' show ChannelSection;
+import 'rail_autoscroll.dart';
+import 'rail_drop_slots.dart';
+import 'rail_move_actions.dart';
+import 'rail_carry_overlay.dart';
+import 'rail_carry_slot.dart';
 
 const _holdDelay = Duration(milliseconds: 300);
 

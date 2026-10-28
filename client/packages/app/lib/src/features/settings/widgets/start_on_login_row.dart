@@ -5,8 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/settings/providers/autostart_setting.dart';
-import '../features/settings/widgets/settings_toggle_row.dart';
+import '../providers/autostart_setting.dart';
+import 'settings_toggle_row.dart';
 import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 
 class StartOnLoginRow extends ConsumerStatefulWidget {

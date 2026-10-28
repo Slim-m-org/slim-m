@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../features/voice/providers/voice_ping.dart';
-import '../providers/direct_route.dart';
-import '../providers/sync_controller.dart';
-import '../providers/sync_failure.dart';
-import 'space_connection_dot.dart';
-import 'space_icon.dart';
+import '../../voice/providers/voice_ping.dart';
+import '../../../providers/direct_route.dart';
+import '../../../providers/sync_controller.dart';
+import '../../../providers/sync_failure.dart';
+import '../../../widgets/space_connection_dot.dart';
+import '../../../widgets/space_icon.dart';
 
 /// With an icon the dot is its bottom-right badge, as on an avatar; without one it stands alone.
 class SpaceIdentityMark extends ConsumerWidget {

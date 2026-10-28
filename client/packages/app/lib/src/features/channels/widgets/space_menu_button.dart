@@ -11,15 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/admin_providers.dart';
-import '../routing/routes.dart';
-import 'anchored_menu.dart';
-import 'animated_menu_portal.dart';
-import '../features/channels/widgets/row_menu_notifications.dart';
-import '../features/members/widgets/invite_friend.dart';
-import '../features/messages/widgets/inbox_sheet.dart';
-import '../features/messages/widgets/saved_messages_sheet.dart';
-import '../features/settings/screens/space_settings_section.dart';
+import '../../../providers/admin_providers.dart';
+import '../../../routing/routes.dart';
+import '../../../widgets/anchored_menu.dart';
+import '../../../widgets/animated_menu_portal.dart';
+import 'row_menu_notifications.dart';
+import '../../members/widgets/invite_friend.dart';
+import '../../messages/widgets/inbox_sheet.dart';
+import '../../messages/widgets/saved_messages_sheet.dart';
+import '../../settings/screens/space_settings_section.dart';
 
 /// Every member gets it; "Space settings" only with a bit in [spaceSettingsReachable].
 class SpaceMenuButton extends ConsumerStatefulWidget {

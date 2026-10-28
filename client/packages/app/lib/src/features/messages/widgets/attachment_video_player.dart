@@ -22,7 +22,7 @@ import '../../../downloads/downloads_controller.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/viewport_freeze.dart';
-import 'attachment_format.dart';
+import '../../../widgets/attachment_format.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;

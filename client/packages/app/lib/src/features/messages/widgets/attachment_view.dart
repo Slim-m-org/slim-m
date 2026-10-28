@@ -23,7 +23,7 @@ import '../providers/attachment_preview_bytes.dart';
 import '../providers/attachment_preview_quality.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_chip.dart';
-import 'attachment_format.dart';
+import '../../../widgets/attachment_format.dart';
 import 'attachment_image_states.dart';
 import 'attachment_reveal.dart';
 import 'attachment_spoiler.dart';
@@ -32,7 +32,7 @@ import 'attachment_video_player.dart';
 import 'image_actions_menu.dart';
 import '../../../widgets/run_guarded.dart';
 import 'fullscreen_image_viewer.dart';
-import 'image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../../../widgets/animation_gate.dart';
 
 export 'attachment_types.dart';

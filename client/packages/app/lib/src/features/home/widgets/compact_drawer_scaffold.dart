@@ -9,15 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 
-import '../features/channels/providers/channel_by_id_provider.dart';
-import '../features/members/providers/member_selection.dart';
-import '../routing/routes.dart';
-import '../features/voice/screens/voice_text_pane.dart'
+import '../../channels/providers/channel_by_id_provider.dart';
+import '../../members/providers/member_selection.dart';
+import '../../../routing/routes.dart';
+import '../../voice/screens/voice_text_pane.dart'
     show voiceChatPaneVisibleProvider;
-import '../features/channels/widgets/channel_rail_drawer.dart';
-import '../features/channels/widgets/compact_channel_app_bar.dart';
-import 'drawer_edge_drag.dart';
-import '../features/members/widgets/member_pane.dart';
+import '../../channels/widgets/channel_rail_drawer.dart';
+import '../../channels/widgets/compact_channel_app_bar.dart';
+import '../../../widgets/drawer_edge_drag.dart';
+import '../../members/widgets/member_pane.dart';
 
 class CompactDrawerScaffold extends ConsumerStatefulWidget {
   const CompactDrawerScaffold({

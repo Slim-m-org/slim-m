@@ -9,11 +9,10 @@ import 'package:slimm_api/api.dart'
     show InputLimits, SlimmApiSpace, SpaceSettingsUpdate;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../providers/providers.dart';
-import '../features/channels/widgets/channel_rail_frame.dart'
-    show serverInfoProvider;
-import '../features/settings/widgets/join_policy_row.dart';
-import 'run_guarded.dart';
+import '../../../providers/providers.dart';
+import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import 'join_policy_row.dart';
+import '../../../widgets/run_guarded.dart';
 
 class SpaceNameField extends ConsumerStatefulWidget {
   const SpaceNameField({super.key, required this.saved});

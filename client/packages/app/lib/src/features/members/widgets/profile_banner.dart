@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/animation_gate.dart';
-import '../../messages/widgets/image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../providers/banner_bytes.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import 'profile_colour.dart';

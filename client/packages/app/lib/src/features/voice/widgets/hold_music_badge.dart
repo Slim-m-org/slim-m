@@ -19,7 +19,7 @@ import '../providers/call_solo.dart';
 import '../providers/hold_music_actions.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 
 /// Pins the badge to the bottom-left of a call surface, [bottom] above its edge so it clears the dock.
 /// Sits in the dock's own row when the window leaves room beside it, else above the dock.

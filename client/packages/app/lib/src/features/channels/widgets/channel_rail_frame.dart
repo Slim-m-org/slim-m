@@ -27,8 +27,8 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../../members/widgets/presence_menu.dart';
 import 'rail_call_summary.dart';
-import '../../../widgets/space_icon_badge.dart';
-import '../../../widgets/space_menu_button.dart';
+import 'space_icon_badge.dart';
+import 'space_menu_button.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
 /// the physical screen edge: true at every width the app shows it beside a

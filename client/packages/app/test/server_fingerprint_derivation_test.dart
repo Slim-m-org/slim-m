@@ -7,7 +7,7 @@ import 'package:cryptography/dart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/widgets/server_fingerprint_step.dart';
+import 'package:slimm_app/src/features/auth/widgets/server_fingerprint_step.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 List<String> _groupsFor(String publicKeyB64) {

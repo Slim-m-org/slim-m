@@ -15,7 +15,7 @@ import '../providers/media_preferences.dart';
 import '../../../message_preview.dart';
 import '../../../widgets/animation_gate.dart';
 import 'attachment_view.dart' show isInlineImage, isVideo;
-import 'image_decode.dart';
+import '../../../widgets/image_decode.dart';
 
 /// The label for a text-less target, or empty when it carried nothing.
 String attachmentKindLabel(List<api.Attachment> attachments) {

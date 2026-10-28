@@ -22,7 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_space_menu.dart';
 import 'package:slimm_app/src/features/members/widgets/presence_menu.dart';
-import 'package:slimm_app/src/widgets/space_menu_button.dart';
+import 'package:slimm_app/src/features/channels/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
