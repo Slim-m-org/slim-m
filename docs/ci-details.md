@@ -119,7 +119,8 @@ Every `runs-on` and matrix `runner` names `ubuntu-24.04` (or `ubuntu-24.04-arm`)
 GitHub moves `ubuntu-latest` to Ubuntu 26 on 2026-10-19, which would change the glibc floor of the Linux tarball and rpm built on the runner and split the amd64 legs from the arm64 ones.
 `scripts/lib/test_runners_are_pinned.py` refuses the label in any workflow.
 Moving to a new image is a deliberate PR, dispatched against an existing tag first.
-`windows-latest` and `macos-latest` are not pinned: no incident or notice covers them yet, and the iOS and macOS jobs depend on the Xcode that `macos-latest` carries.
+Windows jobs run on `windows-2025`, and the same test refuses `windows-latest`.
+`macos-latest` is not pinned: the iOS and macOS jobs depend on the Xcode that it carries.
 
 ### Goldens are not a separate job
 
