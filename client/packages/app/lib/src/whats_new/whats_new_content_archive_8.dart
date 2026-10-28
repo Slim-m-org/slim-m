@@ -289,4 +289,30 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.119.1',
+    headline: 'Voice ping, and a quicker tool wheel',
+    points: [
+      WhatsNewPoint(
+        'A call shows your ping to the voice server, and so does hovering '
+        'the connection dot next to the Space name.',
+      ),
+      WhatsNewPoint(
+        'Who is speaking keeps showing while the app is in the background on '
+        'another screen.',
+      ),
+      WhatsNewPoint(
+        'The camera button sits beside mute and deafen at the bottom of the '
+        'channel list during a call.',
+      ),
+      WhatsNewPoint(
+        'The canvas tool wheel opens sooner, is smaller, and closes when you '
+        'move away from it.',
+      ),
+      WhatsNewPoint(
+        'On a phone, the GIF and emoji pickers sit right on the keyboard, and '
+        'the app fades in from the launch screen.',
+      ),
+    ],
+  ),
 ];
