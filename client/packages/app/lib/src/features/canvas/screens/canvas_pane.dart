@@ -81,7 +81,11 @@ import 'canvas_timeout_banner.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_presence_geometry.dart'
-    show presenceScreenLabel, presenceTileIdentity, presenceTileKind;
+    show
+        presenceScreenLabel,
+        presenceTileIdentity,
+        presenceTileKeys,
+        presenceTileKind;
 import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
 import 'canvas_fullscreen.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
@@ -445,6 +449,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onDraftEnded: _strokePreview.endLocalDraft,
                   onDraftCancel: _strokePreview.cancelLocalDraft,
                   callParticipants: _callParticipants(),
+                  blockedTileKeys: _blockedTileKeys(),
                   cameraViewFor: (identity) => ref
                       .read(voiceControllerProvider.notifier)
                       .cameraViewFor(identity, declaresInterest: false),

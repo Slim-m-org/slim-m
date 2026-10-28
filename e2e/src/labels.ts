@@ -117,6 +117,7 @@ export const L = {
   "PAN_TOOL": "Pan",
   "UNDO": "Undo",
   "MEMBER_PANE_HEADER": "MEMBERS ·",
+  "PEOPLE_HERE": "People here",
   "BRING_EVERYONE": "Bring everyone to me",
   "BRING_EVERYONE_CONFIRM": "Bring everyone",
   "SUMMON_ACCEPT": "Accept",
