@@ -11,9 +11,9 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../api_failure.dart';
-import '../features/messages/providers/pending_interactions.dart';
-import 'providers.dart';
+import '../../../api_failure.dart';
+import 'pending_interactions.dart';
+import '../../../providers/providers.dart';
 
 /// How long a press waits for the bot before it is shown as failed.
 const Duration buttonPressTimeout = Duration(seconds: 5);

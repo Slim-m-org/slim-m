@@ -42,7 +42,7 @@ import '../features/settings/providers/notification_schedule_controller.dart';
 import '../features/settings/providers/notification_sound_controller.dart';
 import '../providers/providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
-import '../providers/retention_sweep.dart';
+import '../features/messages/providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../features/channels/providers/threads.dart';
 import '../features/voice/providers/voice_controller.dart';

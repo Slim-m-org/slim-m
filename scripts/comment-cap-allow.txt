@@ -31,7 +31,7 @@ client/packages/api/test/new_routes_test.dart 2
 client/packages/api/test/schema_coverage_test.dart 2
 client/packages/app/lib/main.dart 4
 client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
-client/packages/app/lib/src/providers/push_controller.dart 4
+client/packages/app/lib/src/push/providers/push_controller.dart 4
 client/packages/app/lib/src/features/voice/providers/voice_controller.dart 3
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5

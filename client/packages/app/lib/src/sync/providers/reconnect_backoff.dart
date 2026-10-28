@@ -5,7 +5,7 @@ library;
 import 'dart:async';
 import 'dart:math';
 
-import '../backoff.dart';
+import '../../backoff.dart';
 
 /// Exponential backoff with jitter, so a server restart does not bring every
 /// client back online in the same instant (a thundering herd).

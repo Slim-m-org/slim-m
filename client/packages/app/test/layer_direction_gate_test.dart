@@ -32,7 +32,7 @@ const _knownExceptions = {
   'features/members/providers/user_profiles.dart -> features/messages/widgets/author_label.dart',
   'features/messages/providers/link_preview.dart -> features/channels/widgets/channel_rail_frame.dart',
   'features/voice/providers/voice_controller.dart -> features/voice/widgets/video_health_overlay.dart',
-  'providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
+  'desktop/providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
 };
 
 /// Directives start a line, so a commented-out import never matches.

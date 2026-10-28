@@ -4,12 +4,12 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/members/providers/user_profiles.dart';
-import '../features/messages/providers/ephemeral_messages.dart';
-import '../features/messages/providers/typing_controller.dart';
-import '../features/voice/providers/dm_call_activity.dart';
-import '../features/voice/providers/dm_call_ring_controller.dart';
-import '../features/voice/providers/watch_room.dart';
+import '../../features/members/providers/user_profiles.dart';
+import '../../features/messages/providers/ephemeral_messages.dart';
+import '../../features/messages/providers/typing_controller.dart';
+import '../../features/voice/providers/dm_call_activity.dart';
+import '../../features/voice/providers/dm_call_ring_controller.dart';
+import '../../features/voice/providers/watch_room.dart';
 
 /// Clears per-connection ephemeral state; a missed frame of it is otherwise stuck.
 void resetEphemeralSessionState(Ref ref) {

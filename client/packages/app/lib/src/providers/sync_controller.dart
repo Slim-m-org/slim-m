@@ -31,14 +31,14 @@ import 'op_adjacency.dart';
 import '../features/messages/providers/message_extras.dart';
 import 'providers.dart';
 import 'rate_limit_retry.dart';
-import 'reconnect_backoff.dart';
-import 'sync_failure.dart';
-import 'sync_ephemeral_reset.dart';
-import 'sync_frame_queue.dart';
+import '../sync/providers/reconnect_backoff.dart';
+import '../sync/providers/sync_failure.dart';
+import '../sync/providers/sync_ephemeral_reset.dart';
+import '../sync/providers/sync_frame_queue.dart';
 
-import 'sync_status.dart';
+import '../sync/providers/sync_status.dart';
 
-export 'sync_status.dart';
+export '../sync/providers/sync_status.dart';
 
 part 'sync_controller_catchup.dart';
 part 'sync_controller_events.dart';

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'providers.dart';
+import '../../providers/providers.dart';
 
 /// Deletes the push key from the current store and the legacy one.
 ///

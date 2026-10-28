@@ -5,9 +5,9 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../desktop/desktop_window_shell.dart';
-import '../features/accounts/providers/account_providers.dart';
-import '../features/accounts/providers/notification_target.dart';
+import '../../desktop/desktop_window_shell.dart';
+import '../../features/accounts/providers/account_providers.dart';
+import '../../features/accounts/providers/notification_target.dart';
 import 'notification_tap_router.dart' show openChannelOnOwner;
 
 /// The native bridge for this device's APNs token. A provider, rather than a

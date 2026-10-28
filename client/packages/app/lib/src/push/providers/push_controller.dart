@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'providers.dart';
+import '../../providers/providers.dart';
 import 'push_content_preview_settings.dart';
 import 'push_key_cleanup.dart';
 import 'push_status.dart';

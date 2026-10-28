@@ -4,7 +4,7 @@ library;
 
 import 'package:slimm_api/api.dart' as api;
 
-import '../features/messages/widgets/reply_target_summary.dart'
+import '../../features/messages/widgets/reply_target_summary.dart'
     show previewLine;
 
 /// Long enough for a sentence or two; the OS truncates further on its own.

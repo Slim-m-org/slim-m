@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/sync_status.dart';
+import '../../../sync/providers/sync_status.dart';
 import '../../channels/providers/channel_history.dart';
 import 'message_transcript_widgets.dart';
 

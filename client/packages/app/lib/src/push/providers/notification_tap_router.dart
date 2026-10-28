@@ -18,11 +18,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../features/accounts/providers/account_host.dart';
-import '../features/accounts/providers/account_providers.dart';
-import '../routing/routes.dart';
-import 'providers.dart' show storeProvider;
-import '../routing/router.dart';
+import '../../features/accounts/providers/account_host.dart';
+import '../../features/accounts/providers/account_providers.dart';
+import '../../routing/routes.dart';
+import '../../providers/providers.dart' show storeProvider;
+import '../../routing/router.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The route a tap naming [channelId] should land on, or null for a tap

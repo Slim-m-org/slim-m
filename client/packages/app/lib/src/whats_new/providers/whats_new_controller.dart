@@ -27,8 +27,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../whats_new/whats_new_content.dart';
-import 'providers.dart';
+import '../whats_new_content.dart';
+import '../../providers/providers.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The `SharedPreferences` key the last version a what's-new sheet was shown

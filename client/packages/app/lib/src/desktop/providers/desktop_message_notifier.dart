@@ -37,14 +37,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 
-import '../features/accounts/providers/account_slot.dart';
-import '../features/accounts/providers/notification_target.dart';
+import '../../features/accounts/providers/account_slot.dart';
+import '../../features/accounts/providers/notification_target.dart';
 import 'desktop_message_text_settings.dart';
 import 'desktop_notification_text.dart';
-import 'live_events.dart';
-import '../features/messages/providers/message_alert_policy.dart';
-import 'providers.dart';
-import 'push_controller.dart';
+import '../../providers/live_events.dart';
+import '../../features/messages/providers/message_alert_policy.dart';
+import '../../providers/providers.dart';
+import '../../push/providers/push_controller.dart';
 
 final desktopMessageNotifierProvider = Provider<void>((ref) {
   // Android and iOS notify from platform push; only the desktop needs this.

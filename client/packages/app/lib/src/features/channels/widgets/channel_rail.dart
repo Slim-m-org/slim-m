@@ -18,7 +18,7 @@ import '../providers/channel_order_controller.dart';
 import '../providers/dms.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
-import '../../../providers/sync_failure.dart';
+import '../../../sync/providers/sync_failure.dart';
 import '../../../routing/routes.dart';
 import 'channel_rail_failure.dart';
 import 'channel_rail_frame.dart';

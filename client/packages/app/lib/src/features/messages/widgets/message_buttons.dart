@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
-import '../../../providers/button_presses.dart';
+import '../providers/button_presses.dart';
 import 'message_select.dart';
 
 /// A failure stays a readable line under the row, not a full-width banner.

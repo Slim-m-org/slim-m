@@ -11,7 +11,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'sync_controller.dart';
+import '../../providers/sync_controller.dart';
 
 /// The two kinds of sync failure worth telling apart on screen.
 enum SyncFailure {

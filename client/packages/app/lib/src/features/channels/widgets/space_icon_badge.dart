@@ -9,7 +9,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../voice/providers/voice_ping.dart';
 import '../../../providers/direct_route.dart';
 import '../../../providers/sync_controller.dart';
-import '../../../providers/sync_failure.dart';
+import '../../../sync/providers/sync_failure.dart';
 import '../../../widgets/space_connection_dot.dart';
 import '../../../widgets/space_icon.dart';
 

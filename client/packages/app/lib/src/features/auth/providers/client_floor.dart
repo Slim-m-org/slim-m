@@ -17,8 +17,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import 'providers.dart';
-import 'sync_controller.dart';
+import '../../../providers/providers.dart';
+import '../../../providers/sync_controller.dart';
 
 /// How this client stands against the server's floor.
 enum ClientFloor {

@@ -6,12 +6,12 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../providers/desktop_message_notifier.dart';
+import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_controller.dart';
-import '../../../providers/retention_sweep.dart';
+import '../../../push/providers/push_controller.dart';
+import '../../messages/providers/retention_sweep.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';

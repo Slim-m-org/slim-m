@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/sync_controller.dart';
-import '../providers/sync_failure.dart';
+import '../sync/providers/sync_failure.dart';
 
 /// Built on [AppStatusDotPainter] rather than [AppStatusDot], whose label
 /// always names a person's presence, the wrong claim about a server link.

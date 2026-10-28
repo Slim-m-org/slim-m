@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
 import '../../settings/providers/display_preferences.dart';
-import '../../../providers/new_device_alert.dart';
+import '../providers/new_device_alert.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/banner_host_layout.dart';
 import '../../messages/widgets/message_row_identity.dart' show formatMessageDay;

@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';

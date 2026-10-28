@@ -18,7 +18,7 @@ import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../../members/providers/status_text.dart';
 import '../../../providers/sync_controller.dart';
-import '../../../providers/sync_failure.dart';
+import '../../../sync/providers/sync_failure.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';

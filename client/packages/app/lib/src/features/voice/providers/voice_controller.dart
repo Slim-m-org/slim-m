@@ -20,7 +20,7 @@ import 'call_recap.dart';
 import 'level_display.dart';
 import 'noise_suppression.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_channel_providers.dart';
+import '../../../push/providers/push_channel_providers.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';

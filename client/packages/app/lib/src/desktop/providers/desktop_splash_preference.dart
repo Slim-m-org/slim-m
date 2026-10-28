@@ -12,8 +12,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../desktop/splash_floor.dart' show minSplashDuration;
-import 'providers.dart';
+import '../splash_floor.dart' show minSplashDuration;
+import '../../providers/providers.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 /// The old separate on/off key, read once on restore to migrate an install

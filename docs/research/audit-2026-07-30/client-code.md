@@ -343,7 +343,7 @@ Measured on this branch, `.g.dart` and `.freezed.dart` excluded.
 |---|---|---|
 | 500 | `app/lib/src/features/voice/screens/voice_screen.dart` | `_JoinPreview` + `_WhoIsHere` + `_PreToggle` (83-293): the pre-call screen, no dependency on in-call state, leaving `_InCall`/`_ParticipantRow`/`_openProfile` at about 200. **At exactly 500, so the next net line added fails the hygiene workflow.** It has been split for this reason once already (`voice_call_controls.dart` says so in its header) and has grown back |
 | 481 | `rtc/lib/src/voice_session.dart` | the screen-share members (`screenShareNeedsSource`, `screenShareSources`, `setScreenShareEnabled`, `captureOptionsFor`, `_isSharing`, `screenShareViewFor`) as a collaborator over the room, the way `local_audio.dart` took the audio triple. Both siblings record being split out at the 500 ceiling, so the pattern has been reactive twice |
-| 461 | `app/lib/src/providers/push_controller.dart` | the lifecycle-reporting half (`_stateLabel`, `didChangeAppLifecycleState`, the foreground heartbeat, `_reportLifecycle`, 361-446), which shares nothing with registration but a status predicate. At 92% of the hard ceiling |
+| 461 | `app/lib/src/push/providers/push_controller.dart` | the lifecycle-reporting half (`_stateLabel`, `didChangeAppLifecycleState`, the foreground heartbeat, `_reportLifecycle`, 361-446), which shares nothing with registration but a status predicate. At 92% of the hard ceiling |
 | 446 | `design_system/lib/src/app_tokens.dart` | none, deliberately: a flat value catalogue with no seam |
 | 412 | `app/lib/src/features/composer/widgets/composer.dart` | none named; the duplicated action list (below) comes out of it |
 | 409 | `app/lib/src/features/members/widgets/member_profile.dart` | none named |

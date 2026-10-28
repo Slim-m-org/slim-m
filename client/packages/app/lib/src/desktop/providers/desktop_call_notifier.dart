@@ -28,8 +28,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart';
 
-import '../features/voice/providers/dm_call_ring_controller.dart';
-import 'push_controller.dart';
+import '../../features/voice/providers/dm_call_ring_controller.dart';
+import '../../push/providers/push_controller.dart';
 
 /// What the notification says. Content-free on purpose, matching every other
 /// notification this app raises: the envelope carries no caller name today,

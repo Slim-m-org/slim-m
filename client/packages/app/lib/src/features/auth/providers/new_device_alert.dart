@@ -12,7 +12,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import 'live_events.dart';
+import '../../../providers/live_events.dart';
 
 class NewDeviceAlertController extends StateNotifier<NewDeviceSignIn?> {
   NewDeviceAlertController(Stream<ServerEvent> events) : super(null) {

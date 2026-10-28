@@ -24,7 +24,7 @@ Set<String> _handlerCases() {
 
 Set<String> _listedTypes() {
   final source = codeOnly(
-    File('lib/src/providers/sync_frame_queue.dart').readAsStringSync(),
+    File('lib/src/sync/providers/sync_frame_queue.dart').readAsStringSync(),
   );
   final start = source.indexOf('bool isAppliedToStore');
   final end = source.indexOf('};', start);

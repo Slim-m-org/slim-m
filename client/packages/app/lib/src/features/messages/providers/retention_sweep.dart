@@ -44,9 +44,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_data/data.dart';
 
-import '../features/messages/providers/message_extras.dart';
-import '../features/channels/providers/mounted_channels.dart';
-import 'providers.dart';
+import 'message_extras.dart';
+import '../../channels/providers/mounted_channels.dart';
+import '../../../providers/providers.dart';
 import 'retention_policy.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
 

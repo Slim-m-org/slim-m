@@ -16,7 +16,7 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 import 'app_lock_preference.dart';
 import '../features/messages/providers/attachment_preview_quality.dart';
-import 'desktop_splash_preference.dart';
+import '../desktop/providers/desktop_splash_preference.dart';
 import '../features/settings/providers/display_density.dart';
 import '../features/settings/providers/display_preferences.dart';
 import '../features/messages/providers/image_cache_preference.dart';

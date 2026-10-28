@@ -17,7 +17,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
-import 'providers.dart';
+import '../../providers/providers.dart';
 
 /// The `SharedPreferences` key one account's pending choice is stored under.
 String pushIncludeContentKeyFor(String userId) =>

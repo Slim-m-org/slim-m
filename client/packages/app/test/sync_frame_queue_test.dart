@@ -5,7 +5,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/sync_frame_queue.dart';
+import 'package:slimm_app/src/sync/providers/sync_frame_queue.dart';
 
 api.ServerEvent _event(int n) => api.ServerEvent.parse(
   '{"type":"read_state.changed","channel_id":"c$n","last_read_seq":$n}',
