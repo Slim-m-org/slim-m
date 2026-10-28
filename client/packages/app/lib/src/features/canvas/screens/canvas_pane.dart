@@ -38,6 +38,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../desktop/desktop_window_shell.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../widgets/app_drop_zone.dart';
@@ -186,6 +187,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     // Built here: dispose cannot read ref, and releasing the window must still work then.
     _windowHold = WindowFullscreenHold(
       ref.read(fullscreenVideoActiveProvider.notifier),
+      ref.read(desktopWindowShellProvider),
     );
     _landscapeHold = PhoneLandscapeHold(
       ref.read(orientationChannelProvider),

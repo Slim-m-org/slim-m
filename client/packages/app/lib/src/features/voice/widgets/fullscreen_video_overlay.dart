@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../desktop/desktop_window_shell.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
@@ -113,6 +114,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     );
     _windowHold = WindowFullscreenHold(
       ref.read(fullscreenVideoActiveProvider.notifier),
+      ref.read(desktopWindowShellProvider),
     );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_landscape.enter());

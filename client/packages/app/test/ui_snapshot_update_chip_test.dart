@@ -10,7 +10,7 @@ import 'package:slimm_app/src/desktop/update_check.dart';
 import 'package:slimm_app/src/desktop/update_watch.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'desktop/support/fake_desktop_window_port.dart';
+import 'desktop/support/desktop_shell_fixture.dart';
 import 'ui_snapshot_support.dart';
 
 const _update = ClientUpdate(
@@ -25,16 +25,17 @@ void main() {
       testWidgets('update chip at $viewport ($theme) fits its viewport', (
         tester,
       ) async {
-        DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-        DesktopWindowShell.debugActivate(frameless: true);
-        addTearDown(DesktopWindowShell.debugReset);
+        final shell = shellFor(null, active: true, frameless: true);
         await renderSurface(
           tester,
           '/channels/c-general',
           viewport,
           theme,
           'update-chip-$viewport-$theme',
-          overrides: [inSessionUpdateProvider.overrideWith((ref) => _update)],
+          overrides: [
+            desktopWindowShellProvider.overrideWithValue(shell),
+            inSessionUpdateProvider.overrideWith((ref) => _update),
+          ],
         );
       });
     }

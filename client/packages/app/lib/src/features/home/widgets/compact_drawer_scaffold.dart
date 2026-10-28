@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart' show AppHaptics;
 
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../members/providers/member_selection.dart';
+import '../../../desktop/desktop_window_shell.dart';
 import '../../../routing/routes.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show voiceChatPaneVisibleProvider;
@@ -66,7 +67,10 @@ class _CompactDrawerScaffoldState extends ConsumerState<CompactDrawerScaffold> {
     final showAppBar = widget.showAppBar;
     final showRail = widget.showRail;
     final showMembers = widget.showMembers;
-    final edgeWidth = drawerEdgeDragWidth(context);
+    final edgeWidth = drawerEdgeDragWidth(
+      context,
+      frameless: ref.watch(desktopWindowShellProvider).frameless,
+    );
     final chatOverCall = voiceChatOverCall(ref, channelId);
     final onBack = widget.onBack;
     final customBack = onBack != null || chatOverCall;

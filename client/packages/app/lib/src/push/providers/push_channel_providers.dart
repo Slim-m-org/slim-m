@@ -32,7 +32,7 @@ final fcmTokenChannelProvider = Provider<FcmTokenChannel>(
 final localNotificationsProvider = Provider<LocalNotifications>(
   (ref) => LocalNotifications(
     onActivated: (payload) async {
-      await DesktopWindowShell.raise();
+      await ref.read(desktopWindowShellProvider).raise();
       final host = ref.read(accountHostProvider);
       final target = NotificationTarget.decode(payload);
       if (host == null || target == null) return;

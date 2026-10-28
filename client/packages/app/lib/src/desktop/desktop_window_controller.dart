@@ -12,7 +12,6 @@ import 'close_behavior.dart';
 import 'desktop_window_port.dart';
 import 'display_server.dart';
 import 'window_geometry.dart';
-import 'window_fullscreen_hold.dart';
 import 'window_geometry_store.dart';
 
 /// How long to wait after the last resize/move event before writing, on the
@@ -27,6 +26,8 @@ import 'window_geometry_store.dart';
 /// thing standing in for a settled event the platform never reports.
 const desktopGeometryDebounce = Duration(milliseconds: 500);
 
+bool _never() => false;
+
 class DesktopWindowController {
   DesktopWindowController({
     required this.port,
@@ -34,6 +35,7 @@ class DesktopWindowController {
     required this.platform,
     required this.trayAvailable,
     this.onShow,
+    this.fullscreenHeld = _never,
     this.debounce = desktopGeometryDebounce,
     bool geometryPersistenceEnabled = false,
     bool Function()? positionSupported,
@@ -57,6 +59,9 @@ class DesktopWindowController {
   /// describing what just happened has to describe the real resolved
   /// outcome rather than a fresh guess.
   final void Function(CloseAction? lastCloseAction)? onShow;
+
+  /// Whether a video or canvas tile is holding the window fullscreen.
+  final bool Function() fullscreenHeld;
 
   final Duration debounce;
   final bool Function() _positionSupported;
@@ -203,7 +208,7 @@ class DesktopWindowController {
     if (!port.windowQueryable) return null;
     final fullscreen = await port.isFullScreen();
     // A video or canvas tile holding the window fullscreen is not a state to reopen in.
-    if (fullscreen && WindowFullscreenHold.anyHeld) return null;
+    if (fullscreen && fullscreenHeld()) return null;
     if (maximized || fullscreen) {
       return previous.copyWith(
         runState: fullscreen

@@ -30,12 +30,11 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 import '../support/fake_api.dart';
 
 void main() {
-  tearDown(DesktopQuitShortcut.debugUnregister);
-
   testWidgets('no tray host: close minimises rather than hiding, and both quit '
       'routes - the title bar menu and Ctrl+Q - still actually terminate', (
     tester,
@@ -50,7 +49,9 @@ void main() {
       trayAvailable: () async => false,
     );
     addTearDown(controller.dispose);
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
+    final shortcut = DesktopQuitShortcut(shellFor(port))
+      ..register(platform: DesktopPlatform.linux);
+    addTearDown(shortcut.dispose);
 
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(

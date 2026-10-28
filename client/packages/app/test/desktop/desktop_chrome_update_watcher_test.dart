@@ -22,7 +22,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
-import 'support/fake_desktop_window_port.dart';
+import 'support/desktop_shell_fixture.dart';
 
 /// Pumps the chrome, advances a whole watch interval, and answers how many
 /// times the check ran and what it found.
@@ -32,9 +32,7 @@ Future<({int checks, String? found})> _runAnInterval(
   required bool frameless,
 }) async {
   SharedPreferences.setMockInitialValues({});
-  DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-  if (shellActive) DesktopWindowShell.debugActivate(frameless: frameless);
-  addTearDown(DesktopWindowShell.debugReset);
+  final shell = shellFor(null, active: shellActive, frameless: frameless);
   tester.view.physicalSize = const Size(1400, 880);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -55,6 +53,7 @@ Future<({int checks, String? found})> _runAnInterval(
 
   final container = ProviderContainer(
     overrides: [
+      desktopWindowShellProvider.overrideWithValue(shell),
       appInfoProvider.overrideWith(
         (ref) => Future.value(
           PackageInfo(

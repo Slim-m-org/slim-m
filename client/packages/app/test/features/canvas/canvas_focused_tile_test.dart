@@ -24,6 +24,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import '../voice/voice_controller_harness.dart';
 import 'canvas_pane_harness.dart';
+import '../../desktop/support/desktop_shell_fixture.dart';
 
 class _DrivenVoiceController extends VoiceController {
   _DrivenVoiceController(super.ref, VoiceState initial)
@@ -59,11 +60,13 @@ Future<({_DrivenVoiceController voice, ProviderContainer container})> _pump(
   bool focusFirst = false,
   bool sharing = true,
   Size size = const Size(1280, 800),
+  DesktopWindowShell? shell,
 }) async {
   final fixture = CanvasPaneFixture();
   late _DrivenVoiceController voice;
   final container = fixture.container(
     extraOverrides: [
+      if (shell != null) desktopWindowShellProvider.overrideWithValue(shell),
       voiceControllerProvider.overrideWith(
         (ref) => voice = _DrivenVoiceController(ref, _call(sharing: sharing)),
       ),
@@ -319,10 +322,8 @@ void main() {
   testWidgets('focusing a tile holds the OS window fullscreen until the '
       'share ends', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
-    final (:voice, :container) = await _pump(tester);
+    final shell = shellFor(port, active: true, frameless: true);
+    final (:voice, :container) = await _pump(tester, shell: shell);
     expect(port.fullScreen, isFalse);
 
     await _focusTheShare(tester);
@@ -338,10 +339,8 @@ void main() {
   testWidgets('exiting fullscreen and closing the canvas both release the '
       'OS window', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
-    await _pump(tester);
+    final shell = shellFor(port, active: true, frameless: true);
+    await _pump(tester, shell: shell);
     final mouse = await _focusTheShare(tester);
     await tester.tap(find.byTooltip('Show controls'));
     await tester.pumpAndSettle();
@@ -359,14 +358,13 @@ void main() {
   testWidgets('a pane mounting onto a focused tile holds the window without '
       'writing provider state mid-build', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(port, active: true, frameless: true);
 
     final (:voice, :container) = await _pump(
       tester,
       fullscreenFirst: true,
       focusFirst: true,
+      shell: shell,
     );
 
     expect(tester.takeException(), isNull);
@@ -377,15 +375,14 @@ void main() {
   testWidgets('returning to a channel whose focused share ended leaves the '
       'window windowed and nothing focused', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(port, active: true, frameless: true);
 
     final (:voice, :container) = await _pump(
       tester,
       fullscreenFirst: true,
       focusFirst: true,
       sharing: false,
+      shell: shell,
     );
 
     expect(container.read(canvasFocusedTileProvider), isNull);

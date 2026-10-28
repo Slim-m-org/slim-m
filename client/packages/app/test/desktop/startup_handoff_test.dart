@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// The small-splash-then-handoff sequence added by decision 0012's
-/// superseding section: [DesktopWindowShell.applyInitialGeometry] sizes and
-/// centers the window before the very first frame, [DesktopWindowShell.lockSplashChrome]
+/// superseding section: [shell.applyInitialGeometry] sizes and
+/// centers the window before the very first frame, [shell.lockSplashChrome]
 /// disables resize and hides the Linux title bar once that frame is up, and
-/// [DesktopWindowShell.prepareHandoff]/[DesktopWindowShell.revealAfterHandoff]
+/// [shell.prepareHandoff]/[shell.revealAfterHandoff]
 /// swap the window to the real saved geometry once bootstrap finishes - all
 /// driven against a fake port, per decision 0012's own rule that this class
 /// of logic stays automatable with no real display involved.
@@ -27,12 +27,12 @@ import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
-import 'package:slimm_app/src/desktop/splash_mapped_wait.dart';
 import 'package:slimm_app/src/desktop/startup_state.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
 import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 
 import 'support/fake_desktop_window_port.dart';
+import 'support/desktop_shell_fixture.dart';
 
 ProviderContainer _container() {
   final container = ProviderContainer();
@@ -40,55 +40,54 @@ ProviderContainer _container() {
   return container;
 }
 
+late DesktopWindowShell shell;
+
 void main() {
-  setUp(() {
-    DesktopWindowShell.debugReset();
-    debugSplashMappedProbe = () async => const Duration(days: 1);
-  });
-  tearDown(DesktopWindowShell.debugReset);
+  setUp(() => shell = shellFor(null));
+  setUp(() {});
 
   testWidgets('applyInitialGeometry sizes and centers the window at the '
       'fixed splash size, and touches neither resizing nor the title bar', (
     tester,
   ) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
 
-    await DesktopWindowShell.applyInitialGeometry();
+    await shell.applyInitialGeometry();
 
     expect(port.lastSize, DesktopWindowShell.splashWindowSize);
     expect(port.centerCalls, 1);
     expect(port.lastResizable, isNull);
     expect(port.hideTitleBarCalls, 0);
-    expect(DesktopWindowShell.frameless, isFalse);
+    expect(shell.frameless, isFalse);
   });
 
   testWidgets('lockSplashChrome locks resizing and hides the Linux title '
       'bar, once the splash is already up', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
 
-    await DesktopWindowShell.lockSplashChrome();
+    await shell.lockSplashChrome();
 
     expect(port.lastResizable, isFalse);
     expect(port.hideTitleBarCalls, 1);
-    expect(DesktopWindowShell.frameless, isTrue);
+    expect(shell.frameless, isTrue);
   });
 
   testWidgets('on Windows the native title bar stays hidden past the '
       'handoff, so only the frameless bar shows', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.windows;
+    shell = shellFor(port);
+    shell = shellFor(shell.port, chrome: DesktopPlatform.windows);
 
-    await DesktopWindowShell.lockSplashChrome();
+    await shell.lockSplashChrome();
     expect(port.hideTitleBarCalls, 1);
-    expect(DesktopWindowShell.frameless, isTrue);
+    expect(shell.frameless, isTrue);
 
-    await DesktopWindowShell.prepareHandoff(_container());
+    await shell.prepareHandoff(_container());
     expect(port.showTitleBarCalls, 0);
-    expect(DesktopWindowShell.frameless, isTrue);
+    expect(shell.frameless, isTrue);
   });
 
   testWidgets('macOS keeps its native title bar through the splash', (
@@ -96,11 +95,11 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugSplashPlatform = DesktopPlatform.macOS;
+    shell = shellFor(port);
+    shell = shellFor(shell.port, chrome: DesktopPlatform.macOS);
 
-    await DesktopWindowShell.lockSplashChrome();
-    await DesktopWindowShell.prepareHandoff(_container());
+    await shell.lockSplashChrome();
+    await shell.prepareHandoff(_container());
 
     expect(port.hideTitleBarCalls, 0);
     expect(port.showTitleBarCalls, 0);
@@ -110,10 +109,10 @@ void main() {
       'back to the default geometry with nothing saved yet', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
     final container = _container();
 
-    await DesktopWindowShell.prepareHandoff(container);
+    await shell.prepareHandoff(container);
 
     expect(port.hideCalls, 1);
     expect(port.lastResizable, isTrue);
@@ -128,12 +127,15 @@ void main() {
       'the splash', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
     var mapped = false;
-    debugSplashMappedProbe = () async => mapped ? Duration.zero : null;
+    shell = shellFor(
+      shell.port,
+      probe: () async => mapped ? Duration.zero : null,
+    );
     final container = _container();
 
-    final handoff = DesktopWindowShell.prepareHandoff(container);
+    final handoff = shell.prepareHandoff(container);
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -154,10 +156,10 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
     final container = _container();
 
-    final handoff = DesktopWindowShell.prepareHandoff(
+    final handoff = shell.prepareHandoff(
       container,
       fadeOut: const Duration(milliseconds: 180),
     );
@@ -176,12 +178,15 @@ void main() {
       'floor, measured from the map and not from bootstrap', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
     var mapped = false;
-    debugSplashMappedProbe = () async => mapped ? Duration.zero : null;
+    shell = shellFor(
+      shell.port,
+      probe: () async => mapped ? Duration.zero : null,
+    );
     final container = _container();
 
-    final handoff = DesktopWindowShell.prepareHandoff(
+    final handoff = shell.prepareHandoff(
       container,
       splashFloor: const Duration(milliseconds: 900),
     );
@@ -210,10 +215,10 @@ void main() {
       ),
     });
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
     final container = _container();
 
-    await DesktopWindowShell.prepareHandoff(container);
+    await shell.prepareHandoff(container);
 
     expect(port.hideCalls, 1);
     expect(port.lastSize, const WindowSize(width: 1400, height: 900));
@@ -223,9 +228,9 @@ void main() {
   testWidgets('revealAfterHandoff shows the window again once the real UI '
       'has had a frame to paint', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
 
-    final reveal = DesktopWindowShell.revealAfterHandoff();
+    final reveal = shell.revealAfterHandoff();
 
     // Flushes show()'s own microtask before the pump that satisfies the endOfFrame wait after it (a real host runs both on its own).
     await Future<void>.value();
@@ -242,9 +247,9 @@ void main() {
     tester,
   ) async {
     final port = FakeDesktopWindowPort()..visible = false;
-    DesktopWindowShell.debugPort = port;
+    shell = shellFor(port);
 
-    final reveal = DesktopWindowShell.revealAfterHandoff();
+    final reveal = shell.revealAfterHandoff();
 
     // Only a microtask turn runs here, never a pumped frame - a real hidden window never gets one either.
     await Future<void>.value();
@@ -263,21 +268,21 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = WindowGeometryStore(await SharedPreferences.getInstance());
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugPositionSupported = () => true;
+    shell = shellFor(port);
+    shell = shellFor(shell.port, position: () => true);
     final container = _container();
     tester.view.physicalSize = const Size(1280, 720);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    unawaited(DesktopWindowShell.registerListenersAndTray(container));
+    unawaited(shell.registerListenersAndTray(container));
     await tester.pump(const Duration(seconds: 6));
     port.bounds = const WindowRect(x: 45, y: 45, width: 360, height: 260);
     port.emit(DesktopWindowEventKind.resize);
     await tester.pump(desktopGeometryDebounce);
     expect(store.read(), isNull, reason: 'the splash is still up');
 
-    await DesktopWindowShell.prepareHandoff(container);
+    await shell.prepareHandoff(container);
     await tester.pump();
     port.emit(DesktopWindowEventKind.resize);
     await tester.pump(desktopGeometryDebounce);
@@ -343,16 +348,14 @@ void main() {
         ),
       });
       final port = FakeDesktopWindowPort();
-      DesktopWindowShell.debugPort = port;
-      await DesktopWindowShell.prepareHandoff(_container());
+      shell = shellFor(port);
+      await shell.prepareHandoff(_container());
       tester.view.physicalSize = const Size(360, 387);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       var done = false;
-      unawaited(
-        DesktopWindowShell.revealAfterHandoff().then((_) => done = true),
-      );
+      unawaited(shell.revealAfterHandoff().then((_) => done = true));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 400)),
       );

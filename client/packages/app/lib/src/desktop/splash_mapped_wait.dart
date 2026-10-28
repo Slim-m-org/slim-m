@@ -16,9 +16,6 @@ const _channelName = 'top.npcserver.slimm/linux_window_mapped';
 const _timeout = Duration(seconds: 15);
 const _poll = Duration(milliseconds: 50);
 
-/// Test-only seam for the native answer; a test that reaches the handoff must replace it.
-Future<Duration?> Function() debugSplashMappedProbe = queryNativeWindowMapped;
-
 /// How long the splash has been mapped, or null before it is. Only the Linux
 /// runner can tell; elsewhere, or with no handler, it is taken as long mapped.
 Future<Duration?> queryNativeWindowMapped() async {
@@ -47,11 +44,14 @@ const _longMapped = Duration(days: 1);
 /// wait. Once mapped, whatever is left of [floor] is measured from the map,
 /// not from bootstrap, so a late splash still gets its full dwell. Bounded
 /// and swallowed: a window that never maps must not strand the app.
-Future<void> awaitSplashMapped({Duration floor = Duration.zero}) async {
+Future<void> awaitSplashMapped({
+  Duration floor = Duration.zero,
+  Future<Duration?> Function() probe = queryNativeWindowMapped,
+}) async {
   final deadline = DateTime.now().add(_timeout);
   try {
     Duration? onScreen;
-    while ((onScreen = await debugSplashMappedProbe()) == null) {
+    while ((onScreen = await probe()) == null) {
       if (DateTime.now().isAfter(deadline)) {
         AppLog.warning(
           LogTag.platform,

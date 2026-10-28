@@ -71,7 +71,8 @@ class IncomingCallOverlay extends ConsumerWidget {
       previous,
       next,
     ) {
-      if (previous == null && next != null) unawaited(_raiseWindow());
+      if (previous != null || next == null) return;
+      unawaited(_raiseWindow(ref.read(desktopWindowShellProvider)));
     });
 
     final ring = ref.watch(
@@ -108,10 +109,10 @@ class IncomingCallOverlay extends ConsumerWidget {
 /// Best-effort: a window call failing here (an unsupported platform call, an
 /// odd compositor) must never stop the ring itself from showing, which
 /// already happened by the time this runs.
-Future<void> _raiseWindow() async {
-  if (!DesktopWindowShell.active) return;
+Future<void> _raiseWindow(DesktopWindowShell shell) async {
+  if (!shell.active) return;
   try {
-    final port = DesktopWindowShell.port;
+    final port = shell.port;
     await port.show();
     await port.focus();
   } catch (error, stack) {
