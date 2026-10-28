@@ -204,6 +204,47 @@ class CanvasMediaSlotPreview extends ServerEvent {
   final bool ended;
 }
 
+/// A viewer's mark over a shared screen, or that sharer's consent for marks.
+///
+/// Ephemeral and `seq`-less. Every coordinate in [points] is normalised to the
+/// shared screen, 0 to 1 on both axes: a stroke carries a delta of x/y pairs,
+/// a shape `[x0, y0, x1, y1]` for its ellipse, a note `[x, y]` plus [text].
+/// A `consent` frame has no [annotationId] or points; [allowed] and [aspect]
+/// (the screen's width over its height) describe the sharer's screen.
+class CanvasScreenAnnotation extends ServerEvent {
+  const CanvasScreenAnnotation({
+    required this.channelId,
+    required this.userId,
+    required this.targetUserId,
+    required this.kind,
+    required this.points,
+    required this.ended,
+    required this.allowed,
+    this.annotationId,
+    this.color,
+    this.text,
+    this.aspect,
+  });
+
+  final String channelId;
+
+  /// Who drew, or for consent the sharer.
+  final String userId;
+
+  /// Whose shared screen it is over.
+  final String targetUserId;
+
+  /// `consent`, `stroke`, `shape` or `note`.
+  final String kind;
+  final String? annotationId;
+  final List<double> points;
+  final String? color;
+  final String? text;
+  final bool ended;
+  final bool allowed;
+  final double? aspect;
+}
+
 /// The part of the shared board a member is looking at, in world units.
 ///
 /// Ephemeral and `seq`-less like [CanvasCursorMoved]. [summon] asks every

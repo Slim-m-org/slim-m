@@ -18,6 +18,7 @@ import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
+import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import '../../voice/providers/voice_move_follower.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
@@ -43,6 +44,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(holdMusicControllerProvider, (_, _) {});
   container.listen(activityPublisherProvider, (_, _) {});
   container.listen(voiceMoveFollowerProvider, (_, _) {});
+  container.listen(screenOverlayControllerProvider, (_, _) {});
   container.listen(notificationScheduleProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});
 }

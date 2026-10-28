@@ -91,7 +91,7 @@ const MAX_PREVIEW_COLOR_LEN: usize = 32;
 const MAX_PREVIEW_WIDTH: f64 = 256.0;
 
 /// A colour key made only of identifier characters, or none.
-fn valid_preview_color(color: Option<String>) -> Option<String> {
+pub(super) fn valid_preview_color(color: Option<String>) -> Option<String> {
     color.filter(|c| {
         !c.is_empty()
             && c.len() <= MAX_PREVIEW_COLOR_LEN

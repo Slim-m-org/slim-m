@@ -40,6 +40,7 @@ const _micFallbackKey = 'slimm.voice.mic_fallback_enabled';
 const _receiveQualityKey = 'slimm.voice.receive_video_quality';
 const _cameraQualityKey = 'slimm.voice.camera_quality';
 const _shareAudioKey = 'slimm.voice.screen_share_include_audio';
+const _shareAnnotationsKey = 'slimm.voice.screen_share_allow_annotations';
 const _audioInputDeviceIdKey = 'slimm.voice.audio_input_device_id';
 const _audioOutputDeviceIdKey = 'slimm.voice.audio_output_device_id';
 
@@ -194,6 +195,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
       inputThresholdAuto: prefs.getBool(_inputThresholdAutoKey) ?? false,
       evenOutLoudSounds: prefs.getBool(_evenOutLoudKey) ?? true,
       screenShareIncludeAudio: prefs.getBool(_shareAudioKey) ?? false,
+      screenShareAllowAnnotations: prefs.getBool(_shareAnnotationsKey) ?? false,
       pauseVideoWhenMinimised: prefs.getBool(_pauseVideoUnfocusedKey) ?? true,
       micFallbackEnabled: prefs.getBool(_micFallbackKey) ?? true,
       audioInputDeviceId: prefs.getString(_audioInputDeviceIdKey),
@@ -268,6 +270,12 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(screenShareIncludeAudio: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_shareAudioKey, enabled);
+  }
+
+  Future<void> setScreenShareAllowAnnotations(bool enabled) async {
+    state = state.copyWith(screenShareAllowAnnotations: enabled);
+    final prefs = await _ref.read(preferencesProvider.future);
+    await prefs.setBool(_shareAnnotationsKey, enabled);
   }
 
   Future<void> setMirrorSelfView(bool enabled) async {

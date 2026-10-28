@@ -21,6 +21,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }

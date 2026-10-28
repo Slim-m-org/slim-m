@@ -20,6 +20,9 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   /// restart it without asking again.
   String? lastShareSourceId;
 
+  /// What the running share captures; the screen overlay needs to know a window from a screen.
+  ScreenShareSource? lastShareSource;
+
   /// Whether a share can be stopped and started again with no picker or
   /// permission prompt: only where this app lists the sources itself and the
   /// choice is its own (Windows, macOS), never Wayland, web or mobile.
@@ -33,9 +36,11 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     String? sourceId,
     bool includeAudio = false,
     int? maxHeight,
+    ScreenShareSource? source,
   }) async {
     _cancelBroadcastDeadline();
     if (enabled && sourceId != null) lastShareSourceId = sourceId;
+    lastShareSource = enabled ? source : null;
     if (enabled && !await _shareForeground.beforeShare()) {
       _shareForeground.shareSettled(started: false);
       state = state.copyWith(

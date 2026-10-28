@@ -56,6 +56,7 @@ export 'src/mic_recovery.dart';
 export 'src/mic_release.dart';
 export 'src/remote_video_publication.dart';
 export 'src/screen_share.dart';
+export 'src/screen_share_source_size.dart' show localShareCapturedSize;
 export 'src/screen_share_audio.dart';
 export 'src/share_audio_isolation.dart';
 export 'src/screen_share_control.dart';

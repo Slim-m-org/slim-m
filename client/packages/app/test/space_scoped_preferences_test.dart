@@ -157,6 +157,7 @@ const _deviceKeys = <String>{
   'slimm.voice.push_to_talk_key_id',
   'slimm.voice.receive_video_quality',
   'slimm.voice.screen_share_include_audio',
+  'slimm.voice.screen_share_allow_annotations',
   'slimm.voice.screen_share_quality',
   'slimm.voice.shortcut_overrides',
   'slimm.whats_new.last_seen_version',

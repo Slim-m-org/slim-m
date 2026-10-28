@@ -45,6 +45,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }

@@ -16830,6 +16830,7 @@ components:
         - $ref: "#/components/schemas/ClientCanvasStrokePreview"
         - $ref: "#/components/schemas/ClientCanvasObjectPreview"
         - $ref: "#/components/schemas/ClientCanvasMediaSlotPreview"
+        - $ref: "#/components/schemas/ClientCanvasScreenAnnotation"
         - $ref: "#/components/schemas/ClientCanvasView"
 
     ClientHello:
@@ -17042,6 +17043,65 @@ components:
             The call tile this client has full screen, so a follower can open
             the same one. Omitted when none; a value over 128 bytes is dropped.
 
+    ClientCanvasScreenAnnotation:
+      type: object
+      required: [type, channel_id, target_user_id, kind]
+      description: >
+        A viewer's mark over someone's shared screen, or that sharer's own
+        consent for viewers to draw. Ephemeral and never persisted. Every
+        coordinate is normalised to the shared screen, 0 to 1 on both axes,
+        and a frame with a value outside that range is dropped. `stroke`
+        carries a delta of x/y pairs (at most 24 pairs, like a stroke
+        preview) keyed by `annotation_id`; `shape` is an ellipse as
+        `[x0, y0, x1, y1]`; `note` is `[x, y]` plus `text` (at most 80
+        characters). `consent` carries no points and no `annotation_id`, and
+        is only relayed when `target_user_id` is the sender. The server
+        cannot know whether the sharer allowed drawing: the sharer's own
+        client drops every annotation it did not allow. Gated like ink
+        (canvas access, not timed out) and charged by wire size against the
+        stroke-preview budget.
+      properties:
+        type:
+          type: string
+          enum: [canvas.screen_annotation]
+        channel_id:
+          type: string
+          format: uuid
+        target_user_id:
+          type: string
+          format: uuid
+          description: Whose shared screen the mark is over.
+        kind:
+          type: string
+          enum: [consent, stroke, shape, note]
+        annotation_id:
+          type: string
+          format: uuid
+          description: A client-minted id keying one mark across its frames.
+        points:
+          type: array
+          items: { type: number, format: double }
+        color:
+          type: string
+          description: >
+            A colour key, identifier characters only and at most 32;
+            anything else is dropped from the relay.
+        text:
+          type: string
+        ended:
+          type: boolean
+          default: false
+        allowed:
+          type: boolean
+          default: false
+          description: Consent only - whether viewers may draw right now.
+        aspect:
+          type: number
+          format: double
+          description: >
+            Consent only - the shared screen's width over its height, so
+            viewers can map their marks past a letterbox.
+
     ClientCanvasMediaSlotPreview:
       type: object
       required: [type, channel_id, kind, user_id, x, y, w, h]
@@ -17165,6 +17225,7 @@ components:
         - $ref: "#/components/schemas/CanvasStrokePreviewUpdated"
         - $ref: "#/components/schemas/CanvasObjectPreviewUpdated"
         - $ref: "#/components/schemas/CanvasMediaSlotPreviewUpdated"
+        - $ref: "#/components/schemas/CanvasScreenAnnotationUpdated"
         - $ref: "#/components/schemas/CanvasViewUpdated"
         - $ref: "#/components/schemas/CanvasObjectMoved"
         - $ref: "#/components/schemas/CanvasObjectReordered"
@@ -17478,6 +17539,50 @@ components:
           format: double
         ended:
           type: boolean
+
+    CanvasScreenAnnotationUpdated:
+      type: object
+      required:
+        [type, channel_id, user_id, target_user_id, kind, points, ended, allowed]
+      description: >-
+        A viewer's mark over a shared screen, or the sharer's consent for
+        marks, on a channel's canvas, gated the same way
+        `canvas.stroke_preview.updated` is. Carries no `seq` and is never
+        stored. Clients that do not know this frame ignore it.
+      properties:
+        type:
+          type: string
+          enum: [canvas.screen_annotation.updated]
+        channel_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+          description: Who drew, or for consent the sharer.
+        target_user_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [consent, stroke, shape, note]
+        annotation_id:
+          type: string
+          format: uuid
+        points:
+          type: array
+          items: { type: number, format: double }
+        color:
+          type: string
+        text:
+          type: string
+        ended:
+          type: boolean
+        allowed:
+          type: boolean
+        aspect:
+          type: number
+          format: double
 
     CanvasObjectPreviewUpdated:
       type: object

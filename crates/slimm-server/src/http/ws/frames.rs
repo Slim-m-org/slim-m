@@ -349,6 +349,24 @@ pub(super) enum ServerFrame {
         h: f64,
         ended: bool,
     },
+    #[serde(rename = "canvas.screen_annotation.updated")]
+    CanvasScreenAnnotation {
+        channel_id: String,
+        user_id: String,
+        target_user_id: String,
+        kind: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotation_id: Option<String>,
+        points: Vec<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        ended: bool,
+        allowed: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        aspect: Option<f64>,
+    },
     #[serde(rename = "canvas.view.updated")]
     CanvasView {
         channel_id: String,
