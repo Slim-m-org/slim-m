@@ -11,6 +11,15 @@ import re
 import sys
 from pathlib import Path
 
+import e2e_voice_quality_js
+import e2e_xp_js
+
+# The audio taps' worklet modules: a CSP of script-src 'self' refuses a blob worklet.
+TAP_MODULES = {
+    "/__e2e/vq-tap.js": e2e_voice_quality_js.TAP_WORKLET,
+    "/__e2e/xp-tap.js": e2e_xp_js.TAP_WORKLET,
+}
+
 HEADERS_CONF = Path(__file__).resolve().parents[2] / "docker" / "web-security-headers.conf"
 _ADD_HEADER = re.compile(r'^\s*add_header\s+(\S+)\s+"([^"]*)"')
 
@@ -31,6 +40,17 @@ def _handler(directory, headers):
             for name, value in headers:
                 self.send_header(name, value)
             super().end_headers()
+
+        def do_GET(self):
+            module = TAP_MODULES.get(self.path.split("?", 1)[0])
+            if module is None:
+                return super().do_GET()
+            body = module.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
         def log_message(self, *args):
             pass
