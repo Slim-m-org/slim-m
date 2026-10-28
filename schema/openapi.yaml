@@ -1780,15 +1780,33 @@ paths:
       operationId: listInvites
       tags: [invites]
       summary: List invites. Requires CREATE_INVITE, or members_can_invite.
+      description: >
+        Newest first, one page at a time. `limit` defaults to 50 and is
+        clamped to 1-100. `before` is the code of the last invite of the
+        previous page; a page shorter than `limit` is the last one. Invites
+        revoked, expired or spent for more than 30 days are deleted.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
-          description: All invites.
+          description: One page of invites.
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Invite"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
