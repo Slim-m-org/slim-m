@@ -16,7 +16,13 @@ class StrongNoiseSuppression {
     this.supportsStrongest = false,
     required this.onChanged,
     this.log,
+    this.webrtcNoiseSuppression = _alwaysOn,
   });
+
+  static bool _alwaysOn() => true;
+
+  /// Whether libwebrtc's own suppression is on, for the log lines.
+  final bool Function() webrtcNoiseSuppression;
 
   /// Where Strong's decisions are written, so a copied debug log explains a noisy mic.
   final VoiceLog? log;
@@ -101,7 +107,8 @@ class StrongNoiseSuppression {
 
   void _log(String message, {LogLevel level = LogLevel.info}) => log?.call(
         'voice-ns: $message (strong=${_strong ? 'on' : 'off'} '
-        'strongest=${nativeStrongest ? 'on' : 'off'} webrtc_ns=on)',
+        'strongest=${nativeStrongest ? 'on' : 'off'} '
+        'webrtc_ns=${webrtcNoiseSuppression() ? 'on' : 'off'})',
         level: level,
       );
 }

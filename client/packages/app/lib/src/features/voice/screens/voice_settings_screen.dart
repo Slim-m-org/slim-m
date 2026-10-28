@@ -23,6 +23,7 @@ import '../widgets/input_sensitivity_section.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../widgets/video_quality_sections.dart';
 import '../widgets/noise_suppression_section.dart';
+import '../widgets/voice_processing_section.dart';
 import '../../../audio/hold_music_player.dart' show holdMusicAvailableProvider;
 import '../../../audio/lounge_tracks.dart';
 import '../widgets/voice_shortcuts_section.dart';
@@ -120,6 +121,7 @@ class _MicrophoneSection extends ConsumerWidget {
           AutoSensitivityToggle(),
           NoiseSuppressionSection(),
           EvenOutLoudSoundsToggle(),
+          VoiceProcessingSection(),
         ],
       );
     }

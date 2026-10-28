@@ -77,6 +77,15 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   void setEvenOutLoudSounds(bool enabled) =>
       _inputSession.setEvenOutLoudSounds(enabled);
 
+  /// Seeds the filters before any call.
+  Future<void> restoreVoiceProcessing() async {
+    await setVoiceProcessing(await loadVoiceProcessing(_inputRef));
+  }
+
+  /// Reopens a live microphone with [processing], which libwebrtc fixes at open.
+  Future<void> setVoiceProcessing(VoiceProcessing processing) =>
+      _inputSession.setVoiceProcessing(processing);
+
   NoiseSuppressionChoice _noiseSuppression =
       NoiseSuppressionChoice.spaceDefault;
   bool _spaceStrongNoiseSuppression = false;
