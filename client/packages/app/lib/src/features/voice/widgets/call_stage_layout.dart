@@ -36,6 +36,7 @@ import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
 import 'fullscreen_video_overlay.dart';
+import '../../screen_overlay/widgets/screen_overlay_banner.dart';
 import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
 import 'share_stage_grid.dart';
@@ -135,6 +136,7 @@ class CallStageLayout extends ConsumerWidget {
               padding: EdgeInsets.only(top: AppSpacing.s12),
               child: LocalScreenSharePendingBanner(),
             ),
+          const ScreenOverlayBanner(),
           if (voice.error != null && !voice.rejoining)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s12),

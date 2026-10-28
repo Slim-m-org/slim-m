@@ -52,6 +52,8 @@ import '../providers/camera_switch.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../../screen_overlay/providers/screen_overlay_controller.dart'
+    show screenOverlaySupportedProvider;
 import '../providers/voice_state.dart' show ShareAudio;
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
@@ -357,6 +359,23 @@ class _CallControlsState extends ConsumerState<CallControls> {
             ),
           ),
         ),
+      if (ref.watch(screenOverlaySupportedProvider))
+        ControlOption(
+          label: 'Let viewers draw on my screen',
+          icon: AppIcons.pen,
+          selected: ref
+              .watch(voiceSettingsControllerProvider)
+              .screenShareAllowAnnotations,
+          onSelected: () => unawaited(
+            ref
+                .read(voiceSettingsControllerProvider.notifier)
+                .setScreenShareAllowAnnotations(
+                  !ref
+                      .read(voiceSettingsControllerProvider)
+                      .screenShareAllowAnnotations,
+                ),
+          ),
+        ),
       ...videoQualityOptions(ref),
     ];
   }
@@ -427,6 +446,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
         sourceId: sourceId,
         includeAudio: settings.screenShareIncludeAudio,
         maxHeight: await screenShareCeiling(ref),
+        source: pick.source,
       );
     } finally {
       if (mounted) setState(() => _shareRequestInFlight = false);

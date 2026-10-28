@@ -93,10 +93,12 @@ class LiveQualityRestart {
       if (!sameCall() || !_ref.read(voiceControllerProvider).screenSharing) {
         return;
       }
+      final source = controller.lastShareSource;
       await controller.setScreenShare(false);
       if (!sameCall()) return;
       await controller.setScreenShare(
         true,
+        source: source,
         quality: settings.screenShareQuality,
         sourceId: sourceId,
         includeAudio: settings.screenShareIncludeAudio,

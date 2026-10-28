@@ -228,6 +228,31 @@ class SyncController extends StateNotifier<SyncStatus> {
     ended: ended,
   );
 
+  /// Relays a mark over a shared screen, or the sharer's consent; the same no-op-while-down shape.
+  void notifyCanvasScreenAnnotation(
+    String channelId,
+    String targetUserId,
+    String kind, {
+    String? annotationId,
+    List<double> points = const [],
+    String? color,
+    String? text,
+    bool ended = false,
+    bool allowed = false,
+    double? aspect,
+  }) => _connection?.canvasScreenAnnotation(
+    channelId,
+    targetUserId,
+    kind,
+    annotationId: annotationId,
+    points: points,
+    color: color,
+    text: text,
+    ended: ended,
+    allowed: allowed,
+    aspect: aspect,
+  );
+
   /// Tells the server the world rectangle this user is looking at; the same
   /// no-op-while-down shape.
   void notifyCanvasView(

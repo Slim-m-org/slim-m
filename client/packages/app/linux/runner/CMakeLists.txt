@@ -13,6 +13,8 @@ add_executable(${BINARY_NAME}
   "linux_tray_probe_channel.cc"
   "linux_second_instance_channel.cc"
   "linux_window_mapped_channel.cc"
+  "linux_screen_overlay_channel.cc"
+  "screen_overlay.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
 
@@ -25,6 +27,8 @@ add_definitions(-DAPPLICATION_ID="${APPLICATION_ID}")
 
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
-target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK PkgConfig::PANGOCAIRO)
+# dlopen of the optional gtk-layer-shell, see screen_overlay.cc.
+target_link_libraries(${BINARY_NAME} PRIVATE ${CMAKE_DL_LIBS})
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")

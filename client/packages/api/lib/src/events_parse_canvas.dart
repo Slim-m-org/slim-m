@@ -148,6 +148,29 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
+    'canvas.screen_annotation.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['target_user_id'] is String &&
+            decoded['kind'] is String &&
+            decoded['points'] is List &&
+            decoded['ended'] is bool =>
+      CanvasScreenAnnotation(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        targetUserId: decoded['target_user_id'] as String,
+        kind: decoded['kind'] as String,
+        annotationId: decoded['annotation_id'] as String?,
+        points: [
+          for (final v in decoded['points'] as List)
+            if (v is num) v.toDouble(),
+        ],
+        color: decoded['color'] as String?,
+        text: decoded['text'] as String?,
+        ended: decoded['ended'] as bool,
+        allowed: decoded['allowed'] == true,
+        aspect: (decoded['aspect'] as num?)?.toDouble(),
+      ),
     'canvas.view.updated'
         when decoded['channel_id'] is String &&
             decoded['user_id'] is String &&

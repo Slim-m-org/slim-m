@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show MediaStream;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
@@ -15,6 +16,7 @@ import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
 import 'screen_share_local.dart';
 import 'screen_share_publish.dart';
+import 'screen_share_source_size.dart';
 import 'screen_share_watch.dart';
 import 'screen_share_view.dart';
 import 'share_audio_isolation.dart';
@@ -95,6 +97,7 @@ class VoiceScreenShare {
         request;
     final room = host.room();
     if (room == null) return ScreenShareOutcome.failed;
+    if (!enabled) localShareCapturedSize.value = null;
     final outcome = await control.setEnabled(
       enabled,
       quality: quality,
@@ -108,6 +111,7 @@ class VoiceScreenShare {
         includeAudio: audio,
         quality: quality,
         maxHeight: maxHeight,
+        measureSource: _measureAndKeep,
       ),
       isSharing: () => isSharingScreen(room.localParticipant),
       onSettled: (error) {
@@ -117,6 +121,14 @@ class VoiceScreenShare {
     );
     host.refresh();
     return outcome;
+  }
+
+  Future<({int width, int height})?> _measureAndKeep(
+    MediaStream stream,
+  ) async {
+    final size = await measureCapturedSize(stream);
+    if (size != null) localShareCapturedSize.value = size;
+    return size;
   }
 
   bool get hasAudio =>

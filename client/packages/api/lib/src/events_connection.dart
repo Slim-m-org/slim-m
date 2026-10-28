@@ -236,6 +236,37 @@ class EventConnection {
         }),
       );
 
+  /// Relays a mark over [targetUserId]'s shared screen, or (kind `consent`,
+  /// sent by that sharer) whether viewers may draw. Coordinates are 0 to 1 on
+  /// the shared screen. Ephemeral and rate-limited like [canvasStrokePreview].
+  void canvasScreenAnnotation(
+    String channelId,
+    String targetUserId,
+    String kind, {
+    String? annotationId,
+    List<double> points = const [],
+    String? color,
+    String? text,
+    bool ended = false,
+    bool allowed = false,
+    double? aspect,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.screen_annotation',
+          'channel_id': channelId,
+          'target_user_id': targetUserId,
+          'kind': kind,
+          if (annotationId != null) 'annotation_id': annotationId,
+          'points': points,
+          if (color != null) 'color': color,
+          if (text != null) 'text': text,
+          'ended': ended,
+          'allowed': allowed,
+          if (aspect != null) 'aspect': aspect,
+        }),
+      );
+
   /// Relays the world rectangle this device is looking at; [summon] brings
   /// everyone to it once; [tile] is the call tile this device has full screen.
   /// Ephemeral and rate-limited like [canvasCursor].

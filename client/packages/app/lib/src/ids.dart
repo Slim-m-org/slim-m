@@ -34,6 +34,10 @@ String newCanvasOpId() => _uuidV7();
 /// once the gesture ends.
 String newCanvasDraftId() => _uuidV7();
 
+/// The same generator for one viewer's mark over a shared screen; keys its
+/// ephemeral frames and is never stored.
+String newScreenAnnotationId() => _uuidV7();
+
 /// The same generator for a channel create, minted once per sheet so a retry
 /// after a lost response replays the first create.
 String newChannelId() => _uuidV7();
