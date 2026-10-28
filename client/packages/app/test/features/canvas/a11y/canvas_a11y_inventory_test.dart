@@ -302,7 +302,7 @@ void main() {
   group('sheets and dialogs', () {
     a11yTest('the Participants sheet says who is muted', (tester) async {
       await pumpA11yCanvas(tester);
-      await runOverflowItem(tester, 'Participants');
+      await runOverflowItem(tester, 'People here');
 
       final sam = rowsNamed(tester, 'Sam');
       expect(sam, isNotEmpty);
@@ -319,7 +319,7 @@ void main() {
         tester,
       ) async {
         await pumpA11yCanvas(tester, size: entry.value);
-        await runOverflowItem(tester, 'Participants');
+        await runOverflowItem(tester, 'People here');
         final dump = dumpSemantics(tester, '${entry.key}-participants-sheet');
         final rows = semanticsRows(tester);
 

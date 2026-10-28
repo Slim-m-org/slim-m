@@ -106,7 +106,7 @@ void main() {
     tester,
   ) async {
     final s = await _openCanvasInShell(tester);
-    await runOverflowItem(tester, 'Participants');
+    await runOverflowItem(tester, 'People here');
     expect(find.text('People here'), findsOneWidget);
 
     expect(
@@ -121,7 +121,7 @@ void main() {
     tester,
   ) async {
     final s = await _openCanvasInShell(tester);
-    await runOverflowItem(tester, 'Participants');
+    await runOverflowItem(tester, 'People here');
 
     await pressKey(tester, LogicalKeyboardKey.escape);
     await settle(tester);

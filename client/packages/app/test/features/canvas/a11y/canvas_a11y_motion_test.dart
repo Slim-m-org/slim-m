@@ -165,7 +165,7 @@ void main() {
         );
         await tester.tap(find.bySemanticsLabel('More canvas actions'));
         await tester.pump();
-        await tester.tap(find.text('Participants'));
+        await tester.tap(find.text('People here'));
         await tester.pump();
         await tester.pump();
 

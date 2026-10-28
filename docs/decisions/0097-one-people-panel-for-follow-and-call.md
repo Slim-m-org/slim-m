@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0 -->
-# 0095 - One people panel for the call, following and summoning
+# 0097 - One people panel for the call, following and summoning
 
 Status: accepted
 Date: 2026-10-28

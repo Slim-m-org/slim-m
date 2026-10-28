@@ -213,7 +213,7 @@ void main() {
     ) async {
       await _pump(tester, inCall: true, size: Size(width, 800));
 
-      await tester.tap(find.text('Participants'));
+      await tester.tap(find.text('People here'));
       await tester.pumpAndSettle();
       expect(find.text('Bob'), findsOneWidget);
 
@@ -229,7 +229,7 @@ void main() {
   ) async {
     await _pump(tester, inCall: true, speaking: true);
 
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     // A speaking ring never settles, so step frames the way a running app gets them.
     for (var i = 0; i < 60; i++) {
       await tester.pump(const Duration(milliseconds: 16));
@@ -250,7 +250,7 @@ void main() {
   ) async {
     await _pump(tester, inCall: true, onlyYou: true);
 
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     await tester.pumpAndSettle();
 
     expect(find.text('You'), findsOneWidget);
@@ -268,14 +268,14 @@ void main() {
   ) async {
     await _pump(tester);
 
-    expect(find.text('Participants'), findsNothing);
+    expect(find.text('People here'), findsNothing);
   });
 
   testWidgets('Participants sheet takes focus and pane hotkeys stay quiet', (
     tester,
   ) async {
     await _pump(tester, inCall: true, paneHotkeys: true);
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     await tester.pumpAndSettle();
     expect(find.byType(CanvasPeopleSheet), findsOneWidget);
 

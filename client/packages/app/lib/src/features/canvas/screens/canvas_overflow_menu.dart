@@ -392,7 +392,7 @@ class _CanvasOverflowMenuState extends State<CanvasOverflowMenu> {
       ),
       if (widget.hasSelfBubble) ...[
         AppMenuItem(
-          label: 'Participants',
+          label: 'People here',
           leading: AppIcons.members,
           onTap: _openParticipants,
         ),
