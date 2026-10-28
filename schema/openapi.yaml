@@ -5791,6 +5791,12 @@ paths:
         still answers 200 with `ok: false`, the same as runModuleCommand.
 
 
+        On an app surface, a scene whose top-level `private` is true is
+        answered to the caller only: it is not stored and not broadcast, so
+        everyone else keeps seeing the last shared frame (decision 0099, add-on
+        API 2). A code block run ignores `private`.
+
+
         `moduleId: "code-runner"` reaches the code-runner broker here too
         (see runModuleCommand's own note), except `RUN_CODE` is evaluated for
         this message's own channel rather than at the base level, so a
@@ -8677,6 +8683,57 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /bots/{botId}/prefix:
+    parameters:
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: The bot's user id.
+    patch:
+      operationId: setBotPrefix
+      tags: [bots]
+      summary: Change the prefix a bot answers to.
+      description: >-
+        For an administrator fixing a clash without removing and re-adding the
+        bot. Needs MANAGE_SERVER and the permissions the bot's role holds,
+        like `setBotPermissions`. The `prefix` follows the same shape rules as
+        one sent to `createBot`. Two bots may share a prefix only when no
+        command name is on both, the rule registration applies: the change is
+        refused with 409 when a command this bot registered is already
+        answered by another live bot under the new prefix, and the 409 names
+        them. The bot's registered commands move with it, and a bot that
+        registers under the old prefix afterwards is refused with 409 until it
+        reconnects and reads the new one from `/me`. Recorded in the admin
+        audit log as `bot.prefix`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetBotPrefixRequest"
+      responses:
+        "200":
+          description: The bot, with its new prefix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bot"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
@@ -12773,6 +12830,18 @@ components:
           type: integer
           format: int64
           description: Pushed events its queue dropped because it fell behind.
+        queue_depth:
+          type: integer
+          format: int64
+          description: >
+            Pushed events waiting for it right now. Only the installed
+            listing carries it.
+        fuel_limit:
+          type: integer
+          format: int64
+          description: >
+            The fuel one run may burn, which `last_fuel_used` and
+            `max_fuel_used` on its run stats are read against.
     DockRunStat:
       type: object
       required:
@@ -12810,6 +12879,16 @@ components:
         max_duration_ms:
           type: integer
           format: int64
+        last_fuel_used:
+          type: integer
+          format: int64
+          description: >
+            Fuel the last run burned; absent when it could not be read (a run
+            that timed out, or one recorded before fuel was measured).
+        max_fuel_used:
+          type: integer
+          format: int64
+          description: The most fuel any run of this command has burned.
     DockStorage:
       type: object
       required: [entries, bytes, max_entries, max_bytes]
@@ -13594,6 +13673,14 @@ components:
             no-escalation check a human-assigned role goes through; a bot may
             hold any bit a human role could, including ADMINISTRATOR. See
             docs/decisions/0028-bot-accounts.md.
+    SetBotPrefixRequest:
+      type: object
+      required: [prefix]
+      properties:
+        prefix:
+          type: string
+          description: >-
+            1 to 16 characters with no whitespace and not `/`, `@` or `:`.
     SetBotPermissionsRequest:
       type: object
       required: [permissions]

@@ -298,12 +298,20 @@ Rect cellsGridRect(CellsOp op, ModuleScene scene, double sx, double sy) {
   );
 }
 
-String? sceneTapAction(ModuleScene scene, Offset tapped, Size size) {
+/// The action under [tapped], or with [secondary] the one a right click or
+/// long press there names; an op with no `alt` answers a secondary press with
+/// nothing, and the op under it is not asked instead.
+String? sceneTapAction(
+  ModuleScene scene,
+  Offset tapped,
+  Size size, {
+  bool secondary = false,
+}) {
   final sx = scene.viewWidth == 0 ? 1.0 : size.width / scene.viewWidth;
   final sy = scene.viewHeight == 0 ? 1.0 : size.height / scene.viewHeight;
   final local = tapped.translate(scene.viewLeft * sx, scene.viewTop * sy);
   for (final op in scene.ops.reversed) {
-    final action = _opTapAction(op, scene, local, sx, sy);
+    final action = _opTapAction(op, scene, local, sx, sy, secondary);
     if (action != null) return action;
   }
   return null;
@@ -315,12 +323,22 @@ String? _opTapAction(
   Offset local,
   double sx,
   double sy,
+  bool secondary,
 ) {
   Rect box(double x, double y, double w, double h) =>
       Rect.fromLTWH(x * sx, y * sy, w * sx, h * sy);
+  if (secondary) {
+    return switch (op) {
+      CellsOp() when op.alt != null && op.cols > 0 && op.rows > 0 =>
+        _cellsTapAction(op, scene, local, sx, sy, op.alt!),
+      RectOp() when op.alt != null =>
+        box(op.x, op.y, op.w, op.h).contains(local) ? op.alt : null,
+      _ => null,
+    };
+  }
   return switch (op) {
     CellsOp() when op.tap != null && op.cols > 0 && op.rows > 0 =>
-      _cellsTapAction(op, scene, local, sx, sy),
+      _cellsTapAction(op, scene, local, sx, sy, op.tap!),
     RectOp() when op.tap != null =>
       box(op.x, op.y, op.w, op.h).contains(local) ? op.tap : null,
     CircleOp() when op.tap != null =>
@@ -342,10 +360,11 @@ String? _cellsTapAction(
   Offset local,
   double sx,
   double sy,
+  String action,
 ) {
   final grid = cellsGridRect(op, scene, sx, sy);
   final col = ((local.dx - grid.left) / (grid.width / op.cols)).floor();
   final row = ((local.dy - grid.top) / (grid.height / op.rows)).floor();
   if (col < 0 || col >= op.cols || row < 0 || row >= op.rows) return null;
-  return '${op.tap}:$row,$col';
+  return '$action:$row,$col';
 }

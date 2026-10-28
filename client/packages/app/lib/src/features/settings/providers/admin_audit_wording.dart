@@ -96,6 +96,25 @@ class _Describer {
     return plain ? 'module $id' : 'a module';
   }
 
+  /// "installed module polls", with what the admin approved it to use when the log kept that.
+  String _install() {
+    final approved = change.detail['approved'];
+    final names = approved is List
+        ? approved.whereType<String>().toList()
+        : const <String>[];
+    final local = change.detail['local_network'] == true;
+    final grants = [...names, if (local) 'local network'];
+    final base = 'installed ${_module()}';
+    return grants.isEmpty ? base : '$base, approved for ${grants.join(', ')}';
+  }
+
+  String _botPrefix() {
+    final prefix = change.detail['prefix'];
+    return prefix is String
+        ? 'changed the prefix of ${_user()} to $prefix'
+        : 'changed the prefix of ${_user()}';
+  }
+
   bool get _onlyName {
     final fields = change.fields;
     return fields.length == 1 && fields.first == 'name';
@@ -135,6 +154,7 @@ class _Describer {
       'removed ${_role(change.param('role_id'))} from ${_user()}',
     'role.module_grant' => 'granted a module permission to ${_role()}',
     'role.module_revoke' => 'revoked a module permission from ${_role()}',
+    'bot.prefix' => _botPrefix(),
     'channel.create' => 'created ${_channel()}',
     'channel.reorder' => 'reordered channels',
     'channel.update' => _update(_channel()),
@@ -157,11 +177,14 @@ class _Describer {
     'emoji.create' => 'added ${_emoji()}',
     'emoji.bulk_create' => 'added several emoji',
     'emoji.delete' => 'deleted ${_emoji()}',
-    'module.install' => 'installed ${_module()}',
+    'module.install' => _install(),
     'module.uninstall' => 'removed ${_module()}',
     'module.enable' => 'turned on ${_module()}',
     'module.disable' => 'turned off ${_module()}',
     'module.schedule_channel' => 'set the schedule channel for ${_module()}',
+    'module.clear_storage' => 'cleared the stored data of ${_module()}',
+    'module.settings' => 'changed the settings of ${_module()}',
+    'module.auto_disable' => 'turned off ${_module()} after repeated failures',
     'module_source.add' => 'added a module source',
     'module_source.remove' => 'removed a module source',
     _ => _humanise(change.action),

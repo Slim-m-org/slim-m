@@ -77,6 +77,8 @@ pub struct Dock {
     inner: Option<Arc<Enabled>>,
     slot_cache: super::module_slot_cache::SlotCache,
     module_data: Arc<std::sync::OnceLock<Arc<crate::module_runtime::SqliteData>>>,
+    /// Pushed events each module has waiting, kept current by the event queue.
+    queue_depths: Arc<super::module_events::QueueDepths>,
 }
 
 struct Enabled {
@@ -95,6 +97,11 @@ impl Dock {
     /// Slot results held for a few seconds; see `module_slots`.
     pub(super) fn slot_cache(&self) -> &super::module_slot_cache::SlotCache {
         &self.slot_cache
+    }
+
+    /// The depths the event queue reports into, shared so the Dock can read them.
+    pub(super) fn queue_depths(&self) -> Arc<super::module_events::QueueDepths> {
+        Arc::clone(&self.queue_depths)
     }
 
     /// The one module data store, so its pool cache outlives any run or install.
@@ -161,6 +168,7 @@ impl Dock {
         Self {
             slot_cache: super::module_slot_cache::SlotCache::default(),
             module_data: Arc::default(),
+            queue_depths: Arc::default(),
             inner: Some(Arc::new(Enabled {
                 client: ssrf::build_client(allow_private),
                 official_bases,
@@ -180,6 +188,7 @@ impl Dock {
             inner: None,
             slot_cache: super::module_slot_cache::SlotCache::default(),
             module_data: Arc::default(),
+            queue_depths: Arc::default(),
         }
     }
 

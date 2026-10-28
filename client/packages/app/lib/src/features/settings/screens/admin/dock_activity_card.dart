@@ -21,16 +21,42 @@ String dockBytes(int bytes) {
   return '${kib.toStringAsFixed(kib < 10 ? 1 : 0)} KB';
 }
 
+/// "1.2M", "340k", "12": a fuel count a person can read at a glance.
+String dockFuel(int fuel) {
+  if (fuel >= 1000000) {
+    return '${(fuel / 1000000).toStringAsFixed(fuel < 10000000 ? 1 : 0)}M';
+  }
+  if (fuel >= 1000) {
+    return '${(fuel / 1000).toStringAsFixed(fuel < 10000 ? 1 : 0)}k';
+  }
+  return '$fuel';
+}
+
+/// "Fuel: 1.2M last run, 3.4M most, of 50M.", or nothing when no run has been read.
+String? dockFuelLine(api.DockRunStat stat, int limit) {
+  final last = stat.lastFuelUsed;
+  if (last == null && stat.maxFuelUsed == 0) return null;
+  final parts = [
+    if (last != null) '${dockFuel(last)} last run',
+    '${dockFuel(stat.maxFuelUsed)} most',
+  ].join(', ');
+  return limit > 0 ? 'Fuel: $parts, of ${dockFuel(limit)}.' : 'Fuel: $parts.';
+}
+
 class DockActivityCard extends StatelessWidget {
   const DockActivityCard({
     super.key,
     required this.stats,
     required this.storage,
     required this.onClearStorage,
+    this.fuelLimit = 0,
     this.keepsData = false,
     this.enabled = true,
     this.now,
   });
+
+  /// The fuel one run may burn, which each command's fuel is shown against.
+  final int fuelLimit;
 
   final List<api.DockRunStat> stats;
   final api.DockStorage? storage;
@@ -50,7 +76,8 @@ class DockActivityCard extends StatelessWidget {
       title: 'Activity',
       children: [
         if (stats.isEmpty) const SettingsInfoLine('It has not run yet.'),
-        for (final stat in stats) _StatRow(stat: stat, now: now),
+        for (final stat in stats)
+          _StatRow(stat: stat, fuelLimit: fuelLimit, now: now),
         if (keepsData && storage != null)
           SettingsDetailRow(
             icon: AppIcons.storage,
@@ -73,9 +100,10 @@ class DockActivityCard extends StatelessWidget {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.stat, this.now});
+  const _StatRow({required this.stat, required this.fuelLimit, this.now});
 
   final api.DockRunStat stat;
+  final int fuelLimit;
   final DateTime? now;
 
   @override
@@ -83,10 +111,13 @@ class _StatRow extends StatelessWidget {
     final failingSince = stat.failingSince;
     final ran = formatRelativeAgeMs(stat.lastRunAt, now: now);
     final runs = stat.runCount == 1 ? '1 run' : '${stat.runCount} runs';
+    final fuel = dockFuelLine(stat, fuelLimit);
     final detail = failingSince == null
         ? 'Last ran $ran. $runs, ${stat.failureCount} failed.'
+              '${fuel == null ? '' : ' $fuel'}'
         : 'Failing since ${formatRelativeAgeMs(failingSince, now: now)}'
-              '${stat.lastError == null ? '' : ': ${stat.lastError}'}';
+              '${stat.lastError == null ? '' : ': ${stat.lastError}'}'
+              '${fuel == null ? '' : ' $fuel'}';
     return SettingsDetailRow(
       icon: failingSince == null ? AppIcons.clock : AppIcons.warning,
       title: stat.command,

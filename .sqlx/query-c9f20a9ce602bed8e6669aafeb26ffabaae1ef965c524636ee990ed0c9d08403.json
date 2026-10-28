@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id AS \"id!: UserId\" FROM users WHERE id = ? AND is_bot = 1 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c9f20a9ce602bed8e6669aafeb26ffabaae1ef965c524636ee990ed0c9d08403"
+}

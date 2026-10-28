@@ -46,6 +46,7 @@ class CellsOp extends SceneOp {
     required this.palette,
     this.gap = 0,
     this.tap,
+    this.alt,
     this.tapBatch = false,
     this.box,
   });
@@ -77,6 +78,11 @@ class CellsOp extends SceneOp {
   final List<String> palette;
   final double gap;
   final String? tap;
+
+  /// The action for a secondary press (right click, or a long press on touch)
+  /// on a cell, reported as `"$alt:row,col"` like [tap]. Null leaves a
+  /// secondary press on the grid doing nothing, so it never reveals by mistake.
+  final String? alt;
 
   /// Where the grid sits, in scene units, or null for the whole scene.
   ///
@@ -115,6 +121,7 @@ class RectOp extends SceneOp {
     this.strokeWidth = 1,
     this.radius = 0,
     this.tap,
+    this.alt,
     this.sweep,
   });
 
@@ -131,6 +138,9 @@ class RectOp extends SceneOp {
   final double strokeWidth;
   final double radius;
   final String? tap;
+
+  /// The bare action for a secondary press, as [CellsOp.alt] is for a cell.
+  final String? alt;
 
   /// Motion the client plays across this op; see `module_scene_sweep.dart`.
   final SceneSweep? sweep;
@@ -404,8 +414,13 @@ class ModuleScene {
     this.controls = const [],
     this.status,
     this.live = false,
+    this.isPrivate = false,
     this.crop,
   });
+
+  /// Whether the module asked for this frame to be shown to this viewer only (decision 0099): the
+  /// host neither stores nor broadcasts it, so it is held on screen until the viewer closes it.
+  final bool isPrivate;
 
   /// The part of the canvas worth showing, in scene units, or null for all of
   /// it. See `module_scene_bounds.dart`.
@@ -420,7 +435,17 @@ class ModuleScene {
     controls: controls,
     status: status,
     live: live,
+    isPrivate: isPrivate,
     crop: crop,
+  );
+
+  /// Whether any op answers a right click or a long press.
+  bool get hasSecondary => ops.any(
+    (op) => switch (op) {
+      CellsOp() => op.alt != null,
+      RectOp() => op.alt != null,
+      _ => false,
+    },
   );
 
   double get viewLeft => crop?.left ?? 0;

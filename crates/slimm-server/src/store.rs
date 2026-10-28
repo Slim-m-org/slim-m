@@ -132,6 +132,7 @@ pub use bot_commands::{
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
     SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
+pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
@@ -196,7 +197,7 @@ pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
-pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
+pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits,

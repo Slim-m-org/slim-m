@@ -187,14 +187,14 @@ async fn an_old_manifest_installs_and_answers_without_the_new_fields() {
 #[tokio::test]
 async fn a_manifest_this_host_cannot_serve_is_refused_at_install() {
     let mut future = platform_manifest();
-    future["addon_api"] = json!(2);
+    future["addon_api"] = json!(3);
     let s = setup("slimm-platform-future", manifest("1.0.0", &future)).await;
     let body = json!({ "version": "1.0.0" });
     let (status, error) = s
         .send("POST", "/space/dock/modules/xp/install", Some(body))
         .await;
     assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert!(error.to_string().contains("add-on API 2"), "{error}");
+    assert!(error.to_string().contains("add-on API 3"), "{error}");
 }
 
 #[tokio::test]

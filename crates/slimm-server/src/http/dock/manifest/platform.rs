@@ -9,8 +9,8 @@ use serde_json::Value;
 use super::{ManifestError, bounded, malformed, settings};
 use crate::store::{ModulePlatform, ModuleSettingDef, ModuleSlot};
 
-/// The `addon_api` this host implements.
-pub(in crate::http) const SUPPORTED_ADDON_API: i64 = 1;
+/// The `addon_api` this host implements: 2 adds private scenes (decision 0099).
+pub(in crate::http) const SUPPORTED_ADDON_API: i64 = 2;
 const MAX_SUBSCRIPTIONS: usize = 8;
 const MAX_SLOTS: usize = 4;
 const MAX_SLOT_NAME: usize = 64;

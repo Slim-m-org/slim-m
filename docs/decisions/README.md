@@ -107,3 +107,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0095](0095-group-dms.md) | Group DMs: 3 to 8 participants, a roster table beside the pair table, blocks gate adds, a call rings everyone | accepted |
 | [0096](0096-screen-overlay.md) | Viewers draw on a shared screen, shown by a click-through overlay on the sharer's real screen | accepted |
 | [0097](0097-one-people-panel-for-follow-and-call.md) | One people panel for the call, following and summoning | accepted |
+| [0099](0099-private-scenes.md) | A scene can be private to the person who pressed, which needs add-on API 2 | accepted |

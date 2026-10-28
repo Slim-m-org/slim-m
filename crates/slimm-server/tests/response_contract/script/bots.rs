@@ -196,6 +196,14 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         json!({ "permissions": 0 }),
     )
     .await;
+    c.json(
+        "setBotPrefix",
+        "PATCH",
+        &format!("/bots/{bot_id}/prefix"),
+        root,
+        json!({ "prefix": "~" }),
+    )
+    .await;
     c.bare(
         "reissueBotToken",
         "POST",
