@@ -2,18 +2,9 @@
 /// One channel's Voice Canvas sync, behind a provider rather than a
 /// [State] field.
 ///
-/// [CanvasEngine] owns exactly what used to live directly on
-/// `_CanvasPaneState`: the document, the cursor and stroke-preview relays,
-/// the media-slot sync, the activity log, the op stream reconciler and the
-/// live-event subscription that feeds it. `CanvasPane` becomes a consumer
-/// that reads this and wires it to widgets; it neither constructs nor tears
-/// any of it down itself.
-///
-/// [canvasEngineProvider] is `.autoDispose.family`, keyed on channel id: one
-/// instance per open canvas, torn down the instant nothing watches it any
-/// more. That teardown is the whole point - without it, closing the canvas
-/// would leave this still listening for live frames and still holding the
-/// document's decoded bitmaps, for a pane nobody can see.
+/// [canvasEngineProvider] is `.autoDispose.family` keyed on channel id: one
+/// instance per open canvas, torn down the instant nothing watches it, so a
+/// closed canvas never keeps listening for live frames or holding bitmaps.
 library;
 
 import 'dart:async';
@@ -31,12 +22,13 @@ import '../../../providers/app_lifecycle.dart';
 import '../../../providers/live_events.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/sync_controller.dart';
-import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_flags.dart';
 import 'canvas_activity_log.dart';
 import 'canvas_board_pager.dart';
 import 'canvas_commit_queue.dart';
+import 'canvas_cursor_label.dart';
 import 'canvas_cursor_relay.dart';
+import 'canvas_engine_state.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_fullscreen.dart';
 import 'canvas_image_hydrator.dart';
@@ -54,43 +46,9 @@ import 'canvas_view_follower.dart';
 import 'canvas_view_relay.dart';
 import 'canvas_sync.dart';
 
+export 'canvas_engine_state.dart';
+
 part 'canvas_engine_reads.dart';
-
-/// [CanvasEngine.state]'s own shape: the three fields that used to be plain
-/// `setState`-driven fields on `_CanvasPaneState` and still need to trigger a
-/// rebuild when they change. Everything else the engine owns is a
-/// `Listenable`/`ChangeNotifier` of its own, painted straight from
-/// `CanvasPaneBody` without going through this at all.
-class CanvasEngineState {
-  const CanvasEngineState({
-    this.loading = true,
-    this.error,
-    this.truncated = false,
-    this.paging,
-  });
-
-  final bool loading;
-  final String? error;
-  final bool truncated;
-
-  /// How much of the board has arrived while the rest is still being read, or
-  /// null once the whole board is here.
-  final CanvasPaging? paging;
-
-  CanvasEngineState copyWith({
-    bool? loading,
-    String? error,
-    bool clearError = false,
-    bool? truncated,
-    CanvasPaging? paging,
-    bool clearPaging = false,
-  }) => CanvasEngineState(
-    loading: loading ?? this.loading,
-    error: clearError ? null : (error ?? this.error),
-    truncated: truncated ?? this.truncated,
-    paging: clearPaging ? null : (paging ?? this.paging),
-  );
-}
 
 /// One channel's canvas: fetch, live sync, and every helper that reads or
 /// writes its document.
@@ -295,7 +253,7 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       paletteSize: AppCanvasColors.cursors.length,
       send: (x, y) => sync.notifyCanvasCursor(channelId, x, y),
       sendLeft: (x, y) => sync.notifyCanvasCursor(channelId, x, y, left: true),
-      resolveLabel: _cursorLabel,
+      resolveLabel: (userId) => canvasCursorLabel(_ref, userId),
       isBlocked: (userId) => _ref.read(blocksProvider).contains(userId),
       selfId: () => _ref.read(meProvider).valueOrNull?.id,
       canSend: _cursorHasAudience,
@@ -441,25 +399,6 @@ class CanvasEngine extends StateNotifier<CanvasEngineState> {
       ..applyPlaced(input)
       ..refresh();
     hydrator.hydrate(object);
-  }
-
-  /// A remote cursor's label as of the last resolved answer, kicking off a
-  /// fetch for an id this session has not asked about yet - the same
-  /// resolve-then-fall-back order `authorLabel` uses for a message author,
-  /// minus the local `authorDisplayName` cache a cursor has no row to carry.
-  ///
-  /// Inlines what `resolveAuthorProfiles` does rather than calling it: that
-  /// helper takes a `WidgetRef`, and this engine only ever holds the
-  /// provider-side `Ref` riverpod hands a notifier's own `create`.
-  String _cursorLabel(String userId) {
-    final profiles = _ref.read(batchProfilesControllerProvider);
-    unawaited(
-      _ref.read(batchProfilesControllerProvider.notifier).resolve({userId}),
-    );
-    if (profiles.containsKey(userId)) {
-      return profiles[userId]?.displayName ?? 'Deleted user';
-    }
-    return 'Someone';
   }
 
   void _onHardReset() {
