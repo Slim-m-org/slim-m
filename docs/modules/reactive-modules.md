@@ -370,18 +370,18 @@ The event is only a trigger.
 
 1. Read the cursor: `data.store` `get` on `meta` where `name` is `voice_cursor`.
 2. Read `log.read` `voice.sessions` after that cursor.
-3. For each member in the rows, make their row if it is missing (`insert`, treating `a unique column already holds that value` as success).
-4. Claim the member's newest session with a conditional `update`: set `last_session` to the session id where `user_id` matches and `last_session` is less than it.
+3. Read the rows of the members in the batch with one `query` using `in`, and make the missing ones with one multi-row `insert` (if another run made one first the insert is refused whole, so make them one by one with an `upsert` whose `add` is all zeroes, which leaves an existing row alone).
+4. For each member, take their newest session and pay for it in one conditional `update`: set `last_session` to the session id and `add` the XP and the voice time, `where` `user_id` matches and `last_session` is less than the id.
    If `changed` is 0, an earlier run already took it, so skip the member.
-5. Only after the claim, `increment` the member's `xp` by the sessions' worth.
-6. Write the cursor with `upsert` on `name`, using the id of the last row handled.
+   Sessions at or below the `last_session` read in step 3 are left out of the sum.
+5. Write the cursor with `upsert` on `name`, using the id of the last row handled.
 
-The claim is what makes it safe to run twice: two overlapping runs, a lost cursor write or a repeated event cannot pay one session twice.
-A crash between the claim and the `increment` loses that payment instead of doubling it, which is the right side to fail on.
+The conditional `update` is both the claim and the payment, so two overlapping runs, a lost cursor write or a repeated event cannot pay one session twice, and a crash cannot take the claim without the payment.
 The cursor is moved last and only for rows that were handled, so a failed run reads the same rows again.
 
 It also counts its calls.
-The 64-call budget covers up to 5 calls per member plus 2 for the pass (the log read and the cursor write), so one run handles about a dozen members and moves the cursor to just before the next, and the schedule finishes a backlog over several runs.
+A pass spends 4 besides the members (the log read, the member rows, the new rows and the cursor write) and one per member, so one run handles up to 50 members and the schedule finishes a backlog over several runs.
+A message is two calls: an `upsert` with an all-zero `add` to make the row, and a conditional `update` that takes the cooldown slot and pays.
 
 Time with others is `left_at_ms - joined_at_ms - alone_ms`, and the `only_with_others` setting decides whether time alone is paid.
 
