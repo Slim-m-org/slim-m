@@ -125,7 +125,7 @@ mixin VoiceSessionMicRecovery {
           level: LogLevel.warning,
         );
       }
-      _micWatchdog.reset();
+      _micWatchdog.refundRestart();
       unawaited(_applyInputGate());
       return;
     }

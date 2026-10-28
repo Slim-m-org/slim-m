@@ -114,4 +114,37 @@ void main() {
 
     expect(rig.restarts, 0);
   });
+
+  test('a silence blamed on the gate gives back only its own restart', () {
+    var clock = DateTime(2026);
+    var gateStalled = false;
+    var captureRestarts = 0;
+    var gaveUp = 0;
+    late final SilentMicWatchdog dog;
+    dog = SilentMicWatchdog(
+      timing: _timing,
+      now: () => clock,
+      onSilent: () {
+        if (gateStalled) return dog.refundRestart();
+        captureRestarts++;
+      },
+      onGaveUp: () => gaveUp++,
+    );
+    void feed(int seconds) {
+      for (var i = 0; i < seconds; i++) {
+        clock = clock.add(const Duration(seconds: 1));
+        dog.observe(kInputFloorDb, active: true);
+      }
+    }
+
+    feed(11);
+    gateStalled = true;
+    feed(200);
+    gateStalled = false;
+    feed(600);
+
+    expect(captureRestarts, 3,
+        reason: 'the first real restart was not refilled');
+    expect(gaveUp, 1);
+  });
 }

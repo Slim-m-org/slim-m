@@ -232,6 +232,13 @@ class SilentMicWatchdog {
     _liveSince = null;
   }
 
+  /// The silence just reported was the input gate's, not the capture's: gives back that
+  /// restart so a stalled gate cannot spend, or refill, the budget for a truly dead mic.
+  void refundRestart() {
+    if (_restarts > 0) _restarts--;
+    _nextAllowed = null;
+  }
+
   void reset() {
     _silentSince = null;
     _liveSince = null;
