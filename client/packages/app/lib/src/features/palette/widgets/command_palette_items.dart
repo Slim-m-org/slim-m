@@ -4,6 +4,8 @@
 /// plain top-level functions a test can call without pumping a tree.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +16,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/dms.dart';
+import '../../channels/widgets/new_group_dm_sheet.dart';
 import '../../settings/providers/personal_space_visibility.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../../routing/routes.dart';
@@ -309,6 +312,23 @@ List<PaletteResultItem> buildActionItems(String query, int permissions) {
         leading: AppIcons.settings,
         onSelect: (context, ref) async => context.push(Routes.spaceSettings),
       ),
+    PaletteResultItem(
+      label: 'New group message',
+      kind: PaletteKind.action,
+      leading: AppIcons.members,
+      // After the palette has closed, from a context that outlives it: never a sheet stacked on the palette.
+      onSelect: (context, ref) async {
+        final shell = GoRouter.of(context).routerDelegate.navigatorKey;
+        unawaited(
+          Future<void>.microtask(() {
+            final host = shell.currentContext;
+            if (host != null && host.mounted) {
+              unawaited(showNewGroupDmSheet(host));
+            }
+          }),
+        );
+      },
+    ),
   ];
   if (query.isEmpty) return actions;
   final q = query.toLowerCase();

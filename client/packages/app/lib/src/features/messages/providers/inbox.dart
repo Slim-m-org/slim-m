@@ -40,7 +40,7 @@ List<_Waiting> _waiting(
   for (final channel in channels) {
     final indicator = unreadIndicatorFor(
       channelOverride: overrides.effectiveFor(channel),
-      isDm: channel.dmParticipantId != null,
+      isDm: channel.dmParticipantId != null || channel.isGroupDm,
       unread: channel.cursor > channel.lastReadSeq,
       mentioned: channel.mentionedSeq > channel.lastReadSeq,
       manuallyUnread: channel.manuallyUnread ?? false,

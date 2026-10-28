@@ -409,6 +409,14 @@ class CallRingEnded extends ServerEvent {
   final CallOutcome outcome;
 }
 
+/// A group DM's roster or custom name changed; re-read the DM list. Carries
+/// only the channel id, matching the server's own frame.
+class DmChanged extends ServerEvent {
+  const DmChanged({required this.channelId});
+
+  final String channelId;
+}
+
 /// The moderation queue or history changed: a report was filed or resolved,
 /// or a moderation act was recorded. Carries nothing beyond the type tag,
 /// matching the server's own frame - only a connection holding

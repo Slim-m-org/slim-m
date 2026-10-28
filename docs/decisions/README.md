@@ -104,5 +104,6 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0092](0092-server-hardening-review-answers.md) | Server hardening review answers: strict peer moderation, own factor for TOTP policy, the rest accepted | accepted |
 | [0093](0093-attachment-text-extraction.md) | Search matches text inside text, code and PDF attachments, extracted in the background and bounded | accepted |
 | [0094](0094-canvas-mouse-controls-and-zoom-bounds.md) | Canvas mouse controls: right-hold tool wheel, board-cover zoom floor, screen-feel pen size | accepted |
+| [0095](0095-group-dms.md) | Group DMs: 3 to 8 participants, a roster table beside the pair table, blocks gate adds, a call rings everyone | accepted |
 | [0096](0096-screen-overlay.md) | Viewers draw on a shared screen, shown by a click-through overlay on the sharer's real screen | accepted |
 | [0097](0097-one-people-panel-for-follow-and-call.md) | One people panel for the call, following and summoning | accepted |

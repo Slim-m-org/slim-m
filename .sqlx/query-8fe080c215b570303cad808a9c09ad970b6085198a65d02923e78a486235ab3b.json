@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT channel_id AS \"channel_id!: ChannelId\"\n               FROM dm_channels\n               WHERE user_a = ? OR user_b = ?",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\" FROM group_dm_members WHERE user_id = ?",
   "describe": {
     "columns": [
       {
@@ -10,11 +10,11 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 1
     },
     "nullable": [
       false
     ]
   },
-  "hash": "169227166bae9f38e39f46a01c9fba7a62c06d1b5615087c92ad070ce3722ab5"
+  "hash": "8fe080c215b570303cad808a9c09ad970b6085198a65d02923e78a486235ab3b"
 }

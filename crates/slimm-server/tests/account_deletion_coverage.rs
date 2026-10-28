@@ -97,6 +97,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("admin_audit_log", "actor_id", OnDelete::Anonymize),
     ("dm_hides", "user_id", OnDelete::Purge),
+    ("group_dm_members", "user_id", OnDelete::Purge),
+    ("group_dm_members", "added_by", OnDelete::Anonymize),
     ("invite_redemptions", "user_id", OnDelete::Purge),
     (
         "installed_modules",

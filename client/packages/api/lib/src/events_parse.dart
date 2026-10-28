@@ -9,6 +9,8 @@ ServerEvent? _coreFrame(Map<String, dynamic> decoded) {
     'reports.changed' => const ReportsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
+    'dm.changed' when decoded['channel_id'] is String =>
+      DmChanged(channelId: decoded['channel_id'] as String),
     _ => null,
   };
 }

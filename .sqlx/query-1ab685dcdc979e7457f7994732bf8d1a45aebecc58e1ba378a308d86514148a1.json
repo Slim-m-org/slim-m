@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT g.channel_id AS \"channel_id!: ChannelId\",\n                      c.created_at AS \"created_at!\",\n                      c.name AS \"name!\",\n                      COALESCE(\n                          (SELECT m.created_at FROM messages m\n                           WHERE m.channel_id = g.channel_id AND m.deleted_at IS NULL\n                           ORDER BY m.seq DESC LIMIT 1),\n                          c.created_at\n                      ) AS \"activity_at!: i64\"\n               FROM group_dm_members g\n               JOIN channels c ON c.id = g.channel_id AND c.deleted_at IS NULL\n               WHERE g.user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "created_at!",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "activity_at!: i64",
+        "ordinal": 3,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "1ab685dcdc979e7457f7994732bf8d1a45aebecc58e1ba378a308d86514148a1"
+}

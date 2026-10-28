@@ -30,6 +30,7 @@ import 'channel_rail_section_label.dart';
 import 'channel_rail_selection_marker.dart';
 import '../../../widgets/context_menu_region.dart' show ContextMenuRegionState;
 import 'dm_row.dart';
+import 'new_group_dm_sheet.dart';
 import '../../settings/widgets/personal_space_row.dart';
 import '../providers/channel_latest_message_at.dart';
 
@@ -69,7 +70,15 @@ class DirectMessagesSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('Direct messages'),
+        SectionLabel(
+          'Direct messages',
+          trailingBuilder: (revealed, onFocusChange) => SectionAddGlyph(
+            revealed: revealed,
+            onFocusChange: onFocusChange,
+            semanticLabel: 'New group message',
+            onPressed: () => showNewGroupDmSheet(context),
+          ),
+        ),
         SelectionMarkerTarget(
           selected: personal != null && personal.id == selectedId,
           child: PersonalSpaceRow(

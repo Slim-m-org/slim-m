@@ -62,6 +62,7 @@ mod error;
 mod escalation;
 mod extract;
 pub mod gifs;
+mod group_dms;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interaction_forms;
@@ -288,6 +289,7 @@ pub fn router(state: AppState) -> Router {
         .merge(safety::routes())
         .merge(data_exports::routes())
         .merge(dms::routes())
+        .merge(group_dms::routes())
         .merge(search::routes())
         .merge(space::routes())
         .merge(join_gate::routes())

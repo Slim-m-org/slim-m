@@ -160,6 +160,8 @@ impl Store {
         sqlx::query!("DELETE FROM dm_hides WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;
+        // No group should keep naming a tombstone; the rest of each group keeps its history.
+        Self::leave_all_group_dms(&mut tx, user_id).await?;
         sqlx::query!("DELETE FROM linked_accounts WHERE user_id = ?", user_id)
             .execute(&mut *tx)
             .await?;

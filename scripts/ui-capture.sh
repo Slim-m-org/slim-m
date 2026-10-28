@@ -74,6 +74,7 @@ JOBS=(
   "personal-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_personal_panes_test.dart"
   "notification-voice-panes|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_notification_voice_panes_test.dart"
   "noise-suppression|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_noise_suppression_test.dart"
+  "group-dm|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_group_dm_test.dart"
   "space-config|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_space_config_test.dart"
   "rail-avatars|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_avatars_test.dart"
   "rail-declutter|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/ui_snapshot_rail_declutter_test.dart"

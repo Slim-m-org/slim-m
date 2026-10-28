@@ -9,6 +9,8 @@ part of 'message_store.dart';
 /// caller reaches through the type; this runs in the store's own library, so
 /// it uses [MessageStore.db] directly.
 
+String? _joinMemberIds(List<String> ids) => ids.isEmpty ? null : ids.join(',');
+
 /// Replaces the known channel list, keeping each channel's local cursor and
 /// read marker, which the server's channel list does not carry.
 Future<void> _upsertChannels(
@@ -27,6 +29,7 @@ Future<void> _upsertChannels(
           position: Value(channel.position),
           isPersonalSpace: Value(channel.isPersonalSpace),
           dmParticipantId: Value(channel.dmParticipantId),
+          dmMemberIds: Value(_joinMemberIds(channel.dmMemberIds)),
           parentMessageId: Value(channel.parentMessageId),
           categoryId: Value(channel.categoryId),
           slowModeSeconds: Value(channel.slowModeSeconds),
@@ -46,6 +49,7 @@ Future<void> _upsertChannels(
             position: Variable(channel.position),
             isPersonalSpace: Variable(channel.isPersonalSpace),
             dmParticipantId: Variable(channel.dmParticipantId),
+            dmMemberIds: Variable(_joinMemberIds(channel.dmMemberIds)),
             parentMessageId: Variable(channel.parentMessageId),
             categoryId: Variable(channel.categoryId),
             slowModeSeconds: Variable(channel.slowModeSeconds),

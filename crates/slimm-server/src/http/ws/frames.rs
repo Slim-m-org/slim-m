@@ -262,6 +262,9 @@ pub(super) enum ServerFrame {
         ring_id: String,
         outcome: String,
     },
+    /// A group DM's roster or name changed; see [`crate::hub::Event::DmChanged`].
+    #[serde(rename = "dm.changed")]
+    DmChanged { channel_id: String },
     #[serde(rename = "canvas.object.placed")]
     CanvasObjectPlaced {
         channel_id: String,

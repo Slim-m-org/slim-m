@@ -23,6 +23,7 @@ import '../../voice/widgets/dm_call_button.dart';
 import '../../voice/screens/voice_text_pane.dart'
     show VoiceChatAction, voiceChatPaneVisibleProvider;
 import 'channel_title_glyph.dart';
+import 'group_dm_members_sheet.dart';
 import 'channel_topic_text.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
 import '../../messages/widgets/threads_sheet.dart';
@@ -56,11 +57,21 @@ class CompactChannelAppBar extends ConsumerWidget
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final channel = ref.watch(channelByIdProvider(channelId)).valueOrNull;
-    return _bar(channel, tokens, ref.watch(voiceChatPaneVisibleProvider));
+    return _bar(
+      context,
+      channel,
+      tokens,
+      ref.watch(voiceChatPaneVisibleProvider),
+    );
   }
 
   // `ChannelHeader` and the wide voice header draw this hairline on a `Container`; a Material `AppBar` needs its own.
-  AppBar _bar(Channel? channel, AppTokens tokens, bool voiceChatOpen) {
+  AppBar _bar(
+    BuildContext context,
+    Channel? channel,
+    AppTokens tokens,
+    bool voiceChatOpen,
+  ) {
     final isVoice = channel?.kind == 'voice';
     // See `ChannelHeader.isDm`'s own doc comment for why.
     final isDm = channel?.kind == 'dm';
@@ -81,6 +92,10 @@ class CompactChannelAppBar extends ConsumerWidget
         isDm: isDm,
         isPersonalSpace: channel?.isPersonalSpace ?? false,
         dmParticipantId: channel?.dmParticipantId,
+        groupMemberIds: channel?.groupMemberIds ?? const [],
+        onTap: (channel?.isGroupDm ?? false)
+            ? () => showGroupDmMembersSheet(context, channelId)
+            : null,
       ),
       // A voice channel has neither a message to find nor a message to pin,
       // so those two would be controls that cannot do anything.
@@ -109,6 +124,8 @@ class _Title extends StatelessWidget {
     required this.isDm,
     required this.isPersonalSpace,
     required this.dmParticipantId,
+    this.groupMemberIds = const [],
+    this.onTap,
     this.restricted = false,
   });
 
@@ -118,6 +135,10 @@ class _Title extends StatelessWidget {
   final bool isDm;
   final bool isPersonalSpace;
   final String? dmParticipantId;
+  final List<String> groupMemberIds;
+
+  /// A group's title opens its members sheet, so no extra toolbar button crowds the name.
+  final VoidCallback? onTap;
 
   /// See `ChannelHeader.restricted`'s own doc comment; this bar is that
   /// header's compact-width equivalent for the same channel.
@@ -127,7 +148,7 @@ class _Title extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final topic = this.topic;
-    return Column(
+    final column = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -141,12 +162,14 @@ class _Title extends StatelessWidget {
               isDm: isDm,
               isPersonalSpace: isPersonalSpace,
               dmParticipantId: dmParticipantId,
+              groupMemberIds: groupMemberIds,
             ),
             const SizedBox(width: AppSpacing.s8),
             Flexible(
               child: Text(
                 name,
-                maxLines: 1,
+                // A group's default name is a list of people, so it may take two lines.
+                maxLines: groupMemberIds.isEmpty ? 1 : 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppText.body.copyWith(
                   color: tokens.textPrimary,
@@ -158,6 +181,13 @@ class _Title extends StatelessWidget {
         ),
         if (topic != null && topic.isNotEmpty) ChannelTopicText(topic: topic),
       ],
+    );
+    final tap = onTap;
+    if (tap == null) return column;
+    return Semantics(
+      button: true,
+      hint: 'Group members',
+      child: InkWell(onTap: tap, child: column),
     );
   }
 }

@@ -67,10 +67,11 @@ extension SyncControllerEvents on SyncController {
       case ChannelDeleted(:final channelId):
         await _onChannelDeleted(channelId, store);
       case OverwriteChanged():
+      case DmChanged():
       case RoleChanged():
       case MemberRoleChanged():
       case CategoryChanged():
-        // None say which channel (or category) changed; a refresh finds it.
+        // None say which channel (or category) changed, or who joined a group; a refresh finds it.
         await _channelRefresher.refreshAfterChange(
           api,
           store,

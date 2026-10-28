@@ -241,9 +241,18 @@ impl Store {
         );
         let blocked = self.blocked_either_way(user_id, &peers).await?;
 
+        // A channel with no pair row may be a group; see `Store::dm_permissions`.
+        let unpaired: Vec<ChannelId> = channel_ids
+            .iter()
+            .copied()
+            .filter(|id| !other_party.contains_key(id))
+            .collect();
+        let groups = self.group_memberships_among(user_id, &unpaired).await?;
+
         let mut result = HashMap::with_capacity(channel_ids.len());
         for &channel_id in channel_ids {
             let perms = match other_party.get(&channel_id) {
+                None if groups.contains(&channel_id) => DM_BASE,
                 None => Permissions::NONE,
                 Some(other) if *other != user_id && blocked.contains(other) => {
                     DM_BASE.remove(BLOCKED_DENY)
