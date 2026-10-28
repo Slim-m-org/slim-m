@@ -279,6 +279,7 @@ It also fixes the plugin's Linux and Windows task runners, which ran each task w
 Two make the video renderer cheaper: it creates its pixel buffer once, and converts a frame at the drawn size rather than the full frame.
 The latest runs `getStats` off the platform thread too, since a stats poll during a camera open waited behind it for 1.5 to 1.9 s, and guards upstream's map of Unified Plan remote tracks with a lock, since it is written on the signaling thread and read on the platform thread.
 It adds a microphone noise gate and level meter on the capture path, described in `docs/voice-input-gate.md`.
+The Linux and Windows plugin also builds DeepFilterNet 3 (`third_party/dfn`, Rust through tract, MIT or Apache-2.0) with cargo for the Strongest noise suppression choice, so a desktop build needs a Rust toolchain or falls back to Strong; Cargo.lock pins it and about 28 MB (15 MB gzipped) is added to the plugin.
 On Windows an unpicked microphone opens the communications default device, and playback stays on the console default.
 The audio session's ducking opt-out is what stops Windows turning every other app down during a call.
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.

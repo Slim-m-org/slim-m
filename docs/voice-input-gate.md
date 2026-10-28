@@ -77,6 +77,27 @@ Voice settings offers "Space default", "Standard" and "Strong" (`slimm.voice.noi
 "Space default" follows `space_settings.strong_noise_suppression` (migration 0109), which a server manager sets on the Retention and limits pane and every client reads from `/version`; it is off unless an admin turns it on.
 No event announces that setting, so a call rereads it when it starts and then every minute, and a member on "Space default" switches live; a failed read keeps the last known value rather than falling back to Standard.
 
+## Strongest noise suppression
+
+"Strongest" runs DeepFilterNet 3 (libDF 0.5.6 through tract, MIT or Apache-2.0, the model embedded in the library) in the same capture step, on Linux and Windows.
+It removes much more than rnnoise of typing, door slams, music and fans; see `docs/research/deepfilternet-evaluation.md` for the numbers, what it does not fix (barks, babble) and the cost.
+The fork builds it with cargo into a static library (`third_party/dfn`), so a desktop build needs a Rust toolchain; without cargo the build warns and Strongest runs as Strong.
+Windows ARM64 is built without it for the same reason: tract's assembly kernels were not checked there.
+The model is loaded only when Strongest is chosen, off the audio thread, and takes about 60 ms and 48 MB; it is let go when another choice is made and the next frame arrives.
+
+DeepFilterNet turns down the first words after a quiet spell, so rnnoise keeps running beside it.
+Its speech probability still feeds the gate, one frame late to match DeepFilterNet's extra frame of delay.
+When the probability stays above 0.5 for five frames after 200 ms without it, the output is rnnoise's for 200 ms from the word start, fading back over 100 ms, and half rnnoise's while the speech goes on; both only where DeepFilterNet is at least 2 dB under rnnoise on a frame louder than -50 dBFS.
+That took the clipped word starts on the evaluation material from 55 of 168 to 6, against 2 for rnnoise alone.
+
+If the model is missing, fails to load or returns a bad frame, rnnoise keeps running alone, so a call never has less suppression than was chosen.
+`getInputGate` reports `strongestNoiseSuppression` (DeepFilterNet processed the last frame) beside `strongNoiseSuppression`; with Strongest chosen the settings note "Strongest isn't running on this mic." follows the first, after the same 2 s of polls.
+`setInputGate` takes `strongestNoiseSuppression`, which an older native build ignores.
+
+Voice settings offers Strongest as a fourth choice, only where the host can run it (Linux and Windows); the Space default stays Standard or Strong, because the server setting is one boolean.
+A saved Strongest on a host that cannot run it is Strong.
+The picker is a select row (a sheet on a phone), because four choices wrap in a segmented row at 390 px wide.
+
 ## Automatic sensitivity
 
 Owner, 2026-10-14: "option to automatically determine input sensitivity".

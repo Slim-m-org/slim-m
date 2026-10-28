@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/voice/providers/noise_suppression.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_settings_screen.dart';
-import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_app/src/features/settings/widgets/settings_select_row.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_settings_screen_harness.dart';
@@ -50,6 +50,7 @@ http.Client _client({required bool spaceStrong}) => MockClient((request) async {
 Future<FakeSession> _pump(
   WidgetTester tester, {
   bool spaceStrong = false,
+  bool strongestSupported = true,
 }) async {
   final session = FakeSession(supportsInputGate: true);
   addTearDown(session.dispose);
@@ -57,6 +58,7 @@ Future<FakeSession> _pump(
     wrap(
       const VoiceSettingsBody(),
       overrides: [
+        strongestSupportedProvider.overrideWithValue(strongestSupported),
         sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
         apiProvider.overrideWith((ref) {
           final api = SlimmApi(
@@ -81,8 +83,20 @@ ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(VoiceSettingsBody)));
 
 Finder _picker() => find.byWidgetPredicate(
-  (w) => w is AppSegmentedControl && w.semanticLabel == 'Noise suppression',
+  (w) =>
+      w is SettingsSelectRow<NoiseSuppressionChoice> &&
+      w.label == 'Noise suppression',
 );
+
+NoiseSuppressionChoice _shown(WidgetTester tester) =>
+    tester.widget<SettingsSelectRow<NoiseSuppressionChoice>>(_picker()).value!;
+
+Future<void> _choose(WidgetTester tester, String label) async {
+  await tester.tap(_picker());
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -112,12 +126,90 @@ void main() {
     );
   });
 
+  test('Strongest runs rnnoise too, and only where the host can run it', () {
+    for (final spaceStrong in [true, false]) {
+      expect(
+        NoiseSuppressionChoice.strongest.isStrong(spaceStrong: spaceStrong),
+        isTrue,
+      );
+    }
+    expect(
+      NoiseSuppressionChoice.strongest.isStrongest(supported: true),
+      isTrue,
+    );
+    expect(
+      NoiseSuppressionChoice.strongest.isStrongest(supported: false),
+      isFalse,
+      reason: 'a saved Strongest on an unsupported host is Strong',
+    );
+    expect(NoiseSuppressionChoice.strong.isStrongest(supported: true), isFalse);
+    expect(
+      NoiseSuppressionChoice.parse('strongest'),
+      NoiseSuppressionChoice.strongest,
+    );
+    expect(
+      NoiseSuppressionChoice.offered(supported: true),
+      contains(NoiseSuppressionChoice.strongest),
+    );
+    expect(
+      NoiseSuppressionChoice.offered(supported: false),
+      isNot(contains(NoiseSuppressionChoice.strongest)),
+    );
+  });
+
+  testWidgets('the picker offers Strongest on a supported host', (
+    tester,
+  ) async {
+    await _pump(tester);
+    await tester.tap(_picker());
+    await tester.pumpAndSettle();
+    expect(find.text('Strongest'), findsOneWidget);
+  });
+
+  testWidgets('the picker hides Strongest on an unsupported host', (
+    tester,
+  ) async {
+    await _pump(tester, strongestSupported: false);
+    await tester.tap(_picker());
+    await tester.pumpAndSettle();
+    expect(find.text('Strong'), findsOneWidget);
+    expect(find.text('Strongest'), findsNothing);
+  });
+
+  testWidgets(
+    'picking Strongest says it uses more CPU and reaches the session',
+    (tester) async {
+      final session = await _pump(tester);
+      await _choose(tester, 'Strongest');
+
+      expect(
+        find.text('Strongest removes the most noise and uses more CPU.'),
+        findsOneWidget,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('slimm.voice.noise_suppression'), 'strongest');
+      expect(session.lastStrongNoiseSuppression, isTrue);
+      expect(session.lastStrongestNoiseSuppression, isTrue);
+    },
+  );
+
+  testWidgets('a saved Strongest on an unsupported host runs as Strong', (
+    tester,
+  ) async {
+    final session = await _pump(tester, strongestSupported: false);
+    _container(tester)
+        .read(voiceControllerProvider.notifier)
+        .setNoiseSuppression(NoiseSuppressionChoice.strongest);
+    expect(session.lastStrongNoiseSuppression, isTrue);
+    expect(session.lastStrongestNoiseSuppression, isFalse);
+  });
+
   testWidgets('it starts on Space default and says what the Space uses', (
     tester,
   ) async {
     await _pump(tester, spaceStrong: true);
     expect(_picker(), findsOneWidget);
-    expect(tester.widget<AppSegmentedControl>(_picker()).selectedIndex, 0);
+    expect(_shown(tester), NoiseSuppressionChoice.spaceDefault);
     expect(find.text('This Space uses Strong.'), findsOneWidget);
   });
 
@@ -125,10 +217,9 @@ void main() {
     tester,
   ) async {
     final session = await _pump(tester);
-    tester.widget<AppSegmentedControl>(_picker()).onSegmentSelected(2);
-    await tester.pumpAndSettle();
+    await _choose(tester, 'Strong');
 
-    expect(tester.widget<AppSegmentedControl>(_picker()).selectedIndex, 2);
+    expect(_shown(tester), NoiseSuppressionChoice.strong);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString('slimm.voice.noise_suppression'), 'strong');
     expect(session.lastStrongNoiseSuppression, isTrue);
@@ -175,10 +266,16 @@ void main() {
       FakeSession session,
       int count, {
       required bool active,
+      bool strongestActive = false,
     }) async {
       for (var i = 0; i < count; i++) {
         session.inputGateController.add(
-          InputGateReading(levelDb: -40, voice: false, strongActive: active),
+          InputGateReading(
+            levelDb: -40,
+            voice: false,
+            strongActive: active,
+            strongestActive: strongestActive,
+          ),
         );
       }
       await tester.pumpAndSettle();
@@ -197,6 +294,28 @@ void main() {
       expect(find.text(note), findsOneWidget);
       await poll(tester, session, 1, active: true);
       expect(find.text(note), findsNothing);
+      await hangUp(tester);
+    });
+
+    testWidgets('Strongest is judged on DeepFilterNet and named in the note', (
+      tester,
+    ) async {
+      final session = await join(
+        tester,
+        choice: NoiseSuppressionChoice.strongest,
+      );
+      await poll(tester, session, kStrongInactivePolls, active: true);
+      expect(find.text("Strongest isn't running on this mic."), findsOneWidget);
+      expect(find.text(note), findsNothing);
+
+      await poll(
+        tester,
+        session,
+        kStrongActivePolls,
+        active: true,
+        strongestActive: true,
+      );
+      expect(find.text("Strongest isn't running on this mic."), findsNothing);
       await hangUp(tester);
     });
 
