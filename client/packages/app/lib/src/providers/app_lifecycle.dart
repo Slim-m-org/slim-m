@@ -80,6 +80,15 @@ final appFocusedProvider = Provider<bool>(
   (ref) => ref.watch(appLifecycleProvider) == AppLifecycleState.resumed,
 );
 
+/// Whether the window is on screen, focused or not: a desktop window behind
+/// another app reports `inactive` and is still being watched, say mid-call.
+bool isWindowVisible(AppLifecycleState state) =>
+    state == AppLifecycleState.resumed || state == AppLifecycleState.inactive;
+
+final appVisibleProvider = Provider<bool>(
+  (ref) => isWindowVisible(ref.watch(appLifecycleProvider)),
+);
+
 /// Whether a timer-driven refresh of [context] would be seen: the app is in
 /// the foreground and no route or tab above it has turned tickers off.
 bool isSeenNow(BuildContext context) {

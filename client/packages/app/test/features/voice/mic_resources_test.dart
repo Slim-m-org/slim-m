@@ -215,6 +215,14 @@ void main() {
     await tester.pump();
     expect(rig.session.levelDisplayedCalls.last, isTrue);
 
+    _lifecycle(tester, AppLifecycleState.inactive);
+    await tester.pump();
+    expect(
+      rig.session.levelDisplayedCalls.last,
+      isTrue,
+      reason: 'an unfocused window is still on screen mid-call',
+    );
+
     _lifecycle(tester, AppLifecycleState.hidden);
     expect(
       rig.session.levelDisplayedCalls.last,
@@ -234,7 +242,7 @@ void main() {
     await _end(tester, rig);
   });
 
-  testWidgets('a speaking ring stops pulsing when the window loses focus', (
+  testWidgets('a speaking ring keeps pulsing unfocused and stops when hidden', (
     tester,
   ) async {
     final container = ProviderContainer();
@@ -253,6 +261,11 @@ void main() {
     expect(tester.hasRunningAnimations, isTrue);
 
     _lifecycle(tester, AppLifecycleState.inactive);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.hasRunningAnimations, isTrue, reason: 'unfocused, on screen');
+
+    _lifecycle(tester, AppLifecycleState.hidden);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(tester.binding.hasScheduledFrame, isFalse);

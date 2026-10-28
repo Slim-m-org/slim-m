@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/app_lifecycle.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_roster.dart';
@@ -53,7 +52,6 @@ class _Rig {
       overrides: [
         apiProvider.overrideWithValue(apiClient),
         liveEventsProvider.overrideWithValue(events.stream),
-        appFocusedProvider.overrideWithValue(true),
         voiceRosterSocketLiveProvider.overrideWithValue(false),
       ],
     );
@@ -75,6 +73,8 @@ class _Rig {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test(
     'polls never overlap and the newest answer is the one on screen',
     () async {

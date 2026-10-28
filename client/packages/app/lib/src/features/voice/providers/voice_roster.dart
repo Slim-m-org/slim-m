@@ -12,6 +12,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
@@ -113,15 +114,17 @@ final voiceRosterProvider = StreamProvider.autoDispose
         channelId,
         controller,
         isLive: () => ref.read(voiceRosterSocketLiveProvider),
-        isFocused: () => ref.read(appFocusedProvider),
+        isVisible: () => isWindowVisible(ref.read(appLifecycleProvider)),
         onCallStart: (start) =>
             ref.read(voiceRosterStartProvider(channelId).notifier).state =
                 start,
       );
       unawaited(poller.tick());
 
-      ref.listen(appFocusedProvider, (_, focused) {
-        if (focused) {
+      ref.listen<AppLifecycleState>(appLifecycleProvider, (was, now) {
+        final visible = isWindowVisible(now);
+        if (was != null && isWindowVisible(was) == visible) return;
+        if (visible) {
           unawaited(poller.tick());
         } else {
           poller.pause();
@@ -129,7 +132,7 @@ final voiceRosterProvider = StreamProvider.autoDispose
       });
 
       final liveSub = ref.read(liveEventsProvider).listen((event) {
-        if (_eventChannelId(event) == channelId && poller.isFocused()) {
+        if (_eventChannelId(event) == channelId && poller.isVisible()) {
           unawaited(poller.tick());
         }
       });
@@ -157,7 +160,7 @@ class _RosterPoller {
     this._channelId,
     this._controller, {
     required this.isLive,
-    required this.isFocused,
+    required this.isVisible,
     required this.onCallStart,
   });
 
@@ -165,7 +168,7 @@ class _RosterPoller {
   final String _channelId;
   final StreamController<List<api.VoiceRosterParticipant>> _controller;
   final bool Function() isLive;
-  final bool Function() isFocused;
+  final bool Function() isVisible;
   final void Function(DateTime? start) onCallStart;
   Timer? _timer;
   bool _stopped = false;
@@ -230,7 +233,7 @@ class _RosterPoller {
 
   void _schedule() {
     _timer?.cancel();
-    if (_stopped || !isFocused() || _controller.isClosed) return;
+    if (_stopped || !isVisible() || _controller.isClosed) return;
     final delay = voiceRosterDelay(
       live: isLive(),
       failures: _consecutiveFailures,
