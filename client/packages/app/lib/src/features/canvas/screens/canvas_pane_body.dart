@@ -104,6 +104,7 @@ class CanvasPaneBody extends StatefulWidget {
     this.onDraftEnded,
     this.onDraftCancel,
     this.callParticipants = const [],
+    this.blockedTileKeys = const {},
     required this.cameraViewFor,
     required this.screenShareViewFor,
     required this.tileOverrides,
@@ -258,6 +259,9 @@ class CanvasPaneBody extends StatefulWidget {
   /// own tile used to live in a separate, screen-anchored overlay and no
   /// longer does.
   final List<VoiceParticipant> callParticipants;
+
+  /// Blocked callers' tile keys: hidden, but still counted when default tile spots are laid out.
+  final Set<String> blockedTileKeys;
   final CameraViewBuilder cameraViewFor;
   final ScreenShareViewBuilder screenShareViewFor;
 
@@ -375,6 +379,7 @@ class _CanvasPaneBodyState extends State<CanvasPaneBody> {
 
   @override
   Widget build(BuildContext context) {
+    _presenceFrames.layoutOnlyKeys = widget.blockedTileKeys;
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final size = MediaQuery.sizeOf(context);
     final compact = size.width < kCompactWidth;
