@@ -414,8 +414,13 @@ class ModuleScene {
     this.controls = const [],
     this.status,
     this.live = false,
+    this.isPrivate = false,
     this.crop,
   });
+
+  /// Whether the module asked for this frame to be shown to this viewer only (decision 0099): the
+  /// host neither stores nor broadcasts it, so it is held on screen until the viewer closes it.
+  final bool isPrivate;
 
   /// The part of the canvas worth showing, in scene units, or null for all of
   /// it. See `module_scene_bounds.dart`.
@@ -430,6 +435,7 @@ class ModuleScene {
     controls: controls,
     status: status,
     live: live,
+    isPrivate: isPrivate,
     crop: crop,
   );
 

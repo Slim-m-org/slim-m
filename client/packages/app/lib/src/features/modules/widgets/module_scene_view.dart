@@ -142,6 +142,8 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   void didUpdateWidget(ModuleSceneView old) {
     super.didUpdateWidget(old);
     if (old.initial.state == widget.initial.state) return;
+    // A private board is this viewer's alone: another player's frame does not take it away.
+    if (_scene.isPrivate) return;
     if (_isOwnWork(widget.initial.state)) {
       _rememberOwn(widget.initial.state);
       if (_scene.state != widget.initial.state) {

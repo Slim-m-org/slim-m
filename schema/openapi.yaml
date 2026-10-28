@@ -5603,6 +5603,12 @@ paths:
         still answers 200 with `ok: false`, the same as runModuleCommand.
 
 
+        On an app surface, a scene whose top-level `private` is true is
+        answered to the caller only: it is not stored and not broadcast, so
+        everyone else keeps seeing the last shared frame (decision 0099, add-on
+        API 2). A code block run ignores `private`.
+
+
         `moduleId: "code-runner"` reaches the code-runner broker here too
         (see runModuleCommand's own note), except `RUN_CODE` is evaluated for
         this message's own channel rather than at the base level, so a

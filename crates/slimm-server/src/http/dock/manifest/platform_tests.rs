@@ -66,9 +66,14 @@ fn an_old_manifest_keeps_its_review_digest() {
 
 #[test]
 fn a_higher_addon_api_than_the_host_supports_is_refused_with_a_reason() {
-    let reason = refusal(&manifest_with(json!({"addon_api": 2}), &[]));
-    assert!(reason.contains("add-on API 2"), "{reason}");
-    assert!(parse_manifest(manifest_with(json!({"addon_api": 1}), &[]).as_bytes()).is_ok());
+    let reason = refusal(&manifest_with(json!({"addon_api": 3}), &[]));
+    assert!(reason.contains("add-on API 3"), "{reason}");
+    assert!(reason.contains("up to 2"), "{reason}");
+    for supported in [1, 2] {
+        assert!(
+            parse_manifest(manifest_with(json!({"addon_api": supported}), &[]).as_bytes()).is_ok()
+        );
+    }
     assert!(refusal(&manifest_with(json!({"addon_api": -1}), &[])).contains("negative"));
 }
 

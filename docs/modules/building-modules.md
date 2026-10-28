@@ -501,6 +501,20 @@ The module reads `action` and `state`, computes the next frame, and returns a ne
 Return a scene with `live: false` to stop, or a non-scene/error to end with a message.
 Because the frame is stored and broadcast, every viewer of the message sees the same evolving surface, and a long step runs once for everyone.
 
+### Private scenes
+
+A scene with `"private": true` at the top level answers only the person who pressed.
+On an `app` the host runs the command as usual and sends the output back to that person, but does not store it as the message's frame and does not broadcast it, so everyone else keeps seeing the last shared frame.
+The client shows a private frame in place of the shared one and holds shared frames back while it is up; a control that makes the module answer with a scene that is not private (Word Guess calls it `close`) brings the shared frame back.
+A code block run is not a surface, so `private` is ignored there.
+
+A private board must not live in `state`: on a shared surface the host hands the module the stored frame's state whatever the client sends.
+Keep it in `data.store`, keyed by `caller.id`, which also means the viewer's copy decides nothing and cannot be forged.
+A private frame is not stored, so it is gone on reload; give the player a control that asks for their board again.
+
+Private scenes are add-on API 2: declare `"addon_api": 2` and a server that supports only 1 refuses the install ("update the server") rather than showing the board to the channel.
+See decision 0099.
+
 The Game of Life reference module (`slim-addons/modules/game-of-life`) is the worked example of this whole loop.
 
 ## Limits and the security model
