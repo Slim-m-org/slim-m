@@ -9,10 +9,10 @@
 .github/workflows/client-macos-ci.yml 3
 .github/workflows/compose-smoke.yml 16
 .github/workflows/flatpak-ci.yml 5
-.github/workflows/hygiene.yml 10
+.github/workflows/hygiene.yml 3
 .github/workflows/main-builds.yml 7
 .github/workflows/push-relay-contract.yml 6
-.github/workflows/release.yml 30
+.github/workflows/release.yml 13
 .github/workflows/schema-ci.yml 8
 .github/workflows/server-ci.yml 7
 Cargo.toml 11

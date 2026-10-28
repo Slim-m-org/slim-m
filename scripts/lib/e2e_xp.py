@@ -34,12 +34,6 @@ def ev_json(client, expr):
     return json.loads(client.ev(f"JSON.stringify({expr})") or "null")
 
 
-def allow_tap_worklet(client):
-    """The page's CSP refuses the tap's blob worklet, so this browser ignores the policy."""
-    client.send("Page.enable")
-    client.send("Page.setBypassCSP", {"enabled": True})
-
-
 @contextlib.contextmanager
 def two_browsers(server, secret, admin_api, sign_in, wavs, names=("vqa", "vqb")):
     """Both browsers signed in with the hooks installed; the caller joins the call."""
@@ -49,7 +43,6 @@ def two_browsers(server, secret, admin_api, sign_in, wavs, names=("vqa", "vqb"))
     with e2e_browsers.browser(names[0], wavs[0]) as one, \
             e2e_browsers.browser(names[1], wavs[1]) as two:
         for client, user in ((one, names[0]), (two, names[1])):
-            allow_tap_worklet(client)
             e2e_audio.install(client, extra=script)
             sign_in(client, server, user, secret)
             e2e_browsers.dismiss_welcome(client)
@@ -67,7 +60,6 @@ def one_listener(server, secret, admin_api, sign_in, wav, name="vqb"):
     """One signed-in browser already in the voice channel, with the hooks installed."""
     e2e_browsers.register(server, admin_api, name, secret)
     with e2e_browsers.browser(name, wav) as client:
-        allow_tap_worklet(client)
         e2e_audio.install(client, extra=init_script())
         sign_in(client, server, name, secret)
         e2e_browsers.dismiss_welcome(client)

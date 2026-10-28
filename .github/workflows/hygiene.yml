@@ -46,76 +46,12 @@ jobs:
           npm ci --ignore-scripts
           node check-parses.mjs
 
-      # e2e.yml runs these too, but only post-merge and advisory; this is the
-      # pull_request gate on them, and needs no server to do it.
-      - name: unit tests for the e2e harness's scenario logic
-        working-directory: scripts/lib
-        run: python3 -m unittest discover -p 'test_*.py' -v
-
-      - name: ios purpose strings are present
-        run: bash scripts/check-ios-purpose-strings.sh
-
-      - name: ios broadcast extension is wired up
-        run: bash scripts/check-ios-broadcast-wired.sh
-
-      # The lock-screen preview is a second process reading one key out of the
-      # keychain, and a keychain query is a search over attributes: any one of
-      # them differing between the two sides finds nothing at all, silently,
-      # and the notification quietly keeps saying "New message". None of these
-      # strings is checked by a compiler on either side, so they are checked
-      # here. Every value is read out of the file that owns it rather than
-      # written down twice in this script.
-      - name: ios notification service extension is wired up
-        run: bash scripts/check-ios-nse-wired.sh
-      - name: orientation is locked on phones only
-        run: bash scripts/check-orientation-lock.sh
-
-      - name: no emoji in UI source
-        run: scripts/check-no-emoji.sh
-
-      - name: SPDX headers on Dart source
-        run: bash scripts/check-spdx-dart.sh
-
-      - name: SPDX headers on Rust source
-        run: bash scripts/check-spdx-rust.sh
-
-      # Warns at 300 and past 500, fails only well past it; see the script header.
-      - name: file size budget
-        run: bash scripts/check-file-budget.sh
-
-      # Ratchets the one-line comment cap: a file may not gain a new run, and
-      # the pre-existing ones are listed at their count. See the script header.
-      - name: comment cap
-        run: bash scripts/check-comment-cap.sh
-
-      # An API failure caught and shown with a SnackBar regressed back three
-      # times over a persistent AppErrorState. See the script header.
-      - name: no API failure is caught and shown with a SnackBar
-        run: python3 scripts/check-error-surface.py
-
-      # TECHNICAL_DEBT CA1: `data.dart` exporting a drift row as `Message`
-      # coupled most of `app` to drift transitively. See the script header.
-      - name: data.dart exports Message as a plain DTO, not a drift row
-        run: python3 scripts/check-message-dto-boundary.py
-
-      # A duplicate version, or an edit to one already on main, only fails at
-      # a deployed server's startup - which took the live instance down for
-      # five hours on 2026-08-13. See the script header.
-      - name: no migration collides or changes under a deployed database
-        run: python3 scripts/check-migration-versions.py
-
-      # The unscoped MediaQuery.of(context) rebuilds on every MediaQueryData
-      # field; a 2026-08 audit found a dozen keyboard-avoidance call sites
-      # copy-pasted with it instead of the scoped accessor. See the script
-      # header and scripts/media-query-of-allow.txt.
-      - name: no unscoped MediaQuery.of(context) outside the allowlist
-        run: python3 scripts/check-media-query-scope.py
-
-      # CLAUDE.md sends reviewers to docs/ci.md as the authoritative workflow
-      # list, and an undocumented workflow is invisible there rather than
-      # wrong-looking. See the script header.
-      - name: every workflow is in the docs/ci.md table
-        run: python3 scripts/check-ci-docs.py
+      # The same list a contributor runs locally, so the two cannot drift.
+      # It includes the scripts/lib unittests, which e2e.yml runs too, but only
+      # post-merge and advisory; this is the pull_request gate on them. Each
+      # gate's rationale is in its own script header.
+      - name: hygiene gates
+        run: bash scripts/gates.sh
 
       # The shell was the one layer nothing checked: 22 workflows, ~84 inline
       # `run:` blocks and 14 scripts orchestrating every build and deploy, with

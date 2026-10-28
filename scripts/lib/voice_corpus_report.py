@@ -5,6 +5,7 @@ usage: voice_corpus_report.py <label>=<corpus.json> [<label>=<corpus.json> ...]
 A repeated label pools its files into one column.
 Each cell is bursts / loud windows / dropouts / ViSQOL / worst peak over the reference (dB),
 each clip is played in one direction.
+The last row is the seconds the alignment lost and the largest step in delay (ms), summed and maxed over both directions.
 """
 import json
 import sys
@@ -33,6 +34,22 @@ def rollup(results, categories, into=None):
     return out
 
 
+def timing_rollup(results, into=None):
+    """`{profile: {lost_s, max_step_ms}}`: audio the alignment could not follow, and the worst jump in delay."""
+    out = into if into is not None else {}
+    for profile, sides in results.items():
+        cell = out.setdefault(profile, {"lost_s": 0.0, "max_step_ms": 0.0})
+        for side in sides.values():
+            timing = side.get("timing", {})
+            cell["lost_s"] = round(cell["lost_s"] + timing.get("lost_s", 0.0), 2)
+            cell["max_step_ms"] = max(cell["max_step_ms"], timing.get("max_step_ms", 0.0))
+    return out
+
+
+def timing_text(cell):
+    return "-" if cell is None else f"{cell['lost_s']:.2f} / {cell['max_step_ms']:.1f}"
+
+
 def cell_text(cell, expected=None):
     """One cell; a clip count that differs from the row's is shown, because the sums are then not comparable."""
     if cell is None:
@@ -53,8 +70,8 @@ def _total(cells):
         "peak": max(c["peak"] for c in done)}
 
 
-def table(profile, rolled, order=corpus.CATEGORIES):
-    """Markdown rows for one profile: a column per label in `rolled` = `{label: rollup}`."""
+def table(profile, rolled, order=corpus.CATEGORIES, timings=None):
+    """Markdown rows for one profile: a column per label in `rolled` = `{label: rollup}`; `timings` adds a lost-audio row."""
     labels = list(rolled)
     lines = [f"| category ({HEAD}) | " + " | ".join(labels) + " |",
              "|---|" + "---|" * len(labels)]
@@ -67,20 +84,25 @@ def table(profile, rolled, order=corpus.CATEGORIES):
     totals = [_total([rolled[label].get(profile, {}).get(cat) for cat in order])
               for label in labels]
     lines.append("| all clips | " + " | ".join(cell_text(t) for t in totals) + " |")
+    if timings:
+        lines.append("| lost s / max delay step ms | "
+                     + " | ".join(timing_text(timings.get(label, {}).get(profile)) for label in labels) + " |")
     return "\n".join(lines)
 
 
 def main(argv):
     categories = {c["id"]: c["category"] for c in corpus.load_manifest()["clips"]}
-    rolled = {}
+    rolled, timings = {}, {}
     for arg in argv[1:]:
         label, path = arg.split("=", 1)
         with open(path, encoding="utf-8") as fh:
-            rolled[label] = rollup(json.load(fh), categories, rolled.get(label))
+            results = json.load(fh)
+        rolled[label] = rollup(results, categories, rolled.get(label))
+        timings[label] = timing_rollup(results, timings.get(label))
     profiles = sorted({p for r in rolled.values() for p in r})
     for profile in profiles:
         print(f"\n### {profile}\n")
-        print(table(profile, rolled))
+        print(table(profile, rolled, timings=timings))
 
 
 if __name__ == "__main__":

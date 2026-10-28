@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+import json
 import os
 import tempfile
 import unittest
@@ -15,6 +16,30 @@ class ClearPreviousRun(unittest.TestCase):
                 open(os.path.join(root, name), "w").close()
             vq.clear_previous_run(root)
             self.assertEqual(sorted(os.listdir(root)), ["clip-A.wav"])
+
+
+class Provenance(unittest.TestCase):
+    def test_a_run_records_the_commit_the_variant_and_every_knob(self):
+        os.environ["E2E_VQ_VARIANT"] = "dtx-off"
+        os.environ["E2E_VQ_SECONDS"] = "9"
+        self.addCleanup(os.environ.pop, "E2E_VQ_VARIANT")
+        self.addCleanup(os.environ.pop, "E2E_VQ_SECONDS")
+        with tempfile.TemporaryDirectory() as root:
+            vq.write_provenance(root, ["clean", "burst"])
+            with open(os.path.join(root, vq.PROVENANCE_FILE)) as fh:
+                stamp = json.load(fh)
+        self.assertRegex(stamp["commit"], r"^[0-9a-f]{40}$")
+        self.assertIsInstance(stamp["dirty"], bool)
+        self.assertEqual(stamp["variant"], "dtx-off")
+        self.assertEqual(stamp["profiles"], ["clean", "burst"])
+        self.assertEqual(stamp["env"], {"E2E_VQ_SECONDS": "9", "E2E_VQ_VARIANT": "dtx-off"})
+        self.assertRegex(stamp["started_utc"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+
+    def test_a_new_run_starts_without_the_last_ones_stamp(self):
+        with tempfile.TemporaryDirectory() as root:
+            open(os.path.join(root, vq.PROVENANCE_FILE), "w").close()
+            vq.clear_previous_run(root)
+            self.assertEqual(os.listdir(root), [])
 
 
 class StagedClips(unittest.TestCase):

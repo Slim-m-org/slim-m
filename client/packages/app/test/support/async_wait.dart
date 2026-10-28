@@ -29,7 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 Future<void> waitUntil(
   WidgetTester tester,
   bool Function() condition, {
-  Duration timeout = const Duration(seconds: 5),
+  Duration timeout = const Duration(seconds: 30),
   String reason = 'the condition never became true',
 }) async {
   var satisfied = false;

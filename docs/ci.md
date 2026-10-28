@@ -18,7 +18,7 @@ Each section below is named for its workflow file.
 | `client-ios-ci` | changes under `client/packages/app/ios/`, `rtc/`, `platform/`, `data/`, the pubspec files, on pull requests and pushes to `main` | every `Runner` source file is registered in `project.pbxproj` (ubuntu, always), the iOS CallKit XCTest and extension-embeds-no-frameworks checks on macOS, and an unsigned Release-configuration device build when a native-relevant path changed |
 | `schema-ci` | changes under `schema/`, `redocly.yaml` on pull requests; every push to `main` unconditionally, and every merge queue entry (`merge_group`, which ignores path filters) | redocly lint, the additive-only oasdiff gate against a PR's base on pull requests, and the same gate against the immediate parent commit on every push to `main` (required for a release; see below) |
 | `audio-ci` | changes under `assets/audio/` or the client's bundled copy in `client/packages/app/assets/audio/` | the sixteen interface sounds and the CallKit ringtone rebuild to the bytes that are committed, and the palette keeps its levels |
-| `hygiene` | every pull request, and every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | iOS purpose strings, the iOS broadcast extension is wired up, orientation is locked on phones only, no emoji in UI source, SPDX headers on Rust source, the file-size budget, the comment cap, and the `scripts/lib` unit tests, which include the two structural gates on `required_checks` |
+| `hygiene` | every pull request, and every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | iOS purpose strings, the iOS broadcast extension is wired up, orientation is locked on phones only, no emoji in UI source, SPDX headers on Rust source, the file-size budget, the comment cap, the test-pattern ratchet, and the `scripts/lib` unit tests, which include the two structural gates on `required_checks` |
 | `advisory-watchdog` | a daily schedule, and by hand | nothing. It opens a deduplicated GitHub issue for a security advisory against a dependency and closes it once the tree is clean; the trigger `licenses` deliberately does not carry |
 | `licenses` | changes to any dependency manifest or lockfile or to `deny.toml`; every push to `main`, and every merge queue entry (`merge_group`, which ignores path filters) | every Rust crate's and every pub package's license is in the one allowlist |
 | `sonar` | every pull request from this repository (a fork's PR has no secret to scan with) and every push to `main` | advisory SonarQube Cloud analysis (maintainability, duplication, complexity) under the `SONAR_TOKEN` secret, scoped by `sonar-project.properties`; never a required check |
@@ -106,6 +106,9 @@ A direct multi-commit push to `main` bypassing that convention would only diff t
 Details, in [ci-details.md](ci-details.md#schema-ci): OpenAPI 3.0 `nullable` in a 3.1 schema.
 
 ## hygiene
+
+Most of its gates run through `scripts/gates.sh`, the same command to run locally (after `git add`, since gates skip untracked files).
+The PR title check, actionlint and shellcheck are separate steps.
 
 Details, in [ci-details.md](ci-details.md#hygiene): The shell, which nothing checked until 2026-09-11; The e2e harness's own unit tests; iOS purpose strings; The iOS broadcast extension is wired up; Orientation is locked on phones only; No emoji in UI source; SPDX headers on Rust source; The file-size budget; The comment cap.
 
@@ -199,6 +202,8 @@ Details, in [ci-details.md](ci-details.md#push-relay-contract): No `token:` inpu
 ## release
 
 The full release and publish pipeline.
+The steps of `linux-client`, `android-client`, `ios-testflight` and the COPR submit live in the `release-*` composite actions under `.github/actions/`, so `release.yml` stays under the file budget.
+The jobs keep their `environment`, secrets, `needs` and `if:` gates; a composite cannot read those, so the version, tag and tokens arrive as inputs and the signing secrets as the job's env.
 
 Details, in [ci-details.md](ci-details.md#release): How a release is cut; The schema package cuts its own tag; The release PR's own checks; Gating publish on the commit's own CI; A queued run is not an in-flight run; release-tag-watchdog closes the detection gap the fix alone leaves open; The watchdog re-dispatches a release that verify timed out on; server-image and server-image-merge; server-binaries and server-release-assets; linux-client; copr; android-client; ios-testflight; Build numbers and build names, on both mobile jobs.
 
