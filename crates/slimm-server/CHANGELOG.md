@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.103.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.102.0...server-v0.103.0) (2026-10-28)
+
+
+### Features
+
+* v119, linux share audio without echo, noise suppression logging, mic fallback, canvas full screen and tools, call reliability ([#2317](https://github.com/Slim-m-org/slim-m/issues/2317)) ([56679d0](https://github.com/Slim-m-org/slim-m/commit/56679d0f1dbedc25f9eebc3a933fa977706cfa23)), closes [#2302](https://github.com/Slim-m-org/slim-m/issues/2302) [#2303](https://github.com/Slim-m-org/slim-m/issues/2303) [#2304](https://github.com/Slim-m-org/slim-m/issues/2304) [#2305](https://github.com/Slim-m-org/slim-m/issues/2305) [#2306](https://github.com/Slim-m-org/slim-m/issues/2306) [#2307](https://github.com/Slim-m-org/slim-m/issues/2307) [#1796](https://github.com/Slim-m-org/slim-m/issues/1796) [#1982](https://github.com/Slim-m-org/slim-m/issues/1982) [#2285](https://github.com/Slim-m-org/slim-m/issues/2285)
+
 ## [0.102.0](https://github.com/Slim-m-org/slim-m/compare/server-v0.101.0...server-v0.102.0) (2026-10-24)
 
 
