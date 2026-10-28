@@ -129,6 +129,7 @@ mod space;
 mod space_banner;
 mod space_icon;
 mod space_link_previews;
+mod space_setup;
 mod still_picture;
 mod storage;
 mod surface_state;
@@ -263,6 +264,7 @@ pub fn router(state: AppState) -> Router {
         .merge(invites::routes())
         .merge(invite_page::routes())
         .merge(space_link_previews::routes())
+        .merge(space_setup::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())
         .merge(member_nicknames::routes())

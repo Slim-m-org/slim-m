@@ -10,6 +10,7 @@ pub mod blobs;
 pub mod bot_ui;
 pub mod call_history;
 pub mod canvas_text;
+pub mod capacity;
 pub mod code_runner;
 pub mod components;
 pub mod config;

@@ -19,6 +19,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../../providers/admin_providers.dart';
 import '../../../../routing/routes.dart';
 import '../../../../widgets/analytics_bar_chart.dart';
+import '../../../admin_setup/widgets/capacity_card.dart';
 import '../../../messages/widgets/attachment_format.dart' show formatByteSize;
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_meter_row.dart';
@@ -66,6 +67,7 @@ class _MetricsView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      const CapacityCard(),
       _SystemCard(
         metrics: metrics,
         onRefresh: () => ref.invalidate(serverMetricsProvider),

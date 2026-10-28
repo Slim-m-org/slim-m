@@ -23,7 +23,7 @@
 //! handle.
 
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -152,6 +152,11 @@ impl Media {
             upload_timeout: DEFAULT_UPLOAD_TIMEOUT,
             temp_root: None,
         })
+    }
+
+    /// A directory on the volume the uploads live on, for reading free disk.
+    pub fn volume_dir(&self) -> &Path {
+        &self.attachments_dir
     }
 
     /// A media store rooted in a fresh temp directory. Mirrors

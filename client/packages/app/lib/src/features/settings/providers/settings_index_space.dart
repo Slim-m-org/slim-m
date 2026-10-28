@@ -234,6 +234,12 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['history', 'changes', 'admin', 'log'],
     conditional: true,
   ),
+  SettingsEntry(
+    _metricsPage,
+    'This server',
+    description: 'Estimates from load tests, a range and not a promise.',
+    keywords: ['capacity', 'cores', 'ram', 'disk', 'how many people', 'size'],
+  ),
   SettingsEntry(_metricsPage, 'System', keywords: ['cpu', 'memory']),
   SettingsEntry(_metricsPage, 'Request volume by class'),
   SettingsEntry(_metricsPage, 'Slowest routes', keywords: ['latency']),

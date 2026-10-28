@@ -83,6 +83,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         "space.link_previews",
         None,
     ),
+    route(
+        Method::POST,
+        "/space/setup/complete",
+        "space.setup_complete",
+        None,
+    ),
     route(Method::POST, "/space/icon", "space.icon_set", None),
     route(Method::DELETE, "/space/icon", "space.icon_clear", None),
     route(Method::POST, "/space/banner", "space.banner_set", None),

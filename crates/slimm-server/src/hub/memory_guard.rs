@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// See "Choosing the reserve" above.
-const RESERVE_BYTES: u64 = 64 * 1024 * 1024;
+pub const RESERVE_BYTES: u64 = 64 * 1024 * 1024;
 
 /// See "Caching" above.
 const CACHE_TTL: Duration = Duration::from_millis(250);

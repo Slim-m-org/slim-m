@@ -175,6 +175,14 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "welcome_author_id",
         OnDelete::Keep("the system welcome principal, never a person's account"),
     ),
+    (
+        "space_settings",
+        "setup_claimed_by",
+        OnDelete::Keep(
+            "only decides who is offered the one-time setup; a tombstoned id \
+             names nobody and matches no signed-in admin",
+        ),
+    ),
     ("totp_challenges", "user_id", OnDelete::Purge),
     ("totp_recovery_codes", "user_id", OnDelete::Purge),
     ("user_blocks", "blocked_id", OnDelete::Purge),
