@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Needs, from the calling job's env: COPR_CONFIG. The calling job checks it before this runs, in a fedora container with git and copr-cli installed.
+name: release copr submit
+description: Submit the Fedora package for the client release to COPR.
+
+inputs:
+  version:
+    description: client version, from release-please's client_version output
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: submit to COPR
+      shell: "bash -e {0}"
+      env:
+        VER: ${{ inputs.version }}
+      run: |
+        set -uo pipefail
+        spec=packaging/rpm/slim-m-client.spec
+        if [ ! -f "$spec" ]; then
+          echo "::warning::${spec} does not exist, so there is nothing to submit to COPR. Skipping."
+          exit 0
+        fi
+        mkdir -p ~/.config
+        printf '%s\n' "$COPR_CONFIG" > ~/.config/copr
+        chmod 600 ~/.config/copr
+        rpmdev-setuptree
+        # A macro file rather than a --define, because spectool and rpmbuild both read it and only one of them is guaranteed to take the flag.
+        printf '%%app_version %s\n' "$VER" >> ~/.rpmmacros
+        cp "$spec" ~/rpmbuild/SPECS/slim-m-client.spec
+        # spectool below fetches remote sources only, so the local ones have to be placed by hand or rpmbuild -bs fails on a missing Source.
+        cp packaging/rpm/top.npcserver.slimm.desktop packaging/rpm/slim-m-client.repo \
+          packaging/rpm/slim-m-client-update-helper packaging/rpm/top.npcserver.slimm.update.policy \
+          packaging/linux/icons/top.npcserver.slimm*.png \
+          packaging/linux/icons/top.npcserver.slimm.svg ~/rpmbuild/SOURCES/
+        # Stamp the version only when the spec hardcodes it. A spec that expands a macro there already has the value and must not be edited.
+        if ! grep -q '^Version:.*%{' ~/rpmbuild/SPECS/slim-m-client.spec; then
+          sed -i "s/^Version:.*/Version:        ${VER}/" ~/rpmbuild/SPECS/slim-m-client.spec
+        fi
+        # COPR's buildroot has no network, so Source0 has to travel inside the SRPM. spectool downloads it here, while there is still a network.
+        spectool -g -R ~/rpmbuild/SPECS/slim-m-client.spec
+        rpmbuild -bs ~/rpmbuild/SPECS/slim-m-client.spec >/dev/null
+        srpm=$(ls ~/rpmbuild/SRPMS/slim-m-client-*.src.rpm)
+        if copr-cli build nc1107/slim-m "$srpm" --nowait; then
+          echo "submitted slim-m-client ${VER} to COPR (nc1107/slim-m)"
+        else
+          echo "::warning::COPR submit failed for slim-m-client ${VER}. The .rpm is on the release; rebuild manually with 'copr-cli build nc1107/slim-m <srpm>' from ${spec}. See packaging/fedora/README.md."
+        fi

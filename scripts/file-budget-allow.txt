@@ -10,7 +10,6 @@
 # that raises it; a changelog kept here makes one physical line that every change
 # to the same file must edit, which is a merge conflict by construction.
 
-.github/workflows/release.yml 818 # ten publish jobs sharing release-please outputs, plus two verify jobs wiring every publish path to one commit-status gate; rationale in docs/ci.md
 crates/slimm-server/src/store/sessions.rs 632 # sign-in, sign-out, ws tickets and the token sweep; refresh rotation lives in store/refresh_rotation.rs
 client/packages/app/test/push_controller_test.dart 739 # one suite over registration, lifecycle reporting and revocation; new push coverage goes in a sibling file rather than growing this one
 crates/slimm-server/tests/invites.rs 666 # issue, check, redeem and revoke, plus the four-answers-are-identical assertions
