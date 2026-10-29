@@ -315,4 +315,48 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
       ),
     ],
   ),
+  WhatsNewEntry(
+    version: '0.120.0',
+    headline:
+        'Group DMs, the strongest noise suppression, drawing on a shared screen',
+    points: [
+      WhatsNewPoint(
+        'Start a group conversation with up to eight people from the plus '
+        'on Direct messages, and a call rings everyone in it.',
+      ),
+      WhatsNewPoint(
+        'On Linux and Windows, Strongest noise suppression takes out much '
+        'more background noise, for a little more CPU.',
+      ),
+      WhatsNewPoint(
+        'On Linux and Windows, turn on Viewers draw on my screen and people '
+        'watching your share can circle or note things on your real screen.',
+      ),
+      WhatsNewPoint(
+        'The canvas has one People here panel for following someone or '
+        'bringing everyone to you.',
+      ),
+      WhatsNewPoint(
+        'Voice settings has an Advanced row for echo cancellation, automatic '
+        'gain and built-in noise suppression.',
+      ),
+      WhatsNewPoint(
+        'On Windows, a copy you unzipped can move itself into place and '
+        'update on its own from then on.',
+      ),
+      WhatsNewPoint(
+        'On iPhone, the app icon shows how many channels are unread, and '
+        'hold music plays while you wait alone in a call.',
+      ),
+      WhatsNewPoint(
+        'Admins get a first-time setup with a guide to how many people the '
+        'server can hold, and can change a bot\'s prefix.',
+      ),
+      WhatsNewPoint(
+        'Moderators can only remove someone from a call when their highest '
+        'role is above that person\'s.',
+        warn: true,
+      ),
+    ],
+  ),
 ];
