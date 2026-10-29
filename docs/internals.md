@@ -296,3 +296,13 @@ The heartbeat entry the abandoned call leaves behind is what the server's stalen
 
 The controller composes small collaborators for the rest of its surface: input settings, audio devices, participant volumes, camera hiding, video controls, screen share, rejoin, the SFU connect and the session-state sync.
 Each takes a `VoiceStateAccess` rather than the controller, and the controller exposes them as `input`, `devices`, `volumes`, `cameras`, `video` and `share`.
+
+## Sync generations
+
+`SyncController` bumps a generation on every stop, fresh start and dispose.
+A run superseded mid-flight, such as a sign-out landing during catch-up or a second start racing the first, notices at its next checkpoint rather than finishing and writing stale data into a store a newer run already cleared.
+Every await that is followed by a write has to re-check it, including the ones inside the channel refresher, which is why that takes a predicate rather than being trusted to finish quickly.
+
+The ticket mint and the socket connect are network round trips too.
+A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
+The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.

@@ -1,9 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// [SyncController]'s catch-up half: pulling every known scope up to the
-/// server's head over REST.
-///
-/// Split out of `sync_controller.dart`, which sat at the 500-line ceiling.
-part of 'sync_controller.dart';
+/// Catch-up: pulling every known scope up to the server's head over REST.
+library;
+
+import 'dart:math';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart';
+import 'package:slimm_data/data.dart';
+
+import '../../features/messages/providers/message_extras.dart';
+import '../../features/messages/providers/message_ops_sync.dart';
+import '../../providers/rate_limit_retry.dart';
 
 /// Cursors per `/sync` request, under the server's 200-scope ceiling.
 const syncScopeChunk = 150;
@@ -20,7 +27,13 @@ bool _isTransientSyncFailure(Object error) => switch (error) {
   _ => false,
 };
 
-extension SyncControllerCatchUp on SyncController {
+/// Runs catch-up rounds for the sync controller, which says whether a run is still the current one.
+class SyncCatchUp {
+  SyncCatchUp(this._ref, this._isCurrent);
+
+  final Ref _ref;
+  final bool Function(int generation) _isCurrent;
+
   /// Catches every known scope up, round after round until none is behind.
   ///
   /// The rounds are awaited here rather than left to a detached continuation,
@@ -36,7 +49,7 @@ extension SyncControllerCatchUp on SyncController {
   ///
   /// [onFirstRound] runs once the first round has landed, before the rest of
   /// a long backlog, so the first paint does not wait for all of it.
-  Future<void> _catchUp(
+  Future<void> run(
     int generation,
     SlimmApi api,
     MessageStore store, {
@@ -46,22 +59,22 @@ extension SyncControllerCatchUp on SyncController {
     var first = true;
     Set<String>? only;
     while (true) {
-      final behind = await _catchUpRound(generation, api, store, only: only);
-      if (generation != _generation) return;
+      final behind = await _round(generation, api, store, only: only);
+      if (!_isCurrent(generation)) return;
       if (first) onFirstRound?.call();
       first = false;
       if (behind.isEmpty || (shouldStop?.call() ?? false)) return;
       only = behind;
       // Next tick rather than straight through, so a long backlog does not block the first paint.
       await Future<void>.delayed(Duration.zero);
-      if (generation != _generation) return;
+      if (!_isCurrent(generation)) return;
     }
   }
 
   /// One pass over the known scopes (or just [only]) in [syncScopeChunk]-sized
   /// requests, each applied before the next so a later failure keeps the
   /// progress. Answers the scopes that still have more to fetch.
-  Future<Set<String>> _catchUpRound(
+  Future<Set<String>> _round(
     int generation,
     SlimmApi api,
     MessageStore store, {
@@ -79,7 +92,7 @@ extension SyncControllerCatchUp on SyncController {
       );
       final deltas = await _syncChunk(generation, api, chunk);
       for (final delta in deltas) {
-        if (generation != _generation) return const {};
+        if (!_isCurrent(generation)) return const {};
         final deltaMore = await _applyDelta(generation, api, store, delta);
         if (deltaMore == null) return const {};
         if (deltaMore) behind.add(delta.channelId);
@@ -111,7 +124,7 @@ extension SyncControllerCatchUp on SyncController {
           context: {'attempt': attempt + 1},
         );
         await Future<void>.delayed(delays[attempt]);
-        if (generation != _generation) return const [];
+        if (!_isCurrent(generation)) return const [];
       }
     }
   }
@@ -124,7 +137,7 @@ extension SyncControllerCatchUp on SyncController {
     MessageStore store,
     ScopeDelta delta,
   ) async {
-    bool isCurrent() => generation == _generation;
+    bool isCurrent() => _isCurrent(generation);
     if (delta.reset) {
       // Either cursor is too far behind to stream: local state is untrusted.
       await _resetScope(generation, api, store, delta.channelId);
@@ -155,7 +168,7 @@ extension SyncControllerCatchUp on SyncController {
     MessageStore store,
     ScopeDelta delta,
   ) async {
-    bool isCurrent() => generation == _generation;
+    bool isCurrent() => _isCurrent(generation);
     final cursor = await store.opCursorFor(delta.channelId);
     if (!isCurrent()) return _OpsStep.stale;
     if (cursor == null) {
@@ -171,40 +184,26 @@ extension SyncControllerCatchUp on SyncController {
     return _OpsStep.reset;
   }
 
-  /// Runs a catch-up against the current generation.
+  /// Drops a scope's cached messages and both its cursors, then refetches the
+  /// newest page.
   ///
-  /// The gap detector's entry point: a live frame that is not exactly the next
-  /// one schedules this rather than applying a payload it cannot place.
-  /// Single-flight: a call while one is running is not a second `/sync` but a
-  /// request for one more pass once it ends, so a burst of gaps costs one or
-  /// two requests however long it is. A pass that fails drops the connection,
-  /// since the local store is then known to be behind and only a fresh
-  /// connect repairs it.
-  Future<void> reconcile() async {
-    if (_disposed) return;
-    if (_reconciling) {
-      _reconcileAgain = true;
-      return;
-    }
-    _reconciling = true;
-    try {
-      do {
-        _reconcileAgain = false;
-        final generation = _generation;
-        final api = _ref.read(apiProvider);
-        final store = await _ref.read(storeProvider.future);
-        if (generation != _generation) return;
-        try {
-          await _catchUp(generation, api, store);
-        } catch (error, stack) {
-          reportFailure(LogTag.sync, 'catch up with the server', error, stack);
-          if (generation == _generation) _onDropped();
-          return;
-        }
-      } while (_reconcileAgain && !_disposed);
-    } finally {
-      _reconciling = false;
-    }
+  /// [MessageStore.resetChannel] clears the op cursor to null as well as
+  /// rewinding the message one, so the next catch-up adopts a fresh head
+  /// rather than asking from a seq the server may have swept past.
+  Future<void> _resetScope(
+    int generation,
+    SlimmApi api,
+    MessageStore store,
+    String channelId,
+  ) async {
+    await store.resetChannel(channelId);
+    final fresh = await retryWhenRateLimited(
+      () => api.listMessages(channelId, limit: 50),
+      wait: _ref.read(rateLimitWaitProvider),
+    );
+    if (!_isCurrent(generation)) return;
+    await store.applyMessages(fresh);
+    _ref.read(messageExtrasProvider.notifier).applyMessages(fresh);
   }
 }
 

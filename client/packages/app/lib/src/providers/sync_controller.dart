@@ -6,44 +6,29 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_data/data.dart';
 
 import '../features/auth/providers/account_state_refresh.dart';
-import '../features/channels/providers/channel_history.dart';
-import '../features/channels/providers/channel_notification_overrides_controller.dart';
 import '../features/channels/providers/channel_refresher.dart';
-import '../features/voice/providers/dm_call_activity.dart';
-import '../features/voice/providers/dm_call_ring_controller.dart';
-import '../features/messages/providers/ephemeral_messages.dart';
-import '../features/members/providers/presence_activity.dart';
-import '../features/members/providers/presence_controller.dart';
-import '../features/members/providers/presence_devices.dart';
-import '../features/voice/providers/voice_controller.dart';
 import '../features/messages/providers/failed_send_retry.dart';
-import '../features/channels/providers/last_text_channel.dart';
-import '../features/members/providers/member_presence.dart';
-import '../features/messages/providers/message_ops_sync.dart';
-import 'app_lifecycle.dart';
-import 'op_adjacency.dart';
-import '../features/messages/providers/message_extras.dart';
 import 'providers.dart';
-import 'rate_limit_retry.dart';
+import 'app_lifecycle.dart';
 import '../sync/providers/reconnect_backoff.dart';
 import '../sync/providers/sync_failure.dart';
 import '../sync/providers/sync_ephemeral_reset.dart';
+import '../sync/providers/sync_catch_up.dart';
+import '../sync/providers/sync_event_applier.dart';
 import '../sync/providers/sync_frame_queue.dart';
+import '../sync/providers/sync_reconnector.dart';
+import '../sync/providers/sync_session_end.dart';
 
 import '../sync/providers/sync_status.dart';
 
+export '../sync/providers/sync_catch_up.dart'
+    show syncChunkRetryDelaysProvider, syncScopeChunk;
 export '../sync/providers/sync_status.dart';
-
-part 'sync_controller_catchup.dart';
-part 'sync_controller_events.dart';
-part 'sync_controller_reset.dart';
-part 'sync_controller_resume.dart';
 
 /// Drives synchronisation.
 ///
@@ -73,8 +58,26 @@ class SyncController extends StateNotifier<SyncStatus> {
     this._ref, {
     Random? random,
     Duration backoffStep = const Duration(seconds: 1),
-  }) : _backoff = ReconnectBackoff(random: random, step: backoffStep),
-       super(SyncStatus.offline) {
+  }) : super(SyncStatus.offline) {
+    _reconnector = SyncReconnector(
+      ref: _ref,
+      backoff: ReconnectBackoff(random: random, step: backoffStep),
+      start: start,
+      isDisposed: () => _disposed,
+      wantsConnection: () => _wantsConnection,
+      status: () => state,
+      generation: () => _generation,
+      probe: () => _connection?.probe(),
+      failConnect: _failConnect,
+    );
+    _catchUp = SyncCatchUp(_ref, (generation) => generation == _generation);
+    _applier = SyncEventApplier(
+      _ref,
+      (generation) => generation == _generation,
+      _channelRefresher,
+      reconcile,
+      _reconnector.resyncAfterLag,
+    );
     final session = _ref.read(sessionProvider);
     // Subscribe before reading the current value, so a change landing between the two is never missed.
     _sessionSubscription = session.changes.listen((tokens) {
@@ -90,7 +93,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       }
     });
     _lastSignedIn = session.isSignedIn;
-    _ref.listen(appLifecycleProvider, _onLifecycle);
+    _ref.listen(appLifecycleProvider, _reconnector.onLifecycle);
     if (_lastSignedIn) unawaited(start());
   }
 
@@ -102,40 +105,24 @@ class SyncController extends StateNotifier<SyncStatus> {
   SerialFrameQueue? _frames;
   bool _reconciling = false;
   bool _reconcileAgain = false;
-  Timer? _retry;
   bool _disposed = false;
-
-  SyncStatus get _status => state;
 
   /// False once [stop] or [dispose] ran, so a resume does not revive a stopped sync.
   bool _wantsConnection = false;
-  final ReconnectBackoff _backoff;
-  int _overflowRestarts = 0;
+  late final SyncReconnector _reconnector;
+  late final SyncCatchUp _catchUp;
+  late final SyncEventApplier _applier;
   final _channelRefresher = ChannelRefresher();
-
-  /// Channels a refresh on this connection did not bring into the store, such
-  /// as threads, which the channel list never names.
-  final _unlistedChannels = <String>{};
 
   /// Whether this controller has been live before, which tells a reconnect from
   /// the first connect of a session.
   bool _wasLive = false;
 
-  /// Bumped by every [stop], every fresh [start] and [dispose], so a run
-  /// superseded mid-flight (a sign-out landing during catch-up, or a second
-  /// start racing the first) notices at its next checkpoint rather than
-  /// finishing and writing stale data into a store a newer run already
-  /// cleared. Every await in this class that is followed by a write has to
-  /// re-check it, including the ones inside [ChannelRefresher], which is why
-  /// that takes the predicate rather than being trusted to finish quickly.
+  /// Bumped by every [stop], fresh [start] and [dispose]; every await followed by a write re-checks it.
   int _generation = 0;
 
-  /// Every event this session receives, broadcast to whoever else wants one
-  /// (presence, typing, reactions, pins, polls): a second, independent
-  /// listener on top of the store-application switch below, so those
-  /// features do not need their own socket connection or their own copy of
-  /// the reconnect/backoff logic. Outlives any one connection: created once
-  /// here, never recreated by [_teardown] or a reconnect.
+  /// Every event this session receives, broadcast to features (presence, typing, reactions, pins, polls) that need no socket of their own.
+  /// Outlives any one connection: never recreated by [_teardown] or a reconnect.
   final _liveEvents = StreamController<ServerEvent>.broadcast();
 
   /// Every event this session receives, for anything that wants to react to
@@ -167,11 +154,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     return true;
   }
 
-  /// Tells the server this user's pointer moved on a channel's canvas.
-  ///
-  /// The same no-op-while-down shape as [notifyTyping]: a cursor position
-  /// missed during a reconnect is worth nothing and must never surface as an
-  /// error to whoever is drawing.
+  /// Tells the server this user's pointer moved on a channel's canvas; a no-op while the socket is down, like [notifyTyping].
   void notifyCanvasCursor(
     String channelId,
     double x,
@@ -179,11 +162,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     bool left = false,
   }) => _connection?.canvasCursor(channelId, x, y, left: left);
 
-  /// Tells the server this user's in-flight stroke gained points, or ended.
-  ///
-  /// The same no-op-while-down shape as [notifyCanvasCursor]: a preview
-  /// frame missed during a reconnect is worth nothing and must never surface
-  /// as an error to whoever is drawing.
+  /// Tells the server this user's in-flight stroke gained points, or ended; a no-op while the socket is down.
   void notifyCanvasStrokePreview(
     String channelId,
     String objectId,
@@ -270,11 +249,11 @@ class SyncController extends StateNotifier<SyncStatus> {
     if (_disposed) return;
     final generation = ++_generation;
     _wantsConnection = true;
-    _retry?.cancel();
+    _reconnector.cancelRetry();
     await _teardown();
     if (generation != _generation) return;
     state = SyncStatus.connecting;
-    _unlistedChannels.clear();
+    _applier.unlistedChannels.clear();
     resetEphemeralSessionState(_ref);
     try {
       final api = _ref.read(apiProvider);
@@ -287,7 +266,7 @@ class SyncController extends StateNotifier<SyncStatus> {
         isCurrent: () => generation == _generation,
       );
       if (generation != _generation) return;
-      await _catchUp(
+      await _catchUp.run(
         generation,
         api,
         store,
@@ -297,7 +276,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       final frames = await _attach(generation, api, store);
       if (frames == null) return;
-      await _catchUp(
+      await _catchUp.run(
         generation,
         api,
         store,
@@ -310,8 +289,7 @@ class SyncController extends StateNotifier<SyncStatus> {
       if (generation != _generation) return;
       if (frames.closed) throw const SocketClosedDuringConnect();
 
-      _backoff.connected();
-      _overflowRestarts = 0;
+      _reconnector.connected();
       state = SyncStatus.live;
       refreshAccountNotificationState(_ref, reconnect: _wasLive);
       _wasLive = true;
@@ -326,7 +304,9 @@ class SyncController extends StateNotifier<SyncStatus> {
         ).catchError(ignoreError(LogTag.sync, 'resend unsent messages')),
       );
     } on FrameBacklogOverflow catch (error, stack) {
-      if (generation == _generation) _onBacklogOverflow(error, stack);
+      if (generation == _generation) {
+        _reconnector.onBacklogOverflow(error, stack);
+      }
     } catch (error, stack) {
       if (generation == _generation) _failConnect(error, stack);
     }
@@ -338,19 +318,15 @@ class SyncController extends StateNotifier<SyncStatus> {
     state = SyncStatus.offline;
     _ref.read(hasFailedSinceLiveProvider.notifier).state = true;
     _ref.read(syncFailureProvider.notifier).state = syncFailureFor(error);
-    _scheduleRetry();
+    _reconnector.scheduleRetry();
   }
 
   /// Attaches the live socket and returns the queue its frames land in, held
-  /// until [start] has caught up. Null when a newer run superseded this one.
-  /// A frame that closes the socket is a drop that schedules a full restart, so
-  /// the next connection catches up before trusting live events again.
+  /// until [start] has caught up. Null when a newer run superseded this one;
+  /// a frame that closes the socket schedules a full restart.
   ///
-  /// [generation] is checked after the ticket mint and the connect, because
-  /// both are network round trips: a [stop] landing inside either used to
-  /// return from [start] having already assigned a socket the superseding
-  /// [_teardown] had run too early to see, leaving it live and applying
-  /// frames with nothing left holding a handle to close it.
+  /// [generation] is checked after the ticket mint and the connect, both
+  /// network round trips a [stop] can land inside (docs/internals.md, sync generations).
   Future<SerialFrameQueue?> _attach(
     int generation,
     SlimmApi api,
@@ -370,7 +346,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _connection = connection;
 
     final frames = SerialFrameQueue(
-      (event) => _applyServerEvent(generation, api, store, event),
+      (event) => _applier.apply(generation, api, store, event),
       onError: (_, _) {
         if (generation == _generation) _onDropped();
       },
@@ -408,27 +384,18 @@ class SyncController extends StateNotifier<SyncStatus> {
   }) async {
     final api = _ref.read(apiProvider);
     final store = await _ref.read(storeProvider.future);
-    await _applyServerEvent(generation ?? _generation, api, store, event);
+    await _applier.apply(generation ?? _generation, api, store, event);
   }
 
   void _onDropped() {
     if (_disposed || state == SyncStatus.connecting) return;
-    _backoff.dropped();
+    _reconnector.backoff.dropped();
     state = SyncStatus.offline;
-    _scheduleRetry();
-  }
-
-  /// Backs off, and jitters, so a server restart does not bring every client
-  /// back in the same instant. See [ReconnectBackoff] for the delay itself;
-  /// this only schedules the timer it returns.
-  void _scheduleRetry() {
-    if (_disposed || _backgroundedOnPhone) return;
-    _retry?.cancel();
-    _retry = Timer(_backoff.next(), start);
+    _reconnector.scheduleRetry();
   }
 
   Future<void> _teardown() async {
-    _backoff.dropped();
+    _reconnector.backoff.dropped();
     await _events?.cancel();
     _events = null;
     _frames?.clear();
@@ -449,72 +416,50 @@ class SyncController extends StateNotifier<SyncStatus> {
     _generation++;
     _wantsConnection = false;
     _channelRefresher.discardInFlight();
-    _retry?.cancel();
+    _reconnector.cancelRetry();
     await _teardown();
     state = SyncStatus.offline;
   }
 
-  /// The session ended, whichever way: a sign-out, an account deletion that
-  /// went through, or a refresh the server rejected.
-  ///
-  /// The local database is one file for the whole app, not one per account or
-  /// per server, so whatever survives here is read by whoever signs in next on
-  /// this device: the previous account's channel list and message text,
-  /// visible before any new sync could correct it. Phones get handed over and
-  /// desktops are shared, so the cache goes the moment it stops belonging to
-  /// the person holding the device.
-  ///
-  /// Best-effort. A database that will not open or clear must not leave
-  /// somebody stuck signed in, so the failure is swallowed; the session is
-  /// already gone by the time this runs.
-  ///
-  /// [channelHistoryProvider] and [messageExtrasProvider] are reset alongside
-  /// the database for the same reason; see their own doc comments.
-  ///
-  /// The DM-call ring state is cleared here too, and that is not cosmetic:
-  /// see `sign_out_stops_the_ring_test.dart` for what a surviving ring does.
-  ///
-  /// Leaving the voice call belongs here rather than only in the Sign Out
-  /// button, because a session can end without the user asking for it.
-  /// `SlimmApi._refreshOnce` clears the session on a 401 while refreshing -
-  /// an expired or revoked refresh token, or another device signing this
-  /// account out - and that path reaches this method without passing through
-  /// any UI. Until it did, an involuntary end left a live microphone
-  /// publishing into a room the app itself considered signed out of, until
-  /// the server's own 40-second stale-heartbeat sweep noticed. `leave()`
-  /// bumps its own call generation and is safe to call when not in a call,
-  /// so the explicit Sign Out path calling it first costs nothing here.
+  /// The session ended, whichever way: stop syncing, then clear what belongs to it.
   Future<void> _endSession() async {
     await stop();
-    _ref.invalidate(channelHistoryProvider);
-    _ref.invalidate(meProvider);
-    _ref.invalidate(initialSyncCompleteProvider);
-    _ref.invalidate(hasFailedSinceLiveProvider);
-    _ref.invalidate(syncFailureProvider);
-    _ref.invalidate(ephemeralMessagesProvider);
-    _ref.invalidate(lastTextChannelProvider);
-    _ref.invalidate(previousTextChannelProvider);
-    _ref.invalidate(deletedChannelsProvider);
-    _ref.read(messageExtrasProvider.notifier).clear();
-    _ref.read(dmCallRingControllerProvider.notifier).clear();
-    _ref.read(dmCallActivityProvider.notifier).clear();
-    _ref.read(presenceControllerProvider.notifier).clear();
-    _ref.read(presenceActivityProvider.notifier).clear();
-    _ref.read(presenceDevicesProvider.notifier).clear();
-    _ref.invalidate(presenceVisibilityDisplayProvider);
-    _ref.invalidate(memberProfileOverridesProvider);
-    // A session can end without the user asking; see this method's own doc.
-    unawaited(_ref.read(voiceControllerProvider.notifier).leave());
+    await clearSessionState(_ref);
+  }
+
+  /// Runs a catch-up against the current generation.
+  ///
+  /// The gap detector's entry point: a live frame that is not exactly the next
+  /// one schedules this rather than applying a payload it cannot place.
+  /// Single-flight: a call while one is running is not a second `/sync` but a
+  /// request for one more pass once it ends, so a burst of gaps costs one or
+  /// two requests however long it is. A pass that fails drops the connection,
+  /// since the local store is then known to be behind and only a fresh
+  /// connect repairs it.
+  Future<void> reconcile() async {
+    if (_disposed) return;
+    if (_reconciling) {
+      _reconcileAgain = true;
+      return;
+    }
+    _reconciling = true;
     try {
-      final store = await _ref.read(storeProvider.future);
-      await store.clear();
-    } catch (error, stack) {
-      AppLog.swallowed(
-        LogTag.sync,
-        'Could not clear local data after signing out',
-        error,
-        stack,
-      );
+      do {
+        _reconcileAgain = false;
+        final generation = _generation;
+        final api = _ref.read(apiProvider);
+        final store = await _ref.read(storeProvider.future);
+        if (generation != _generation) return;
+        try {
+          await _catchUp.run(generation, api, store);
+        } catch (error, stack) {
+          reportFailure(LogTag.sync, 'catch up with the server', error, stack);
+          if (generation == _generation) _onDropped();
+          return;
+        }
+      } while (_reconcileAgain && !_disposed);
+    } finally {
+      _reconciling = false;
     }
   }
 
@@ -524,7 +469,7 @@ class SyncController extends StateNotifier<SyncStatus> {
     _wantsConnection = false;
     _generation++;
     unawaited(_sessionSubscription.cancel());
-    _retry?.cancel();
+    _reconnector.cancelRetry();
     unawaited(_teardown());
     unawaited(_liveEvents.close());
     super.dispose();

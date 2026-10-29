@@ -1,26 +1,50 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// [SyncController]'s event-application half: how one frame off the
-/// socket becomes local state.
-///
-/// Split out of `sync_controller.dart`, which had reached the 500-line
-/// hard ceiling with no headroom left - any change to it, including a
-/// two-line bug fix, broke the file budget. The seam is real rather than
-/// arbitrary: everything here decides what a received event MEANS, while
-/// what remains owns the connection and session lifecycle that delivers
-/// one. A `part` rather than a separate class because these methods are
-/// private to [SyncController] and reach its generation guard.
-part of 'sync_controller.dart';
+/// How one frame off the socket becomes local state.
+library;
 
-extension SyncControllerEvents on SyncController {
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_api/api.dart';
+import 'package:slimm_data/data.dart';
+
+import '../../features/channels/providers/channel_notification_overrides_controller.dart';
+import '../../features/channels/providers/channel_refresher.dart';
+import '../../features/channels/providers/last_text_channel.dart';
+import '../../providers/op_adjacency.dart';
+
+class SyncEventApplier {
+  SyncEventApplier(
+    this._ref,
+    this._isCurrent,
+    this._channelRefresher,
+    this._reconcile,
+    this._resyncAfterLag,
+  );
+
+  final Ref _ref;
+  final bool Function(int generation) _isCurrent;
+  final ChannelRefresher _channelRefresher;
+
+  /// A gap was seen: run one more catch-up pass.
+  final Future<void> Function() _reconcile;
+
+  /// The server cut this connection for lagging.
+  final Future<void> Function() _resyncAfterLag;
+
+  /// Channels a refresh on this connection did not bring into the store, such
+  /// as threads, which the channel list never names.
+  final unlistedChannels = <String>{};
+
   /// How one frame from the socket changes local state. A method of its own
   /// so [applyServerEventForTest] can drive it without a real socket.
-  Future<void> _applyServerEvent(
+  Future<void> apply(
     int generation,
     SlimmApi api,
     MessageStore store,
     ServerEvent event,
   ) async {
-    bool isCurrent() => generation == _generation;
+    bool isCurrent() => _isCurrent(generation);
     switch (event) {
       case MessageCreated():
         await _onMessageCreated(event, api, store, isCurrent);
@@ -125,7 +149,7 @@ extension SyncControllerEvents on SyncController {
     MessageStore store,
     bool Function() isCurrent,
   ) async {
-    if (_unlistedChannels.contains(channelId)) return;
+    if (unlistedChannels.contains(channelId)) return;
     if (await store.hasChannel(channelId)) return;
     try {
       await _channelRefresher.refreshOnce(api, store, isCurrent: isCurrent);
@@ -139,7 +163,7 @@ extension SyncControllerEvents on SyncController {
       return;
     }
     if (isCurrent() && !await store.hasChannel(channelId)) {
-      _unlistedChannels.add(channelId);
+      unlistedChannels.add(channelId);
     }
   }
 
@@ -161,7 +185,7 @@ extension SyncControllerEvents on SyncController {
     if (!isCurrent()) return true;
     if (cursor == null || seq <= cursor + 1) return false;
     unawaited(
-      reconcile().catchError(
+      _reconcile().catchError(
         ignoreError(LogTag.sync, 're-check state after the connection dropped'),
       ),
     );
@@ -195,7 +219,7 @@ extension SyncControllerEvents on SyncController {
         return false;
       case LiveOpOutcome.needsReconcile:
         unawaited(
-          reconcile().catchError(
+          _reconcile().catchError(
             ignoreError(
               LogTag.sync,
               're-check state after the connection dropped',

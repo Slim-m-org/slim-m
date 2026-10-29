@@ -11,7 +11,7 @@ import 'support/code_only.dart';
 
 Set<String> _handlerCases() {
   final source = codeOnly(
-    File('lib/src/providers/sync_controller_events.dart').readAsStringSync(),
+    File('lib/src/sync/providers/sync_event_applier.dart').readAsStringSync(),
   );
   final start = source.indexOf('switch (event) {');
   final end = source.indexOf('case _:', start);
