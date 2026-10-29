@@ -1,42 +1,49 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'voice_controller.dart';
+library;
 
-/// Per-participant playback volume, `voice_controller_audio_devices.dart`'s
-/// own mixin-in-a-part shape for [VoiceController]'s 500-line hard ceiling.
-mixin VoiceControllerParticipantVolumeMixin on StateNotifier<VoiceState> {
-  VoiceSession get _inputSession;
-  Ref get _inputRef;
-  void _log(String message, {Object? detail});
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import 'voice_participant_volume_store.dart';
+import 'volume_drag_throttle.dart';
+
+/// Per-participant playback volume.
+class VoiceParticipantVolumes {
+  VoiceParticipantVolumes(this._session, this._ref, this._log);
+
+  final VoiceSession _session;
+  final Ref _ref;
+  final void Function(String message, {Object? detail}) _log;
 
   final Map<(String, LocalAudioChannel), TrailingThrottle<double>> _drags = {};
   final Set<(String, LocalAudioChannel)> _failing = {};
 
   /// Whether this host can change one participant's volume at all; see
   /// `audio_gain.dart` in the rtc package.
-  bool get supportsParticipantVolume => _inputSession.supportsParticipantVolume;
+  bool get supportsParticipantVolume => _session.supportsParticipantVolume;
 
   /// [identity]'s playback gain for this listener, 1.0 being unchanged.
-  double volumeFor(String identity) => _inputSession.volumeFor(identity);
+  double volumeFor(String identity) => _session.volumeFor(identity);
 
   /// [identity]'s screen share audio gain, apart from their voice.
-  double screenVolumeFor(String identity) =>
-      _inputSession.screenVolumeFor(identity);
+  double screenVolumeFor(String identity) => _session.screenVolumeFor(identity);
 
   bool isScreenAudioMuted(String identity) =>
-      _inputSession.isScreenAudioMuted(identity);
+      _session.isScreenAudioMuted(identity);
 
   Future<void> setScreenAudioMuted(String identity, bool muted) =>
-      _inputSession.setScreenAudioMuted(identity, muted);
+      _session.setScreenAudioMuted(identity, muted);
 
   /// Whether [identity] is publishing screen share audio right now.
-  bool hasScreenAudio(String identity) =>
-      _inputSession.hasScreenAudio(identity);
+  bool hasScreenAudio(String identity) => _session.hasScreenAudio(identity);
 
   /// Why the last volume change to [identity] did not land, or null.
   Object? volumeFailureFor(
     String identity, {
     LocalAudioChannel channel = LocalAudioChannel.voice,
-  }) => _inputSession.volumeFailureFor(
+  }) => _session.volumeFailureFor(
     identity,
     screen: channel == LocalAudioChannel.screen,
   );
@@ -76,9 +83,7 @@ mixin VoiceControllerParticipantVolumeMixin on StateNotifier<VoiceState> {
   ) async {
     final clamped = clampParticipantVolume(volume);
     _dragThrottle(identity, channel).cancel();
-    unawaited(
-      saveParticipantVolume(_inputRef, identity, clamped, channel: channel),
-    );
+    unawaited(saveParticipantVolume(_ref, identity, clamped, channel: channel));
     await _applyVolume(identity, clamped, channel);
   }
 
@@ -89,9 +94,9 @@ mixin VoiceControllerParticipantVolumeMixin on StateNotifier<VoiceState> {
   ) async {
     final screen = channel == LocalAudioChannel.screen;
     await (screen
-        ? _inputSession.setScreenVolumeFor(identity, volume)
-        : _inputSession.setVolumeFor(identity, volume));
-    final failure = _inputSession.volumeFailureFor(identity, screen: screen);
+        ? _session.setScreenVolumeFor(identity, volume)
+        : _session.setVolumeFor(identity, volume));
+    final failure = _session.volumeFailureFor(identity, screen: screen);
     if (failure == null) {
       _failing.remove((identity, channel));
     } else if (_failing.add((identity, channel))) {
@@ -105,24 +110,22 @@ mixin VoiceControllerParticipantVolumeMixin on StateNotifier<VoiceState> {
   /// Seeds the saved volumes into the session before any call exists, so
   /// someone turned down stays turned down after a restart.
   Future<void> restoreParticipantVolumes() async {
-    final voice = await loadParticipantVolumes(_inputRef);
+    final voice = await loadParticipantVolumes(_ref);
     for (final entry in voice.entries) {
-      await _inputSession.setVolumeFor(entry.key, entry.value);
+      await _session.setVolumeFor(entry.key, entry.value);
     }
     final screen = await loadParticipantVolumes(
-      _inputRef,
+      _ref,
       channel: LocalAudioChannel.screen,
     );
     for (final entry in screen.entries) {
-      await _inputSession.setScreenVolumeFor(entry.key, entry.value);
+      await _session.setScreenVolumeFor(entry.key, entry.value);
     }
   }
 
-  @override
   void dispose() {
     for (final throttle in _drags.values) {
       throttle.cancel();
     }
-    super.dispose();
   }
 }

@@ -120,4 +120,4 @@ class EvenOutLoudSoundsToggle extends ConsumerWidget {
 
 /// Whether this host's calls go through the native gate.
 bool hostHasInputGate(WidgetRef ref) =>
-    ref.read(voiceControllerProvider.notifier).supportsInputGate;
+    ref.read(voiceControllerProvider.notifier).input.supportsInputGate;

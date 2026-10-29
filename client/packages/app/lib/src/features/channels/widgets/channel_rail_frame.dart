@@ -228,7 +228,7 @@ VoidCallback? _micAction({
 }) {
   if (!inCall) return null;
   return stuck
-      ? voiceController.resetMicrophone
+      ? voiceController.devices.resetMicrophone
       : voiceController.toggleMicrophone;
 }
 

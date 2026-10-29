@@ -82,7 +82,7 @@ void _followVolumeFile(
     if (volume == null || text == applied) return;
     applied = text;
     for (final p in container().read(voiceControllerProvider).participants) {
-      if (!p.isLocal) await voice.setVolumeFor(p.identity, volume);
+      if (!p.isLocal) await voice.volumes.setVolumeFor(p.identity, volume);
     }
     debugPrint('SLIMM_HARNESS volume set $volume');
   });
@@ -113,7 +113,7 @@ void _logGate(VoiceController voice, ProviderContainer Function() container) {
   var open = 0;
   var strong = 0;
   var peak = -120.0;
-  voice.inputGateReadings.listen((reading) {
+  voice.input.inputGateReadings.listen((reading) {
     readings++;
     if (reading.voice) open++;
     if (reading.strongActive) strong++;

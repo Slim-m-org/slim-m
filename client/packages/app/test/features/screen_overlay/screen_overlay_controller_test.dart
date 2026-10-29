@@ -125,7 +125,7 @@ class _Rig {
     );
     container.read(voiceSettingsControllerProvider);
     container.read(voiceControllerProvider);
-    voice.lastShareSource = source;
+    voice.share.lastShareSource = source;
     container.read(syncControllerProvider);
     container.read(screenOverlayControllerProvider);
   }

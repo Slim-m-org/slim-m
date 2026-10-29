@@ -199,6 +199,7 @@ void main() {
     final session = await _pump(tester, strongestSupported: false);
     _container(tester)
         .read(voiceControllerProvider.notifier)
+        .input
         .setNoiseSuppression(NoiseSuppressionChoice.strongest);
     expect(session.lastStrongNoiseSuppression, isTrue);
     expect(session.lastStrongestNoiseSuppression, isFalse);
@@ -229,10 +230,10 @@ void main() {
       'read, and Standard overrides it', (tester) async {
     final session = await _pump(tester, spaceStrong: true);
     final voice = _container(tester).read(voiceControllerProvider.notifier);
-    await voice.restoreNoiseSuppression();
+    await voice.input.restoreNoiseSuppression();
     expect(session.lastStrongNoiseSuppression, isTrue);
 
-    voice.setNoiseSuppression(NoiseSuppressionChoice.standard);
+    voice.input.setNoiseSuppression(NoiseSuppressionChoice.standard);
     expect(session.lastStrongNoiseSuppression, isFalse);
   });
 

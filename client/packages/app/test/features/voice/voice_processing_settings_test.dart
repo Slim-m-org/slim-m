@@ -95,7 +95,7 @@ void main() {
 
     await ProviderScope.containerOf(
       tester.element(find.byType(VoiceSettingsBody)),
-    ).read(voiceControllerProvider.notifier).restoreVoiceProcessing();
+    ).read(voiceControllerProvider.notifier).input.restoreVoiceProcessing();
 
     expect(session.lastVoiceProcessing?.echoCancellation, isFalse);
   });

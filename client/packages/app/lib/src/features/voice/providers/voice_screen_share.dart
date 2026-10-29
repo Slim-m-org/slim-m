@@ -1,18 +1,40 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'voice_controller.dart';
+library;
 
-/// Screen sharing's start/stop outcome handling and the broadcast deadline,
-/// split out for [VoiceController]'s own 500-line hard ceiling once the
-/// share-audio toggle pushed it over; `voice_controller_input.dart`'s own
-/// mixin-in-a-part shape, for the identical reason its doc comment states.
-mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
-  /// Bridges to [VoiceController]'s own members, abstract here because the
-  /// `on` clause, not shared-library privacy, bounds the implicit receiver.
-  VoiceSession get _shareSession;
-  void _log(String message, {Object? detail});
-  bool get supportsScreenShareAudio;
-  Duration get broadcastStartTimeout;
-  CallForegroundKeeper get _shareForeground;
+import 'dart:async';
+
+import 'package:slimm_rtc/rtc.dart';
+
+import 'call_foreground_keeper.dart';
+import 'voice_state.dart';
+import 'voice_state_access.dart';
+
+/// Screen sharing's start/stop outcome handling and the broadcast deadline.
+class VoiceScreenShare {
+  VoiceScreenShare(
+    this._session,
+    this._foreground,
+    this._access,
+    this._log, {
+    required this.broadcastStartTimeout,
+  });
+
+  final VoiceSession _session;
+  final CallForegroundKeeper _foreground;
+  final VoiceStateAccess _access;
+  final void Function(String message, {Object? detail}) _log;
+
+  /// How long to wait for iOS to actually start a broadcast before saying so.
+  /// Long enough for the picker, its confirmation and a three second
+  /// countdown; short enough that a build with no extension is not a mystery.
+  final Duration broadcastStartTimeout;
+
+  VoiceState get _current => _access.state;
+
+  /// Whether this host can publish a screen share's own audio. True on web
+  /// and Linux; see `screen_share_audio.dart` in the rtc package for why the
+  /// rest cannot, or in Linux's case can only conditionally.
+  bool get supportsAudio => _session.supportsScreenShareAudio;
 
   Timer? _broadcastDeadline;
 
@@ -27,8 +49,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   /// permission prompt: only where this app lists the sources itself and the
   /// choice is its own (Windows, macOS), never Wayland, web or mobile.
   bool get screenShareRestartable =>
-      _shareSession.screenShareNeedsSource &&
-      _shareSession.screenShareSourcePickerUseful;
+      _session.screenShareNeedsSource && _session.screenShareSourcePickerUseful;
 
   Future<void> setScreenShare(
     bool enabled, {
@@ -38,50 +59,51 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     int? maxHeight,
     ScreenShareSource? source,
   }) async {
-    _cancelBroadcastDeadline();
+    cancelBroadcastDeadline();
     if (enabled && sourceId != null) lastShareSourceId = sourceId;
     lastShareSource = enabled ? source : null;
-    if (enabled && !await _shareForeground.beforeShare()) {
-      _shareForeground.shareSettled(started: false);
-      state = state.copyWith(
+    if (enabled && !await _foreground.beforeShare()) {
+      _foreground.shareSettled(started: false);
+      _access.state = _current.copyWith(
         screenSharing: false,
         error: 'Screen sharing needs permission to capture the screen.',
         retryable: true,
       );
       return;
     }
-    final outcome = await _shareSession.setScreenShareEnabled(
+    final outcome = await _session.setScreenShareEnabled(
       enabled,
       quality: quality,
       sourceId: sourceId,
       // Defended here too, not only in the UI: a settings value can outlive a platform switch.
-      includeAudio: includeAudio && supportsScreenShareAudio,
+      includeAudio: includeAudio && supportsAudio,
       maxHeight: maxHeight,
     );
-    _shareForeground.shareSettled(
-      started: outcome == ScreenShareOutcome.started,
-    );
+    _foreground.shareSettled(started: outcome == ScreenShareOutcome.started);
     switch (outcome) {
       case ScreenShareOutcome.started:
-        state = state.copyWith(
+        _access.state = _current.copyWith(
           screenSharing: true,
-          shareAudio: _shareAudioNow(),
+          shareAudio: shareAudioNow(),
           clearError: true,
         );
       case ScreenShareOutcome.stopped:
-        state = state.copyWith(
+        _access.state = _current.copyWith(
           screenSharing: false,
           shareAudio: ShareAudio.none,
           clearError: true,
         );
       case ScreenShareOutcome.pendingBroadcast:
-        state = state.copyWith(awaitingBroadcast: true, clearError: true);
+        _access.state = _current.copyWith(
+          awaitingBroadcast: true,
+          clearError: true,
+        );
         _broadcastDeadline = Timer(
           broadcastStartTimeout,
           _reportBroadcastNeverStarted,
         );
       case ScreenShareOutcome.unsupported:
-        state = state.copyWith(
+        _access.state = _current.copyWith(
           screenSharing: false,
           awaitingBroadcast: false,
           error:
@@ -90,12 +112,12 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
           retryable: false,
         );
       case ScreenShareOutcome.failed:
-        final cause = _shareSession.lastError;
+        final cause = _session.lastError;
         _log(
           'Could not ${enabled ? 'start' : 'stop'} the screen share',
           detail: cause,
         );
-        state = state.copyWith(
+        _access.state = _current.copyWith(
           screenSharing: false,
           awaitingBroadcast: false,
           // Cause included, not dropped: the bare sentence once hid a real Linux failure.
@@ -107,34 +129,31 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   }
 
   /// The shared window or screen went away; the session already ended the share.
-  void _reportShareSourceLost() {
+  void reportShareSourceLost() {
     _log('The shared window or screen is gone; sharing stopped');
-    state = state.copyWith(
+    _access.state = _current.copyWith(
       screenSharing: false,
       shareAudio: ShareAudio.none,
       error: 'The window you were sharing closed, so sharing stopped.',
     );
   }
 
-  ShareAudio _shareAudioNow() {
-    if (!_shareSession.screenShareHasAudio) return ShareAudio.none;
-    return _shareSession.screenShareAudioMuted
-        ? ShareAudio.muted
-        : ShareAudio.on;
+  ShareAudio shareAudioNow() {
+    if (!_session.screenShareHasAudio) return ShareAudio.none;
+    return _session.screenShareAudioMuted ? ShareAudio.muted : ShareAudio.on;
   }
 
   /// Silences or restores the running share's audio without ending the share.
   Future<void> setScreenShareAudioOn(bool on) async {
-    if (state.shareAudio == ShareAudio.none) return;
-    final done = await _shareSession.setScreenShareAudioMuted(!on);
+    if (_current.shareAudio == ShareAudio.none) return;
+    final done = await _session.setScreenShareAudioMuted(!on);
     if (!done) {
-      _log(
-        'Could not switch the shared audio',
-        detail: _shareSession.lastError,
-      );
+      _log('Could not switch the shared audio', detail: _session.lastError);
       return;
     }
-    state = state.copyWith(shareAudio: on ? ShareAudio.on : ShareAudio.muted);
+    _access.state = _current.copyWith(
+      shareAudio: on ? ShareAudio.on : ShareAudio.muted,
+    );
   }
 
   /// The user was shown a broadcast picker and nothing came of it: they
@@ -142,8 +161,8 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
   /// is not happening, and saying nothing would leave the button pretending.
   void _reportBroadcastNeverStarted() {
     _broadcastDeadline = null;
-    if (!state.awaitingBroadcast) return;
-    state = state.copyWith(
+    if (!_current.awaitingBroadcast) return;
+    _access.state = _current.copyWith(
       awaitingBroadcast: false,
       screenSharing: false,
       error:
@@ -153,7 +172,7 @@ mixin VoiceControllerShareMixin on StateNotifier<VoiceState> {
     );
   }
 
-  void _cancelBroadcastDeadline() {
+  void cancelBroadcastDeadline() {
     _broadcastDeadline?.cancel();
     _broadcastDeadline = null;
   }

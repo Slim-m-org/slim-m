@@ -102,6 +102,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     super.initState();
     _releaseEnlarged = ref
         .read(voiceControllerProvider.notifier)
+        .video
         .holdEnlargedVideo(
           videoSubscriptionKey(
             identity: widget.identity,

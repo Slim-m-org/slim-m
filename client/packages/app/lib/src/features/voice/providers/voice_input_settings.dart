@@ -1,50 +1,59 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'voice_controller.dart';
+library;
 
-/// Push-to-talk and voice-activity sensitivity, split out for
-/// [VoiceController]'s own 500-line hard ceiling. A mixin rather than an
-/// extension: once mixed in it is a real member of the class hierarchy, so
-/// [state] (`StateNotifier`'s own accessor, `@protected`/`@visibleForTesting`)
-/// is reachable the way it would be from any other method declared on
-/// [VoiceController] itself - an extension is never that, however private
-/// its name or however it reaches this file.
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_rtc/rtc.dart';
+
+import 'noise_suppression.dart';
+import 'voice_processing.dart';
+import 'voice_settings_controller.dart';
+import 'voice_state.dart';
+import 'voice_state_access.dart';
+
+/// How often a call asks for the Space's noise suppression default again.
 const kSpaceNoiseSuppressionRecheck = Duration(minutes: 1);
 
 /// Shortened by tests; production leaves it at [kSpaceNoiseSuppressionRecheck].
 @visibleForTesting
 Duration spaceNoiseSuppressionRecheck = kSpaceNoiseSuppressionRecheck;
 
-mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
-  /// Bridges to [VoiceController]'s own private fields; declared abstract
-  /// here because a mixin's `on` clause, not shared-library privacy, is what
-  /// bounds which members it can reach through an implicit receiver.
-  VoiceSession get _inputSession;
-  Ref get _inputRef;
+/// The microphone, noise suppression, input gate and video quality choices
+/// the controller applies to its session, before a call and live in one.
+class VoiceInputSettings {
+  VoiceInputSettings(this._session, this._ref, this._access);
 
-  /// [VoiceController.restoreCameraPreference]'s own shape, for the
+  final VoiceSession _session;
+  final Ref _ref;
+  final VoiceStateAccess _access;
+
+  VoiceState get _current => _access.state;
+
+  /// the controller's restoreCameraPreference's own shape, for the
   /// session's speaking threshold: it already exists at construction, so
   /// this only has to run once, before any call.
   Future<void> restoreVoiceActivitySensitivity() async {
-    _inputSession.setSpeakingSensitivity(
-      await loadVoiceActivitySensitivity(_inputRef) / 100,
+    _session.setSpeakingSensitivity(
+      await loadVoiceActivitySensitivity(_ref) / 100,
     );
   }
 
   /// Live, in-call equivalent of [restoreVoiceActivitySensitivity].
   void setVoiceActivitySensitivity(double sensitivityPercent) {
-    _inputSession.setSpeakingSensitivity(sensitivityPercent / 100);
+    _session.setSpeakingSensitivity(sensitivityPercent / 100);
   }
 
   double _inputThresholdDb = kDefaultInputThresholdDb;
 
-  bool get supportsInputGate => _inputSession.supportsInputGate;
+  bool get supportsInputGate => _session.supportsInputGate;
 
-  Stream<InputGateReading> get inputGateReadings =>
-      _inputSession.inputGateReadings;
+  Stream<InputGateReading> get inputGateReadings => _session.inputGateReadings;
 
   /// Seeds the input gate's threshold before any call.
   Future<void> restoreInputThreshold() async {
-    setInputThreshold(await loadInputThreshold(_inputRef));
+    setInputThreshold(await loadInputThreshold(_ref));
   }
 
   /// Live, in-call equivalent of [restoreInputThreshold].
@@ -54,37 +63,37 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   }
 
   /// The threshold the gate uses now, which automatic mode keeps moving.
-  double get inputThresholdDb => _inputSession.inputThresholdDb;
+  double get inputThresholdDb => _session.inputThresholdDb;
 
   /// Where automatic mode has put the threshold, as it moves.
-  Stream<double> get autoInputThresholds => _inputSession.autoInputThresholds;
+  Stream<double> get autoInputThresholds => _session.autoInputThresholds;
 
   /// Whether the threshold follows the noise floor instead of the slider.
   void setInputThresholdAuto(bool enabled) =>
-      _inputSession.setAutoInputThreshold(enabled);
+      _session.setAutoInputThreshold(enabled);
 
   /// Seeds automatic sensitivity before any call.
   Future<void> restoreInputThresholdAuto() async {
-    setInputThresholdAuto(await loadInputThresholdAuto(_inputRef));
+    setInputThresholdAuto(await loadInputThresholdAuto(_ref));
   }
 
   /// Seeds the microphone's compressor and limiter before any call.
   Future<void> restoreEvenOutLoudSounds() async {
-    setEvenOutLoudSounds(await loadEvenOutLoudSounds(_inputRef));
+    setEvenOutLoudSounds(await loadEvenOutLoudSounds(_ref));
   }
 
   /// Live, in-call equivalent of [restoreEvenOutLoudSounds].
   void setEvenOutLoudSounds(bool enabled) =>
-      _inputSession.setEvenOutLoudSounds(enabled);
+      _session.setEvenOutLoudSounds(enabled);
 
   /// Seeds the filters before any call.
   Future<void> restoreVoiceProcessing() async {
-    await setVoiceProcessing(await loadVoiceProcessing(_inputRef));
+    await setVoiceProcessing(await loadVoiceProcessing(_ref));
   }
 
   /// Reopens a live microphone with [processing], which libwebrtc fixes at open.
   Future<void> setVoiceProcessing(VoiceProcessing processing) =>
-      _inputSession.setVoiceProcessing(processing);
+      _session.setVoiceProcessing(processing);
 
   NoiseSuppressionChoice _noiseSuppression =
       NoiseSuppressionChoice.spaceDefault;
@@ -93,7 +102,7 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// Seeds the noise suppression choice and the Space's default before any
   /// call.
   Future<void> restoreNoiseSuppression() async {
-    _noiseSuppression = await loadNoiseSuppressionChoice(_inputRef);
+    _noiseSuppression = await loadNoiseSuppressionChoice(_ref);
     await refreshSpaceNoiseSuppression();
   }
 
@@ -106,7 +115,7 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// Rereads the Space's default, which an admin may have changed since
   /// launch. A failed read keeps the last known value instead of Standard.
   Future<void> refreshSpaceNoiseSuppression() async {
-    final fetched = await fetchSpaceStrongNoiseSuppression(_inputRef);
+    final fetched = await fetchSpaceStrongNoiseSuppression(_ref);
     if (fetched == null || fetched == _spaceStrongNoiseSuppression) return;
     _spaceStrongNoiseSuppression = fetched;
     _applyNoiseSuppression();
@@ -129,65 +138,67 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
     _spaceDefaultTimer = null;
   }
 
-  void _applyNoiseSuppression() => _inputSession.setStrongNoiseSuppression(
+  void _applyNoiseSuppression() => _session.setStrongNoiseSuppression(
     _noiseSuppression.isStrong(spaceStrong: _spaceStrongNoiseSuppression),
     strongest: _noiseSuppression.isStrongest(
-      supported: _inputRef.read(strongestSupportedProvider),
+      supported: _ref.read(strongestSupportedProvider),
     ),
   );
 
   /// Push-to-talk decides when you are heard, so the gate only meters then.
-  void _applyInputGate() => _inputSession.setInputGate(
+  void _applyInputGate() => _session.setInputGate(
     enabled: !_pushToTalkEnabled,
     thresholdDb: _inputThresholdDb,
   );
 
   /// A phone that is not on screen gives a muted microphone back at once.
   void setAppBackgrounded(bool backgrounded) =>
-      _inputSession.setAppBackgrounded(backgrounded);
+      _session.setAppBackgrounded(backgrounded);
 
   /// Seeds the session's video quality choices at launch, for the same
   /// reason as [restoreVoiceActivitySensitivity].
   Future<void> restoreVideoQuality() async {
-    final (receive, camera) = await loadVideoQualityPreferences(_inputRef);
+    final (receive, camera) = await loadVideoQualityPreferences(_ref);
     setReceiveVideoQuality(receive);
     setCameraQuality(camera);
   }
 
   /// Caps how sharp the video you watch is, live in a call.
   void setReceiveVideoQuality(ReceiveVideoQuality quality) =>
-      _inputSession.setReceiveVideoQuality(quality);
+      _session.setReceiveVideoQuality(quality);
 
   /// Sets how sharp your camera publishes; [restartCamera] applies it to a live one.
   void setCameraQuality(CameraQuality quality) =>
-      _inputSession.setCameraQuality(quality);
+      _session.setCameraQuality(quality);
 
   /// Whether push-to-talk is on, kept on the controller so
-  /// [VoiceController.join] can start the microphone closed without reaching
+  /// the controller's join can start the microphone closed without reaching
   /// into another provider on the hot path. Voice Settings pushes changes
   /// through [setPushToTalkPreference], the same way it feeds
-  /// [VoiceController.setCameraPreference] and [setVoiceActivitySensitivity].
+  /// the controller's setCameraPreference and [setVoiceActivitySensitivity].
   bool _pushToTalkEnabled = false;
+
+  bool get pushToTalkEnabled => _pushToTalkEnabled;
 
   /// Records whether push-to-talk is on, and applies the change to a call
   /// already in progress: enabling closes the mic so it is push-only from
   /// now, disabling reopens it, since the person is no longer holding a key
   /// to be heard on. Outside a call it only sets the flag
-  /// [VoiceController.join] reads.
+  /// the controller's join reads.
   void setPushToTalkPreference(bool enabled) {
     _pushToTalkEnabled = enabled;
-    unawaited(_inputSession.setKeepMicReady(enabled));
+    unawaited(_session.setKeepMicReady(enabled));
     _applyInputGate();
-    if (state.state != VoiceSessionState.connected) return;
+    if (_current.state != VoiceSessionState.connected) return;
     unawaited(setPushToTalkHeld(enabled ? false : true));
   }
 
   /// Seeds [setPushToTalkPreference] at launch,
-  /// [VoiceController.restoreCameraPreference]'s own shape and for the same
-  /// reason: [VoiceController.join] must know before the first call, not only
+  /// the controller's restoreCameraPreference's own shape and for the same
+  /// reason: the controller's join must know before the first call, not only
   /// once Voice Settings has been opened this session.
   Future<void> restorePushToTalkPreference() async {
-    setPushToTalkPreference(await loadPushToTalkEnabled(_inputRef));
+    setPushToTalkPreference(await loadPushToTalkEnabled(_ref));
   }
 
   /// Push-to-talk's own entry point: sets the microphone explicitly to
@@ -196,10 +207,10 @@ mixin VoiceControllerInputMixin on StateNotifier<VoiceState> {
   /// key held before joining or after leaving cannot corrupt
   /// [VoiceState.microphoneEnabled]'s other duty as the pre-join preference.
   Future<void> setPushToTalkHeld(bool heldOpen) async {
-    if (state.state != VoiceSessionState.connected) return;
-    final got = await _inputSession.setMicrophoneEnabled(heldOpen);
-    state = state.copyWith(
-      microphoneEnabled: got ? heldOpen : state.microphoneEnabled,
+    if (_current.state != VoiceSessionState.connected) return;
+    final got = await _session.setMicrophoneEnabled(heldOpen);
+    _access.state = _current.copyWith(
+      microphoneEnabled: got ? heldOpen : _current.microphoneEnabled,
     );
   }
 }

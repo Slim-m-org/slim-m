@@ -95,17 +95,18 @@ Future<void> resyncVoiceDevicePreferences(ProviderContainer container) async {
   await Future.wait([
     for (final entry in {
       'camera on join': voice.restoreCameraPreference(),
-      'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
-      'input threshold': voice.restoreInputThreshold().then(
-        (_) => voice.restoreInputThresholdAuto(),
+      'voice activity sensitivity': voice.input
+          .restoreVoiceActivitySensitivity(),
+      'input threshold': voice.input.restoreInputThreshold().then(
+        (_) => voice.input.restoreInputThresholdAuto(),
       ),
-      'even out loud sounds': voice.restoreEvenOutLoudSounds(),
-      'noise suppression': voice.restoreNoiseSuppression(),
-      'voice processing': voice.restoreVoiceProcessing(),
-      'video quality': voice.restoreVideoQuality(),
-      'push to talk': voice.restorePushToTalkPreference(),
-      'audio devices': voice.restoreAudioDevicePreferences(),
-      'mic fallback': voice.restoreMicFallback(),
+      'even out loud sounds': voice.input.restoreEvenOutLoudSounds(),
+      'noise suppression': voice.input.restoreNoiseSuppression(),
+      'voice processing': voice.input.restoreVoiceProcessing(),
+      'video quality': voice.input.restoreVideoQuality(),
+      'push to talk': voice.input.restorePushToTalkPreference(),
+      'audio devices': voice.devices.restoreAudioDevicePreferences(),
+      'mic fallback': voice.devices.restoreMicFallback(),
     }.entries)
       restoreOrDefault(container, entry.key, entry.value),
   ]);
@@ -119,19 +120,19 @@ Future<void> restoreStartupPreferences(ProviderContainer container) {
     for (final entry in restorablePreferences.entries)
       entry.key: entry.value(container).restore(),
     'camera on join': voice.restoreCameraPreference(),
-    'voice activity sensitivity': voice.restoreVoiceActivitySensitivity(),
-    'input threshold': voice.restoreInputThreshold().then(
-      (_) => voice.restoreInputThresholdAuto(),
+    'voice activity sensitivity': voice.input.restoreVoiceActivitySensitivity(),
+    'input threshold': voice.input.restoreInputThreshold().then(
+      (_) => voice.input.restoreInputThresholdAuto(),
     ),
-    'even out loud sounds': voice.restoreEvenOutLoudSounds(),
-    'noise suppression': voice.restoreNoiseSuppression(),
-    'voice processing': voice.restoreVoiceProcessing(),
-    'video quality': voice.restoreVideoQuality(),
-    'push to talk': voice.restorePushToTalkPreference(),
-    'audio devices': voice.restoreAudioDevicePreferences(),
-    'mic fallback': voice.restoreMicFallback(),
-    'participant volumes': voice.restoreParticipantVolumes(),
-    'hidden cameras': voice.restoreHiddenCameras(),
+    'even out loud sounds': voice.input.restoreEvenOutLoudSounds(),
+    'noise suppression': voice.input.restoreNoiseSuppression(),
+    'voice processing': voice.input.restoreVoiceProcessing(),
+    'video quality': voice.input.restoreVideoQuality(),
+    'push to talk': voice.input.restorePushToTalkPreference(),
+    'audio devices': voice.devices.restoreAudioDevicePreferences(),
+    'mic fallback': voice.devices.restoreMicFallback(),
+    'participant volumes': voice.volumes.restoreParticipantVolumes(),
+    'hidden cameras': voice.cameras.restoreHiddenCameras(),
   };
   return Future.wait([
     for (final entry in restores.entries)

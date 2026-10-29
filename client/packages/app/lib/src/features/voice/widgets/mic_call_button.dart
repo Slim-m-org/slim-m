@@ -70,7 +70,7 @@ class MicCallButton extends ConsumerWidget {
             ? ref.watch(localMicLevelProvider)
             : null,
         onPressed: trouble != null && lost
-            ? () => unawaited(controller.resetMicrophone())
+            ? () => unawaited(controller.devices.resetMicrophone())
             : controller.toggleMicrophone,
       ),
     );

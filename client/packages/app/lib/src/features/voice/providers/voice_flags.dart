@@ -168,19 +168,20 @@ final voiceParticipantsProvider = Provider<List<VoiceParticipant>>(
 /// Your microphone as the native input gate reads it, about 20 times a
 /// second in a call; never emits where the host has no gate.
 final inputGateReadingProvider = StreamProvider.autoDispose<InputGateReading>(
-  (ref) => ref.watch(voiceControllerProvider.notifier).inputGateReadings,
+  (ref) => ref.watch(voiceControllerProvider.notifier).input.inputGateReadings,
 );
 
 /// Where automatic sensitivity has put the gate threshold, as it moves.
 final autoInputThresholdProvider = StreamProvider.autoDispose<double>(
-  (ref) => ref.watch(voiceControllerProvider.notifier).autoInputThresholds,
+  (ref) =>
+      ref.watch(voiceControllerProvider.notifier).input.autoInputThresholds,
 );
 
 /// Your own mic's level, 0 to 1, for the dock's level bar; its own slice so
 /// only that bar rebuilds when the level moves. From the input gate where
 /// there is one, since the SFU's report lags by half a second.
 final localMicLevelProvider = Provider<double>((ref) {
-  if (ref.watch(voiceControllerProvider.notifier).supportsInputGate) {
+  if (ref.watch(voiceControllerProvider.notifier).input.supportsInputGate) {
     final ballistics = ref.watch(micLevelBallisticsProvider);
     final raw = ref.watch(inputGateReadingProvider).valueOrNull?.levelDb;
     final fraction = inputLevelFraction(ballistics.step(raw ?? kInputFloorDb));

@@ -55,7 +55,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
     await controller.toggleMicrophone();
 
     expect(controller.state.microphoneEnabled, isFalse);
@@ -191,7 +191,7 @@ void main() {
       final controller = harness.controllerWith(session, voiceApi());
 
       await controller.join('channel-1');
-      await controller.setScreenShare(true);
+      await controller.share.setScreenShare(true);
 
       expect(controller.state.screenSharing, isFalse);
       expect(controller.state.error, contains('Could not start sharing'));
@@ -203,7 +203,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
     expect(controller.state.screenSharing, isTrue);
 
     // The SFU drops the track without the local toggle changing.
@@ -304,7 +304,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
 
     // Dropping this is what left the real Linux failure invisible.
     expect(controller.state.error, contains('source not found!'));
@@ -322,9 +322,9 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
-    expect(controller.screenShareNeedsSource, isTrue);
-    final sources = await controller.screenShareSources();
-    await controller.setScreenShare(true, sourceId: sources.first.id);
+    expect(controller.video.screenShareNeedsSource, isTrue);
+    final sources = await controller.video.screenShareSources();
+    await controller.share.setScreenShare(true, sourceId: sources.first.id);
 
     expect(session.lastSourceId, 'screen-2');
   });
@@ -336,7 +336,7 @@ void main() {
       final controller = harness.controllerWith(session, voiceApi());
       await controller.join('channel-1');
 
-      await controller.setScreenShare(true, includeAudio: true);
+      await controller.share.setScreenShare(true, includeAudio: true);
 
       expect(session.screenShareAudioCalls, [true]);
     },
@@ -349,7 +349,7 @@ void main() {
       final controller = harness.controllerWith(session, voiceApi());
       await controller.join('channel-1');
 
-      await controller.setScreenShare(true, includeAudio: true);
+      await controller.share.setScreenShare(true, includeAudio: true);
 
       // See VoiceController.setScreenShare's own guard against exactly this.
       expect(session.screenShareAudioCalls, [false]);
