@@ -5,14 +5,13 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart'
-    show InputLimits, SlimmApiSpace, SpaceSettingsUpdate;
+import 'package:slimm_api/api.dart' show InputLimits, SpaceSettingsUpdate;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
 import 'join_policy_row.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/settings_actions.dart';
 
 class SpaceNameField extends ConsumerStatefulWidget {
   const SpaceNameField({super.key, required this.saved});
@@ -44,7 +43,7 @@ class _SpaceNameFieldState extends ConsumerState<SpaceNameField>
       whatFailed: 'rename the Space',
       action: () async {
         final updated = await ref
-            .read(apiProvider)
+            .read(settingsActionsProvider)
             .setSpaceSettings(SpaceSettingsUpdate(name: text));
         _saved = updated.name;
         _name.text = updated.name;

@@ -20,13 +20,14 @@ import '../providers/member_moderation_error.dart';
 import '../../channels/providers/dms.dart' show openDirectMessage;
 import '../providers/member_presence.dart' show membersProvider;
 import '../../settings/providers/notification_schedule_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../voice/providers/dm_call_start.dart';
 import 'safety_actions.dart';
+import '../providers/member_actions.dart';
+import '../../settings/providers/settings_actions.dart';
 
 /// Files a report against a member, from the row's context menu.
 ///
@@ -113,7 +114,7 @@ Future<void> toggleNotificationScheduleAllowedUser(
   api.UserProfile profile,
   bool currentlyAllowed,
 ) async {
-  final client = container.read(apiProvider);
+  final client = container.read(settingsActionsProvider);
   final failure = await runGuarded(
     whatFailed: currentlyAllowed
         ? 'stop notifying you about this person off hours'
@@ -161,7 +162,8 @@ Future<void> removeMemberFromSpace(
   container.read(memberModerationErrorProvider.notifier).state = null;
   await runGuarded(
     whatFailed: 'remove $name',
-    action: () => container.read(apiProvider).removeMember(userId: profile.id),
+    action: () =>
+        container.read(memberActionsProvider).removeMember(userId: profile.id),
   ).then((failure) {
     if (failure == null) {
       container.invalidate(membersProvider);

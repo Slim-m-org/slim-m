@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/profile_draft.dart';
 import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../providers/member_actions.dart';
 
 class ProfileFieldsSection extends ConsumerStatefulWidget {
   const ProfileFieldsSection({super.key});
@@ -75,7 +76,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _pronouns.text.trim();
     if (text == _savedPronouns) return;
     try {
-      await ref.read(apiProvider).updateMe(pronouns: text);
+      await ref.read(memberActionsProvider).updateMe(pronouns: text);
       _savedPronouns = text;
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {
@@ -88,7 +89,7 @@ class _ProfileFieldsSectionState extends ConsumerState<ProfileFieldsSection> {
     final text = _about.text.trim();
     if (text == _savedAbout) return;
     try {
-      await ref.read(apiProvider).updateMe(about: text);
+      await ref.read(memberActionsProvider).updateMe(about: text);
       _savedAbout = text;
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {

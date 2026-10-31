@@ -29,6 +29,8 @@ import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../../widgets/space_icon.dart';
 import '../../settings/widgets/space_name_field.dart';
+import '../providers/member_actions.dart';
+import '../../settings/providers/settings_actions.dart';
 
 // The server's caps on the two pictures; a pick past either is shrunk first.
 const int _bannerMaxBytes = 4 * 1024 * 1024;
@@ -45,7 +47,7 @@ const int kInviteDescriptionMaxChars = api.InputLimits.spaceDescription;
 
 final _bannerBytesProvider = FutureProvider.autoDispose.family<Uint8List, int>(
   (ref, updatedAt) async =>
-      (await ref.watch(apiProvider).fetchSpaceBanner()).bytes,
+      (await ref.watch(settingsActionsProvider).fetchSpaceBanner()).bytes,
 );
 
 class InviteLandingSection extends ConsumerStatefulWidget {
@@ -89,7 +91,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     final text = _description.text.trim();
     await _run('save the description', () async {
       final updated = await ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .setSpaceSettings(api.SpaceSettingsUpdate(description: text));
       _saved = updated.description;
       _description.text = updated.description;
@@ -113,7 +115,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
     await _run(
       'upload the banner',
-      () => ref.read(apiProvider).uploadSpaceBanner(bytes),
+      () => ref.read(memberActionsProvider).uploadSpaceBanner(bytes),
     );
   }
 
@@ -138,7 +140,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
     );
     await _run(
       'upload the icon',
-      () => ref.read(apiProvider).uploadSpaceIcon(safe),
+      () => ref.read(memberActionsProvider).uploadSpaceIcon(safe),
     );
     ref.invalidate(serverInfoProvider);
   }
@@ -146,7 +148,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
   Future<void> _removeIcon() async {
     await _run(
       'remove the icon',
-      () => ref.read(apiProvider).deleteSpaceIcon(),
+      () => ref.read(memberActionsProvider).deleteSpaceIcon(),
     );
     ref.invalidate(serverInfoProvider);
   }
@@ -320,7 +322,7 @@ class _InviteLandingSectionState extends ConsumerState<InviteLandingSection>
           onChoose: _chooseBanner,
           onRemove: () => _run(
             'remove the banner',
-            () => ref.read(apiProvider).deleteSpaceBanner(),
+            () => ref.read(memberActionsProvider).deleteSpaceBanner(),
           ),
         ),
       ),

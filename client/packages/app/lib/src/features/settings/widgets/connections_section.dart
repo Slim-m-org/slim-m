@@ -22,6 +22,7 @@ import 'settings_detail_row.dart';
 import 'settings_refresh_button.dart';
 import 'spotify_connection_rows.dart';
 import 'settings_section_header.dart';
+import '../providers/settings_actions.dart';
 
 class ConnectionsSection extends ConsumerStatefulWidget {
   const ConnectionsSection({super.key});
@@ -40,7 +41,9 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
       whatFailed: 'start linking Discord',
       action: () async {
         try {
-          final url = await ref.read(apiProvider).startDiscordLink();
+          final url = await ref
+              .read(settingsActionsProvider)
+              .startDiscordLink();
           await openExternalHttpUrl(
             url,
             launcher: ref.read(externalUrlLauncherProvider),
@@ -63,7 +66,7 @@ class _ConnectionsSectionState extends ConsumerState<ConnectionsSection>
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: 'unlink Discord',
-      action: () => ref.read(apiProvider).unlinkDiscord(),
+      action: () => ref.read(settingsActionsProvider).unlinkDiscord(),
     );
     if (ok) ref.invalidate(myLinkedAccountsProvider);
     if (mounted) setState(() => _busy = false);

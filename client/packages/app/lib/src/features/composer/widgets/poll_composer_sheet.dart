@@ -27,6 +27,7 @@ import 'poll_view.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../../../widgets/text_insert.dart';
+import '../providers/composer_actions.dart';
 
 /// Mirrors `store::polls::MIN_OPTIONS`: below this a poll is not a choice.
 const _minOptions = 2;
@@ -130,7 +131,7 @@ class _PollComposerSheetState extends ConsumerState<_PollComposerSheet> {
     });
     try {
       final sent = await ref
-          .read(apiProvider)
+          .read(composerActionsProvider)
           .sendPollMessage(
             channelId: widget.channelId,
             id: newMessageId(),

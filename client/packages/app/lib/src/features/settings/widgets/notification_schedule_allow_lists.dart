@@ -22,6 +22,7 @@ import '../../../widgets/run_guarded.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../providers/settings_actions.dart';
 
 /// "Always notify me about" - People: the member card's own shortcut
 /// (`member_card_notification_schedule_action.dart`) writes to the same
@@ -51,8 +52,9 @@ class _NotificationScheduleAllowedPeopleState
     if (member == null) return;
     final ok = await guard(
       whatFailed: 'add that person to your off-hours list',
-      action: () =>
-          ref.read(apiProvider).addNotificationScheduleAllowedUser(member.id),
+      action: () => ref
+          .read(settingsActionsProvider)
+          .addNotificationScheduleAllowedUser(member.id),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);
   }
@@ -60,8 +62,9 @@ class _NotificationScheduleAllowedPeopleState
   Future<void> _remove(String userId) async {
     final ok = await guard(
       whatFailed: 'remove that person from your off-hours list',
-      action: () =>
-          ref.read(apiProvider).removeNotificationScheduleAllowedUser(userId),
+      action: () => ref
+          .read(settingsActionsProvider)
+          .removeNotificationScheduleAllowedUser(userId),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);
   }
@@ -134,7 +137,7 @@ class _NotificationScheduleAllowedChannelsState
     final ok = await guard(
       whatFailed: 'add that channel to your off-hours list',
       action: () => ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .addNotificationScheduleAllowedChannel(picked.id),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);
@@ -144,7 +147,7 @@ class _NotificationScheduleAllowedChannelsState
     final ok = await guard(
       whatFailed: 'remove that channel from your off-hours list',
       action: () => ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .removeNotificationScheduleAllowedChannel(channelId),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);

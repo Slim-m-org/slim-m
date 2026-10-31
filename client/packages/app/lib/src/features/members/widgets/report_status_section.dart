@@ -24,9 +24,9 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../api_failure.dart';
 import '../../../format.dart';
 import '../providers/filed_reports.dart';
-import '../../../providers/providers.dart';
 import '../../settings/widgets/settings_empty.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../providers/member_actions.dart';
 
 const _reportIdLabel = 'Report ID';
 
@@ -86,7 +86,7 @@ class _FiledReportRowState extends ConsumerState<_FiledReportRow> {
   Future<void> _load() async {
     try {
       final status = await ref
-          .read(apiProvider)
+          .read(memberActionsProvider)
           .myReportStatus(widget.reportId);
       if (!mounted) return;
       setState(() {
@@ -178,7 +178,9 @@ class _CheckByIdSectionState extends ConsumerState<_CheckByIdSection> {
       _error = null;
     });
     try {
-      final status = await ref.read(apiProvider).myReportStatus(reportId);
+      final status = await ref
+          .read(memberActionsProvider)
+          .myReportStatus(reportId);
       if (!mounted) return;
       setState(() {
         _busy = false;

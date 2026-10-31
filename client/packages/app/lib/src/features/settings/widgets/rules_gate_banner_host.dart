@@ -8,13 +8,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiJoinGate;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/join_gate_providers.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/banner_host_layout.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/settings_actions.dart';
 
 class RulesGateBannerHost extends ConsumerWidget {
   const RulesGateBannerHost({super.key, required this.child});
@@ -90,7 +89,7 @@ class _RulesSheetState extends ConsumerState<RulesSheet> {
     });
     final error = await runGuarded(
       whatFailed: 'Could not accept the rules',
-      action: () => ref.read(apiProvider).acceptSpaceRules(),
+      action: () => ref.read(settingsActionsProvider).acceptSpaceRules(),
     );
     if (!mounted) return;
     if (error == null) {

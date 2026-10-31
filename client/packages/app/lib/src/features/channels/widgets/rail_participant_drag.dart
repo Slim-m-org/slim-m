@@ -8,13 +8,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart' show myPermissionsProvider;
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
+import '../../voice/providers/voice_actions.dart';
 
 /// Who is being carried, and from where.
 class ParticipantDragData {
@@ -42,7 +41,7 @@ Future<void> moveByDrag(
   final failure = await runGuarded(
     whatFailed: 'move ${data.name}',
     action: () => ref
-        .read(apiProvider)
+        .read(voiceActionsProvider)
         .moveVoiceParticipant(data.fromChannelId, data.userId, toChannelId),
   );
   if (failure != null) {

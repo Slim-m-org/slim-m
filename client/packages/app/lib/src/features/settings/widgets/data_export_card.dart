@@ -8,13 +8,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../auth/widgets/reauth_sheet.dart';
 import '../providers/data_exports.dart';
 import 'data_export_copy.dart';
 import 'data_export_job_row.dart';
 import 'settings_detail_row.dart';
 import 'settings_section_header.dart';
+import '../providers/settings_actions.dart';
 
 class DataExportCard extends ConsumerWidget {
   const DataExportCard({super.key, required this.copy});
@@ -68,7 +68,7 @@ class DataExportCard extends ConsumerWidget {
       submitLabel: copy.startLabel.replaceAll('...', ''),
       onSubmit: (password, _) async {
         try {
-          final client = ref.read(apiProvider);
+          final client = ref.read(settingsActionsProvider);
           copy.kind == api.ExportKind.space
               ? await client.startSpaceExport(password: password)
               : await client.startMemberExport(password: password);

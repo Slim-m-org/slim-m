@@ -17,6 +17,7 @@ import '../../../providers/admin_providers.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../channels/widgets/channel_rail_frame.dart' show serverInfoProvider;
+import '../providers/member_actions.dart';
 
 const _inviteLifetime = Duration(hours: 24);
 
@@ -67,7 +68,7 @@ Future<void> inviteAFriend(BuildContext context) async {
       .hasPermission(Perm.createInvite);
   try {
     final invite = await container
-        .read(apiProvider)
+        .read(memberActionsProvider)
         .createInvite(
           maxUses: 1,
           reuse: true,

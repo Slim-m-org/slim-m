@@ -5,13 +5,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiCategoryPermissions;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../../providers/admin_providers.dart';
-import '../../../../providers/providers.dart';
 import '../../../../widgets/confirm_dialog.dart';
 import '../../../../widgets/run_guarded.dart';
+import '../../providers/settings_actions.dart';
 
 class CategorySyncBanner extends ConsumerStatefulWidget {
   const CategorySyncBanner({super.key, required this.channelId});
@@ -37,8 +36,9 @@ class _CategorySyncBannerState extends ConsumerState<CategorySyncBanner>
     setState(() => _syncing = true);
     final ok = await guard(
       whatFailed: 'sync the permissions',
-      action: () =>
-          ref.read(apiProvider).syncChannelOverwrites(widget.channelId),
+      action: () => ref
+          .read(settingsActionsProvider)
+          .syncChannelOverwrites(widget.channelId),
     );
     if (!mounted) return;
     setState(() => _syncing = false);

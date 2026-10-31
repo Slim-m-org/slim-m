@@ -11,6 +11,7 @@ import 'package:slimm_data/data.dart';
 
 import '../../../providers/providers.dart';
 import '../providers/unread_indicator_rules.dart';
+import '../providers/message_api_actions.dart';
 
 /// Whether [channel] is lit as unread or mentioned on its row.
 ///
@@ -40,7 +41,7 @@ Future<void> markChannelsRead(
   ProviderContainer container,
   List<String> channelIds,
 ) async {
-  final api = container.read(apiProvider);
+  final api = container.read(messageApiActionsProvider);
   final store = await container.read(storeProvider.future);
   for (var i = 0; i < channelIds.length; i += _markReadBatch) {
     final batch = channelIds.skip(i).take(_markReadBatch).toList();

@@ -24,7 +24,6 @@ import '../../../../providers/admin_providers.dart';
 import '../../../channels/providers/channel_permissions.dart';
 import '../../../members/providers/member_presence.dart'
     show channelMembersProvider, membersProvider;
-import '../../../../providers/providers.dart';
 import '../../../../widgets/run_guarded.dart';
 import '../settings_save_bar.dart';
 import 'category_sync_banner.dart';
@@ -34,6 +33,7 @@ import 'channel_permissions_grid_rows.dart';
 import 'channel_permissions_card.dart';
 import 'channel_permissions_columns.dart';
 import 'channel_permissions_picker.dart';
+import '../../providers/settings_actions.dart';
 
 class ChannelPermissionsGrid extends ConsumerStatefulWidget {
   const ChannelPermissionsGrid({super.key, required Channel this.channel})
@@ -217,7 +217,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
       final (kind, id) = parseOverwriteKey(key);
       try {
         await ref
-            .read(apiProvider)
+            .read(settingsActionsProvider)
             .deleteChannelOverwrite(
               channelId: widget.channel!.id,
               kind: kind,
@@ -264,7 +264,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
         final categoryId = _categoryId;
         if (categoryId != null) {
           await ref
-              .read(apiProvider)
+              .read(settingsActionsProvider)
               .batchSetCategoryOverwrites(
                 categoryId: categoryId,
                 overwrites: [
@@ -278,7 +278,7 @@ class _ChannelPermissionsGridState extends ConsumerState<ChannelPermissionsGrid>
               );
         } else if (edits.isNotEmpty) {
           await ref
-              .read(apiProvider)
+              .read(settingsActionsProvider)
               .batchSetChannelOverwrites(
                 channelId: widget.channel!.id,
                 overwrites: edits,

@@ -22,9 +22,9 @@ import '../../../api_failure.dart';
 import '../../../widgets/animation_gate.dart';
 import '../providers/gif_preview_bytes.dart';
 import '../providers/gif_trending.dart';
-import '../../../providers/providers.dart';
 import 'composer_attachments.dart';
 import '../../../widgets/image_decode.dart';
+import '../providers/composer_actions.dart';
 
 /// How long a pause in typing must last before a search actually fires, so a
 /// fast typist does not spend a request per keystroke.
@@ -93,7 +93,9 @@ Future<void> stageGif({
   required api.Attachment attachment,
 }) async {
   try {
-    final bytes = await ref.read(apiProvider).fetchAttachment(attachment.id);
+    final bytes = await ref
+        .read(composerActionsProvider)
+        .fetchAttachment(attachment.id);
     // The composer may have been torn down while this awaited.
     if (!context.mounted) return;
     attachments.addResolved(attachment, bytes.bytes);
@@ -206,7 +208,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     });
     try {
       final results = await ref
-          .read(apiProvider)
+          .read(composerActionsProvider)
           .searchGifs(query, channelId: widget.channelId);
       if (!mounted) return;
       setState(() {
@@ -230,7 +232,7 @@ class _GifPickerBodyState extends ConsumerState<GifPickerBody> {
     });
     try {
       final attachment = await ref
-          .read(apiProvider)
+          .read(composerActionsProvider)
           .selectGif(result.id, channelId: widget.channelId);
       if (!mounted) return;
       widget.onPicked(attachment);

@@ -8,7 +8,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiVoiceRooms;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
@@ -21,6 +20,7 @@ import '../../../entity_name.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
+import '../providers/voice_actions.dart';
 
 Future<void> showVoiceRoomSettingsSheet(
   BuildContext context, {
@@ -64,7 +64,7 @@ class _VoiceRoomSettingsSheetState extends ConsumerState<VoiceRoomSettingsSheet>
       whatFailed: 'change the room',
       action: () async {
         final updated = await ref
-            .read(apiProvider)
+            .read(voiceActionsProvider)
             .updateVoiceRoom(
               channelId: widget.room.id,
               name: name,
