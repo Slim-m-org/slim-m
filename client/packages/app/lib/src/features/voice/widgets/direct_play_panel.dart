@@ -30,7 +30,9 @@ class DirectPlayPanel extends ConsumerWidget {
     final offered =
         ref.watch(watchRoomProvider(channelId)).valueOrNull?.directPlay != null;
     if (!offered) return const SizedBox.shrink();
-    final controller = ref.read(directPlayProvider(channelId).notifier);
+    final controller = ref
+        .read(directPlayProvider(channelId).notifier)
+        .controller;
     final state = ref.watch(directPlayProvider(channelId));
     ref.listen<DirectPlayState>(directPlayProvider(channelId), (before, now) {
       final asked =

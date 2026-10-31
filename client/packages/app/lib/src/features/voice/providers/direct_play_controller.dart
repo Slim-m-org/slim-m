@@ -12,7 +12,6 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../format.dart' show formatPlaybackTime;
@@ -114,9 +113,24 @@ class DirectPlayEnvironment {
   final bool directPlaySupported;
 }
 
-class DirectPlayController extends StateNotifier<DirectPlayState> {
+/// The direct-play state machine for one channel; [DirectPlay] mirrors its state into riverpod.
+class DirectPlayController {
   DirectPlayController(this._env, this._channelId, {bool enabled = false})
-    : super(DirectPlayState(enabled: enabled));
+    : _state = DirectPlayState(enabled: enabled);
+
+  DirectPlayState _state;
+  void Function(DirectPlayState)? _onChange;
+
+  DirectPlayState get state => _state;
+
+  set state(DirectPlayState next) {
+    _state = next;
+    _onChange?.call(next);
+  }
+
+  /// Receives every later state; one listener, the provider's notifier.
+  void onChange(void Function(DirectPlayState) listener) =>
+      _onChange = listener;
 
   final DirectPlayEnvironment _env;
   final String _channelId;
@@ -472,11 +486,10 @@ class DirectPlayController extends StateNotifier<DirectPlayState> {
     );
   }
 
-  @override
   void dispose() {
     _disposed = true;
+    _onChange = null;
     unawaited(_stopPlaying(retract: true));
-    super.dispose();
   }
 }
 

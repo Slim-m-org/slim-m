@@ -47,8 +47,9 @@ Future<JellyfinSession?> _loadCredential(KeyStore keys, String baseUrl) async {
   );
 }
 
-final directPlayProvider = StateNotifierProvider.autoDispose
-    .family<DirectPlayController, DirectPlayState, String>((ref, channelId) {
+/// Builds the channel's controller and feeds it the room and the call's shares.
+final directPlayControllerProvider = Provider.autoDispose
+    .family<DirectPlayController, String>((ref, channelId) {
       final prefs = ref.read(preferencesProvider).valueOrNull;
       final keys = ref.read(keyStoreProvider);
       final shares = ref.read(shareWatchProvider.notifier);
@@ -92,5 +93,22 @@ final directPlayProvider = StateNotifierProvider.autoDispose
           unawaited(controller.disable());
         }
       });
+      ref.onDispose(controller.dispose);
       return controller;
     });
+
+/// The channel's direct-play state; the work happens in [DirectPlayController].
+class DirectPlay extends AutoDisposeFamilyNotifier<DirectPlayState, String> {
+  @override
+  DirectPlayState build(String channelId) {
+    final c = ref.watch(directPlayControllerProvider(channelId));
+    c.onChange((next) => state = next);
+    return c.current;
+  }
+
+  DirectPlayController get controller =>
+      ref.read(directPlayControllerProvider(arg));
+}
+
+final directPlayProvider = NotifierProvider.autoDispose
+    .family<DirectPlay, DirectPlayState, String>(DirectPlay.new);

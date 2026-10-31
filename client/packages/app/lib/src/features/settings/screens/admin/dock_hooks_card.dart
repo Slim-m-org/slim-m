@@ -132,8 +132,7 @@ class _DockHooksCardState extends ConsumerState<DockHooksCard>
     return SettingsSectionCard(
       title: 'Checks',
       description:
-          'Lower numbers run first. A check that fails lets the action '
-          'through unless you refuse it here.',
+          'Lower numbers run first, and a failed check lets the action through.',
       children: [
         if (actionError case final message?)
           Padding(

@@ -24,7 +24,9 @@ class DirectPlayStage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final state = ref.watch(directPlayProvider(channelId));
-    final controller = ref.read(directPlayProvider(channelId).notifier);
+    final controller = ref
+        .read(directPlayProvider(channelId).notifier)
+        .controller;
     final player = controller.player;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadii.card),

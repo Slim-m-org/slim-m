@@ -44,7 +44,10 @@ Future<DirectPlayController> _scene(
     ProviderScope(
       overrides: [
         watchRoomProvider.overrideWith((ref, id) => Stream.value(current)),
-        directPlayProvider.overrideWith((ref, id) => c),
+        directPlayControllerProvider.overrideWith((ref, id) {
+          ref.onDispose(c.dispose);
+          return c;
+        }),
       ],
       child: MaterialApp(
         theme: buildTheme(
