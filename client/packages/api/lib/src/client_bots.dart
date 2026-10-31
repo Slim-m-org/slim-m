@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// One bot, as the admin surface lists it. Never carries a token.
 class Bot {
@@ -82,7 +86,7 @@ extension SlimmApiBots on SlimmApi {
   /// member is still listed; one also removed from the Space is not, unless
   /// [includeRemoved] is true - it is already gone from [listMembers].
   Future<List<Bot>> listBots({bool includeRemoved = false}) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/bots',
       query: includeRemoved ? const {'include_removed': 'true'} : null,
@@ -99,7 +103,7 @@ extension SlimmApiBots on SlimmApi {
     int permissions = 0,
     String? prefix,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/bots',
       body: {
@@ -114,30 +118,30 @@ extension SlimmApiBots on SlimmApi {
 
   /// A command prefix no live bot holds, for the create form to offer.
   Future<String> suggestedBotPrefix() async {
-    final json = await _send('GET', '/bots/suggested-prefix');
+    final json = await send('GET', '/bots/suggested-prefix');
     return (json as Map<String, dynamic>)['prefix'] as String;
   }
 
   /// A member's effective permission bits. Bot accounts only, so the app never
   /// calls it; it is here for the wire contract.
   Future<int> memberPermissions(String userId) async {
-    final json = await _send('GET', '/members/$userId/permissions');
+    final json = await send('GET', '/members/$userId/permissions');
     return (json as Map<String, dynamic>)['permissions'] as int;
   }
 
   /// Revokes a bot's token and session, stopping it on its next request.
   Future<void> revokeBot(String botUserId) =>
-      _send('POST', '/bots/$botUserId/revoke', expectNoContent: true);
+      send('POST', '/bots/$botUserId/revoke', expectNoContent: true);
 
   /// Replaces a bot's token and returns the new one, shown only this once.
   Future<NewBot> reissueBotToken(String botUserId) async {
-    final json = await _send('POST', '/bots/$botUserId/token');
+    final json = await send('POST', '/bots/$botUserId/token');
     return NewBot.fromJson(json as Map<String, dynamic>);
   }
 
   /// Replaces what a bot's managed role grants.
   Future<Bot> setBotPermissions(String botUserId, int permissions) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/bots/$botUserId/permissions',
       body: {'permissions': permissions},

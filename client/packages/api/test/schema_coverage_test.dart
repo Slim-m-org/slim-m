@@ -292,10 +292,10 @@ List<_SchemaRoute> _extractSchemaRoutes(File schemaFile) {
 /// must exclude the method's own declaration (`Future<Object?> _send(` is
 /// followed by a type, not a quote) and its recursive retry call (followed by
 /// the bare `method` identifier, not a quote), neither of which is a route.
-final RegExp _literalLedCall = RegExp(r"_send\(\s*'");
+final RegExp _literalLedCall = RegExp(r"\bsend\(\s*'");
 
 /// The same call site, fully parsed into its method and path literals.
-final RegExp _fullCall = RegExp(r"_send\(\s*'([A-Z]+)'\s*,\s*'([^']*)'");
+final RegExp _fullCall = RegExp(r"\bsend\(\s*'([A-Z]+)'\s*,\s*'([^']*)'");
 
 /// Scans every `.dart` file directly under [srcDir] for `_send(...)` call
 /// sites and returns the normalized `METHOD /path` key for each.

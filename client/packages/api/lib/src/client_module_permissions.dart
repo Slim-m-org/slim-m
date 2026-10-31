@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The dynamic half of the permission model (docs/decisions/0021): the
 /// grantable rows a module registers on install, alongside the fixed
@@ -10,7 +15,7 @@ extension SlimmApiModulePermissions on SlimmApi {
   /// Every module-scoped permission any installed module currently declares,
   /// independent of any one role.
   Future<List<ModulePermission>> listModulePermissions() async {
-    final json = await _send('GET', '/roles/module-permissions');
+    final json = await send('GET', '/roles/module-permissions');
     return (json as List<dynamic>)
         .map((p) => ModulePermission.fromJson(p as Map<String, dynamic>))
         .toList(growable: false);
@@ -20,7 +25,7 @@ extension SlimmApiModulePermissions on SlimmApi {
   Future<List<GrantedModulePermission>> listRoleModulePermissions(
     String roleId,
   ) async {
-    final json = await _send('GET', '/roles/$roleId/module-permissions');
+    final json = await send('GET', '/roles/$roleId/module-permissions');
     return (json as List<dynamic>)
         .map((p) => GrantedModulePermission.fromJson(p as Map<String, dynamic>))
         .toList(growable: false);
@@ -33,7 +38,7 @@ extension SlimmApiModulePermissions on SlimmApi {
     required String moduleId,
     required String permKey,
   }) =>
-      _send(
+      send(
         'PUT',
         '/roles/$roleId/module-permissions/$moduleId/$permKey',
         expectNoContent: true,
@@ -46,7 +51,7 @@ extension SlimmApiModulePermissions on SlimmApi {
     required String moduleId,
     required String permKey,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/roles/$roleId/module-permissions/$moduleId/$permKey',
         expectNoContent: true,

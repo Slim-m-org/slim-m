@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'exceptions.dart';
+import 'logging/app_log.dart';
+import 'models.dart';
+import 'client.dart';
 
 const _contentTypeHeader = 'content-type';
 
@@ -19,7 +27,7 @@ const _contentTypeHeader = 'content-type';
 /// answers hangs its caller for the life of the process. The reachable case is
 /// a mobile network transition, and the visible one is a spinner whose
 /// `finally` never runs.
-const _requestDeadline = Duration(seconds: 45);
+const requestDeadline = Duration(seconds: 45);
 
 /// The same, for a request whose body is the point: an upload, or an
 /// attachment or avatar fetch.
@@ -27,10 +35,10 @@ const _requestDeadline = Duration(seconds: 45);
 /// Longer because ten megabytes over a poor link legitimately takes minutes,
 /// and a deadline that kills a transfer which is making progress is worse than
 /// the hang it replaces.
-const _transferDeadline = Duration(minutes: 3);
+const transferDeadline = Duration(minutes: 3);
 
 extension SlimmApiTransport on SlimmApi {
-  Future<Object?> _send(
+  Future<Object?> send(
     String method,
     String path, {
     Map<String, dynamic>? body,
@@ -45,7 +53,7 @@ extension SlimmApiTransport on SlimmApi {
   }) async {
     final request = _buildRequest(
       method,
-      _requestUri(path, query),
+      requestUri(path, query),
       body: body,
       bytes: bytes,
       authenticated: authenticated,
@@ -54,7 +62,7 @@ extension SlimmApiTransport on SlimmApi {
     final response = await _perform(
       request,
       '$method $path',
-      deadline: bytes == null ? _requestDeadline : _transferDeadline,
+      deadline: bytes == null ? requestDeadline : transferDeadline,
       over: over,
     );
     onHeaders?.call(response.headers);
@@ -66,7 +74,7 @@ extension SlimmApiTransport on SlimmApi {
         !isRetry &&
         session.tokens != null) {
       await refresh();
-      return _send(
+      return send(
         method,
         path,
         body: body,
@@ -87,7 +95,7 @@ extension SlimmApiTransport on SlimmApi {
       if (response.statusCode == 204 || expectNoContent) return null;
       return _decodeBody(response, method, path);
     }
-    throw _errorFor(response);
+    throw errorFor(response);
   }
 
   http.Request _buildRequest(
@@ -135,16 +143,16 @@ extension SlimmApiTransport on SlimmApi {
     }
   }
 
-  /// Like [_send], for an authenticated GET whose response is raw bytes
+  /// Like [send], for an authenticated GET whose response is raw bytes
   /// rather than JSON (an attachment or an avatar fetch): the same one-shot
   /// refresh-and-retry and error mapping, without a JSON decode that would
   /// only fail on a body that was never JSON to begin with.
-  Future<FetchedBytes> _fetchBytes(
+  Future<FetchedBytes> fetchBytes(
     String path, {
     Map<String, String>? query,
     bool isRetry = false,
   }) async {
-    final request = http.Request('GET', _requestUri(path, query));
+    final request = http.Request('GET', requestUri(path, query));
     final token = session.tokens?.accessToken;
     if (token == null) {
       throw const UnauthorizedException('not signed in');
@@ -154,12 +162,12 @@ extension SlimmApiTransport on SlimmApi {
     final response = await _perform(
       request,
       'GET $path',
-      deadline: _transferDeadline,
+      deadline: transferDeadline,
     );
 
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refresh();
-      return _fetchBytes(path, query: query, isRetry: true);
+      return fetchBytes(path, query: query, isRetry: true);
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -169,7 +177,7 @@ extension SlimmApiTransport on SlimmApi {
             response.headers[_contentTypeHeader] ?? 'application/octet-stream',
       );
     }
-    throw _errorFor(response);
+    throw errorFor(response);
   }
 
   /// Sends [request] and reads its whole response under one [deadline],
@@ -177,8 +185,8 @@ extension SlimmApiTransport on SlimmApi {
   /// `on ApiException` reaches it.
   ///
   /// The one place both entry points share, which is the point: a deadline
-  /// added to [_send] alone would have left the three byte-fetching routes
-  /// unbounded with nothing failing to say so, and `_fetchBytes` had been a
+  /// added to [send] alone would have left the three byte-fetching routes
+  /// unbounded with nothing failing to say so, and `fetchBytes` had been a
   /// hand-copy of this since it was written.
   ///
   /// The deadline covers the round trip rather than each half, so a slow
@@ -202,7 +210,7 @@ extension SlimmApiTransport on SlimmApi {
   }) async {
     try {
       // Chained, never `Future(() async { ... })`; see the note on this method.
-      return await (over ?? _http)
+      return await (over ?? link.client)
           .send(request)
           .then(http.Response.fromStream)
           .timeout(deadline);
@@ -230,7 +238,7 @@ extension SlimmApiTransport on SlimmApi {
   /// `.` or `..` the same way `path` does, so [_withoutDotSegment] escapes
   /// only those two literal values; every other segment renders exactly as
   /// `pathSegments` already renders it today.
-  Uri _requestUri(String path, Map<String, String>? query) {
+  Uri requestUri(String path, Map<String, String>? query) {
     final parts = path.split('/');
     final segments =
         (parts.isNotEmpty && parts.first.isEmpty ? parts.skip(1) : parts)
@@ -239,7 +247,7 @@ extension SlimmApiTransport on SlimmApi {
     return baseUrl.replace(pathSegments: segments, queryParameters: query);
   }
 
-  ApiException _errorFor(http.Response response) {
+  ApiException errorFor(http.Response response) {
     var reason = 'request failed';
     var explained = false;
     int? missingPermissions;
@@ -314,7 +322,7 @@ Duration? _retryAfter(http.Response response) {
 
 /// [fromJson] over [json], or a [TransportException] when the reply is not the
 /// object shape [what] promises, so no TypeError escapes the ApiException catches.
-T _decodeShape<T>(
+T decodeShape<T>(
   Object? json,
   String what,
   T Function(Map<String, dynamic>) fromJson,

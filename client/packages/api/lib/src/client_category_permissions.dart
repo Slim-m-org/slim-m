@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// A channel's overwrites with whether they follow its category.
 class ChannelOverwriteSet {
@@ -34,7 +39,7 @@ extension SlimmApiCategoryPermissions on SlimmApi {
     String categoryId,
   ) async =>
       _overwritesOf(
-        await _send('GET', '/categories/$categoryId/overwrites'),
+        await send('GET', '/categories/$categoryId/overwrites'),
       );
 
   /// Applies the edits to the category (an all-zero pair removes that target)
@@ -44,7 +49,7 @@ extension SlimmApiCategoryPermissions on SlimmApi {
     required List<ChannelOverwriteEdit> overwrites,
   }) async =>
       _overwritesOf(
-        await _send(
+        await send(
           'PUT',
           '/categories/$categoryId/overwrites',
           body: _editsBody(overwrites),
@@ -53,7 +58,7 @@ extension SlimmApiCategoryPermissions on SlimmApi {
 
   /// A channel's overwrites and whether they follow its category.
   Future<ChannelOverwriteSet> getChannelOverwriteSet(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/overwrites');
+    final json = await send('GET', '/channels/$channelId/overwrites');
     return ChannelOverwriteSet(
       overwrites: _overwritesOf(json),
       synced: (json as Map<String, dynamic>)['synced'] as bool? ?? false,
@@ -64,6 +69,6 @@ extension SlimmApiCategoryPermissions on SlimmApi {
   Future<List<ChannelOverwrite>> syncChannelOverwrites(
           String channelId) async =>
       _overwritesOf(
-        await _send('POST', '/channels/$channelId/overwrites/sync'),
+        await send('POST', '/channels/$channelId/overwrites/sync'),
       );
 }

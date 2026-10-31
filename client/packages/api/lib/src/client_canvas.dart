@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Reading a region of a channel's canvas and placing objects on it, the
 /// `canvas` tag.
@@ -20,12 +25,12 @@ extension SlimmApiCanvas on SlimmApi {
       'max_y': '${region.maxY}',
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/canvas/objects',
       query: query,
     );
-    return _decodeShape(json, 'GET /channels/$channelId/canvas/objects',
+    return decodeShape(json, 'GET /channels/$channelId/canvas/objects',
         CanvasViewport.fromJson);
   }
 
@@ -46,7 +51,7 @@ extension SlimmApiCanvas on SlimmApi {
       'cursor_seq': '$cursorSeq',
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/canvas/objects',
       query: query,
@@ -74,7 +79,7 @@ extension SlimmApiCanvas on SlimmApi {
     required double h,
     required Map<String, dynamic> props,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/canvas/objects',
       body: {
@@ -87,7 +92,7 @@ extension SlimmApiCanvas on SlimmApi {
         'props': props,
       },
     );
-    return _decodeShape(json, 'POST /channels/$channelId/canvas/objects',
+    return decodeShape(json, 'POST /channels/$channelId/canvas/objects',
         CanvasObject.fromJson);
   }
 
@@ -109,7 +114,7 @@ extension SlimmApiCanvas on SlimmApi {
     int? zIndex,
     Map<String, Object?>? props,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/canvas/ops',
       body: {
@@ -130,7 +135,7 @@ extension SlimmApiCanvas on SlimmApi {
         if (props != null) 'props': props,
       },
     );
-    return _decodeShape(
+    return decodeShape(
         json, 'POST /channels/$channelId/canvas/ops', CanvasOpResult.fromJson);
   }
 
@@ -146,12 +151,12 @@ extension SlimmApiCanvas on SlimmApi {
       'after_seq': '$afterSeq',
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/canvas/ops',
       query: query,
     );
-    return _decodeShape(
+    return decodeShape(
         json, 'GET /channels/$channelId/canvas/ops', CanvasOpsPage.fromJson);
   }
 
@@ -159,8 +164,8 @@ extension SlimmApiCanvas on SlimmApi {
   /// fetch to run once on opening the canvas, before live
   /// `canvas.media_slot.changed` frames keep the picture current.
   Future<CanvasMediaSlotPage> canvasMediaSlots(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/canvas/media-slots');
-    return _decodeShape(json, 'GET /channels/$channelId/canvas/media-slots',
+    final json = await send('GET', '/channels/$channelId/canvas/media-slots');
+    return decodeShape(json, 'GET /channels/$channelId/canvas/media-slots',
         CanvasMediaSlotPage.fromJson);
   }
 
@@ -177,7 +182,7 @@ extension SlimmApiCanvas on SlimmApi {
     required bool locked,
     required bool sentToBack,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/channels/$channelId/canvas/media-slots/$kind/$userId',
       body: {
@@ -189,7 +194,7 @@ extension SlimmApiCanvas on SlimmApi {
         'sent_to_back': sentToBack,
       },
     );
-    return _decodeShape(
+    return decodeShape(
         json,
         'PUT /channels/$channelId/canvas/media-slots/$kind/$userId',
         CanvasMediaSlot.fromJson);
@@ -197,8 +202,8 @@ extension SlimmApiCanvas on SlimmApi {
 
   /// The ids of this channel's live objects locked in place.
   Future<Set<String>> canvasObjectLocks(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/canvas/object-locks');
-    return _decodeShape(
+    final json = await send('GET', '/channels/$channelId/canvas/object-locks');
+    return decodeShape(
       json,
       'GET /channels/$channelId/canvas/object-locks',
       (map) => (map['object_ids'] as List<dynamic>).cast<String>().toSet(),
@@ -208,11 +213,11 @@ extension SlimmApiCanvas on SlimmApi {
   /// Locks [objectId] in place: nobody moves, restacks or erases it until it
   /// is unlocked. Its author or a canvas moderator may.
   Future<void> lockCanvasObject(String channelId, String objectId) =>
-      _send('PUT', '/channels/$channelId/canvas/objects/$objectId/lock');
+      send('PUT', '/channels/$channelId/canvas/objects/$objectId/lock');
 
   /// Unlocks [objectId]; the same rule as [lockCanvasObject].
   Future<void> unlockCanvasObject(String channelId, String objectId) =>
-      _send('DELETE', '/channels/$channelId/canvas/objects/$objectId/lock');
+      send('DELETE', '/channels/$channelId/canvas/objects/$objectId/lock');
 
   /// Deletes [objectId] for good: its author or a canvas moderator may.
   /// Answers the row as it was, so the caller can place it again to undo.
@@ -220,11 +225,11 @@ extension SlimmApiCanvas on SlimmApi {
     String channelId,
     String objectId,
   ) async {
-    final json = await _send(
+    final json = await send(
       'DELETE',
       '/channels/$channelId/canvas/objects/$objectId',
     );
-    return _decodeShape(
+    return decodeShape(
       json,
       'DELETE /channels/$channelId/canvas/objects/$objectId',
       CanvasObject.fromJson,

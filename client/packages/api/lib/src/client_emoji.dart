@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Custom emoji: the deployment's own named images. The `emoji` tag.
 ///
@@ -13,7 +20,7 @@ extension SlimmApiEmoji on SlimmApi {
   /// Unpaginated on purpose: rendering any message containing a
   /// `:shortcode:` needs the whole set, and the server caps it.
   Future<List<CustomEmoji>> listCustomEmoji() async {
-    final json = await _send('GET', '/emoji');
+    final json = await send('GET', '/emoji');
     return (json as List<dynamic>)
         .map((e) => CustomEmoji.fromJson(e as Map<String, dynamic>))
         .toList(growable: false);
@@ -31,7 +38,7 @@ extension SlimmApiEmoji on SlimmApi {
     List<int> bytes, {
     required String name,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/emoji',
       bytes: bytes,
@@ -54,7 +61,7 @@ extension SlimmApiEmoji on SlimmApi {
   Future<List<CustomEmoji>> bulkUploadCustomEmoji(
     List<EmojiBulkImage> images,
   ) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/emoji/bulk',
       body: {
@@ -73,11 +80,11 @@ extension SlimmApiEmoji on SlimmApi {
   /// already gone succeeds, so a retry never has to tell "gone" from "never
   /// existed".
   Future<void> deleteCustomEmoji(String emojiId) =>
-      _send('DELETE', '/emoji/$emojiId', expectNoContent: true);
+      send('DELETE', '/emoji/$emojiId', expectNoContent: true);
 
   /// Fetches an emoji's image bytes. Gated on authentication only, and the
   /// bytes never change under an id, so the result is safe to cache for as
   /// long as the id is held.
   Future<FetchedBytes> fetchCustomEmojiImage(String emojiId) =>
-      _fetchBytes('/emoji/$emojiId/image');
+      fetchBytes('/emoji/$emojiId/image');
 }

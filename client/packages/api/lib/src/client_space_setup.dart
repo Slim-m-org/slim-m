@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// What the server estimates it can carry, from `GET /space/setup`.
 class SpaceCapacityEstimate {
@@ -104,11 +108,11 @@ class SpaceSetup {
 extension SlimmApiSpaceSetup on SlimmApi {
   /// Requires MANAGE_SERVER.
   Future<SpaceSetup> spaceSetup() async {
-    final json = await _send('GET', '/space/setup');
+    final json = await send('GET', '/space/setup');
     return SpaceSetup.fromJson(json as Map<String, dynamic>);
   }
 
   /// Only the admin who claimed the space may close its setup.
   Future<void> completeSpaceSetup() =>
-      _send('POST', '/space/setup/complete', expectNoContent: true);
+      send('POST', '/space/setup/complete', expectNoContent: true);
 }

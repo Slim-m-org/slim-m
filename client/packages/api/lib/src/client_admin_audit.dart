@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The admin audit log: the `space` tag's `GET /space/audit-log`.
 extension SlimmApiAdminAudit on SlimmApi {
@@ -11,7 +16,7 @@ extension SlimmApiAdminAudit on SlimmApi {
       if (before != null) 'before': '$before',
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/space/audit-log',
       query: query.isEmpty ? null : query,

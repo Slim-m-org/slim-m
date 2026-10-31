@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// A bot's button press, menu choice and form submit; its own answers come from its process, never this client.
 extension SlimmApiInteractions on SlimmApi {
@@ -12,7 +16,7 @@ extension SlimmApiInteractions on SlimmApi {
     required String customId,
     List<String>? values,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/messages/$messageId/interactions',
         body: {
@@ -31,7 +35,7 @@ extension SlimmApiInteractions on SlimmApi {
     required String id,
     required Map<String, String> fields,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/interactions/$interactionId/submit',
         body: {'id': id, 'fields': fields},
