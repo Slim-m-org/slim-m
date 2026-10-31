@@ -46,20 +46,15 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../desktop/desktop_window_shell.dart';
 import '../providers/dm_call_ring_controller.dart';
-import '../../members/providers/user_profiles.dart';
 import '../../../routing/router.dart';
-import 'voice_call_controls.dart' show CallDockButton;
-import '../../../widgets/floating_dock_card.dart';
-import '../../members/widgets/user_avatar.dart';
+import 'compact_incoming_call.dart';
+import 'expanded_incoming_call.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;
-
-part 'incoming_call_overlay_surfaces.dart';
 
 class IncomingCallOverlay extends ConsumerWidget {
   const IncomingCallOverlay({super.key});
@@ -82,12 +77,12 @@ class IncomingCallOverlay extends ConsumerWidget {
 
     final compact = MediaQuery.sizeOf(context).width < kCompactWidth;
     final content = compact
-        ? _CompactIncomingCall(ring: ring)
+        ? CompactIncomingCall(ring: ring)
         : Align(
             alignment: Alignment.topCenter,
             child: SafeArea(
               minimum: const EdgeInsets.only(top: AppSpacing.s12),
-              child: _ExpandedIncomingCall(ring: ring),
+              child: ExpandedIncomingCall(ring: ring),
             ),
           );
 
@@ -123,57 +118,4 @@ Future<void> _raiseWindow(DesktopWindowShell shell) async {
       stack,
     );
   }
-}
-
-void _acceptRing(WidgetRef ref, IncomingDmCallRing ring) =>
-    unawaited(ref.read(dmCallRingControllerProvider.notifier).accept(ring));
-
-void _declineRing(WidgetRef ref, IncomingDmCallRing ring) =>
-    unawaited(ref.read(dmCallRingControllerProvider.notifier).decline(ring));
-
-/// Escape declines rather than merely dismissing to a lesser state: the ring
-/// keeps going on the caller's own side either way (`dm_call_ring_controller.dart`'s
-/// own doc), so silently hiding this without telling the caller would leave
-/// them waiting on an answer that already happened.
-///
-/// Requests focus explicitly on mount rather than relying on `autofocus`:
-/// the routed tree's own page already holds focus in its `ModalRoute`'s own
-/// scope by the time a ring can ever arrive, and passive `autofocus` only
-/// claims a node when its enclosing scope holds none at all - it defers
-/// rather than contesting a focus a sibling scope already has. An explicit
-/// [FocusNode.requestFocus] call has no such deference, which is exactly
-/// what "steal focus" means here - with no tab stop needed to reach it first.
-class _RingShortcuts extends ConsumerStatefulWidget {
-  const _RingShortcuts({required this.ring, required this.child});
-
-  final IncomingDmCallRing ring;
-  final Widget child;
-
-  @override
-  ConsumerState<_RingShortcuts> createState() => _RingShortcutsState();
-}
-
-class _RingShortcutsState extends ConsumerState<_RingShortcuts> {
-  final _focusNode = FocusNode(debugLabel: 'IncomingCallOverlay');
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.requestFocus();
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => CallbackShortcuts(
-    bindings: {
-      const SingleActivator(LogicalKeyboardKey.escape): () =>
-          _declineRing(ref, widget.ring),
-    },
-    child: Focus(focusNode: _focusNode, child: widget.child),
-  );
 }

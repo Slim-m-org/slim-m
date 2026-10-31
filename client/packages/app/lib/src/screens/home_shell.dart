@@ -48,7 +48,6 @@ import '../features/channels/providers/threads.dart';
 import '../features/voice/providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
-import '../widgets/app_panel_reveal.dart';
 import '../features/channels/widgets/channel_grouping.dart';
 import '../features/voice/widgets/call_mini_player.dart';
 import '../features/channels/widgets/channel_rail.dart';
@@ -73,9 +72,7 @@ import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
-import '../features/messages/screens/thread_screen.dart';
-
-part 'home_shell_pane_slots.dart';
+import 'home_shell_pane_slots.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
 /// pane at a time, and above that both at once. The panes themselves are the
@@ -247,7 +244,7 @@ class HomeShell extends ConsumerWidget {
       Widget wide(bool isDm) => _wideScaffold(context, ref, facts, isDm);
       return selected == null
           ? wide(false)
-          : _withChannelKind(ref, selected, wide);
+          : withChannelKind(ref, selected, wide);
     }
     if (selected == null) return const Scaffold(body: ChannelRail());
     return _compactScaffold(context, ref, facts, selected);
@@ -293,7 +290,7 @@ class HomeShell extends ConsumerWidget {
           ),
           // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
           if (facts.threadFits)
-            _ThreadPaneSlot(
+            ThreadPaneSlot(
               channelId: facts.openThread,
               requested: facts.showThread,
             ),
@@ -305,7 +302,7 @@ class HomeShell extends ConsumerWidget {
           // duration while the entrance gets the full slide.
           if (facts.membersFit)
             // Once synced, unscoped until the row resolves, so no request names a channel not yet known to be visible.
-            _MemberPaneSlot(
+            MemberPaneSlot(
               channelId: facts.rosterPending ? null : selected,
               requested: facts.showMembers,
             ),
@@ -329,7 +326,7 @@ class HomeShell extends ConsumerWidget {
         voiceChannelId != channelId;
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return _withChannelKind(ref, channelId, (isDm) {
+    return withChannelKind(ref, channelId, (isDm) {
       // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
       final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
       return CompactDrawerScaffold(
