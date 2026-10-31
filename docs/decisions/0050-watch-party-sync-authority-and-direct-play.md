@@ -1,6 +1,6 @@
 # 0050 - The watch party keeps its shared track and gains per-viewer direct play
 
-Status: accepted (a design decision); stage 1, the durable watch session and the position readout, is built (#1527), and stages 2 to 5 are not
+Status: accepted (a design decision); stage 1 (#1527), stage 2 (slim-bots Quick Connect links), and stages 3 and 4 (the per-viewer player and the floor that lifts) are built, and stage 5 is not; the viewer signs in to jellyfin from their own device, because stage 2 keeps no token on the bot
 Date: 2026-09-30
 Extends: 0035 (module or bot), 0045 (bot-contributed UI), 0014 (canvas video subscription culling)
 Relates to: 0021 (module ABI), 0023 (mediated host capabilities), 0043 (scene timeline), 0010 (canvas media tiles)

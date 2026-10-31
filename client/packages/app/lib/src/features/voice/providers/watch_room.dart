@@ -34,6 +34,7 @@ class WatchRoom {
     required this.ttl,
     required this.clockOffset,
     this.duration,
+    this.directPlay,
   });
 
   final String botUserId;
@@ -55,6 +56,9 @@ class WatchRoom {
   /// The server's clock minus this device's, from the last REST read.
   final Duration clockOffset;
 
+  /// What the bot offers a viewer who plays the title themselves, if anything.
+  final api.WatchDirectPlay? directPlay;
+
   factory WatchRoom.fromSession(api.WatchSession s, DateTime now) => WatchRoom(
     botUserId: s.botUserId,
     itemId: s.itemId,
@@ -70,6 +74,7 @@ class WatchRoom {
     duration: s.durationMs == null
         ? null
         : Duration(milliseconds: s.durationMs!),
+    directPlay: s.directPlay,
   );
 
   /// Whether [tick] continues this same session, so it can update it in place.
@@ -89,6 +94,7 @@ class WatchRoom {
     ttl: ttl,
     clockOffset: clockOffset,
     duration: duration,
+    directPlay: directPlay,
   );
 
   /// This device's time at the sample.

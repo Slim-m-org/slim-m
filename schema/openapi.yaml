@@ -8589,6 +8589,42 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /channels/{channelId}/watch-session/viewing:
+    parameters:
+      - $ref: "#/components/parameters/ChannelId"
+    put:
+      operationId: reportWatchViewing
+      tags: [channels]
+      summary: A member on the call says whether they are playing the title themselves.
+      description: >-
+        Decision 0050-watch-party-sync-authority-and-direct-play. Send it about
+        every 10 seconds while playing directly; a report older than 20 seconds
+        counts as the shared track, so a viewer who vanishes never strands the
+        bot. `direct` false retracts it at once. The bot reads who is direct
+        from `direct_viewer_ids` on the session, and stops encoding only when
+        every member on the call is in it. Refused with 403 for a bot and for a
+        caller who is not on the call, and 404 for a caller who cannot view the
+        channel. Charged to the tick rate class.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchViewingRequest"
+      responses:
+        "204":
+          description: Recorded.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
   /channels/{channelId}/bot-ui/{botId}/interactions:
     parameters:
       - $ref: "#/components/parameters/ChannelId"
@@ -19158,6 +19194,37 @@ components:
         server_time_ms:
           type: integer
           format: int64
+        direct_play:
+          description: What the bot offers a viewer who plays the title themselves; absent when it offers none.
+          oneOf:
+            - $ref: "#/components/schemas/WatchDirectPlay"
+            - type: "null"
+        direct_viewer_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Members who reported, within the last 20 seconds, that they are playing the title themselves.
+
+    WatchDirectPlay:
+      type: object
+      required: [base_url]
+      properties:
+        base_url:
+          type: string
+          description: A plain http or https address of at most 300 characters, where a viewer reaches the media server.
+        verified_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Members whose media server account the bot has verified, at most 500.
+        unverified_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Members linked to a media server account by a claimed name only, at most 500.
 
     SetWatchSessionRequest:
       type: object
@@ -19180,6 +19247,15 @@ components:
         controller_user_id:
           type: string
           format: uuid
+        direct_play:
+          $ref: "#/components/schemas/WatchDirectPlay"
+
+    WatchViewingRequest:
+      type: object
+      required: [direct]
+      properties:
+        direct:
+          type: boolean
 
     WatchTickRequest:
       type: object
