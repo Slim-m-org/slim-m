@@ -6,7 +6,7 @@ use axum::body::Body;
 use axum::http::Request;
 use serde_json::{Value, json};
 use slimm_server::http::spawn_module_events;
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::ids::{ChannelId, MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
@@ -232,18 +232,18 @@ async fn a_channel_the_principal_cannot_view_and_a_direct_message_deliver_nothin
     let friend = w.store.create_user("pal", "Pal").await.unwrap();
     let dm = w.store.open_dm(w.user.id, friend.id).await.unwrap();
 
-    w.hub.publish(Event::MessageDeleted {
+    w.hub.publish(Event::Message(MessageEvent::Deleted {
         channel_id: secret.id,
         message_id: MessageId::generate(),
         op_seq: None,
-    });
+    }));
     send_message(&w, dm.id, "a private word").await;
     let visible = MessageId::generate();
-    w.hub.publish(Event::MessageDeleted {
+    w.hub.publish(Event::Message(MessageEvent::Deleted {
         channel_id: open.id,
         message_id: visible,
         op_seq: None,
-    });
+    }));
 
     let seen = recorded_of(&w, "listener", "message.deleted", 1).await;
     assert_eq!(seen[0]["data"]["message_id"], json!(visible.to_string()));

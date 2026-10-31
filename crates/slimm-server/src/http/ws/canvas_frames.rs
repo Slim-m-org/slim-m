@@ -12,27 +12,27 @@
 
 use super::CanvasObjectDto;
 use super::frames::ServerFrame;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
 
 /// The channel a canvas event concerns, or `None` for anything else.
 pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
     Some(match event {
-        Event::CanvasObjectPlaced { channel_id, .. } => *channel_id,
-        Event::CanvasObjectsRemoved { channel_id, .. } => *channel_id,
-        Event::CanvasCleared { channel_id, .. } => *channel_id,
-        Event::CanvasObjectsRestored { channel_id, .. } => *channel_id,
-        Event::CanvasCursorMoved { channel_id, .. } => *channel_id,
-        Event::CanvasStrokePreview { channel_id, .. } => *channel_id,
-        Event::CanvasObjectPreview { channel_id, .. } => *channel_id,
-        Event::CanvasMediaSlotPreview { channel_id, .. } => *channel_id,
-        Event::CanvasScreenAnnotation(a) => a.channel_id,
-        Event::CanvasView { channel_id, .. } => *channel_id,
-        Event::CanvasObjectMoved { channel_id, .. } => *channel_id,
-        Event::CanvasObjectReordered { channel_id, .. } => *channel_id,
-        Event::CanvasObjectEdited { channel_id, .. } => *channel_id,
-        Event::CanvasMediaSlotChanged { channel_id, .. } => *channel_id,
-        Event::CanvasObjectLockChanged { channel_id, .. } => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectPlaced { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectsRemoved { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::Cleared { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectsRestored { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::CursorMoved { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::StrokePreview { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectPreview { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::MediaSlotPreview { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ScreenAnnotation(a)) => a.channel_id,
+        Event::Canvas(CanvasEvent::View { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectMoved { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectReordered { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectEdited { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::MediaSlotChanged { channel_id, .. }) => *channel_id,
+        Event::Canvas(CanvasEvent::ObjectLockChanged { channel_id, .. }) => *channel_id,
         _ => return None,
     })
 }
@@ -44,24 +44,26 @@ pub(super) fn channel_id(event: &Event) -> Option<ChannelId> {
 /// common case) would otherwise pay for that on every call.
 pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
     Ok(match event {
-        // Cloned only here, past every filter in `authorize`; see `Event::MessageCreated`'s own note.
-        Event::CanvasObjectPlaced { channel_id, object } => ServerFrame::CanvasObjectPlaced {
-            channel_id: channel_id.to_string(),
-            seq: object.seq.0,
-            object: CanvasObjectDto::from((*object).clone()),
-        },
-        Event::CanvasObjectsRemoved {
+        // Cloned only here, past every filter in `authorize`; see `MessageEvent::Created`'s own note.
+        Event::Canvas(CanvasEvent::ObjectPlaced { channel_id, object }) => {
+            ServerFrame::CanvasObjectPlaced {
+                channel_id: channel_id.to_string(),
+                seq: object.seq.0,
+                object: CanvasObjectDto::from((*object).clone()),
+            }
+        }
+        Event::Canvas(CanvasEvent::ObjectsRemoved {
             channel_id,
             seq,
             op_id,
             object_ids,
-        } => ServerFrame::CanvasObjectsRemoved {
+        }) => ServerFrame::CanvasObjectsRemoved {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             object_ids: object_ids.iter().map(ToString::to_string).collect(),
         },
-        Event::CanvasCleared {
+        Event::Canvas(CanvasEvent::Cleared {
             channel_id,
             seq,
             op_id,
@@ -69,13 +71,13 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             scope,
             spared_count,
             ..
-        } if scope.is_unscoped() && spared_count == 0 => ServerFrame::CanvasCleared {
+        }) if scope.is_unscoped() && spared_count == 0 => ServerFrame::CanvasCleared {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             before_seq: before_seq.0,
         },
-        Event::CanvasCleared {
+        Event::Canvas(CanvasEvent::Cleared {
             channel_id,
             seq,
             op_id,
@@ -83,7 +85,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             scope,
             spared_ids,
             spared_count,
-        } => ServerFrame::CanvasClearedScoped {
+        }) => ServerFrame::CanvasClearedScoped {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
@@ -93,31 +95,31 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             spared_ids: spared_ids.iter().map(ToString::to_string).collect(),
             spared_count,
         },
-        Event::CanvasObjectsRestored {
+        Event::Canvas(CanvasEvent::ObjectsRestored {
             channel_id,
             seq,
             op_id,
             object_ids,
-        } => ServerFrame::CanvasObjectsRestored {
+        }) => ServerFrame::CanvasObjectsRestored {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             object_ids: object_ids.iter().map(ToString::to_string).collect(),
         },
-        Event::CanvasCursorMoved {
+        Event::Canvas(CanvasEvent::CursorMoved {
             channel_id,
             user_id,
             x,
             y,
             left,
-        } => ServerFrame::CanvasCursorMoved {
+        }) => ServerFrame::CanvasCursorMoved {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             x,
             y,
             left,
         },
-        Event::CanvasStrokePreview {
+        Event::Canvas(CanvasEvent::StrokePreview {
             channel_id,
             user_id,
             object_id,
@@ -126,7 +128,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             cancelled,
             color,
             width,
-        } => ServerFrame::CanvasStrokePreview {
+        }) => ServerFrame::CanvasStrokePreview {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             object_id: object_id.to_string(),
@@ -136,7 +138,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             color,
             width,
         },
-        Event::CanvasObjectPreview {
+        Event::Canvas(CanvasEvent::ObjectPreview {
             channel_id,
             user_id,
             object_id,
@@ -145,7 +147,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             w,
             h,
             ended,
-        } => ServerFrame::CanvasObjectPreview {
+        }) => ServerFrame::CanvasObjectPreview {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             object_id: object_id.to_string(),
@@ -155,7 +157,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             ended,
         },
-        Event::CanvasMediaSlotPreview {
+        Event::Canvas(CanvasEvent::MediaSlotPreview {
             channel_id,
             user_id,
             kind,
@@ -165,7 +167,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             w,
             h,
             ended,
-        } => ServerFrame::CanvasMediaSlotPreview {
+        }) => ServerFrame::CanvasMediaSlotPreview {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             kind: kind.as_str().to_owned(),
@@ -176,7 +178,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             ended,
         },
-        Event::CanvasScreenAnnotation(a) => ServerFrame::CanvasScreenAnnotation {
+        Event::Canvas(CanvasEvent::ScreenAnnotation(a)) => ServerFrame::CanvasScreenAnnotation {
             channel_id: a.channel_id.to_string(),
             user_id: a.user_id.to_string(),
             target_user_id: a.target_user_id.to_string(),
@@ -189,7 +191,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             allowed: a.allowed,
             aspect: a.aspect,
         },
-        Event::CanvasView {
+        Event::Canvas(CanvasEvent::View {
             channel_id,
             user_id,
             x,
@@ -198,7 +200,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             h,
             summon,
             tile,
-        } => ServerFrame::CanvasView {
+        }) => ServerFrame::CanvasView {
             channel_id: channel_id.to_string(),
             user_id: user_id.to_string(),
             x,
@@ -208,7 +210,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             summon,
             tile,
         },
-        Event::CanvasObjectMoved {
+        Event::Canvas(CanvasEvent::ObjectMoved {
             channel_id,
             seq,
             op_id,
@@ -217,7 +219,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             y,
             w,
             h,
-        } => ServerFrame::CanvasObjectMoved {
+        }) => ServerFrame::CanvasObjectMoved {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
@@ -227,33 +229,33 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             w,
             h,
         },
-        Event::CanvasObjectReordered {
+        Event::Canvas(CanvasEvent::ObjectReordered {
             channel_id,
             seq,
             op_id,
             object_id,
             z_index,
-        } => ServerFrame::CanvasObjectReordered {
+        }) => ServerFrame::CanvasObjectReordered {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             object_id: object_id.to_string(),
             z_index,
         },
-        Event::CanvasObjectEdited {
+        Event::Canvas(CanvasEvent::ObjectEdited {
             channel_id,
             seq,
             op_id,
             object_id,
             props,
-        } => ServerFrame::CanvasObjectEdited {
+        }) => ServerFrame::CanvasObjectEdited {
             channel_id: channel_id.to_string(),
             seq: seq.0,
             op_id: op_id.to_string(),
             object_id: object_id.to_string(),
             props: serde_json::from_str(&props).unwrap_or(serde_json::Value::Null),
         },
-        Event::CanvasMediaSlotChanged {
+        Event::Canvas(CanvasEvent::MediaSlotChanged {
             channel_id,
             kind,
             user_id,
@@ -264,7 +266,7 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             locked,
             sent_to_back,
             version,
-        } => ServerFrame::CanvasMediaSlotChanged {
+        }) => ServerFrame::CanvasMediaSlotChanged {
             channel_id: channel_id.to_string(),
             kind: kind.as_str().to_owned(),
             user_id: user_id.to_string(),
@@ -276,12 +278,12 @@ pub(super) fn to_frame(event: Event) -> Result<ServerFrame, Box<Event>> {
             sent_to_back,
             version,
         },
-        Event::CanvasObjectLockChanged {
+        Event::Canvas(CanvasEvent::ObjectLockChanged {
             channel_id,
             object_id,
             locked,
             version,
-        } => ServerFrame::CanvasObjectLockChanged {
+        }) => ServerFrame::CanvasObjectLockChanged {
             channel_id: channel_id.to_string(),
             object_id: object_id.to_string(),
             locked,

@@ -31,7 +31,7 @@ pub(super) const SYNC_RESPONSE_BYTES: usize = 1024 * 1024;
 
 /// One op on the wire.
 ///
-/// No `actor_id`, on any kind, ever. `Event::MessageDeleted` carries only the
+/// No `actor_id`, on any kind, ever. `MessageEvent::Deleted` carries only the
 /// ids a live connection needs to drop it from view, and a catch-up feed that
 /// named the moderator would hand every member, over a different route,
 /// exactly what the live path withholds. The column exists in `message_ops`;

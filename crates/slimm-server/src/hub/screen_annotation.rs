@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! The payload of [`super::Event::CanvasScreenAnnotation`], split out of `event.rs` to keep that file under its budget.
+//! The payload of [`super::CanvasEvent::ScreenAnnotation`], split out of `event.rs` to keep that file under its budget.
 
 use crate::ids::{ChannelId, UserId};
 
@@ -37,7 +37,7 @@ impl ScreenAnnotationKind {
     }
 }
 
-/// The body of [`Event::CanvasScreenAnnotation`].
+/// The body of [`CanvasEvent::ScreenAnnotation`].
 #[derive(Debug, Clone)]
 pub struct ScreenAnnotationEvent {
     pub channel_id: ChannelId,

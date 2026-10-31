@@ -19,7 +19,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, enforce};
 use super::message_dto::AttachmentDto;
 use super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -85,13 +85,15 @@ async fn open(
     };
     // A race loser or a reopen of an existing thread sends nothing new; see `OpenedThread::fresh`.
     if thread.fresh {
-        state.hub.publish(Event::ThreadUpdated {
-            channel_id,
-            parent_message_id: message_id,
-            thread_channel_id: thread.channel.id,
-            reply_count: 0,
-            last_reply_at: None,
-        });
+        state
+            .hub
+            .publish(Event::Message(MessageEvent::ThreadUpdated {
+                channel_id,
+                parent_message_id: message_id,
+                thread_channel_id: thread.channel.id,
+                reply_count: 0,
+                last_reply_at: None,
+            }));
     }
     Ok(Json(thread.channel.into()))
 }
@@ -290,11 +292,13 @@ pub(super) async fn notify_reply(state: &AppState, channel_id: ChannelId) {
         }
     };
     let Some((_, summary)) = summary else { return };
-    state.hub.publish(Event::ThreadUpdated {
-        channel_id: parent.parent_channel_id,
-        parent_message_id: parent.parent_message_id,
-        thread_channel_id: channel_id,
-        reply_count: summary.reply_count,
-        last_reply_at: summary.last_reply_at,
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::ThreadUpdated {
+            channel_id: parent.parent_channel_id,
+            parent_message_id: parent.parent_message_id,
+            thread_channel_id: channel_id,
+            reply_count: summary.reply_count,
+            last_reply_at: summary.last_reply_at,
+        }));
 }

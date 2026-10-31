@@ -4,7 +4,7 @@
 use super::canvas_gate::{Frame, may_relay};
 use super::permission_cache::PermissionCache;
 use super::signals_canvas::valid_preview_color;
-use crate::hub::{Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
+use crate::hub::{CanvasEvent, Event, Hub, ScreenAnnotationEvent, ScreenAnnotationKind};
 use crate::ids::{ChannelId, UserId};
 use crate::ratelimit::{Class, RateLimiter};
 use crate::store::{SessionContext, Store};
@@ -60,7 +60,9 @@ pub(super) async fn handle_canvas_screen_annotation(
     if !may_relay(store, hub, ctx, cache, event.channel_id, Frame::Ink).await {
         return;
     }
-    hub.publish(Event::CanvasScreenAnnotation(Box::new(event)));
+    hub.publish(Event::Canvas(CanvasEvent::ScreenAnnotation(Box::new(
+        event,
+    ))));
 }
 
 /// The relayed event for a well-formed frame from `sender`, or none.

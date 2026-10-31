@@ -4,7 +4,7 @@
 
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::media::Media;
 use slimm_server::run_message_retention_sweep_pass;
@@ -74,11 +74,11 @@ async fn prune_with_one_subscriber(name: &str, count: usize) -> Tally {
             let next = tokio::time::timeout(Duration::from_secs(5), events.recv()).await;
             let Ok(next) = next else { return tally };
             match next {
-                Ok(Event::MessageDeleted {
+                Ok(Event::Message(MessageEvent::Deleted {
                     channel_id,
                     message_id,
                     op_seq,
-                }) => {
+                })) => {
                     tally.deleted += 1;
                     tally.bytes += format!(
                         r#"{{"type":"message.deleted","channel_id":"{channel_id}","message_id":"{message_id}","op_seq":{}}}"#,

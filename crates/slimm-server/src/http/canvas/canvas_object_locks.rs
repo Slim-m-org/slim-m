@@ -13,7 +13,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::store::LockError;
@@ -95,12 +95,14 @@ async fn set(
     };
     // No await between the commit and this call; see `ws::permission_cache`.
     if let Some(version) = version {
-        state.hub.publish(Event::CanvasObjectLockChanged {
-            channel_id,
-            object_id,
-            locked,
-            version,
-        });
+        state
+            .hub
+            .publish(Event::Canvas(CanvasEvent::ObjectLockChanged {
+                channel_id,
+                object_id,
+                locked,
+                version,
+            }));
     }
     Ok(StatusCode::NO_CONTENT)
 }

@@ -40,7 +40,7 @@ pub struct MessageOpEntry {
     /// Who performed it, null once their account has been anonymised. The
     /// moderation record: this is the only place anything records who deleted
     /// a message, and it is deliberately never put on the wire, matching what
-    /// `Event::MessageDeleted` already withholds from a live connection.
+    /// `MessageEvent::Deleted` already withholds from a live connection.
     pub actor_id: Option<UserId>,
     pub created_at: i64,
     /// The message's content as it stands now, joined at read time rather

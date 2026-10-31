@@ -23,7 +23,7 @@ use serde::Serialize;
 
 use super::super::AppState;
 use super::super::error::ApiError;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{ForwardCascade, ForwardOrigin, ForwardSummary};
@@ -130,16 +130,16 @@ pub(in crate::http) async fn publish_cascaded(state: &AppState, cascade: Forward
     crate::forward_events::publish_detached(&state.store, &state.hub, &cascade.detached).await;
     let mut channels = Vec::new();
     for copy in cascade.deleted {
-        state.hub.publish(Event::MessageDeleted {
+        state.hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: Some(copy.op_seq),
             channel_id: copy.channel_id,
             message_id: copy.message_id,
-        });
+        }));
         if copy.was_pinned {
-            state.hub.publish(Event::MessageUnpinned {
+            state.hub.publish(Event::Message(MessageEvent::Unpinned {
                 channel_id: copy.channel_id,
                 message_id: copy.message_id,
-            });
+            }));
         }
         if !channels.contains(&copy.channel_id) {
             channels.push(copy.channel_id);

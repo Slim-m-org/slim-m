@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::Event;
+use slimm_server::hub::{CanvasEvent, Event};
 use slimm_server::store::CanvasOpBody;
 
 use crate::fixtures::{
@@ -102,13 +102,13 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
     let mut published: BTreeMap<i64, Event> = BTreeMap::new();
     while let Ok(event) = frames.try_recv() {
         let seq = match &event {
-            Event::CanvasObjectPlaced { object, .. } => object.seq.0,
-            Event::CanvasObjectsRemoved { seq, .. }
-            | Event::CanvasCleared { seq, .. }
-            | Event::CanvasObjectsRestored { seq, .. }
-            | Event::CanvasObjectMoved { seq, .. }
-            | Event::CanvasObjectReordered { seq, .. }
-            | Event::CanvasObjectEdited { seq, .. } => seq.0,
+            Event::Canvas(CanvasEvent::ObjectPlaced { object, .. }) => object.seq.0,
+            Event::Canvas(CanvasEvent::ObjectsRemoved { seq, .. })
+            | Event::Canvas(CanvasEvent::Cleared { seq, .. })
+            | Event::Canvas(CanvasEvent::ObjectsRestored { seq, .. })
+            | Event::Canvas(CanvasEvent::ObjectMoved { seq, .. })
+            | Event::Canvas(CanvasEvent::ObjectReordered { seq, .. })
+            | Event::Canvas(CanvasEvent::ObjectEdited { seq, .. }) => seq.0,
             _ => continue,
         };
         assert!(
@@ -139,8 +139,11 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
             .get(&op.seq)
             .unwrap_or_else(|| panic!("seq {} has no frame", op.seq));
         match (&op.body, event) {
-            (CanvasOpBody::Place(_), Event::CanvasObjectPlaced { .. }) => {}
-            (CanvasOpBody::Remove(ids), Event::CanvasObjectsRemoved { object_ids, .. }) => {
+            (CanvasOpBody::Place(_), Event::Canvas(CanvasEvent::ObjectPlaced { .. })) => {}
+            (
+                CanvasOpBody::Remove(ids),
+                Event::Canvas(CanvasEvent::ObjectsRemoved { object_ids, .. }),
+            ) => {
                 assert_eq!(ids, object_ids, "remove at {}", op.seq)
             }
             (
@@ -149,21 +152,21 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
                     scope,
                     spared,
                 },
-                Event::CanvasCleared {
+                Event::Canvas(CanvasEvent::Cleared {
                     before_seq: b,
                     scope: s,
                     spared_count,
                     ..
-                },
+                }),
             ) => {
                 assert_eq!((*before_seq, scope), (b.0, s), "clear at {}", op.seq);
                 assert_eq!(spared.len() as i64, *spared_count, "spared at {}", op.seq);
             }
             (
                 CanvasOpBody::Restore { object_ids, .. },
-                Event::CanvasObjectsRestored {
+                Event::Canvas(CanvasEvent::ObjectsRestored {
                     object_ids: framed, ..
-                },
+                }),
             ) => {
                 assert!(
                     framed == object_ids || (framed.is_empty() && object_ids.len() > 64),
@@ -179,14 +182,14 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
                     w,
                     h,
                 },
-                Event::CanvasObjectMoved {
+                Event::Canvas(CanvasEvent::ObjectMoved {
                     object_id: o,
                     x: fx,
                     y: fy,
                     w: fw,
                     h: fh,
                     ..
-                },
+                }),
             ) => assert_eq!(
                 (object_id, x, y, w, h),
                 (o, fx, fy, fw, fh),
@@ -195,19 +198,19 @@ async fn every_effective_op_publishes_one_frame_that_matches_the_feed() {
             ),
             (
                 CanvasOpBody::Reorder { object_id, z_index },
-                Event::CanvasObjectReordered {
+                Event::Canvas(CanvasEvent::ObjectReordered {
                     object_id: o,
                     z_index: z,
                     ..
-                },
+                }),
             ) => assert_eq!((object_id, z_index), (o, z), "reorder at {}", op.seq),
             (
                 CanvasOpBody::Edit { object_id, props },
-                Event::CanvasObjectEdited {
+                Event::Canvas(CanvasEvent::ObjectEdited {
                     object_id: o,
                     props: p,
                     ..
-                },
+                }),
             ) => assert_eq!((object_id, props), (o, p), "edit at {}", op.seq),
             (body, event) => panic!("seq {}: feed says {body:?}, frame says {event:?}", op.seq),
         }

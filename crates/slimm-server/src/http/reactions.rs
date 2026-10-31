@@ -24,7 +24,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
 use super::viewable_message::viewable_message;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::MessageId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -134,11 +134,13 @@ async fn publish(
     message_id: MessageId,
 ) -> Result<(), ApiError> {
     let reactors = state.store.reaction_reactors(message_id).await?;
-    state.hub.publish(Event::ReactionsChanged {
-        channel_id,
-        message_id,
-        reactors: Arc::new(reactors),
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::ReactionsChanged {
+            channel_id,
+            message_id,
+            reactors: Arc::new(reactors),
+        }));
     Ok(())
 }
 

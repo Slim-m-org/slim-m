@@ -27,7 +27,7 @@ use super::embeds;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::post_commit::after_commit;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -223,7 +223,7 @@ async fn send(
     if sent.fresh {
         super::read_sync::advance_for_author(&state, ctx.user_id, &sent.message).await;
 
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: Arc::new(sent.message.clone()),
             attachments: Arc::new(attachments.clone()),
             forwarded: forwarded.clone().map(Arc::new),
@@ -235,7 +235,7 @@ async fn send(
             call: None,
             components: Arc::new(stored_components.clone()),
             lookups: Default::default(),
-        });
+        }));
 
         // Cheap in-memory decision only, real work detached; see this function's note.
         state.push.notify_message(
@@ -340,17 +340,17 @@ async fn delete(
     let outcome = state.store.delete_message(message_id, ctx.user_id).await?;
     if outcome.deleted {
         self::message_forwards::publish_cascaded(&state, outcome.cascade).await;
-        state.hub.publish(Event::MessageDeleted {
+        state.hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: outcome.op_seq,
             channel_id,
             message_id,
-        });
+        }));
         // The DB trigger already dropped the pin row; tell live clients too.
         if outcome.was_pinned {
-            state.hub.publish(Event::MessageUnpinned {
+            state.hub.publish(Event::Message(MessageEvent::Unpinned {
                 channel_id,
                 message_id,
-            });
+            }));
         }
         super::threads::notify_reply(&state, channel_id).await;
         // File reclamation only, best-effort; see the note on this function.
@@ -456,18 +456,20 @@ async fn edit(
             )
             .await?;
 
-            state.hub.publish(Event::MessageEdited {
+            state.hub.publish(Event::Message(MessageEvent::Edited {
                 message: Arc::new(message.clone()),
                 op_seq,
                 forwarded: forwarded.clone().map(Arc::new),
                 lookups: Default::default(),
-            });
+            }));
             // A bare MessageEdited frame cannot shrink a client's cached runs (message_extras.dart), so this is the only signal that does.
             if code_runs_cleared {
-                state.hub.publish(Event::CodeRunsCleared {
-                    channel_id,
-                    message_id: message.id,
-                });
+                state
+                    .hub
+                    .publish(Event::Message(MessageEvent::CodeRunsCleared {
+                        channel_id,
+                        message_id: message.id,
+                    }));
             }
             message
         }

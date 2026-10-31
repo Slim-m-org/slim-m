@@ -18,7 +18,7 @@ use uuid::Uuid;
 use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::messages::validate_content;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::module_runtime::{
     CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster, PostRefused,
@@ -363,7 +363,7 @@ impl ChannelPoster {
             tracing::warn!(%err, "module post: mention resolution failed");
         }
         super::read_sync::advance_for_author(state, self.user_id, message).await;
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: Arc::new(message.clone()),
             attachments: Arc::new(Vec::new()),
             forwarded: None,
@@ -374,7 +374,7 @@ impl ChannelPoster {
             call: None,
             components: Arc::new(Vec::new()),
             lookups: Default::default(),
-        });
+        }));
         state.push.notify_message(
             state.store.clone(),
             crate::push::SentMessage {

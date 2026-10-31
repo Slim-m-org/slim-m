@@ -215,7 +215,10 @@ async fn a_ring_replaced_by_the_other_side_is_reported_ended() {
                 } => {
                     ended.push((ring_id.to_string(), outcome.as_str().to_owned()));
                 }
-                slimm_server::hub::Event::MessageCreated { call: Some(_), .. } => records += 1,
+                slimm_server::hub::Event::Message(slimm_server::hub::MessageEvent::Created {
+                    call: Some(_),
+                    ..
+                }) => records += 1,
                 _ => {}
             }
         }

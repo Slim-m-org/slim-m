@@ -94,7 +94,7 @@ classes! {
     /// [`Class::Typing`]'s much sparser one.
     CanvasCursor,
     /// In-flight stroke preview frames over the WebSocket - ephemeral,
-    /// relayed but never persisted (see `Event::CanvasStrokePreview`).
+    /// relayed but never persisted (see `CanvasEvent::StrokePreview`).
     ///
     /// Unlike every other class, this one is denominated in *bytes*, not
     /// requests: a caller charges it through [`super::RateLimiter::check_weighted`]

@@ -205,7 +205,7 @@ const MESSAGE_RETENTION_SWEEP_INTERVAL: std::time::Duration =
 ///
 /// Unlike the other sweeps here, a pruned message is a state change a live
 /// connection needs to see now, not merely reclaimed space, so this publishes
-/// [`hub::Event::MessageDeleted`] for every message the sweep touched before
+/// [`hub::MessageEvent::Deleted`] for every message the sweep touched before
 /// reclaiming its freed attachment files.
 pub(crate) fn spawn_message_retention_sweep(
     store: store::Store,
@@ -264,16 +264,16 @@ pub async fn run_message_retention_sweep_pass(
                 // A stalled subscriber would cost the full wait per message, so stop pacing for it.
                 paced = paced && wait_for_publish_headroom(hub).await;
                 if message.was_pinned {
-                    hub.publish(hub::Event::MessageUnpinned {
+                    hub.publish(hub::Event::Message(hub::MessageEvent::Unpinned {
                         channel_id: message.channel_id,
                         message_id: message.message_id,
-                    });
+                    }));
                 }
-                hub.publish(hub::Event::MessageDeleted {
+                hub.publish(hub::Event::Message(hub::MessageEvent::Deleted {
                     channel_id: message.channel_id,
                     message_id: message.message_id,
                     op_seq: message.op_seq,
-                });
+                }));
                 for hex in message.freed_attachments {
                     crate::blobs::release(store, media, &hex).await;
                 }

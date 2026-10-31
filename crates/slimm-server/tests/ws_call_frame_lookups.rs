@@ -14,7 +14,7 @@ use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self};
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
 use tokio::net::TcpListener;
@@ -128,7 +128,7 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
         before > 0,
         "the counter saw no call_records statement even for the insert, so a zero below proves nothing"
     );
-    state.hub.publish(Event::MessageCreated {
+    state.hub.publish(Event::Message(MessageEvent::Created {
         message: Arc::new(sent.message),
         attachments: Arc::new(Vec::new()),
         forwarded: None,
@@ -139,7 +139,7 @@ async fn a_call_frame_costs_no_call_lookup_per_subscriber() {
         call: Some(Arc::new(record)),
         components: Arc::new(Vec::new()),
         lookups: Default::default(),
-    });
+    }));
     for ws in &mut watchers {
         let frame = read_frame_skipping_presence(ws).await;
         assert_eq!(frame["type"], "message.created");

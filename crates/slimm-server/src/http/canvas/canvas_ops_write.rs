@@ -28,7 +28,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId, Seq, UserId};
 use crate::permissions::Permissions;
 use crate::store::{
@@ -356,13 +356,15 @@ pub(super) fn publish(
     outcome: &SubmittedOp,
 ) {
     match outcome.kind.as_str() {
-        "remove" => state.hub.publish(Event::CanvasObjectsRemoved {
-            channel_id,
-            seq: Seq(outcome.seq),
-            op_id,
-            object_ids: outcome.touched_ids.clone(),
-        }),
-        "clear" => state.hub.publish(Event::CanvasCleared {
+        "remove" => state
+            .hub
+            .publish(Event::Canvas(CanvasEvent::ObjectsRemoved {
+                channel_id,
+                seq: Seq(outcome.seq),
+                op_id,
+                object_ids: outcome.touched_ids.clone(),
+            })),
+        "clear" => state.hub.publish(Event::Canvas(CanvasEvent::Cleared {
             channel_id,
             seq: Seq(outcome.seq),
             op_id,
@@ -370,19 +372,21 @@ pub(super) fn publish(
             scope: outcome.cleared_scope.clone().unwrap_or_default(),
             spared_ids: restorable_ids(&outcome.spared_ids),
             spared_count: outcome.spared_ids.len() as i64,
-        }),
-        "restore" => state.hub.publish(Event::CanvasObjectsRestored {
-            channel_id,
-            seq: Seq(outcome.seq),
-            op_id,
-            object_ids: restorable_ids(&outcome.touched_ids),
-        }),
+        })),
+        "restore" => state
+            .hub
+            .publish(Event::Canvas(CanvasEvent::ObjectsRestored {
+                channel_id,
+                seq: Seq(outcome.seq),
+                op_id,
+                object_ids: restorable_ids(&outcome.touched_ids),
+            })),
         "move" => {
             // Both are set together on the fresh, effective path only; see `SubmittedOp::moved_to`.
             if let (Some((x, y, w, h)), Some(&object_id)) =
                 (outcome.moved_to, outcome.touched_ids.first())
             {
-                state.hub.publish(Event::CanvasObjectMoved {
+                state.hub.publish(Event::Canvas(CanvasEvent::ObjectMoved {
                     channel_id,
                     seq: Seq(outcome.seq),
                     op_id,
@@ -391,7 +395,7 @@ pub(super) fn publish(
                     y,
                     w,
                     h,
-                });
+                }));
             }
         }
         "edit" => {
@@ -399,13 +403,13 @@ pub(super) fn publish(
             if let (Some(props), Some(&object_id)) =
                 (outcome.edited_props.clone(), outcome.touched_ids.first())
             {
-                state.hub.publish(Event::CanvasObjectEdited {
+                state.hub.publish(Event::Canvas(CanvasEvent::ObjectEdited {
                     channel_id,
                     seq: Seq(outcome.seq),
                     op_id,
                     object_id,
                     props,
-                });
+                }));
             }
         }
         "reorder" => {
@@ -413,13 +417,15 @@ pub(super) fn publish(
             if let (Some(z_index), Some(&object_id)) =
                 (outcome.reordered_to, outcome.touched_ids.first())
             {
-                state.hub.publish(Event::CanvasObjectReordered {
-                    channel_id,
-                    seq: Seq(outcome.seq),
-                    op_id,
-                    object_id,
-                    z_index,
-                });
+                state
+                    .hub
+                    .publish(Event::Canvas(CanvasEvent::ObjectReordered {
+                        channel_id,
+                        seq: Seq(outcome.seq),
+                        op_id,
+                        object_id,
+                        z_index,
+                    }));
             }
         }
         _ => {}
@@ -436,17 +442,19 @@ async fn republish_locks(state: &AppState, channel_id: ChannelId, restored: &[Ca
         let Ok(version) = state.store.next_canvas_state_version(channel_id).await else {
             return;
         };
-        state.hub.publish(Event::CanvasObjectLockChanged {
-            channel_id,
-            object_id,
-            locked: true,
-            version,
-        });
+        state
+            .hub
+            .publish(Event::Canvas(CanvasEvent::ObjectLockChanged {
+                channel_id,
+                object_id,
+                locked: true,
+                version,
+            }));
     }
 }
 
 /// The ids a restore's frame may name, or none past this bound; see
-/// [`Event::CanvasObjectsRestored`]'s own doc for why a restore, unlike a
+/// [`CanvasEvent::ObjectsRestored`]'s own doc for why a restore, unlike a
 /// remove, cannot assume its touched set is always small.
 fn restorable_ids(touched: &[CanvasObjectId]) -> Vec<CanvasObjectId> {
     if touched.len() > MAX_REMOVE_IDS_PER_OP {

@@ -7,7 +7,7 @@
 use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::config::Config;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::store::Store;
 use sqlx::{Connection, Executor};
 use tower::ServiceExt;
@@ -42,7 +42,7 @@ async fn world(
 fn created_events(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
     let mut count = 0;
     while let Ok(event) = rx.try_recv() {
-        if matches!(event, Event::MessageCreated { .. }) {
+        if matches!(event, Event::Message(MessageEvent::Created { .. })) {
             count += 1;
         }
     }

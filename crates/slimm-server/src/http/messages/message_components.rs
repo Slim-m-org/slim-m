@@ -17,7 +17,7 @@ use super::super::extract::{Authed, Json, enforce};
 use super::super::interactions::{answer, own_interaction};
 use super::parse_uuid;
 use crate::components::{self, ComponentRow};
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, InteractionId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -140,11 +140,13 @@ async fn set_components(
         .store
         .set_message_components(message_id, &rows)
         .await?;
-    state.hub.publish(Event::MessageComponentsChanged {
-        channel_id,
-        message_id,
-        components: Arc::new(rows.clone()),
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::ComponentsChanged {
+            channel_id,
+            message_id,
+            components: Arc::new(rows.clone()),
+        }));
     if let Some(press) = &press {
         answer(&state, press).await?;
     }

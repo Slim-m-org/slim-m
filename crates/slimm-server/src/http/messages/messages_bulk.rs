@@ -37,7 +37,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{Authed, Json, enforce};
 use super::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -137,17 +137,17 @@ pub(in crate::http) async fn delete_and_publish(
 
     // One event per message, each with its own seq; see this module's doc.
     for deleted in &outcome.deleted {
-        state.hub.publish(Event::MessageDeleted {
+        state.hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: Some(deleted.op_seq),
             channel_id,
             message_id: deleted.message_id,
-        });
+        }));
         // The DB trigger already dropped the pin row; tell live clients too.
         if deleted.was_pinned {
-            state.hub.publish(Event::MessageUnpinned {
+            state.hub.publish(Event::Message(MessageEvent::Unpinned {
                 channel_id,
                 message_id: deleted.message_id,
-            });
+            }));
         }
     }
     super::message_forwards::publish_cascaded(state, outcome.cascade).await;

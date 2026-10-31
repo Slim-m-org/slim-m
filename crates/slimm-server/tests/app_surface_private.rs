@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http;
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{
@@ -210,7 +210,7 @@ async fn a_private_scene_is_returned_to_the_caller_and_never_stored_or_broadcast
     );
     while let Ok(event) = events.try_recv() {
         assert!(
-            !matches!(event, Event::CodeRunChanged { .. }),
+            !matches!(event, Event::Message(MessageEvent::CodeRunChanged { .. })),
             "a private scene was broadcast"
         );
     }
@@ -223,7 +223,7 @@ async fn a_shared_scene_is_still_stored_and_broadcast() {
     w.run("").await;
     let mut broadcast = false;
     while let Ok(event) = events.try_recv() {
-        broadcast |= matches!(event, Event::CodeRunChanged { .. });
+        broadcast |= matches!(event, Event::Message(MessageEvent::CodeRunChanged { .. }));
     }
     assert!(broadcast && w.stored().await.len() == 1);
 }

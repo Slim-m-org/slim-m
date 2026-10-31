@@ -59,7 +59,7 @@ pub(super) enum ServerFrame {
         ran_at: i64,
     },
     /// Every run stored against this message was dropped because its content
-    /// just changed; see [`crate::hub::Event::CodeRunsCleared`].
+    /// just changed; see [`crate::hub::MessageEvent::CodeRunsCleared`].
     #[serde(rename = "code_runs.cleared")]
     CodeRunsCleared {
         channel_id: String,

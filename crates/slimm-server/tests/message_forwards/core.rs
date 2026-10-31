@@ -4,7 +4,7 @@
 use super::fixtures::*;
 use axum::http::StatusCode;
 use serde_json::json;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -224,7 +224,7 @@ async fn the_live_frame_carries_the_origin() {
 
     let mut seen = None;
     while let Ok(event) = events.try_recv() {
-        if let Event::MessageCreated { forwarded, .. } = event {
+        if let Event::Message(MessageEvent::Created { forwarded, .. }) = event {
             seen = Some(forwarded);
         }
     }

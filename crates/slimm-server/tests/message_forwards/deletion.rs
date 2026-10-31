@@ -5,7 +5,7 @@
 use super::fixtures::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::{ChannelId, MessageId};
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -127,21 +127,21 @@ async fn deleting_the_original_follows_into_its_copies() {
     let (mut bare_deleted, mut noted_edited) = (false, false);
     while let Ok(event) = rx.try_recv() {
         match event {
-            Event::MessageDeleted {
+            Event::Message(MessageEvent::Deleted {
                 channel_id,
                 message_id: m,
                 op_seq,
-            } if m == message_id(&f.bare) => {
+            }) if m == message_id(&f.bare) => {
                 assert_eq!(channel_id.to_string(), f.other);
                 assert!(op_seq.is_some());
                 bare_deleted = true;
             }
-            Event::MessageEdited {
+            Event::Message(MessageEvent::Edited {
                 message,
                 forwarded,
                 op_seq,
                 ..
-            } if message.id == message_id(&f.noted) => {
+            }) if message.id == message_id(&f.noted) => {
                 assert_eq!(message.content, "my own words");
                 assert!(forwarded.expect("the frame carries the marker").removed);
                 assert!(op_seq > 0);

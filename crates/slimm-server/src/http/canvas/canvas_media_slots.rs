@@ -23,7 +23,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
@@ -175,18 +175,20 @@ async fn upsert(
     };
 
     // No await between the commit and this call; see `ws::permission_cache`.
-    state.hub.publish(Event::CanvasMediaSlotChanged {
-        channel_id,
-        kind,
-        user_id,
-        x: slot.x,
-        y: slot.y,
-        w: slot.w,
-        h: slot.h,
-        locked: slot.locked,
-        sent_to_back: slot.sent_to_back,
-        version,
-    });
+    state
+        .hub
+        .publish(Event::Canvas(CanvasEvent::MediaSlotChanged {
+            channel_id,
+            kind,
+            user_id,
+            x: slot.x,
+            y: slot.y,
+            w: slot.w,
+            h: slot.h,
+            locked: slot.locked,
+            sent_to_back: slot.sent_to_back,
+            version,
+        }));
 
     Ok(Json(SlotWrittenDto {
         slot: CanvasMediaSlotDto::from(slot),
