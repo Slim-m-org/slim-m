@@ -18,6 +18,7 @@ import 'dock_activity_card.dart';
 import 'dock_changelog_card.dart';
 import 'dock_command_panel_group.dart';
 import 'dock_health_card.dart';
+import 'dock_hooks_card.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
@@ -151,6 +152,10 @@ class DockManifestView extends StatelessWidget {
             onTurnOn: () => onSetEnabled(true),
             enabled: !busy,
           ),
+        if (installed != null &&
+            (manifest.interceptors.isNotEmpty ||
+                manifest.permissionHooks.isNotEmpty))
+          DockHooksCard(moduleId: manifest.id),
         DockChangelogCard(
           manifest: manifest,
           installedVersion: installed?.version,

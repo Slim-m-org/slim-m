@@ -66,7 +66,38 @@ final dockHostCapabilities = <String, DockCapability>{
     description: 'Reads when members join and leave voice calls.',
     warning: (_) => 'Can see when members join and leave voice calls.',
   ),
+  'interceptors': (
+    label: 'Check messages',
+    description: 'Can block, tag or change a message before it is posted.',
+    warning: _interceptorsWarning,
+  ),
+  'permission.hook': (
+    label: 'Restrict actions',
+    description: 'Can stop members from sending, uploading or reacting.',
+    warning: _permissionHookWarning,
+  ),
 };
+
+String _interceptorsWarning(List<String> reads) => reads.contains('content')
+    ? 'Can read the messages members send, and block, tag or change them '
+          'before they are posted.'
+    : 'Can block, tag or change messages before they are posted, without '
+          'reading their text.';
+
+const _actionPhrases = {
+  'message.send': 'sending messages',
+  'attachment.upload': 'uploading files',
+  'reaction.add': 'adding reactions',
+  'voice.join': 'joining voice channels',
+};
+
+String _permissionHookWarning(List<String> actions) {
+  final phrases = [
+    for (final action in actions) _actionPhrases[action] ?? action,
+  ];
+  return 'Can stop members from ${_andList(phrases, fallback: 'acting')}. '
+      'It can only take permission away, never add it.';
+}
 
 const _eventPhrases = {
   'message.created': 'messages are posted',
@@ -130,6 +161,12 @@ List<String> dockCapabilityDetails(
     : switch (capability) {
         'events' => manifest.subscriptions,
         'data.store' => [if (manifest.dataMaxMb case final mb?) '$mb'],
+        'interceptors' => {
+          for (final hook in manifest.interceptors) ...hook.reads,
+        }.toList(),
+        'permission.hook' => [
+          for (final hook in manifest.permissionHooks) hook.hook,
+        ],
         _ => const [],
       };
 
