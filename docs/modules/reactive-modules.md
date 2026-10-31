@@ -397,8 +397,8 @@ The slot answer reads the totals for the asked `user_ids` with one `query` using
 
 ## Testing a reactive module
 
-`run-module` in slim-addons simulates `kv.store`, `net.fetch`, `message.post` and the clock.
-It does not simulate `data.store`, `log.read`, events or slots.
+`run-module` in slim-addons simulates `kv.store`, `data.store`, `log.read`, `net.fetch`, `message.post`, settings and the clock, and can deliver an event (`--event`) or ask a slot (`--slot`).
+`scripts/play-modules.py` plays a game module through the scripted scenarios in its `play.json`.
 Keep the host behind a small trait in your module, run the logic against an in-memory fake in unit tests, and cover the real thing by installing on a dev deployment (see Testing in [building-modules.md](building-modules.md)).
 `modules/xp` does both, with `fake.rs` for the unit tests and an end-to-end script that plays signed webhooks against a real server.
 Test the case that matters most for a reactive module: the event is missed, and the next pass still gets it exactly once.
