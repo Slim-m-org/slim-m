@@ -21,6 +21,8 @@ mod ssrf;
 mod testing;
 pub(super) mod wire;
 
+pub(super) use module_data::purge_member as purge_module_member_data;
+
 use std::sync::Arc;
 
 use axum::Router;

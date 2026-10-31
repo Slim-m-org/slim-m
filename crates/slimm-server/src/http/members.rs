@@ -323,6 +323,7 @@ async fn delete_member_account(
         tracing::warn!(error = %err, "failed to delete an account's banner file");
     }
     super::linked_accounts::purge_avatar_files(&state, target).await;
+    super::dock::purge_module_member_data(&state, target).await;
     announce_member_gone(&state, target).await;
     Ok(StatusCode::NO_CONTENT)
 }
