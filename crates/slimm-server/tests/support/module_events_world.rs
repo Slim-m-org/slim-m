@@ -49,6 +49,7 @@ impl World {
                 },
                 &wasm,
                 &DockProvenance {
+                    manifest_json: None,
                     host_capabilities: &approved,
                     source_repo: None,
                     network_hosts: &[],

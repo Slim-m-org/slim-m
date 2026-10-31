@@ -20,7 +20,7 @@ use super::dock::wire::InstalledModuleDto;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce, require_manage_server};
 use super::module_host::{schedule_approved, scheduled_surface};
-use super::module_run::{RunKind, RunRequest, run_installed};
+use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -167,6 +167,10 @@ async fn run_one(
         command,
         input: "",
         kind: RunKind::Background,
+        context: RunContext {
+            channel: Some(channel),
+            voice_channel: None,
+        },
     };
     match run_installed(state, module, &request, surface).await {
         Ok(outcome) if outcome.ok => {}

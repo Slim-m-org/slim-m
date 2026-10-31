@@ -62,6 +62,7 @@ mod moderation_audit;
 mod moderation_history;
 mod module_data_dir;
 mod modules;
+mod scene_refresh;
 use modules::{module_health, module_kv, module_permissions, module_stats};
 mod attachment_text;
 mod data_exports;
@@ -199,10 +200,10 @@ pub use module_permissions::{
 };
 pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
-    DockProvenance, HookChange, HookDecl, HookKind, InstallModuleRequest, InstalledModule,
-    ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
-    ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
-    SettingChoice, SettingKind,
+    DockProvenance, DueTimer, HookChange, HookDecl, HookKind, InstallModuleRequest,
+    InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook,
+    ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef,
+    ModuleSlot, SettingChoice, SettingKind, TimerSpec,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;

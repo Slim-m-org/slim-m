@@ -183,6 +183,8 @@ pub async fn run() -> anyhow::Result<()> {
     };
     http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
+    http::module_timers::spawn_sweep(state.clone());
+    http::scene_refresh::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let mut router = http::router(state);
     if let Some(discord) = http::linked_accounts::DiscordLinks::new(&config)? {

@@ -50,7 +50,7 @@ use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::code_fences::code_block;
 use crate::hub::{Event, MessageEvent};
-use crate::ids::MessageId;
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
 /// A code block's input is a whole snippet, so this matches the run route's
@@ -143,7 +143,15 @@ async fn run(
     let outcome = if req.module_id == CODE_RUNNER_MODULE_ID {
         execute_code_runner(&state, permissions, ctx.user_id, &req.command, &code).await?
     } else {
-        execute_command(&state, ctx.user_id, &req.module_id, &req.command, &code).await?
+        execute_command(
+            &state,
+            ctx.user_id,
+            &req.module_id,
+            &req.command,
+            &code,
+            message.channel_id,
+        )
+        .await?
     };
     let (ok, stored) = stored_payload(req.module_id == CODE_RUNNER_MODULE_ID, outcome);
     // A private scene answers the person who pressed and is neither stored nor shown to anyone else.
@@ -154,32 +162,20 @@ async fn run(
             error: None,
         }));
     }
-    let ran_at = state
-        .store
-        .record_code_run(CodeRunRecord {
-            message_id,
-            block_index,
-            module_id: &req.module_id,
-            command: &req.command,
-            ok,
-            output: &stored,
-            ran_by: ctx.user_id,
-        })
-        .await?;
-
-    state
-        .hub
-        .publish(Event::Message(MessageEvent::CodeRunChanged {
-            channel_id: message.channel_id,
-            message_id,
-            block_index,
-            module_id: req.module_id,
-            command: req.command,
-            ok,
-            output: stored.as_str().into(),
-            ran_by: Some(ctx.user_id),
-            ran_at,
-        }));
+    publish_run(
+        &state,
+        (message_id, message.channel_id),
+        (&req.module_id, &req.command),
+        (ok, &stored, ctx.user_id),
+        block_index,
+    )
+    .await?;
+    if on_surface && ok {
+        match super::scene_refresh::requested_ms(&stored) {
+            Some(ms) => super::scene_refresh::note(&state, message_id, ms, None).await,
+            None => super::scene_refresh::stop(&state, message_id).await,
+        }
+    }
 
     let response = if ok {
         RunResponse {
@@ -197,8 +193,44 @@ async fn run(
     Ok(Json(response))
 }
 
+/// Stores a surface's latest frame and tells everyone watching the channel.
+pub(super) async fn publish_run(
+    state: &AppState,
+    (message_id, channel_id): (MessageId, ChannelId),
+    (module_id, command): (&str, &str),
+    (ok, output, ran_by): (bool, &str, UserId),
+    block_index: i64,
+) -> Result<(), ApiError> {
+    let ran_at = state
+        .store
+        .record_code_run(CodeRunRecord {
+            message_id,
+            block_index,
+            module_id,
+            command,
+            ok,
+            output,
+            ran_by,
+        })
+        .await?;
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::CodeRunChanged {
+            channel_id,
+            message_id,
+            block_index,
+            module_id: module_id.to_owned(),
+            command: command.to_owned(),
+            ok,
+            output: output.into(),
+            ran_by: Some(ran_by),
+            ran_at,
+        }));
+    Ok(())
+}
+
 /// Whether `payload` is a scene that asks to be shown only to whoever pressed (decision 0099).
-fn is_private_scene(payload: &str) -> bool {
+pub(super) fn is_private_scene(payload: &str) -> bool {
     if !payload.contains("\"private\"") {
         return false;
     }
@@ -209,7 +241,7 @@ fn is_private_scene(payload: &str) -> bool {
 }
 
 /// A surface frame's input with `state` taken from the last scene stored for it.
-async fn held_input(
+pub(super) async fn held_input(
     state: &AppState,
     message_id: MessageId,
     input: &str,
@@ -227,7 +259,7 @@ async fn held_input(
 
 /// Text may be byte-clamped; a scene is JSON, and a cut scene is garbage the
 /// client cannot parse, so an over-ceiling scene is refused whole instead.
-fn stored_payload(is_text: bool, outcome: CommandOutcome) -> (bool, String) {
+pub(super) fn stored_payload(is_text: bool, outcome: CommandOutcome) -> (bool, String) {
     if is_text {
         return (outcome.ok, clamp_output(&outcome.payload));
     }

@@ -52,6 +52,7 @@ async fn install_slot_module(w: &World, id: &str, wasm: &[u8]) {
             },
             wasm,
             &DockProvenance {
+                manifest_json: None,
                 host_capabilities: &[],
                 source_repo: None,
                 network_hosts: &[],
