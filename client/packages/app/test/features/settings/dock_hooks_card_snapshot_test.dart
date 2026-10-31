@@ -41,6 +41,15 @@ Map<String, Object?> _hook(
   'max_fuel_used': 1200,
 };
 
+/// Lets the mocked round trip resolve, then the rebuild after it.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 20)),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
+}
+
 void main() {
   setUpAll(loadRealFonts);
 
@@ -106,7 +115,7 @@ void main() {
             ),
           ),
         );
-        await tester.pumpAndSettle();
+        await _settle(tester);
         await writeSnapshot(tester, 'dock-hooks-card-$label-$mode');
       });
     }

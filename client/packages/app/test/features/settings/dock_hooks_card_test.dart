@@ -76,7 +76,16 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await _settle(tester);
+}
+
+/// Lets the mocked round trip resolve, then the rebuild after it.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 20)),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
 }
 
 void main() {
@@ -108,13 +117,13 @@ void main() {
       return _json([_hook('filter')]);
     });
     await tester.tap(find.byTooltip('Run later'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(puts.single['priority'], 110);
     expect(puts.single['hook'], 'message.pre_send');
     expect(puts.single['phase'], 'reject');
     expect(puts.single.containsKey('fail_closed'), isFalse);
-    await tester.tap(find.byType(AppToggle));
-    await tester.pumpAndSettle();
+    await tester.tap(find.byWidgetPredicate((w) => w is AppToggle));
+    await _settle(tester);
     expect(puts.last['fail_closed'], isTrue);
   });
 
@@ -126,8 +135,8 @@ void main() {
       return _json([_hook('filter')]);
     });
     await tester.tap(find.byTooltip('Run earlier'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AppErrorState), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    await _settle(tester);
+    expect(find.byWidgetPredicate((w) => w is AppErrorState), findsOneWidget);
+    expect(find.byWidgetPredicate((w) => w is SnackBar), findsNothing);
   });
 }
