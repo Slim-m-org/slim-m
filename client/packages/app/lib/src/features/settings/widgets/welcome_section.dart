@@ -8,13 +8,13 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_permissions.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import 'join_policy_row.dart' show spaceSettingsProvider;
 import 'settings_field.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
+import '../providers/settings_actions.dart';
 
 const _sectionLabel = 'Welcome message';
 
@@ -88,7 +88,7 @@ class _WelcomeFormState extends ConsumerState<_WelcomeForm>
     final ok = await guard(
       whatFailed: 'save the welcome message',
       action: () => ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .setSpaceSettings(
             api.SpaceSettingsUpdate(
               welcomeEnabled: _enabled,

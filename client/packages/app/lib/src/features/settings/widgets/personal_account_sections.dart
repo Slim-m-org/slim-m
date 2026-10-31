@@ -17,7 +17,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../accounts/providers/account_services.dart';
 import '../../members/providers/blocks_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
@@ -29,6 +28,7 @@ import 'settings_danger_card.dart';
 import 'settings_detail_row.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
+import '../providers/settings_actions.dart';
 
 export 'devices_section.dart' show DevicesSection, devicesProvider;
 
@@ -216,7 +216,8 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
 
     final bool needsCode;
     try {
-      needsCode = (await ref.read(apiProvider).totpStatus()).enabled;
+      needsCode =
+          (await ref.read(settingsActionsProvider).totpStatus()).enabled;
     } on api.ApiException catch (e, stack) {
       api.reportFailure(
         api.LogTag.auth,
@@ -265,7 +266,9 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     await sync.stop();
     await push.unregister();
     try {
-      await ref.read(apiProvider).deleteAccount(password: password, code: code);
+      await ref
+          .read(settingsActionsProvider)
+          .deleteAccount(password: password, code: code);
       return null;
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.auth, 'delete the account', e, stack);

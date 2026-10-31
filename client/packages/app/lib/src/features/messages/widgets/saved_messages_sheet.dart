@@ -20,7 +20,6 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../channels/providers/channel_by_id_provider.dart';
-import '../../../providers/providers.dart';
 import '../providers/saved_messages_controller.dart';
 import '../../settings/providers/display_density.dart';
 import '../../members/providers/user_profiles.dart';
@@ -32,6 +31,7 @@ import 'reply_target_summary.dart' show previewLine;
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
 import '../../members/widgets/user_avatar.dart';
+import '../providers/message_api_actions.dart';
 
 /// Marks the sizing box around the sheet's body, so a test can measure it
 /// directly rather than inferring the fix from a screenshot - the same
@@ -136,7 +136,9 @@ class _SavedMessageRowState extends ConsumerState<SavedMessageRow>
     await guard(
       whatFailed: 'remove the saved message',
       action: () async {
-        await ref.read(apiProvider).unsaveMessage(widget.saved.message.id);
+        await ref
+            .read(messageApiActionsProvider)
+            .unsaveMessage(widget.saved.message.id);
         ref.invalidate(savedMessagesProvider);
       },
     );

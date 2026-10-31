@@ -52,6 +52,38 @@ class CanvasOpLog {
       },
   };
 
+  /// Whether a clear this log saw swept [object], which was
+  /// still unconfirmed locally when the clear arrived and so escaped it.
+  bool clearedSince(api.CanvasObject object) {
+    var cleared = false;
+    for (final op in after(object.seq)) {
+      switch (op) {
+        case api.CanvasClearOp(
+          :final beforeSeq,
+          :final scope,
+          :final sparedIds,
+        ):
+          cleared =
+              cleared ||
+              (beforeSeq >= object.seq &&
+                  _scopeCovers(scope, object) &&
+                  !sparedIds.contains(object.id));
+        case api.CanvasRestoreOp(:final objectIds):
+          // Restored again since, or a restore too large to name its objects.
+          if (objectIds.isEmpty || objectIds.contains(object.id)) {
+            cleared = false;
+          }
+        default:
+          break;
+      }
+    }
+    return cleared;
+  }
+
+  static bool _scopeCovers(api.CanvasClearScope scope, api.CanvasObject o) =>
+      (scope.kinds.isEmpty || scope.kinds.contains(o.kind)) &&
+      (scope.authorId == null || scope.authorId == o.authorId);
+
   static bool _replayable(api.CanvasOp op) =>
       op is api.CanvasRestoreOp ||
       op is api.CanvasRemoveOp ||

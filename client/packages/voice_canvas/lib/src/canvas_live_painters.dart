@@ -4,10 +4,9 @@
 ///
 /// Split out of `canvas_painters.dart` once the elevation-shadow and
 /// remote-draft work pushed it toward the 500-line hard limit a second time:
-/// none of these four classes touches [StrokePainter]'s own private state,
-/// so a plain sibling library is enough - unlike `canvas_painters_shapes.dart`,
-/// which needs `part of` for exactly that access. Re-exported from
-/// `canvas_painters.dart` so nothing importing that file has to change.
+/// none of these four classes touches [StrokePainter]'s own private state.
+/// Re-exported from `canvas_painters.dart` so nothing importing that file has
+/// to change.
 library;
 
 import 'dart:math' as math;

@@ -26,10 +26,10 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../audio/scene_sound_player.dart';
 import '../providers/module_sound_settings.dart';
-import '../../../providers/providers.dart';
 import 'module_scene.dart';
 import 'module_scene_fullscreen.dart';
 import 'module_scene_view.dart';
+import '../providers/module_actions.dart';
 
 class ModuleCommandOutput extends ConsumerWidget {
   const ModuleCommandOutput({
@@ -130,7 +130,7 @@ class ModuleCommandOutput extends ConsumerWidget {
     final container = ProviderScope.containerOf(context, listen: false);
     Future<api.RunModuleCommandResult> run(String input) => shared
         ? container
-              .read(apiProvider)
+              .read(moduleActionsProvider)
               .runCodeBlock(
                 messageId: messageId,
                 blockIndex: blockIndex,
@@ -139,7 +139,7 @@ class ModuleCommandOutput extends ConsumerWidget {
                 input: input,
               )
         : container
-              .read(apiProvider)
+              .read(moduleActionsProvider)
               .runModuleCommand(
                 moduleId: moduleId,
                 command: command,

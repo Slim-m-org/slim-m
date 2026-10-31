@@ -19,8 +19,6 @@ import 'canvas_op_log.dart';
 
 export '../providers/canvas_object_inputs.dart';
 
-part 'canvas_sync_pages.dart';
-
 /// Past this many pages, replaying the feed costs no less than a cold
 /// viewport re-read, and the re-read is strictly better: it also drops
 /// everything outside the caller's own region.
@@ -344,6 +342,56 @@ class CanvasSync {
     }
     onOpApplied?.call(op);
     return true;
+  }
+
+  /// Viewport pages go through the same reducer as the feed, so a region read
+  /// that lands late cannot undo what a live frame already did.
+  /// Applies one region read answered at `page.latestSeq`: the first seeds the cursor, an older one is brought forward from the op log or refused if the log no longer reaches it.
+  /// A complete read also drops what the document shows in the region but the read omits.
+  CanvasPageOutcome applyViewport(
+    api.CanvasViewport page,
+    Rect region, {
+    void Function(api.CanvasObject object)? onObject,
+    bool listsWholeRegion = true,
+  }) {
+    final head = page.latestSeq;
+    seedFromViewport(head);
+    final cursor = _asOfSeq!;
+    if (head < cursor && (!_log.covers(head) || _log.restoredAfter(head))) {
+      return CanvasPageOutcome.stale;
+    }
+    for (final object in page.objects) {
+      final input = canvasStrokeInputFrom(object);
+      if (input == null) continue;
+      document.applyPlaced(input, overwrite: true, snapshotSeq: head);
+      onObject?.call(object);
+    }
+    // A document still behind the snapshot differs from it by ops the feed is about to bring.
+    if (listsWholeRegion && !page.hasMore && head <= cursor) {
+      _dropUnlisted(page, region, head);
+    }
+    if (head < cursor) _log.after(head).forEach(_reapply);
+    document.refresh();
+    return CanvasPageOutcome.applied;
+  }
+
+  bool clearedSincePlacement(api.CanvasObject object) =>
+      _log.clearedSince(object);
+
+  void _dropUnlisted(api.CanvasViewport page, Rect region, int head) {
+    final listed = {for (final object in page.objects) object.id};
+    final touched = _log.touchedAfter(head);
+    final stale = [
+      for (final held in document.liveObjects())
+        if (held.seq > 0 &&
+            held.seq <= head &&
+            region.overlaps(held.box) &&
+            !listed.contains(held.id) &&
+            !touched.contains(held.id) &&
+            !(isShownOffPlace?.call(held.id) ?? false))
+          held.id,
+    ];
+    document.dropObjects(stale);
   }
 
   /// The document change an op makes, without any of the notifications.

@@ -13,7 +13,7 @@ still spread across accounts round-robin, or the whole thing reads as one
 person's work.
 
 A shape's line and arrow primitives always draw their own box's diagonal
-from top-left to bottom-right (see `canvas_painters_shapes.dart`'s own
+from top-left to bottom-right (see `canvas_object_painter.dart`'s own
 doc), so an arrow "pointing" from one thing to another only renders
 correctly when the target sits down and to the right of the source. Every
 box below is placed with that constraint in mind rather than left to

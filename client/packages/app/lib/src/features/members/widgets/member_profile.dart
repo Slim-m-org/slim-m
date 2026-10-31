@@ -14,7 +14,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_moderation_error.dart';
 import '../providers/member_presence.dart' show membersProvider;
-import '../../../providers/providers.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'member_actions.dart';
@@ -27,6 +26,7 @@ import '../../voice/widgets/participant_actions.dart';
 import '../../voice/widgets/participant_audio_controls.dart'
     show MemberLocalAudioSection;
 import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
 
 export 'member_profile_show.dart' show showMemberProfile;
 
@@ -125,7 +125,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     final ok = await guard(
       whatFailed: 'time this member out',
       action: () => ref
-          .read(apiProvider)
+          .read(memberActionsProvider)
           .timeOutMember(userId: widget.profile.id, duration: duration),
     );
     if (ok && mounted) ref.invalidate(membersProvider);
@@ -134,7 +134,8 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
   Future<void> _liftTimeout() async {
     final ok = await guard(
       whatFailed: 'lift the timeout',
-      action: () => ref.read(apiProvider).liftMemberTimeout(widget.profile.id),
+      action: () =>
+          ref.read(memberActionsProvider).liftMemberTimeout(widget.profile.id),
     );
     if (ok && mounted) ref.invalidate(membersProvider);
   }
@@ -163,7 +164,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
     final failure = await runGuarded(
       whatFailed: 'eject $name from the call',
       action: () => container
-          .read(apiProvider)
+          .read(memberActionsProvider)
           .kickVoiceParticipant(channelId, widget.profile.id),
     );
     if (failure != null) {

@@ -19,12 +19,12 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/notification_preference_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../push/providers/push_content_preview_settings.dart';
 import '../../../push/providers/push_controller.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
+import '../providers/settings_actions.dart';
 
 /// The "show message text on the lock screen" toggle.
 ///
@@ -103,7 +103,9 @@ class _NotificationPreferenceRowState
   Future<void> _set(api.NotificationPreference preference) async {
     final ok = await guard(
       whatFailed: 'update your notification preference',
-      action: () => ref.read(apiProvider).setNotificationPreference(preference),
+      action: () => ref
+          .read(settingsActionsProvider)
+          .setNotificationPreference(preference),
     );
     if (ok) ref.invalidate(notificationPreferenceProvider);
   }

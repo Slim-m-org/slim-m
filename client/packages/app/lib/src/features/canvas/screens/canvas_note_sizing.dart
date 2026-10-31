@@ -3,7 +3,7 @@
 /// simply fits, rather than a fixed box a long note quietly clips inside.
 ///
 /// The font metrics here (1.3 line height, 8px padding, `AppFonts.sans`; the size comes from the note)
-/// must match `_paintNote`'s own literals in `canvas_painters_shapes.dart` -
+/// must match `paintNote`'s own literals in `canvas_object_painter.dart` -
 /// this is a prediction of what that painter will do, not a second opinion
 /// about it, and the two would silently disagree if either changed alone.
 library;
@@ -17,7 +17,7 @@ const double _noteLineHeight = 1.3;
 const double _notePad = 8;
 
 /// One line's own height, and a fudge factor past a whole extra one: the
-/// painter's `noteMaxLines` (`canvas_painters_shapes.dart`) derives its own
+/// painter's `noteMaxLines` (`canvas_object_painter.dart`) derives its own
 /// line budget from this box's height by floor-dividing, and an engine text
 /// layout is not bit-identical to the same arithmetic done twice, so a box
 /// sized to the exact boundary can floor one line short and ellipsis the
