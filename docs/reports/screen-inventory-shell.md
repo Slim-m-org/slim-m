@@ -1,7 +1,7 @@
 # Screen inventory: home shell, channel rail, conversation pane, threads, member pane
 
 Part of [screen-inventory.md](screen-inventory.md).
-"Surfaces harness" = `client/packages/app/test/ui_snapshot_test.dart`. "Overlay harness" = `client/packages/app/test/ui_overlay_snapshot_test.dart`.
+"Surfaces harness" = `client/packages/app/test/ui_snapshot_test.dart`. "Overlay harness" = `client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart`.
 
 A cross-cutting caveat worth reading before the list: the surfaces harness's `_NoopSyncController` never advances past `SyncStatus.offline`, and its fake HTTP client answers every unmatched GET with an empty JSON array.
 That means the rail's connection dot, day dividers (gated on `initialSyncCompleteProvider`), and the "still catching up" / "genuinely empty" transcript states are **structurally unreachable** in the current harness, not merely unexercised by an oversight.

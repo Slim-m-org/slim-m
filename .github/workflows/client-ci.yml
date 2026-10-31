@@ -199,7 +199,7 @@ jobs:
         working-directory: client/packages/app
         env:
           SLIMM_UI_SNAPSHOTS: "1"
-        run: flutter test test/ui_snapshot_*_test.dart
+        run: flutter test test/ui_snapshot_*_test.dart test/snapshots/ui_snapshot_*_test.dart
 
       # Every package with a test/ directory EXCEPT app, which the shards above
       # own. The exclusion is by name here and the shards are named explicitly,
