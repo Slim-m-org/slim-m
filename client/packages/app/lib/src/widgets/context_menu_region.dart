@@ -29,7 +29,7 @@ import '../routing/breakpoints.dart';
 import 'animated_menu_portal.dart';
 import 'context_menu_focus.dart';
 import 'floating_dock_card.dart';
-import '../features/messages/widgets/message_context_menu_layout.dart';
+import 'message_context_menu_layout.dart';
 
 /// Where the menu's top-left sits relative to the row's own top-left, used
 /// only when nothing opened the menu with a pointer position at all - the

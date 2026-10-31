@@ -96,7 +96,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, voiceApi());
 
-    await controller.restoreVoiceActivitySensitivity();
+    await controller.input.restoreVoiceActivitySensitivity();
 
     expect(session.lastSpeakingSensitivity, 0.4);
   });
@@ -107,7 +107,7 @@ void main() {
       final session = FakeSession();
       final controller = harness.controllerWith(session, voiceApi());
 
-      await controller.restoreVoiceActivitySensitivity();
+      await controller.input.restoreVoiceActivitySensitivity();
 
       expect(session.lastSpeakingSensitivity, 1.0);
     },
@@ -117,7 +117,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, voiceApi());
 
-    controller.setVoiceActivitySensitivity(70);
+    controller.input.setVoiceActivitySensitivity(70);
 
     expect(session.lastSpeakingSensitivity, 0.7);
   });

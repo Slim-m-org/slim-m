@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'database.dart';
+import 'message_store.dart';
 
 /// The bodies behind [MessageStore.upsertChannels] and
 /// [MessageStore.replaceChannels], split out of `message_store.dart` once it
@@ -9,11 +14,11 @@ part of 'message_store.dart';
 /// caller reaches through the type; this runs in the store's own library, so
 /// it uses [MessageStore.db] directly.
 
-String? _joinMemberIds(List<String> ids) => ids.isEmpty ? null : ids.join(',');
+String? joinMemberIds(List<String> ids) => ids.isEmpty ? null : ids.join(',');
 
 /// Replaces the known channel list, keeping each channel's local cursor and
 /// read marker, which the server's channel list does not carry.
-Future<void> _upsertChannels(
+Future<void> upsertChannels(
     MessageStore store, List<api.Channel> channels) async {
   final db = store.db;
   await db.batch((batch) {
@@ -29,7 +34,7 @@ Future<void> _upsertChannels(
           position: Value(channel.position),
           isPersonalSpace: Value(channel.isPersonalSpace),
           dmParticipantId: Value(channel.dmParticipantId),
-          dmMemberIds: Value(_joinMemberIds(channel.dmMemberIds)),
+          dmMemberIds: Value(joinMemberIds(channel.dmMemberIds)),
           parentMessageId: Value(channel.parentMessageId),
           categoryId: Value(channel.categoryId),
           slowModeSeconds: Value(channel.slowModeSeconds),
@@ -49,7 +54,7 @@ Future<void> _upsertChannels(
             position: Variable(channel.position),
             isPersonalSpace: Variable(channel.isPersonalSpace),
             dmParticipantId: Variable(channel.dmParticipantId),
-            dmMemberIds: Variable(_joinMemberIds(channel.dmMemberIds)),
+            dmMemberIds: Variable(joinMemberIds(channel.dmMemberIds)),
             parentMessageId: Variable(channel.parentMessageId),
             categoryId: Variable(channel.categoryId),
             slowModeSeconds: Variable(channel.slowModeSeconds),
@@ -82,7 +87,7 @@ Future<void> _upsertChannels(
 /// one). A thread already known locally is kept until an explicit
 /// `ChannelDeleted` event removes it - the same event any other channel's
 /// deletion is learned through.
-Future<void> _replaceChannels(
+Future<void> replaceChannels(
     MessageStore store, List<api.Channel> channels) async {
   final db = store.db;
   await db.transaction(() async {
@@ -95,14 +100,14 @@ Future<void> _replaceChannels(
     final stale =
         await (db.select(db.channels)..where((c) => c.id.isNotIn(keep))).get();
     for (final row in stale) {
-      await _deleteChannelRows(db, row.id);
+      await deleteChannelRows(db, row.id);
     }
   });
 }
 
 /// A channel's row and everything keyed to it: its messages, its draft and its
 /// personal canvas layout, which would otherwise sit unreachable behind an id nothing lists.
-Future<void> _deleteChannelRows(SlimmDatabase db, String channelId) async {
+Future<void> deleteChannelRows(SlimmDatabase db, String channelId) async {
   await (db.delete(db.messages)..where((m) => m.channelId.equals(channelId)))
       .go();
   await (db.delete(db.channelDrafts)

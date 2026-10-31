@@ -10,18 +10,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../providers/providers.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
+import '../providers/channel_actions.dart';
 import '../../settings/screens/admin/performance_screen.dart'
     show retentionConfirmMessage, retentionDeletesHistory;
 
 /// The channel's own window and the Space's, refetched each time settings open.
 final channelRetentionProvider = FutureProvider.autoDispose
     .family<api.ChannelRetention, String>(
-      (ref, channelId) => ref.watch(apiProvider).channelRetention(channelId),
+      (ref, channelId) =>
+          ref.watch(channelActionsProvider).retention(channelId),
     );
 
 /// Stands for "follow the Space" in the select row, which needs a value.
@@ -48,11 +49,11 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
     final own = choice == _followSpace ? null : choice;
     final from = current.days ?? current.spaceDays;
     final to = own ?? current.spaceDays;
-    final client = ref.read(apiProvider);
+    final actions = ref.read(channelActionsProvider);
     if (retentionDeletesHistory(from: from, to: to)) {
       int? count;
       try {
-        count = await client.previewChannelRetention(widget.channelId, to);
+        count = await actions.previewRetention(widget.channelId, to);
       } on api.ApiException catch (error, stack) {
         api.reportFailure(
           api.LogTag.data,
@@ -75,7 +76,7 @@ class _ChannelRetentionRowState extends ConsumerState<ChannelRetentionRow>
     await guard(
       whatFailed: 'change this channel\'s retention',
       action: () async {
-        await client.setChannelRetention(widget.channelId, own);
+        await actions.setRetention(widget.channelId, own);
         ref.invalidate(channelRetentionProvider(widget.channelId));
       },
     );

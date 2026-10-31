@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/first_run/providers/first_run_controller.
 import 'package:slimm_app/src/features/first_run/providers/first_run_rules.dart';
 import 'package:slimm_app/src/features/messages/providers/inbox.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/whats_new_controller.dart';
+import 'package:slimm_app/src/whats_new/providers/whats_new_controller.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_app/src/widgets/whats_new_gate.dart';
 import 'package:slimm_data/data.dart';

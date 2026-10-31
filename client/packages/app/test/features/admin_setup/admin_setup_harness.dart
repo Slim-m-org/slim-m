@@ -28,7 +28,7 @@ import '../../support/fake_mic_preview.dart';
 import '../first_run/first_run_harness.dart'
     show FakePush, harnessChannel, harnessNow;
 import '../voice/voice_snapshot_fixtures.dart' show SnapshotVoiceController;
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 
 const gib = 1024 * 1024 * 1024;
 

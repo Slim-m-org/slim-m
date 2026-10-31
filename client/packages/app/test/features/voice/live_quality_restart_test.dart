@@ -45,7 +45,7 @@ void main() {
     await controller.join('channel-1');
     session.emitState(VoiceSessionState.connected);
     if (startShare) {
-      await controller.setScreenShare(true, sourceId: 'screen-2');
+      await controller.share.setScreenShare(true, sourceId: 'screen-2');
       session.shareCalls.clear();
     }
     return (controller, settings, session);
@@ -106,7 +106,7 @@ void main() {
 
     test('does nothing after the share has stopped', () async {
       final (controller, settings, session) = await sharing(desktop());
-      await controller.setScreenShare(false);
+      await controller.share.setScreenShare(false);
       session.shareCalls.clear();
       await settings.setScreenShareFps(ScreenShareFps.fps60);
       await Future<void>.delayed(_settle);
@@ -146,7 +146,7 @@ void main() {
         expect(controller.state.screenSharing, isTrue);
         expect(harness.container.read(shareSettingsPendingProvider), isTrue);
 
-        await controller.setScreenShare(false);
+        await controller.share.setScreenShare(false);
         await Future<void>.delayed(_settle);
         expect(harness.container.read(shareSettingsPendingProvider), isFalse);
         await controller.leave();

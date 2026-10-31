@@ -16,10 +16,10 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isDesktopHost, isLinuxHost;
 
-import '../../../providers/desktop_message_text_settings.dart';
+import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_controller.dart';
 import '../../../providers/toasts.dart';
 import 'notification_schedule_allow_lists.dart';
 import '../providers/ui_sound_settings.dart';

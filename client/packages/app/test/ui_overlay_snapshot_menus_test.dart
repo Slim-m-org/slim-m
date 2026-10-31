@@ -24,7 +24,7 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_context_menu.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row.dart';
 import 'package:slimm_app/src/features/messages/widgets/message_row_callbacks.dart';
-import 'package:slimm_app/src/widgets/space_menu_button.dart';
+import 'package:slimm_app/src/features/channels/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';

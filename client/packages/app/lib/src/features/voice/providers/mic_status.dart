@@ -11,8 +11,8 @@ import 'voice_controller.dart';
 final micStatusProvider = StreamProvider<MicStatus>((ref) {
   final controller = ref.watch(voiceControllerProvider.notifier);
   return Stream<MicStatus>.multi((out) {
-    out.add(controller.micStatus);
-    final sub = controller.micStatuses.listen(out.add);
+    out.add(controller.devices.micStatus);
+    final sub = controller.devices.micStatuses.listen(out.add);
     out.onCancel = sub.cancel;
   });
 });

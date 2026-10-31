@@ -18,7 +18,7 @@ import '../../members/providers/presence_view.dart';
 import '../../../providers/providers.dart';
 import '../../members/providers/status_text.dart';
 import '../../../providers/sync_controller.dart';
-import '../../../providers/sync_failure.dart';
+import '../../../sync/providers/sync_failure.dart';
 import '../../voice/providers/voice_controller.dart';
 import '../../voice/providers/mic_status.dart';
 import '../../voice/providers/voice_flags.dart';
@@ -27,8 +27,8 @@ import '../../../routing/breakpoints.dart';
 import '../../../routing/routes.dart';
 import '../../members/widgets/presence_menu.dart';
 import 'rail_call_summary.dart';
-import '../../../widgets/space_icon_badge.dart';
-import '../../../widgets/space_menu_button.dart';
+import 'space_icon_badge.dart';
+import 'space_menu_button.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
 /// the physical screen edge: true at every width the app shows it beside a
@@ -228,7 +228,7 @@ VoidCallback? _micAction({
 }) {
   if (!inCall) return null;
   return stuck
-      ? voiceController.resetMicrophone
+      ? voiceController.devices.resetMicrophone
       : voiceController.toggleMicrophone;
 }
 

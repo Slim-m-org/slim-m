@@ -19,7 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:slimm_app/src/providers/notification_tap_router.dart';
+import 'package:slimm_app/src/push/providers/notification_tap_router.dart';
 import 'package:slimm_app/src/routing/router.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_platform/platform.dart';

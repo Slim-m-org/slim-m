@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Most ids `GET /users` takes in one request; mirrors `MAX_USER_BATCH` in
 /// `crates/slimm-server/src/http/users.rs`, which answers 400 past it.
@@ -10,7 +15,7 @@ const _maxUserIdsPerRequest = 100;
 extension SlimmApiUsers on SlimmApi {
   /// The caller's own profile and base (deployment-level) permissions.
   Future<Me> me() async {
-    final json = await _send('GET', '/me');
+    final json = await send('GET', '/me');
     return Me.fromJson(json as Map<String, dynamic>);
   }
 
@@ -30,7 +35,7 @@ extension SlimmApiUsers on SlimmApi {
     int? profileColor,
     int? profileColorRgb,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/me',
       body: {
@@ -67,7 +72,7 @@ extension SlimmApiUsers on SlimmApi {
   }
 
   Future<List<UserProfile>> _listUsersPage(List<String> ids) async {
-    final json = await _send('GET', '/users', query: {'ids': ids.join(',')});
+    final json = await send('GET', '/users', query: {'ids': ids.join(',')});
     return (json as List<dynamic>)
         .map((u) => UserProfile.fromJson(u as Map<String, dynamic>))
         .toList(growable: false);
@@ -77,7 +82,7 @@ extension SlimmApiUsers on SlimmApi {
   /// exactly like an id that was never used, so this cannot confirm someone
   /// deleted their account.
   Future<UserProfile> getUser(String userId) async {
-    final json = await _send('GET', '/users/$userId');
+    final json = await send('GET', '/users/$userId');
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
@@ -100,7 +105,7 @@ extension SlimmApiUsers on SlimmApi {
       if (limit != null) 'limit': '$limit',
       if (channel != null) 'channel': channel,
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/members',
       query: query.isEmpty ? null : query,
@@ -114,31 +119,31 @@ extension SlimmApiUsers on SlimmApi {
   /// image per user, replaced wholesale: unlike [SlimmApi.uploadAttachment]
   /// this is never content-addressed and no channel permission gates it.
   Future<UserProfile> uploadAvatar(List<int> bytes) async {
-    final json = await _send('POST', '/me/avatar', bytes: bytes);
+    final json = await send('POST', '/me/avatar', bytes: bytes);
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
   /// Removes the caller's avatar. Not an error if there was none.
   Future<void> deleteAvatar() =>
-      _send('DELETE', '/me/avatar', expectNoContent: true);
+      send('DELETE', '/me/avatar', expectNoContent: true);
 
   /// Fetches a user's avatar bytes. Gated on authentication only: an avatar
   /// is a public profile picture, not a message attachment, so no channel
   /// permission applies.
   Future<FetchedBytes> fetchAvatar(String userId) =>
-      _fetchBytes('/users/$userId/avatar');
+      fetchBytes('/users/$userId/avatar');
 
   /// Uploads (or replaces) the caller's profile banner, an image or a gif.
   Future<UserProfile> uploadBanner(List<int> bytes) async {
-    final json = await _send('POST', '/me/banner', bytes: bytes);
+    final json = await send('POST', '/me/banner', bytes: bytes);
     return UserProfile.fromJson(json as Map<String, dynamic>);
   }
 
   /// Removes the caller's banner, so the profile colour shows again.
   Future<void> deleteBanner() =>
-      _send('DELETE', '/me/banner', expectNoContent: true);
+      send('DELETE', '/me/banner', expectNoContent: true);
 
   /// Fetches a user's banner bytes; 404 for a user with none.
   Future<FetchedBytes> fetchBanner(String userId) =>
-      _fetchBytes('/users/$userId/banner');
+      fetchBytes('/users/$userId/banner');
 }

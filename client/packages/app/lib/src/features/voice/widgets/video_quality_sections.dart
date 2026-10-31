@@ -36,7 +36,8 @@ class VideoQualitySection extends ConsumerWidget {
         : null;
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
-        .supportsScreenShareAudio;
+        .share
+        .supportsAudio;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

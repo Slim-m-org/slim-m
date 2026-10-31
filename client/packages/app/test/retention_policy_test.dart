@@ -5,7 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/retention_policy.dart';
+import 'package:slimm_app/src/features/messages/providers/retention_policy.dart';
 
 void main() {
   test('a window under the ceiling is returned unchanged', () {

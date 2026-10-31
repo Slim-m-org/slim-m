@@ -18,7 +18,7 @@ import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'package:slimm_app/src/features/voice/providers/hold_music_controller.dart';
-import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
+import 'package:slimm_app/src/providers/dock_reservation.dart';
 
 import '../../support/hold_playback_fake.dart';
 

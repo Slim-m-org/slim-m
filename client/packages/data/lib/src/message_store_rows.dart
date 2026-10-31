@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'database.dart';
+import 'message_store.dart';
 
 /// The row a server-acknowledged message is stored as, shared by
 /// [MessageStore.applyMessage] and the batch behind
@@ -13,7 +18,7 @@ part of 'message_store.dart';
 /// message - there is no such operation - so "not mentioned" can only mean
 /// unchanged. Writing null here instead is what made an edit drop the
 /// forwarded card off its own message until the next full resync.
-MessagesCompanion _rowFor(api.Message message) {
+MessagesCompanion rowFor(api.Message message) {
   final row = MessagesCompanion.insert(
     id: message.id,
     channelId: message.channelId,
@@ -45,7 +50,7 @@ MessagesCompanion _rowFor(api.Message message) {
 }
 
 /// [MessageStore.removeForwardSnapshot]'s body, split out to keep that file under its budget.
-Future<void> _removeForwardSnapshot(SlimmDatabase db, String messageId) async {
+Future<void> removeForwardSnapshot(SlimmDatabase db, String messageId) async {
   await (db.update(db.messages)..where((m) => m.id.equals(messageId))).write(
     const MessagesCompanion(
       forwardedRemoved: Value(true),

@@ -282,3 +282,27 @@ Both ship a real OS-backed keychain with the same always-present guarantee as th
 The web build does use flutter_secure_storage, because its browser backend is the only storage a browser has: values are AES-GCM encrypted under a key that itself lives in `localStorage`, so this is obfuscation against a casual look, not secrecy against script running on the same origin.
 It is also refused outright outside a secure context, so a plain-http LAN server gets no persisted session at all.
 The web build exists to drive this UI automatically; it is not a distribution target, and nothing here should be read as a claim that a browser stores secrets as well as a phone does.
+
+## Voice call generations
+
+`VoiceController` bumps a call generation on every join and every leave, and each async step records the generation it started under.
+A channel switch or a hang-up mid-join starts or ends a newer call on the same instance, so every write after an await first checks it is still current.
+Without the check an abandoned join's belated failure landed as the current, different channel's error and hid a call that had actually connected (`voice_controller_join_race_test.dart`).
+
+Leave is guarded the same way.
+Tearing a session down is a round trip to the SFU and nothing in the UI waits on it, so someone who hangs up and taps a channel again straight away can have a newer call connected by the time the old leave resumes.
+Everything after that point belongs to the newer call, so a superseded leave writes nothing: not the state reset, which left a live call with no channel id, and not the heartbeat forget, which the server turns into a hangup it broadcasts to everyone else.
+The heartbeat entry the abandoned call leaves behind is what the server's staleness sweep (`voice/heartbeat.rs`) exists to collect.
+
+The controller composes small collaborators for the rest of its surface: input settings, audio devices, participant volumes, camera hiding, video controls, screen share, rejoin, the SFU connect and the session-state sync.
+Each takes a `VoiceStateAccess` rather than the controller, and the controller exposes them as `input`, `devices`, `volumes`, `cameras`, `video` and `share`.
+
+## Sync generations
+
+`SyncController` bumps a generation on every stop, fresh start and dispose.
+A run superseded mid-flight, such as a sign-out landing during catch-up or a second start racing the first, notices at its next checkpoint rather than finishing and writing stale data into a store a newer run already cleared.
+Every await that is followed by a write has to re-check it, including the ones inside the channel refresher, which is why that takes a predicate rather than being trusted to finish quickly.
+
+The ticket mint and the socket connect are network round trips too.
+A stop landing inside either used to return from start having already assigned a socket the superseding teardown had run too early to see, leaving it live and applying frames with nothing left holding a handle to close it.
+The catch-up, event applier, reconnector and session-end cleanup are separate classes in `sync/providers` that are told whether a given generation is still current.

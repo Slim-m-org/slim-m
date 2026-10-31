@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Push registration, lifecycle reporting, and the caller's own account-wide
 /// notification preference: the `push` tag.
@@ -21,7 +27,7 @@ extension SlimmApiPush on SlimmApi {
     required String pushPublicKey,
     bool? includeContent,
   }) =>
-      _send(
+      send(
         'PUT',
         '/push',
         body: {
@@ -40,22 +46,22 @@ extension SlimmApiPush on SlimmApi {
   /// Whether push envelopes carry a message preview: the account's choice,
   /// else the server default.
   Future<bool> pushPreview() async {
-    final json = await _send('GET', '/push/preview');
+    final json = await send('GET', '/push/preview');
     return (json as Map<String, dynamic>)['include_content'] as bool;
   }
 
   /// Saves the member's explicit preview choice to the account.
   Future<void> setPushPreview(bool includeContent) =>
-      _send('PUT', '/push/preview', body: {'include_content': includeContent});
+      send('PUT', '/push/preview', body: {'include_content': includeContent});
 
   /// Clears this device's push registration.
   Future<void> unregisterPush() =>
-      _send('DELETE', '/push', expectNoContent: true);
+      send('DELETE', '/push', expectNoContent: true);
 
   /// Reports this device's app lifecycle state. Push is triggered from this
   /// self-reported state rather than WebSocket presence, because a suspended
   /// but still-connected socket is not proof the app can show a notification.
-  Future<void> reportPushLifecycle({required String state}) => _send(
+  Future<void> reportPushLifecycle({required String state}) => send(
         'PUT',
         '/push/lifecycle',
         body: {'state': state},
@@ -70,7 +76,7 @@ extension SlimmApiPush on SlimmApi {
   /// caller must read as "not offered here", never as
   /// [NotificationPreference.everything].
   Future<NotificationPreference> notificationPreference() async {
-    final json = await _send('GET', '/push/preference');
+    final json = await send('GET', '/push/preference');
     return NotificationPreference.parse(
       (json as Map<String, dynamic>)['preference'] as String,
     );
@@ -82,7 +88,7 @@ extension SlimmApiPush on SlimmApi {
   Future<NotificationPreference> setNotificationPreference(
     NotificationPreference preference,
   ) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/push/preference',
       body: {'preference': preference.wire},
@@ -96,7 +102,7 @@ extension SlimmApiPush on SlimmApi {
   /// overridden; having no entry means following the default.
   Future<List<ChannelNotificationOverride>>
       listChannelNotificationOverrides() async {
-    final json = await _send('GET', '/notification-preferences/channels');
+    final json = await send('GET', '/notification-preferences/channels');
     return (json as List<dynamic>)
         .map(
           (e) => ChannelNotificationOverride.fromJson(
@@ -113,7 +119,7 @@ extension SlimmApiPush on SlimmApi {
     String channelId,
     NotificationPreference preference,
   ) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/notification-preferences/channels/$channelId',
       body: {'preference': preference.wire},
@@ -122,7 +128,7 @@ extension SlimmApiPush on SlimmApi {
   }
 
   /// Clears [channelId]'s override, reverting it to the account default.
-  Future<void> clearChannelNotificationOverride(String channelId) => _send(
+  Future<void> clearChannelNotificationOverride(String channelId) => send(
         'DELETE',
         '/notification-preferences/channels/$channelId',
         expectNoContent: true,

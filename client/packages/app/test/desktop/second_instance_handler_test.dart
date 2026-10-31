@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 
 import 'support/fake_desktop_window_port.dart';
+import 'support/desktop_shell_fixture.dart';
 
 const _channel = MethodChannel('top.npcserver.slimm/second_instance');
 
@@ -26,21 +27,21 @@ Future<void> _send(MethodCall call) async {
   await completer.future;
 }
 
-void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+late DesktopWindowShell shell;
 
-  setUp(DesktopWindowShell.debugReset);
+void main() {
+  setUp(() => shell = shellFor(null));
+  TestWidgetsFlutterBinding.ensureInitialized();
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMessageHandler(_channel.name, null);
-    DesktopWindowShell.debugReset();
   });
 
   test('a focus notification shows and restores the window, the same calls '
       "the tray menu's own Show item makes", () async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.registerSecondInstanceHandler();
+    shell = shellFor(port);
+    shell.registerSecondInstanceHandler();
 
     await _send(const MethodCall('focus'));
 
@@ -49,10 +50,10 @@ void main() {
   });
 
   test('a focus notification tells listeners another launch arrived', () async {
-    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-    DesktopWindowShell.registerSecondInstanceHandler();
+    shell = shellFor(FakeDesktopWindowPort());
+    shell.registerSecondInstanceHandler();
     var launches = 0;
-    final sub = DesktopWindowShell.secondLaunches.listen((_) => launches++);
+    final sub = shell.secondLaunches.listen((_) => launches++);
     addTearDown(sub.cancel);
 
     await _send(const MethodCall('focus'));
@@ -63,8 +64,8 @@ void main() {
 
   test('an unrelated method on the same channel is ignored', () async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.registerSecondInstanceHandler();
+    shell = shellFor(port);
+    shell.registerSecondInstanceHandler();
 
     await _send(const MethodCall('somethingElse'));
 
@@ -74,8 +75,8 @@ void main() {
 
   test('a port that throws leaves nothing uncaught', () async {
     final port = _ThrowingShowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.registerSecondInstanceHandler();
+    shell = shellFor(port);
+    shell.registerSecondInstanceHandler();
 
     await _send(const MethodCall('focus'));
 

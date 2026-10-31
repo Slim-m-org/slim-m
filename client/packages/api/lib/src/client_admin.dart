@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Self-hosted account recovery: an admin issues a one-time code, and its
 /// holder spends it to set a new password. Grouped together because they are
@@ -14,7 +19,7 @@ extension SlimmApiAdmin on SlimmApi {
     String userId, {
     required String password,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/admin/users/$userId/reset-code',
       body: {'password': password},
@@ -31,7 +36,7 @@ extension SlimmApiAdmin on SlimmApi {
   /// is written to the moderation audit log, so it cannot be done quietly. See
   /// docs/decisions/0048-totp-two-factor.md. [password] is the caller's own.
   Future<void> clearMemberTotp(String userId, {required String password}) =>
-      _send(
+      send(
         'DELETE',
         '/admin/users/$userId/totp',
         body: {'password': password},
@@ -46,7 +51,7 @@ extension SlimmApiAdmin on SlimmApi {
     required String code,
     required String newPassword,
   }) =>
-      _send(
+      send(
         'POST',
         '/auth/reset',
         authenticated: false,
@@ -62,7 +67,7 @@ extension SlimmApiAdmin on SlimmApi {
     required String newPassword,
     String? code,
   }) =>
-      _send(
+      send(
         'POST',
         '/auth/password',
         body: {

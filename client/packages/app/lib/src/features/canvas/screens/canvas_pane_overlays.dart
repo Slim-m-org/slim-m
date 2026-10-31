@@ -11,7 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
 import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';

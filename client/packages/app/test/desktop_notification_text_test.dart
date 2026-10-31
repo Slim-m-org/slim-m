@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/providers/desktop_notification_text.dart';
+import 'package:slimm_app/src/desktop/providers/desktop_notification_text.dart';
 
 api.Message _message(
   String content, {

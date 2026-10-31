@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The join gate and raid mode, as `/space/join-gate` reports them.
 class JoinGate {
@@ -59,21 +63,21 @@ class SpaceRules {
 extension SlimmApiJoinGate on SlimmApi {
   /// Requires MANAGE_SERVER.
   Future<JoinGate> joinGate() async {
-    final json = await _send('GET', '/space/join-gate');
+    final json = await send('GET', '/space/join-gate');
     return JoinGate.fromJson(json as Map<String, dynamic>);
   }
 
   /// Requires MANAGE_SERVER. Turning the gate off lets everyone waiting in.
   Future<JoinGate> setJoinGate(JoinGate gate) async {
-    final json = await _send('PUT', '/space/join-gate', body: gate.toJson());
+    final json = await send('PUT', '/space/join-gate', body: gate.toJson());
     return JoinGate.fromJson(json as Map<String, dynamic>);
   }
 
   Future<SpaceRules> spaceRules() async {
-    final json = await _send('GET', '/space/rules');
+    final json = await send('GET', '/space/rules');
     return SpaceRules.fromJson(json as Map<String, dynamic>);
   }
 
   Future<void> acceptSpaceRules() =>
-      _send('POST', '/space/rules/accept', expectNoContent: true);
+      send('POST', '/space/rules/accept', expectNoContent: true);
 }

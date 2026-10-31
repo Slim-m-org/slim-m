@@ -31,8 +31,8 @@ client/packages/api/test/new_routes_test.dart 2
 client/packages/api/test/schema_coverage_test.dart 2
 client/packages/app/lib/main.dart 4
 client/packages/app/lib/src/features/channels/providers/pins_controller.dart 1
-client/packages/app/lib/src/providers/push_controller.dart 4
-client/packages/app/lib/src/features/voice/providers/voice_controller.dart 3
+client/packages/app/lib/src/push/providers/push_controller.dart 4
+client/packages/app/lib/src/features/voice/providers/voice_controller.dart 2
 client/packages/app/lib/src/routing/modal_page.dart 3
 client/packages/app/lib/src/routing/router.dart 5
 client/packages/app/lib/src/features/settings/screens/admin/invite_role_grant_picker.dart 1
@@ -64,7 +64,7 @@ client/packages/app/lib/src/features/messages/widgets/message_row_identity.dart 
 client/packages/app/lib/src/features/messages/widgets/message_row_parts.dart 1
 client/packages/app/lib/src/features/settings/widgets/personal_account_sections.dart 1
 client/packages/app/lib/src/features/members/widgets/presence_menu.dart 2
-client/packages/app/lib/src/widgets/server_fingerprint_step.dart 1
+client/packages/app/lib/src/features/auth/widgets/server_fingerprint_step.dart 1
 client/packages/app/pubspec.yaml 9
 client/packages/app/test/features/channels/channel_management_test.dart 1
 client/packages/app/test/features/members/channel_rail_test.dart 2

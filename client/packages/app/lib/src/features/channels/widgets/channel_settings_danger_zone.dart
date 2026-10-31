@@ -12,11 +12,11 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
-import '../../../providers/providers.dart';
 import '../../../routing/close_screen.dart';
 import '../../../routing/routes.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../settings/widgets/settings_danger_card.dart';
+import '../providers/channel_actions.dart';
 
 const _deleteChannelAction = 'delete the channel';
 
@@ -64,9 +64,7 @@ class _ChannelDangerZoneSectionState
     });
     final router = GoRouter.of(context);
     try {
-      await ref.read(apiProvider).deleteChannel(widget.channel.id);
-      final store = await ref.read(storeProvider.future);
-      await store.removeChannel(widget.channel.id);
+      await ref.read(channelActionsProvider).delete(widget.channel.id);
       if (!mounted) return;
       closeScreen(context, Routes.channels);
       // The view behind this screen may still show a channel that no longer exists.

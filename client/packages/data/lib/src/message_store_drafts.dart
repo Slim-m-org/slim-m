@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'database.dart';
+import 'message_store.dart';
 
 /// The bodies behind [MessageStore.drafts] and [MessageStore.saveDraft], split
 /// out of `message_store.dart` once the drafts table pushed that file past its
@@ -16,7 +19,7 @@ part of 'message_store.dart';
 /// Read whole rather than per channel: there is one row per channel a member
 /// has unfinished words in, which is a handful, and the composer needs an
 /// answer synchronously when a channel opens rather than a future to await.
-Future<Map<String, String>> _drafts(MessageStore store) async {
+Future<Map<String, String>> drafts(MessageStore store) async {
   final rows = await store.db.select(store.db.channelDrafts).get();
   return {for (final row in rows) row.channelId: row.body};
 }
@@ -26,14 +29,14 @@ Future<Map<String, String>> _drafts(MessageStore store) async {
 /// Empty deletes rather than storing a blank, so "no draft" has one
 /// representation and a member who opens and leaves every channel empty does
 /// not accumulate a row per channel forever.
-Future<void> _saveDraft(
+Future<void> saveDraft(
   MessageStore store,
   String channelId,
   String text,
   int now,
 ) async {
   if (text.isEmpty) {
-    await _clearDraft(store, channelId);
+    await clearDraft(store, channelId);
     return;
   }
   await store.db.into(store.db.channelDrafts).insertOnConflictUpdate(
@@ -45,7 +48,7 @@ Future<void> _saveDraft(
       );
 }
 
-Future<void> _clearDraft(MessageStore store, String channelId) async {
+Future<void> clearDraft(MessageStore store, String channelId) async {
   await (store.db.delete<ChannelDrafts, ChannelDraftRow>(store.db.channelDrafts)
         ..where((d) => d.channelId.equals(channelId)))
       .go();

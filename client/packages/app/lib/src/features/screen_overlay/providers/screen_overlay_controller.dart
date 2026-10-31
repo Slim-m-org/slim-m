@@ -82,7 +82,10 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
 
   bool get _wanted {
     final flags = _ref.read(voiceFlagsProvider);
-    final share = _ref.read(voiceControllerProvider.notifier).lastShareSource;
+    final share = _ref
+        .read(voiceControllerProvider.notifier)
+        .share
+        .lastShareSource;
     return _support.supported &&
         _ref
             .read(voiceSettingsControllerProvider)
@@ -123,7 +126,7 @@ class ScreenOverlayController extends StateNotifier<ScreenOverlayState> {
     final index = pickSharedMonitor(
       monitors,
       screenNumber: isWindowsHost
-          ? screenNumberFromLabel(controller.lastShareSource?.name ?? '')
+          ? screenNumberFromLabel(controller.share.lastShareSource?.name ?? '')
           : null,
       capturedSize: captured == null
           ? null

@@ -3,24 +3,25 @@
 library;
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:slimm_api/api.dart' as api;
 
 import 'database.dart';
 import 'message_dto.dart';
 import 'rail_channel.dart';
 import 'transcript_query.dart';
+import 'message_store_batch.dart' as batch_impl;
+import 'message_store_channels.dart' as channels_impl;
+import 'message_store_cursors.dart' as cursors_impl;
+import 'message_store_drafts.dart' as drafts_impl;
+import 'message_store_pending_attachments.dart' as pending_impl;
+import 'message_store_retention.dart' as retention_impl;
+import 'message_store_rows.dart' as rows_impl;
+import 'message_store_cursors.dart' show ReadMarker;
 
-part 'message_store_authorship.dart';
-part 'message_store_batch.dart';
-part 'message_store_channels.dart';
-part 'message_store_cursors.dart';
-part 'message_store_drafts.dart';
-part 'message_store_inbox.dart';
-part 'message_store_pending_attachments.dart';
-part 'message_store_rows.dart';
-part 'message_store_recovery.dart';
-part 'message_store_retention.dart';
+export 'message_store_authorship.dart';
+export 'message_store_inbox.dart';
+export 'message_store_recovery.dart'
+    show failInterruptedSends, interruptedSendReason;
 
 /// The local store's read and write surface.
 ///
@@ -207,19 +208,21 @@ class MessageStore {
   ///
   /// Null and zero are different answers and the caller must keep them apart:
   /// see [Channels.opCursor].
-  Future<int?> opCursorFor(String channelId) => _opCursorFor(this, channelId);
+  Future<int?> opCursorFor(String channelId) =>
+      cursors_impl.opCursorFor(this, channelId);
 
   /// The highest message seq applied to a channel, or null when the channel is
   /// not held locally. Zero is a channel held with no messages.
-  Future<int?> cursorFor(String channelId) => _cursorFor(this, channelId);
+  Future<int?> cursorFor(String channelId) =>
+      cursors_impl.cursorFor(this, channelId);
 
   /// Moves a channel's op cursor forward, or clears it when [seq] is null.
   ///
-  /// Monotonic in the same shape [_advanceCursor] is, with one difference
+  /// Monotonic in the same shape [advanceCursor] is, with one difference
   /// that matters: null is a clear, never a lowering to zero. Adopting a
   /// server-reported head is also a forward move, so it goes through here.
   Future<void> setOpCursor(String channelId, int? seq) =>
-      _setOpCursor(this, channelId, seq);
+      cursors_impl.setOpCursor(this, channelId, seq);
 
   /// Every message currently marked failed, across every channel - what
   /// `SyncController` reads to retry each one once on reconnect. Order is
@@ -233,7 +236,7 @@ class MessageStore {
   }
 
   /// Every channel's cursors, for a bundled catch-up request.
-  Future<List<api.ScopeCursor>> allCursors() => _allCursors(this);
+  Future<List<api.ScopeCursor>> allCursors() => cursors_impl.allCursors(this);
 
   // --- Writes ---
 
@@ -241,7 +244,7 @@ class MessageStore {
   /// read marker, which the server's channel list does not carry. The body
   /// lives in `message_store_channels.dart`, alongside [replaceChannels].
   Future<void> upsertChannels(List<api.Channel> channels) =>
-      _upsertChannels(this, channels);
+      channels_impl.upsertChannels(this, channels);
 
   /// Replaces the whole known channel list with exactly what the server
   /// returned, pruning any channel (and its cached messages) that dropped
@@ -250,7 +253,7 @@ class MessageStore {
   /// call (a rename, a freshly created channel) would wipe every other row.
   /// The body lives in `message_store_channels.dart`.
   Future<void> replaceChannels(List<api.Channel> channels) =>
-      _replaceChannels(this, channels);
+      channels_impl.replaceChannels(this, channels);
 
   /// Applies one message from the server, whichever route it arrived by.
   ///
@@ -269,11 +272,13 @@ class MessageStore {
         return;
       }
 
-      await db.into(db.messages).insertOnConflictUpdate(_rowFor(message));
+      await db
+          .into(db.messages)
+          .insertOnConflictUpdate(rows_impl.rowFor(message));
 
-      await _advanceCursor(message.channelId, message.seq);
+      await advanceCursor(message.channelId, message.seq);
       if (message.mentionsMe) {
-        await _advanceMentionCursor(message.channelId, message.seq);
+        await advanceMentionCursor(message.channelId, message.seq);
       }
     });
   }
@@ -283,7 +288,7 @@ class MessageStore {
   /// lives in `message_store_batch.dart`; the same idempotency and ordering
   /// rules [applyMessage] enforces are applied there.
   Future<void> applyMessages(Iterable<api.Message> messages) =>
-      _applyMessagesBatched(this, messages);
+      batch_impl.applyMessagesBatched(this, messages);
 
   /// Drops a channel's cached messages and rewinds its cursor. Used when the
   /// server answers catch-up with `reset`, meaning the gap was too large to
@@ -313,7 +318,7 @@ class MessageStore {
   /// forever; this is the direct path for one already-known id.
   /// [replaceChannels] is the other, for a full server refresh.
   Future<void> removeChannel(String channelId) =>
-      db.transaction(() => _deleteChannelRows(db, channelId));
+      db.transaction(() => channels_impl.deleteChannelRows(db, channelId));
 
   /// Drops everything this device has cached: every channel, every message,
   /// every cursor and read marker, including pending sends.
@@ -337,11 +342,11 @@ class MessageStore {
 
   /// Every channel's unsent composer text, as a map. See
   /// `message_store_drafts.dart`.
-  Future<Map<String, String>> drafts() => _drafts(this);
+  Future<Map<String, String>> drafts() => drafts_impl.drafts(this);
 
   /// Saves [text] as [channelId]'s draft, or deletes the row when it is empty.
   Future<void> saveDraft(String channelId, String text, {required int now}) =>
-      _saveDraft(this, channelId, text, now);
+      drafts_impl.saveDraft(this, channelId, text, now);
 
   /// Records a message the user just sent, before the server has seen it, so it
   /// appears immediately. Replaced in place by [applyMessage] on acknowledgement
@@ -356,7 +361,7 @@ class MessageStore {
     List<String> attachmentIds = const [],
     List<String> spoilerIds = const [],
   }) async {
-    await _savePendingAttachments(
+    await pending_impl.savePendingAttachments(
       this,
       id,
       attachmentIds,
@@ -395,20 +400,21 @@ class MessageStore {
   /// call, or a live `message.deleted` event for someone else's) that must
   /// vanish from every view. Same operation either way.
   Future<void> discard(String id) async {
-    await _forgetPendingAttachments(this, id);
+    await pending_impl.forgetPendingAttachments(this, id);
     await (db.delete(db.messages)..where((m) => m.id.equals(id))).go();
   }
 
   /// The attachment ids a send was queued with, for a retry to carry again.
   Future<List<String>> pendingAttachmentIds(String id) =>
-      _pendingAttachmentIds(this, id);
+      pending_impl.pendingAttachmentIds(this, id);
 
   /// False only when a queued reply opted out of mentioning its author.
-  Future<bool> pendingMentionReply(String id) => _pendingMentionReply(this, id);
+  Future<bool> pendingMentionReply(String id) =>
+      pending_impl.pendingMentionReply(this, id);
 
   /// Which of [pendingAttachmentIds] were queued as spoilers.
   Future<List<String>> pendingSpoilerIds(String id) =>
-      _pendingAttachmentIds(this, id, spoilersOnly: true);
+      pending_impl.pendingAttachmentIds(this, id, spoilersOnly: true);
 
   /// Applies an edit to a message already held, and does nothing else.
   ///
@@ -429,7 +435,7 @@ class MessageStore {
 
   /// Clears a forward's snapshot once its original was removed; the note stays.
   Future<void> removeForwardSnapshot(String messageId) =>
-      _removeForwardSnapshot(db, messageId);
+      rows_impl.removeForwardSnapshot(db, messageId);
 
   /// Hides a message's link-preview cards for good; a message not held is skipped.
   Future<void> markLinkPreviewsRemoved(String messageId) =>
@@ -442,7 +448,7 @@ class MessageStore {
     int seq, {
     bool? manuallyUnread,
   }) =>
-      _setReadMarker(
+      cursors_impl.setReadMarker(
         this,
         channelId,
         seq,
@@ -452,28 +458,28 @@ class MessageStore {
   /// [setReadMarker] for many channels in one transaction, so streams over the
   /// channel list wake once rather than once per channel.
   Future<void> setReadMarkers(Iterable<ReadMarker> markers) =>
-      _setReadMarkers(this, markers);
+      cursors_impl.setReadMarkers(this, markers);
 
   /// Caps every channel's delivered rows to the newest [ceiling], deleting
   /// whatever is older. Body in `message_store_retention.dart`, which also
   /// explains why this is safe to call unconditionally rather than only for
   /// channels a caller knows are closed.
   Future<void> pruneToRetentionCeiling(int ceiling) =>
-      _pruneToRetentionCeiling(this, ceiling);
+      retention_impl.pruneToRetentionCeiling(this, ceiling);
 
   /// The message ids currently held for [channelIds]. See
   /// `message_store_retention.dart` for the reachability reading a caller may
   /// only place on this after [pruneToRetentionCeiling] has already run.
   Future<Set<String>> reachableMessageIds(Iterable<String> channelIds) =>
-      _reachableMessageIds(this, channelIds);
+      retention_impl.reachableMessageIds(this, channelIds);
 
   /// Moves a channel's cursor forward. Never backwards: the cursor is the
   /// high-water mark of what has been applied.
-  Future<void> _advanceCursor(String channelId, int seq) =>
-      _advanceCursorHelper(this, channelId, seq);
+  Future<void> advanceCursor(String channelId, int seq) =>
+      cursors_impl.advanceCursorHelper(this, channelId, seq);
 
-  /// [_advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
+  /// [advanceCursor]'s own shape for `mentionedSeq`, only ever called for a
   /// message whose `mentionsMe` is true.
-  Future<void> _advanceMentionCursor(String channelId, int seq) =>
-      _advanceMentionCursorHelper(this, channelId, seq);
+  Future<void> advanceMentionCursor(String channelId, int seq) =>
+      cursors_impl.advanceMentionCursorHelper(this, channelId, seq);
 }

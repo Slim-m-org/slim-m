@@ -14,60 +14,42 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_platform/platform.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../../api_failure.dart';
+import '../../../push/providers/push_channel_providers.dart';
 import 'call_foreground_keeper.dart';
 import 'call_recap.dart';
+import 'join_timings_provider.dart';
 import 'level_display.dart';
-import 'noise_suppression.dart';
-import '../../../providers/providers.dart';
-import '../../../providers/push_channel_providers.dart';
+import 'mic_failure_advice.dart';
+import 'voice_audio_devices.dart';
 import 'voice_auto_rejoin.dart';
 import 'voice_call_clock.dart';
 import 'voice_call_heartbeat.dart';
-import 'voice_call_lifecycle_report.dart';
-import 'mic_failure_advice.dart';
 import 'voice_camera_failure.dart';
-import 'voice_deafen_publish.dart';
+import 'voice_camera_hiding.dart';
 import 'voice_camera_preference.dart';
-import 'join_timings_provider.dart';
+import 'voice_input_settings.dart';
 import 'voice_join_muted.dart';
-import '../widgets/video_health_overlay.dart';
-import 'voice_participant_volume_store.dart';
-import 'volume_drag_throttle.dart';
-import 'voice_settings_controller.dart';
-import 'voice_processing.dart';
-import 'voice_sfu_security.dart';
+import 'voice_participant_volumes.dart';
+import 'voice_rejoin.dart';
+import 'voice_screen_share.dart';
+import 'voice_settings_controller.dart' show loadCameraOnJoinPreference;
+import 'voice_session_sync.dart';
+import 'voice_sfu_connect.dart';
 import 'voice_state.dart';
+import 'voice_state_access.dart';
+import 'voice_video_controls.dart';
 
+export 'voice_input_settings.dart'
+    show kSpaceNoiseSuppressionRecheck, spaceNoiseSuppressionRecheck;
 export 'voice_state.dart' show VoiceState;
 
-part 'voice_controller_audio_devices.dart';
-part 'voice_controller_call_clock.dart';
-part 'voice_controller_camera_hide.dart';
-part 'voice_controller_input.dart';
-part 'voice_controller_participant_volume.dart';
-part 'voice_controller_rejoin.dart';
-part 'voice_controller_share.dart';
-part 'voice_controller_video.dart';
-
-const _joinCallTask = 'join the call';
-
-class VoiceController extends StateNotifier<VoiceState>
-    with
-        VoiceControllerInputMixin,
-        VoiceControllerCallClockMixin,
-        VoiceControllerRejoinMixin,
-        VoiceControllerShareMixin,
-        VoiceControllerAudioDevicesMixin,
-        VoiceControllerParticipantVolumeMixin,
-        VoiceControllerCameraHideMixin,
-        VoiceControllerVideoMixin {
+class VoiceController extends StateNotifier<VoiceState> {
   VoiceController(
     this._ref, {
     VoiceSession? session,
     CallLifecycleChannel? callLifecycle,
     CallForegroundKeeper? foreground,
-    this.broadcastStartTimeout = const Duration(seconds: 30),
+    Duration broadcastStartTimeout = const Duration(seconds: 30),
     Duration voiceHeartbeatInterval = const Duration(seconds: 15),
     List<Duration> autoRejoinDelays = VoiceAutoRejoin.defaultDelays,
     DateTime Function()? now,
@@ -96,58 +78,89 @@ class VoiceController extends StateNotifier<VoiceState>
        _now = now ?? DateTime.now,
        _activity = CallActivityTracker(now: now ?? DateTime.now),
        super(const VoiceState()) {
+    final access = VoiceStateAccess(read: () => state, write: (s) => state = s);
+    input = VoiceInputSettings(_session, _ref, access);
+    devices = VoiceAudioDevices(_session, _ref, access);
+    volumes = VoiceParticipantVolumes(_session, _ref, _log);
+    cameras = VoiceCameraHiding(_session, _ref, access);
+    video = VoiceVideoControls(_session, access, () => _callGeneration);
+    share = VoiceScreenShare(
+      _session,
+      _foreground,
+      access,
+      _log,
+      broadcastStartTimeout: broadcastStartTimeout,
+    );
+    _rejoin = VoiceRejoin(access, _autoRejoin, _callClock, _ref, join);
+    _sfu = VoiceSfuConnect(_session, _ref, access, _joinMuted, input);
+    _sync = VoiceSessionSync(
+      session: _session,
+      access: access,
+      callLifecycle: _callLifecycle,
+      foreground: _foreground,
+      heartbeat: _heartbeat,
+      autoRejoin: _autoRejoin,
+      callClock: _callClock,
+      rejoin: _rejoin,
+      input: input,
+      cameras: cameras,
+      log: _log,
+    );
     _endCallRequests = _callLifecycle.endCallRequests.listen((_) {
       unawaited(leave());
     });
     listenLevelDisplayed(_ref, _session.setLevelDisplayed);
-    _states = _session.states.listen(_onSessionState);
+    _states = _session.states.listen(_sync.onSessionState);
     _shareSourceLost = _session.screenShareSourceLost.listen(
-      (_) => _reportShareSourceLost(),
+      (_) => share.reportShareSourceLost(),
     );
     _participants = _session.participantChanges.listen((p) {
       _activity.observe(p);
-      unawaited(_adoptServerCallStart());
+      unawaited(_callClock.adoptServerStart(access));
       // Trust the session's view of the local participant over the local
       // toggle: the SFU is what actually decides whether a track is live.
       final sharing = p.any((x) => x.isLocal && x.isScreenSharing);
       final camera = p.any((x) => x.isLocal && x.isCameraOn);
-      if (sharing) _cancelBroadcastDeadline();
+      if (sharing) share.cancelBroadcastDeadline();
       _foreground.media(camera: camera, sharing: sharing);
       state = state.copyWith(
-        participants: _shownRoster(p),
+        participants: cameras.shownRoster(p),
         screenSharing: sharing,
-        shareAudio: sharing ? _shareAudioNow() : ShareAudio.none,
+        shareAudio: sharing ? share.shareAudioNow() : ShareAudio.none,
         cameraEnabled: camera,
         awaitingBroadcast: sharing ? false : state.awaitingBroadcast,
       );
     });
   }
 
-  /// How long to wait for iOS to actually start a broadcast before saying so.
-  /// Long enough for the picker, its confirmation and a three second
-  /// countdown; short enough that a build with no extension is not a mystery.
-  @override
-  final Duration broadcastStartTimeout;
-
   final Ref _ref;
   final VoiceSession _session;
 
-  /// [VoiceControllerInputMixin]'s own required bridge to the fields above.
-  @override
-  VoiceSession get _inputSession => _session;
-  @override
-  VoiceAutoRejoin get _rejoinAttempts => _autoRejoin;
-  @override
-  Ref get _inputRef => _ref;
+  /// The microphone, noise suppression, input gate and video quality choices.
+  late final VoiceInputSettings input;
+
+  /// Microphone and speaker selection, and the microphone's own health.
+  late final VoiceAudioDevices devices;
+
+  /// Per-participant playback volume.
+  late final VoiceParticipantVolumes volumes;
+
+  /// Whose camera this listener chose not to watch.
+  late final VoiceCameraHiding cameras;
+
+  /// Video tiles and camera selection.
+  late final VoiceVideoControls video;
+
+  /// Screen sharing and the broadcast deadline.
+  late final VoiceScreenShare share;
+  late final VoiceRejoin _rejoin;
+  late final VoiceSfuConnect _sfu;
+  late final VoiceSessionSync _sync;
 
   final CallLifecycleChannel _callLifecycle;
   final CallForegroundKeeper _foreground;
-
-  @override
-  CallForegroundKeeper get _shareForeground => _foreground;
   final VoiceCallHeartbeat _heartbeat;
   final VoiceAutoRejoin _autoRejoin;
-  @override
   final VoiceCallClock _callClock;
   final VoiceJoinMuted _joinMuted = VoiceJoinMuted();
   final VoiceCameraPreference _cameraPreference = VoiceCameraPreference();
@@ -158,29 +171,17 @@ class VoiceController extends StateNotifier<VoiceState>
   late final StreamSubscription<String> _shareSourceLost;
   late final StreamSubscription<void> _endCallRequests;
 
-  /// Bumped by every [join] and [leave], so a stale call's continuation can
-  /// tell it has been superseded; see [join]'s own comment on why this
-  /// exists.
-  @override
+  /// Bumped by every [join] and [leave], so a stale call's continuation can tell it was superseded.
   int _callGeneration = 0;
 
   /// Changes whenever a call starts or ends, for work that must not outlive its call.
   int get callGeneration => _callGeneration;
 
-  /// Sets the camera preference before joining; use [toggleCamera] for the
-  /// live in-call control. Its microphone sibling died with the join lobby
-  /// (d190a711) and was deleted rather than left as an uncalled method.
+  /// Sets the camera preference before joining; use [toggleCamera] in a call.
   void setCameraPreference(bool enabled) =>
       state = _cameraPreference.apply(state, enabled);
 
-  /// Seeds [setCameraPreference] from the persisted setting Voice Settings
-  /// writes, for the one moment [join]'s own preference-carrying (see
-  /// [leave]) has nothing yet to carry: a fresh app launch's first call.
-  ///
-  /// Explicit and awaited once from bootstrap, `ThemeController.restore`'s
-  /// own shape, rather than read from this constructor: a constructor read
-  /// would make every existing test building a bare [VoiceController]
-  /// depend on mocked shared preferences it has no reason to set up.
+  /// Seeds [setCameraPreference] from the saved setting, awaited once from bootstrap.
   Future<void> restoreCameraPreference() async {
     setCameraPreference(await loadCameraOnJoinPreference(_ref));
   }
@@ -194,67 +195,11 @@ class VoiceController extends StateNotifier<VoiceState>
 
   bool _muteNextJoin = false;
 
-  void _onSessionState(VoiceSessionState s) {
-    reportCallLifecycle(_callLifecycle, s, channelId: state.channelId);
-    _foreground.sessionState(s);
-    final dropped = _classifiedDisconnect();
-    if (s == VoiceSessionState.failed && dropped != null) {
-      _heartbeat.stop();
-      stopWatchingSpaceNoiseSuppression();
-      _log('The call ended: ${dropped.name}', detail: dropped.message);
-      _endCallForDrop(dropped);
-      return;
-    }
-    _syncHeartbeat(s);
-    // The clock starts at the connected transition only; see VoiceCallClock.
-    state = switch (s) {
-      VoiceSessionState.connected when state.connectedAt == null =>
-        state.copyWith(state: s, connectedAt: _callClock.beginHere()),
-      VoiceSessionState.idle || VoiceSessionState.failed => state.copyWith(
-        state: s,
-        clearConnectedAt: true,
-      ),
-      _ => state.copyWith(state: s),
-    };
-    if (s == VoiceSessionState.connected) {
-      _pushBlocked();
-      unawaited(_adoptServerCallStart());
-    }
-  }
-
-  /// A drop the SFU decided on: the reason is the only thing that can tell
-  /// "you joined elsewhere" from "your network went". A `removed` that
-  /// arrives while this client's own heartbeat has been failing is far
-  /// more likely the server's stale-heartbeat sweep than a moderator.
-  VoiceDisconnect? _classifiedDisconnect() {
-    final raw = _session.lastDisconnect;
-    final lagging = raw == VoiceDisconnect.removed && _heartbeat.isLagging;
-    return lagging ? VoiceDisconnect.heartbeatLagEviction : raw;
-  }
-
-  void _syncHeartbeat(VoiceSessionState s) {
-    switch (s) {
-      case VoiceSessionState.connected:
-        // Not gated on lifecycle: only termination may let this lapse.
-        _heartbeat.start(state.channelId);
-        watchSpaceNoiseSuppression();
-        _autoRejoin.connected();
-        if (state.rejoining) state = state.copyWith(rejoining: false);
-      case VoiceSessionState.idle:
-      case VoiceSessionState.failed:
-        _heartbeat.stop();
-        stopWatchingSpaceNoiseSuppression();
-      default:
-        break;
-    }
-  }
-
   /// A channel switch (or a [leave]) mid-join starts or ends a newer call on
   /// this same instance, so every write below is guarded by [superseded]:
   /// reproduced without it, an abandoned join's belated failure landed as
   /// the *current* (different) channel's error, hiding a call that had
   /// actually connected - see `voice_controller_join_race_test.dart`.
-  @override
   Future<void> join(String channelId) async {
     final mutedByCaller = _muteNextJoin;
     _muteNextJoin = false;
@@ -262,7 +207,7 @@ class VoiceController extends StateNotifier<VoiceState>
     _activity.reset();
     // A queued rejoin was about the call this one replaces; see VoiceAutoRejoin.cancelPending.
     _autoRejoin.cancelPending();
-    unawaited(refreshSpaceNoiseSuppression());
+    unawaited(input.refreshSpaceNoiseSuppression());
     // See this method's own doc comment for what generation/superseded guard.
     final generation = ++_callGeneration;
     bool superseded() => generation != _callGeneration;
@@ -274,117 +219,17 @@ class VoiceController extends StateNotifier<VoiceState>
       clearError: true,
       clearRecap: true,
       joining: true,
-      rejoining: _autoAttemptChannel == channelId,
+      rejoining: _rejoin.autoAttemptChannel == channelId,
       clearJustLeft: true,
     );
-    try {
-      await _connect(channelId, mutedByCaller, superseded);
-    } on api.NotConfiguredException catch (error, stack) {
-      api.AppLog.swallowed(
-        api.LogTag.voice,
-        'This server has no voice set up',
-        error,
-        stack,
-      );
-      _failJoin(superseded, 'This Space has no voice configured.');
-    } on api.ForbiddenException catch (error, stack) {
-      api.reportFailure(api.LogTag.voice, _joinCallTask, error, stack);
-      _failJoin(superseded, 'You do not have permission to join this channel.');
-    } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.voice, _joinCallTask, e, stack);
-      _failJoin(
-        superseded,
-        describeApiFailure(_joinCallTask, e),
-        retryable: true,
-      );
-    } catch (e) {
-      // Joining is automatic now, so nothing asks first; an exception no other clause names must still fail cleanly.
-      if (!superseded()) {
-        _log('Could not join the call', detail: e, level: api.LogLevel.error);
-      }
-      _failJoin(superseded, 'Could not join the call.', retryable: true);
-    } finally {
-      if (!superseded()) state = state.copyWith(joining: false);
-    }
+    await _sfu.run(channelId, mutedByCaller, superseded);
   }
 
-  Future<void> _connect(
-    String channelId,
-    bool mutedByCaller,
-    bool Function() superseded,
-  ) async {
-    final timings = _ref.read(joinTimingsProvider)
-      ..mark(JoinStage.tokenRequested);
-    final token = await _ref.read(apiProvider).voiceToken(channelId);
-    timings.mark(JoinStage.tokenReceived);
-    final mutedByChannel = await _joinMuted.asksFor(_ref, channelId);
-    if (superseded()) return;
-    final insecureReason = insecureSfuReason(token.url);
-    if (insecureReason != null) {
-      state = state.copyWith(
-        state: VoiceSessionState.failed,
-        error: insecureReason,
-        retryable: false,
-      );
-      return;
-    }
-    state = state.copyWith(canPublish: token.canPublish);
-    if (mutedByChannel || mutedByCaller) state = _joinMuted.showMuted(state);
-    // Push-to-talk joins closed: it opens only while the key is held; see setPushToTalkPreference.
-    final microphoneAtJoin =
-        state.microphoneEnabled && token.canPublish && !_pushToTalkEnabled;
-    await _session.join(
-      url: token.url,
-      token: token.token,
-      // Asking for a microphone or camera a token cannot publish just
-      // produces a failure to report; not asking is the honest thing.
-      microphoneEnabled: microphoneAtJoin,
-      cameraEnabled: state.cameraEnabled && token.canPublish,
-      canPublish: token.canPublish,
-    );
-    if (superseded()) return;
-    // Show the push-to-talk-closed mic in the button; scoped to PTT so the canPublish path is untouched.
-    if (_pushToTalkEnabled && state.microphoneEnabled) {
-      state = state.copyWith(microphoneEnabled: false);
-    }
-    if (_session.state == VoiceSessionState.failed) {
-      state = state.copyWith(
-        error: 'Could not connect to the call. ${_session.lastError ?? ''}'
-            .trim(),
-      );
-    }
-  }
-
-  void _failJoin(
-    bool Function() superseded,
-    String error, {
-    bool retryable = false,
-  }) {
-    if (superseded()) return;
-    _ref.read(joinTimingsProvider).finish();
-    state = state.copyWith(
-      state: VoiceSessionState.failed,
-      error: error,
-      retryable: retryable,
-    );
-  }
-
-  /// Also supersedes any in-flight [join]; see its own doc comment.
-  ///
-  /// And is superseded the same way, which is what the guard past the await
-  /// below is for: tearing a session down is a real round trip to the SFU
-  /// and nothing in the UI waits on it, so somebody who hangs up and taps a
-  /// channel again straight away can have a newer call already connected by
-  /// the time this resumes. Everything after that point belongs to the newer
-  /// call, so a superseded leave writes nothing at all - not the reset,
-  /// which left a live call with no [VoiceState.channelId] for every voice
-  /// surface to read as "not in this call", and not the heartbeat forget,
-  /// which the server turns into a hangup it broadcasts to everyone else.
-  /// The heartbeat entry the abandoned call leaves behind is exactly what
-  /// `voice/heartbeat.rs`'s staleness sweep exists to collect.
+  /// Supersedes any in-flight [join], and is superseded the same way: a leave
+  /// overtaken by a newer call writes nothing (see docs/internals.md, voice call generations).
   Future<void> leave() async {
     final generation = ++_callGeneration;
-    _cancelBroadcastDeadline();
+    share.cancelBroadcastDeadline();
     final channelId = state.channelId;
     final startedAt = state.connectedAt;
     // Read before `_session.leave()`, so nobody still here misreads as having left when we did.
@@ -396,7 +241,7 @@ class VoiceController extends StateNotifier<VoiceState>
           )
         : null;
     _heartbeat.stop();
-    stopWatchingSpaceNoiseSuppression();
+    input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     _callClock.forget();
     _ref.read(joinTimingsProvider).finish();
@@ -424,7 +269,9 @@ class VoiceController extends StateNotifier<VoiceState>
     if (generation != _callGeneration) return;
     // Reflects what happened rather than what was asked for, so the button
     // never claims a microphone is open when the SFU refused the track.
-    final error = got ? null : micRefusalError(_micVerb(want), micFailure);
+    final error = got
+        ? null
+        : micRefusalError(_micVerb(want), devices.micFailure);
     state = state.copyWith(
       microphoneEnabled: got ? want : state.microphoneEnabled,
       error: error,
@@ -472,14 +319,10 @@ class VoiceController extends StateNotifier<VoiceState>
   /// popover reading [isLocallyMuted] repaints with the new label.
   Future<void> setLocallyMuted(String identity, bool muted) async {
     await _session.setLocallyMuted(identity, muted);
-    state = state.copyWith(participants: _shownRoster(_session.participants));
+    state = state.copyWith(
+      participants: cameras.shownRoster(_session.participants),
+    );
   }
-
-  /// Whether this host can publish a screen share's own audio. True on web
-  /// and Linux; see `screen_share_audio.dart` in the rtc package for why the
-  /// rest cannot, or in Linux's case can only conditionally.
-  @override
-  bool get supportsScreenShareAudio => _session.supportsScreenShareAudio;
 
   /// Per-person audio quality and the last call's summary.
   VoiceHealth get health => _session.health;
@@ -493,7 +336,7 @@ class VoiceController extends StateNotifier<VoiceState>
     final want = !state.deafened;
     final got = await _session.setDeafened(want);
     if (generation != _callGeneration) return;
-    if (got) unawaited(publishDeafenedState(want));
+    if (got) unawaited(devices.publishDeafenedState(want));
     state = state.copyWith(
       deafened: got ? want : state.deafened,
       error: got ? null : 'Could not ${_deafenVerb(want)}.',
@@ -501,13 +344,14 @@ class VoiceController extends StateNotifier<VoiceState>
     );
   }
 
-  @override
-  VoiceSession get _shareSession => _session;
+  /// [identity]'s camera feed; the canvas draws it too, so it stays here.
+  Widget cameraViewFor(String identity, {bool declaresInterest = true}) =>
+      video.cameraViewFor(identity, declaresInterest: declaresInterest);
 
-  @override
-  VoiceSession get _videoSession => _session;
+  /// [identity]'s shared screen; see [cameraViewFor].
+  Widget screenShareViewFor(String identity, {bool declaresInterest = true}) =>
+      video.screenShareViewFor(identity, declaresInterest: declaresInterest);
 
-  @override
   void _log(
     String message, {
     Object? detail,
@@ -516,9 +360,10 @@ class VoiceController extends StateNotifier<VoiceState>
 
   @override
   void dispose() {
-    _cancelBroadcastDeadline();
+    share.cancelBroadcastDeadline();
+    volumes.dispose();
     _heartbeat.stop();
-    stopWatchingSpaceNoiseSuppression();
+    input.stopWatchingSpaceNoiseSuppression();
     _autoRejoin.reset();
     unawaited(_states.cancel());
     unawaited(_participants.cancel());

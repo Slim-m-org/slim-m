@@ -220,3 +220,14 @@ class PermGroup {
 extension PermissionCheck on int {
   bool hasPermission(int required) => (this & required) == required;
 }
+
+/// The human names of every permission in [bits], in grid order.
+List<String> permissionLabels(int bits) => [
+  for (final spec in Perm.gridRows)
+    if (bits & spec.bit != 0) spec.label,
+];
+
+/// "A", "A and B" or "A, B and C".
+String joinLabels(List<String> names) => names.length == 1
+    ? names.single
+    : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';

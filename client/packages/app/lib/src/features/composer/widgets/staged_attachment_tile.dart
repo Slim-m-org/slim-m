@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'composer_attachments.dart';
-import '../../messages/widgets/image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../../../widgets/transfer_meter.dart';
 
 /// The square a thumbnail or a generic-file glyph draws into.

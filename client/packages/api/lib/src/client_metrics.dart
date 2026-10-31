@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'client.dart';
+import 'client_metrics_parser.dart';
+import 'client_transport.dart';
 
 /// `GET /metrics`: Prometheus text exposition, decoded into typed
 /// aggregates for the admin metrics screen. Requires MANAGE_SERVER, the
 /// same bit `/space/analytics` and `/space/storage` require.
 ///
 /// The response is `text/plain`, not JSON, so this goes through
-/// [SlimmApi._fetchBytes] rather than [SlimmApi._send] - the same seam the
+/// [fetchBytes] rather than [send] - the same seam the
 /// three byte-fetching routes already use - and parses the text itself
 /// rather than pulling in a Prometheus client library for one endpoint.
 extension SlimmApiMetrics on SlimmApi {
   Future<ServerMetrics> fetchServerMetrics() async {
-    final fetched = await _fetchBytes('/metrics');
+    final fetched = await fetchBytes('/metrics');
     return parsePrometheusMetrics(utf8.decode(fetched.bytes));
   }
 }

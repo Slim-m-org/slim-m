@@ -93,7 +93,10 @@ class NoiseSuppressionController extends StateNotifier<NoiseSuppressionChoice> {
     state = choice;
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(_choiceKey, choice.wire);
-    _ref.read(voiceControllerProvider.notifier).setNoiseSuppression(choice);
+    _ref
+        .read(voiceControllerProvider.notifier)
+        .input
+        .setNoiseSuppression(choice);
   }
 }
 

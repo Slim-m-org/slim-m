@@ -28,15 +28,6 @@ const Size _desktop = Size(1280, 900);
 /// The screen being presented, marked so it can be found whichever way it is.
 const Key _screenKey = Key('screen-under-test');
 
-/// A [VoiceController] a test can hand a fixed starting [VoiceState],
-/// mirroring the pattern `canvas_pane_hangup_closes_test.dart` already uses.
-class _StubVoiceController extends VoiceController {
-  _StubVoiceController(super.ref, VoiceState initial)
-    : super(session: FakeSession()) {
-    state = initial;
-  }
-}
-
 const _noCall = VoiceState();
 final _inCall = VoiceState(
   state: VoiceSessionState.connected,
@@ -58,7 +49,7 @@ Future<void> _open(
     ProviderScope(
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => _StubVoiceController(ref, voiceState),
+          (ref) => FixedVoiceController(ref, voiceState),
         ),
       ],
       child: MaterialApp(
@@ -107,7 +98,7 @@ Future<Page<void>> _pageFor(
     ProviderScope(
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => _StubVoiceController(ref, _noCall),
+          (ref) => FixedVoiceController(ref, _noCall),
         ),
       ],
       child: MediaQuery(

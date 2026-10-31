@@ -20,6 +20,7 @@ import 'package:slimm_app/src/features/channels/widgets/compact_channel_app_bar.
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../desktop/support/desktop_shell_fixture.dart';
 import '../../ui_snapshot_support.dart';
 
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpAtWidth(
@@ -27,12 +28,17 @@ Future<({ProviderContainer container, SlimmDatabase db})> _pumpAtWidth(
   double width,
   TargetPlatform platform, {
   String location = '/channels/c-general',
+  DesktopWindowShell? shell,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final fixture = await fixtureContainer();
+  final fixture = await fixtureContainer(
+    extraOverrides: [
+      if (shell != null) desktopWindowShellProvider.overrideWithValue(shell),
+    ],
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: fixture.container,
@@ -97,10 +103,12 @@ void main() {
   testWidgets(
     'the edge strip starts past the resize handle on a frameless window',
     (tester) async {
-      DesktopWindowShell.debugActivate(frameless: true);
-      addTearDown(DesktopWindowShell.debugReset);
-
-      final fixture = await _pumpAtWidth(tester, 500, TargetPlatform.linux);
+      final fixture = await _pumpAtWidth(
+        tester,
+        500,
+        TargetPlatform.linux,
+        shell: shellFor(null, active: true, frameless: true),
+      );
       expect(find.byType(ChannelRail), findsNothing);
 
       // Inside the real resize handle's band: a resize grab, not a drawer open.

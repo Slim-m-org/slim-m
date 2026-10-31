@@ -10,8 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/sync_failure.dart';
-import 'package:slimm_app/src/providers/sync_frame_queue.dart';
+import 'package:slimm_app/src/sync/providers/sync_failure.dart';
+import 'package:slimm_app/src/sync/providers/sync_frame_queue.dart';
 
 import 'support/sync_harness.dart';
 import 'support/sync_live_rig.dart';

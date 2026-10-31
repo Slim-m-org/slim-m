@@ -78,7 +78,7 @@ void main() {
     () async {
       final controller = await connected();
       events.clear();
-      await controller.setScreenShare(true);
+      await controller.share.setScreenShare(true);
       expect(events, ['consent', 'service call=true share=true']);
       expect(session.shareCalls, hasLength(1));
     },
@@ -87,7 +87,7 @@ void main() {
   test('refused consent never reaches the capture', () async {
     final controller = await connected();
     consent = false;
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
     expect(session.shareCalls, isEmpty);
     expect(controller.state.screenSharing, isFalse);
     expect(controller.state.error, isNotNull);

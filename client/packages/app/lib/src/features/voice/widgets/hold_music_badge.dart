@@ -19,7 +19,9 @@ import '../providers/call_solo.dart';
 import '../providers/hold_music_actions.dart';
 import '../providers/hold_music_controller.dart';
 import '../providers/voice_settings_controller.dart';
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
+
+const _musicVolumeLabel = 'Music volume';
 
 /// Pins the badge to the bottom-left of a call surface, [bottom] above its edge so it clears the dock.
 /// Sits in the dock's own row when the window leaves room beside it, else above the dock.
@@ -189,8 +191,8 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
           icon: settings.holdMusicVolume == 0
               ? AppIcons.speakerOff
               : AppIcons.speaker,
-          semanticLabel: _volumeOpen ? 'Hide music volume' : 'Music volume',
-          tooltip: 'Music volume',
+          semanticLabel: _volumeOpen ? 'Hide music volume' : _musicVolumeLabel,
+          tooltip: _musicVolumeLabel,
           size: AppIconButtonSize.sm,
           iconSize: AppSizes.icon16,
           active: _volumeOpen,
@@ -249,7 +251,7 @@ class _HoldMusicBadgeState extends ConsumerState<HoldMusicBadge> {
         width: _volumeTrackLength,
         child: AppSlider(
           value: volume * 100,
-          semanticLabel: 'Music volume',
+          semanticLabel: _musicVolumeLabel,
           valueLabel: (v) => '${v.round()}%',
           onChanged: (v) => ref
               .read(voiceSettingsControllerProvider.notifier)

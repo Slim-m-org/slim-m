@@ -3,8 +3,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 
+import 'desktop/support/desktop_shell_fixture.dart';
 import 'desktop/support/fake_desktop_window_port.dart';
 
 void main() {
@@ -12,10 +12,9 @@ void main() {
     'the notification activation hook shows and restores the window',
     () async {
       final port = FakeDesktopWindowPort();
-      DesktopWindowShell.debugPort = port;
-      addTearDown(DesktopWindowShell.debugReset);
+      final shell = shellFor(port);
 
-      await DesktopWindowShell.raise();
+      await shell.raise();
 
       expect(port.showCalls, 1);
       expect(port.restoreCalls, 1);

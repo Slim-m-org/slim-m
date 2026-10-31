@@ -28,16 +28,18 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
     with WidgetsBindingObserver {
   /// A state the embedder has not reported counts as hidden on a phone, so a
   /// process woken in the background never claims the user is looking at it.
-  AppLifecycleNotifier({required bool mobile})
-    : _bindingState =
-          WidgetsBinding.instance.lifecycleState ??
-          (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
-      super(
-        WidgetsBinding.instance.lifecycleState ??
-            (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
-      ) {
+  AppLifecycleNotifier({
+    required bool mobile,
+    required Stream<DesktopWindowEventKind> windowEvents,
+  }) : _bindingState =
+           WidgetsBinding.instance.lifecycleState ??
+           (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
+       super(
+         WidgetsBinding.instance.lifecycleState ??
+             (mobile ? AppLifecycleState.hidden : AppLifecycleState.resumed),
+       ) {
     WidgetsBinding.instance.addObserver(this);
-    _windowEvents = DesktopWindowShell.port.events.listen(_onWindowEvent);
+    _windowEvents = windowEvents.listen(_onWindowEvent);
   }
 
   AppLifecycleState _bindingState;
@@ -71,8 +73,10 @@ class AppLifecycleNotifier extends StateNotifier<AppLifecycleState>
 
 final appLifecycleProvider =
     StateNotifierProvider<AppLifecycleNotifier, AppLifecycleState>(
-      (ref) =>
-          AppLifecycleNotifier(mobile: ref.watch(mobileLifecycleHostProvider)),
+      (ref) => AppLifecycleNotifier(
+        mobile: ref.watch(mobileLifecycleHostProvider),
+        windowEvents: ref.read(desktopWindowShellProvider).port.events,
+      ),
     );
 
 /// Whether the window is focused and visible right now.

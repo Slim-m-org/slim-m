@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/messages/widgets/image_decode.dart';
+import 'package:slimm_app/src/widgets/image_decode.dart';
 import 'package:slimm_app/src/features/settings/providers/display_density.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';

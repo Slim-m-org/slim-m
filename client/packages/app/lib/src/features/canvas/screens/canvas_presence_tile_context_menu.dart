@@ -33,7 +33,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/context_menu_focus.dart';
-import '../../messages/widgets/message_context_menu_layout.dart';
+import '../../../widgets/message_context_menu_layout.dart';
 import '../../voice/widgets/call_participant_tiles.dart'
     show kParticipantMenuWidth;
 

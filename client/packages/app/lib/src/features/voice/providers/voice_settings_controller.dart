@@ -253,7 +253,10 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   /// Persists and applies live: a call may already be open this session.
   Future<void> setReceiveVideoQuality(ReceiveVideoQuality quality) async {
     state = state.copyWith(receiveVideoQuality: quality);
-    _ref.read(voiceControllerProvider.notifier).setReceiveVideoQuality(quality);
+    _ref
+        .read(voiceControllerProvider.notifier)
+        .input
+        .setReceiveVideoQuality(quality);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(_receiveQualityKey, quality.name);
   }
@@ -261,7 +264,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
   /// [setReceiveVideoQuality]'s counterpart; a live camera restarts shortly after.
   Future<void> setCameraQuality(CameraQuality quality) async {
     state = state.copyWith(cameraQuality: quality);
-    _ref.read(voiceControllerProvider.notifier).setCameraQuality(quality);
+    _ref.read(voiceControllerProvider.notifier).input.setCameraQuality(quality);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setString(_cameraQualityKey, quality.name);
   }
@@ -292,7 +295,10 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
 
   Future<void> setMicFallbackEnabled(bool enabled) async {
     state = state.copyWith(micFallbackEnabled: enabled);
-    _ref.read(voiceControllerProvider.notifier).setMicFallbackEnabled(enabled);
+    _ref
+        .read(voiceControllerProvider.notifier)
+        .devices
+        .setMicFallbackEnabled(enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_micFallbackKey, enabled);
   }
@@ -315,6 +321,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     }
     await _ref
         .read(voiceControllerProvider.notifier)
+        .devices
         .selectAudioInputDevice(device);
   }
 
@@ -332,6 +339,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     }
     await _ref
         .read(voiceControllerProvider.notifier)
+        .devices
         .selectAudioOutputDevice(device);
   }
 
@@ -361,6 +369,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setBool(_pushToTalkEnabledKey, enabled);
     _ref
         .read(voiceControllerProvider.notifier)
+        .input
         .setPushToTalkPreference(enabled);
   }
 
@@ -381,6 +390,7 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     await prefs.setDouble(_sensitivityKey, clamped);
     _ref
         .read(voiceControllerProvider.notifier)
+        .input
         .setVoiceActivitySensitivity(clamped);
   }
 
@@ -390,18 +400,21 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(inputThresholdDb: clamped);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setDouble(_inputThresholdKey, clamped);
-    _ref.read(voiceControllerProvider.notifier).setInputThreshold(clamped);
+    _ref
+        .read(voiceControllerProvider.notifier)
+        .input
+        .setInputThreshold(clamped);
   }
 
   /// Turning it off keeps wherever the threshold had got to as the manual one.
   Future<void> setInputThresholdAuto(bool enabled) async {
     final voice = _ref.read(voiceControllerProvider.notifier);
-    final kept = enabled ? null : voice.inputThresholdDb;
+    final kept = enabled ? null : voice.input.inputThresholdDb;
     state = state.copyWith(inputThresholdAuto: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_inputThresholdAutoKey, enabled);
     if (kept != null) await setInputThreshold(kept);
-    voice.setInputThresholdAuto(enabled);
+    voice.input.setInputThresholdAuto(enabled);
   }
 
   /// Persists the compressor and limiter choice and applies it live.
@@ -409,7 +422,10 @@ class VoiceSettingsController extends StateNotifier<VoiceSettingsState> {
     state = state.copyWith(evenOutLoudSounds: enabled);
     final prefs = await _ref.read(preferencesProvider.future);
     await prefs.setBool(_evenOutLoudKey, enabled);
-    _ref.read(voiceControllerProvider.notifier).setEvenOutLoudSounds(enabled);
+    _ref
+        .read(voiceControllerProvider.notifier)
+        .input
+        .setEvenOutLoudSounds(enabled);
   }
 }
 

@@ -22,7 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/sync_failure.dart';
+import 'package:slimm_app/src/sync/providers/sync_failure.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_failure.dart';

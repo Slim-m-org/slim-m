@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The whole `messages` tag: sending, reading, editing, deleting,
 /// full-text search and reactions.
@@ -18,7 +23,7 @@ extension SlimmApiMessages on SlimmApi {
       if (before != null) 'before': '$before',
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/messages',
       query: query.isEmpty ? null : query,
@@ -36,7 +41,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required String messageId,
   }) async {
-    final json = await _send('GET', '/channels/$channelId/messages/$messageId');
+    final json = await send('GET', '/channels/$channelId/messages/$messageId');
     return Message.fromJson(json as Map<String, dynamic>);
   }
 
@@ -65,7 +70,7 @@ extension SlimmApiMessages on SlimmApi {
     bool mentionReply = true,
     String? forwardedFromId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/messages',
       body: {
@@ -89,7 +94,7 @@ extension SlimmApiMessages on SlimmApi {
     required String messageId,
     required String content,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/channels/$channelId/messages/$messageId',
       body: {'content': content},
@@ -103,7 +108,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required String messageId,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/channels/$channelId/messages/$messageId',
         expectNoContent: true,
@@ -125,7 +130,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required List<String> messageIds,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/messages/bulk-delete',
         body: {'message_ids': messageIds},
@@ -145,7 +150,7 @@ extension SlimmApiMessages on SlimmApi {
     required String authorId,
     required int windowMinutes,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/messages/bulk-delete-by-author',
         body: {'author_id': authorId, 'window_minutes': windowMinutes},
@@ -189,7 +194,7 @@ extension SlimmApiMessages on SlimmApi {
       afterDate: afterDate,
       beforeDate: beforeDate,
     );
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/messages/search',
       query: query,
@@ -227,7 +232,7 @@ extension SlimmApiMessages on SlimmApi {
       afterDate: afterDate,
       beforeDate: beforeDate,
     );
-    final json = await _send('GET', '/search/messages', query: query);
+    final json = await send('GET', '/search/messages', query: query);
     return (json as List<dynamic>)
         .map((m) => Message.fromJson(m as Map<String, dynamic>))
         .toList(growable: false);
@@ -246,7 +251,7 @@ extension SlimmApiMessages on SlimmApi {
     required String messageId,
     required String emoji,
   }) =>
-      _send(
+      send(
         'PUT',
         '/messages/$messageId/reactions/$emoji',
         expectNoContent: true,
@@ -259,7 +264,7 @@ extension SlimmApiMessages on SlimmApi {
     required String messageId,
     required String emoji,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/messages/$messageId/reactions/$emoji',
         expectNoContent: true,
@@ -274,7 +279,7 @@ extension SlimmApiMessages on SlimmApi {
     int? limit,
     String? after,
   }) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/messages/$messageId/reactions/$emoji',
       query: {
@@ -297,12 +302,12 @@ extension SlimmApiMessages on SlimmApi {
     required String command,
     required String input,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/messages/$messageId/blocks/$blockIndex/run',
       body: {'module_id': moduleId, 'command': command, 'input': input},
     );
-    return _decodeShape(
+    return decodeShape(
       json,
       'POST /messages/$messageId/blocks/$blockIndex/run',
       RunModuleCommandResult.fromJson,
@@ -316,7 +321,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required String messageId,
   }) =>
-      _send(
+      send(
         'PUT',
         '/channels/$channelId/messages/$messageId/pin',
         expectNoContent: true,
@@ -328,7 +333,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required String messageId,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/channels/$channelId/messages/$messageId/pin',
         expectNoContent: true,
@@ -341,7 +346,7 @@ extension SlimmApiMessages on SlimmApi {
     required String channelId,
     required String messageId,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/channels/$channelId/messages/$messageId/link-previews',
         expectNoContent: true,
@@ -356,14 +361,14 @@ extension SlimmApiMessages on SlimmApi {
   /// in a channel the caller cannot see is a 404 rather than a 403, so this
   /// cannot probe for one.
   Future<void> saveMessage(String messageId) =>
-      _send('PUT', '/messages/$messageId/save', expectNoContent: true);
+      send('PUT', '/messages/$messageId/save', expectNoContent: true);
 
   /// Removes a message from the caller's own saved list. Idempotent, and
   /// never refused: somebody removed from a channel must still be able to
   /// clear their own list of it, and a save whose message has since been
   /// deleted is exactly the entry they most want gone.
   Future<void> unsaveMessage(String messageId) =>
-      _send('DELETE', '/messages/$messageId/save', expectNoContent: true);
+      send('DELETE', '/messages/$messageId/save', expectNoContent: true);
 
   /// The caller's own saved messages, newest save first.
   ///
@@ -371,7 +376,7 @@ extension SlimmApiMessages on SlimmApi {
   /// entry whose channel they can no longer view is left out, though the
   /// entry itself is kept server-side in case access returns.
   Future<List<SavedMessage>> listSavedMessages() async {
-    final json = await _send('GET', '/saved');
+    final json = await send('GET', '/saved');
     return (json as List<dynamic>)
         .map((s) => SavedMessage.fromJson(s as Map<String, dynamic>))
         .toList(growable: false);
@@ -380,7 +385,7 @@ extension SlimmApiMessages on SlimmApi {
   /// A channel's pinned messages, newest pin first. Requires only
   /// VIEW_CHANNEL.
   Future<List<PinnedMessage>> listPinnedMessages(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/pins');
+    final json = await send('GET', '/channels/$channelId/pins');
     return (json as List<dynamic>)
         .map((p) => PinnedMessage.fromJson(p as Map<String, dynamic>))
         .toList(growable: false);
@@ -393,7 +398,7 @@ extension SlimmApiMessages on SlimmApi {
     String channelId,
     String messageId,
   ) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/messages/$messageId/history',
     );
@@ -415,7 +420,7 @@ extension SlimmApiMessages on SlimmApi {
     int? closeAt,
     bool ranked = false,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/messages/polls',
       body: {
@@ -442,7 +447,7 @@ extension SlimmApiMessages on SlimmApi {
     required String command,
     String? content,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/messages/apps',
       body: {
@@ -465,7 +470,7 @@ extension SlimmApiMessages on SlimmApi {
     int? option,
     List<int>? ranking,
   }) =>
-      _send(
+      send(
         'PUT',
         '/messages/$messageId/polls/vote',
         body: {

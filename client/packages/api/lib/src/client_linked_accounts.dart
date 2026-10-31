@@ -1,33 +1,39 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Linking accounts from other services to a member's profile.
 extension SlimmApiLinkedAccounts on SlimmApi {
   Future<List<LinkedAccount>> myLinkedAccounts() async {
-    final json = await _send('GET', '/me/links');
+    final json = await send('GET', '/me/links');
     return _linkedAccounts(json);
   }
 
   /// The accounts [userId] linked, for their profile card.
   Future<List<LinkedAccount>> linkedAccountsOf(String userId) async {
-    final json = await _send('GET', '/users/$userId/links');
+    final json = await send('GET', '/users/$userId/links');
     return _linkedAccounts(json);
   }
 
   /// The picture the server stored for [userId]'s linked Discord account.
   /// Throws [NotFoundException] when there is none.
   Future<FetchedBytes> fetchLinkedDiscordAvatar(String userId) =>
-      _fetchBytes('/users/$userId/links/discord/avatar');
+      fetchBytes('/users/$userId/links/discord/avatar');
 
   /// Discord's authorize URL, to open in a browser. Throws
   /// [NotConfiguredException] when the server has no Discord application.
   Future<String> startDiscordLink() async {
-    final json = await _send('POST', '/me/links/discord/start');
+    final json = await send('POST', '/me/links/discord/start');
     return (json as Map<String, dynamic>)['url'] as String;
   }
 
   Future<void> unlinkDiscord() =>
-      _send('DELETE', '/me/links/discord', expectNoContent: true);
+      send('DELETE', '/me/links/discord', expectNoContent: true);
 
   List<LinkedAccount> _linkedAccounts(Object? json) => [
         for (final item in json as List<dynamic>)

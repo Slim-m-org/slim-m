@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Deployment-wide settings. The writes require MANAGE_SERVER.
 extension SlimmApiSpace on SlimmApi {
   Future<SpaceSettings> spaceSettings() async {
-    final json = await _send('GET', '/space/settings');
+    final json = await send('GET', '/space/settings');
     return SpaceSettings.fromJson(json as Map<String, dynamic>);
   }
 
@@ -38,7 +43,7 @@ extension SlimmApiSpace on SlimmApi {
           welcomeMessage != null,
       'a settings PATCH must carry at least one field',
     );
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/settings',
       body: {
@@ -59,33 +64,33 @@ extension SlimmApiSpace on SlimmApi {
 
   /// Sets the invite landing card's banner and returns when it was stored.
   Future<int> uploadSpaceBanner(List<int> bytes) async {
-    final json = await _send('POST', '/space/banner', bytes: bytes);
+    final json = await send('POST', '/space/banner', bytes: bytes);
     return (json as Map<String, dynamic>)['banner_updated_at'] as int;
   }
 
   Future<void> deleteSpaceBanner() =>
-      _send('DELETE', '/space/banner', expectNoContent: true);
+      send('DELETE', '/space/banner', expectNoContent: true);
 
-  Future<FetchedBytes> fetchSpaceBanner() => _fetchBytes('/space/banner');
+  Future<FetchedBytes> fetchSpaceBanner() => fetchBytes('/space/banner');
 
   /// Sets the space icon and returns when it was stored.
   Future<int> uploadSpaceIcon(List<int> bytes) async {
-    final json = await _send('POST', '/space/icon', bytes: bytes);
+    final json = await send('POST', '/space/icon', bytes: bytes);
     return (json as Map<String, dynamic>)['icon_updated_at'] as int;
   }
 
   Future<void> deleteSpaceIcon() =>
-      _send('DELETE', '/space/icon', expectNoContent: true);
+      send('DELETE', '/space/icon', expectNoContent: true);
 
-  Future<FetchedBytes> fetchSpaceIcon() => _fetchBytes('/space/icon');
+  Future<FetchedBytes> fetchSpaceIcon() => fetchBytes('/space/icon');
 
   Future<SpaceAnalytics> spaceAnalytics() async {
-    final json = await _send('GET', '/space/analytics');
+    final json = await send('GET', '/space/analytics');
     return SpaceAnalytics.fromJson(json as Map<String, dynamic>);
   }
 
   Future<SpaceAnalytics> setSpaceAnalyticsEnabled(bool enabled) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/analytics',
       body: {'enabled': enabled},
@@ -94,12 +99,12 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<int> spaceMessageRetentionDays() async {
-    final json = await _send('GET', '/space/retention');
+    final json = await send('GET', '/space/retention');
     return (json as Map<String, dynamic>)['retention_days'] as int;
   }
 
   Future<int> setSpaceMessageRetentionDays(int days) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/retention',
       body: {'retention_days': days},
@@ -109,7 +114,7 @@ extension SlimmApiSpace on SlimmApi {
 
   /// How many live messages a retention window of [days] would prune now.
   Future<int> previewSpaceMessageRetention(int days) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/space/retention/preview',
       query: {'days': '$days'},
@@ -118,12 +123,12 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<int> spaceCanvasObjectCap() async {
-    final json = await _send('GET', '/space/canvas-cap');
+    final json = await send('GET', '/space/canvas-cap');
     return (json as Map<String, dynamic>)['object_cap'] as int;
   }
 
   Future<int> setSpaceCanvasObjectCap(int cap) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/canvas-cap',
       body: {'object_cap': cap},
@@ -132,12 +137,12 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<int> spaceScreenShareMaxHeight() async {
-    final json = await _send('GET', '/space/screen-share');
+    final json = await send('GET', '/space/screen-share');
     return (json as Map<String, dynamic>)['max_height'] as int;
   }
 
   Future<int> setSpaceScreenShareMaxHeight(int maxHeight) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/screen-share',
       body: {'max_height': maxHeight},
@@ -146,12 +151,12 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<bool> spaceLinkPreviews() async {
-    final json = await _send('GET', '/space/link-previews');
+    final json = await send('GET', '/space/link-previews');
     return (json as Map<String, dynamic>)['enabled'] as bool;
   }
 
   Future<bool> setSpaceLinkPreviews(bool enabled) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/link-previews',
       body: {'enabled': enabled},
@@ -160,13 +165,13 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<SpaceAttachmentLimit> spaceAttachmentLimit() async {
-    final json = await _send('GET', '/space/attachment-limit');
+    final json = await send('GET', '/space/attachment-limit');
     return SpaceAttachmentLimit.fromJson(json as Map<String, dynamic>);
   }
 
   /// [maxBytes] of 0 clears the admin limit.
   Future<SpaceAttachmentLimit> setSpaceAttachmentLimit(int maxBytes) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/attachment-limit',
       body: {'max_bytes': maxBytes},
@@ -175,7 +180,7 @@ extension SlimmApiSpace on SlimmApi {
   }
 
   Future<SpaceMediaCompression> spaceMediaCompression() async {
-    final json = await _send('GET', '/space/media-compression');
+    final json = await send('GET', '/space/media-compression');
     return SpaceMediaCompression.fromJson(json as Map<String, dynamic>);
   }
 
@@ -186,7 +191,7 @@ extension SlimmApiSpace on SlimmApi {
     String? metadata,
     bool? keepOriginal,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/space/media-compression',
       body: {
@@ -202,7 +207,7 @@ extension SlimmApiSpace on SlimmApi {
   /// Operator-visible storage usage and sweep health. Always computes -
   /// there is no on/off toggle the way `spaceAnalytics` has.
   Future<SpaceStorage> fetchSpaceStorage() async {
-    final json = await _send('GET', '/space/storage');
+    final json = await send('GET', '/space/storage');
     return SpaceStorage.fromJson(json as Map<String, dynamic>);
   }
 }

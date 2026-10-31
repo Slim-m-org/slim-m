@@ -56,6 +56,7 @@ class _PopOutHostState extends ConsumerState<PopOutHost> {
         ? null
         : ref
               .read(voiceControllerProvider.notifier)
+              .video
               .holdEnlargedVideo(pictureInPictureTileKey(feed));
   }
 

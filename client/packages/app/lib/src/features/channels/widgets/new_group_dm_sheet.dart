@@ -17,6 +17,8 @@ import '../../../routing/routes.dart';
 import '../providers/group_dm.dart';
 import 'group_dm_people_list.dart';
 
+const _startTask = 'start the group';
+
 Future<void> showNewGroupDmSheet(BuildContext context) =>
     showAppSheet<void>(context, builder: (_) => const NewGroupDmSheet());
 
@@ -73,12 +75,12 @@ class _NewGroupDmSheetState extends ConsumerState<NewGroupDmSheet> {
       Navigator.of(context).pop();
       router.go(Routes.channel(id));
     } on api.ApiException catch (e, stack) {
-      api.reportFailure(api.LogTag.ui, 'start the group', e, stack);
+      api.reportFailure(api.LogTag.ui, _startTask, e, stack);
       if (mounted) {
         setState(
           () => _error = e is api.ForbiddenException
-              ? describeGroupDmFailure('start the group', e)
-              : describeApiFailure('start the group', e),
+              ? describeGroupDmFailure(_startTask, e)
+              : describeApiFailure(_startTask, e),
         );
       }
     } finally {

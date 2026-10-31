@@ -20,8 +20,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/notification_preference_controller.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_content_preview_settings.dart';
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_content_preview_settings.dart';
+import '../../../push/providers/push_controller.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';

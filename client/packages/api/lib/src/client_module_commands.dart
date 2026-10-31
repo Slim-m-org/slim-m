@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Discovering and running an installed module's command, per
 /// `docs/decisions/0021-modules-and-the-dock.md`'s module-agnostic
@@ -11,7 +16,7 @@ extension SlimmApiModuleCommands on SlimmApi {
   /// an empty list means no installed and enabled module declares one the
   /// caller holds the permission for, so no Run affordance should be shown.
   Future<List<CodeBlockRunner>> listCodeBlockRunners() async {
-    final json = await _send('GET', '/modules/code-block-runners');
+    final json = await send('GET', '/modules/code-block-runners');
     return (json as List<dynamic>)
         .map((r) => CodeBlockRunner.fromJson(r as Map<String, dynamic>))
         .toList(growable: false);
@@ -21,7 +26,7 @@ extension SlimmApiModuleCommands on SlimmApi {
   /// possibly empty - an empty list means no installed and enabled module
   /// declares a `slash-command` the caller holds the permission for.
   Future<List<SlashCommand>> listSlashCommands() async {
-    final json = await _send('GET', '/modules/slash-commands');
+    final json = await send('GET', '/modules/slash-commands');
     return (json as List<dynamic>)
         .map((c) => SlashCommand.fromJson(c as Map<String, dynamic>))
         .toList(growable: false);
@@ -31,7 +36,7 @@ extension SlimmApiModuleCommands on SlimmApi {
   /// empty - an empty list means no installed and enabled module declares an
   /// `app` extension point the caller holds the permission for.
   Future<List<App>> listApps() async {
-    final json = await _send('GET', '/modules/apps');
+    final json = await send('GET', '/modules/apps');
     return (json as List<dynamic>)
         .map((a) => App.fromJson(a as Map<String, dynamic>))
         .toList(growable: false);
@@ -56,7 +61,7 @@ extension SlimmApiModuleCommands on SlimmApi {
     bool postOutput = false,
     String? replyToId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/modules/$moduleId/commands/$command',
       body: {

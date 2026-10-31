@@ -112,6 +112,6 @@ final videoInterestRelayProvider = Provider<VideoInterestRelay>((ref) {
   ref.onDispose(() => disposed = true);
   return VideoInterestRelay((keys) {
     if (disposed) return;
-    ref.read(voiceControllerProvider.notifier).setVideoInterest(keys);
+    ref.read(voiceControllerProvider.notifier).video.setVideoInterest(keys);
   });
 });

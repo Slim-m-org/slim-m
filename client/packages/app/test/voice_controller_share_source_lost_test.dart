@@ -15,7 +15,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
-    await controller.setScreenShare(true, sourceId: 'window:7');
+    await controller.share.setScreenShare(true, sourceId: 'window:7');
     expect(controller.state.screenSharing, isTrue);
 
     session.sourceLost.add('window:7');

@@ -42,7 +42,10 @@ class VoiceProcessingController extends StateNotifier<VoiceProcessing> {
     await prefs.setBool(_echoKey, next.echoCancellation);
     await prefs.setBool(_gainKey, next.autoGainControl);
     await prefs.setBool(_suppressionKey, next.noiseSuppression);
-    await _ref.read(voiceControllerProvider.notifier).setVoiceProcessing(next);
+    await _ref
+        .read(voiceControllerProvider.notifier)
+        .input
+        .setVoiceProcessing(next);
   }
 }
 

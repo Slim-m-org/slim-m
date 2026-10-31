@@ -28,7 +28,7 @@ import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import '../../../widgets/space_icon.dart';
-import '../../../widgets/space_name_field.dart';
+import '../../settings/widgets/space_name_field.dart';
 
 // The server's caps on the two pictures; a pick past either is shrunk first.
 const int _bannerMaxBytes = 4 * 1024 * 1024;

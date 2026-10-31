@@ -20,7 +20,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../widgets/animation_gate.dart';
 import '../providers/attachment_preview_bytes.dart';
-import 'image_decode.dart';
+import '../../../widgets/image_decode.dart';
 
 class FullscreenImagePage extends StatefulWidget {
   const FullscreenImagePage({

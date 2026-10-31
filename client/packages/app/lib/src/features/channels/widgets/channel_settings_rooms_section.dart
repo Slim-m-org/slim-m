@@ -12,13 +12,13 @@ import 'package:slimm_data/data.dart';
 
 import '../../../preset_options.dart';
 import '../providers/channel_by_id_provider.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_hairline.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
+import '../providers/channel_actions.dart';
 
 /// The user limits offered, 0 for none; the server takes 0 to 99.
 const List<(String, int)> userLimitOptions = [
@@ -57,14 +57,12 @@ class _ChannelRoomsSectionState extends ConsumerState<ChannelRoomsSection>
     (rooms: createsRooms ?? current.rooms, limit: userLimit ?? current.limit),
     whatFailed: 'change the room settings',
     action: () async {
-      final updated = await ref
-          .read(apiProvider)
-          .updateChannel(
+      await ref
+          .read(channelActionsProvider)
+          .update(
             widget.channel.id,
             ChannelUpdate(createsRooms: createsRooms, userLimit: userLimit),
           );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([updated]);
     },
     refresh: channelByIdProvider(widget.channel.id),
   );

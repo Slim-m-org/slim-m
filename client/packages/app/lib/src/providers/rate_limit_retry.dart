@@ -11,6 +11,8 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
+import '../backoff.dart';
+
 /// How many times a refused read is retried before the failure is reported.
 const rateLimitRetries = 3;
 
@@ -40,7 +42,7 @@ Future<T> retryWhenRateLimited<T>(
   Future<T> Function() run, {
   RateLimitWait wait = sleepFor,
 }) async {
-  var fallback = rateLimitFallbackWait;
+  const fallback = Backoff(base: rateLimitFallbackWait, cap: rateLimitMaxWait);
   for (var retry = 0; ; retry++) {
     try {
       return await run();
@@ -48,8 +50,7 @@ Future<T> retryWhenRateLimited<T>(
       final named = refused.retryAfter;
       if (retry >= rateLimitRetries) rethrow;
       if (named != null && named > rateLimitMaxWait) rethrow;
-      await wait(named ?? fallback);
-      fallback *= 2;
+      await wait(named ?? fallback.delay(retry));
     }
   }
 }

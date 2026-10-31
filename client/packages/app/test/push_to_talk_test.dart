@@ -24,7 +24,7 @@ void main() {
     session.emitState(VoiceSessionState.connected);
     await pumpEventQueue();
 
-    await controller.setPushToTalkHeld(true);
+    await controller.input.setPushToTalkHeld(true);
 
     expect(controller.state.microphoneEnabled, isTrue);
   });
@@ -36,8 +36,8 @@ void main() {
     session.emitState(VoiceSessionState.connected);
     await pumpEventQueue();
 
-    await controller.setPushToTalkHeld(true);
-    await controller.setPushToTalkHeld(false);
+    await controller.input.setPushToTalkHeld(true);
+    await controller.input.setPushToTalkHeld(false);
 
     expect(controller.state.microphoneEnabled, isFalse);
   });
@@ -51,7 +51,7 @@ void main() {
     // The default, unmuted - asking to close it below is what the fake refuses.
     expect(controller.state.microphoneEnabled, isTrue);
 
-    await controller.setPushToTalkHeld(false);
+    await controller.input.setPushToTalkHeld(false);
 
     expect(
       controller.state.microphoneEnabled,
@@ -68,7 +68,7 @@ void main() {
     await controller.toggleMicrophone();
     expect(controller.state.microphoneEnabled, isFalse);
 
-    await controller.setPushToTalkHeld(true);
+    await controller.input.setPushToTalkHeld(true);
 
     expect(controller.state.state, isNot(VoiceSessionState.connected));
     expect(
@@ -89,7 +89,7 @@ void main() {
     expect(controller.state.microphoneEnabled, isFalse);
     await controller.leave();
 
-    await controller.setPushToTalkHeld(true);
+    await controller.input.setPushToTalkHeld(true);
 
     expect(
       controller.state.microphoneEnabled,
@@ -105,7 +105,7 @@ void main() {
     () async {
       final session = FakeSession();
       final controller = harness.controllerWith(session, voiceApi());
-      controller.setPushToTalkPreference(true);
+      controller.input.setPushToTalkPreference(true);
 
       await controller.join('channel-1');
       session.emitState(VoiceSessionState.connected);
@@ -132,7 +132,7 @@ void main() {
     await pumpEventQueue();
     expect(controller.state.microphoneEnabled, isTrue);
 
-    controller.setPushToTalkPreference(true);
+    controller.input.setPushToTalkPreference(true);
     await pumpEventQueue();
 
     expect(controller.state.microphoneEnabled, isFalse);
@@ -141,13 +141,13 @@ void main() {
   test('disabling push-to-talk during a call reopens the mic', () async {
     final session = FakeSession();
     final controller = harness.controllerWith(session, voiceApi());
-    controller.setPushToTalkPreference(true);
+    controller.input.setPushToTalkPreference(true);
     await controller.join('channel-1');
     session.emitState(VoiceSessionState.connected);
     await pumpEventQueue();
     expect(controller.state.microphoneEnabled, isFalse);
 
-    controller.setPushToTalkPreference(false);
+    controller.input.setPushToTalkPreference(false);
     await pumpEventQueue();
 
     expect(
@@ -163,10 +163,10 @@ void main() {
       final session = FakeSession();
       final controller = harness.controllerWith(session, voiceApi());
 
-      controller.setPushToTalkPreference(true);
+      controller.input.setPushToTalkPreference(true);
       expect(session.lastKeepMicReady, isTrue);
 
-      controller.setPushToTalkPreference(false);
+      controller.input.setPushToTalkPreference(false);
       expect(session.lastKeepMicReady, isFalse);
     },
   );
@@ -175,7 +175,7 @@ void main() {
     final session = FakeSession();
     final controller = harness.controllerWith(session, voiceApi());
 
-    controller.setAppBackgrounded(true);
+    controller.input.setAppBackgrounded(true);
 
     expect(session.lastAppBackgrounded, isTrue);
   });

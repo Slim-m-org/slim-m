@@ -17,14 +17,14 @@ Future<({bool proceed, String? id, ScreenShareSource? source})> pickShareSource(
   VoiceController controller, {
   required String? lastSourceId,
 }) async {
-  if (!controller.screenShareNeedsSource) {
+  if (!controller.video.screenShareNeedsSource) {
     return (proceed: true, id: null, source: null);
   }
   // Mandatory: capture cannot find a source nothing asked to list.
-  final sources = await controller.screenShareSources();
+  final sources = await controller.video.screenShareSources();
   if (sources.isEmpty) return (proceed: false, id: null, source: null);
   // On Linux the portal's own picker is the real choice; see DesktopSources.
-  if (sources.length == 1 || !controller.screenShareSourcePickerUseful) {
+  if (sources.length == 1 || !controller.video.screenShareSourcePickerUseful) {
     return (proceed: true, id: sources.first.id, source: sources.first);
   }
   if (!context.mounted) return (proceed: false, id: null, source: null);

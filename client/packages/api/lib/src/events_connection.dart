@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'events.dart';
+library;
+
+import 'events.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'client.dart';
+import 'socket_liveness.dart';
+import 'logging/app_log.dart';
 
 /// Opens the event socket and yields its events.
 ///

@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The optional TOTP second factor (decision 0048).
 ///
@@ -9,7 +14,7 @@ part of 'client.dart';
 /// somebody out of their own account.
 extension SlimmApiTotp on SlimmApi {
   Future<TotpStatus> totpStatus() async {
-    final json = await _send('GET', '/auth/totp');
+    final json = await send('GET', '/auth/totp');
     return TotpStatus.fromJson(json as Map<String, dynamic>);
   }
 
@@ -18,7 +23,7 @@ extension SlimmApiTotp on SlimmApi {
   /// refused (409) once one is live. [password] is the account password: a
   /// session token alone cannot turn the factor on (decision 0048).
   Future<TotpEnrolment> beginTotpEnrolment({required String password}) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/totp/enrol',
       body: {'password': password},
@@ -34,7 +39,7 @@ extension SlimmApiTotp on SlimmApi {
     String code, {
     required String password,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/totp/confirm',
       body: {'code': code, 'password': password},
@@ -45,7 +50,7 @@ extension SlimmApiTotp on SlimmApi {
   /// Replaces the recovery set, against a current code or one of the codes
   /// being replaced. The previous set stops working.
   Future<List<String>> reissueTotpRecoveryCodes(String code) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/totp/recovery-codes',
       body: {'code': code},
@@ -55,7 +60,7 @@ extension SlimmApiTotp on SlimmApi {
 
   /// Turns the factor off, against a current code or an unused recovery code.
   /// Live sessions are deliberately left alone; see decision 0048.
-  Future<void> disableTotp(String code) => _send(
+  Future<void> disableTotp(String code) => send(
         'POST',
         '/auth/totp/disable',
         body: {'code': code},
@@ -74,7 +79,7 @@ extension SlimmApiTotp on SlimmApi {
     required String code,
     String? installId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/totp/verify',
       authenticated: false,

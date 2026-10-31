@@ -17,7 +17,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
-    await controller.setScreenShare(true, includeAudio: true);
+    await controller.share.setScreenShare(true, includeAudio: true);
 
     expect(controller.state.shareAudio, ShareAudio.on);
   });
@@ -27,8 +27,8 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
 
-    await controller.setScreenShare(true);
-    await controller.setScreenShareAudioOn(false);
+    await controller.share.setScreenShare(true);
+    await controller.share.setScreenShareAudioOn(false);
 
     expect(controller.state.shareAudio, ShareAudio.none);
     expect(session.shareAudioMuted, isFalse);
@@ -38,9 +38,9 @@ void main() {
     final session = FakeSession()..shareHasAudio = true;
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
-    await controller.setScreenShare(true, includeAudio: true);
+    await controller.share.setScreenShare(true, includeAudio: true);
 
-    await controller.setScreenShareAudioOn(false);
+    await controller.share.setScreenShareAudioOn(false);
 
     expect(session.shareAudioMuted, isTrue);
     expect(controller.state.shareAudio, ShareAudio.muted);
@@ -52,10 +52,10 @@ void main() {
     final session = FakeSession()..shareHasAudio = true;
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
-    await controller.setScreenShare(true, includeAudio: true);
-    await controller.setScreenShareAudioOn(false);
+    await controller.share.setScreenShare(true, includeAudio: true);
+    await controller.share.setScreenShareAudioOn(false);
 
-    await controller.setScreenShareAudioOn(true);
+    await controller.share.setScreenShareAudioOn(true);
 
     expect(session.shareAudioMuted, isFalse);
     expect(controller.state.shareAudio, ShareAudio.on);
@@ -65,9 +65,9 @@ void main() {
     final session = FakeSession()..shareHasAudio = true;
     final controller = harness.controllerWith(session, voiceApi());
     await controller.join('channel-1');
-    await controller.setScreenShare(true, includeAudio: true);
+    await controller.share.setScreenShare(true, includeAudio: true);
 
-    await controller.setScreenShare(false);
+    await controller.share.setScreenShare(false);
 
     expect(controller.state.shareAudio, ShareAudio.none);
   });
