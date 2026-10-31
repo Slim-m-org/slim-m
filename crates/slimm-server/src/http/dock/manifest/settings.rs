@@ -2,6 +2,7 @@
 //! The manifest's `settings`: values an admin sets for a module, checked here
 //! so a stored definition is always internally consistent.
 
+use super::network::is_host_entry;
 use super::{ManifestError, bounded, malformed};
 use crate::store::{ModuleSettingDef, SettingChoice, SettingKind};
 
@@ -59,7 +60,36 @@ fn validate_one(mut def: ModuleSettingDef) -> Result<ModuleSettingDef, ManifestE
         def.check_value(default)
             .map_err(|why| malformed(&format!("setting default {why}")))?;
     }
+    normalize_hosts(&mut def.hosts)?;
     Ok(def)
+}
+
+fn normalize_hosts(hosts: &mut Vec<String>) -> Result<(), ManifestError> {
+    for host in hosts.iter_mut() {
+        host.make_ascii_lowercase();
+        if !is_host_entry(host) {
+            return Err(malformed("setting hosts must be a host name or host:port"));
+        }
+    }
+    hosts.dedup();
+    Ok(())
+}
+
+/// A secret may only be bound to hosts the module declares under `network.hosts`.
+pub(super) fn check_hosts_declared(
+    settings: &[ModuleSettingDef],
+    network_hosts: &[String],
+) -> Result<(), ManifestError> {
+    let stray = settings
+        .iter()
+        .flat_map(|s| &s.hosts)
+        .any(|host| !network_hosts.contains(host));
+    if stray {
+        return Err(malformed(
+            "a secret setting names a host that is not in network.hosts",
+        ));
+    }
+    Ok(())
 }
 
 fn check_fields_fit_type(def: &ModuleSettingDef) -> Result<(), ManifestError> {
@@ -75,6 +105,9 @@ fn check_fields_fit_type(def: &ModuleSettingDef) -> Result<(), ManifestError> {
     }
     if def.kind == SettingKind::Secret && def.default.is_some() {
         return Err(malformed("a secret setting cannot have a default"));
+    }
+    if def.kind != SettingKind::Secret && !def.hosts.is_empty() {
+        return Err(malformed("only a secret setting has hosts"));
     }
     Ok(())
 }

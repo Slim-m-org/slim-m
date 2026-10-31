@@ -212,6 +212,14 @@ impl crate::module_runtime::SecretSource for StoredSecrets {
         self.handle
             .block_on(self.store.module_secret(&self.module_id, key))
     }
+
+    fn hosts(&self, key: &str) -> Vec<String> {
+        self.declared
+            .iter()
+            .find(|d| d.key == key)
+            .map(|d| d.hosts.clone())
+            .unwrap_or_default()
+    }
 }
 
 struct SqliteKv {

@@ -144,6 +144,12 @@ Declare the tables, and the host builds and runs every statement itself.
   `unique` and `index` add an index of that kind.
 - At most 8 tables and 16 columns per table.
   `max_mb` is the file cap, 1 to 64, default 8.
+- A `text` column may set `"member": true` to say it holds a member's user id.
+  When that member's account is deleted, by themselves or an administrator, the host deletes every row whose member column holds their id, in every module's file including an uninstalled module's.
+  A table with several member columns loses a row if any of them names the member.
+  A module that stores a user id without marking the column keeps it, so mark every one.
+  A member who is only removed (not deleted) keeps their rows, since they can be restored.
+  Member rows are not part of the member's data export yet.
 - `data` needs the `data.store` capability.
 - The host adds an integer primary key `_id` to every table, so you cannot declare a column of that name.
 - The store is one SQLite file per module (`<modules dir>/<module id>.db`), so no module can reach another's.
@@ -282,6 +288,8 @@ In a `net.fetch` header, a value of `{"secret": "api_key"}` is replaced by the h
 ```
 
 The module never sees the value.
+A secret may list `"hosts"`, a subset of `network.hosts`, and the host then sends it only to those: a request to any other approved host that names it is refused with `net.fetch secret api_key may not be sent to <host>`.
+A secret with no `hosts` goes to any approved host.
 A `secret` key that is not set is refused with `net.fetch names a secret that is not set: api_key`.
 The object must hold exactly the one key `secret`.
 

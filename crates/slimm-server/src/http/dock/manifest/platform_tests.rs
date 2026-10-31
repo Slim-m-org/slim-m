@@ -222,3 +222,37 @@ fn choice_and_secret_settings_enforce_their_own_rules() {
         .contains("choices")
     );
 }
+
+fn bound_secret(hosts: &[&str]) -> Value {
+    json!({
+        "addon_api": 1,
+        "network": {"hosts": ["api.example.com", "cdn.example.com"]},
+        "settings": [{"key": "k", "type": "secret", "label": "K", "hosts": hosts}],
+    })
+}
+
+#[test]
+fn a_secret_binds_only_to_hosts_the_module_declares() {
+    let m = ok(bound_secret(&["API.example.com"]), &["net.fetch"]);
+    assert_eq!(m.platform.settings_schema[0].hosts, ["api.example.com"]);
+    let stray = refusal(&manifest_with(
+        bound_secret(&["evil.example.net"]),
+        &["net.fetch"],
+    ));
+    assert!(stray.contains("not in network.hosts"), "{stray}");
+    let shape = refusal(&manifest_with(
+        bound_secret(&["https://api.example.com"]),
+        &["net.fetch"],
+    ));
+    assert!(shape.contains("setting hosts"), "{shape}");
+}
+
+#[test]
+fn only_a_secret_setting_has_hosts() {
+    let extra = json!({
+        "addon_api": 1,
+        "network": {"hosts": ["api.example.com"]},
+        "settings": [{"key": "k", "type": "string", "label": "K", "hosts": ["api.example.com"]}],
+    });
+    assert!(refusal(&manifest_with(extra, &["net.fetch"])).contains("only a secret"));
+}

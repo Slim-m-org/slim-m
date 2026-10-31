@@ -69,7 +69,7 @@ pub(super) fn validate_network(
 
 /// A DNS name or IPv4 address, optionally with a port: no scheme, path,
 /// wildcard or credentials, so the admin sees exactly where data can go.
-fn is_host_entry(entry: &str) -> bool {
+pub(super) fn is_host_entry(entry: &str) -> bool {
     let (name, port) = match entry.rsplit_once(':') {
         Some((name, port)) => (name, Some(port)),
         None => (entry, None),

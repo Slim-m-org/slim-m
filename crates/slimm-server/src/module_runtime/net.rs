@@ -53,6 +53,11 @@ impl std::fmt::Debug for FetchRequest {
 /// Where a module's stored secrets are read from, by key.
 pub trait SecretSource: Send + Sync {
     fn secret(&self, key: &str) -> Option<String>;
+
+    /// The hosts `key` may be sent to; empty means any host the module is approved for.
+    fn hosts(&self, _key: &str) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// No secrets at all: every `{"secret": ...}` header is refused.
@@ -65,7 +70,10 @@ impl SecretSource for NoSecrets {
 }
 
 /// A header value: plain text, or `{"secret": "<key>"}` the host fills in.
-fn header_value(raw: serde_json::Value, secrets: &dyn SecretSource) -> Result<String, String> {
+fn header_value(
+    raw: serde_json::Value,
+    (secrets, url): (&dyn SecretSource, &Url),
+) -> Result<String, String> {
     match raw {
         serde_json::Value::String(text) => Ok(text),
         serde_json::Value::Object(map) if map.len() == 1 => {
@@ -73,6 +81,11 @@ fn header_value(raw: serde_json::Value, secrets: &dyn SecretSource) -> Result<St
                 .get("secret")
                 .and_then(serde_json::Value::as_str)
                 .ok_or("net.fetch header values are text or {\"secret\": key}")?;
+            let bound = secrets.hosts(key);
+            if !bound.is_empty() && !host_allowed(url, &bound) {
+                let host = url.host_str().unwrap_or_default();
+                return Err(format!("net.fetch secret {key} may not be sent to {host}"));
+            }
             secrets
                 .secret(key)
                 .ok_or_else(|| format!("net.fetch names a secret that is not set: {key}"))
@@ -188,7 +201,7 @@ pub fn parse_with_secrets(
         if RESERVED_HEADERS.contains(&lower.as_str()) {
             return Err(format!("net.fetch may not set the {lower} header"));
         }
-        let value = header_value(value, secrets)?;
+        let value = header_value(value, (secrets, &url))?;
         headers.push((name, value));
     }
     if raw

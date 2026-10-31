@@ -46,6 +46,9 @@ pub struct ModuleSettingDef {
     pub max: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub choices: Vec<SettingChoice>,
+    /// A secret's allowed hosts, a subset of the module's `network.hosts`; empty means any approved host.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
 }
 
 /// What a manifest declares under decision 0091, as install records it.

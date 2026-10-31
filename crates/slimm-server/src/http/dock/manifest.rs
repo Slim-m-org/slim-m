@@ -258,6 +258,19 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         .collect::<Result<Vec<_>, _>>()?;
     names::reject_colliding_names(&extension_points)?;
 
+    let network = network::validate_network(raw.network, &capabilities)?;
+    let platform = platform::validate_platform(
+        platform::RawPlatform {
+            addon_api: raw.addon_api,
+            subscriptions: raw.subscriptions,
+            settings: raw.settings,
+            slots: raw.slots,
+            data: raw.data.clone(),
+        },
+        &capabilities,
+    )?;
+    settings::check_hosts_declared(&platform.settings_schema, &network.hosts)?;
+
     Ok(Manifest {
         id: raw.id,
         name,
@@ -267,7 +280,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         artifact,
         runtime,
         permissions,
-        network: network::validate_network(raw.network, &capabilities)?,
+        network,
         schedules: schedule::validate_schedules(raw.schedules, &capabilities, &command_names)?,
         changelog: changelog::validate_changelog(raw.changelog)?,
         data: raw
@@ -276,16 +289,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
             .map(crate::module_runtime::validate_data_schema)
             .transpose()
             .map_err(|e| malformed(&e))?,
-        platform: platform::validate_platform(
-            platform::RawPlatform {
-                addon_api: raw.addon_api,
-                subscriptions: raw.subscriptions,
-                settings: raw.settings,
-                slots: raw.slots,
-                data: raw.data,
-            },
-            &capabilities,
-        )?,
+        platform,
         capabilities,
         extension_points,
     })
