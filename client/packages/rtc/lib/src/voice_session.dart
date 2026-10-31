@@ -44,7 +44,6 @@ import 'noise_floor_estimator.dart';
 import 'remote_video_publication.dart';
 import 'screen_share.dart';
 import 'screen_share_audio.dart' as rtc_share_audio;
-import 'screen_share_control.dart';
 import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
@@ -339,16 +338,9 @@ class VoiceSession
     return current;
   }
 
-  /// Leaves the call. Safe to call when not in one.
+  /// Leaves the call and resets deafen and mutes with it. Safe to call when not in one.
   ///
-  /// Resets [deafened] along with everything else: there is no room left to
-  /// apply it to once this returns, and leaving it set internally would
-  /// silently deafen the next call before anyone asked for that, with
-  /// nothing in [VoiceState] (which does reset) around to say so.
-  ///
-  /// None of that happens for a leave a newer join has already superseded:
-  /// [_teardown] clears `_room` before it awaits, so a join starting mid-leave
-  /// would otherwise have this trailing reset land on top of its new call.
+  /// A leave a newer join already superseded resets nothing: [_teardown] clears `_room` before it awaits.
   Future<void> leave() async {
     final generation = ++_generation;
     await _teardown();
@@ -385,22 +377,11 @@ class VoiceSession
   /// Mutes or unmutes the local microphone; returns whether it ended in the requested state, since a token without SPEAK or a denied OS permission mean no and the UI must show what happened.
   Future<bool> setMicrophoneEnabled(bool enabled) => _trySetMicrophone(enabled);
 
-  /// Enables or disables the local camera live, mid-call. The [join]-time
-  /// `cameraEnabled` parameter is only the pre-toggle for before you connect;
-  /// this is the same call `toggleMicrophone`'s equivalent already used, now
-  /// reachable while already in the call.
+  /// Enables or disables the local camera live, mid-call.
   Future<bool> setCameraEnabled(bool enabled) => _trySetCamera(enabled);
 
-  /// Starts or stops sharing a screen, bounded by [quality] and, if given,
-  /// [maxHeight] - the space-wide screen-share ceiling, applied on top of
-  /// whatever [quality] itself already asked for.
-  ///
-  /// Reports what happened rather than what was asked for, because on iOS
-  /// those differ: see [ScreenShareOutcome]. Stopping asks the platform to end
-  /// any broadcast as well as dropping the track, so the two cannot get out of
-  /// step and leave a phone still recording with nothing published. The
-  /// sequencing that makes iOS actually honour [quality] lives in
-  /// [ScreenShareControl]; this method only supplies it a room to act on.
+  /// Starts or stops sharing a screen, bounded by [quality] and the space-wide [maxHeight] ceiling.
+  /// Reports what happened rather than what was asked for; on iOS those differ, see [ScreenShareOutcome].
   Future<ScreenShareOutcome> setScreenShareEnabled(
     bool enabled, {
     ScreenShareQuality quality = ScreenShareQuality.standard,
@@ -426,13 +407,7 @@ class VoiceSession
   Future<bool> setScreenShareAudioMuted(bool muted) =>
       _share.setAudioMuted(muted);
 
-  /// The widget that renders [identity]'s shared screen, live.
-  ///
-  /// Returned as a plain [Widget] so no LiveKit type crosses the package
-  /// seam; the real rendering is [ScreenShareView], which tracks the room's
-  /// events itself so a share track arriving a beat after the roster flips
-  /// still appears. Out of a call it renders nothing, not a placeholder:
-  /// there is no room to watch.
+  /// The widget that renders [identity]'s shared screen; a plain [Widget] so no LiveKit type crosses the package seam.
   Widget screenShareViewFor(String identity) =>
       _share.view(identity, _receiveDensity);
 
@@ -442,19 +417,11 @@ class VoiceSession
   ValueListenable<Map<String, VideoTileHealth>> get videoHealth =>
       _stallWatchdog.health;
 
-  /// The widget that renders [identity]'s live camera feed, [screenShareViewFor]'s
-  /// exact counterpart: a plain [Widget] backed by [CameraView], working for
-  /// the local participant exactly as it works for anyone else, which is
-  /// what makes a self camera preview possible.
+  /// The widget that renders [identity]'s live camera feed, the local participant's included.
   Widget cameraViewFor(String identity) => _camera.view(identity);
 
-  /// Declares which presence tiles currently want video, by the same
-  /// `'<kind>:<identity>'` key the canvas already keys a tile with, so a
-  /// remote video track nothing is showing can be unsubscribed outright
-  /// rather than only paused; see [VideoSubscriptionCuller] for the timing
-  /// and for why audio is never in scope. Null means this caller has no
-  /// opinion and every track should stay subscribed, which is what a surface
-  /// says when it unmounts or when it cannot speak for the call at all.
+  /// Declares which `'<kind>:<identity>'` tiles want video so the rest can be unsubscribed; null means no opinion.
+  /// See [VideoSubscriptionCuller] for the timing.
   void setVideoInterest(Set<String>? tileKeys) {
     _videoCuller.setInterest(tileKeys);
     _applyVideoInterest();
