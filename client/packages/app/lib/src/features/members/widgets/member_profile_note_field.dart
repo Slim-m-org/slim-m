@@ -23,8 +23,8 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../providers/member_moderation_error.dart';
-import '../../../providers/providers.dart';
 import '../providers/user_notes.dart';
+import '../providers/member_actions.dart';
 
 /// An inline field on the card for the caller's own note about [subjectId].
 /// Dashed border until a note has been written; saved when the field loses
@@ -103,7 +103,9 @@ class _MemberProfileNoteFieldState
   Future<void> _persist(String trimmed) async {
     final subjectId = widget.subjectId;
     try {
-      await _container.read(apiProvider).setUserNote(subjectId, trimmed);
+      await _container
+          .read(memberActionsProvider)
+          .setUserNote(subjectId, trimmed);
       _original = trimmed;
       _container.invalidate(userNoteProvider(subjectId));
     } on api.ApiException catch (e, stack) {

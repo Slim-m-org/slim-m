@@ -8,13 +8,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/notification_schedule_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_section_header.dart';
+import '../providers/settings_actions.dart';
 
 class NotificationSnoozeSection extends ConsumerStatefulWidget {
   const NotificationSnoozeSection({super.key});
@@ -39,8 +38,10 @@ class _NotificationSnoozeSectionState
   Future<void> _apply(int untilMs) async {
     final ok = await guard(
       whatFailed: 'snooze your notifications',
-      action: () =>
-          ref.read(apiProvider).setNotificationSnooze(untilMs).then((_) {}),
+      action: () => ref
+          .read(settingsActionsProvider)
+          .setNotificationSnooze(untilMs)
+          .then((_) {}),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);
   }
@@ -48,7 +49,7 @@ class _NotificationSnoozeSectionState
   Future<void> _cancel() async {
     final ok = await guard(
       whatFailed: 'cancel your snooze',
-      action: () => ref.read(apiProvider).clearNotificationSnooze(),
+      action: () => ref.read(settingsActionsProvider).clearNotificationSnooze(),
     );
     if (ok) ref.invalidate(notificationScheduleProvider);
   }

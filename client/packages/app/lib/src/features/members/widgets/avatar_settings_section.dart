@@ -12,7 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart' show SlimmApiUsers, LogTag, reportFailure;
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
@@ -28,6 +28,7 @@ import 'edit_display_name_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_section_header.dart';
 import 'user_avatar.dart';
+import '../providers/member_actions.dart';
 
 const double _avatarSize = AppAvatarSize.s40;
 
@@ -121,7 +122,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: 'upload the avatar',
-      action: () => ref.read(apiProvider).uploadAvatar(bytes),
+      action: () => ref.read(memberActionsProvider).uploadAvatar(bytes),
     );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -132,7 +133,7 @@ class _AvatarSettingsSectionState extends ConsumerState<AvatarSettingsSection>
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: 'remove the avatar',
-      action: () => ref.read(apiProvider).deleteAvatar(),
+      action: () => ref.read(memberActionsProvider).deleteAvatar(),
     );
     if (!mounted) return;
     setState(() => _busy = false);

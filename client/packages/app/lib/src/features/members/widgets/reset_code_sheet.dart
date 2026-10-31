@@ -26,9 +26,9 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
 import '../../settings/providers/display_preferences.dart';
-import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../auth/widgets/reauth_sheet.dart';
+import '../providers/member_actions.dart';
 
 /// Asks for the administrator's password, then shows the issued code for
 /// [subjectId], named [subjectName] in its title.
@@ -47,7 +47,7 @@ Future<void> showResetCodeSheet(
     onSubmit: (password, _) async {
       try {
         issued = await container
-            .read(apiProvider)
+            .read(memberActionsProvider)
             .issueResetCode(subjectId, password: password);
         return null;
       } on api.ApiException catch (e, stack) {

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/attachment_format.dart' show formatByteSize;
 import '../providers/data_export_download.dart';
@@ -16,6 +15,7 @@ import '../providers/data_exports.dart';
 import 'data_export_copy.dart';
 import 'settings_detail_row.dart';
 import 'settings_result_inset.dart';
+import '../providers/settings_actions.dart';
 
 class DataExportJobRow extends ConsumerStatefulWidget {
   const DataExportJobRow({super.key, required this.job, required this.copy});
@@ -32,7 +32,7 @@ class _DataExportJobRowState extends ConsumerState<DataExportJobRow>
   Future<void> _remove() => guard(
     whatFailed: 'delete the export',
     action: () async {
-      await ref.read(apiProvider).deleteExport(widget.job.id);
+      await ref.read(settingsActionsProvider).deleteExport(widget.job.id);
       ref.invalidate(dataExportsProvider);
     },
   );

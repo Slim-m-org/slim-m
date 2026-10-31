@@ -43,6 +43,7 @@ import '../../channels/widgets/channel_kind_icon.dart';
 import '../../members/widgets/user_avatar.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../widgets/sheet_item_list.dart';
+import '../providers/message_api_actions.dart';
 
 /// Opens the destination picker, then sends the forward. The picker itself
 /// runs the send and stays open on a failure (see [_ForwardTargetSheet]),
@@ -89,7 +90,7 @@ Future<void> _sendForward(
   required List<String> attachmentIds,
 }) async {
   final sent = await ref
-      .read(apiProvider)
+      .read(messageApiActionsProvider)
       .sendMessage(
         channelId: target.channelId,
         id: newMessageId(),

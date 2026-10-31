@@ -13,13 +13,13 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../format.dart';
 import '../../../providers/live_events.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/confirm_dialog.dart';
 import 'devices_stale.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_detail_row.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
+import '../providers/settings_actions.dart';
 
 const _signOutLabel = 'Sign out';
 
@@ -33,7 +33,7 @@ final devicesProvider = FutureProvider.autoDispose<List<api.Device>>((ref) {
       .where((event) => event is api.NewDeviceSignIn)
       .listen((_) => ref.invalidateSelf());
   ref.onDispose(signIns.cancel);
-  return ref.watch(apiProvider).listDevices();
+  return ref.watch(settingsActionsProvider).listDevices();
 });
 
 class DevicesSection extends ConsumerStatefulWidget {
@@ -162,7 +162,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
     final remaining = <String>[];
     for (final device in others) {
       try {
-        await ref.read(apiProvider).removeDevice(device.id);
+        await ref.read(settingsActionsProvider).removeDevice(device.id);
       } on api.ApiException catch (error, stack) {
         api.reportFailure(api.LogTag.ui, 'sign out a device', error, stack);
         remaining.add(device.name);
@@ -276,7 +276,8 @@ class _DeviceRowState extends ConsumerState<_DeviceRow>
     setState(() => _busy = true);
     final ok = await guard(
       whatFailed: 'sign out that device',
-      action: () => ref.read(apiProvider).removeDevice(widget.device.id),
+      action: () =>
+          ref.read(settingsActionsProvider).removeDevice(widget.device.id),
     );
     if (!mounted) return;
     setState(() => _busy = false);

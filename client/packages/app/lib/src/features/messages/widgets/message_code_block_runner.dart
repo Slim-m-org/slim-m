@@ -29,6 +29,7 @@ import '../../../widgets/code_hidden_characters.dart';
 import 'message_code_lexer.dart';
 import '../../modules/widgets/module_command_output.dart';
 import '../../../widgets/run_guarded.dart';
+import '../../modules/providers/module_actions.dart';
 
 class MessageCodeBlockRunner extends ConsumerStatefulWidget {
   const MessageCodeBlockRunner({
@@ -78,7 +79,7 @@ class _MessageCodeBlockRunnerState extends ConsumerState<MessageCodeBlockRunner>
       action: () async {
         if (_shared) {
           final shared = await ref
-              .read(apiProvider)
+              .read(moduleActionsProvider)
               .runCodeBlock(
                 messageId: widget.messageId!,
                 blockIndex: widget.blockIndex,
@@ -103,7 +104,7 @@ class _MessageCodeBlockRunnerState extends ConsumerState<MessageCodeBlockRunner>
               );
         } else {
           result = await ref
-              .read(apiProvider)
+              .read(moduleActionsProvider)
               .runModuleCommand(
                 moduleId: runner.moduleId,
                 command: runner.command,

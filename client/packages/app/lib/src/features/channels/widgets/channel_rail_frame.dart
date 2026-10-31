@@ -29,6 +29,7 @@ import '../../members/widgets/presence_menu.dart';
 import 'rail_call_summary.dart';
 import 'space_icon_badge.dart';
 import 'space_menu_button.dart';
+import '../../settings/providers/settings_actions.dart';
 
 /// Whether this rail has content beside it, so its own right edge is never
 /// the physical screen edge: true at every width the app shows it beside a
@@ -40,7 +41,7 @@ bool _railHasNeighbour(BuildContext context) =>
 /// there is no separate per-deployment "workspace name" concept, so this is
 /// `/version`'s `name`.
 final serverInfoProvider = FutureProvider.autoDispose<api.Version>(
-  (ref) => ref.watch(apiProvider).version(),
+  (ref) => ref.watch(settingsActionsProvider).version(),
 );
 
 /// No subtitle any more: it used to carry the member count and this build's

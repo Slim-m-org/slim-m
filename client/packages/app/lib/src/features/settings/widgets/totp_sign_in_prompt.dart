@@ -15,9 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../providers/providers.dart';
 import 'totp_code_sheet.dart';
 import 'totp_failures.dart';
+import '../providers/settings_actions.dart';
 
 /// Asks for a code and spends [challenge] on it. True once a session exists.
 ///
@@ -38,7 +38,7 @@ Future<bool> promptForTotpCode(
     onSubmit: (code) async {
       try {
         await ref
-            .read(apiProvider)
+            .read(settingsActionsProvider)
             .verifyTotpChallenge(
               challenge: challenge.challenge,
               code: code,

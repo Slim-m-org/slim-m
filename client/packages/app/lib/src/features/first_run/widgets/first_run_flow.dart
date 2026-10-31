@@ -18,6 +18,8 @@ import '../providers/first_run_rules.dart';
 import 'first_run_device_steps.dart';
 import 'first_run_frame.dart';
 import 'first_run_profile_steps.dart';
+import '../../members/providers/member_actions.dart';
+import '../../settings/providers/settings_actions.dart';
 
 enum FirstRunStep { welcome, you, notifications, voice }
 
@@ -94,7 +96,7 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     final me = ref.read(meProvider).valueOrNull;
     final text = _pronouns.text.trim();
     if (text == (me?.pronouns ?? '')) return;
-    await ref.read(apiProvider).updateMe(pronouns: text);
+    await ref.read(memberActionsProvider).updateMe(pronouns: text);
     ref.invalidate(meProvider);
   }
 
@@ -103,7 +105,7 @@ class _FirstRunFlowState extends ConsumerState<FirstRunFlow> {
     if (choice == null) return;
     if (choice == ref.read(notificationPreferenceProvider).valueOrNull) return;
     try {
-      await ref.read(apiProvider).setNotificationPreference(choice);
+      await ref.read(settingsActionsProvider).setNotificationPreference(choice);
     } on api.NotFoundException catch (error, stack) {
       api.AppLog.swallowed(
         api.LogTag.ui,

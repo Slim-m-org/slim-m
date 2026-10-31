@@ -27,6 +27,7 @@ import 'module_about_sheet.dart';
 import '../../messages/providers/message_extras.dart';
 import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
+import '../providers/module_actions.dart';
 
 /// Launches [app] into [channelId]: posts the message, then applies it to the
 /// local store and extras cache exactly as sending a poll does, so the surface
@@ -42,7 +43,7 @@ Future<bool> launchApp({
 }) async {
   try {
     final sent = await ref
-        .read(apiProvider)
+        .read(moduleActionsProvider)
         .launchAppMessage(
           channelId: channelId,
           id: newMessageId(),

@@ -22,6 +22,7 @@ import '../../messages/widgets/mark_read_action.dart';
 import '../../messages/widgets/mark_unread_action.dart';
 import '../../../widgets/run_guarded.dart';
 import '../providers/channel_latest_message_at.dart';
+import '../../settings/providers/settings_actions.dart';
 
 Future<void> _say(
   BuildContext context,
@@ -203,7 +204,7 @@ List<AppMenuItem> notificationMenuItems(
 
   void toggleOffHours() {
     close();
-    final client = container.read(apiProvider);
+    final client = container.read(settingsActionsProvider);
     unawaited(
       _say(
         context,

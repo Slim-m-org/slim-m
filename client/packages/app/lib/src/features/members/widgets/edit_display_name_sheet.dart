@@ -21,6 +21,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
+import '../providers/member_actions.dart';
 
 Future<void> showEditDisplayNameSheet(BuildContext context, String current) {
   return showAppSheet<void>(
@@ -64,7 +65,9 @@ class _EditDisplayNameSheetState extends ConsumerState<_EditDisplayNameSheet> {
       _error = null;
     });
     try {
-      await ref.read(apiProvider).updateMe(displayName: _name.text.trim());
+      await ref
+          .read(memberActionsProvider)
+          .updateMe(displayName: _name.text.trim());
       // updateMe returns a UserProfile, not the Me shape meProvider holds, so refetch rather than merge.
       ref.invalidate(meProvider);
       if (mounted) Navigator.of(context).pop();

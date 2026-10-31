@@ -25,7 +25,6 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/admin_providers.dart';
 import '../providers/member_presence.dart' show membersProvider;
-import '../../../providers/providers.dart';
 import 'member_moderate_roles.dart';
 import 'member_profile_sections.dart';
 import 'moderation_unavailable_caption.dart';
@@ -34,6 +33,7 @@ import 'member_rename_sheet.dart';
 import 'reset_code_sheet.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../../action_labels.dart';
+import '../providers/member_actions.dart';
 
 class MemberModerateView extends ConsumerStatefulWidget {
   const MemberModerateView({
@@ -86,7 +86,7 @@ class MemberModerateView extends ConsumerStatefulWidget {
 class _MemberModerateViewState extends ConsumerState<MemberModerateView>
     with GuardedActionState<MemberModerateView> {
   Future<void> _toggleRole(api.Role role, bool grant) async {
-    final client = ref.read(apiProvider);
+    final client = ref.read(memberActionsProvider);
     final ok = await guard(
       whatFailed: grant ? 'grant "${role.name}"' : 'take away "${role.name}"',
       action: () => grant

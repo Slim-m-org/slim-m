@@ -17,6 +17,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/member_presence.dart' show memberProfileOverridesProvider;
 import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
 
 /// Opens the sheet seeded with [current] (the caller's status as of the tap
 /// that opened it); `showAppSheet` decides bottom sheet versus dialog.
@@ -67,7 +68,9 @@ class _StatusEditorSheetState extends ConsumerState<_StatusEditorSheet>
     final ok = await guard(
       whatFailed: 'update your status',
       action: () async {
-        final profile = await ref.read(apiProvider).updateMe(statusText: text);
+        final profile = await ref
+            .read(memberActionsProvider)
+            .updateMe(statusText: text);
         ref.invalidate(meProvider);
         ref.read(memberProfileOverridesProvider.notifier).applyKnown(profile);
       },

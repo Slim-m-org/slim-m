@@ -16,13 +16,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
 import '../../../providers/providers.dart';
+import '../providers/message_api_actions.dart';
 
 /// Marks [channelId] unread, throwing the [api.ApiException] if the server refuses.
 Future<void> markChannelUnread(
   ProviderContainer container,
   String channelId,
 ) async {
-  final read = await container.read(apiProvider).markUnread(channelId);
+  final read = await container
+      .read(messageApiActionsProvider)
+      .markUnread(channelId);
   final store = await container.read(storeProvider.future);
   await store.setReadMarker(
     channelId,

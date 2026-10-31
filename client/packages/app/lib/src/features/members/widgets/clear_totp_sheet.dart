@@ -22,9 +22,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../auth/widgets/reauth_sheet.dart';
+import '../providers/member_actions.dart';
 
 /// Opens the sheet for [subjectId], named [subjectName] in its title.
 Future<void> showClearTotpSheet(
@@ -43,7 +43,7 @@ Future<void> showClearTotpSheet(
     onSubmit: (password, _) async {
       try {
         await container
-            .read(apiProvider)
+            .read(memberActionsProvider)
             .clearMemberTotp(subjectId, password: password);
         return null;
       } on ApiException catch (e, stack) {

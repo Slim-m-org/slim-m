@@ -9,10 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import 'join_policy_row.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_select_row.dart';
+import '../providers/settings_actions.dart';
 
 const _rowLabel = 'Two-factor authentication';
 
@@ -50,7 +50,7 @@ class _TotpPolicyRowState extends ConsumerState<TotpPolicyRow>
     final ok = await guard(
       whatFailed: 'change the two-factor policy',
       action: () => ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .setSpaceSettings(api.SpaceSettingsUpdate(totpPolicy: policy)),
     );
     if (!mounted) return;
