@@ -39,13 +39,13 @@ pub(super) enum ClientFrame {
     #[serde(rename = "canvas.watch")]
     CanvasWatch { channel_ids: Vec<String> },
     /// A pointer position on a channel's canvas, rate-limited and authorized like the canvas HTTP routes (view plus `USE_CANVAS`); see [`super::signals::handle_canvas_cursor`].
-    /// There is no "stop" frame, for the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
+    /// There is no "stop" frame, for the reason [`crate::hub::CanvasEvent::CursorMoved`] gives.
     #[serde(rename = "canvas.cursor")]
     CanvasCursor {
         channel_id: String,
         x: f64,
         y: f64,
-        /// The pointer left the canvas; see [`crate::hub::Event::CanvasCursorMoved`].
+        /// The pointer left the canvas; see [`crate::hub::CanvasEvent::CursorMoved`].
         #[serde(default)]
         left: bool,
     },

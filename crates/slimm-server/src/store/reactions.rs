@@ -236,7 +236,7 @@ impl Store {
     /// method, not here. Rows arrive grouped by emoji (not yet ordered by any
     /// per-viewer `first_at`, since there is no single one); the caller sorts.
     ///
-    /// Meant to be read once per live [`crate::hub::Event::ReactionsChanged`]
+    /// Meant to be read once per live [`crate::hub::MessageEvent::ReactionsChanged`]
     /// rather than once per receiving connection - the N-viewers-cost-N-queries
     /// debt this method exists to close. A receiving connection turns this
     /// shared answer into its own view with [`Store::blocked_among`], read

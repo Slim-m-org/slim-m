@@ -17,7 +17,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::link_preview::LinkPreviews;
 use crate::ephemeral::EphemeralEmbed;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{Embed as StoreEmbed, NewEmbed};
 
@@ -218,11 +218,13 @@ pub(crate) async fn after_edit(
     }
     let stored = store_and_reload(state, message_id, false, &[]).await?;
     if replacement.is_some() {
-        state.hub.publish(Event::MessageEmbedsChanged {
-            channel_id,
-            message_id,
-            embeds: Arc::new(stored.clone()),
-        });
+        state
+            .hub
+            .publish(Event::Message(MessageEvent::EmbedsChanged {
+                channel_id,
+                message_id,
+                embeds: Arc::new(stored.clone()),
+            }));
     }
     Ok(dtos_from_stored(&state.link_previews, stored))
 }

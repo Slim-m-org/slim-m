@@ -12,7 +12,7 @@ use super::super::extract::{AuthedLimited, CANVAS};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
 use super::canvas_ops_write::publish;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, CanvasOpId, ChannelId};
 use crate::permissions::Permissions;
 use crate::store::{CanvasOpRequest, LockError, PurgeError, SubmitOpError};
@@ -50,12 +50,14 @@ async fn purge(
             .set_canvas_object_lock(channel_id, object_id, ctx.user_id, true, false)
             .await
         {
-            Ok(Some(version)) => state.hub.publish(Event::CanvasObjectLockChanged {
-                channel_id,
-                object_id,
-                locked: false,
-                version,
-            }),
+            Ok(Some(version)) => state
+                .hub
+                .publish(Event::Canvas(CanvasEvent::ObjectLockChanged {
+                    channel_id,
+                    object_id,
+                    locked: false,
+                    version,
+                })),
             Ok(None) | Err(LockError::NotFound) => {}
             Err(LockError::NotAuthorized) => return Err(ApiError::Forbidden),
             Err(LockError::Internal(err)) => return Err(err.into()),

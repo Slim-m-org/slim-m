@@ -8,7 +8,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use serde_json::Value;
-use slimm_server::hub::Event;
+use slimm_server::hub::{CanvasEvent, Event, MessageEvent};
 use slimm_server::ids::{
     CallRingId, CanvasObjectId, CanvasOpId, ChannelId, MessageId, RoleId, Seq, SessionId, UserId,
 };
@@ -31,38 +31,38 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
     let object = CanvasObjectId(id(2));
     let op = CanvasOpId(id(3));
     vec![
-        Event::PollVoted {
+        Event::Message(MessageEvent::PollVoted {
             channel_id: channel,
             message_id: message,
             options: vec![(0, 2), (1, 1)],
             runoff: None,
-        },
-        Event::MessageComponentsChanged {
+        }),
+        Event::Message(MessageEvent::ComponentsChanged {
             channel_id: channel,
             message_id: message,
             components: Default::default(),
-        },
-        Event::MessageEmbedsChanged {
+        }),
+        Event::Message(MessageEvent::EmbedsChanged {
             channel_id: channel,
             message_id: message,
             embeds: Default::default(),
-        },
-        Event::MessageLinkPreviewsRemoved {
+        }),
+        Event::Message(MessageEvent::LinkPreviewsRemoved {
             channel_id: channel,
             message_id: message,
             op_seq: 7,
-        },
-        Event::MessageDeleted {
+        }),
+        Event::Message(MessageEvent::Deleted {
             channel_id: channel,
             message_id: message,
             op_seq: Some(8),
-        },
-        Event::ReactionsChanged {
+        }),
+        Event::Message(MessageEvent::ReactionsChanged {
             channel_id: channel,
             message_id: message,
             reactors: Default::default(),
-        },
-        Event::CodeRunChanged {
+        }),
+        Event::Message(MessageEvent::CodeRunChanged {
             channel_id: channel,
             message_id: message,
             block_index: 0,
@@ -72,28 +72,28 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             output: "hello".into(),
             ran_by: Some(alice),
             ran_at: 1_700_000_000_000,
-        },
-        Event::CodeRunsCleared {
+        }),
+        Event::Message(MessageEvent::CodeRunsCleared {
             channel_id: channel,
             message_id: message,
-        },
-        Event::ThreadUpdated {
+        }),
+        Event::Message(MessageEvent::ThreadUpdated {
             channel_id: channel,
             parent_message_id: message,
             thread_channel_id: ChannelId(id(4)),
             reply_count: 3,
             last_reply_at: Some(1_700_000_000_001),
-        },
-        Event::MessagePinned {
+        }),
+        Event::Message(MessageEvent::Pinned {
             channel_id: channel,
             message_id: message,
             pinned_by: Some(alice),
             pinned_at: 1_700_000_000_002,
-        },
-        Event::MessageUnpinned {
+        }),
+        Event::Message(MessageEvent::Unpinned {
             channel_id: channel,
             message_id: message,
-        },
+        }),
         Event::SessionRevoked(SessionId(id(5))),
         Event::PresenceChanged(bob),
         Event::MemberTimeoutChanged {
@@ -168,13 +168,13 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
         Event::DmChanged {
             channel_id: channel,
         },
-        Event::CanvasObjectsRemoved {
+        Event::Canvas(CanvasEvent::ObjectsRemoved {
             channel_id: channel,
             seq: Seq(4),
             op_id: op,
             object_ids: vec![object],
-        },
-        Event::CanvasCleared {
+        }),
+        Event::Canvas(CanvasEvent::Cleared {
             channel_id: channel,
             seq: Seq(5),
             op_id: op,
@@ -182,8 +182,8 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             scope: ClearScope::default(),
             spared_ids: vec![object],
             spared_count: 1,
-        },
-        Event::CanvasCleared {
+        }),
+        Event::Canvas(CanvasEvent::Cleared {
             channel_id: channel,
             seq: Seq(6),
             op_id: op,
@@ -194,21 +194,21 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             },
             spared_ids: vec![],
             spared_count: 0,
-        },
-        Event::CanvasObjectsRestored {
+        }),
+        Event::Canvas(CanvasEvent::ObjectsRestored {
             channel_id: channel,
             seq: Seq(7),
             op_id: op,
             object_ids: vec![object],
-        },
-        Event::CanvasCursorMoved {
+        }),
+        Event::Canvas(CanvasEvent::CursorMoved {
             channel_id: channel,
             user_id: bob,
             x: 1.5,
             y: 2.5,
             left: false,
-        },
-        Event::CanvasStrokePreview {
+        }),
+        Event::Canvas(CanvasEvent::StrokePreview {
             channel_id: channel,
             user_id: bob,
             object_id: object,
@@ -217,8 +217,8 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             cancelled: false,
             color: Some("#ff0000".into()),
             width: Some(2.0),
-        },
-        Event::CanvasObjectPreview {
+        }),
+        Event::Canvas(CanvasEvent::ObjectPreview {
             channel_id: channel,
             user_id: bob,
             object_id: object,
@@ -227,8 +227,8 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             w: 3.0,
             h: 4.0,
             ended: true,
-        },
-        Event::CanvasMediaSlotPreview {
+        }),
+        Event::Canvas(CanvasEvent::MediaSlotPreview {
             channel_id: channel,
             user_id: bob,
             kind: MediaSlotKind::Screen,
@@ -238,8 +238,8 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             w: 3.0,
             h: 4.0,
             ended: false,
-        },
-        Event::CanvasView {
+        }),
+        Event::Canvas(CanvasEvent::View {
             channel_id: channel,
             user_id: bob,
             x: 1.0,
@@ -248,8 +248,8 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             h: 4.0,
             summon: true,
             tile: Some("tile".into()),
-        },
-        Event::CanvasObjectMoved {
+        }),
+        Event::Canvas(CanvasEvent::ObjectMoved {
             channel_id: channel,
             seq: Seq(8),
             op_id: op,
@@ -258,22 +258,22 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             y: 2.0,
             w: 3.0,
             h: 4.0,
-        },
-        Event::CanvasObjectReordered {
+        }),
+        Event::Canvas(CanvasEvent::ObjectReordered {
             channel_id: channel,
             seq: Seq(9),
             op_id: op,
             object_id: object,
             z_index: 3,
-        },
-        Event::CanvasObjectEdited {
+        }),
+        Event::Canvas(CanvasEvent::ObjectEdited {
             channel_id: channel,
             seq: Seq(10),
             op_id: op,
             object_id: object,
             props: "{\"a\":1}".into(),
-        },
-        Event::CanvasMediaSlotChanged {
+        }),
+        Event::Canvas(CanvasEvent::MediaSlotChanged {
             channel_id: channel,
             kind: MediaSlotKind::Camera,
             user_id: bob,
@@ -284,13 +284,13 @@ fn sample_events(channel: ChannelId, alice: UserId, bob: UserId) -> Vec<Event> {
             locked: true,
             sent_to_back: false,
             version: 2,
-        },
-        Event::CanvasObjectLockChanged {
+        }),
+        Event::Canvas(CanvasEvent::ObjectLockChanged {
             channel_id: channel,
             object_id: object,
             locked: true,
             version: 3,
-        },
+        }),
         Event::ReportsChanged,
         Event::ReadStateChanged {
             user_id: alice,

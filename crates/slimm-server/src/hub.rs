@@ -49,7 +49,7 @@ mod memory_guard;
 mod moderation_seq;
 mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
-pub use event::Event;
+pub use event::{CanvasEvent, Event, MessageEvent};
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
 pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
@@ -131,39 +131,39 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::ChannelDeleted { .. }
         // A roster change is a permission change for the person added or removed.
         | Event::DmChanged { .. } => true,
-        Event::MessageCreated { .. }
-        | Event::MessageEdited { .. }
-        | Event::MessageDeleted { .. }
-        | Event::ReactionsChanged { .. }
-        | Event::CodeRunChanged { .. }
-        | Event::CodeRunsCleared { .. }
-        | Event::ThreadUpdated { .. }
-        | Event::MessagePinned { .. }
-        | Event::MessageUnpinned { .. }
-        | Event::PollVoted { .. }
-        | Event::MessageComponentsChanged { .. }
-        | Event::MessageEmbedsChanged { .. }
-        | Event::MessageLinkPreviewsRemoved { .. }
+        Event::Message(MessageEvent::Created { .. })
+        | Event::Message(MessageEvent::Edited { .. })
+        | Event::Message(MessageEvent::Deleted { .. })
+        | Event::Message(MessageEvent::ReactionsChanged { .. })
+        | Event::Message(MessageEvent::CodeRunChanged { .. })
+        | Event::Message(MessageEvent::CodeRunsCleared { .. })
+        | Event::Message(MessageEvent::ThreadUpdated { .. })
+        | Event::Message(MessageEvent::Pinned { .. })
+        | Event::Message(MessageEvent::Unpinned { .. })
+        | Event::Message(MessageEvent::PollVoted { .. })
+        | Event::Message(MessageEvent::ComponentsChanged { .. })
+        | Event::Message(MessageEvent::EmbedsChanged { .. })
+        | Event::Message(MessageEvent::LinkPreviewsRemoved { .. })
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)
         | Event::ProfileChanged(_)
         | Event::BotUiChanged(_)
-        | Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectPreview { .. }
-        | Event::CanvasMediaSlotPreview { .. }
-        | Event::CanvasScreenAnnotation(_)
-        | Event::CanvasView { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasObjectEdited { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. }
+        | Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
+        | Event::Canvas(CanvasEvent::Cleared { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRestored { .. })
+        | Event::Canvas(CanvasEvent::CursorMoved { .. })
+        | Event::Canvas(CanvasEvent::StrokePreview { .. })
+        | Event::Canvas(CanvasEvent::ObjectPreview { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview { .. })
+        | Event::Canvas(CanvasEvent::ScreenAnnotation(_))
+        | Event::Canvas(CanvasEvent::View { .. })
+        | Event::Canvas(CanvasEvent::ObjectMoved { .. })
+        | Event::Canvas(CanvasEvent::ObjectReordered { .. })
+        | Event::Canvas(CanvasEvent::ObjectEdited { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
         | Event::SessionRevoked(_)
         // A join changes nobody's existing cached answer; see the variant's own doc.
         | Event::MemberJoined(_)
@@ -206,11 +206,11 @@ fn moves_permissions(event: &Event) -> bool {
 ///
 /// [`Event::EphemeralMessage`] rides here too, being unnumbered and never
 /// stored, at a rate a bot's write limit keeps far below the cursors'.
-/// Otherwise only the live canvas frames qualify - [`Event::CanvasCursorMoved`],
-/// [`Event::CanvasStrokePreview`], [`Event::CanvasObjectPreview`] and
-/// [`Event::CanvasView`] - plus [`Event::WatchTick`]: each is rate-limited well above what a human notices, carry no
+/// Otherwise only the live canvas frames qualify - [`CanvasEvent::CursorMoved`],
+/// [`CanvasEvent::StrokePreview`], [`CanvasEvent::ObjectPreview`] and
+/// [`CanvasEvent::View`] - plus [`Event::WatchTick`]: each is rate-limited well above what a human notices, carry no
 /// `seq`, are never persisted, and have no catch-up path a reconnect could use
-/// anyway (see their own doc comments in `hub/event.rs`). `TypingStarted`/
+/// anyway (see their own doc comments in `hub/event/`). `TypingStarted`/
 /// `TypingStopped` are ephemeral in the same sense but stay durable here: they
 /// are rate-limited far lower (`Class::Typing`: 2/sec sustained against
 /// `CanvasCursor`'s 15/sec), they come in explicit start/stop pairs rather
@@ -222,30 +222,30 @@ fn moves_permissions(event: &Event) -> bool {
 /// capacity in the first place.
 fn is_ephemeral(event: &Event) -> bool {
     match event {
-        Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectPreview { .. }
-        | Event::CanvasMediaSlotPreview { .. }
-        | Event::CanvasScreenAnnotation(_)
-        | Event::CanvasView { .. }
+        Event::Canvas(CanvasEvent::CursorMoved { .. })
+        | Event::Canvas(CanvasEvent::StrokePreview { .. })
+        | Event::Canvas(CanvasEvent::ObjectPreview { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview { .. })
+        | Event::Canvas(CanvasEvent::ScreenAnnotation(_))
+        | Event::Canvas(CanvasEvent::View { .. })
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
         | Event::InteractionCreated { .. }
         | Event::InteractionAnswered { .. }
         | Event::InteractionForm { .. } => true,
-        Event::MessageCreated { .. }
-        | Event::MessageEdited { .. }
-        | Event::MessageDeleted { .. }
-        | Event::ReactionsChanged { .. }
-        | Event::CodeRunChanged { .. }
-        | Event::CodeRunsCleared { .. }
-        | Event::ThreadUpdated { .. }
-        | Event::MessagePinned { .. }
-        | Event::MessageUnpinned { .. }
-        | Event::PollVoted { .. }
-        | Event::MessageComponentsChanged { .. }
-        | Event::MessageEmbedsChanged { .. }
-        | Event::MessageLinkPreviewsRemoved { .. }
+        Event::Message(MessageEvent::Created { .. })
+        | Event::Message(MessageEvent::Edited { .. })
+        | Event::Message(MessageEvent::Deleted { .. })
+        | Event::Message(MessageEvent::ReactionsChanged { .. })
+        | Event::Message(MessageEvent::CodeRunChanged { .. })
+        | Event::Message(MessageEvent::CodeRunsCleared { .. })
+        | Event::Message(MessageEvent::ThreadUpdated { .. })
+        | Event::Message(MessageEvent::Pinned { .. })
+        | Event::Message(MessageEvent::Unpinned { .. })
+        | Event::Message(MessageEvent::PollVoted { .. })
+        | Event::Message(MessageEvent::ComponentsChanged { .. })
+        | Event::Message(MessageEvent::EmbedsChanged { .. })
+        | Event::Message(MessageEvent::LinkPreviewsRemoved { .. })
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::PresenceChanged(_)
@@ -263,15 +263,15 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::ChannelUpdated(..)
         | Event::ChannelDeleted { .. }
         | Event::CategoryChanged
-        | Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasObjectEdited { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. }
+        | Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
+        | Event::Canvas(CanvasEvent::Cleared { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRestored { .. })
+        | Event::Canvas(CanvasEvent::ObjectMoved { .. })
+        | Event::Canvas(CanvasEvent::ObjectReordered { .. })
+        | Event::Canvas(CanvasEvent::ObjectEdited { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. })
         | Event::SessionRevoked(_)
         | Event::VoiceActivityChanged { .. }
         | Event::VoiceParticipantJoined { .. }
@@ -503,13 +503,13 @@ mod epoch_tests {
     fn subscribers_share_a_large_payload_rather_than_copying_it() {
         let hub = Hub::new();
         let (mut first, mut second) = (hub.subscribe(), hub.subscribe());
-        hub.publish(Event::ReactionsChanged {
+        hub.publish(Event::Message(MessageEvent::ReactionsChanged {
             channel_id: ChannelId::generate(),
             message_id: crate::ids::MessageId::generate(),
             reactors: Arc::new(vec![("+1".to_owned(), vec![(UserId::generate(), 1)])]),
-        });
+        }));
         let reactors = |event| match event {
-            Event::ReactionsChanged { reactors, .. } => reactors,
+            Event::Message(MessageEvent::ReactionsChanged { reactors, .. }) => reactors,
             _ => panic!("wrong event"),
         };
         let (a, b) = (
@@ -567,23 +567,23 @@ mod epoch_tests {
             user_id: UserId::generate(),
         });
         hub.publish(Event::PresenceChanged(UserId::generate()));
-        hub.publish(Event::MessageDeleted {
+        hub.publish(Event::Message(MessageEvent::Deleted {
             op_seq: None,
             channel_id: ChannelId::generate(),
             message_id: crate::ids::MessageId::generate(),
-        });
+        }));
         hub.publish(Event::VoiceActivityChanged {
             channel_id: ChannelId::generate(),
         });
         hub.publish(Event::MemberJoined(UserId::generate()));
-        hub.publish(Event::CanvasCursorMoved {
+        hub.publish(Event::Canvas(CanvasEvent::CursorMoved {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
             x: 0.0,
             y: 0.0,
             left: false,
-        });
-        hub.publish(Event::CanvasStrokePreview {
+        }));
+        hub.publish(Event::Canvas(CanvasEvent::StrokePreview {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
             object_id: crate::ids::CanvasObjectId::generate(),
@@ -592,8 +592,8 @@ mod epoch_tests {
             cancelled: false,
             color: None,
             width: None,
-        });
-        hub.publish(Event::CanvasView {
+        }));
+        hub.publish(Event::Canvas(CanvasEvent::View {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
             x: 0.0,
@@ -602,8 +602,8 @@ mod epoch_tests {
             h: 1.0,
             summon: false,
             tile: None,
-        });
-        hub.publish(Event::CanvasObjectPreview {
+        }));
+        hub.publish(Event::Canvas(CanvasEvent::ObjectPreview {
             channel_id: ChannelId::generate(),
             user_id: UserId::generate(),
             object_id: crate::ids::CanvasObjectId::generate(),
@@ -612,7 +612,7 @@ mod epoch_tests {
             w: 1.0,
             h: 1.0,
             ended: false,
-        });
+        }));
         assert_eq!(hub.permissions_epoch(), before);
     }
 

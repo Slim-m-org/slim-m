@@ -4,7 +4,7 @@
 
 use std::collections::HashSet;
 
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{ChannelId, UserId};
 
 /// More than a person has open at once; the rest of a report is ignored.
@@ -48,26 +48,26 @@ impl CanvasWatch {
 
 fn ephemeral_canvas_origin(event: &Event) -> Option<(ChannelId, UserId)> {
     match event {
-        Event::CanvasCursorMoved {
+        Event::Canvas(CanvasEvent::CursorMoved {
             channel_id,
             user_id,
             ..
-        }
-        | Event::CanvasStrokePreview {
+        })
+        | Event::Canvas(CanvasEvent::StrokePreview {
             channel_id,
             user_id,
             ..
-        }
-        | Event::CanvasObjectPreview {
+        })
+        | Event::Canvas(CanvasEvent::ObjectPreview {
             channel_id,
             user_id,
             ..
-        }
-        | Event::CanvasMediaSlotPreview {
+        })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview {
             channel_id,
             user_id,
             ..
-        } => Some((*channel_id, *user_id)),
+        }) => Some((*channel_id, *user_id)),
         _ => None,
     }
 }

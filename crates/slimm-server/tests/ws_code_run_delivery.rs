@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::Value;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
 
@@ -61,21 +61,25 @@ async fn code_run_frames_reach_a_viewer_and_skip_a_member_denied_the_channel() {
     let mut carol_ws = connect(addr, &carol_ticket).await;
 
     let message = MessageId::generate();
-    state.hub.publish(Event::CodeRunChanged {
-        channel_id: channel,
-        message_id: message,
-        block_index: 2,
-        module_id: "runner".into(),
-        command: "python".into(),
-        ok: true,
-        output: Arc::from("hi\n"),
-        ran_by: Some(alice_id),
-        ran_at: 42,
-    });
-    state.hub.publish(Event::CodeRunsCleared {
-        channel_id: channel,
-        message_id: message,
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::CodeRunChanged {
+            channel_id: channel,
+            message_id: message,
+            block_index: 2,
+            module_id: "runner".into(),
+            command: "python".into(),
+            ok: true,
+            output: Arc::from("hi\n"),
+            ran_by: Some(alice_id),
+            ran_at: 42,
+        }));
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::CodeRunsCleared {
+            channel_id: channel,
+            message_id: message,
+        }));
 
     let wait = Duration::from_secs(10);
     for ws in [&mut alice_ws, &mut bob_ws] {

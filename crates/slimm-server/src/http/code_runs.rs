@@ -49,7 +49,7 @@ use super::module_commands::{
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::code_fences::code_block;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::MessageId;
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
@@ -167,17 +167,19 @@ async fn run(
         })
         .await?;
 
-    state.hub.publish(Event::CodeRunChanged {
-        channel_id: message.channel_id,
-        message_id,
-        block_index,
-        module_id: req.module_id,
-        command: req.command,
-        ok,
-        output: stored.as_str().into(),
-        ran_by: Some(ctx.user_id),
-        ran_at,
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::CodeRunChanged {
+            channel_id: message.channel_id,
+            message_id,
+            block_index,
+            module_id: req.module_id,
+            command: req.command,
+            ok,
+            output: stored.as_str().into(),
+            ran_by: Some(ctx.user_id),
+            ran_at,
+        }));
 
     let response = if ok {
         RunResponse {

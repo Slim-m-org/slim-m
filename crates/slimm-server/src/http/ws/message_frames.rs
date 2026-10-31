@@ -5,7 +5,7 @@
 //!
 //! `Err(())` stands in for [`super::authorization::Authorization::Unknown`]:
 //! a failed store read here is unresolved, not "no mention", the same
-//! discipline `Event::ReactionsChanged` already follows in `authorization.rs`
+//! discipline `MessageEvent::ReactionsChanged` already follows in `authorization.rs`
 //! for its own fresh-per-event store read.
 
 use super::super::apps::AppSurfaceDto;
@@ -14,7 +14,7 @@ use super::super::link_preview::LinkPreviews;
 use super::super::message_dto::{CallDto, CodeRunDto, ViaModuleDto};
 use super::super::polls::PollDto;
 use super::{AttachmentDto, MessageDto, frames::ServerFrame};
-use crate::hub::{CreatedLookups, Event};
+use crate::hub::{CreatedLookups, Event, MessageEvent};
 use crate::ids::UserId;
 use crate::store::{
     AppSurface, AttachmentSummary, CallRecord, CodeRunSummary, Embed, ForwardSummary, Message,
@@ -24,7 +24,7 @@ use crate::store::{
 /// Everything about a freshly created message that the bare row cannot
 /// express, bundled so [`created`] stays within the positional-parameter
 /// limit. Every field is resolved once by the sender - see
-/// [`crate::hub::Event::MessageCreated`] - rather than queried here per
+/// [`crate::hub::MessageEvent::Created`] - rather than queried here per
 /// subscriber: most messages launch no app and carry no poll, and this runs
 /// once per delivered message per connection.
 pub(super) struct MessageExtras {
@@ -39,7 +39,7 @@ pub(super) struct MessageExtras {
     pub components: Vec<crate::components::ComponentRow>,
 }
 
-/// [`created`] for a [`Event::MessageCreated`], cloning its shared payload only
+/// [`created`] for a [`MessageEvent::Created`], cloning its shared payload only
 /// here, past every filter in `authorize`; anything else is unresolved.
 pub(super) async fn created_from_event(
     store: &Store,
@@ -47,7 +47,7 @@ pub(super) async fn created_from_event(
     viewer: UserId,
     event: Event,
 ) -> Result<ServerFrame, ()> {
-    let Event::MessageCreated {
+    let Event::Message(MessageEvent::Created {
         message,
         attachments,
         forwarded,
@@ -58,7 +58,7 @@ pub(super) async fn created_from_event(
         call,
         components,
         lookups,
-    } = event
+    }) = event
     else {
         return Err(());
     };

@@ -41,7 +41,7 @@ use super::error::ApiError;
 use super::extract::{Json, Query, enforce};
 use super::messages::{parse_uuid, validate_content};
 use super::post_commit::after_commit;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, WebhookId};
 use crate::ratelimit::Class;
 use crate::store::NewMessage;
@@ -207,7 +207,7 @@ async fn deliver(
             )
             .await,
         );
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: std::sync::Arc::new(sent.message.clone()),
             attachments: std::sync::Arc::new(Vec::new()),
             forwarded: None,
@@ -218,7 +218,7 @@ async fn deliver(
             call: None,
             components: std::sync::Arc::new(Vec::new()),
             lookups: Default::default(),
-        });
+        }));
         state.push.notify_message(
             state.store.clone(),
             crate::push::SentMessage {

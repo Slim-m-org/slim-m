@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use super::CallRingOutcome;
-use crate::hub::{Event, Hub};
+use crate::hub::{Event, Hub, MessageEvent};
 use crate::ids::{CallRingId, ChannelId, UserId};
 use crate::push::{PushSender, SentMessage};
 use crate::store::Store;
@@ -61,7 +61,7 @@ pub(crate) async fn record_finished_call(
             },
         );
     }
-    hub.publish(Event::MessageCreated {
+    hub.publish(Event::Message(MessageEvent::Created {
         message: Arc::new(sent.message),
         attachments: Arc::new(Vec::new()),
         forwarded: None,
@@ -72,5 +72,5 @@ pub(crate) async fn record_finished_call(
         call: Some(Arc::new(record)),
         components: Arc::new(Vec::new()),
         lookups: Default::default(),
-    });
+    }));
 }

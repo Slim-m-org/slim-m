@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use super::wire::EventData;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::Store;
 
@@ -21,9 +21,15 @@ pub(super) struct Kind {
 
 pub(super) fn classify(event: &Event) -> Option<Kind> {
     let (name, channel) = match event {
-        Event::MessageCreated { message, .. } => ("message.created", Some(message.channel_id)),
-        Event::MessageDeleted { channel_id, .. } => ("message.deleted", Some(*channel_id)),
-        Event::ReactionsChanged { channel_id, .. } => ("reaction.changed", Some(*channel_id)),
+        Event::Message(MessageEvent::Created { message, .. }) => {
+            ("message.created", Some(message.channel_id))
+        }
+        Event::Message(MessageEvent::Deleted { channel_id, .. }) => {
+            ("message.deleted", Some(*channel_id))
+        }
+        Event::Message(MessageEvent::ReactionsChanged { channel_id, .. }) => {
+            ("reaction.changed", Some(*channel_id))
+        }
         Event::MemberJoined(_) => ("member.joined", None),
         Event::MemberRemoved(_) => ("member.left", None),
         Event::VoiceSessionClosed { channel_id, .. } => ("voice.session.closed", Some(*channel_id)),
@@ -79,7 +85,7 @@ pub(super) async fn build(
     now_ms: i64,
 ) -> anyhow::Result<Vec<Built>> {
     Ok(match event {
-        Event::MessageCreated { message, .. } => {
+        Event::Message(MessageEvent::Created { message, .. }) => {
             let is_bot = match message.author_id {
                 Some(author) => store.user_profile(author).await?.is_some_and(|u| u.is_bot),
                 None => false,
@@ -98,11 +104,11 @@ pub(super) async fn build(
                 },
             }]
         }
-        Event::MessageDeleted {
+        Event::Message(MessageEvent::Deleted {
             channel_id,
             message_id,
             ..
-        } => vec![Built {
+        }) => vec![Built {
             id: format!("message-deleted:{message_id}"),
             created: None,
             at_ms: now_ms,
@@ -111,11 +117,11 @@ pub(super) async fn build(
                 channel_id: channel_id.to_string(),
             },
         }],
-        Event::ReactionsChanged {
+        Event::Message(MessageEvent::ReactionsChanged {
             channel_id,
             message_id,
             reactors,
-        } => {
+        }) => {
             let counts = reactors
                 .iter()
                 .map(|(emoji, who)| (emoji.clone(), i64::try_from(who.len()).unwrap_or(i64::MAX)))

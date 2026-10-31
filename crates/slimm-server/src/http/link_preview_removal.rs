@@ -16,7 +16,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::{Authed, enforce};
 use super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -73,11 +73,13 @@ async fn remove(
         .suppress_link_previews(channel_id, message_id, ctx.user_id)
         .await?
     {
-        state.hub.publish(Event::MessageLinkPreviewsRemoved {
-            channel_id,
-            message_id,
-            op_seq,
-        });
+        state
+            .hub
+            .publish(Event::Message(MessageEvent::LinkPreviewsRemoved {
+                channel_id,
+                message_id,
+                op_seq,
+            }));
     }
     Ok(StatusCode::NO_CONTENT)
 }

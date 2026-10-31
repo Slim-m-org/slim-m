@@ -27,7 +27,7 @@ use super::extract::{Authed, Json, enforce};
 use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::viewable_message::viewable_message;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -318,7 +318,7 @@ async fn create(
             poll.voted_ranking = None;
             poll
         });
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: Arc::new(sent.message.clone()),
             // A poll message carries no attachment, and forwards nothing.
             attachments: Arc::new(Vec::new()),
@@ -330,7 +330,7 @@ async fn create(
             call: None,
             components: std::sync::Arc::new(Vec::new()),
             lookups: Default::default(),
-        });
+        }));
         state.push.notify_message(
             state.store.clone(),
             crate::push::SentMessage {
@@ -396,11 +396,11 @@ async fn vote(
         Err(VoteError::Internal(e)) => return Err(e.into()),
     };
 
-    state.hub.publish(Event::PollVoted {
+    state.hub.publish(Event::Message(MessageEvent::PollVoted {
         channel_id,
         message_id,
         options: outcome.tally,
         runoff: outcome.runoff,
-    });
+    }));
     Ok(StatusCode::NO_CONTENT)
 }

@@ -11,7 +11,7 @@
 //! this handler turns the window into ids and hands them straight to
 //! [`Store::bulk_delete_messages`], the same validate-all-then-write
 //! transaction, the same one-audit-row-per-author, and the same one
-//! `Event::MessageDeleted` per message the id-list route publishes - see
+//! `MessageEvent::Deleted` per message the id-list route publishes - see
 //! that module's doc for why an aggregate event is not an option.
 //!
 //! Permission and reach are identical to the id-list route: `MANAGE_MESSAGES`

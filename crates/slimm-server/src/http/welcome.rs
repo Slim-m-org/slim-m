@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::message_mentions::resolve_and_store;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{MessageId, UserId};
 use crate::store::NewMessage;
 
@@ -61,7 +61,7 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
     {
         tracing::warn!(%err, "welcome stored, but its mentions failed");
     }
-    state.hub.publish(Event::MessageCreated {
+    state.hub.publish(Event::Message(MessageEvent::Created {
         message: Arc::new(sent.message),
         attachments: Arc::new(Vec::new()),
         forwarded: None,
@@ -72,7 +72,7 @@ async fn try_post(state: &AppState, user_id: UserId) -> anyhow::Result<()> {
         call: None,
         components: Arc::new(Vec::new()),
         lookups: Default::default(),
-    });
+    }));
     Ok(())
 }
 

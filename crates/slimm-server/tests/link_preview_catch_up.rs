@@ -5,7 +5,7 @@
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::RoleChanges;
@@ -139,7 +139,7 @@ async fn an_offline_client_learns_of_a_removal_from_sync() {
 
     let mut frame_ops = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let Event::MessageLinkPreviewsRemoved { op_seq, .. } = event {
+        if let Event::Message(MessageEvent::LinkPreviewsRemoved { op_seq, .. }) = event {
             frame_ops.push(op_seq);
         }
     }

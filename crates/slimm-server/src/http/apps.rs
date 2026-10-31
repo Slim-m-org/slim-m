@@ -31,7 +31,7 @@ use super::message_validation::validate_content;
 use super::messages::{MessageDto, parse_uuid};
 use super::module_commands::{ModuleInfoDto, reachable_extension_points};
 use super::post_commit::after_commit;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -204,7 +204,7 @@ async fn create(
         .next()
         .and_then(|(_, runs)| runs.into_iter().find(|r| r.block_index == 0));
 
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: Arc::new(sent.message.clone()),
             attachments: Arc::new(Vec::new()),
             forwarded: None,
@@ -215,7 +215,7 @@ async fn create(
             call: None,
             components: std::sync::Arc::new(Vec::new()),
             lookups: Default::default(),
-        });
+        }));
         state.push.notify_message(
             state.store.clone(),
             crate::push::SentMessage {

@@ -5,7 +5,7 @@
 
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 use tower::ServiceExt;
@@ -146,7 +146,7 @@ async fn author_and_moderator_may_remove_but_a_bystander_may_not() {
 
     let mut removed = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let Event::MessageLinkPreviewsRemoved { message_id, .. } = event {
+        if let Event::Message(MessageEvent::LinkPreviewsRemoved { message_id, .. }) = event {
             removed.push(message_id.to_string());
         }
     }

@@ -6,7 +6,7 @@
 //! their live frame and only appeared once they reopened it.
 //!
 //! See `crates/slimm-server/src/http/ws/message_frames.rs` and
-//! `crates/slimm-server/src/hub/event.rs::Event::MessageCreated`.
+//! `crates/slimm-server/src/hub/event.rs::MessageEvent::Created`.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};

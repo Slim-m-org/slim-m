@@ -110,7 +110,7 @@ impl CanvasOpDto {
     /// Builds one op's wire form, disclosing the actor only where the live
     /// path already would.
     ///
-    /// [`Event::CanvasObjectsRemoved`] omits the actor deliberately, "so a
+    /// [`CanvasEvent::ObjectsRemoved`] omits the actor deliberately, "so a
     /// moderation act does not name its moderator to the whole channel", and
     /// this feed handed the same channel exactly what that withholds - and
     /// more reliably, since a live frame is ephemeral and this is a durable

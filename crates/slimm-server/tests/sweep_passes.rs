@@ -5,7 +5,7 @@
 
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::media::Media;
 use slimm_server::store::{NewMessage, Store};
@@ -139,7 +139,7 @@ async fn the_retention_pass_announces_each_pruned_message_and_frees_its_file() {
 
     let mut deleted = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let Event::MessageDeleted { message_id, .. } = event {
+        if let Event::Message(MessageEvent::Deleted { message_id, .. }) = event {
             deleted.push(message_id);
         }
     }

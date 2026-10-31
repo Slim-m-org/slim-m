@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! `Event::MessageUnpinned` on the message-delete path (MOD12).
+//! `MessageEvent::Unpinned` on the message-delete path (MOD12).
 //!
 //! Split out of `pins.rs` to stay under the file budget: the DB trigger in
 //! `0009_pins.sql` already drops a pinned message's row the instant it is
@@ -11,7 +11,7 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
@@ -101,7 +101,8 @@ async fn deleting_a_pinned_message_publishes_message_unpinned() {
     let target = MessageId(Uuid::parse_str(&message_id).unwrap());
     let mut unpinned = false;
     while let Ok(event) = rx.try_recv() {
-        if matches!(event, Event::MessageUnpinned { message_id, .. } if message_id == target) {
+        if matches!(event, Event::Message(MessageEvent::Unpinned { message_id, .. }) if message_id == target)
+        {
             unpinned = true;
         }
     }
@@ -150,7 +151,7 @@ async fn deleting_an_unpinned_message_publishes_no_message_unpinned() {
 
     while let Ok(event) = rx.try_recv() {
         assert!(
-            !matches!(event, Event::MessageUnpinned { .. }),
+            !matches!(event, Event::Message(MessageEvent::Unpinned { .. })),
             "an unpinned message's delete must not publish MessageUnpinned"
         );
     }
