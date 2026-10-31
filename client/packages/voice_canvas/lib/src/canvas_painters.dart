@@ -26,18 +26,12 @@ import 'package:flutter/rendering.dart';
 
 import 'canvas_document.dart';
 import 'canvas_ink_cache.dart';
+import 'canvas_object_painter.dart';
 import 'canvas_snap.dart' show gridSpacingFor;
-import 'canvas_text_box.dart';
-import 'note_label_cache.dart';
 
 export 'canvas_live_painters.dart';
 
-/// A note's and a shape's own paint methods, plus the arrowhead's pure
-/// geometry: split out once they pushed this file past the 300-line review
-/// budget, the same `part of` shape `canvas_document_selection.dart` and
-/// `canvas_ops_controller_reorder.dart` already use for a class that grew a
-/// second cohesive group of methods rather than a second class.
-part 'canvas_painters_shapes.dart';
+export 'canvas_object_painter.dart' hide ObjectPainter;
 
 /// The background lattice, at a spacing quantised to the zoom so the mesh
 /// keeps roughly the same density on screen at any scale.
@@ -114,15 +108,8 @@ class GridPainter extends CustomPainter {
       !identical(oldDelegate.document, document);
 }
 
-/// The thinnest a stroke is ever painted, in screen pixels, so ink drawn while
-/// zoomed in stays visible to someone viewing the whole board.
-const double minInkScreenPx = 1.5;
-
 /// How faded ink paints while its save is being retried.
 const double _unsavedInkAlpha = 0.45;
-
-/// Styles a note's text: markdown, mentions and emoji as spans over [base].
-typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
 
 /// The committed ink.
 class StrokePainter extends CustomPainter {
@@ -182,7 +169,15 @@ class StrokePainter extends CustomPainter {
   /// choice `CanvasSurface.selectionOutline` already makes.
   final List<BoxShadow> elevationShadow;
 
-  final NoteLabelCache _noteLabels = NoteLabelCache();
+  late final ObjectPainter _objects = ObjectPainter(
+    ink: ink,
+    inkColors: inkColors,
+    textInk: textInk,
+    textFontFamily: textFontFamily,
+    noteSpans: noteSpans,
+    noteSpansRevision: noteSpansRevision,
+    elevationShadow: elevationShadow,
+  );
   late final InkLayerCache _ink = InkLayerCache(
     onSettle: () {
       if (!document.isDisposed) document.refresh();
@@ -199,12 +194,12 @@ class StrokePainter extends CustomPainter {
   /// teardown hook of its own, so the owning surface calls this from its own
   /// `dispose`.
   void dispose() {
-    _noteLabels.dispose();
+    _objects.noteLabels.dispose();
     _ink.dispose();
   }
 
   @visibleForTesting
-  int get debugNoteLabelCacheSize => _noteLabels.size;
+  int get debugNoteLabelCacheSize => _objects.noteLabels.size;
 
   @visibleForTesting
   bool get debugHasInkTexture => _ink.hasImage;
@@ -228,7 +223,7 @@ class StrokePainter extends CustomPainter {
       return;
     }
     // Reconcile every frame so a note culled or removed since the last paint drops its cached text.
-    _noteLabels.retain(_paintSlots(canvas, camera, order, elevated));
+    _objects.noteLabels.retain(_paintSlots(canvas, camera, order, elevated));
     if (!_builtThisFrame && _ink.fits(size, devicePixelRatio)) {
       _ink.settleSoon();
     }
@@ -268,7 +263,7 @@ class StrokePainter extends CustomPainter {
             noteIds.addAll(_paintSlots(c, cam, slots, elevated)),
       );
       _builtThisFrame = true;
-      if (built) _noteLabels.retain(noteIds);
+      if (built) _objects.noteLabels.retain(noteIds);
       ok = built && usable();
     }
     if (!ok) return false;
@@ -302,7 +297,7 @@ class StrokePainter extends CustomPainter {
           continue;
         case CanvasObjectKind.note:
           noteIds.add(stroke.id);
-          _paintNote(
+          _objects.paintNote(
             canvas,
             stroke,
             camera,
@@ -311,7 +306,7 @@ class StrokePainter extends CustomPainter {
           );
           continue;
         case CanvasObjectKind.shape:
-          _paintShape(
+          _objects.paintShape(
             canvas,
             stroke,
             camera,
@@ -321,7 +316,7 @@ class StrokePainter extends CustomPainter {
           continue;
         case CanvasObjectKind.text:
           noteIds.add(stroke.id);
-          _paintText(canvas, stroke, camera);
+          _objects.paintText(canvas, stroke, camera);
           continue;
         case CanvasObjectKind.stroke:
           break;
@@ -363,7 +358,7 @@ class StrokePainter extends CustomPainter {
       stroke.w * camera.zoom,
       stroke.h * camera.zoom,
     );
-    if (elevated) _paintElevation(canvas, dst);
+    if (elevated) _objects.paintElevation(canvas, dst);
     final bitmap = stroke.image;
     if (bitmap == null) {
       if (stroke.imageLoadFailed) _paintImagePlaceholder(canvas, dst);
@@ -381,19 +376,6 @@ class StrokePainter extends CustomPainter {
   /// Shared across images and repaints; nothing about it varies per image.
   static final Paint _imagePaint = Paint()
     ..filterQuality = FilterQuality.medium;
-
-  /// Drawn first, since a shadow always sits behind whatever casts it -
-  /// before the bitmap or the placeholder, both of which paint over it.
-  /// Applies regardless of which of those two the image is currently
-  /// showing, so a drag started before a decode lands still reads as lifted.
-  void _paintElevation(Canvas canvas, Rect box) {
-    for (final shadow in elevationShadow) {
-      canvas.drawRect(
-        box.shift(shadow.offset).inflate(shadow.spreadRadius),
-        shadow.toPaint(),
-      );
-    }
-  }
 
   /// A muted box plus a broken-picture glyph (a small square with a
   /// diagonal tear), never colour alone: the same "never one channel alone"

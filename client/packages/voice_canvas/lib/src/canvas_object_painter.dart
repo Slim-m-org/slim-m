@@ -1,11 +1,43 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'canvas_painters.dart';
+import 'dart:math' as math;
 
-/// [StrokePainter]'s note and shape paint methods. An extension in a `part
-/// of` file, not a second class, since both still need [StrokePainter]'s own
-/// private fields (`textInk`, `textFontFamily`) and are called from its
-/// `paint` method's own switch.
-extension _StrokePainterShapes on StrokePainter {
+import 'package:flutter/rendering.dart';
+
+import 'canvas_document.dart';
+import 'canvas_text_box.dart';
+import 'note_label_cache.dart';
+
+/// The thinnest a stroke is ever painted, in screen pixels, so ink drawn while
+/// zoomed in stays visible to someone viewing the whole board.
+const double minInkScreenPx = 1.5;
+
+/// Styles a note's text: markdown, mentions and emoji as spans over [base].
+typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
+
+/// Paints notes, text boxes and shapes for a [StrokePainter], which owns the
+/// colours and fonts and hands them in; the paints below are static so a
+/// repaint per frame allocates none.
+class ObjectPainter {
+  ObjectPainter({
+    required this.ink,
+    required this.inkColors,
+    required this.textInk,
+    required this.textFontFamily,
+    required this.noteSpans,
+    required this.noteSpansRevision,
+    required this.elevationShadow,
+  });
+
+  final Color ink;
+  final Map<String, Color> inkColors;
+  final Color textInk;
+  final String? textFontFamily;
+  final NoteSpanBuilder? noteSpans;
+  final int noteSpansRevision;
+  final List<BoxShadow> elevationShadow;
+
+  final NoteLabelCache noteLabels = NoteLabelCache();
+
   /// Reused across objects and repaints, recoloured per object: `paint()`
   /// visits every note and shape on each repaint, including every frame of a
   /// pan or zoom, so a fresh Paint per object was a steady per-frame churn
@@ -28,7 +60,7 @@ extension _StrokePainterShapes on StrokePainter {
   /// own `pad`-offset origin, so a bottom margin reads the same as the top
   /// rather than the text running up to a boundary tighter than its own
   /// [noteMaxLines]-bounded layout was ever going to reach.
-  void _paintNote(
+  void paintNote(
     Canvas canvas,
     CanvasStroke stroke,
     Camera camera,
@@ -41,7 +73,7 @@ extension _StrokePainterShapes on StrokePainter {
       stroke.w * camera.zoom,
       stroke.h * camera.zoom,
     );
-    if (elevated) _paintElevation(canvas, box);
+    if (elevated) paintElevation(canvas, box);
     final rounded = RRect.fromRectAndRadius(box, const Radius.circular(6));
     canvas.drawRRect(
       rounded,
@@ -58,7 +90,7 @@ extension _StrokePainterShapes on StrokePainter {
       return;
     }
     // Laid out in world units: the wrap and the line budget are the same on every viewer's screen, and a zoom only scales the result.
-    final painter = _noteLabels.painterFor(
+    final painter = noteLabels.painterFor(
       stroke.id,
       (text, stroke.w, stroke.h, noteSpansRevision, fontSize),
       () => TextPainter(
@@ -88,7 +120,7 @@ extension _StrokePainterShapes on StrokePainter {
   }
 
   /// A text box: glyphs only, in the box's own colour, wrapped at its width and clipped to its height.
-  void _paintText(
+  void paintText(
     Canvas canvas,
     CanvasStroke stroke,
     Camera camera,
@@ -103,7 +135,7 @@ extension _StrokePainterShapes on StrokePainter {
       return;
     }
     // A text box's layout does not depend on its height, so the key's height slot is 0 and its colour rides in the revision slot.
-    final painter = _noteLabels.painterFor(
+    final painter = noteLabels.painterFor(
       stroke.id,
       (text, stroke.w, 0, stroke.colorKey.hashCode, fontSize),
       () => TextPainter(
@@ -153,7 +185,7 @@ extension _StrokePainterShapes on StrokePainter {
   /// arrowhead both scale with zoom the way a pen stroke's width already
   /// does, rather than staying a fixed screen-space thickness regardless of
   /// how large the shape has been zoomed.
-  void _paintShape(
+  void paintShape(
     Canvas canvas,
     CanvasStroke stroke,
     Camera camera,
@@ -161,7 +193,7 @@ extension _StrokePainterShapes on StrokePainter {
     required bool elevated,
   }) {
     if (elevated) {
-      _paintElevation(
+      paintElevation(
         canvas,
         Rect.fromLTWH(
           (stroke.x - camera.x) * camera.zoom,
@@ -218,6 +250,16 @@ extension _StrokePainterShapes on StrokePainter {
     final (left, right) = arrowheadWings(from, to, headLength: headLength);
     canvas.drawLine(to, left, paint);
     canvas.drawLine(to, right, paint);
+  }
+
+  /// Drawn first, since a shadow always sits behind whatever casts it.
+  void paintElevation(Canvas canvas, Rect box) {
+    for (final shadow in elevationShadow) {
+      canvas.drawRect(
+        box.shift(shadow.offset).inflate(shadow.spreadRadius),
+        shadow.toPaint(),
+      );
+    }
   }
 }
 
