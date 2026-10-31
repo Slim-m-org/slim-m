@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'events.dart';
+library;
+
+import 'events.dart';
+import 'models.dart';
 
 /// Voice Canvas frames.
-ServerEvent? _canvasFrame(Map<String, dynamic> decoded) =>
+ServerEvent? canvasFrame(Map<String, dynamic> decoded) =>
     _canvasObjectFrame(decoded) ??
     _canvasLiveFrame(decoded) ??
     _canvasEditFrame(decoded);
