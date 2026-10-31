@@ -163,7 +163,7 @@ fn detail(route: &AuditedRoute, mut params: Map<String, Value>, body: Option<&Va
         {
             detail.insert("prefix".into(), Value::from(prefix.trim()));
         }
-        if route.action == "module.install" {
+        if route.action == "module.install" || route.action == "module.install_file" {
             insert_approvals(&mut detail, fields);
         }
     }

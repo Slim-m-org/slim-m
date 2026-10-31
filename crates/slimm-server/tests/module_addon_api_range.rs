@@ -51,6 +51,7 @@ async fn install_ranged(w: &World, id: &str, max: Option<u32>) {
             },
             &wasm,
             &DockProvenance {
+                manifest_json: None,
                 host_capabilities: &[],
                 source_repo: None,
                 network_hosts: &[],

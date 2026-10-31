@@ -92,6 +92,19 @@ pub(crate) fn surface_for(
     surface_posting_as(state, module, user_id, channel, false)
 }
 
+/// The surface for a run the host starts (an event or a timer): the module's
+/// own principal in its schedule channel when it has one, else nowhere.
+pub(crate) fn background_surface(
+    state: &AppState,
+    module: &InstalledModule,
+    bot: UserId,
+) -> CapabilitySurface {
+    match module.schedule_channel_id {
+        Some(channel) => scheduled_surface(state, module, bot, channel),
+        None => surface_posting_as(state, module, bot, None, true),
+    }
+}
+
 /// The surface for a scheduled run: it posts as the module's own principal
 /// into the channel the admin chose, marked as a background post.
 pub(crate) fn scheduled_surface(

@@ -55,6 +55,7 @@ JOBS=(
   "db-reset-notice|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_db_reset_notice_test.dart"
   "dock-sources|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_dock_sources_test.dart"
   "dock-settings|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_dock_settings_test.dart"
+  "dock-file|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_dock_file_test.dart"
   "fullscreen-viewer|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_fullscreen_viewer_test.dart"
   "hold-music|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_hold_music_test.dart"
   "dock-music|screens|client/packages/app|SLIMM_UI_SNAPSHOTS|build/ui-snapshots|test/snapshots/ui_snapshot_dock_music_test.dart"

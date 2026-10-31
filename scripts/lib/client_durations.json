@@ -1593,5 +1593,7 @@
 "test/gates/whats_new_gate_test.dart": 0.8,
 "test/whats_new/whats_new_scroll_affordance_test.dart": 0.9,
 "test/desktop/windows_install_offer_test.dart": 0.7,
-"test/gates/wording_gate_test.dart": 0.5
+"test/gates/wording_gate_test.dart": 0.5,
+"test/features/modules/dock_file_install_test.dart": 1.0,
+"test/snapshots/ui_snapshot_dock_file_test.dart": 1.5
 }

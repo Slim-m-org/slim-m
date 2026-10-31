@@ -12,6 +12,8 @@
 //! fixed host this Dock is configured with; `wire.rs` holds the DTOs.
 
 mod capabilities;
+mod dock_install;
+mod dock_package;
 mod fetch;
 pub(super) mod keywords;
 mod manifest;
@@ -30,10 +32,10 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::request::Parts;
 use axum::routing::{get, post};
-use serde::Deserialize;
 use url::Url;
 
-use self::dock_fetch::{fetch_artifact, fetch_index, fetch_manifest, pinned_origin};
+use self::dock_fetch::{fetch_index, fetch_manifest, pinned_origin};
+use self::dock_install::{ArtifactSource, InstallRequest, install_manifest};
 use self::dock_lifecycle::{clear_storage, disable, enable, list_installed, uninstall};
 use self::dock_settings::{get_settings, put_settings};
 use self::dock_sources::{add_source, list_sources, remove_source};
@@ -41,19 +43,10 @@ use super::AppState;
 use super::error::ApiError;
 use super::extract::require_manage_server;
 use super::extract::{Authed, Json, enforce};
-use super::{module_events, module_host};
 use crate::config::Config;
 use crate::ratelimit::Class;
-use crate::store::{
-    DockProvenance, InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec,
-    ModuleRuntimeLimits, ModuleSchedule,
-};
 
-use capabilities::{
-    approvable_host_capabilities, carried_host_capabilities, local_network_approval,
-};
 use fetch::FetchError;
-use keywords::ensure_slash_keywords_free;
 use manifest::{Manifest, ManifestError, validate_slug};
 use sources::SourceQuery;
 use wire::{IndexEntryDto, InstalledModuleDto, ManifestDto};
@@ -261,6 +254,7 @@ pub fn routes() -> Router<AppState> {
             axum::routing::delete(remove_source),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
+        .merge(dock_package::routes())
         .route(
             "/space/dock/modules/{id}/settings",
             get(get_settings)
@@ -346,34 +340,15 @@ async fn get_module(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     validate_module_id(&id)?;
+    if query.source.as_deref() == Some(sources::FILE_ID) {
+        let (manifest, _) = dock_package::stored_file_module(&state, &id).await?;
+        return Ok(Json(ManifestDto::from(manifest)));
+    }
     let dock = state.dock.enabled()?;
     let resolved = sources::resolve(&state, dock, query.source.as_deref()).await?;
     let origin = pinned_origin(dock, &resolved.origin, &id).await?;
     let manifest = fetch_manifest(dock, &origin, &id).await?;
     Ok(Json(ManifestDto::from(manifest)))
-}
-
-#[derive(Deserialize)]
-struct InstallRequest {
-    /// The version the admin reviewed in the Dock before installing. Checked
-    /// against the freshly re-fetched manifest's own `version` so a race
-    /// with an upstream release cannot install something nobody reviewed.
-    version: String,
-    /// The host capabilities the admin approved after seeing them listed
-    /// (decision 0023). Each must be one the manifest declared and the host
-    /// implements. Omitted keeps what was approved before, minus anything the
-    /// new manifest no longer declares, and never adds one; an empty list
-    /// withdraws every approval.
-    #[serde(default)]
-    approved_host_capabilities: Option<Vec<String>>,
-    /// The second, separate approval for `net.fetch` to reach local network
-    /// addresses. Omitted keeps an earlier approval for the same hosts.
-    #[serde(default)]
-    approve_local_network: Option<bool>,
-    /// The `review_digest` of the manifest the admin was shown. Refused when
-    /// the manifest has changed since, so consent is for what was reviewed.
-    #[serde(default)]
-    reviewed_digest: Option<String>,
 }
 
 async fn install(
@@ -387,118 +362,23 @@ async fn install(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     require_manage_server(&state, ctx.user_id).await?;
     validate_module_id(&id)?;
+    if query.source.as_deref() == Some(sources::FILE_ID) {
+        let (manifest, wasm) = dock_package::stored_file_module(&state, &id).await?;
+        let artifact = ArtifactSource::Bytes(wasm);
+        return install_manifest(&state, &manifest, artifact, &req, Some(sources::FILE_REPO))
+            .await
+            .map(Json);
+    }
     let dock = state.dock.enabled()?;
     let resolved = sources::resolve(&state, dock, query.source.as_deref()).await?;
     sources::check_id_free(&state, dock, &resolved, &id).await?;
     let origin = pinned_origin(dock, &resolved.origin, &id).await?;
     let manifest = fetch_manifest(dock, &origin, &id).await?;
-    if manifest.version != req.version {
-        return Err(ApiError::Conflict(
-            "the module's current version no longer matches the one requested; reopen it in the Dock",
-        ));
-    }
-    if req
-        .reviewed_digest
-        .as_deref()
-        .is_some_and(|reviewed| reviewed != manifest.review_digest())
-    {
-        return Err(ApiError::Conflict(
-            "the module changed since you reviewed it; reopen it in the Dock",
-        ));
-    }
-    let approved_host = match &req.approved_host_capabilities {
-        Some(requested) => approvable_host_capabilities(&manifest, requested)?,
-        None => carried_host_capabilities(&state, &manifest).await?,
+    let artifact = ArtifactSource::Fetch {
+        dock,
+        origin: &origin,
     };
-    let local_network =
-        local_network_approval(&state, &manifest, &approved_host, req.approve_local_network)
-            .await?;
-    let network_hosts: &[String] = if approved_host.iter().any(|c| c == manifest::NET_FETCH) {
-        &manifest.network.hosts
-    } else {
-        &[]
-    };
-    if state
-        .store
-        .installed_module(&id)
-        .await?
-        .is_some_and(|m| m.enabled)
-    {
-        let keywords = manifest
-            .extension_points
-            .iter()
-            .filter(|e| e.kind == "slash-command")
-            .map(|e| e.name.as_str());
-        ensure_slash_keywords_free(&state, &id, keywords).await?;
-    }
-    module_data::check(&state, &manifest, &approved_host).await?;
-    let artifact = fetch_artifact(dock, &origin, &manifest).await?;
-
-    let permissions: Vec<ModulePermissionSpec> = manifest
-        .permissions
-        .iter()
-        .map(|p| ModulePermissionSpec {
-            key: &p.key,
-            name: &p.name,
-            description: &p.description,
-        })
-        .collect();
-    let extension_points: Vec<ModuleExtensionPointSpec> =
-        manifest.extension_points.iter().map(Into::into).collect();
-    let schedules: Vec<ModuleSchedule> = manifest
-        .schedules
-        .iter()
-        .map(|s| ModuleSchedule {
-            command: s.command.clone(),
-            every_minutes: s.every_minutes,
-        })
-        .collect();
-    let runtime_limits = ModuleRuntimeLimits {
-        memory_mb: manifest.runtime.limits.memory_mb,
-        wall_ms: manifest.runtime.limits.wall_ms,
-        fuel: manifest.runtime.limits.fuel,
-    };
-    let installed = state
-        .store
-        .install_module_from_dock(
-            InstallModuleRequest {
-                id: &manifest.id,
-                name: &manifest.name,
-                version: &manifest.version,
-                artifact_sha256: &manifest.artifact.sha256,
-                approved_capabilities: &manifest.capabilities,
-                runtime_limits: &runtime_limits,
-                permissions: &permissions,
-                extension_points: &extension_points,
-            },
-            &artifact,
-            &DockProvenance {
-                host_capabilities: &approved_host,
-                source_repo: resolved.repo.as_deref(),
-                network_hosts,
-                local_network_approved: local_network,
-                schedules: &schedules,
-                platform: &manifest.platform,
-            },
-        )
-        .await?;
-    module_data::apply(&state, &manifest, &approved_host).await?;
-    state.dock.slot_cache().invalidate_module(&installed.id);
-    let installed = if module_host::schedule_approved(&installed)
-        || module_events::events_approved(&installed)
-        || module_host::logs_approved(&installed)
-    {
-        state
-            .store
-            .ensure_module_bot(&installed.id, &installed.name)
-            .await?;
-        state
-            .store
-            .installed_module(&installed.id)
-            .await?
-            .ok_or(ApiError::Internal)?
-    } else {
-        installed
-    };
-    Ok(Json(InstalledModuleDto::from(installed)))
+    install_manifest(&state, &manifest, artifact, &req, resolved.repo.as_deref())
+        .await
+        .map(Json)
 }

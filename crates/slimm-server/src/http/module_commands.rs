@@ -42,6 +42,7 @@ use super::dock::validate_module_id;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE};
 use super::module_host;
+use super::module_run::RunContext;
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -78,6 +79,10 @@ struct RunCommandRequest {
     /// Without it the run is not offered `message.post`.
     #[serde(default)]
     channel_id: Option<String>,
+    /// The voice channel the member is in, so a module can keep state per call.
+    /// Only passed on when the member really is in it.
+    #[serde(default)]
+    voice_channel_id: Option<String>,
     /// Post the output into `channel_id` as the member, labelled as the
     /// module's, instead of handing it back. Needs `channel_id`.
     #[serde(default)]
@@ -169,19 +174,46 @@ pub(crate) async fn execute_command(
     module_id: &str,
     command: &str,
     input: &str,
+    surface_channel: ChannelId,
 ) -> Result<CommandOutcome, ApiError> {
-    execute_command_in(state, user_id, module_id, command, input, None).await
+    let context = RunContext {
+        channel: Some(surface_channel),
+        voice_channel: None,
+    };
+    execute_gated(state, user_id, (module_id, command, input), None, context).await
 }
 
 /// [`execute_command`] for a command the invoker composed themselves in
 /// `channel`, which is the only channel a `message.post` may target.
+/// `voice_channel` is the voice channel the invoker says they are in; the
+/// module is told it only when the host can confirm it.
 pub(crate) async fn execute_command_in(
     state: &AppState,
     user_id: UserId,
-    module_id: &str,
-    command: &str,
-    input: &str,
+    (module_id, command, input): (&str, &str, &str),
     channel: Option<ChannelId>,
+    voice_channel: Option<ChannelId>,
+) -> Result<CommandOutcome, ApiError> {
+    let context = RunContext {
+        channel,
+        voice_channel: voice_channel.filter(|id| state.voice.has_heartbeat(user_id, *id)),
+    };
+    execute_gated(
+        state,
+        user_id,
+        (module_id, command, input),
+        channel,
+        context,
+    )
+    .await
+}
+
+async fn execute_gated(
+    state: &AppState,
+    user_id: UserId,
+    (module_id, command, input): (&str, &str, &str),
+    channel: Option<ChannelId>,
+    context: RunContext,
 ) -> Result<CommandOutcome, ApiError> {
     validate_module_id(module_id)?;
     validate_command_name(command)?;
@@ -209,6 +241,7 @@ pub(crate) async fn execute_command_in(
         command,
         input,
         kind: super::module_run::RunKind::Command,
+        context,
     };
     super::module_run::run_installed(state, &module, &request, surface).await
 }
@@ -275,13 +308,17 @@ async fn run_command(
             .as_deref()
             .map(|raw| super::messages::parse_uuid(raw).map(ChannelId))
             .transpose()?;
+        let voice_channel = req
+            .voice_channel_id
+            .as_deref()
+            .map(|raw| super::messages::parse_uuid(raw).map(ChannelId))
+            .transpose()?;
         execute_command_in(
             &state,
             ctx.user_id,
-            &module_id,
-            &command,
-            &req.input,
+            (&module_id, &command, &req.input),
             channel,
+            voice_channel,
         )
         .await?
     };

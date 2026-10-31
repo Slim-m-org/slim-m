@@ -199,12 +199,16 @@ pub(super) struct Manifest {
     pub(super) changelog: Vec<ChangelogEntry>,
     pub(super) platform: ModulePlatform,
     pub(super) data: Option<crate::module_runtime::DataSchema>,
+    /// The text it was parsed from, kept so an install can be exported unchanged.
+    pub(super) raw_json: String,
 }
 
 pub(super) fn parse_manifest(bytes: &[u8]) -> Result<Manifest, ManifestError> {
     let raw: RawManifest = serde_json::from_slice(bytes)
         .map_err(|e| malformed(&format!("invalid manifest.json: {e}")))?;
-    validate_manifest(raw)
+    let mut manifest = validate_manifest(raw)?;
+    manifest.raw_json = String::from_utf8_lossy(bytes).into_owned();
+    Ok(manifest)
 }
 
 fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
@@ -301,6 +305,7 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
         platform,
         capabilities,
         extension_points,
+        raw_json: String::new(),
     })
 }
 

@@ -9816,6 +9816,109 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/packages/preview:
+    post:
+      operationId: previewDockPackage
+      tags: [space]
+      summary: Read a module package file before installing it. Requires MANAGE_SERVER.
+      description: >
+        Runs the Dock's own manifest validation and checks the artifact against
+        the sha256 the manifest names, then answers with the manifest the
+        consent screen shows. Installs nothing. A package that is malformed,
+        over the size ceiling (16 MiB of module) or does not match its manifest
+        is refused with 400, naming the reason.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DockPackage"
+      responses:
+        "200":
+          description: The manifest the package carries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DockManifest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/packages/install:
+    post:
+      operationId: installDockPackage
+      tags: [space]
+      summary: Install a module from a package file. Requires MANAGE_SERVER.
+      description: >
+        The same checks and approvals as an install from a source, with the
+        package in the body instead of a fetch. The module is recorded with the
+        source local/file and is never verified. Refuses (409) an id another
+        source already owns. Off (disabled) until a separate enable call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/InstallDockModuleRequest"
+                - type: object
+                  required: [package]
+                  properties:
+                    package:
+                      $ref: "#/components/schemas/DockPackage"
+      responses:
+        "200":
+          description: The installed module.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstalledDockModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/export:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: exportDockModule
+      tags: [space]
+      summary: Export an installed module as one package file. Requires MANAGE_SERVER.
+      description: >
+        The manifest as it was reviewed and the artifact, and nothing else: no
+        setting values, no secrets, no module data. 409 for a module installed
+        before exports existed; reinstalling it fixes that.
+      responses:
+        "200":
+          description: The package.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DockPackage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/enable:
     parameters:
       - name: moduleId
@@ -12912,6 +13015,20 @@ components:
             The `review_digest` of the manifest the admin was shown. The
             install is refused with 409 if the manifest has changed since.
             Omitted skips the check.
+    DockPackage:
+      type: object
+      required: ["$slim", manifest, artifact]
+      properties:
+        "$slim":
+          type: string
+          enum: [module-package/1]
+        manifest:
+          type: object
+          additionalProperties: true
+          description: The module's manifest.json, exactly as reviewed.
+        artifact:
+          type: string
+          description: The wasm module, base64. At most 16 MiB once decoded.
     InstalledDockModule:
       type: object
       required:
@@ -13145,6 +13262,13 @@ components:
           description: >
             The channel the command was typed in. Only a run that names one
             may use the message.post capability, and it may post only there.
+            The run is also told this channel as `context.channel_id`.
+        voice_channel_id:
+          type: string
+          description: >
+            The voice channel the caller is in. The run is told it as
+            `context.voice_channel_id` only when the server can confirm the
+            caller is in that call; otherwise it is dropped silently.
         post_output:
           type: boolean
           description: >

@@ -60,6 +60,7 @@ class DockManifestView extends StatelessWidget {
     this.scheduleChannels = const [],
     this.onScheduleChannel,
     this.onClearStorage,
+    this.onExport,
     this.sourceRepo,
     this.verified = false,
   });
@@ -92,6 +93,9 @@ class DockManifestView extends StatelessWidget {
 
   /// Empties the module's stored data; the card offers it when there is some.
   final VoidCallback? onClearStorage;
+
+  /// Saves the module as a package file.
+  final VoidCallback? onExport;
   final void Function(String capability, bool approved) onToggleHostCapability;
   final bool busy;
   final String? error;
@@ -136,9 +140,11 @@ class DockManifestView extends StatelessWidget {
           const SizedBox(height: AppSpacing.s8),
           AppBadge(
             variant: AppBadgeVariant.warn,
-            label: sourceRepo == 'local/dev'
-                ? 'Not verified, local'
-                : 'Community source: $sourceRepo',
+            label: switch (sourceRepo) {
+              'local/dev' => 'Not verified, local',
+              api.kFileDockRepo => 'Not verified, from a file',
+              _ => 'Community source: $sourceRepo',
+            },
           ),
         ],
         const SizedBox(height: AppSpacing.s12),
@@ -205,6 +211,7 @@ class DockManifestView extends StatelessWidget {
           onSetEnabled: onSetEnabled,
           onUninstall: onUninstall,
           onChooseAccess: onChooseAccess,
+          onExport: onExport,
         ),
         if (error != null) ...[
           const SizedBox(height: AppSpacing.s8),
@@ -279,11 +286,13 @@ class _ActionsCard extends StatelessWidget {
     required this.onSetEnabled,
     required this.onUninstall,
     required this.onChooseAccess,
+    required this.onExport,
   });
 
   final api.DockManifest manifest;
   final api.InstalledDockModule? installed;
   final bool hostAccessChanged;
+  final VoidCallback? onExport;
   final bool busy;
   final VoidCallback onInstall;
   final ValueChanged<bool> onSetEnabled;
@@ -356,6 +365,18 @@ class _ActionsCard extends StatelessWidget {
                   size: AppButtonSize.sm,
                   disabled: busy,
                   onPressed: onChooseAccess,
+                ),
+              ),
+            if (onExport != null)
+              SettingsActionRow(
+                message: 'Save it as a file, without its settings or data.',
+                action: AppButton(
+                  label: 'Export',
+                  icon: AppIcons.download,
+                  variant: AppButtonVariant.secondary,
+                  size: AppButtonSize.sm,
+                  disabled: busy,
+                  onPressed: onExport,
                 ),
               ),
             SettingsActionRow(

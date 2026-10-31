@@ -25,10 +25,12 @@ pub(super) mod module_permissions;
 pub(super) mod module_schedule;
 pub(super) mod module_settings;
 pub(super) mod module_stats;
+pub(super) mod module_timers;
 pub(super) mod platform;
 
 use self::module_metadata::insert_module_metadata;
 pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook};
+pub use module_timers::{DueTimer, TimerSpec};
 use platform::write_platform;
 pub use platform::{ModulePlatform, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind};
 
@@ -155,6 +157,8 @@ pub struct DockProvenance<'a> {
     pub local_network_approved: bool,
     pub schedules: &'a [ModuleSchedule],
     pub platform: &'a ModulePlatform,
+    /// The manifest as the admin reviewed it, so the install can be exported.
+    pub manifest_json: Option<&'a str>,
 }
 
 struct ModuleRow {
@@ -303,11 +307,27 @@ impl Store {
         .execute(&mut *tx)
         .await?;
         write_platform(&mut tx, req.id, provenance.platform).await?;
+        sqlx::query("UPDATE installed_modules SET manifest_json = ? WHERE id = ?")
+            .bind(provenance.manifest_json)
+            .bind(req.id)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         self.touch_modules();
         self.installed_module(req.id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
+    }
+
+    /// The manifest an installed module was approved from, when it was kept.
+    pub async fn module_manifest_json(&self, id: &str) -> anyhow::Result<Option<String>> {
+        Ok(
+            sqlx::query_scalar("SELECT manifest_json FROM installed_modules WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await?
+                .flatten(),
+        )
     }
 
     /// One installed module, or `None` if it is not (or no longer) installed.

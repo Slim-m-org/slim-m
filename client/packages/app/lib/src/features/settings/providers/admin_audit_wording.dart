@@ -178,6 +178,7 @@ class _Describer {
     'emoji.bulk_create' => 'added several emoji',
     'emoji.delete' => 'deleted ${_emoji()}',
     'module.install' => _install(),
+    'module.install_file' => 'installed a module from a file',
     'module.uninstall' => 'removed ${_module()}',
     'module.enable' => 'turned on ${_module()}',
     'module.disable' => 'turned off ${_module()}',

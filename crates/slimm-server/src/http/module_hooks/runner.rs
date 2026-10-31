@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use super::registry::Entry;
 use crate::http::AppState;
-use crate::http::module_run::{RunKind, RunRequest, run_installed};
+use crate::http::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::UserId;
 use crate::module_runtime::CapabilitySurface;
 
@@ -31,6 +31,7 @@ pub(super) async fn run(
         command,
         input,
         kind: RunKind::Hook,
+        context: RunContext::default(),
     };
     let run = run_installed(state, &entry.module, &request, CapabilitySurface::Disabled);
     match tokio::time::timeout(remaining, run).await {

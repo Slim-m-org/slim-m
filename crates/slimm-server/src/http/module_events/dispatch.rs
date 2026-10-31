@@ -6,10 +6,9 @@ use std::sync::Arc;
 use super::events_approved;
 use super::queue::{Job, Queues};
 use crate::http::AppState;
-use crate::http::module_host::{scheduled_surface, surface_posting_as};
-use crate::http::module_run::{RunKind, RunRequest, run_installed};
+use crate::http::module_host::background_surface;
+use crate::http::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::UserId;
-use crate::module_runtime::CapabilitySurface;
 use crate::permissions::Permissions;
 use crate::store::InstalledModule;
 
@@ -110,21 +109,14 @@ async fn deliver(state: &AppState, module: &InstalledModule, job: &Job) {
         command: EVENT_COMMAND,
         input: &job.body,
         kind: RunKind::Background,
+        context: RunContext::default(),
     };
-    let surface = event_surface(state, module, bot);
+    let surface = background_surface(state, module, bot);
     match run_installed(state, module, &request, surface).await {
         Ok(outcome) if outcome.ok => {}
         Ok(outcome) => {
             tracing::info!(module = %module.id, event = job.kind, error = %outcome.payload, "module event run failed");
         }
         Err(_) => tracing::warn!(module = %module.id, event = job.kind, "module event run refused"),
-    }
-}
-
-/// Posts as the module's principal into its schedule channel when it has one, else nowhere.
-fn event_surface(state: &AppState, module: &InstalledModule, bot: UserId) -> CapabilitySurface {
-    match module.schedule_channel_id {
-        Some(channel) => scheduled_surface(state, module, bot, channel),
-        None => surface_posting_as(state, module, bot, None, true),
     }
 }

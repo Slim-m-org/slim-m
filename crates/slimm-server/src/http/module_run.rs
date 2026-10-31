@@ -14,7 +14,7 @@ use super::AppState;
 use super::error::ApiError;
 use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
-use crate::ids::UserId;
+use crate::ids::{ChannelId, UserId};
 use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLane, RunLimits};
 use crate::store::{InstalledModule, RunResult, RunTiming, now_ms};
 
@@ -29,6 +29,42 @@ struct ModuleWireRequest<'a> {
     /// The admin's values over the manifest's defaults, left out when empty; secrets are never here.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     settings: BTreeMap<String, serde_json::Value>,
+    /// Where the run came from, left out when it came from nowhere in particular.
+    #[serde(skip_serializing_if = "ModuleContext::is_empty")]
+    context: ModuleContext,
+}
+
+/// Where a run was started, so a module can keep state per channel.
+/// Ids only: nothing about the channel's contents or members.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RunContext {
+    /// The channel a command was typed in or a surface lives in.
+    pub(crate) channel: Option<ChannelId>,
+    /// The voice channel the invoker is in, only when the host confirmed it.
+    pub(crate) voice_channel: Option<ChannelId>,
+}
+
+#[derive(Serialize)]
+struct ModuleContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    channel_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    voice_channel_id: Option<String>,
+}
+
+impl ModuleContext {
+    fn is_empty(&self) -> bool {
+        self.channel_id.is_none() && self.voice_channel_id.is_none()
+    }
+}
+
+impl From<RunContext> for ModuleContext {
+    fn from(context: RunContext) -> Self {
+        Self {
+            channel_id: context.channel.map(|id| id.to_string()),
+            voice_channel_id: context.voice_channel.map(|id| id.to_string()),
+        }
+    }
 }
 
 /// 16 fresh random bytes as hex, new for every run. A module has no random
@@ -78,6 +114,7 @@ pub(crate) struct RunRequest<'a> {
     pub(crate) command: &'a str,
     pub(crate) input: &'a str,
     pub(crate) kind: RunKind,
+    pub(crate) context: RunContext,
 }
 
 /// Runs an already-gated command on `module`, with `surface` as its
@@ -185,6 +222,7 @@ async fn prepare_and_run(
         entropy: run_entropy(),
         now_ms: now_ms(),
         settings,
+        context: request.context.into(),
     })
     .map_err(|_| ApiError::Internal)?;
 
@@ -210,7 +248,10 @@ async fn prepare_and_run(
     )
     .await;
     let outcome = match ran {
-        Ok(bytes) => interpret(&bytes),
+        Ok(bytes) => {
+            super::module_timers::apply(state, module, request.context, &bytes).await;
+            interpret(&bytes)
+        }
         Err(err) => CommandOutcome::host_failure(describe(&err)),
     };
     Ok((outcome, fuel))
