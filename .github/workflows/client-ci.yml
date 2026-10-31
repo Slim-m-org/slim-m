@@ -207,8 +207,8 @@ jobs:
       # untested - the failure mode a hand-listed matrix would have.
       #
       # Goldens run inside these suites, not a job of their own, and only ever on
-      # this channel and runner. design_system's pixel comparison turns itself
-      # on once reference PNGs exist under its test/goldens/; see docs/ci.md
+      # this channel and runner. design_system's and voice_canvas's pixel comparison
+      # turns itself on once reference PNGs exist under their test/goldens/; see docs/ci.md
       # and update-golden-references below for how those get there.
       - name: every other workspace package
         if: matrix.label == 'other-packages'
@@ -223,7 +223,7 @@ jobs:
             fi
             if [ -d "$dir/test" ]; then
               define=""
-              if [ "$dir" = "packages/design_system" ] && [ -n "$(ls -A "$dir/test/goldens" 2>/dev/null)" ]; then
+              if { [ "$dir" = "packages/design_system" ] || [ "$dir" = "packages/voice_canvas" ]; } && [ -n "$(ls -A "$dir/test/goldens" 2>/dev/null)" ]; then
                 define="--dart-define=SLIMM_GOLDENS=true"
               fi
               echo "::group::flutter test - $dir"
@@ -424,13 +424,17 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: generate references
-        working-directory: client/packages/design_system
-        run: flutter test --update-goldens --dart-define=SLIMM_GOLDENS=true
+        run: |
+          for pkg in design_system voice_canvas; do
+            (cd "client/packages/$pkg" && flutter test --update-goldens --dart-define=SLIMM_GOLDENS=true)
+          done
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: golden-references
-          path: client/packages/design_system/test/goldens
+          path: |
+            client/packages/design_system/test/goldens
+            client/packages/voice_canvas/test/goldens
           if-no-files-found: error
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

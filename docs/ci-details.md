@@ -135,6 +135,8 @@ That makes the reference images, not a second workflow edit, the only thing stan
 A human downloads that artifact and commits its PNGs into `client/packages/design_system/test/goldens/`; the very next `client-ci` run finds them and starts diffing, with no further edit to this workflow.
 The same job is how a deliberate design change gets new references later: run it again, review the diff, commit the replacement PNGs.
 
+voice_canvas follows the same rule for its painter scenes (`test/visual/`, whose `renderVisualScene` compares against `test/goldens/` under the same flag): the step passes the flag once `client/packages/voice_canvas/test/goldens/` holds PNGs, and `update-golden-references` writes that directory too.
+
 ### The iOS unit-test job, and why it is its own workflow
 
 The CallKit synchronous-report invariant is a real termination risk, not a style rule.

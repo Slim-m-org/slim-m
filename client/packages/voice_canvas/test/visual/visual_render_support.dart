@@ -42,6 +42,9 @@ bool get writingVisuals => Platform.environment['SLIMM_CANVAS_VISUAL'] == '1';
 
 const visualOutDir = 'build/canvas-visual';
 
+/// Pixel comparison only where the reference images were produced, as in design_system's golden matrix.
+const bool comparingGoldens = bool.fromEnvironment('SLIMM_GOLDENS');
+
 /// The real IBM Plex faces, loaded by hand from the sibling design_system
 /// package - by path, not by pub dependency, since this package deliberately
 /// carries none. Without this every glyph in a rendered note or cursor label
@@ -82,7 +85,7 @@ Future<void> renderVisualScene(
   final canvas = Canvas(recorder);
   draw(canvas);
   final picture = recorder.endRecording();
-  if (!writingVisuals) {
+  if (!writingVisuals && !comparingGoldens) {
     picture.dispose();
     return;
   }
@@ -90,6 +93,11 @@ Future<void> renderVisualScene(
   picture.dispose();
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   image.dispose();
+  final png = bytes!.buffer.asUint8List();
+  if (comparingGoldens) {
+    await expectLater(png, matchesGoldenFile('../goldens/$name.png'));
+  }
+  if (!writingVisuals) return;
   Directory(visualOutDir).createSync(recursive: true);
-  File('$visualOutDir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+  File('$visualOutDir/$name.png').writeAsBytesSync(png);
 }
