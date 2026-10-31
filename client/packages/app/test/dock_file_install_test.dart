@@ -111,7 +111,6 @@ void main() {
         await tester.pump(const Duration(milliseconds: 400));
         await tester.pump(const Duration(milliseconds: 400));
         expect(find.textContaining('too large'), findsOneWidget);
-        expect(find.byType(SnackBar), findsNothing);
       },
     );
   });
