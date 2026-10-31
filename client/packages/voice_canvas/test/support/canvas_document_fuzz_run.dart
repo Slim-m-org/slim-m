@@ -8,9 +8,8 @@ import 'dart:ui';
 
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_document_fuzz_checks.dart';
 import 'canvas_document_model.dart';
-
-part 'canvas_document_fuzz_checks.dart';
 
 const List<String?> _authors = ['ann', 'bob', 'cy', null];
 
@@ -38,6 +37,11 @@ class DocumentFuzzRun {
   final List<String> trace = [];
   final int steps;
   final int idPool;
+  late final DocumentFuzzChecks _checks = DocumentFuzzChecks(
+    document,
+    model,
+    violate,
+  );
   int step = 0;
   int nextSeq = 1;
 
@@ -127,7 +131,7 @@ class DocumentFuzzRun {
   void run() {
     for (step = 0; step < steps; step++) {
       _act();
-      _check();
+      _checks.run();
     }
   }
 
@@ -292,24 +296,4 @@ class DocumentFuzzRun {
     document.reset();
     model.reset();
   }
-
-  void _check() {
-    document.refresh();
-    final alive = model.alive.toList();
-    if (document.objectCount.value != alive.length) {
-      violate(
-        'objectCount',
-        'objectCount=${document.objectCount.value}, live objects=${alive.length}',
-      );
-    }
-    _checkFields(alive);
-    _checkGrid(alive);
-    _checkPaintOrder(alive);
-    _checkHitTests(alive);
-    _checkSelection();
-    _checkBoard();
-    _checkAggregates(alive);
-  }
-
-  final Map<String, Offset> _graveyard = {};
 }
