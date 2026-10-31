@@ -35,7 +35,7 @@ extension SlimmApiDms on SlimmApi {
   Future<void> hideDirectMessage(String userId) =>
       send('DELETE', '/dms/$userId', expectNoContent: true);
 
-  /// Starts a group DM with [userIds], 2 to 7 other people (3 to 8 with the
+  /// Starts a group DM with [userIds], 2 to 9 other people (3 to 10 with the
   /// caller). [id] is a client-chosen UUIDv7 that makes a retry find the
   /// group it already made. Refused with 403 if any two of the people have a
   /// block between them.

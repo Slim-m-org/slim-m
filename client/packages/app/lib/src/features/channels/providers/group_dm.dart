@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Group DMs (decision 0095): a DM channel of 3 to 8 people.
+/// Group DMs (decision 0095): a DM channel of 3 to 10 people.
 ///
 /// The channel is an ordinary DM row in the local store, so messages, calls
 /// and sync need nothing here. What lives here is the roster: the default
