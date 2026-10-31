@@ -10,7 +10,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -18,62 +17,27 @@ import 'package:slimm_app/src/features/channels/screens/channel_screen.dart';
 import 'package:slimm_app/src/screens/home_shell.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart' show AppToastSeverity;
-import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../settings/home_shell_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession;
 
-class _HangUpController extends VoiceController {
-  _HangUpController(super.ref) : super(session: FakeSession());
-
-  Duration callLength = const Duration(minutes: 6);
-
-  @override
-  Future<void> join(String channelId) async {
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
-  }
-
-  @override
-  Future<void> leave() async {
-    final channelId = state.channelId!;
-    final now = DateTime.now();
-    state = VoiceState(
-      recap: CallRecap(
-        channelId: channelId,
-        startedAt: now.subtract(callLength),
-        endedAt: now,
-        others: const [],
-        sharedScreen: false,
-        usedCamera: false,
-      ),
-      justLeftChannelId: channelId,
-      justLeftAt: now,
-    );
-  }
-
-  void drop(String channelId) {
-    state = VoiceState(
-      state: VoiceSessionState.failed,
-      channelId: channelId,
-      error: 'Connection lost.',
-    );
-  }
-}
-
 Future<
-  ({ProviderContainer container, SlimmDatabase db, _HangUpController voice})
+  ({ProviderContainer container, SlimmDatabase db, FakeVoiceController voice})
 >
 _inCall(WidgetTester tester, double width) async {
-  late _HangUpController voice;
+  late FakeVoiceController voice;
   final s = setup(
     httpClient: quietClient(),
     signedIn: true,
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _HangUpController(ref),
+        (ref) => voice = FakeVoiceController(
+          ref,
+          session: FakeSession(),
+          recording: true,
+          callLength: const Duration(minutes: 6),
+        ),
       ),
     ],
   );
@@ -126,13 +90,18 @@ void main() {
   testWidgets(
     'with no text channel seen yet a phone hang-up lands on the list',
     (tester) async {
-      late _HangUpController voice;
+      late FakeVoiceController voice;
       final s = setup(
         httpClient: quietClient(),
         signedIn: true,
         extraOverrides: [
           voiceControllerProvider.overrideWith(
-            (ref) => voice = _HangUpController(ref),
+            (ref) => voice = FakeVoiceController(
+              ref,
+              session: FakeSession(),
+              recording: true,
+              callLength: const Duration(minutes: 6),
+            ),
           ),
         ],
       );

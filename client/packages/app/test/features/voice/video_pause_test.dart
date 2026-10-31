@@ -19,20 +19,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import 'voice_controller_harness.dart';
 
 FakeSession? _lastSession;
-
-class _Call extends VoiceController {
-  _Call(super.ref, List<VoiceParticipant> who, FakeSession session)
-    : super(session: session) {
-    state = VoiceState(
-      channelId: 'c-main',
-      state: VoiceSessionState.connected,
-      participants: who,
-    );
-  }
-}
 
 Future<({ProviderContainer container, FakeSession session})> _rig({
   bool? pauseSetting = true,
@@ -48,7 +38,17 @@ Future<({ProviderContainer container, FakeSession session})> _rig({
       preferencesProvider.overrideWith(
         (ref) => SharedPreferences.getInstance(),
       ),
-      voiceControllerProvider.overrideWith((ref) => _Call(ref, who, session)),
+      voiceControllerProvider.overrideWith(
+        (ref) => FakeVoiceController(
+          ref,
+          session: session,
+          initial: VoiceState(
+            channelId: 'c-main',
+            state: VoiceSessionState.connected,
+            participants: who,
+          ),
+        ),
+      ),
       pauseOnUnfocusedAppliesProvider.overrideWithValue(desktop),
     ],
   );

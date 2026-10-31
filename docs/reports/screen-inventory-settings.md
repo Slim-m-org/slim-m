@@ -1,7 +1,7 @@
 # Screen inventory: personal settings, Space settings, and admin screens
 
 Part of [screen-inventory.md](screen-inventory.md).
-"Surfaces harness" = `client/packages/app/test/ui_snapshot_test.dart`. "Overlay harness" = `client/packages/app/test/ui_overlay_snapshot_test.dart`.
+"Surfaces harness" = `client/packages/app/test/ui_snapshot_test.dart`. "Overlay harness" = `client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart`.
 
 Governing rule for every gated screen below: `SpaceSettingsSection` (`widgets/space_settings_section.dart`) is the only in-UI entry point into every admin screen, and it hides the whole section (all three group cards, every row, no residual divider) when the caller holds none of `MANAGE_MESSAGES`, `CREATE_INVITE`, `MANAGE_ROLES`, `MANAGE_SERVER`, `MANAGE_CHANNELS`, `BAN_MEMBERS`.
 Each row inside is separately gated on its own bit, so a caller with only `CREATE_INVITE` sees just "Invites."

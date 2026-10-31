@@ -1,7 +1,7 @@
 # Screen inventory: overlays, dialogs, sheets, menus, confirmations
 
 Part of [screen-inventory.md](screen-inventory.md).
-"Overlay harness" = `client/packages/app/test/ui_overlay_snapshot_test.dart`, which drives 21 named overlays open through their real entry points at desktop and phone width, dark theme only, each as one fixed instance.
+"Overlay harness" = `client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart`, which drives 21 named overlays open through their real entry points at desktop and phone width, dark theme only, each as one fixed instance.
 See [screen-inventory-moderation.md](screen-inventory-moderation.md) for the moderation-specific variants of the member popover, report card, and blocked-DM notice.
 
 ## The 21 harness-covered overlays, and what each variant they show is

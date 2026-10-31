@@ -12,35 +12,24 @@ import 'package:slimm_app/src/features/voice/widgets/voice_strip_indicator.dart'
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-class _CountingVoiceController extends VoiceController {
-  _CountingVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-
-  final calls = <String>[];
-
-  @override
-  Future<void> toggleMicrophone() async => calls.add('mute');
-
-  @override
-  Future<void> leave() async => calls.add('leave');
-}
-
-Future<(_CountingVoiceController, Future<void> Function())> _pump(
+Future<(FakeVoiceController, Future<void> Function())> _pump(
   WidgetTester tester, {
   required double keyboard,
 }) async {
-  late _CountingVoiceController controller;
+  late FakeVoiceController controller;
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith((ref) {
-        controller = _CountingVoiceController(
+        controller = FakeVoiceController(
           ref,
-          VoiceState(
+          session: FakeSession(),
+          recording: true,
+          clearsOnLeave: false,
+          initial: VoiceState(
             channelId: 'c-main',
             state: VoiceSessionState.connected,
             connectedAt: DateTime.now().subtract(const Duration(seconds: 36)),

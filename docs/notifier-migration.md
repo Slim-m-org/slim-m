@@ -8,7 +8,7 @@ Riverpod 3 moves `StateNotifier` to a legacy import, so the upgrade gets more ex
 
 ## What is enforced now
 
-`client/packages/app/test/state_notifier_gate_test.dart` fails on any file that gains a `StateNotifier` subclass.
+`client/packages/app/test/gates/state_notifier_gate_test.dart` fails on any file that gains a `StateNotifier` subclass.
 The allowlist is `client/packages/app/test/state_notifier_allow.txt`: one line per file with its remaining count.
 It may only shrink, and a migrated file must leave it in the same commit.
 The count is tracked per release by the line total of that file, so the number to quote in release notes is `grep -c . state_notifier_allow.txt` minus the header.

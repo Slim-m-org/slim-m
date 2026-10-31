@@ -7,7 +7,6 @@
 /// and the same provider wiring around them.
 library;
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,6 +22,7 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import 'fake_voice_session.dart';
 
 export 'fake_voice_session.dart';
@@ -92,39 +92,17 @@ http.Client voiceApi({
   });
 }
 
-/// A [VoiceController] pinned to [fixed], for a test that renders against a
-/// known [VoiceState] without driving a real join through it. `state` is
-/// only settable from within a [VoiceController] subclass, never from
-/// outside one, which is why this exists rather than a plain field assign.
-class FixedVoiceController extends VoiceController {
+/// A [FakeVoiceController] pinned to [fixed], for a test that renders against
+/// a known [VoiceState] without driving a real join through it.
+class FixedVoiceController extends FakeVoiceController {
   FixedVoiceController(super.ref, VoiceState fixed, [VoiceSession? session])
-    : super(session: session ?? FakeSession()) {
-    state = fixed;
-  }
-
-  /// Moves the call to [next], the way a join or a hang-up would.
-  void replace(VoiceState next) => state = next;
-
-  /// [replace] under the name several suites already use.
-  void set(VoiceState next) => state = next;
-
-  void update(VoiceState Function(VoiceState) change) => state = change(state);
+    : super(initial: fixed, session: session ?? FakeSession());
 }
 
 /// Records each join and reports the call as connected.
-class RecordingVoiceController extends VoiceController {
-  RecordingVoiceController(super.ref) : super(session: FakeSession());
-
-  final joins = <String>[];
-
-  @override
-  Future<void> join(String channelId) async {
-    joins.add(channelId);
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
-  }
+class RecordingVoiceController extends FakeVoiceController {
+  RecordingVoiceController(super.ref)
+    : super(session: FakeSession(), recording: true);
 }
 
 /// Owns the container so a suite can tear it down in one place.

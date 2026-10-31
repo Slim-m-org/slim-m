@@ -17,6 +17,7 @@ import 'package:slimm_app/src/features/voice/widgets/mic_preview_hold.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../../support/fake_mic_preview.dart';
 import 'voice_settings_screen_harness.dart';
 
@@ -41,18 +42,6 @@ class _Source extends FakeMicSource {
   }
 }
 
-/// Reports a call as up without a server to join.
-class _CallController extends VoiceController {
-  _CallController(super.ref, {required super.session});
-
-  void connect() => state = const VoiceState(
-    state: VoiceSessionState.connected,
-    channelId: 'c1',
-  );
-
-  void hangUp() => state = const VoiceState();
-}
-
 class _Rig {
   _Rig() : source = _Source(), session = FakeSession();
 
@@ -64,7 +53,7 @@ class _Rig {
   late final container = ProviderContainer(
     overrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _CallController(ref, session: session),
+        (ref) => FakeVoiceController(ref, session: session),
       ),
       fakeMicPreview(source),
     ],
@@ -182,7 +171,8 @@ void main() {
     await _settle(tester);
 
     final call =
-        rig.container.read(voiceControllerProvider.notifier) as _CallController;
+        rig.container.read(voiceControllerProvider.notifier)
+            as FakeVoiceController;
     call.connect();
     await _settle(tester);
     expect(rig.captureOpen, isFalse);

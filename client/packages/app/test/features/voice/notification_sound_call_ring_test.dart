@@ -20,16 +20,7 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_settings_controller.dart';
 import 'package:slimm_platform/testing.dart';
 
-import '../../support/dead_voice_session.dart';
-
-/// A [VoiceController] whose channel can be set directly, with no SFU round
-/// trip: this file only ever needs `channelId`, never a real call.
-class _FixedChannelVoiceController extends VoiceController {
-  _FixedChannelVoiceController(super.ref) : super(session: DeadVoiceSession());
-
-  void setChannel(String channelId) =>
-      state = state.copyWith(channelId: channelId);
-}
+import '../../support/fake_voice.dart';
 
 /// Records what a real [AudioPlayersSoundPlayer] would actually do, split
 /// into the one-shot family ([play]) and the ring's own loop, rather than
@@ -180,16 +171,16 @@ void main() {
   });
 
   test('a call this device is already on does not ring', () async {
-    late _FixedChannelVoiceController voice;
+    late FakeVoiceController voice;
     final setup = await _wire(
       extra: [
         voiceControllerProvider.overrideWith((ref) {
-          voice = _FixedChannelVoiceController(ref);
+          voice = FakeVoiceController(ref);
           return voice;
         }),
       ],
     );
-    voice.setChannel('dm-1');
+    voice.update((s) => s.copyWith(channelId: 'dm-1'));
     await pumpEventQueue();
 
     _ring(setup);

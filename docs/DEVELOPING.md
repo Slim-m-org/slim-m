@@ -66,8 +66,8 @@ cd client
 for d in . packages/*/; do [ -d "${d%/}/test" ] && (cd "${d%/}" && flutter test); done
 
 # one file, or one case by name
-(cd packages/app && flutter test test/api_failure_test.dart)
-(cd packages/app && flutter test test/api_failure_test.dart --plain-name '<part of the test name>')
+(cd packages/app && flutter test test/shared/api_failure_test.dart)
+(cd packages/app && flutter test test/shared/api_failure_test.dart --plain-name '<part of the test name>')
 ```
 
 After touching a conditional import, also build for the web, since dart2js resolves branches the analyzer does not:

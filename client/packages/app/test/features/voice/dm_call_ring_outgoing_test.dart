@@ -18,6 +18,8 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
+import '../../support/fake_voice.dart';
+
 const _tokens = api.TokenPair(
   userId: 'me',
   accessToken: 'access',
@@ -25,24 +27,12 @@ const _tokens = api.TokenPair(
   accessExpiresAt: 4102444800000,
 );
 
-class _RecordingVoice extends VoiceController {
-  _RecordingVoice(super.ref);
-
-  int leaves = 0;
-
-  @override
-  Future<void> leave() async {
-    leaves++;
-    state = const VoiceState();
-  }
-}
-
 class _Rig {
   _Rig(this.container, this.events, this.voice, this.requests, this.gate);
 
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
-  final _RecordingVoice voice;
+  final FakeVoiceController voice;
   final List<String> requests;
   final Completer<void>? gate;
 
@@ -65,14 +55,14 @@ _Rig _rig({bool gated = false, String? inCall = 'dm-1'}) {
   addTearDown(events.close);
   final requests = <String>[];
   final gate = gated ? Completer<void>() : null;
-  late _RecordingVoice voice;
+  late FakeVoiceController voice;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(events.stream),
       voiceControllerProvider.overrideWith((ref) {
-        voice = _RecordingVoice(ref);
+        voice = FakeVoiceController(ref, recording: true);
         if (inCall != null) voice.state = VoiceState(channelId: inCall);
         return voice;
       }),
@@ -93,7 +83,8 @@ _Rig _rig({bool gated = false, String? inCall = 'dm-1'}) {
     ],
   );
   addTearDown(container.dispose);
-  voice = container.read(voiceControllerProvider.notifier) as _RecordingVoice;
+  voice =
+      container.read(voiceControllerProvider.notifier) as FakeVoiceController;
   return _Rig(container, events, voice, requests, gate);
 }
 

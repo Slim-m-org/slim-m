@@ -40,7 +40,7 @@ CATEGORY_INFO = {
         "blurb": "Sheets, dialogs, popovers, and gesture-opened menus.",
         "grow": (
             "Add an entry to the _overlays table in "
-            "client/packages/app/test/ui_overlay_snapshot_test.dart, or, for "
+            "client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart, or, for "
             "something only reachable by a long-press, right-click, or a "
             "multi-step interaction (typing, submitting, waiting on a "
             "mocked response), add a case to one of its sibling "

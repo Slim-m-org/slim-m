@@ -1,8 +1,8 @@
 # Wording table
 
 One word for each kind of action and name, so two panes never say the same thing two ways.
-The strings live in `client/packages/app/lib/src/action_labels.dart`; a gate in `test/wording_gate_test.dart` fails if a retired spelling returns.
-The copy limits under Settings copy are enforced by `test/settings_copy_gate_test.dart`.
+The strings live in `client/packages/app/lib/src/action_labels.dart`; a gate in `test/gates/wording_gate_test.dart` fails if a retired spelling returns.
+The copy limits under Settings copy are enforced by `test/gates/settings_copy_gate_test.dart`.
 
 ## Verbs
 
