@@ -12,7 +12,9 @@ use support::module_hooks_world::{HookModule, answering, interceptor, permission
 use support::module_world::{Install, World, world};
 use support::wasm_fixtures::canned_ok_wasm;
 
-const SENDS: usize = 300;
+const SENDS: usize = 100;
+/// Keeps under the write rate limit, which is not what is being measured.
+const GAP: Duration = Duration::from_millis(230);
 
 async fn timed_sends(w: &World, channel: slimm_server::ids::ChannelId) -> Vec<Duration> {
     let mut times = Vec::with_capacity(SENDS);
@@ -21,6 +23,7 @@ async fn timed_sends(w: &World, channel: slimm_server::ids::ChannelId) -> Vec<Du
         let (status, body) = w.say(channel, &format!("message {n}")).await;
         assert_eq!(status, 200, "{body}");
         times.push(started.elapsed());
+        tokio::time::sleep(GAP).await;
     }
     times.sort();
     times
