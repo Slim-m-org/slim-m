@@ -517,6 +517,20 @@ See decision 0099.
 
 The Game of Life reference module (`slim-addons/modules/game-of-life`) is the worked example of this whole loop.
 
+### Package files
+
+An admin can save an installed module as one JSON file (`{"$slim":"module-package/1","manifest":{...},"artifact":"<base64 wasm>"}`) and install it elsewhere.
+The file holds the manifest and the wasm only, never setting values, secrets or data.
+An import gets the Dock's manifest validation, the sha256 check, a 16 MiB ceiling on the wasm and the same consent screen, and is recorded as not verified, from a file.
+
+### Context, live scenes and timers
+
+The run request carries `context.channel_id` when the run came from a channel, and `context.voice_channel_id` when the member is confirmed to be in that call, so a module can keep one timer per channel.
+A shared scene with `"refresh_ms": 5000` is redrawn by the host every 5 seconds (clamped to 2 to 60 seconds) by running the same command with `{"action":"refresh","state":...}`, until a frame stops asking, fails, goes private, or half an hour passes without a person pressing anything.
+For a moment that is not a redraw, answer with `"run_after": {"command": "phase_end", "after_ms": 15000, "key": "<channel id>"}`: the host runs that command once, at least 10 seconds later, as the module's own principal.
+`"cancel": true` with the same command and key removes it.
+This needs `schedule` approved, and a module may have 32 timers waiting.
+
 ## Limits and the security model
 
 A module that has no approved capability is pure compute with zero host imports.

@@ -112,6 +112,52 @@ extension SlimmApiDock on SlimmApi {
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
   }
 
+  /// Reads a module package file's manifest without installing anything: the
+  /// same validation and artifact check an install runs, refused with 400 and
+  /// a reason when the file is malformed, too large or does not match itself.
+  Future<DockManifest> previewDockPackage(Map<String, dynamic> package) async {
+    final json = await send(
+      'POST',
+      '/space/dock/packages/preview',
+      body: package,
+    );
+    return DockManifest.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Installs the module in [package] with the approvals the admin gave after
+  /// seeing the manifest [previewDockPackage] returned; [reviewedDigest] is
+  /// that manifest's `reviewDigest`. Recorded as not verified, from a file.
+  Future<InstalledDockModule> installDockPackage({
+    required Map<String, dynamic> package,
+    required String version,
+    List<String>? approvedHostCapabilities,
+    bool? approveLocalNetwork,
+    String? reviewedDigest,
+  }) async {
+    final json = await send(
+      'POST',
+      '/space/dock/packages/install',
+      body: {
+        'package': package,
+        'version': version,
+        if (approvedHostCapabilities != null)
+          'approved_host_capabilities': approvedHostCapabilities,
+        if (approveLocalNetwork != null)
+          'approve_local_network': approveLocalNetwork,
+        if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
+      },
+    );
+    return InstalledDockModule.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// An installed module as one package file: its manifest and artifact, and
+  /// no settings values, secrets or data. Refused with 409 for a module
+  /// installed before exports existed.
+  Future<Map<String, dynamic>> exportDockModule(String moduleId) async {
+    final json = await send('GET', '/space/dock/modules/$moduleId/export');
+    return json as Map<String, dynamic>;
+  }
+
   Map<String, String>? _sourceQuery(String? source) =>
       source == null ? null : {'source': source};
 

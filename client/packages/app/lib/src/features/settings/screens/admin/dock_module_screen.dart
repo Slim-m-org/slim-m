@@ -37,6 +37,7 @@ import '../../../../widgets/run_guarded.dart';
 import '../settings_screen_scaffold.dart';
 import 'dock_module_view.dart';
 import 'dock_host_access_card.dart';
+import 'dock_file_install.dart';
 import 'dock_install_consent.dart';
 
 class DockModuleScreen extends ConsumerStatefulWidget {
@@ -283,6 +284,12 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
     if (ok) ref.invalidate(dockCatalogProvider);
   }
 
+  Future<void> _export(api.DockManifest manifest) async {
+    setState(() => _busy = true);
+    await exportDockModuleToFile(ref, guard, manifest);
+    if (mounted) setState(() => _busy = false);
+  }
+
   Future<void> _uninstall(String name) async {
     final confirmed = await confirmDangerousAction(
       context,
@@ -358,6 +365,7 @@ class _DockModuleScreenState extends ConsumerState<DockModuleScreen>
           scheduleChannels: textChannels,
           onScheduleChannel: _setScheduleChannel,
           onClearStorage: () => _clearStorage(m.name),
+          onExport: installed == null ? null : () => _export(m),
           onToggleHostCapability: _toggleHostCapability,
           busy: _busy,
           error: actionError,

@@ -65,6 +65,7 @@ const EXEMPT_PREFIXES: &[&str] = &[
     "/read-states",
     "/reports",
     "/saved",
+    "/space/dock/packages/preview",
     "/space/rules/accept",
     "/sync",
     "/totp",

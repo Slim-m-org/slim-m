@@ -199,6 +199,12 @@ pub const AUDITED_ROUTES: &[AuditedRoute] = &[
         MODULE,
     ),
     route(
+        Method::POST,
+        "/space/dock/packages/install",
+        "module.install_file",
+        None,
+    ),
+    route(
         Method::DELETE,
         "/space/dock/modules/{id}/install",
         "module.uninstall",

@@ -31,6 +31,8 @@ import '../../widgets/settings_detail_row.dart';
 import '../../widgets/settings_empty.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
+import 'dock_file_install.dart';
+import 'dock_file_section.dart';
 import 'dock_install_consent.dart';
 import 'dock_module_row.dart';
 import 'dock_sources_section.dart';
@@ -265,6 +267,13 @@ class _DockPaneState extends ConsumerState<DockPane>
                 message: 'Could not load the community sources.',
               ),
             ],
+            const SizedBox(height: AppSpacing.s12),
+            DockFileSection(
+              catalog: catalog,
+              onInstall: () => unawaited(
+                installDockModuleFromFile(context, ref, guard, setActionError),
+              ),
+            ),
             const SizedBox(height: AppSpacing.s16),
             Align(
               alignment: Alignment.centerLeft,

@@ -112,7 +112,7 @@ pub(super) async fn install_manifest(
             .iter()
             .filter(|e| e.kind == "slash-command")
             .map(|e| e.name.as_str());
-        ensure_slash_keywords_free(state, &id, keywords).await?;
+        ensure_slash_keywords_free(state, id, keywords).await?;
     }
     module_data::check(state, manifest, &approved_host).await?;
     let artifact = artifact.bytes(manifest).await?;

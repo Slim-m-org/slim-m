@@ -12,6 +12,11 @@ import 'models_dock_activity.dart';
 import 'models_dock_changelog.dart';
 import 'models_dock_platform.dart';
 
+/// The `source` that reads a module installed from a package file back from the
+/// server, and the repo such a module is recorded under.
+const kFileDockSource = 'file';
+const kFileDockRepo = 'local/file';
+
 /// One row of the marketplace's index: enough to list a module, not enough
 /// to install it. `GET /space/dock/modules`.
 class DockIndexEntry {

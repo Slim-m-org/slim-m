@@ -19,7 +19,10 @@ import 'package:yaml/yaml.dart';
 import 'support/send_calls.dart';
 
 /// Call sites whose keys cannot be read from source, by `METHOD /path`.
-const Map<String, String> _unreadableKeys = {};
+const Map<String, String> _unreadableKeys = {
+  'POST /space/dock/packages/preview':
+      'the body is a module package file, forwarded as the admin chose it',
+};
 
 /// Body or query keys the client sends that the spec does not declare, by
 /// `METHOD /path key`. Each is a deliberate exception with its reason.
