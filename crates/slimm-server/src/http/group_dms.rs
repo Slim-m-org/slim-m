@@ -100,7 +100,7 @@ async fn conversation(
     Ok(Json(rendered.remove(0)))
 }
 
-/// Starts a group DM with 2 to 7 other people.
+/// Starts a group DM with 2 to 9 other people.
 async fn create(
     Authed(ctx): Authed,
     parts: Parts,

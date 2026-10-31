@@ -17,7 +17,7 @@ import '../../../providers/providers.dart';
 import 'dms.dart';
 
 /// Most people a group holds, the creator included.
-const int groupDmMaxPeople = 8;
+const int groupDmMaxPeople = 10;
 
 /// Fewest people a new group starts with.
 const int groupDmMinPeople = 3;
@@ -79,7 +79,7 @@ Future<void> _store(
   ]);
 }
 
-/// Starts a group with [userIds] (2 to 7 others) and returns its channel id.
+/// Starts a group with [userIds] (2 to 9 others) and returns its channel id.
 Future<String> createGroupDm(
   ProviderContainer container,
   List<String> userIds, {

@@ -12,7 +12,7 @@ The owner put group DMs in v120.
 
 ## Decision
 
-A group DM is a DM channel (kind `dm`) with 3 to 8 participants, recorded in `group_dm_members`.
+A group DM is a DM channel (kind `dm`) with 3 to 10 participants, recorded in `group_dm_members`.
 A conversation between exactly two people stays the pair DM in `dm_channels`, unchanged: one channel per pair, opened by `POST /dms/{userId}`.
 A group is never converted to a pair, and a pair never grows into a group; adding a person to a pair is starting a new group.
 
@@ -24,8 +24,8 @@ A group is never converted to a pair, and a pair never grows into a group; addin
   A group is a channel of kind `dm`, so messages, edits, search, sync, unread counts, push and calls take the DM path.
   Only the places that asked "who are the two accounts" now ask "who are the participants": the DM permission check (members only, `ADMINISTRATOR` included, exactly as for a pair), the batch check, the viewer filter, the DM list and the ring.
 - **Size.**
-  Creating takes the caller plus 2 to 7 others.
-  A group holds at most 8 participants, counted including the caller.
+  Creating takes the caller plus 2 to 9 others; the owner set the cap at 10 on 2026-10-31.
+  A group holds at most 10 participants, counted including the caller.
   Past that, add is refused with a conflict.
 - **Who can add.**
   Any current participant can add one account at a time.

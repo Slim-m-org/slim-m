@@ -43,7 +43,7 @@ Map<String, Object?> _person(String id, String name) => {
 
 final _everyone = [
   _person('self', 'Me'),
-  for (var i = 1; i <= 9; i++) _person('u$i', 'Person$i'),
+  for (var i = 1; i <= 10; i++) _person('u$i', 'Person$i'),
 ];
 
 Map<String, Object?> _group({
@@ -310,22 +310,22 @@ void main() {
       expect(find.text('Start group with 3 people'), findsOneWidget);
     });
 
-    testWidgets('holds at eight people, the caller included', (tester) async {
+    testWidgets('holds at ten people, the caller included', (tester) async {
       await open(tester);
-      for (var i = 1; i <= 7; i++) {
+      for (var i = 1; i <= 9; i++) {
         await tester.ensureVisible(_person_('u$i'));
         await tester.tap(_person_('u$i'));
         await tester.pump();
       }
-      expect(find.text('Start group with 8 people'), findsOneWidget);
+      expect(find.text('Start group with 10 people'), findsOneWidget);
 
-      await tester.ensureVisible(_person_('u8'));
-      await tester.tap(_person_('u8'), warnIfMissed: false);
+      await tester.ensureVisible(_person_('u10'));
+      await tester.tap(_person_('u10'), warnIfMissed: false);
       await tester.pump();
       expect(
-        find.text('Start group with 8 people'),
+        find.text('Start group with 10 people'),
         findsOneWidget,
-        reason: 'an eighth other person is not added',
+        reason: 'a tenth other person is not added',
       );
     });
 
@@ -399,7 +399,7 @@ void main() {
       tester,
     ) async {
       await open(tester);
-      expect(find.text('3 of 8 people'), findsOneWidget);
+      expect(find.text('3 of 10 people'), findsOneWidget);
       expect(find.text('Me (you)'), findsOneWidget);
       expect(find.text('Person1'), findsWidgets);
       expect(find.text('Person2'), findsWidgets);
@@ -485,7 +485,7 @@ void main() {
     testWidgets('a full group offers no add list', (tester) async {
       final server = _Server()
         ..listing = [
-          _group(members: ['self', for (var i = 1; i <= 7; i++) 'u$i']),
+          _group(members: ['self', for (var i = 1; i <= 9; i++) 'u$i']),
         ];
       final container = _container(server);
       addTearDown(container.dispose);

@@ -96,7 +96,7 @@ tags:
   - name: dms
     description: >
       Direct-message conversations between two users on the same deployment,
-      and group DMs of 3 to 8 people.
+      and group DMs of 3 to 10 people.
       A DM is a channel under the hood, so once opened it is read, sent to,
       searched, and synced through the ordinary channel and message routes.
   - name: messages
@@ -2744,9 +2744,9 @@ paths:
     post:
       operationId: createGroupDirectMessage
       tags: [dms]
-      summary: Start a group DM with 2 to 7 other people.
+      summary: Start a group DM with 2 to 9 other people.
       description: >
-        A group DM is a DM channel with 3 to 8 participants, the caller
+        A group DM is a DM channel with 3 to 10 participants, the caller
         included (decision 0095). Repeated or self ids in `user_ids` are
         ignored before the count is checked. Refused with 403 if any two of
         the people involved have a block between them, in either direction;
@@ -2769,7 +2769,7 @@ paths:
                   description: The new channel's id, chosen by the client.
                 user_ids:
                   type: array
-                  description: The other people, 2 to 7 of them.
+                  description: The other people, 2 to 9 of them.
                   items:
                     type: string
                     format: uuid
@@ -2850,7 +2850,7 @@ paths:
         Any participant may. Refused with 403 if the person has a block, in
         either direction, with anyone already in the group (the message says
         a block is the reason, not whose), with 409 if the group already has
-        8 people or the person is already in it, and with 404 if the caller
+        10 people or the person is already in it, and with 404 if the caller
         is not in the group. Announced with a `dm.changed` event.
       requestBody:
         required: true

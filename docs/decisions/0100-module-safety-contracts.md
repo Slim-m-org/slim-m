@@ -90,6 +90,7 @@ A reject stops the chain and the sender gets a `403` with the module's name and 
 - The whole chain for one message has a cap of 250 ms. A hook that cannot start inside the cap is treated as unavailable.
 - A trap, a timeout, exhausted fuel, `ok:false`, a malformed reply or an unavailable slot is a failure of that hook.
 - Fail open is the default: a failed hook is skipped, the message goes through as it was, and the failure is counted. An admin can set a hook to fail closed, and then a failure refuses the message with a plain "could not be checked" error.
+  The owner confirmed this default on 2026-10-31: a broken or slow module must not be able to stop a space from talking, and an admin who wants a filter to be strict sets that one hook to fail closed.
 - A failure counts toward the same circuit breaker as background runs. Five in a row turn the module off with the reason and an audit row, and any success resets the count. A lane that is busy is the host's load and is not counted.
 - With no interceptor installed the chain is one atomic load and a return; it reads no table and takes no lock. The registry is rebuilt in memory when a module is installed, removed, enabled, disabled or reconfigured.
 

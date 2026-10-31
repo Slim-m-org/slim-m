@@ -68,12 +68,12 @@ async fn a_pair_dm_is_untouched_and_carries_no_group() {
 }
 
 #[tokio::test]
-async fn a_group_has_three_to_eight_people_counting_the_creator() {
+async fn a_group_has_three_to_ten_people_counting_the_creator() {
     let h = harness().await;
     let _admin = person(&h, "admin").await;
     let creator = person(&h, "creator").await;
     let mut others = Vec::new();
-    for n in 0..8 {
+    for n in 0..10 {
         others.push(person(&h, &format!("user{n}")).await);
     }
     let refs: Vec<&Person> = others.iter().collect();
@@ -89,7 +89,7 @@ async fn a_group_has_three_to_eight_people_counting_the_creator() {
         StatusCode::CREATED
     );
     assert_eq!(
-        create(&h, &creator, &refs[..7]).await.0,
+        create(&h, &creator, &refs[..9]).await.0,
         StatusCode::CREATED
     );
 }
@@ -177,16 +177,16 @@ async fn adding_someone_blocked_by_or_blocking_a_member_is_refused() {
 }
 
 #[tokio::test]
-async fn a_group_holds_eight_and_refuses_a_ninth_or_a_repeat() {
+async fn a_group_holds_ten_and_refuses_an_eleventh_or_a_repeat() {
     let h = harness().await;
     let _admin = person(&h, "admin").await;
     let creator = person(&h, "creator").await;
     let mut others = Vec::new();
-    for n in 0..8 {
+    for n in 0..10 {
         others.push(person(&h, &format!("user{n}")).await);
     }
     let refs: Vec<&Person> = others.iter().collect();
-    let channel = group_of(&h, &creator, &refs[..7]).await;
+    let channel = group_of(&h, &creator, &refs[..9]).await;
     let uri = format!("/dms/groups/{channel}/members");
 
     let (status, _) = call(
@@ -203,7 +203,7 @@ async fn a_group_holds_eight_and_refuses_a_ninth_or_a_repeat() {
         "POST",
         &uri,
         &creator,
-        Some(json!({ "user_id": others[7].id })),
+        Some(json!({ "user_id": others[9].id })),
     )
     .await;
     assert_eq!(status, StatusCode::CONFLICT, "the group is full");

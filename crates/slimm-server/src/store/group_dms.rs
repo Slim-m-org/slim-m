@@ -16,7 +16,7 @@ use super::dms::{DmConversation, GroupDm, new_dm_channel};
 use super::{Channel, Store, User, now_ms};
 
 /// Most participants a group holds, the creator included.
-pub const GROUP_DM_MAX_PARTICIPANTS: usize = 8;
+pub const GROUP_DM_MAX_PARTICIPANTS: usize = 10;
 
 /// Fewest participants a new group starts with; two people use the pair DM.
 pub const GROUP_DM_MIN_PARTICIPANTS: usize = 3;
@@ -30,7 +30,7 @@ pub enum GroupDmError {
     UserNotFound,
     /// A block, in either direction, sits between two of the people involved.
     Blocked,
-    /// A new group needs 2 to 7 others besides the caller.
+    /// A new group needs 2 to 9 others besides the caller.
     BadSize,
     /// The group already holds [`GROUP_DM_MAX_PARTICIPANTS`].
     Full,

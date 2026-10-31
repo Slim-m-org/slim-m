@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The sheet for starting a group DM: pick 2 to 7 people, optionally name it.
+/// The sheet for starting a group DM: pick 2 to 9 people, optionally name it.
 ///
 /// Rule 4 of `docs/design/desktop-vs-mobile.md`: a short task with a submit,
 /// so a bottom sheet under 600 and a centred dialog above it.
