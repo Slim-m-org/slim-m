@@ -2,6 +2,7 @@
 /// Sync controllers for tests that need the shell without a live socket.
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 
 /// Never connects; [report] moves the status by hand.
@@ -34,5 +35,21 @@ class LiveSyncController extends SyncController {
   Future<void> start() async {
     startCalls++;
     state = status;
+  }
+}
+
+/// Stands in for a session that has already caught up once, without a socket.
+///
+/// The flag is set past a real `await`, or Riverpod refuses the write as a
+/// provider modifying another during initialization.
+class CaughtUpSyncController extends SyncController {
+  CaughtUpSyncController(this._testRef) : super(_testRef);
+
+  final Ref _testRef;
+
+  @override
+  Future<void> start() async {
+    await Future<void>.value();
+    _testRef.read(initialSyncCompleteProvider.notifier).state = true;
   }
 }

@@ -4,7 +4,6 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_app/src/providers/toasts.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
@@ -13,53 +12,28 @@ import 'package:slimm_app/src/features/voice/screens/dm_call_pane.dart'
 import 'package:slimm_app/src/features/voice/widgets/call_recap_card.dart'
     show CallRecapCard;
 import 'package:slimm_data/data.dart';
-import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../settings/home_shell_harness.dart';
 import 'voice_controller_harness.dart' show FakeSession;
-
-class _HangUpController extends VoiceController {
-  _HangUpController(super.ref) : super(session: FakeSession());
-
-  @override
-  Future<void> join(String channelId) async {
-    state = VoiceState(
-      state: VoiceSessionState.connected,
-      channelId: channelId,
-    );
-  }
-
-  @override
-  Future<void> leave() async {
-    final channelId = state.channelId!;
-    final now = DateTime.now();
-    state = VoiceState(
-      recap: CallRecap(
-        channelId: channelId,
-        startedAt: now.subtract(const Duration(minutes: 6)),
-        endedAt: now,
-        others: const [],
-        sharedScreen: false,
-        usedCamera: false,
-      ),
-      justLeftChannelId: channelId,
-      justLeftAt: now,
-    );
-  }
-}
 
 /// Joins a DM call on a wide window, opens the call pane, then closes it again when [paneOpen] is false, and hangs up.
 Future<List<String>> _hangUp(
   WidgetTester tester, {
   required bool paneOpen,
 }) async {
-  late _HangUpController voice;
+  late FakeVoiceController voice;
   final s = setup(
     httpClient: quietClient(),
     signedIn: true,
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _HangUpController(ref),
+        (ref) => voice = FakeVoiceController(
+          ref,
+          session: FakeSession(),
+          recording: true,
+          callLength: const Duration(minutes: 6),
+        ),
       ),
     ],
   );

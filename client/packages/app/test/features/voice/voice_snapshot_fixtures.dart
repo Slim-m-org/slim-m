@@ -13,6 +13,7 @@ import 'package:slimm_app/src/features/voice/providers/call_recap.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import 'voice_controller_harness.dart' show FakeSession;
 
 /// A visible stand-in for a live camera or screen-share track: a real
@@ -42,14 +43,15 @@ class VisibleSnapshotSession extends FakeSession {
 /// safe for any state `VoiceScreen` never reaches its own `stage ==
 /// 'joining'` branch for (connected, connecting, or busy-elsewhere), since
 /// those never call [VoiceController.join] at all.
-class SnapshotVoiceController extends VoiceController {
+class SnapshotVoiceController extends FakeVoiceController {
   SnapshotVoiceController(
     super.ref,
     VoiceState fixed, {
     bool needsSource = false,
-  }) : super(session: VisibleSnapshotSession(needsSource: needsSource)) {
-    state = fixed;
-  }
+  }) : super(
+         initial: fixed,
+         session: VisibleSnapshotSession(needsSource: needsSource),
+       );
 }
 
 /// Answers `VoiceScreen`'s automatic first join with [outcome] instead of a
@@ -63,16 +65,13 @@ class SnapshotVoiceController extends VoiceController {
 /// instead - `stage` is computed from `_autoJoinedFor` before the widget's
 /// own post-frame callback ever runs - and never advances, since nothing
 /// here would go on to change [VoiceController.state] again.
-class AttemptedJoinVoiceController extends VoiceController {
-  AttemptedJoinVoiceController(super.ref, this._outcome)
-    : super(session: VisibleSnapshotSession());
-
-  final VoiceState _outcome;
-
-  @override
-  Future<void> join(String channelId) async {
-    state = _outcome;
-  }
+class AttemptedJoinVoiceController extends FakeVoiceController {
+  AttemptedJoinVoiceController(super.ref, VoiceState outcome)
+    : super(
+        session: VisibleSnapshotSession(),
+        recording: true,
+        joinOutcome: outcome,
+      );
 }
 
 /// A caller with the camera off, a sharer whose camera is also on (the
