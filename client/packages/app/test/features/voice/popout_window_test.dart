@@ -22,15 +22,6 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
-class _Controller extends VoiceController {
-  _Controller(super.ref, VoiceState initial, FakeSession session)
-    : super(session: session) {
-    state = initial;
-  }
-
-  void replace(VoiceState next) => state = next;
-}
-
 class _FakeWindow implements PopOutWindowHandle {
   _FakeWindow(this.onCloseRequested, {required this.decorated});
 
@@ -81,8 +72,8 @@ class _Rig {
   final windows = <_FakeWindow>[];
   late final ProviderContainer container;
   late final SlimmDatabase db;
-  _Controller get voice =>
-      container.read(voiceControllerProvider.notifier) as _Controller;
+  FixedVoiceController get voice =>
+      container.read(voiceControllerProvider.notifier) as FixedVoiceController;
 }
 
 Future<_Rig> _pump(WidgetTester tester, {required bool supported}) async {
@@ -90,7 +81,7 @@ Future<_Rig> _pump(WidgetTester tester, {required bool supported}) async {
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _Controller(ref, _call([_ada]), rig.session),
+        (ref) => FixedVoiceController(ref, _call([_ada]), rig.session),
       ),
       popOutWindowFactoryProvider.overrideWithValue(
         supported
@@ -226,7 +217,7 @@ void main() {
       final fixture = await fixtureContainer(
         extraOverrides: [
           voiceControllerProvider.overrideWith(
-            (ref) => _Controller(ref, _call([_ada]), rig.session),
+            (ref) => FixedVoiceController(ref, _call([_ada]), rig.session),
           ),
         ],
       );

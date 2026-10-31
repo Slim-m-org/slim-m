@@ -28,24 +28,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'support/fake_api.dart';
-
-/// Stands in for the real [SyncController]; see `channel_screen_test.dart`,
-/// which needs the same seam for the same reason.
-///
-/// Reports [_status] from `start` rather than leaving it at the base
-/// constructor's initial `offline`: the empty-transcript synthesis in
-/// `channel_screen.dart` only fires at [SyncStatus.live], and nothing else in
-/// this harness can ever move it there.
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(super.ref, this._status);
-
-  final SyncStatus _status;
-
-  @override
-  Future<void> start() async {
-    state = _status;
-  }
-}
+import 'support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -231,7 +214,7 @@ Future<HistoryHarness> mountChannel(
       storeProvider.overrideWith((ref) async => store),
       rateLimitWaitProvider.overrideWithValue((d) async => waits.add(d)),
       syncControllerProvider.overrideWith(
-        (ref) => _NoopSyncController(ref, syncStatus),
+        (ref) => LiveSyncController(ref, syncStatus),
       ),
       mockApiOverride(server.answer),
     ],

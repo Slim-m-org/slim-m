@@ -22,14 +22,6 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/fake_sync.dart';
 import '../voice/voice_controller_harness.dart';
 
-class _Driven extends VoiceController {
-  _Driven(super.ref, VoiceState initial) : super(session: FakeSession()) {
-    state = initial;
-  }
-
-  void set(VoiceState next) => state = next;
-}
-
 class _Sync extends NoopSyncController {
   _Sync(super.ref);
 
@@ -118,7 +110,7 @@ class _Rig {
               : const OverlaySupport.unsupported(),
         ),
         voiceControllerProvider.overrideWith(
-          (ref) => voice = _Driven(ref, initial ?? _sharing),
+          (ref) => voice = FixedVoiceController(ref, initial ?? _sharing),
         ),
         syncControllerProvider.overrideWith((ref) => sync = _Sync(ref)),
       ],
@@ -132,7 +124,7 @@ class _Rig {
 
   final overlay = _FakeOverlay();
   late final ProviderContainer container;
-  late final _Driven voice;
+  late final FixedVoiceController voice;
   late final _Sync sync;
 
   bool get active => container.read(screenOverlayControllerProvider).active;
