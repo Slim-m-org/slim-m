@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'database.dart';
+import 'message_store.dart';
 
 /// What a send interrupted by the process ending is told it was.
 ///
