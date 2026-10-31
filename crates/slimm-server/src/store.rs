@@ -199,9 +199,10 @@ pub use module_permissions::{
 };
 pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
-    DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
-    ModuleExtensionPointSpec, ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits,
-    ModuleSchedule, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind,
+    DockProvenance, HookChange, HookDecl, HookKind, InstallModuleRequest, InstalledModule,
+    ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHook, ModulePermissionSpec,
+    ModulePlatform, ModuleRuntimeLimits, ModuleSchedule, ModuleSettingDef, ModuleSlot,
+    SettingChoice, SettingKind,
 };
 pub use notification_schedule::{DaySetting, NotificationScheduleDetail};
 pub use overwrites_batch::OverwriteBatchEntry;
@@ -300,6 +301,8 @@ pub struct Store {
     data_key: Arc<crate::data_key::DataKey>,
     /// Where module data files live; see [`Store::modules_dir`].
     modules_dir: Option<Arc<std::path::PathBuf>>,
+    /// Bumped by every change to what modules are installed or hooked; see [`Store::module_epoch`].
+    module_epoch: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl Store {
@@ -310,6 +313,7 @@ impl Store {
             canvas_op_clock: Arc::default(),
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
+            module_epoch: Arc::default(),
         }
     }
 

@@ -6,6 +6,7 @@
 
 mod capabilities;
 mod compiled;
+mod contracts;
 mod data;
 mod data_migrate;
 mod data_purge;
@@ -25,6 +26,10 @@ mod sliced;
 #[doc(hidden)]
 pub use crate::net_guard::treat_loopback_as_lan_for_tests;
 pub use capabilities::CapabilitySurface;
+pub use contracts::{
+    ADDON_API, EVENT_CONTRACT, INTERCEPTOR_CONTRACT, PERMISSION_HOOK_CONTRACT, SLOT_CONTRACT,
+    check_compatible,
+};
 pub use data::{DataBackend, DataError, Outcome};
 pub use data_purge::purge_member;
 pub use data_schema::{DataSchema, validate as validate_data_schema};

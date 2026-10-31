@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE installed_modules\n         SET addon_api = ?, addon_api_max = ?, subscriptions = ?, data_schema = ?, settings_schema = ?, slots = ?\n         WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "88924274ed65c9742884877624e616499b431552070bb09aed1306ac89ef90eb"
+}

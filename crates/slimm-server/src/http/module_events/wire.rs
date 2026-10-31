@@ -11,6 +11,9 @@ pub(super) struct ModuleEvent<'a> {
     pub(super) id: String,
     pub(super) at_ms: i64,
     pub(super) data: EventData,
+    /// Last, so the fields a module already finds at fixed offsets stay where they were.
+    #[serde(rename = "$slim")]
+    pub(super) contract: String,
 }
 
 #[derive(Serialize)]
@@ -56,6 +59,7 @@ mod tests {
     #[test]
     fn a_message_event_carries_exactly_the_documented_fields() {
         let event = ModuleEvent {
+            contract: "event/1".into(),
             event: "message.created",
             id: "message:m1".into(),
             at_ms: 5,
@@ -70,7 +74,7 @@ mod tests {
         };
         assert_eq!(
             serde_json::to_value(&event).unwrap(),
-            json!({"event":"message.created","id":"message:m1","at_ms":5,"data":{
+            json!({"$slim":"event/1","event":"message.created","id":"message:m1","at_ms":5,"data":{
                 "message_id":"m1","channel_id":"c1","author_id":"u1","content":"hi",
                 "created_at_ms":5,"is_bot":false}})
         );

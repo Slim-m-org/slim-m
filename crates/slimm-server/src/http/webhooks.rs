@@ -40,6 +40,7 @@ use super::embeds;
 use super::error::ApiError;
 use super::extract::{Json, Query, enforce};
 use super::messages::{parse_uuid, validate_content};
+use super::module_hooks::{Draft, HookPoint, intercept};
 use super::post_commit::after_commit;
 use crate::hub::Event;
 use crate::ids::{MessageId, WebhookId};
@@ -173,13 +174,36 @@ async fn deliver(
         false => enforce_slow_mode(&state, channel_id, context.principal_id).await?,
     };
 
+    let intercepted = match stored_already {
+        true => Default::default(),
+        false => {
+            let draft = Draft {
+                point: HookPoint::PreSend,
+                channel_id,
+                actor: context.principal_id,
+                reply_to: None,
+                content,
+                carries_more: false,
+                own_module: None,
+            };
+            intercept(&state, &draft).await?
+        }
+    };
     let sent = state
         .store
         .send_message_with_slow_mode(
-            NewMessage::plain(channel_id, context.principal_id, id, content),
+            NewMessage::plain(
+                channel_id,
+                context.principal_id,
+                id,
+                intercepted.text(content),
+            ),
             slow_mode_window_ms,
         )
         .await?;
+    if sent.fresh {
+        intercepted.save_annotations(&state, id).await;
+    }
 
     if sent.fresh {
         if let Some(username) = username {

@@ -27,6 +27,12 @@ pub(super) const MAX_SLOT_RUNS: usize = 2;
 /// A slot fill is decoration on a page someone is loading, so it gives up quickly and shows nothing.
 pub(super) const SLOT_QUEUE_WAIT: Duration = Duration::from_secs(2);
 
+/// Hook runs (interceptors and permission checks) that may execute at once, in a lane of their own
+/// so a message send never waits behind a command or an event.
+pub(super) const MAX_HOOK_RUNS: usize = 4;
+/// A hook is on a member's send path, so it gives up fast rather than hold the send.
+pub(super) const HOOK_QUEUE_WAIT: Duration = Duration::from_millis(50);
+
 /// Which pool of run slots a run draws from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunLane {
@@ -36,6 +42,8 @@ pub enum RunLane {
     Background,
     /// A slot fill for a member viewing a profile or member list.
     Slot,
+    /// A hook on a member's action: a message interceptor or a permission check.
+    Hook,
 }
 
 pub(super) struct RunGate {
@@ -65,12 +73,14 @@ pub(super) fn shared(lane: RunLane) -> &'static RunGate {
     static MEMBER: OnceLock<RunGate> = OnceLock::new();
     static BACKGROUND: OnceLock<RunGate> = OnceLock::new();
     static SLOT: OnceLock<RunGate> = OnceLock::new();
+    static HOOK: OnceLock<RunGate> = OnceLock::new();
     match lane {
         RunLane::Member => MEMBER.get_or_init(|| RunGate::new(MAX_CONCURRENT_RUNS, QUEUE_WAIT)),
         RunLane::Background => {
             BACKGROUND.get_or_init(|| RunGate::new(MAX_BACKGROUND_RUNS, BACKGROUND_QUEUE_WAIT))
         }
         RunLane::Slot => SLOT.get_or_init(|| RunGate::new(MAX_SLOT_RUNS, SLOT_QUEUE_WAIT)),
+        RunLane::Hook => HOOK.get_or_init(|| RunGate::new(MAX_HOOK_RUNS, HOOK_QUEUE_WAIT)),
     }
 }
 

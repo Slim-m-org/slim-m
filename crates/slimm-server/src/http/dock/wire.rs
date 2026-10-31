@@ -116,6 +116,8 @@ pub(super) struct ManifestDto {
 pub(in crate::http) struct PlatformDto {
     #[serde(skip_serializing_if = "is_zero")]
     addon_api: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    addon_api_max: Option<u32>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     subscriptions: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -124,6 +126,34 @@ pub(in crate::http) struct PlatformDto {
     slots: Vec<crate::store::ModuleSlot>,
     #[serde(skip_serializing_if = "serde_json::Value::is_null")]
     data: serde_json::Value,
+    /// Where it asks to stand in front of a message; shown at consent.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    interceptors: Vec<HookDto>,
+    /// The permission checks it asks to be able to deny; shown at consent.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    permission_hooks: Vec<HookDto>,
+}
+
+/// One hook a manifest declares and what it reads there.
+#[derive(Serialize)]
+pub(in crate::http) struct HookDto {
+    /// The hook point for an interceptor, the action for a permission hook.
+    hook: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    phase: String,
+    reads: Vec<String>,
+}
+
+fn hook_dtos(hooks: &[crate::store::HookDecl], kind: crate::store::HookKind) -> Vec<HookDto> {
+    hooks
+        .iter()
+        .filter(|h| h.kind == kind)
+        .map(|h| HookDto {
+            hook: h.hook.clone(),
+            phase: h.phase.clone(),
+            reads: h.reads.clone(),
+        })
+        .collect()
 }
 
 fn is_zero(n: &u32) -> bool {
@@ -205,10 +235,13 @@ impl From<Manifest> for ManifestDto {
                 .collect(),
             platform: PlatformDto {
                 addon_api: m.platform.addon_api,
+                addon_api_max: m.platform.addon_api_max,
                 subscriptions: m.platform.subscriptions,
                 settings: m.platform.settings_schema,
                 slots: m.platform.slots,
                 data: m.platform.data_schema,
+                interceptors: hook_dtos(&m.platform.hooks, crate::store::HookKind::Interceptor),
+                permission_hooks: hook_dtos(&m.platform.hooks, crate::store::HookKind::Permission),
             },
         }
     }
@@ -390,10 +423,13 @@ impl From<InstalledModule> for InstalledModuleDto {
             fuel_limit: i64::try_from(RunLimits::from(&m.runtime_limits).fuel).unwrap_or(i64::MAX),
             platform: PlatformDto {
                 addon_api: m.addon_api,
+                addon_api_max: m.addon_api_max,
                 subscriptions: m.subscriptions,
                 settings: m.settings_schema,
                 slots: m.slots,
                 data: m.data_schema,
+                interceptors: Vec::new(),
+                permission_hooks: Vec::new(),
             },
         }
     }

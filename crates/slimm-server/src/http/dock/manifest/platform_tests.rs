@@ -66,10 +66,10 @@ fn an_old_manifest_keeps_its_review_digest() {
 
 #[test]
 fn a_higher_addon_api_than_the_host_supports_is_refused_with_a_reason() {
-    let reason = refusal(&manifest_with(json!({"addon_api": 3}), &[]));
-    assert!(reason.contains("add-on API 3"), "{reason}");
-    assert!(reason.contains("up to 2"), "{reason}");
-    for supported in [1, 2] {
+    let reason = refusal(&manifest_with(json!({"addon_api": 4}), &[]));
+    assert!(reason.contains("add-on API 4"), "{reason}");
+    assert!(reason.contains("up to 3"), "{reason}");
+    for supported in [1, 2, 3] {
         assert!(
             parse_manifest(manifest_with(json!({"addon_api": supported}), &[]).as_bytes()).is_ok()
         );
@@ -255,4 +255,37 @@ fn only_a_secret_setting_has_hosts() {
         "settings": [{"key": "k", "type": "string", "label": "K", "hosts": ["api.example.com"]}],
     });
     assert!(refusal(&manifest_with(extra, &["net.fetch"])).contains("only a secret"));
+}
+
+fn ranged(min: i64, max: Option<i64>) -> Value {
+    let mut extra = json!({"addon_api": min});
+    if let Some(max) = max {
+        extra["addon_api_max"] = json!(max);
+    }
+    extra
+}
+
+#[test]
+fn a_declared_range_must_contain_this_servers_add_on_api() {
+    let host = i64::from(crate::module_runtime::ADDON_API);
+    let m = ok(ranged(1, Some(host)), &[]);
+    assert_eq!(m.platform.addon_api_max, u32::try_from(host).ok());
+    assert!(
+        ok(ranged(1, Some(host + 5)), &[])
+            .platform
+            .addon_api_max
+            .is_some()
+    );
+    let old = refusal(&manifest_with(ranged(1, Some(host - 1)), &[]));
+    assert!(old.contains("update the module"), "{old}");
+    let new = refusal(&manifest_with(ranged(host + 1, None), &[]));
+    assert!(new.contains("update the server"), "{new}");
+}
+
+#[test]
+fn a_range_cannot_be_backwards_or_stand_without_a_floor() {
+    let backwards = refusal(&manifest_with(ranged(2, Some(1)), &[]));
+    assert!(backwards.contains("below addon_api"), "{backwards}");
+    let floorless = refusal(&manifest_with(json!({"addon_api_max": 2}), &[]));
+    assert!(floorless.contains("addon_api_max needs"), "{floorless}");
 }

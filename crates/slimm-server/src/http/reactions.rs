@@ -69,6 +69,12 @@ async fn add(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
+    super::module_hooks::check_permission(
+        &state,
+        ctx.user_id,
+        (super::module_hooks::Action::ReactionAdd, Some(channel_id)),
+    )
+    .await?;
     if !super::reaction_emoji::is_reaction(&emoji) {
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }

@@ -16,6 +16,7 @@ use self::module_artifacts::store_module_artifact_tx;
 use super::Store;
 use crate::ids::{ChannelId, UserId};
 
+pub(super) mod hooks;
 pub(super) mod module_artifacts;
 pub(super) mod module_health;
 pub(super) mod module_kv;
@@ -27,6 +28,7 @@ pub(super) mod module_stats;
 pub(super) mod platform;
 
 use self::module_metadata::insert_module_metadata;
+pub use hooks::{HookChange, HookDecl, HookKind, ModuleHook};
 use platform::write_platform;
 pub use platform::{ModulePlatform, ModuleSettingDef, ModuleSlot, SettingChoice, SettingKind};
 
@@ -62,6 +64,8 @@ pub struct InstalledModule {
     pub schedule_channel_id: Option<ChannelId>,
     /// The `addon_api` the manifest declared; 0 for a module that uses none.
     pub addon_api: u32,
+    /// The newest add-on API the manifest declared it works with; `None` when it named none.
+    pub addon_api_max: Option<u32>,
     /// The event names it subscribes to.
     pub subscriptions: Vec<String>,
     /// The manifest's `data` section as declared, or `Null`.
@@ -171,6 +175,7 @@ struct ModuleRow {
     bot_user_id: Option<UserId>,
     schedule_channel_id: Option<ChannelId>,
     addon_api: i64,
+    addon_api_max: Option<i64>,
     subscriptions: String,
     data_schema: String,
     settings_schema: String,
@@ -204,6 +209,7 @@ impl From<ModuleRow> for InstalledModule {
             bot_user_id: row.bot_user_id,
             schedule_channel_id: row.schedule_channel_id,
             addon_api: u32::try_from(row.addon_api).unwrap_or(0),
+            addon_api_max: row.addon_api_max.and_then(|n| u32::try_from(n).ok()),
             subscriptions: serde_json::from_str(&row.subscriptions).unwrap_or_default(),
             data_schema: serde_json::from_str(&row.data_schema).unwrap_or_default(),
             settings_schema: serde_json::from_str(&row.settings_schema).unwrap_or_default(),
@@ -249,6 +255,7 @@ impl Store {
         insert_module_metadata(&mut tx, &req).await?;
         store_module_artifact_tx(&mut tx, req.id, req.artifact_sha256, artifact).await?;
         tx.commit().await?;
+        self.touch_modules();
         self.installed_module(req.id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
@@ -297,6 +304,7 @@ impl Store {
         .await?;
         write_platform(&mut tx, req.id, provenance.platform).await?;
         tx.commit().await?;
+        self.touch_modules();
         self.installed_module(req.id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("install of {} did not persist", req.id))
@@ -320,6 +328,7 @@ impl Store {
                       bot_user_id AS "bot_user_id: UserId",
                       schedule_channel_id AS "schedule_channel_id: ChannelId",
                       addon_api AS "addon_api!",
+                      addon_api_max,
                       subscriptions AS "subscriptions!",
                       data_schema AS "data_schema!",
                       settings_schema AS "settings_schema!",
@@ -350,6 +359,7 @@ impl Store {
                       bot_user_id AS "bot_user_id: UserId",
                       schedule_channel_id AS "schedule_channel_id: ChannelId",
                       addon_api AS "addon_api!",
+                      addon_api_max,
                       subscriptions AS "subscriptions!",
                       data_schema AS "data_schema!",
                       settings_schema AS "settings_schema!",
@@ -376,6 +386,7 @@ impl Store {
         if enabled && affected > 0 {
             self.reset_module_breaker(id).await?;
         }
+        self.touch_modules();
         Ok(affected > 0)
     }
 
@@ -397,6 +408,7 @@ impl Store {
         .execute(&self.pool)
         .await?
         .rows_affected();
+        self.touch_modules();
         Ok(affected > 0)
     }
 
@@ -430,6 +442,7 @@ impl Store {
             .execute(&self.pool)
             .await?
             .rows_affected();
+        self.touch_modules();
         Ok(affected > 0)
     }
 }

@@ -121,12 +121,14 @@ async fn enqueue(
     }
     for built in build(&state.store, &event, tally, now_ms()).await? {
         let body: Arc<str> = serde_json::to_string(&ModuleEvent {
+            contract: format!("event/{}", crate::module_runtime::EVENT_CONTRACT),
             event: kind.name,
             id: built.id,
             at_ms: built.at_ms,
             data: built.data,
         })?
         .into();
+        let annotators = state.dock.hooks().active(&state.store).await;
         let origin = Origin {
             channel: kind.channel,
             created_message: built.created.map(|(message, _)| message),
@@ -135,12 +137,41 @@ async fn enqueue(
             let own = built
                 .created
                 .is_some_and(|(_, author)| author == Some(*bot));
-            if !own {
-                queues.push(module_id, (kind.name, origin), body.clone());
+            if own {
+                continue;
             }
+            let annotated = annotators.as_ref().is_some_and(|a| a.annotates(module_id));
+            let body = match origin.created_message {
+                Some(message) if annotated => {
+                    with_annotations(state, &body, message, module_id).await
+                }
+                _ => body.clone(),
+            };
+            queues.push(module_id, (kind.name, origin), body);
         }
     }
     Ok(())
+}
+
+/// `body` with what `module_id` annotated the message with, when it annotated it.
+async fn with_annotations(
+    state: &AppState,
+    body: &Arc<str>,
+    message: crate::ids::MessageId,
+    module_id: &str,
+) -> Arc<str> {
+    let stored = state.store.message_annotations(message, module_id).await;
+    let Ok(Some(notes)) = stored else {
+        return body.clone();
+    };
+    let (Ok(mut event), Ok(notes)) = (
+        serde_json::from_str::<serde_json::Value>(body),
+        serde_json::from_str::<serde_json::Value>(&notes),
+    ) else {
+        return body.clone();
+    };
+    event["data"]["annotations"] = notes;
+    Arc::from(event.to_string())
 }
 
 /// Direct messages are never delivered, and a channel that is gone has nothing to show.

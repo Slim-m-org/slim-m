@@ -67,11 +67,17 @@ struct RawManifest {
     #[serde(default)]
     addon_api: Option<i64>,
     #[serde(default)]
+    addon_api_max: Option<i64>,
+    #[serde(default)]
     subscriptions: Vec<platform::RawSubscription>,
     #[serde(default)]
     settings: Vec<ModuleSettingDef>,
     #[serde(default)]
     slots: Vec<ModuleSlot>,
+    #[serde(default)]
+    interceptors: Vec<hooks::RawInterceptor>,
+    #[serde(default)]
+    permission_hooks: Vec<hooks::RawPermissionHook>,
     #[serde(default)]
     data: Option<serde_json::Value>,
 }
@@ -262,9 +268,12 @@ fn validate_manifest(raw: RawManifest) -> Result<Manifest, ManifestError> {
     let platform = platform::validate_platform(
         platform::RawPlatform {
             addon_api: raw.addon_api,
+            addon_api_max: raw.addon_api_max,
             subscriptions: raw.subscriptions,
             settings: raw.settings,
             slots: raw.slots,
+            interceptors: raw.interceptors,
+            permission_hooks: raw.permission_hooks,
             data: raw.data.clone(),
         },
         &capabilities,
@@ -484,6 +493,7 @@ fn is_sha256_hex(value: &str) -> bool {
 
 mod artifact_path;
 mod changelog;
+pub(in crate::http) mod hooks;
 mod index;
 mod names;
 mod network;

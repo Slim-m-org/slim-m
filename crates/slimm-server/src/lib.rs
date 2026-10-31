@@ -181,6 +181,7 @@ pub async fn run() -> anyhow::Result<()> {
         dock,
         code_runner,
     };
+    http::module_compat::disable_incompatible(&state).await;
     http::module_schedule::spawn_sweep(state.clone());
     let _module_events = http::spawn_module_events(state.clone());
     let mut router = http::router(state);

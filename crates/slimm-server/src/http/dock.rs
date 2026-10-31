@@ -21,6 +21,7 @@ mod ssrf;
 mod testing;
 pub(super) mod wire;
 
+pub(super) use manifest::hooks::{INTERCEPTOR_CAPABILITY, PERMISSION_CAPABILITY, PHASES};
 pub(super) use module_data::purge_member as purge_module_member_data;
 
 use std::sync::Arc;
@@ -81,6 +82,8 @@ pub struct Dock {
     module_data: Arc<std::sync::OnceLock<Arc<crate::module_runtime::SqliteData>>>,
     /// Pushed events each module has waiting, kept current by the event queue.
     queue_depths: Arc<super::module_events::QueueDepths>,
+    /// The live module hooks; see `module_hooks`.
+    hooks: Arc<super::module_hooks::Registry>,
 }
 
 struct Enabled {
@@ -104,6 +107,11 @@ impl Dock {
     /// The depths the event queue reports into, shared so the Dock can read them.
     pub(super) fn queue_depths(&self) -> Arc<super::module_events::QueueDepths> {
         Arc::clone(&self.queue_depths)
+    }
+
+    /// The hooks modules have placed in front of actions.
+    pub fn hooks(&self) -> &super::module_hooks::Registry {
+        &self.hooks
     }
 
     /// The one module data store, so its pool cache outlives any run or install.
@@ -169,6 +177,7 @@ impl Dock {
             .to_owned();
         Self {
             slot_cache: super::module_slot_cache::SlotCache::default(),
+            hooks: Arc::default(),
             module_data: Arc::default(),
             queue_depths: Arc::default(),
             inner: Some(Arc::new(Enabled {
@@ -189,6 +198,7 @@ impl Dock {
         Self {
             inner: None,
             slot_cache: super::module_slot_cache::SlotCache::default(),
+            hooks: Arc::default(),
             module_data: Arc::default(),
             queue_depths: Arc::default(),
         }

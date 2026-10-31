@@ -67,6 +67,9 @@ pub(crate) enum RunKind {
     /// A slot fill: its own lane, `ok:false` counts as failed in the stats,
     /// but a member viewing profiles can never trip the breaker.
     Slot,
+    /// A hook on a member's action; it draws on its own lane, is held to a short budget,
+    /// and counts toward the circuit breaker like a background run.
+    Hook,
 }
 
 /// One gated run: who asked, for which command, and what started it.
@@ -86,6 +89,7 @@ pub(crate) async fn run_installed(
     request: &RunRequest<'_>,
     surface: CapabilitySurface,
 ) -> Result<CommandOutcome, ApiError> {
+    super::module_compat::require_compatible(module)?;
     let started = Instant::now();
     let (ran, fuel_used) = run_checked(state, module, request, surface).await;
     if request.kind == RunKind::Slot
@@ -121,7 +125,7 @@ pub(crate) async fn run_installed(
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
     }
-    if request.kind == RunKind::Background {
+    if matches!(request.kind, RunKind::Background | RunKind::Hook) {
         super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
@@ -158,7 +162,10 @@ async fn prepare_and_run(
         ));
     }
     let mut limits = RunLimits::from(&module.runtime_limits);
-    if effective_capabilities(module)
+    if request.kind == RunKind::Hook {
+        limits.wall = limits.wall.min(super::module_hooks::HOOK_WALL);
+        limits.fuel = limits.fuel.min(super::module_hooks::HOOK_FUEL);
+    } else if effective_capabilities(module)
         .iter()
         .any(|c| c == "net.fetch")
     {
@@ -186,6 +193,7 @@ async fn prepare_and_run(
         RunKind::Command => RunLane::Member,
         RunKind::Background => RunLane::Background,
         RunKind::Slot => RunLane::Slot,
+        RunKind::Hook => RunLane::Hook,
     };
     let (ran, fuel) = ModuleHost::run_metered_in(
         lane,

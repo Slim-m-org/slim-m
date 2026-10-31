@@ -79,7 +79,9 @@ mod metrics;
 mod module_breaker;
 mod module_caller;
 mod module_commands;
+pub mod module_compat;
 mod module_events;
+pub(crate) mod module_hooks;
 mod module_host;
 mod module_logs;
 mod module_net;
@@ -218,6 +220,7 @@ pub fn router(state: AppState) -> Router {
         .merge(attachment_limit::routes())
         .merge(media_compression::routes())
         .merge(module_schedule::routes())
+        .merge(module_hooks::routes())
         .merge(channel_retention::routes())
         .merge(apps::routes())
         .merge(auth::routes())
