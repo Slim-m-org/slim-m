@@ -49,23 +49,24 @@ extension _StrokePainterShapes on StrokePainter {
     );
     canvas.drawRRect(rounded.deflate(0.75), _noteStroke..color = color);
     final text = stroke.text;
+    final fontSize = stroke.fontSize ?? noteWorldFontSize;
     if (text == null ||
         text.isEmpty ||
         stroke.w <= noteWorldPad * 2 ||
         stroke.h <= noteWorldPad * 2 ||
-        noteWorldFontSize * camera.zoom < minNoteTextScreenPx) {
+        fontSize * camera.zoom < minNoteTextScreenPx) {
       return;
     }
     // Laid out in world units: the wrap and the line budget are the same on every viewer's screen, and a zoom only scales the result.
     final painter = _noteLabels.painterFor(
       stroke.id,
-      (text, stroke.w, stroke.h, noteSpansRevision),
+      (text, stroke.w, stroke.h, noteSpansRevision, fontSize),
       () => TextPainter(
-        text: _noteSpan(text, noteWorldFontSize, noteLineHeight),
+        text: _noteSpan(text, fontSize, noteLineHeight),
         textDirection: TextDirection.ltr,
         maxLines: noteMaxLines(
           stroke.h,
-          noteWorldFontSize * noteLineHeight,
+          fontSize * noteLineHeight,
           pad: noteWorldPad,
         ),
         ellipsis: '…',
@@ -101,10 +102,10 @@ extension _StrokePainterShapes on StrokePainter {
         fontSize * camera.zoom < minNoteTextScreenPx) {
       return;
     }
-    // The key's third and fourth slots carry the font size and the colour: a text box's layout does not depend on its height.
+    // A text box's layout does not depend on its height, so the key's height slot is 0 and its colour rides in the revision slot.
     final painter = _noteLabels.painterFor(
       stroke.id,
-      (text, stroke.w, fontSize, stroke.colorKey.hashCode),
+      (text, stroke.w, 0, stroke.colorKey.hashCode, fontSize),
       () => TextPainter(
         text: TextSpan(
           text: text,

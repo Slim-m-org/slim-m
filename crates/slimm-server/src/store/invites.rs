@@ -15,6 +15,7 @@
 //!   spending a code for the role it grants.
 
 mod redemption;
+mod sweep;
 pub(super) use redemption::{record_redemption, spend_invite};
 
 use rand_core::{OsRng, RngCore};
@@ -246,7 +247,15 @@ impl Store {
     /// reading another account's code is enough to take the role meant for
     /// them. Only MANAGE_ROLES, which is what minting such an invite already
     /// requires, passes `None`.
-    pub async fn list_invites(&self, created_by: Option<UserId>) -> anyhow::Result<Vec<Invite>> {
+    ///
+    /// One page of at most `limit` rows, starting after the invite `before`
+    /// names; an unknown `before` starts from the top rather than failing.
+    pub async fn list_invites(
+        &self,
+        created_by: Option<UserId>,
+        before: Option<&str>,
+        limit: i64,
+    ) -> anyhow::Result<Vec<Invite>> {
         let rows = sqlx::query!(
             r#"SELECT i.code AS "code!", i.max_uses, i.uses AS "uses!", i.expires_at,
                       i.created_at AS "created_at!", i.revoked_at,
@@ -254,9 +263,14 @@ impl Store {
                       u.display_name AS "created_by_name?: String"
                FROM invites i
                LEFT JOIN users u ON u.id = i.created_by AND u.deleted_at IS NULL
-               WHERE ?1 IS NULL OR i.created_by = ?1
-               ORDER BY i.created_at DESC"#,
-            created_by
+               WHERE (?1 IS NULL OR i.created_by = ?1)
+                 AND (?2 IS NULL OR NOT EXISTS (SELECT 1 FROM invites c WHERE c.code = ?2)
+                      OR (i.created_at, i.code) < (SELECT c.created_at, c.code FROM invites c WHERE c.code = ?2))
+               ORDER BY i.created_at DESC, i.code DESC
+               LIMIT ?3"#,
+            created_by,
+            before,
+            limit
         )
         .fetch_all(&self.pool)
         .await?;

@@ -21,7 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../desktop/rpm_updater.dart';
 import '../../../desktop/startup_screen.dart' show updateActionHint;
-import '../../../providers/client_floor.dart';
+import '../providers/client_floor.dart';
 import '../../../providers/providers.dart';
 import '../../../web_update/web_page.dart';
 import 'package:slimm_api/api.dart' show AppLog, LogTag;

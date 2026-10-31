@@ -5,21 +5,14 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:slimm_design_system/design_system.dart';
+
+import 'canvas_board_callout.dart';
 
 class CanvasTruncatedNotice extends StatelessWidget {
   const CanvasTruncatedNotice({super.key});
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.fromLTRB(
-      AppSpacing.s12,
-      0,
-      AppSpacing.s12,
-      AppSpacing.s12,
-    ),
-    child: AppCallout(
-      child: Text('Some ink in this region is not shown. Zoom in to see it.'),
-    ),
+  Widget build(BuildContext context) => const CanvasBoardCallout(
+    'Some ink in this region is not shown. Zoom in to see it.',
   );
 }

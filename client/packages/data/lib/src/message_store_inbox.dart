@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
+import 'database.dart';
+import 'message_dto.dart';
+import 'message_store.dart';
 
 /// Reads the inbox needs on top of the transcript queries.
 extension MessageStoreInbox on MessageStore {
@@ -34,15 +40,15 @@ extension MessageStoreInbox on MessageStore {
   /// seq when given, else its newest delivered one. A channel this client holds
   /// nothing for is absent from the result.
   ///
-  /// One query per [_inboxChunk] channels, not one per channel, since the inbox
+  /// One query per [inboxChunk] channels, not one per channel, since the inbox
   /// re-reads this on every channel update.
   Future<Map<String, Message>> inboxMessages(
     Map<String, int?> mentionSeqByChannel,
   ) async {
     final found = <String, Message>{};
     final ids = mentionSeqByChannel.keys.toList(growable: false);
-    for (var i = 0; i < ids.length; i += _inboxChunk) {
-      final chunk = ids.skip(i).take(_inboxChunk).toList(growable: false);
+    for (var i = 0; i < ids.length; i += inboxChunk) {
+      final chunk = ids.skip(i).take(inboxChunk).toList(growable: false);
       final variables = <Variable>[];
       final clauses = <String>[];
       for (final id in chunk) {
@@ -72,4 +78,4 @@ extension MessageStoreInbox on MessageStore {
   }
 }
 
-const _inboxChunk = 300;
+const inboxChunk = 300;

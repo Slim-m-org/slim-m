@@ -14,6 +14,12 @@ void main() {
     expect(microphonePublishOptions().dtx, isFalse);
   });
 
+  test('the bitrate is pinned to 48 kbps, not left to the SDK default', () {
+    expect(microphonePublishOptions().encoding?.maxBitrate, 48000);
+    expect(receiveRoomOptions().defaultAudioPublishOptions.encoding?.maxBitrate,
+        48000);
+  });
+
   test('every call starts from the microphone options', () {
     final room = receiveRoomOptions().defaultAudioPublishOptions;
     expect(room.red, microphonePublishOptions().red);

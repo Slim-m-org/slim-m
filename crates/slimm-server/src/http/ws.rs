@@ -46,6 +46,7 @@ mod authorization;
 mod authorization_bits;
 mod canvas_frames;
 mod canvas_gate;
+mod canvas_watch;
 mod channel_scope;
 mod client_frames;
 mod deployment_frames;
@@ -56,6 +57,7 @@ mod message_frames;
 mod permission_cache;
 mod signals;
 mod signals_canvas;
+mod signals_screen_annotation;
 
 /// How long a single send may block before the peer is treated as dead. Without
 /// this a peer that completes the handshake and then stops reading could wedge
@@ -170,6 +172,7 @@ async fn serve(
 
     // A client that sends `active` frames reports real use; its keepalives then prove nothing.
     let mut reports_activity = reported_active.is_some();
+    let mut canvas_watch = canvas_watch::CanvasWatch::default();
     loop {
         tokio::select! {
             incoming = stream.next() => {
@@ -192,6 +195,9 @@ async fn serve(
                             Ok(ClientFrame::Viewing { channel_ids, active }) => {
                                 // Not a presence touch: the client decides `active` from real input, not this timer.
                                 presence_guard.set_viewing(&channel_ids, active);
+                            }
+                            Ok(ClientFrame::CanvasWatch { channel_ids }) => {
+                                canvas_watch.declare(&channel_ids);
                             }
                             Ok(ClientFrame::Typing { channel_id }) => {
                                 signals::handle_typing(
@@ -300,6 +306,41 @@ async fn serve(
                                 )
                                 .await;
                             }
+                            Ok(ClientFrame::CanvasScreenAnnotation {
+                                channel_id,
+                                target_user_id,
+                                kind,
+                                annotation_id,
+                                points,
+                                color,
+                                text: note,
+                                ended,
+                                allowed,
+                                aspect,
+                            }) => {
+                                let frame_bytes = text.as_str().len();
+                                signals_screen_annotation::handle_canvas_screen_annotation(
+                                    &state.store,
+                                    &state.hub,
+                                    &state.limiter,
+                                    &ctx,
+                                    &mut cache,
+                                    signals_screen_annotation::ScreenAnnotationFrame {
+                                        channel_id,
+                                        target_user_id,
+                                        kind,
+                                        annotation_id,
+                                        points,
+                                        color,
+                                        text: note,
+                                        ended,
+                                        allowed,
+                                        aspect,
+                                    },
+                                    frame_bytes,
+                                )
+                                .await;
+                            }
                             Ok(ClientFrame::CanvasView {
                                 channel_id,
                                 x,
@@ -381,6 +422,9 @@ async fn serve(
             ephemeral_event = ephemeral_events.recv() => {
                 match ephemeral_event {
                     Ok(event) => {
+                        if !canvas_watch.admits(&event, ctx.user_id) {
+                            continue;
+                        }
                         match authorize(&state.store, &state.hub, &state.link_previews, &ctx, &mut cache, event).await {
                             Authorization::Deliver(frame) => {
                                 if send_frame(&mut sink, &frame).await.is_err() {

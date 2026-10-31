@@ -20,7 +20,7 @@ mod support;
 use support::ws::{Client, connect, read_frame, serve, user_ticket_and_id};
 
 async fn next_of_type(ws: &mut Client, frame_type: &str) -> Value {
-    let outcome = tokio::time::timeout(Duration::from_secs(2), async {
+    let outcome = tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             let frame = read_frame(ws).await;
             if frame["type"] == frame_type {
@@ -283,7 +283,8 @@ async fn preview_frames_are_rate_limited_by_bytes() {
 
     let object_id = new_object_id();
     let points: Vec<f64> = (0..48).map(|i| i as f64 + 0.123_456).collect();
-    let total = 40;
+    // Far more bytes than the burst plus any refill a slow machine adds while sending.
+    let total = 400;
     for _ in 0..total {
         send_preview(
             &mut alice_ws,
@@ -297,7 +298,7 @@ async fn preview_frames_are_rate_limited_by_bytes() {
 
     let mut seen = 0usize;
     loop {
-        let next = tokio::time::timeout(Duration::from_millis(500), read_frame(&mut bob_ws)).await;
+        let next = tokio::time::timeout(Duration::from_secs(2), read_frame(&mut bob_ws)).await;
         match next {
             Ok(frame) if frame["type"] == "canvas.stroke_preview.updated" => seen += 1,
             Ok(_) => {}

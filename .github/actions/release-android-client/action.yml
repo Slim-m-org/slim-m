@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
+#
+# Needs, from the calling job's env: ANDROID_UPLOAD_KEYSTORE_B64, ANDROID_KEY_PROPERTIES and ANDROID_GOOGLE_SERVICES_JSON. The calling job checks them before this runs.
+name: release android client
+description: Build the upload-signed apk and appbundle, verify the signer, and attach the apk to the client release.
+
+inputs:
+  version:
+    description: client version, from release-please's client_version output
+    required: true
+  tag:
+    description: client release tag, from release-please's client_tag output
+    required: true
+  spotify_client_id:
+    description: Spotify app id for rich presence; empty keeps the feature off
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: write signing assets
+      shell: "bash -e {0}"
+      run: |
+        printf '%s' "$ANDROID_GOOGLE_SERVICES_JSON" \
+          > client/packages/app/android/app/google-services.json
+        printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d \
+          > client/packages/app/android/app/upload-keystore.jks
+        printf '%s' "$ANDROID_KEY_PROPERTIES" \
+          > client/packages/app/android/key.properties
+
+    - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+      with:
+        distribution: temurin
+        # The LTS the Android Gradle Plugin supports; local builds match.
+        java-version: "21"
+
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      with:
+        channel: stable
+        flutter-version: 3.47.0
+
+    - uses: ./.github/actions/native-hooks-cache
+    - name: build android release
+      shell: "bash -e {0}"
+      env:
+        SLIMM_SPOTIFY_CLIENT_ID: ${{ inputs.spotify_client_id }}
+      working-directory: client/packages/app
+      run: |
+        # --enforce-lockfile: resolve exactly what pubspec.lock pins.
+        flutter pub get --enforce-lockfile
+        # Build number from the run number and build name from the tag, never from pubspec. Both stores reject a reuse; see docs/ci.md.
+        flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
+          --build-name=${{ inputs.version }} \
+          --build-number=${{ github.run_number }}
+        flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
+          --build-name=${{ inputs.version }} \
+          --build-number=${{ github.run_number }}
+
+    - name: verify the signer is the upload key, not debug
+      shell: "bash -e {0}"
+      working-directory: client/packages/app
+      env:
+        # Play's registered upload certificate. A public fingerprint, not a secret, and the only check that proves Play will accept the upload.
+        EXPECTED_SHA256: 9dc12a6a03bd6125065fb5f6eca2d8d8477f74009e0f6624efee2d2b98ec033b
+      run: |
+        sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+        if [ -z "$sdk" ] || [ ! -d "$sdk/build-tools" ]; then
+          echo "::error::no Android build-tools; ANDROID_HOME='${sdk}'"
+          exit 1
+        fi
+        tool="$(find "$sdk/build-tools" -name apksigner -type f | sort -V | tail -n1)"
+        if [ -z "$tool" ]; then
+          echo "::error::no apksigner under $sdk/build-tools"
+          ls -1 "$sdk/build-tools" || true
+          exit 1
+        fi
+        # Captured to a file and echoed before matching. The previous form assigned a grep pipeline, so a miss aborted with no output at all.
+        "$tool" verify --print-certs \
+          build/app/outputs/flutter-apk/app-release.apk > certs.txt 2>&1 || {
+            echo "::error::apksigner could not verify the release apk"
+            cat certs.txt
+            exit 1
+          }
+        cat certs.txt
+        if grep -q 'Android Debug' certs.txt; then
+          echo "::error::release apk is signed with the debug keystore; key.properties did not take effect"
+          exit 1
+        fi
+        if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
+          echo "::error::signer is not Play's registered upload key (want $EXPECTED_SHA256)"
+          exit 1
+        fi
+        echo "signed by the expected upload key"
+
+    - name: checksums
+      shell: "bash -e {0}"
+      working-directory: client/packages/app
+      run: |
+        mkdir -p dist
+        cp build/app/outputs/flutter-apk/app-release.apk \
+          "dist/slim-m-client-android.apk"
+        cp build/app/outputs/bundle/release/app-release.aab \
+          "dist/slim-m-client-android.aab"
+        (cd dist && sha256sum -- slim-m-client-android.apk > SHA256SUMS.android)
+
+    # No aab: a Play upload format testers download by mistake; docs/INSTALL.md.
+    - name: attach to the github release
+      shell: "bash -e {0}"
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        scripts/upload-release-assets.sh "${{ inputs.tag }}" \
+          client/packages/app/dist/slim-m-client-android.apk \
+          client/packages/app/dist/SHA256SUMS.android

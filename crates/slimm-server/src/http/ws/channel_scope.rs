@@ -36,6 +36,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::WatchTick { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
+        Event::DmChanged { channel_id } => *channel_id,
         // canvas_frames::channel_id already answered Some for any of these.
         Event::CanvasObjectPlaced { .. }
         | Event::CanvasObjectsRemoved { .. }
@@ -45,6 +46,7 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }

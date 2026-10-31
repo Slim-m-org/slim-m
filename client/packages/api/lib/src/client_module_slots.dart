@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 const int _maxBadgeIds = 100;
 
@@ -8,7 +13,7 @@ extension SlimmApiModuleSlots on SlimmApi {
   /// The profile sections modules contribute for [userId]; a module that
   /// failed is simply absent.
   Future<List<ModuleProfileSection>> moduleProfileSlots(String userId) async {
-    final json = await _send('GET', '/space/dock/slots/profile/$userId');
+    final json = await send('GET', '/space/dock/slots/profile/$userId');
     final raw = json is Map ? json['sections'] : null;
     if (raw is! List) return const [];
     return raw
@@ -26,7 +31,7 @@ extension SlimmApiModuleSlots on SlimmApi {
     final out = <String, List<ModuleBadge>>{};
     for (var i = 0; i < ids.length; i += _maxBadgeIds) {
       final end = i + _maxBadgeIds < ids.length ? i + _maxBadgeIds : ids.length;
-      final json = await _send(
+      final json = await send(
         'GET',
         '/space/dock/slots/badges',
         query: {'ids': ids.sublist(i, end).join(',')},

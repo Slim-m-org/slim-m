@@ -84,7 +84,7 @@ List<Widget> participantCallMenuItems(
       surface: ParticipantSurface.menu,
       isSelf: false,
       inCallTogether: true,
-      supportsVolume: controller.supportsParticipantVolume,
+      supportsVolume: controller.volumes.supportsParticipantVolume,
       hasProfile: profile != null,
       showModeration: gates?.showModeration ?? false,
       canMove: sourceChannel != null && _canMove(ref, sourceChannel),

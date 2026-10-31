@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../../desktop/desktop_window_shell.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
@@ -94,15 +95,27 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
 
   late final PhoneLandscapeHold _landscape;
 
+  late final VoidCallback _releaseEnlarged;
+
   @override
   void initState() {
     super.initState();
+    _releaseEnlarged = ref
+        .read(voiceControllerProvider.notifier)
+        .video
+        .holdEnlargedVideo(
+          videoSubscriptionKey(
+            identity: widget.identity,
+            screenShare: widget.kind == FullscreenVideoKind.screenShare,
+          ),
+        );
     _landscape = PhoneLandscapeHold(
       ref.read(orientationChannelProvider),
       ref.read(portraitLockedPhoneProvider.notifier),
     );
     _windowHold = WindowFullscreenHold(
       ref.read(fullscreenVideoActiveProvider.notifier),
+      ref.read(desktopWindowShellProvider),
     );
     WidgetsBinding.instance.addObserver(this);
     unawaited(_landscape.enter());
@@ -121,6 +134,7 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _releaseEnlarged();
     _windowHold.release();
     _landscape.release();
     super.dispose();

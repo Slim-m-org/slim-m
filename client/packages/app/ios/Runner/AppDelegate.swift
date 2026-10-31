@@ -40,6 +40,8 @@ import UserNotifications
   private var pendingTapChannelId: String?
   private var notificationTapObserver: NotificationTapObserver?
   private var broadcastChannel: FlutterMethodChannel?
+  private var appBadgeChannel: FlutterMethodChannel?
+  private var holdMusicChannel: FlutterMethodChannel?
   private var clipboardImageChannel: FlutterMethodChannel?
   private var appLockWindowChannel: FlutterMethodChannel?
   private let voiceCallChannel = VoiceCallChannel()
@@ -173,6 +175,18 @@ import UserNotifications
       BroadcastChannel.handle(call, result: result)
     }
     broadcastChannel = broadcast
+
+    let appBadge = FlutterMethodChannel(name: AppBadgeChannel.name, binaryMessenger: messenger)
+    appBadge.setMethodCallHandler { call, result in
+      AppBadgeChannel.handle(call, result: result)
+    }
+    appBadgeChannel = appBadge
+
+    let holdMusic = FlutterMethodChannel(name: HoldMusicChannel.name, binaryMessenger: messenger)
+    holdMusic.setMethodCallHandler { call, result in
+      HoldMusicChannel.handle(call, result: result)
+    }
+    holdMusicChannel = holdMusic
 
     let appLockWindow = FlutterMethodChannel(
       name: AppLockWindowChannel.name, binaryMessenger: messenger)

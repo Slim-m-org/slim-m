@@ -16,7 +16,7 @@ use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
 use crate::ids::UserId;
 use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLane, RunLimits};
-use crate::store::{InstalledModule, RunResult, now_ms};
+use crate::store::{InstalledModule, RunResult, RunTiming, now_ms};
 
 #[derive(Serialize)]
 struct ModuleWireRequest<'a> {
@@ -87,7 +87,7 @@ pub(crate) async fn run_installed(
     surface: CapabilitySurface,
 ) -> Result<CommandOutcome, ApiError> {
     let started = Instant::now();
-    let ran = run_checked(state, module, request, surface).await;
+    let (ran, fuel_used) = run_checked(state, module, request, surface).await;
     if request.kind == RunKind::Slot
         && ran
             .as_ref()
@@ -111,7 +111,11 @@ pub(crate) async fn run_installed(
             &module.id,
             request.command,
             &result,
-            (now_ms(), duration_ms),
+            RunTiming {
+                at: now_ms(),
+                duration_ms,
+                fuel_used: fuel_used.and_then(|fuel| i64::try_from(fuel).ok()),
+            },
         )
         .await
     {
@@ -123,12 +127,25 @@ pub(crate) async fn run_installed(
     ran
 }
 
+/// The run and the fuel it burned, when that could be read.
 async fn run_checked(
     state: &AppState,
     module: &InstalledModule,
     request: &RunRequest<'_>,
     surface: CapabilitySurface,
-) -> Result<CommandOutcome, ApiError> {
+) -> (Result<CommandOutcome, ApiError>, Option<u64>) {
+    match prepare_and_run(state, module, request, surface).await {
+        Ok((outcome, fuel)) => (Ok(outcome), fuel),
+        Err(err) => (Err(err), None),
+    }
+}
+
+async fn prepare_and_run(
+    state: &AppState,
+    module: &InstalledModule,
+    request: &RunRequest<'_>,
+    surface: CapabilitySurface,
+) -> Result<(CommandOutcome, Option<u64>), ApiError> {
     let module_id = module.id.as_str();
     let Some(stored_sha256) = state.store.module_artifact_sha256(module_id).await? else {
         return Err(ApiError::Conflict(
@@ -170,7 +187,7 @@ async fn run_checked(
         RunKind::Background => RunLane::Background,
         RunKind::Slot => RunLane::Slot,
     };
-    let ran = ModuleHost::run_loading_in(
+    let (ran, fuel) = ModuleHost::run_metered_in(
         lane,
         &module.artifact_sha256,
         (limits, request_json, surface),
@@ -184,10 +201,11 @@ async fn run_checked(
         },
     )
     .await;
-    Ok(match ran {
+    let outcome = match ran {
         Ok(bytes) => interpret(&bytes),
         Err(err) => CommandOutcome::host_failure(describe(&err)),
-    })
+    };
+    Ok((outcome, fuel))
 }
 
 /// The module's own answer, or a host failure when it is not the ABI's shape.

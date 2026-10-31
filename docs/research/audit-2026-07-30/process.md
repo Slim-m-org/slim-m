@@ -55,7 +55,7 @@ Shape of the fix: the same flags the neighbouring jobs already pass.
 
 `flutter build linux --release` is passed neither `--build-name` nor `--build-number`, unlike the android job (lines 579-584) and the ios job (774-776), both of which pass both under a comment saying "never from pubspec".
 Flutter therefore reads `client/packages/app/pubspec.yaml`, which is `version: 0.1.0+4` (line 8); release-please tracks `client/pubspec.yaml` (now 0.12.0) and never touches the app package.
-The value is user-visible: `client/packages/app/lib/src/widgets/app_info_section.dart:52` renders `'${i.version} (${i.buildNumber})'` from `PackageInfo.fromPlatform()` under a "Version" tile.
+The value is user-visible: `client/packages/app/lib/src/features/settings/widgets/app_info_section.dart:52` renders `'${i.version} (${i.buildNumber})'` from `PackageInfo.fromPlatform()` under a "Version" tile.
 Meanwhile the tarball is named from the release version (line 328) and the rpm is stamped with it (line 390), so a tester reads 0.1.0 (4) in Settings for a file that says 0.12.0.
 CLAUDE.md's note that the pubspec `+N` is now only a local-build default is true for the store builds and false for this one.
 Shape of the fix: the two flags the android and ios jobs already pass.

@@ -6,7 +6,7 @@ glibc floor of the Linux tarball and rpm built on the runner and splits the
 amd64 legs from the arm64 ones pinned to `ubuntu-24.04-arm`. The label is
 checked in `runs-on:` and in the `runner:` matrix values that feed it, so a
 publishing workflow can never pick up a new image without a deliberate PR.
-`windows-latest` and `macos-latest` are not covered: see `docs/ci.md`.
+`macos-latest` is not covered: see `docs/ci.md`.
 """
 import re
 import unittest
@@ -15,7 +15,7 @@ from pathlib import Path
 WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 FLOATING = re.compile(
-    r"^\s*(?:-\s+)?(?:runs-on|runner):\s*\[?\s*[\"']?ubuntu-latest\b", re.M
+    r"^\s*(?:-\s+)?(?:runs-on|runner):\s*\[?\s*[\"']?(?:ubuntu|windows)-latest\b", re.M
 )
 
 
@@ -46,6 +46,10 @@ class RunnersArePinnedTest(unittest.TestCase):
         )
         self.assertEqual(len(floating_labels(bad)), 1)
 
+    def test_a_floating_windows_runner_is_seen(self):
+        bad = "    runs-on: windows-latest\n"
+        self.assertEqual(len(floating_labels(bad)), 1)
+
     def test_a_list_form_is_seen(self):
         bad = "    runs-on: [ubuntu-latest]\n"
         self.assertEqual(len(floating_labels(bad)), 1)
@@ -54,6 +58,7 @@ class RunnersArePinnedTest(unittest.TestCase):
         good = (
             "    runs-on: ubuntu-24.04\n"
             "    runs-on: ubuntu-24.04-arm\n"
+            "    runs-on: windows-2025\n"
             "    runs-on: ${{ matrix.runner }}\n"
             "    # ubuntu-latest is mentioned only in a comment\n"
         )

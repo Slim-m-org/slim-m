@@ -30,7 +30,9 @@ import '../../widgets/settings_secret_reveal.dart';
 import '../../widgets/settings_section_header.dart';
 import '../settings_screen_scaffold.dart';
 import 'bot_permissions_sheet.dart';
+import 'bot_prefix_sheet.dart';
 export 'bot_permissions_sheet.dart' show showBotPermissionsSheet;
+export 'bot_prefix_sheet.dart' show showBotPrefixSheet;
 import '../../../../action_labels.dart';
 import '../../../../format.dart';
 
@@ -362,6 +364,13 @@ class _BotRowState extends ConsumerState<_BotRow>
             size: AppButtonSize.sm,
             onPressed: () => showBotPermissionsSheet(context, bot),
           ),
+        if (!bot.isRevoked)
+          AppButton(
+            label: 'Prefix',
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
+            onPressed: () => showBotPrefixSheet(context, bot),
+          ),
         AppButton(
           label: 'Re-issue token',
           variant: AppButtonVariant.secondary,
@@ -394,6 +403,7 @@ class _BotRowState extends ConsumerState<_BotRow>
       detail: _detail(bot, count),
       dimmed: bot.isRevoked,
       stackTrailingWhenNarrow: true,
+      stackBelowWidth: 720,
       trailing: _actions(context, bot),
       error: actionError,
       onErrorDismiss: clearActionError,

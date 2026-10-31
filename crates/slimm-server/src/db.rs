@@ -14,6 +14,10 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 
 use crate::config::Config;
 
+/// How long a request waits for a free connection before it fails, rather than
+/// sqlx's 30 s default holding the client for half a minute.
+pub(crate) const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Opens the SQLite pool, creating the database and its parent directory if
 /// needed, then runs forward-only migrations to the current schema.
 pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
@@ -34,6 +38,7 @@ pub async fn connect(config: &Config) -> anyhow::Result<SqlitePool> {
 
     let pool = SqlitePoolOptions::new()
         .max_connections(8)
+        .acquire_timeout(ACQUIRE_TIMEOUT)
         .connect_with(options)
         .await
         .context("opening the SQLite database")?;

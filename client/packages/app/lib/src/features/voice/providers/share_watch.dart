@@ -93,8 +93,10 @@ class ShareWatchController extends StateNotifier<ShareWatchState> {
 final shareWatchProvider =
     StateNotifierProvider<ShareWatchController, ShareWatchState>((ref) {
       final controller = ShareWatchController(
-        (keys) =>
-            ref.read(voiceControllerProvider.notifier).setVideoBlocked(keys),
+        (keys) => ref
+            .read(voiceControllerProvider.notifier)
+            .cameras
+            .setVideoBlocked(keys),
       );
       // A dropped call reports an empty roster; the choices wait for the one after the rejoin.
       ref.listen<List<VoiceParticipant>>(voiceParticipantsProvider, (

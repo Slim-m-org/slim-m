@@ -18,7 +18,7 @@ import 'package:slimm_app/src/features/accounts/providers/account_services.dart'
 import 'package:slimm_app/src/features/messages/providers/attachment_preview_bytes.dart';
 import 'package:slimm_app/src/providers/disk_byte_cache.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';

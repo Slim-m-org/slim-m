@@ -34,6 +34,10 @@ pub(super) enum ClientFrame {
         #[serde(default)]
         active: bool,
     },
+    /// The canvases this connection has open, replacing its previous report.
+    /// Until one arrives the connection receives every canvas's live cursors and previews.
+    #[serde(rename = "canvas.watch")]
+    CanvasWatch { channel_ids: Vec<String> },
     /// A pointer position on a channel's canvas, rate-limited and authorized like the canvas HTTP routes (view plus `USE_CANVAS`); see [`super::signals::handle_canvas_cursor`].
     /// There is no "stop" frame, for the reason [`crate::hub::Event::CanvasCursorMoved`] gives.
     #[serde(rename = "canvas.cursor")]
@@ -86,6 +90,23 @@ pub(super) enum ClientFrame {
         h: f64,
         #[serde(default)]
         ended: bool,
+    },
+    /// A viewer's annotation over someone's shared screen, or the sharer's own consent for viewers to draw; see [`super::signals_canvas::handle_canvas_screen_annotation`].
+    #[serde(rename = "canvas.screen_annotation")]
+    CanvasScreenAnnotation {
+        channel_id: String,
+        target_user_id: String,
+        kind: String,
+        annotation_id: Option<String>,
+        #[serde(default)]
+        points: Vec<f64>,
+        color: Option<String>,
+        text: Option<String>,
+        #[serde(default)]
+        ended: bool,
+        #[serde(default)]
+        allowed: bool,
+        aspect: Option<f64>,
     },
     /// The world rectangle this client is looking at, so others can follow it
     /// or be summoned to it; gated like a cursor, see

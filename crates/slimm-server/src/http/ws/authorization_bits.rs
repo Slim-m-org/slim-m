@@ -21,6 +21,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -54,6 +55,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
+        | Event::DmChanged { .. }
         // Handled earlier in `authorize` and never reach this call.
         | Event::SessionRevoked(_)
         | Event::PresenceChanged(_)

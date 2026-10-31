@@ -15,6 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../messages/widgets/media_label.dart';
 import '../../voice/widgets/call_roster_motion.dart';
+import '../widgets/screen_annotate_layer.dart';
 import 'canvas_presence_bubble.dart';
 import 'canvas_presence_frame.dart';
 import 'canvas_presence_geometry.dart';
@@ -202,6 +203,8 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
               if (_tile(key, onCanvas[key]!, camera, byIdentity)
                   case final tile?)
                 tile,
+            for (final key in painted)
+              ?_annotateLayer(key, onCanvas[key]!, camera, byIdentity),
             if (focused != null && onCanvas[focused] != null)
               ?_focusedLabel(focused, onCanvas[focused]!, camera, byIdentity),
           ],
@@ -251,6 +254,24 @@ class _CanvasPresenceLayerState extends State<CanvasPresenceLayer> {
     final builder = widget.participantMenuItemsBuilder;
     if (builder == null) return null;
     return (tileContext, close) => builder(tileContext, participant, close);
+  }
+
+  /// Others' screens only: the sharer never draws on their own tile.
+  Widget? _annotateLayer(
+    String key,
+    Rect rect,
+    Camera camera,
+    Map<String, VoiceParticipant> byIdentity,
+  ) {
+    if (presenceTileKind(key) != screenTrackKind) return null;
+    final sharer = byIdentity[presenceTileIdentity(key)];
+    if (sharer == null || sharer.isLocal) return null;
+    return ScreenAnnotateLayer(
+      key: ValueKey('annotate:$key'),
+      sharerId: sharer.identity,
+      sharerName: sharer.name,
+      tileRect: presenceScreenRect(rect, camera),
+    );
   }
 
   // The tile's own controls are left out while focused, so its name is the one thing laid over the video.

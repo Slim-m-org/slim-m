@@ -262,6 +262,9 @@ pub(super) enum ServerFrame {
         ring_id: String,
         outcome: String,
     },
+    /// A group DM's roster or name changed; see [`crate::hub::Event::DmChanged`].
+    #[serde(rename = "dm.changed")]
+    DmChanged { channel_id: String },
     #[serde(rename = "canvas.object.placed")]
     CanvasObjectPlaced {
         channel_id: String,
@@ -349,6 +352,24 @@ pub(super) enum ServerFrame {
         h: f64,
         ended: bool,
     },
+    #[serde(rename = "canvas.screen_annotation.updated")]
+    CanvasScreenAnnotation {
+        channel_id: String,
+        user_id: String,
+        target_user_id: String,
+        kind: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        annotation_id: Option<String>,
+        points: Vec<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        color: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        ended: bool,
+        allowed: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        aspect: Option<f64>,
+    },
     #[serde(rename = "canvas.view.updated")]
     CanvasView {
         channel_id: String,
@@ -399,6 +420,7 @@ pub(super) enum ServerFrame {
         h: f64,
         locked: bool,
         sent_to_back: bool,
+        version: i64,
     },
     /// A canvas object was locked in place or unlocked.
     #[serde(rename = "canvas.object.lock_changed")]
@@ -406,6 +428,7 @@ pub(super) enum ServerFrame {
         channel_id: String,
         object_id: String,
         locked: bool,
+        version: i64,
     },
     /// The moderation queue changed: a report was filed or resolved. Carries
     /// nothing beyond the type tag; see [`crate::hub::Event::ReportsChanged`]

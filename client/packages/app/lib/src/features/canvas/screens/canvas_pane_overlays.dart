@@ -11,41 +11,36 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 import '../../modules/widgets/dock_height_reporter.dart';
 import '../../voice/widgets/hold_music_badge.dart';
 import 'canvas_call_dock.dart';
 import 'canvas_dock_collapse.dart';
 import 'canvas_hidden_tiles.dart';
-import 'canvas_follow_controls.dart';
+import 'canvas_follow_status.dart';
+import 'canvas_follow_targets.dart';
 import 'canvas_presence_roster.dart';
 import 'canvas_summon_request.dart';
 import 'canvas_view_relay.dart';
 
-/// Follow and bring-everyone when a [relay] is wired, else the plain roster.
+/// The follow outline and chip and any summon request when a [relay] is wired, else the plain roster.
 class CanvasPeerControls extends StatelessWidget {
   const CanvasPeerControls({
     super.key,
-    required this.document,
     required this.participants,
     required this.cursors,
     required this.relay,
     required this.selfId,
-    this.viewMode,
     this.onAcceptSummon,
   });
 
   /// Runs when the person accepts a summon; the pane leaves full screen first.
   final VoidCallback? onAcceptSummon;
 
-  final CanvasDocument document;
   final List<VoiceParticipant> participants;
   final CanvasCursors? cursors;
   final CanvasViewRelay? relay;
   final String? selfId;
-
-  /// Whether the view is personal decides whether a summon is on offer.
-  final CanvasViewMode? viewMode;
 
   @override
   Widget build(BuildContext context) {
@@ -58,38 +53,13 @@ class CanvasPeerControls extends StatelessWidget {
       );
     }
     if (cursors == null) return const SizedBox.shrink();
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ListenableBuilder(
-          listenable: viewMode ?? relay.following,
-          builder: (context, _) => CanvasFollowControls(
-            relay: relay,
-            cursors: cursors,
-            participants: participants,
-            selfId: selfId,
-            canBringEveryone: !(viewMode?.personal ?? false),
-            onBringEveryone: () =>
-                relay.summonEveryone(document.visibleBoard ?? canvasSharedArea),
-          ),
-        ),
-        Align(
-          alignment: Alignment.topCenter,
-          child: SafeArea(
-            minimum: EdgeInsets.fromLTRB(
-              AppSpacing.s12,
-              canvasCornerRowsInset(context),
-              AppSpacing.s12,
-              AppSpacing.s12,
-            ),
-            child: CanvasSummonRequestCard(
-              relay: relay,
-              nameOf: _nameOf,
-              onAccept: onAcceptSummon ?? () => unawaited(relay.acceptSummon()),
-            ),
-          ),
-        ),
-      ],
+    return CanvasFollowStatus(
+      participants: participants,
+      below: CanvasSummonRequestCard(
+        relay: relay,
+        nameOf: _nameOf,
+        onAccept: onAcceptSummon ?? () => unawaited(relay.acceptSummon()),
+      ),
     );
   }
 

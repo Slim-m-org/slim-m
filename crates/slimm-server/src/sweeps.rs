@@ -86,6 +86,11 @@ pub async fn run_token_sweep_pass(store: &store::Store) {
         Ok(swept) => tracing::info!(swept, "swept expired TOTP challenge rows"),
         Err(err) => tracing::warn!(error = %err, "TOTP challenge sweep failed"),
     }
+    match store.sweep_dead_invites().await {
+        Ok(0) => {}
+        Ok(swept) => tracing::info!(swept, "swept spent, expired and revoked invites"),
+        Err(err) => tracing::warn!(error = %err, "invite sweep failed"),
+    }
     match store.sweep_login_throttle().await {
         Ok(0) => {}
         Ok(swept) => tracing::info!(swept, "swept stale login throttle rows"),
@@ -276,22 +281,4 @@ pub async fn run_message_retention_sweep_pass(
         }
         Err(err) => tracing::warn!(error = %err, "message retention sweep failed"),
     }
-}
-
-/// How often due module schedules are checked; the shortest interval a
-/// manifest may declare is five minutes, so this is precise enough.
-const MODULE_SCHEDULE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
-
-/// Runs modules' scheduled commands; see `http::module_schedule`.
-pub(crate) fn spawn_module_schedule_sweep(state: crate::http::AppState) {
-    spawn_sweep(MODULE_SCHEDULE_INTERVAL, move || {
-        let state = state.clone();
-        async move {
-            match crate::http::run_scheduled_modules(&state, store::now_ms()).await {
-                Ok(0) => {}
-                Ok(count) => tracing::debug!(count, "ran scheduled module commands"),
-                Err(err) => tracing::warn!(error = %err, "module schedule sweep failed"),
-            }
-        }
-    });
 }

@@ -16,7 +16,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 // Channel and Message exist in both packages; the wire types are the ones
 // this file builds, so only the store types come across from data.

@@ -14,24 +14,20 @@ import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/window_resize_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/fake_desktop_window_port.dart';
+import 'support/desktop_shell_fixture.dart';
 
 void main() {
   testWidgets(
     'passes the child straight through when the shell was never started',
     (tester) async {
-      expect(
-        DesktopWindowShell.active,
-        isFalse,
-        reason: 'nothing in this test run ever calls registerListenersAndTray',
-      );
-
       await tester.pumpWidget(
-        const MaterialApp(home: DesktopChrome(child: Text('real content'))),
+        const ProviderScope(
+          child: MaterialApp(home: DesktopChrome(child: Text('real content'))),
+        ),
       );
 
       expect(find.text('real content'), findsOneWidget);
-      // Exactly what was handed in - no ProviderScope required either.
+      // Exactly what was handed in: nothing started the shell, so no chrome wraps it.
       expect(find.byType(Column), findsNothing);
     },
   );
@@ -40,15 +36,14 @@ void main() {
     'active chrome gives its text a real style, not the fallback underline',
     (tester) async {
       // The real placement: chrome in MaterialApp's builder, no Scaffold, so it must carry its own Material or the text inherits the fallback underline.
-      DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-      DesktopWindowShell.debugActivate(frameless: true);
-      addTearDown(DesktopWindowShell.debugReset);
+      final shell = shellFor(null, active: true, frameless: true);
       tester.view.physicalSize = const Size(1400, 880);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [desktopWindowShellProvider.overrideWithValue(shell)],
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AppTokens.dark),
             builder: (context, child) => DesktopChrome(child: child!),
@@ -79,12 +74,11 @@ void main() {
     tester,
   ) async {
     // Mirrors the macOS/Windows branch: active without frameless draws no title bar either, so nothing needs a resize frame on a window the OS still frames.
-    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-    DesktopWindowShell.debugActivate();
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(null, active: true);
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [desktopWindowShellProvider.overrideWithValue(shell)],
         child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
           builder: (context, child) => DesktopChrome(child: child!),
@@ -100,15 +94,14 @@ void main() {
     tester,
   ) async {
     // The window menu is an OverlayPortal; without the chrome's own Overlay it threw "No Overlay widget found" and never opened.
-    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(null, active: true, frameless: true);
     tester.view.physicalSize = const Size(1400, 880);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: [desktopWindowShellProvider.overrideWithValue(shell)],
         child: MaterialApp(
           theme: buildTheme(Brightness.dark, AppTokens.dark),
           builder: (context, child) => DesktopChrome(child: child!),

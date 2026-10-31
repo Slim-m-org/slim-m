@@ -228,6 +228,8 @@ class _DockHandleState extends State<_DockHandle> {
     return AppTouchHitArea(
       alignment: Alignment.bottomCenter,
       child: Semantics(
+        // Its own node, or it merges into the pane's focus node and the whole canvas reads as this button.
+        container: true,
         button: true,
         label: label,
         excludeSemantics: true,

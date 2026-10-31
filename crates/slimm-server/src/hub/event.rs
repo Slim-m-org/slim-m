@@ -21,6 +21,7 @@ use crate::store::{
 use crate::voice::CallRingOutcome;
 
 use super::event_util::Reactors;
+use super::screen_annotation::ScreenAnnotationEvent;
 
 /// Something that happened and should reach interested connections.
 #[derive(Debug, Clone)]
@@ -467,6 +468,12 @@ pub enum Event {
         ring_id: CallRingId,
         outcome: CallRingOutcome,
     },
+    /// A group DM's roster or custom name changed. Carries only the channel
+    /// id: a receiving client re-reads its DM list, which already applies
+    /// per-viewer nicknames. Reaches the current participants through the
+    /// ordinary `VIEW_CHANNEL` check, so it is the roster as it is now that
+    /// decides, and a person who just left learns from their own request.
+    DmChanged { channel_id: ChannelId },
     /// An object was placed on a channel's canvas.
     ///
     /// Carries the whole row for the same reason [`Event::MessageCreated`]
@@ -615,6 +622,12 @@ pub enum Event {
         h: f64,
         ended: bool,
     },
+    /// A viewer's annotation over, or a sharer's consent about, a screen share.
+    ///
+    /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored,
+    /// the sharer's overlay fades it within seconds. Boxed so the payload does
+    /// not widen every other variant.
+    CanvasScreenAnnotation(Box<ScreenAnnotationEvent>),
     /// The part of the shared board a member is looking at, in world units.
     ///
     /// Ephemeral like [`Event::CanvasCursorMoved`]: no `seq`, never stored, a
@@ -707,12 +720,16 @@ pub enum Event {
         h: f64,
         locked: bool,
         sent_to_back: bool,
+        /// Orders this against every other lock or slot change in the channel; see `store::canvas_state_version`.
+        version: i64,
     },
     /// A canvas object was locked in place or unlocked; current state, not op history.
     CanvasObjectLockChanged {
         channel_id: ChannelId,
         object_id: CanvasObjectId,
         locked: bool,
+        /// Orders this against every other lock or slot change in the channel.
+        version: i64,
     },
     /// A report was filed or resolved: the moderation queue changed and a
     /// moderator watching it should refetch.

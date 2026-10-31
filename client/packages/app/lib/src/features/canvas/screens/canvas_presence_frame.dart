@@ -44,6 +44,9 @@ class CanvasPresenceFrame {
 class CanvasPresenceFrameResolver {
   final CanvasPresenceVisibility _visibility = CanvasPresenceVisibility();
 
+  /// Tiles that take a default slot but are never shown, so blocking someone does not move everyone else's default spots.
+  Set<String> layoutOnlyKeys = const {};
+
   /// Safe to call more than once per frame with the same input: the
   /// visibility test is idempotent for an unchanged viewport and rects.
   CanvasPresenceFrame resolve({
@@ -60,6 +63,7 @@ class CanvasPresenceFrameResolver {
     final frame = document.sharedArea?.size ?? document.viewport;
     final onCanvas = presenceOnCanvasRects(
       keys: keys,
+      layoutOnly: layoutOnlyKeys,
       layout: layout.withMaxRowWidth(frame.width),
       overrides: overrides,
       byIdentity: byIdentity,

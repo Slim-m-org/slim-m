@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The notification schedule: `/notifications/schedule` and its allow-lists
 /// and snooze.
@@ -8,7 +13,7 @@ part of 'client.dart';
 extension SlimmApiNotificationSchedule on SlimmApi {
   /// Reads the caller's own schedule, or `null` if never configured.
   Future<NotificationSchedule?> notificationSchedule() async {
-    final json = await _send('GET', '/notifications/schedule');
+    final json = await send('GET', '/notifications/schedule');
     final raw = (json as Map<String, dynamic>)['schedule'];
     return raw == null
         ? null
@@ -22,7 +27,7 @@ extension SlimmApiNotificationSchedule on SlimmApi {
     required OffHoursMode offHoursMode,
     required List<NotificationScheduleDay> days,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/notifications/schedule',
       body: {
@@ -37,30 +42,30 @@ extension SlimmApiNotificationSchedule on SlimmApi {
 
   /// Turns the schedule off entirely, back to never configured.
   Future<void> clearNotificationSchedule() =>
-      _send('DELETE', '/notifications/schedule', expectNoContent: true);
+      send('DELETE', '/notifications/schedule', expectNoContent: true);
 
   /// The member card's "notify me about this person off-hours" action.
-  Future<void> addNotificationScheduleAllowedUser(String userId) => _send(
+  Future<void> addNotificationScheduleAllowedUser(String userId) => send(
         'PUT',
         '/notifications/schedule/allowed-users/$userId',
         expectNoContent: true,
       );
 
-  Future<void> removeNotificationScheduleAllowedUser(String userId) => _send(
+  Future<void> removeNotificationScheduleAllowedUser(String userId) => send(
         'DELETE',
         '/notifications/schedule/allowed-users/$userId',
         expectNoContent: true,
       );
 
   /// The channel menu's "notify me off-hours here" action.
-  Future<void> addNotificationScheduleAllowedChannel(String channelId) => _send(
+  Future<void> addNotificationScheduleAllowedChannel(String channelId) => send(
         'PUT',
         '/notifications/schedule/allowed-channels/$channelId',
         expectNoContent: true,
       );
 
   Future<void> removeNotificationScheduleAllowedChannel(String channelId) =>
-      _send(
+      send(
         'DELETE',
         '/notifications/schedule/allowed-channels/$channelId',
         expectNoContent: true,
@@ -71,7 +76,7 @@ extension SlimmApiNotificationSchedule on SlimmApi {
   /// chosen; only the caller knows the account's own local midnight for the
   /// last of those.
   Future<int?> setNotificationSnooze(int untilMs) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/notifications/schedule/snooze',
       body: {'until_ms': untilMs},
@@ -80,7 +85,7 @@ extension SlimmApiNotificationSchedule on SlimmApi {
   }
 
   /// Ends an active snooze early.
-  Future<void> clearNotificationSnooze() => _send(
+  Future<void> clearNotificationSnooze() => send(
         'DELETE',
         '/notifications/schedule/snooze',
         expectNoContent: true,

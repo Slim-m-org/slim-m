@@ -276,3 +276,57 @@ async fn the_log_pages_backwards_by_id() {
     assert_eq!(rest.as_array().unwrap().len(), 1);
     assert_eq!(rest[0]["target_id"], "a");
 }
+
+#[tokio::test]
+async fn a_bot_prefix_change_is_recorded_with_the_new_prefix_and_a_refused_one_is_not() {
+    let (s, _guard) = support::new_store("slimm-admin-audit-bot-prefix").await;
+    let (admin, _member) = deployment(&s).await;
+    let token = s
+        .open_session(admin.id, "laptop")
+        .await
+        .unwrap()
+        .access_token;
+    let router = app(s);
+
+    let created = router
+        .clone()
+        .oneshot(call(
+            "POST",
+            "/bots",
+            &token,
+            Some(json!({ "username": "helper" })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let bot_id = json_body(created).await["bot"]["user_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let path = format!("/bots/{bot_id}/prefix");
+
+    let refused = router
+        .clone()
+        .oneshot(call(
+            "PATCH",
+            &path,
+            &token,
+            Some(json!({ "prefix": "a b" })),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
+    let moved = router
+        .clone()
+        .oneshot(call("PATCH", &path, &token, Some(json!({ "prefix": "~" }))))
+        .await
+        .unwrap();
+    assert_eq!(moved.status(), StatusCode::OK);
+
+    let log = audit_log(&router, &token).await;
+    assert_eq!(log.len(), 1, "{log:?}");
+    assert_eq!(log[0]["action"], "bot.prefix");
+    assert_eq!(log[0]["target_id"], bot_id.as_str());
+    assert_eq!(log[0]["actor_id"], admin.id.to_string());
+    assert_eq!(log[0]["detail"]["prefix"], "~");
+}

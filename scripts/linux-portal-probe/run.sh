@@ -3,7 +3,8 @@
 # Counts the xdg-desktop-portal ScreenCast sessions screen shares open against
 # a nested KWin. Cases: app (2 shares, 2 sessions), long (3 shares across a 35
 # s gap, 3 sessions, nothing retried), noenum (1 share with no enumeration,
-# 2 sessions, the unguarded path). FORK_PATH points at a local checkout.
+# 2 sessions, the unguarded path), window (a window list on Wayland comes
+# back empty instead of aborting). FORK_PATH points at a local checkout.
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -57,9 +58,22 @@ check() {
   fi
 }
 
+# A window list with no X display aborted the process; it must come back empty.
+check_windows() {
+  env -u DISPLAY -u WAYLAND_DISPLAY dbus-run-session -- "$work/inner.sh" window >/dev/null 2>&1 || true
+  local listed survived
+  listed="$(grep -c 'PROBE windows=0' "$work/probe-window.log" || true)"
+  survived="$(grep -c 'PROBE done' "$work/probe-window.log" || true)"
+  echo "window: empty list $listed (want 1), survived $survived (want 1)"
+  if [ "$listed" != 1 ] || [ "$survived" != 1 ]; then
+    status=1
+  fi
+}
+
 check app 2 2
 check noenum 1 2
 check long 3 3
+check_windows
 if [ "$status" != 0 ]; then
   echo "FAIL" >&2
   exit 1

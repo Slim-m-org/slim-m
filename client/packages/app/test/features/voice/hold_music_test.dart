@@ -21,14 +21,6 @@ import 'package:slimm_rtc/rtc.dart';
 import 'voice_controller_harness.dart';
 import '../../support/hold_playback_fake.dart';
 
-class _Driven extends VoiceController {
-  _Driven(super.ref, VoiceState initial) : super(session: FakeSession()) {
-    state = initial;
-  }
-
-  void set(VoiceState next) => state = next;
-}
-
 class _FakePlayer with HoldPlaybackFake implements HoldMusicPlayer {
   final calls = <String>[];
 
@@ -70,7 +62,7 @@ class _Rig {
       overrides: [
         holdMusicPlayerProvider.overrideWithValue(player),
         voiceControllerProvider.overrideWith(
-          (ref) => voice = _Driven(ref, initial ?? _alone),
+          (ref) => voice = FixedVoiceController(ref, initial ?? _alone),
         ),
       ],
     );
@@ -80,7 +72,7 @@ class _Rig {
 
   final player = _FakePlayer();
   late final ProviderContainer container;
-  late final _Driven voice;
+  late final FixedVoiceController voice;
 }
 
 void _settle(FakeAsync async) {

@@ -118,10 +118,7 @@ class CanvasSurface extends StatefulWidget {
   final NoteSpanBuilder? noteSpans;
   final int noteSpansRevision;
 
-  /// The selection outline and resize-handle colours. Null renders no
-  /// selection layer at all, the same "pay nothing for it unwired" choice
-  /// [cursors] already makes - a caller with no notion of selection (a test,
-  /// a read-only viewer) does not pay for the extra paint pass.
+  /// The selection outline and resize-handle colours; null renders no selection layer.
   final Color? selectionOutline;
   final Color? selectionHandleFill;
   final Color? selectionHandleBorder;
@@ -129,46 +126,29 @@ class CanvasSurface extends StatefulWidget {
   /// Draws selection handles at the touch size.
   final bool touchHandles;
 
-  /// The muted fill and glyph colour for an image whose bytes could not be
-  /// fetched or decoded. See [StrokePainter]'s own doc for why this draws
-  /// something rather than nothing.
+  /// The muted fill and glyph colour for an image whose bytes could not be fetched or decoded.
   final Color placeholderFill;
   final Color placeholderIcon;
 
-  /// The shadow `StrokePainter` draws under whichever image
-  /// `document.elevatedObjectId` currently names. Empty (the default) draws
-  /// no elevation at all, the same "pay nothing for it unwired" choice
-  /// [selectionOutline] already makes for a caller with no opinion.
+  /// The shadow drawn under the image `document.elevatedObjectId` names; empty draws none.
   final List<BoxShadow> elevationShadow;
   final StrokeCommitted onStroke;
   final double strokeWidth;
 
-  /// Other participants' live pointers, painted over the ink. Null renders
-  /// no cursor layer at all, so a caller that has not wired remote cursors up
-  /// yet (or a test that has no opinion about them) pays nothing for it.
+  /// Other participants' live pointers, painted over the ink; null renders no cursor layer.
   final CanvasCursors? cursors;
 
-  /// How long a remote cursor glides to a newly-reported position, already
-  /// passed through the caller's own reduce-motion gate (this package has no
-  /// notion of one). Zero, the default, keeps the stepped behaviour; see
-  /// [cursorGlideDuration] for the value the app passes and why. Read once
-  /// when the surface first builds, like every other painter input here.
+  /// How long a remote cursor glides to a new position, already through the caller's reduce-motion gate; zero steps.
   final Duration cursorGlide;
 
   /// The closed colour set [cursors] indexes into. Meaningless without
   /// [cursors], and ignored when it is null.
   final List<Color> cursorColors;
 
-  /// The app's own type family for a cursor's name chip. Null draws
-  /// Flutter's platform default rather than the product's own type, the same
-  /// reason [ink] and [cursorColors] arrive as plain values rather than this
-  /// package reaching for a design system it does not depend on.
+  /// The app's type family for a cursor's name chip; null draws the platform default.
   final String? cursorLabelFontFamily;
 
-  /// Fires on every hover or drag move, drawing or not, in world
-  /// coordinates. The caller decides whether, and how often, to relay this
-  /// onward - this widget applies no throttle of its own so a test can
-  /// assert on every call without needing a fake clock.
+  /// Fires on every hover or drag move in world coordinates; the caller throttles.
   final PointerMoved? onPointerMoved;
 
   /// The mouse left the surface, or a touch or pen lifted: nothing is under
@@ -185,10 +165,7 @@ class CanvasSurface extends StatefulWidget {
   /// and how often, to relay this onward as an ephemeral preview.
   final DraftPointAdded? onDraftPoint;
 
-  /// Fires once a pen draft ends - the pointer lifted, or a second pointer
-  /// touched down and cancelled it - whether or not it went on to call
-  /// [onStroke]. A caller relaying [onDraftPoint] should use this as the
-  /// signal to tell other participants the gesture is over.
+  /// Fires once a pen draft ends, whether or not it went on to call [onStroke].
   final VoidCallback? onDraftEnded;
 
   /// Fires when a draft is explicitly cancelled without committing ink.
@@ -199,38 +176,25 @@ class CanvasSurface extends StatefulWidget {
   /// notion of hit testing or permission.
   final CanvasTool tool;
 
-  /// Fires once per pointer-down and again on every move while [tool] is
-  /// [CanvasTool.eraser], so a drag can wipe through several objects the way
-  /// a moderator clearing a defaced region expects. The pointer-down point
-  /// itself is deferred exactly the way [onNotePlace]'s is (see
-  /// `_pendingErasePoint`), so a pinch's bare first finger cancels rather
-  /// than erasing whatever it happened to land on; every point after that is
-  /// still live, since only the first sample can be a pinch's opening touch.
+  /// Fires on pointer-down and every move while [tool] is [CanvasTool.eraser].
+  /// The first point is deferred like [onNotePlace]'s (see `_pendingErasePoint`) so a pinch's first finger cancels instead of erasing.
   final ValueChanged<Offset>? onErase;
 
-  /// Fires once the whole erase gesture ends - the last pointer lifting,
-  /// not the first of several in a multi-touch pan - so the caller can
-  /// submit whatever [onErase] collected as one removal rather than one per
-  /// point, which is what makes undoing an erase drag a single op.
+  /// Fires once the whole erase gesture ends, so the caller submits what [onErase] collected as one removal.
   final VoidCallback? onEraseEnd;
 
   /// Fires instead of [onEraseEnd] when the system cancels the erasing
   /// pointer, so the caller can bring back what the gesture hid.
   final VoidCallback? onEraseCancel;
 
-  /// Fires on pointer-down while [tool] is [CanvasTool.pan], in world
-  /// coordinates. Resolving whether an object was actually picked up (and
-  /// which one) is the caller's job, the same division [onErase] already
-  /// draws, so this widget carries no notion of hit testing either.
+  /// Fires on pointer-down while [tool] is [CanvasTool.pan]; the caller resolves which object, if any.
   final ValueChanged<Offset>? onSelectStart;
 
   /// Fires on every pointer move while [tool] is [CanvasTool.pan] and a
   /// drag is under way, in world coordinates.
   final ValueChanged<Offset>? onSelectDrag;
 
-  /// Fires once a select-drag ends - the last pointer lifting - so the
-  /// caller can commit the final position as one op rather than one per
-  /// move, the same shape [onEraseEnd] already uses.
+  /// Fires once a select-drag ends, so the caller commits the final position as one op.
   final VoidCallback? onSelectEnd;
 
   /// Fires instead of [onSelectEnd] when the system cancels the dragging
@@ -242,12 +206,8 @@ class CanvasSurface extends StatefulWidget {
   /// can tell a double click from a touch tap.
   final void Function(Offset world, PointerDeviceKind kind)? onSelectTap;
 
-  /// Fires once for a tap while [tool] is [CanvasTool.note], at the point
-  /// the pointer went down - a tap rather than a drag, since a note's box is
-  /// a fixed default size the caller places and the person resizes it
-  /// afterward with the select tool. Resolved on pointer-up, not
-  /// pointer-down, so a second pointer touching down first (a pinch
-  /// starting) can still cancel it - see [_resolvePendingPlacement].
+  /// Fires once for a tap while [tool] is [CanvasTool.note], at the point the pointer went down.
+  /// Resolved on pointer-up so a second pointer (a pinch starting) can still cancel it - see [_resolvePendingPlacement].
   final ValueChanged<Offset>? onNotePlace;
 
   /// Fires like [onNotePlace] while [tool] is [CanvasTool.text]: a tap names where the text box goes.
@@ -256,18 +216,10 @@ class CanvasSurface extends StatefulWidget {
   /// Fires after [onSelectEnd] for a select gesture a finger or pen held still past the long-press time, at the point it went down.
   final ValueChanged<Offset>? onSelectLongPress;
 
-  /// Fires once [tool] is [CanvasTool.shape] and every pointer has lifted -
-  /// a tap places at the default size, the same deferred single-tap
-  /// [onNotePlace] uses, for the same reason; a drag sizes the box itself,
-  /// live-previewed by [shapeKind] while it is under way (see
-  /// `DraftShape`'s own doc) and reported back through [ShapePlaced]'s own
-  /// `draggedSize`.
+  /// Fires once [tool] is [CanvasTool.shape] and every pointer has lifted: a tap places the default size, a drag reports `draggedSize`.
   final ShapePlaced? onShapePlace;
 
-  /// Which of [CanvasShapeKind] the next shape placement draws and
-  /// previews - the bar's own current pick, forwarded here only so the
-  /// live drag preview draws the right primitive; committing a shape is
-  /// still entirely the caller's own job, over [onShapePlace].
+  /// The shape kind the live drag preview draws; committing stays the caller's job over [onShapePlace].
   final CanvasShapeKind shapeKind;
 
   /// False freezes the pen and leaves pan and zoom alone, which is what a

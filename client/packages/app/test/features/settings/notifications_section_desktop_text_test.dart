@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:slimm_app/src/providers/desktop_message_text_settings.dart';
+import 'package:slimm_app/src/desktop/providers/desktop_message_text_settings.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/notification_status_banner.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_status_sections.dart';

@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The channel fields one [SlimmApiChannelAdmin.updateChannel] call changes;
 /// a null field is left alone.
@@ -48,7 +53,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
       :createsRooms,
       :userLimit,
     ) = update;
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/channels/$channelId',
       body: {
@@ -70,7 +75,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// has nowhere for anyone to land. Deleting an already-deleted channel is
   /// not an error.
   Future<void> deleteChannel(String channelId) =>
-      _send('DELETE', '/channels/$channelId', expectNoContent: true);
+      send('DELETE', '/channels/$channelId', expectNoContent: true);
 
   /// The caller's effective permission bitmask in this one channel: the
   /// per-channel sibling of `Me.permissions`. Already resolved through
@@ -79,7 +84,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// that does not exist at all, so this can never be used to probe for a
   /// channel's existence. See docs/decisions/0011-per-channel-permissions.md.
   Future<int> getChannelPermissions(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/permissions');
+    final json = await send('GET', '/channels/$channelId/permissions');
     return (json as Map<String, dynamic>)['permissions'] as int;
   }
 
@@ -92,7 +97,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// preference: everyone sees the same order. Returns every live, non-DM
   /// channel in its new arrangement.
   Future<List<Channel>> reorderChannels(List<ChannelOrderGroup> groups) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/channels/order',
       body: {
@@ -110,7 +115,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// reshape an existing response, which the wire's additive-only rule does
   /// not allow.
   Future<List<ChannelCategory>> listCategories() async {
-    final json = await _send('GET', '/categories');
+    final json = await send('GET', '/categories');
     return (json as List<dynamic>)
         .map((c) => ChannelCategory.fromJson(c as Map<String, dynamic>))
         .toList(growable: false);
@@ -120,7 +125,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// MANAGE_CHANNELS. [id] is an optional client-generated UUIDv7 that makes
   /// the create idempotent on retry.
   Future<ChannelCategory> createCategory(String name, {String? id}) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/categories',
       body: {if (id != null) 'id': id, 'name': name},
@@ -135,7 +140,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
     String? name,
     int? position,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/categories/$categoryId',
       body: {
@@ -150,13 +155,13 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// never deleted with it - they fall back to uncategorised. Deleting an
   /// already-deleted category is not an error.
   Future<void> deleteCategory(String categoryId) =>
-      _send('DELETE', '/categories/$categoryId', expectNoContent: true);
+      send('DELETE', '/categories/$categoryId', expectNoContent: true);
 
   /// This channel's own retention window ([ChannelRetention.days] null while
   /// it follows the Space) and the Space's. Requires MANAGE_SERVER.
   Future<ChannelRetention> channelRetention(String channelId) async =>
       ChannelRetention._fromJson(
-        await _send('GET', '/channels/$channelId/retention'),
+        await send('GET', '/channels/$channelId/retention'),
       );
 
   /// Sets the channel's own window, or clears it with null so it follows the
@@ -166,7 +171,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
     int? days,
   ) async =>
       ChannelRetention._fromJson(
-        await _send(
+        await send(
           'PUT',
           '/channels/$channelId/retention',
           body: {'retention_days': days},
@@ -176,7 +181,7 @@ extension SlimmApiChannelAdmin on SlimmApi {
   /// How many live messages in this channel and its threads a window of
   /// [days] would prune now.
   Future<int> previewChannelRetention(String channelId, int days) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/channels/$channelId/retention/preview',
       query: {'days': '$days'},

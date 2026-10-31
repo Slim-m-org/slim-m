@@ -376,6 +376,13 @@ const personalSettingsIndex = <SettingsEntry>[
     keywords: ['onboarding', 'welcome', 'tour', 'first run', 'setup'],
   ),
   SettingsEntry(
+    'troubleshooting',
+    'Run Space setup again',
+    description: 'Capacity, who can join, uploads, retention and voice.',
+    keywords: ['admin', 'first run', 'capacity', 'setup', 'wizard'],
+    conditional: true,
+  ),
+  SettingsEntry(
     'about',
     'Automatic updates',
     description: 'Tell me at startup when a new version is available.',

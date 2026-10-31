@@ -30,10 +30,9 @@ import 'settings_search.dart';
 import '../providers/settings_index.dart';
 
 import 'settings_pane.dart';
+import 'settings_panes_chrome.dart';
 
 export 'settings_pane.dart';
-
-part 'settings_panes_chrome.dart';
 
 class SettingsPanesScaffold extends StatefulWidget {
   const SettingsPanesScaffold({
@@ -208,7 +207,7 @@ class _SettingsPanesScaffoldState extends State<SettingsPanesScaffold> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _NavHeader(
+                      NavHeader(
                         title: widget.title,
                         backTooltip: widget.backTooltip,
                         backFallback: widget.backFallback,
@@ -395,7 +394,7 @@ class _Nav extends StatelessWidget {
         children: [
           for (final (index, group) in groups.indexed) ...[
             if (group.label case final label?)
-              _GroupLabel(label, first: index == 0)
+              GroupLabel(label, first: index == 0)
             else
               const SizedBox(height: AppSpacing.s20),
             for (final pane in group.panes) _row(context, pane),

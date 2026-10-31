@@ -5,8 +5,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../providers/desktop_splash_preference.dart';
-import '../../../widgets/start_on_login_row.dart';
+import '../../../desktop/providers/desktop_splash_preference.dart';
+import 'start_on_login_row.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 

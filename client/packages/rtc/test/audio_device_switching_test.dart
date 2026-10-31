@@ -307,7 +307,7 @@ void main() {
     switching.captureOptions();
     switching.captureOptions();
     expect(lines, [
-      'voice-ns: capture options device=default webrtc_ns=on',
+      'voice-ns: capture options device=default webrtc_ns=on aec=on agc=on',
     ]);
   });
 }

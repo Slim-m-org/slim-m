@@ -95,7 +95,7 @@ void main() {
     final controller = harness.controllerWith(session, _client(space));
     await controller.join('channel-1');
     session.emitState(VoiceSessionState.connected);
-    controller.setNoiseSuppression(NoiseSuppressionChoice.standard);
+    controller.input.setNoiseSuppression(NoiseSuppressionChoice.standard);
 
     space.strong = true;
     await _recheck();

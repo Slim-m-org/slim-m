@@ -70,6 +70,8 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     ("dm_channels", "user_a", Fate::Excluded(SOMEONE_ELSE)),
     ("dm_channels", "user_b", Fate::Excluded(SOMEONE_ELSE)),
     ("dm_hides", "user_id", Fate::Excluded(SOMEONE_ELSE)),
+    ("group_dm_members", "user_id", Fate::Excluded(SOMEONE_ELSE)),
+    ("group_dm_members", "added_by", Fate::Excluded(SOMEONE_ELSE)),
     (
         "installed_modules",
         "bot_user_id",
@@ -166,6 +168,11 @@ const DECISIONS: &[(&str, &str, Fate)] = &[
     (
         "space_settings",
         "welcome_author_id",
+        Fate::Excluded(SPACE_RECORD),
+    ),
+    (
+        "space_settings",
+        "setup_claimed_by",
         Fate::Excluded(SPACE_RECORD),
     ),
     ("totp_challenges", "user_id", Fate::Excluded(CREDENTIAL)),

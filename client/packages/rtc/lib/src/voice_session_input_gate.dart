@@ -30,12 +30,15 @@ mixin VoiceSessionInputGate {
     _mic = mic ?? LiveKitMicPort(() => _room);
     _strong = StrongNoiseSuppression(
       supported: _gate.supported,
+      supportsStrongest: _gate.supported && supportsStrongestNoiseSuppression,
       onChanged: () => unawaited(_applyInputGate()),
       log: _diag,
+      webrtcNoiseSuppression: () => _audioSwitching.processing.noiseSuppression,
     );
     _captureReadings = _gate.readings.listen(
       (r) => _strong.onReading(
         strongActive: r.strongActive,
+        strongestActive: r.strongestActive,
         micOpen: _mic.open,
         step: r.step,
       ),
@@ -123,9 +126,10 @@ mixin VoiceSessionInputGate {
   }
 
   /// Runs rnnoise on the microphone ahead of the gate, for keyboards, fans
-  /// and room noise libwebrtc's own suppressor lets through.
-  void setStrongNoiseSuppression(bool enabled) {
-    _strong.setStrong(enabled);
+  /// and room noise libwebrtc's own suppressor lets through; [strongest] adds
+  /// DeepFilterNet, which costs more CPU.
+  void setStrongNoiseSuppression(bool enabled, {bool strongest = false}) {
+    _strong.setStrong(enabled, strongest: strongest);
     _syncGateRate();
     unawaited(_applyInputGate());
   }
@@ -135,5 +139,6 @@ mixin VoiceSessionInputGate {
         thresholdDb: _gateThresholdDb,
         dynamics: _evenOutLoudSounds,
         strongNoiseSuppression: _strong.nativeStrong,
+        strongestNoiseSuppression: _strong.nativeStrongest,
       );
 }

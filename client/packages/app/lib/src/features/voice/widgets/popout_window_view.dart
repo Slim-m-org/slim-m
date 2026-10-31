@@ -46,7 +46,7 @@ class PopOutWindowView extends ConsumerWidget {
     ref.watch(voiceControllerProvider.select((v) => v.participants));
     final hasSound =
         feed.kind == FeedKind.screenShare &&
-        controller.hasScreenAudio(feed.identity);
+        controller.volumes.hasScreenAudio(feed.identity);
     final label = switch (feed.kind) {
       FeedKind.screenShare => "${feed.name}'s screen",
       FeedKind.camera => feed.name,

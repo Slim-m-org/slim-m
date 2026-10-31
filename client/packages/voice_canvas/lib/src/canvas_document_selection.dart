@@ -72,6 +72,14 @@ extension CanvasDocumentSelection on CanvasDocument {
     return stroke.kind == CanvasObjectKind.note ? stroke.text : null;
   }
 
+  /// A live note's own text size in world units, or null when it has none stored or [id] is not a note.
+  double? noteFontSizeOf(String id) {
+    final slot = _slotById[id];
+    final stroke = slot == null ? null : _strokes[slot];
+    if (stroke == null || !stroke.alive) return null;
+    return stroke.kind == CanvasObjectKind.note ? stroke.fontSize : null;
+  }
+
   /// Replaces a live note's text in place. Returns false if [id] is unknown,
   /// removed, or not a note. The caller repaints with [CanvasDocument.refresh].
   bool setNoteText(String id, String text) {

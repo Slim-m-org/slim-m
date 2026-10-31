@@ -52,6 +52,8 @@ import '../providers/camera_switch.dart';
 import '../providers/shortcut_overrides.dart' show shortcutOverridesProvider;
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import '../../screen_overlay/providers/screen_overlay_controller.dart'
+    show screenOverlaySupportedProvider;
 import '../providers/voice_state.dart' show ShareAudio;
 import '../providers/voice_settings_controller.dart'
     show voiceSettingsControllerProvider;
@@ -315,7 +317,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     return 'Share a screen$shortcut';
   }
 
-  bool get _canSwitchSource => widget.controller.screenShareNeedsSource;
+  bool get _canSwitchSource => widget.controller.video.screenShareNeedsSource;
 
   /// Switching and stopping only while sharing on a platform with a source to
   /// switch between; the quality groups are always there, since they set the
@@ -352,9 +354,26 @@ class _CallControlsState extends ConsumerState<CallControls> {
               ? AppIcons.speakerOff
               : AppIcons.speaker,
           onSelected: () => unawaited(
-            widget.controller.setScreenShareAudioOn(
+            widget.controller.share.setScreenShareAudioOn(
               widget.voice.shareAudio == ShareAudio.muted,
             ),
+          ),
+        ),
+      if (ref.watch(screenOverlaySupportedProvider))
+        ControlOption(
+          label: 'Viewers draw on my screen',
+          icon: AppIcons.pen,
+          selected: ref
+              .watch(voiceSettingsControllerProvider)
+              .screenShareAllowAnnotations,
+          onSelected: () => unawaited(
+            ref
+                .read(voiceSettingsControllerProvider.notifier)
+                .setScreenShareAllowAnnotations(
+                  !ref
+                      .read(voiceSettingsControllerProvider)
+                      .screenShareAllowAnnotations,
+                ),
           ),
         ),
       ...videoQualityOptions(ref),
@@ -369,7 +388,7 @@ class _CallControlsState extends ConsumerState<CallControls> {
     // route to switching source, so this bare tap never has to guess which
     // of the two a person meant.
     if (voice.screenSharing || voice.awaitingBroadcast) {
-      await widget.controller.setScreenShare(false);
+      await widget.controller.share.setScreenShare(false);
       return;
     }
     await _startShare(context);
@@ -386,8 +405,8 @@ class _CallControlsState extends ConsumerState<CallControls> {
   /// sources by hand would do themselves.
   Future<void> _changeSource(BuildContext context) async {
     if (!widget.voice.screenSharing) return;
-    if (!widget.controller.screenShareSourcePickerUseful) {
-      await widget.controller.setScreenShare(false);
+    if (!widget.controller.video.screenShareSourcePickerUseful) {
+      await widget.controller.share.setScreenShare(false);
       if (!context.mounted) return;
       await _startShare(context);
       return;
@@ -420,13 +439,14 @@ class _CallControlsState extends ConsumerState<CallControls> {
         return;
       }
       _lastSourceId = sourceId ?? _lastSourceId;
-      if (stopFirst) await controller.setScreenShare(false);
-      await controller.setScreenShare(
+      if (stopFirst) await controller.share.setScreenShare(false);
+      await controller.share.setScreenShare(
         true,
         quality: quality,
         sourceId: sourceId,
         includeAudio: settings.screenShareIncludeAudio,
         maxHeight: await screenShareCeiling(ref),
+        source: pick.source,
       );
     } finally {
       if (mounted) setState(() => _shareRequestInFlight = false);
@@ -439,22 +459,22 @@ class _CallControlsState extends ConsumerState<CallControls> {
     final controller = widget.controller;
     setState(() => _cameraSwitchInFlight = true);
     try {
-      if (controller.canFlipCamera) {
-        await controller.flipCamera();
+      if (controller.video.canFlipCamera) {
+        await controller.video.flipCamera();
         return;
       }
-      if (!controller.cameraNeedsSelection) return;
-      final devices = await controller.cameraDevices();
+      if (!controller.video.cameraNeedsSelection) return;
+      final devices = await controller.video.cameraDevices();
       if (devices.isEmpty) return;
       if (!context.mounted) return;
       // A single-entry list has nothing to choose between, mirroring _share.
       if (devices.length == 1) {
-        await controller.selectCameraDevice(devices.first);
+        await controller.video.selectCameraDevice(devices.first);
         return;
       }
       final chosen = await showCameraDeviceSheet(context, devices);
       if (chosen == null) return;
-      await controller.selectCameraDevice(chosen);
+      await controller.video.selectCameraDevice(chosen);
     } finally {
       if (mounted) setState(() => _cameraSwitchInFlight = false);
     }

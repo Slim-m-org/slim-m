@@ -17,10 +17,10 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../api_failure.dart';
 import '../../../entity_name.dart';
-import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../settings/widgets/settings_field.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../providers/channel_actions.dart';
 
 /// Matches the server's own ceiling (`CHANNEL_TOPIC_MAX_CHARS` in
 /// `crates/slimm-server/src/http/channels.rs`), so the counter here never
@@ -78,13 +78,11 @@ class _ChannelGeneralSectionState extends ConsumerState<ChannelGeneralSection> {
     });
     try {
       final updated = await ref
-          .read(apiProvider)
-          .updateChannel(
+          .read(channelActionsProvider)
+          .update(
             widget.channel.id,
             api.ChannelUpdate(name: _name.text.trim(), topic: _topic.text),
           );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([updated]);
       if (!mounted) return;
       setState(() {
         _savedName = updated.name;

@@ -26,6 +26,32 @@ def _participant(identity, muted):
             "tracks": [{"source": "MICROPHONE", "muted": muted}]}
 
 
+class SfuState(unittest.TestCase):
+    def test_a_failure_to_hear_names_what_the_sfu_holds(self):
+        rows = [{"identity": "alice-0123456789", "state": "ACTIVE",
+                 "tracks": [{"source": "MICROPHONE", "muted": False}]},
+                {"identity": "bob-0123456789xyz", "state": "JOINED",
+                 "tracks": [{"source": "MICROPHONE", "muted": True}]}]
+        with patch.object(e2e_voice, "sfu_participants", return_value=rows):
+            self.assertEqual(
+                e2e_voice.sfu_state("room"),
+                "alice-0123456 ACTIVE [MICROPHONE]; bob-012345678 JOINED [MICROPHONE(muted)]")
+
+    def test_it_prints_the_sfu_state_before_re_raising_the_timeout(self):
+        class Silent:
+            name = "silent"
+            def wait_for(self, label, timeout):
+                raise AssertionError(f"never saw {label!r}")
+
+        with patch.object(e2e_voice, "sfu_participants", return_value=[]), \
+                patch("builtins.print") as printed:
+            with self.assertRaises(AssertionError):
+                e2e_voice.audio_actually_arrives(Silent(), Silent(), "room")
+        lines = [call.args[0] for call in printed.call_args_list]
+        self.assertTrue(any("SFU at the failure: no participants" in line for line in lines), lines)
+        self.assertTrue(any("unreadable" in line for line in lines), lines)
+
+
 class _FakeClient:
     """Records every click so a test can assert the restore actually ran."""
 

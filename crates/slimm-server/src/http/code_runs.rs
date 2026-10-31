@@ -39,7 +39,6 @@ use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
-use super::code_fences::code_block;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE};
 use super::hidden_chars::is_hidden_char;
@@ -49,6 +48,7 @@ use super::module_commands::{
 };
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
+use crate::code_fences::code_block;
 use crate::hub::Event;
 use crate::ids::MessageId;
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
@@ -123,7 +123,8 @@ async fn run(
     }
 
     // A surface has one board, and its state is the server's, not the presser's.
-    let block_index = if surface.is_some() { 0 } else { block_index };
+    let on_surface = surface.is_some();
+    let block_index = if on_surface { 0 } else { block_index };
     // A surface's input is the module's own; a plain message runs only its own stored block, never the caller's claim of it.
     let code = match surface {
         Some(_) => held_input(&state, message_id, &req.input).await?,
@@ -145,6 +146,14 @@ async fn run(
         execute_command(&state, ctx.user_id, &req.module_id, &req.command, &code).await?
     };
     let (ok, stored) = stored_payload(req.module_id == CODE_RUNNER_MODULE_ID, outcome);
+    // A private scene answers the person who pressed and is neither stored nor shown to anyone else.
+    if on_surface && ok && is_private_scene(&stored) {
+        return Ok(Json(RunResponse {
+            ok: true,
+            output: Some(stored),
+            error: None,
+        }));
+    }
     let ran_at = state
         .store
         .record_code_run(CodeRunRecord {
@@ -184,6 +193,17 @@ async fn run(
         }
     };
     Ok(Json(response))
+}
+
+/// Whether `payload` is a scene that asks to be shown only to whoever pressed (decision 0099).
+fn is_private_scene(payload: &str) -> bool {
+    if !payload.contains("\"private\"") {
+        return false;
+    }
+    serde_json::from_str::<serde_json::Value>(payload).is_ok_and(|scene| {
+        scene.get("$slim").and_then(|v| v.as_str()) == Some("scene/1")
+            && scene.get("private") == Some(&serde_json::Value::Bool(true))
+    })
 }
 
 /// A surface frame's input with `state` taken from the last scene stored for it.

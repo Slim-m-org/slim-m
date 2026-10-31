@@ -355,6 +355,14 @@ async fn kicking_without_an_sfu_says_so() {
         .create_account("bob", "bob", "not-a-real-hash")
         .await
         .unwrap();
+    // alice outranks bob by role, so the kick reaches the voice service.
+    let alice = store.authenticate(&token).await.unwrap().unwrap().user_id;
+    let mods = store
+        .create_role("mods", Permissions::NONE, false)
+        .await
+        .unwrap();
+    store.reorder_roles(&[mods]).await.unwrap();
+    store.assign_role(alice, mods).await.unwrap();
 
     let response = app
         .oneshot(request(

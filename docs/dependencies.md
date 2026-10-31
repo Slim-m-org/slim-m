@@ -158,6 +158,7 @@ Playback goes through a `SoundPlayer` seam so a test never touches a real audio 
 The alone-in-a-call hold music (`hold_music_player.dart`) reuses the same package and the same no-audio-focus configuration.
 It plays one of four bundled CC0 tracks (`assets/audio/music/`, credited in its `CREDITS.md`), as MP3 because `audioplayers` on Windows and iOS cannot decode OGG.
 It goes to the device's own player and is never published to the room.
+On iPhone it skips `audioplayers`, which resets the call's audio session, and plays through `HoldMusicChannel.swift`: an `AVAudioEngine` beside the call that reads the session's category and never sets it.
 `audioplayers` has no output-device selection, so the music plays on the system default output rather than the speaker chosen in Voice settings.
 
 ### No charting package, for the Space analytics screen
@@ -279,6 +280,9 @@ It also fixes the plugin's Linux and Windows task runners, which ran each task w
 Two make the video renderer cheaper: it creates its pixel buffer once, and converts a frame at the drawn size rather than the full frame.
 The latest runs `getStats` off the platform thread too, since a stats poll during a camera open waited behind it for 1.5 to 1.9 s, and guards upstream's map of Unified Plan remote tracks with a lock, since it is written on the signaling thread and read on the platform thread.
 It adds a microphone noise gate and level meter on the capture path, described in `docs/voice-input-gate.md`.
+The Linux and Windows plugin also builds DeepFilterNet 3 (`third_party/dfn`, Rust through tract, MIT or Apache-2.0) with cargo for the Strongest noise suppression choice, so a desktop build needs a Rust toolchain or falls back to Strong; Cargo.lock pins it and about 28 MB (15 MB gzipped) is added to the plugin.
+On Windows the share's source list is built on a worker thread, so a share can name one of the app's own windows, and the capturer's error is forwarded to Dart, so a closed shared window ends the share.
+The video renderer clears a stale track instead of keeping it, and follows tracks added to or removed from its stream.
 On Windows an unpicked microphone opens the communications default device, and playback stays on the console default.
 The audio session's ducking opt-out is what stops Windows turning every other app down during a call.
 It is an override rather than a dependency of `slimm_rtc` because `livekit_client` requires `flutter_webrtc` from pub.dev, and pub refuses two sources for one package.

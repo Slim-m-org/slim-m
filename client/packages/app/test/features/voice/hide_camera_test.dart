@@ -142,7 +142,7 @@ void main() {
     tester,
   ) async {
     final (harness, session, controller) = await _call(tester);
-    await controller.setCameraHidden('u-ada', true);
+    await controller.cameras.setCameraHidden('u-ada', true);
     await controller.leave();
     await tester.pumpAndSettle();
     session.videoBlocked.clear();
@@ -165,8 +165,8 @@ void main() {
     tester,
   ) async {
     final (_, session, controller) = await _call(tester);
-    controller.setVideoBlocked({'screen:u-bob'});
-    await controller.setCameraHidden('u-ada', true);
+    controller.cameras.setVideoBlocked({'screen:u-bob'});
+    await controller.cameras.setCameraHidden('u-ada', true);
     expect(session.videoBlocked.last, {'screen:u-bob', 'camera:u-ada'});
     await controller.leave();
     await tester.pumpAndSettle();

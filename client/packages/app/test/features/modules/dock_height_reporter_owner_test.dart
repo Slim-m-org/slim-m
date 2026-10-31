@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/features/modules/providers/dock_reservation.dart';
+import 'package:slimm_app/src/providers/dock_reservation.dart';
 import 'package:slimm_app/src/features/modules/widgets/dock_height_reporter.dart';
 
 Widget _docks(List<(Key, double)> docks) => MaterialApp(

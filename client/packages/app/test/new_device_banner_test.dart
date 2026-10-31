@@ -16,7 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/providers/live_events.dart';
 import 'package:slimm_app/src/routing/routes.dart';
-import 'package:slimm_app/src/widgets/new_device_banner_host.dart';
+import 'package:slimm_app/src/features/auth/widgets/new_device_banner_host.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'support/mid_flight_capture.dart';

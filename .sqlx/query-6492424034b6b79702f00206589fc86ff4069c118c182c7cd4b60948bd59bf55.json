@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT user_id AS \"user_id!: UserId\" FROM group_dm_members g\n               JOIN channels c ON c.id = g.channel_id AND c.deleted_at IS NULL\n               WHERE g.channel_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6492424034b6b79702f00206589fc86ff4069c118c182c7cd4b60948bd59bf55"
+}

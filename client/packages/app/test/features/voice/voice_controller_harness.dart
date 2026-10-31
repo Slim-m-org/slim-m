@@ -97,10 +97,18 @@ http.Client voiceApi({
 /// only settable from within a [VoiceController] subclass, never from
 /// outside one, which is why this exists rather than a plain field assign.
 class FixedVoiceController extends VoiceController {
-  FixedVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
+  FixedVoiceController(super.ref, VoiceState fixed, [VoiceSession? session])
+    : super(session: session ?? FakeSession()) {
     state = fixed;
   }
+
+  /// Moves the call to [next], the way a join or a hang-up would.
+  void replace(VoiceState next) => state = next;
+
+  /// [replace] under the name several suites already use.
+  void set(VoiceState next) => state = next;
+
+  void update(VoiceState Function(VoiceState) change) => state = change(state);
 }
 
 /// Records each join and reports the call as connected.

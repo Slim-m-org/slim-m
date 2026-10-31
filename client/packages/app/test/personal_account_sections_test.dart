@@ -15,30 +15,14 @@ import 'package:http/http.dart' as http;
 import 'package:slimm_api/api.dart';
 import 'package:slimm_app/src/features/members/providers/blocks_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
 import 'package:slimm_app/src/features/settings/widgets/personal_account_sections.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import 'support/fake_blocks.dart';
 import 'support/fake_api.dart';
-
-/// Stands in for the real socket connection [SyncController.start] would
-/// otherwise attempt: a widget test has no server at the other end, so the
-/// real version hangs the test rather than failing fast. Only [startCalls]
-/// is under test here; the actual catch-up and reconnect logic is covered
-/// elsewhere (sync_controller_test.dart, sync_controller_race_test.dart).
-class _CountingSyncController extends SyncController {
-  _CountingSyncController(super.ref);
-
-  int startCalls = 0;
-
-  @override
-  Future<void> start() async {
-    startCalls++;
-    state = SyncStatus.live;
-  }
-}
+import 'support/fake_sync.dart';
 
 http.Response _totpStatus({bool enabled = false}) => http.Response(
   jsonEncode({
@@ -267,7 +251,7 @@ void main() {
             keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
             sessionProvider.overrideWithValue(SessionStore(tokens: _tokens)),
             syncControllerProvider.overrideWith(
-              (ref) => _CountingSyncController(ref),
+              (ref) => LiveSyncController(ref),
             ),
             mockApiOverride((request) async {
               if (request.method == 'DELETE' &&
@@ -291,7 +275,7 @@ void main() {
 
         final syncController =
             container.read(syncControllerProvider.notifier)
-                as _CountingSyncController;
+                as LiveSyncController;
         container.read(pushControllerProvider.notifier);
 
         await tester.pumpWidget(

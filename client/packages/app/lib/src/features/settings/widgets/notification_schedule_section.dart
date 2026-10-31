@@ -19,7 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/device_timezone.dart';
+import '../providers/device_timezone.dart';
 import '../providers/notification_schedule_controller.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';

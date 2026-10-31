@@ -25,7 +25,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
 
     expect(controller.state.screenSharing, isFalse);
     expect(controller.state.awaitingBroadcast, isTrue);
@@ -43,7 +43,7 @@ void main() {
     );
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
     expect(controller.state.awaitingBroadcast, isFalse);
@@ -62,7 +62,7 @@ void main() {
     );
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
     session.emitParticipants(const [
       VoiceParticipant(
         identity: 'user-1',
@@ -89,7 +89,7 @@ void main() {
     final controller = harness.controllerWith(session, voiceApi());
 
     await controller.join('channel-1');
-    await controller.setScreenShare(true);
+    await controller.share.setScreenShare(true);
 
     expect(controller.state.screenSharing, isFalse);
     expect(controller.state.awaitingBroadcast, isFalse);

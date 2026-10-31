@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/whats_new_controller.dart';
+import 'package:slimm_app/src/whats_new/providers/whats_new_controller.dart';
 import 'package:slimm_app/src/widgets/whats_new_gate.dart';
 import 'package:slimm_design_system/design_system.dart';
 

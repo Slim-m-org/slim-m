@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/rpm_updater.dart';
-import 'package:slimm_app/src/providers/client_floor.dart';
+import 'package:slimm_app/src/features/auth/providers/client_floor.dart';
 import 'package:slimm_app/src/features/auth/widgets/client_too_old_gate.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';

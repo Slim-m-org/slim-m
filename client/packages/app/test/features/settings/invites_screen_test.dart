@@ -475,4 +475,36 @@ void main() {
     expect(find.textContaining('mine-123'), findsWidgets);
     expect(find.text('Uses allowed'), findsNothing);
   });
+
+  testWidgets('a full page offers Show more and appends the next page after '
+      'the last code', (tester) async {
+    final befores = <String?>[];
+    await _pump(tester, (request) {
+      if (request.method == 'GET' && request.url.path == '/invites') {
+        final before = request.url.queryParameters['before'];
+        befores.add(before);
+        final codes = before == null
+            ? [for (var i = 0; i < invitePageSize; i++) 'code-$i']
+            : ['last-page'];
+        return http.Response(
+          '[${codes.map(_inviteJson).join(',')}]',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('{}', 404);
+    });
+    expect(befores, [null]);
+    expect(find.text('last-page'), findsNothing);
+
+    final more = find.text('Show more');
+    await tester.ensureVisible(more);
+    await tester.pumpAndSettle();
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+
+    expect(befores, [null, 'code-${invitePageSize - 1}']);
+    expect(find.text('Show more'), findsNothing);
+    expect(find.text('last-page', skipOffstage: false), findsOneWidget);
+  });
 }

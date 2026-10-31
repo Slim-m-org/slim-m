@@ -65,6 +65,7 @@ class _SwitchedNotice extends ConsumerWidget {
             label: 'Dismiss',
             onPressed: ref
                 .read(voiceControllerProvider.notifier)
+                .devices
                 .dismissMicFallbackNotice,
           ),
         ],

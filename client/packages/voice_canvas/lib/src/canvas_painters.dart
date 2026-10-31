@@ -118,6 +118,9 @@ class GridPainter extends CustomPainter {
 /// zoomed in stays visible to someone viewing the whole board.
 const double minInkScreenPx = 1.5;
 
+/// How faded ink paints while its save is being retried.
+const double _unsavedInkAlpha = 0.45;
+
 /// Styles a note's text: markdown, mentions and emoji as spans over [base].
 typedef NoteSpanBuilder = InlineSpan Function(String text, TextStyle base);
 
@@ -330,8 +333,11 @@ class StrokePainter extends CustomPainter {
         (stroke.y - camera.y) * camera.zoom,
       );
       canvas.scale(camera.zoom);
+      final color = inkColors[stroke.colorKey] ?? ink;
       paint
-        ..color = inkColors[stroke.colorKey] ?? ink
+        ..color = document.unsavedInk.contains(stroke.id)
+            ? color.withValues(alpha: color.a * _unsavedInkAlpha)
+            : color
         ..strokeWidth = math.max(stroke.width, minInkScreenPx / camera.zoom);
       canvas.drawPath(stroke.path, paint);
       canvas.restore();

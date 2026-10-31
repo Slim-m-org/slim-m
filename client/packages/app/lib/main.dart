@@ -5,7 +5,7 @@ library;
 import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,36 +20,31 @@ export 'src/desktop/startup_state.dart';
 
 import 'src/deep_links.dart';
 import 'src/features/accounts/providers/account_host.dart';
+import 'src/features/accounts/providers/account_host_factory.dart';
 import 'src/features/accounts/widgets/account_call_pill.dart';
 import 'src/features/accounts/providers/account_providers.dart';
 import 'src/features/accounts/providers/account_restore.dart';
 import 'src/features/accounts/providers/account_services.dart';
-import 'src/features/accounts/providers/account_slot.dart';
-import 'src/features/accounts/providers/account_store.dart';
+import 'src/providers/app_badge_sync.dart';
 import 'src/desktop/self_update/self_update_controller.dart';
 import 'src/desktop/startup_updates.dart';
 import 'src/providers/app_lock_controller.dart';
-import 'src/providers/desktop_call_notifier.dart';
+import 'src/desktop/providers/desktop_call_notifier.dart';
 import 'src/desktop/close_behavior.dart';
 import 'src/desktop/desktop_chrome.dart';
 import 'src/desktop/desktop_quit_shortcut.dart';
 import 'src/desktop/desktop_window_shell.dart';
-import 'src/providers/desktop_splash_preference.dart';
-import 'src/features/emoji/providers/emoji_catalog_provider.dart';
-import 'src/features/emoji/providers/emoji_image_cache.dart';
-import 'src/features/messages/providers/attachment_preview_bytes.dart';
+import 'src/desktop/providers/desktop_splash_preference.dart';
 import 'src/desktop/splash_floor.dart';
 import 'src/desktop/startup_screen.dart';
 import 'src/desktop/startup_state.dart';
 import 'src/diagnostics/debug_log.dart';
-import 'src/diagnostics/debug_log_persistence.dart';
 import 'src/diagnostics/voice_harness.dart';
 import 'src/features/settings/providers/autostart_setting.dart';
 import 'src/features/settings/providers/display_density.dart';
 import 'src/features/settings/providers/display_preferences.dart';
-import 'src/providers/notification_tap_router.dart';
+import 'src/push/providers/notification_tap_router.dart';
 import 'src/providers/phone_landscape.dart';
-import 'src/providers/media_disk_caches.dart';
 import 'src/providers/providers.dart';
 import 'src/providers/sync_controller.dart'
     show hasFailedSinceLiveProvider, initialSyncCompleteProvider;
@@ -111,18 +106,23 @@ Future<void> main([List<String> args = const []]) async {
   // Registers media_kit's player backend; every inline video attachment goes through it (attachment_video_player.dart).
   MediaKit.ensureInitialized();
   await _initAndroidPush();
-  await DesktopWindowShell.applyInitialGeometry();
-  DesktopWindowShell.registerSecondInstanceHandler();
-  DesktopQuitShortcut.register(DesktopWindowShell.port);
+  final shell = DesktopWindowShell();
+  await shell.applyInitialGeometry();
+  shell.registerSecondInstanceHandler();
+  DesktopQuitShortcut(shell).register();
 
-  final host = _createAccountHost();
+  final host = createAccountHost(shell);
   final container = host.createFirst();
   // Before anything that can throw, so startup failures land in the log too.
   installDiagnostics(container);
 
   container.read(appReadyProvider.notifier).state = false;
   unawaited(
-    _bootstrapApp(container, launchedAtLogin: args.contains(autostartArgument)),
+    _bootstrapApp(
+      container,
+      shell,
+      launchedAtLogin: args.contains(autostartArgument),
+    ),
   );
 
   runApp(AccountRoot(host: host));
@@ -138,51 +138,7 @@ Future<void> main([List<String> args = const []]) async {
   }
 
   await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
-  await DesktopWindowShell.lockSplashChrome();
-}
-
-/// One shared key store and emoji cache, then a container per account built on them.
-///
-/// See emojiImageCacheProvider's own doc for why the cache is opted into here rather than left as its default.
-AccountHost _createAccountHost() {
-  final keyStore = createPersistentKeyStore();
-  final emojiCache = createEmojiImageCache();
-  final previewCache = createAttachmentPreviewCache();
-  final avatarCache = createAvatarCache();
-  final originalCache = createAttachmentOriginalCache();
-  final accounts = AccountStore(keyStore);
-  // One log for every account, since the error hooks are global.
-  final debugLog = DebugLog(
-    persistence: const PrefsDebugLogPersistence(),
-    echo: kDebugMode,
-  );
-  late final AccountHost host;
-  host = AccountHost(
-    store: accounts,
-    createContainer: (slot) => ProviderContainer(
-      overrides: [
-        debugLogProvider.overrideWith((ref) => debugLog),
-        emojiImageCacheProvider.overrideWithValue(emojiCache),
-        attachmentPreviewCacheProvider.overrideWithValue(previewCache),
-        avatarCacheProvider.overrideWithValue(avatarCache),
-        attachmentOriginalCacheProvider.overrideWithValue(originalCache),
-        keyStoreProvider.overrideWithValue(keyStore),
-        accountSlotProvider.overrideWithValue(slot),
-        accountHostProvider.overrideWith((ref) => host),
-      ],
-    ),
-    startServices: (r) async {
-      await restoreStartupPreferences(r.container);
-      startAccountServices(r.container);
-    },
-    onActivate: (r) async {
-      await resyncSharedPreferences(r.container);
-      await resyncVoiceDevicePreferences(r.container);
-    },
-    readSession: (r) => restoreAccountSession(accounts, r),
-    signOutRuntime: (r) => signOutVia(r.container.read),
-  );
-  return host;
+  await shell.lockSplashChrome();
 }
 
 /// Mounts whichever account's container is active, so a switch swaps the
@@ -236,7 +192,8 @@ class AccountRoot extends StatelessWidget {
 /// native runner before any preference can be read, so even "off" cannot
 /// skip that first small frame, only the added dwell on top of it.
 Future<void> _bootstrapApp(
-  ProviderContainer container, {
+  ProviderContainer container,
+  DesktopWindowShell shell, {
   required bool launchedAtLogin,
 }) async {
   var floor = Duration.zero;
@@ -244,22 +201,22 @@ Future<void> _bootstrapApp(
   await runStartupStep(container, 'startup', () async {
     floor = await _resolveSplashFloor(container);
     await awaitBootstrapWithSplashFloor(
-      () => _runBootstrapSequence(container),
+      () => _runBootstrapSequence(container, shell),
       floor: floor,
     );
     // After the session restore: having an account decides whether the splash asks about updates at all.
     await runStartupUpdates(container);
   });
-  await DesktopWindowShell.prepareHandoff(
+  await shell.prepareHandoff(
     container,
     splashFloor: floor,
     fadeOut: AppMotion.base,
   );
   // Revealed before the flip: a window reports its real size only once shown, and the real UI must not build at the splash's 380px.
-  await DesktopWindowShell.revealAfterHandoff();
+  await shell.revealAfterHandoff();
   container.read(appReadyProvider.notifier).state = true;
   // A login launch goes where a close would, the tray or the taskbar, instead of covering what the user opened first.
-  if (launchedAtLogin) unawaited(DesktopWindowShell.requestClose());
+  if (launchedAtLogin) unawaited(shell.requestClose());
   unawaited(container.read(selfUpdateProvider).confirmStart());
   unawaited(repairAutostart(container));
 }
@@ -284,7 +241,10 @@ Future<Duration> _resolveSplashFloor(ProviderContainer container) =>
       (c) => splashFloorFor(c.read(splashDurationControllerProvider)),
     );
 
-Future<void> _runBootstrapSequence(ProviderContainer container) async {
+Future<void> _runBootstrapSequence(
+  ProviderContainer container,
+  DesktopWindowShell shell,
+) async {
   container.read(startupStatusProvider.notifier).state = 'Restoring session';
   if (!await wipeKeychainOnFreshInstall(container)) {
     await container.read(accountHostProvider)!.start();
@@ -298,9 +258,10 @@ Future<void> _runBootstrapSequence(ProviderContainer container) async {
 
   container.read(startupStatusProvider.notifier).state = 'Connecting';
   startAccountServices(container);
+  container.listen(appBadgeSyncProvider, (_, _) {});
   container.read(deepLinkControllerProvider);
   container.read(desktopCallNotifierProvider);
-  await DesktopWindowShell.registerListenersAndTray(container);
+  await shell.registerListenersAndTray(container);
 }
 
 /// Wires Firebase and the FCM background message handler Android needs to
@@ -412,7 +373,9 @@ class _SlimMAppState extends ConsumerState<SlimMApp> {
       prompt: ref.watch(startupPromptProvider),
       leaving: ref.watch(startupLeavingProvider),
       rounded: currentDesktopPlatform() == DesktopPlatform.linux,
-      windowPort: _splashIsFrameless ? DesktopWindowShell.port : null,
+      windowPort: _splashIsFrameless
+          ? ref.read(desktopWindowShellProvider).port
+          : null,
     );
     final ready = ref.watch(appReadyProvider);
     if (_onDesktop) return ready ? _app() : splash;

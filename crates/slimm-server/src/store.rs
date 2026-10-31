@@ -45,6 +45,7 @@ mod dms;
 mod dock_sources;
 mod emoji;
 mod forward_cascade;
+mod group_dms;
 mod interactions;
 mod invite_reuse;
 mod invites;
@@ -99,6 +100,7 @@ mod sign_in_alert;
 mod space;
 mod space_landing;
 mod space_link_previews;
+mod space_setup;
 mod space_welcome;
 mod storage;
 mod thread_listing;
@@ -130,6 +132,7 @@ pub use bot_commands::{
     MAX_BOT_COMMAND_USAGE_LEN, MAX_BOT_COMMANDS, MAX_BOT_PREFIX_LEN, RESERVED_BOT_PREFIXES,
     SetBotCommandsError, VisibleBotCommand, validate_bot_prefix,
 };
+pub use bot_prefix::SetBotPrefixError;
 pub use bot_token::{ReissueError, ReissuedToken};
 pub use bot_ui::VisibleBotUi;
 pub use bots::{BOT_TOKEN_PREFIX, Bot, CreateBotError, NewBot, UpdateBotPermissionsError};
@@ -161,12 +164,15 @@ pub use data_exports::{
 };
 pub use deployment_identity::MAX_SPACE_NAME_CHARS;
 pub(crate) use dms::DM_CHANNEL_KIND;
-pub use dms::{DmConversation, OpenDmError};
+pub use dms::{DmConversation, GroupDm, OpenDmError};
 pub use dock_sources::DockSource;
 pub use emoji::{CreateEmojiError, CustomEmoji, MAX_CUSTOM_EMOJI};
 pub use export_capacity::DEFAULT_EXPORT_CEILING_BYTES;
 pub use export_rows::RowStream;
 pub use forward_cascade::{CascadedDeletion, DetachedForward, ForwardCascade};
+pub use group_dms::{
+    GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS, GroupDmError, LeftGroup,
+};
 pub use interactions::{Interaction, InteractionInput, InteractionKind, SubmissionClaim};
 pub use invites::{Invite, InviteCheck, InviteMetadata, RedeemError};
 pub use linked_accounts::{AccountLinkError, LinkedAccount};
@@ -191,7 +197,7 @@ pub use module_kv::KvSetError;
 pub use module_permissions::{
     GrantModulePermissionError, GrantedModulePermission, ModulePermission,
 };
-pub use module_stats::{ModuleRunStat, RunResult, StorageUsage};
+pub use module_stats::{ModuleRunStat, RunResult, RunTiming, StorageUsage};
 pub use modules::{
     DockProvenance, InstallModuleRequest, InstalledModule, ModuleExtensionPoint,
     ModuleExtensionPointSpec, ModulePermissionSpec, ModulePlatform, ModuleRuntimeLimits,
@@ -225,6 +231,7 @@ pub use saved_messages::{MAX_SAVED_MESSAGES, SaveError, SavedMessage};
 pub use sessions::{Account, IssuedTokens, OpenError, RegisterError, SessionContext, SweptTokens};
 pub use space::{JoinPolicy, MAX_SCREEN_SHARE_MAX_HEIGHT, MIN_SCREEN_SHARE_MAX_HEIGHT};
 pub use space_landing::{MAX_SPACE_DESCRIPTION_CHARS, SpaceLanding};
+pub use space_setup::SpaceSetup;
 pub use space_welcome::{MAX_WELCOME_MESSAGE_CHARS, SpaceWelcome};
 pub use storage::{ChannelStorage, DatabaseBytes, MAX_STORAGE_CHANNEL_ROWS, SweepStatus};
 pub use thread_listing::ThreadListItem;
@@ -278,6 +285,9 @@ pub struct PoolStats {
 #[derive(Clone)]
 pub struct Store {
     pool: SqlitePool,
+    /// Lets one [`Store::begin_write`] at a time wait for SQLite's write lock, so
+    /// queued writers cannot hold every connection in `pool` while they wait.
+    write_gate: Arc<tokio::sync::Semaphore>,
     /// Backs [`canvas_op_clock::Store::now_ms_unique`]. `Arc`-shared so every
     /// clone of one `Store` sees the same clock, and fresh on every new
     /// `Store` - which is what makes it fresh on every process restart too,
@@ -296,6 +306,7 @@ impl Store {
     pub fn new(pool: SqlitePool) -> Self {
         Self {
             pool,
+            write_gate: Arc::new(tokio::sync::Semaphore::new(1)),
             canvas_op_clock: Arc::default(),
             data_key: Arc::new(crate::data_key::DataKey::ephemeral()),
             modules_dir: None,
@@ -315,7 +326,7 @@ impl Store {
     }
 
     /// Live occupancy of the shared SQLite pool, for `/metrics`'s pool
-    /// gauges: every read and every write share the same eight connections,
+    /// gauges: reads and non-transactional writes share these eight connections,
     /// so how many are checked out is the most direct signal of contention
     /// this server has. `max` is read off the pool's own configuration
     /// rather than duplicated as a constant, so it can never drift from
@@ -332,8 +343,9 @@ impl Store {
 
     /// Opens a transaction that takes SQLite's write lock immediately.
     ///
-    /// The pool hands out eight connections and any of them may write, so two
-    /// requests really can be inside a transaction at once. A plain `BEGIN` is
+    /// Only one caller at a time waits for the lock, holding a connection; the
+    /// rest queue on [`Store::write_gate`] without one, so a burst of writers
+    /// cannot take every connection from the readers. A plain `BEGIN` is
     /// deferred: it takes a read snapshot on its first statement and only tries
     /// for the write lock later. If another connection took that lock in
     /// between, the upgrade cannot wait, because two readers both waiting to
@@ -347,6 +359,10 @@ impl Store {
     pub(crate) async fn begin_write(
         &self,
     ) -> Result<sqlx::Transaction<'_, sqlx::Sqlite>, sqlx::Error> {
+        let _turn = tokio::time::timeout(crate::db::ACQUIRE_TIMEOUT, self.write_gate.acquire())
+            .await
+            .map_err(|_| sqlx::Error::PoolTimedOut)?
+            .map_err(|_| sqlx::Error::PoolClosed)?;
         self.pool.begin_with("BEGIN IMMEDIATE").await
     }
 

@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Report triage and invite management: the `moderation` and `invites` tags
 /// that filing a report, checking an invite, and redeeming one (all in
@@ -26,7 +32,7 @@ extension SlimmApiModeration on SlimmApi {
       if (afterId != null) 'after_id': afterId,
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/reports',
       query: query.isEmpty ? null : query,
@@ -56,7 +62,7 @@ extension SlimmApiModeration on SlimmApi {
       if (afterId != null) 'after_id': afterId,
       if (limit != null) 'limit': '$limit',
     };
-    final json = await _send(
+    final json = await send(
       'GET',
       '/reports/history',
       query: query.isEmpty ? null : query,
@@ -76,7 +82,7 @@ extension SlimmApiModeration on SlimmApi {
   /// existed and for one somebody else filed; the two are indistinguishable
   /// by design, so this cannot tell you which.
   Future<MyReportStatus> myReportStatus(String reportId) async {
-    final json = await _send('GET', '/reports/mine/$reportId');
+    final json = await send('GET', '/reports/mine/$reportId');
     return MyReportStatus.fromJson(json as Map<String, dynamic>);
   }
 
@@ -87,16 +93,24 @@ extension SlimmApiModeration on SlimmApi {
     required String reportId,
     required ReportResolution resolution,
   }) =>
-      _send(
+      send(
         'PATCH',
         '/reports/$reportId',
         body: {'resolution': resolution.wire},
         expectNoContent: true,
       );
 
-  /// Lists every invite. Requires CREATE_INVITE.
-  Future<List<Invite>> listInvites() async {
-    final json = await _send('GET', '/invites');
+  /// Lists one page of invites, newest first; [before] is the code of the
+  /// last invite of the previous page. Requires CREATE_INVITE.
+  Future<List<Invite>> listInvites({int? limit, String? before}) async {
+    final json = await send(
+      'GET',
+      '/invites',
+      query: {
+        if (limit != null) 'limit': '$limit',
+        if (before != null) 'before': before,
+      },
+    );
     return (json as List<dynamic>)
         .map((i) => Invite.fromJson(i as Map<String, dynamic>))
         .toList(growable: false);
@@ -113,7 +127,7 @@ extension SlimmApiModeration on SlimmApi {
     String? roleGrant,
     bool reuse = false,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/invites',
       body: {
@@ -128,7 +142,7 @@ extension SlimmApiModeration on SlimmApi {
 
   /// Revokes an invite. Requires CREATE_INVITE.
   Future<void> revokeInvite(String code) =>
-      _send('DELETE', '/invites/$code', expectNoContent: true);
+      send('DELETE', '/invites/$code', expectNoContent: true);
 }
 
 /// Moderating a member: a timeout that lapses on its own, and a removal that
@@ -150,7 +164,7 @@ extension SlimmApiMemberModeration on SlimmApi {
     required Duration duration,
     String? reason,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/members/$userId/timeout',
       body: {
@@ -162,7 +176,7 @@ extension SlimmApiMemberModeration on SlimmApi {
   }
 
   /// Lifts a member's timeout. Requires KICK_MEMBERS. Idempotent.
-  Future<void> liftMemberTimeout(String userId) => _send(
+  Future<void> liftMemberTimeout(String userId) => send(
         'DELETE',
         '/members/$userId/timeout',
         expectNoContent: true,
@@ -175,7 +189,7 @@ extension SlimmApiMemberModeration on SlimmApi {
     required String userId,
     required String nickname,
   }) =>
-      _send(
+      send(
         'PUT',
         '/members/$userId/nickname',
         body: {'nickname': nickname},
@@ -184,7 +198,7 @@ extension SlimmApiMemberModeration on SlimmApi {
 
   /// Removes a space-local name, so the account's own shows again. Requires
   /// KICK_MEMBERS. Idempotent.
-  Future<void> clearMemberNickname(String userId) => _send(
+  Future<void> clearMemberNickname(String userId) => send(
         'DELETE',
         '/members/$userId/nickname',
         expectNoContent: true,
@@ -195,7 +209,7 @@ extension SlimmApiMemberModeration on SlimmApi {
   /// Revokes their sessions, stops them signing in, revokes invites they
   /// handed out, and drops them from the member list. Everything they wrote
   /// stays, still attributed to them.
-  Future<void> removeMember({required String userId, String? reason}) => _send(
+  Future<void> removeMember({required String userId, String? reason}) => send(
         'PUT',
         '/members/$userId/removal',
         body: {if (reason != null) 'reason': reason},
@@ -204,7 +218,7 @@ extension SlimmApiMemberModeration on SlimmApi {
 
   /// Lets a removed member back in. Requires BAN_MEMBERS. 404 if they were
   /// not removed, so an undo is distinguishable from a no-op.
-  Future<void> restoreMember(String userId) => _send(
+  Future<void> restoreMember(String userId) => send(
         'DELETE',
         '/members/$userId/removal',
         expectNoContent: true,
@@ -218,7 +232,7 @@ extension SlimmApiMemberModeration on SlimmApi {
   /// stricter permission than [removeMember] does.
   ///
   /// 400 on yourself, 409 on the last administrator.
-  Future<void> deleteMemberAccount(String userId) => _send(
+  Future<void> deleteMemberAccount(String userId) => send(
         'DELETE',
         '/members/$userId/account',
         expectNoContent: true,
@@ -236,7 +250,7 @@ extension SlimmApiMemberModeration on SlimmApi {
     required List<String> userIds,
     String? reason,
   }) =>
-      _send(
+      send(
         'POST',
         '/members/bulk-removal',
         body: {
@@ -256,7 +270,7 @@ extension SlimmApiMemberModeration on SlimmApi {
     required Duration duration,
     String? reason,
   }) =>
-      _send(
+      send(
         'POST',
         '/members/bulk-timeout',
         body: {
@@ -269,7 +283,7 @@ extension SlimmApiMemberModeration on SlimmApi {
 
   /// Every removal in force, newest first. Requires BAN_MEMBERS.
   Future<List<SpaceRemoval>> listRemovedMembers() async {
-    final json = await _send('GET', '/members/removed');
+    final json = await send('GET', '/members/removed');
     return (json as List<dynamic>)
         .map((r) => SpaceRemoval.fromJson(r as Map<String, dynamic>))
         .toList(growable: false);

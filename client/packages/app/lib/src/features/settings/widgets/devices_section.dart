@@ -21,6 +21,8 @@ import 'settings_detail_row.dart';
 import 'settings_empty.dart';
 import 'settings_section_header.dart';
 
+const _signOutLabel = 'Sign out';
+
 /// The account's devices, refetched when invalidated.
 ///
 /// A sign-in from another device refetches it, so the device a banner warns
@@ -146,7 +148,7 @@ class _DevicesSectionState extends ConsumerState<DevicesSection> {
       title: 'Sign out devices not used recently?',
       message:
           'They are signed out and have to sign in again to use this account.',
-      confirmLabel: 'Sign out',
+      confirmLabel: _signOutLabel,
     );
     if (!confirmed || !mounted) return;
     await _signOutDevices(stale);
@@ -264,7 +266,7 @@ class _DeviceRowState extends ConsumerState<_DeviceRow>
       message:
           'That device is logged out right away and has to sign in again '
           'to use this account.',
-      confirmLabel: 'Sign out',
+      confirmLabel: _signOutLabel,
     );
     if (!confirmed || !mounted) return;
     await _signOut();
@@ -306,7 +308,7 @@ class _DeviceRowState extends ConsumerState<_DeviceRow>
           trailing: device.isCurrent
               ? null
               : AppButton(
-                  label: 'Sign out',
+                  label: _signOutLabel,
                   size: AppButtonSize.sm,
                   semanticLabel: 'Sign out ${device.name}',
                   disabled: _busy,

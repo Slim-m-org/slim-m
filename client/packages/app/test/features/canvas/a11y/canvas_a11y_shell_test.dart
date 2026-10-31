@@ -106,8 +106,8 @@ void main() {
     tester,
   ) async {
     final s = await _openCanvasInShell(tester);
-    await runOverflowItem(tester, 'Participants');
-    expect(find.text('In this call'), findsOneWidget);
+    await runOverflowItem(tester, 'People here');
+    expect(find.text('People here'), findsOneWidget);
 
     expect(
       focusIsInModal(),
@@ -121,12 +121,12 @@ void main() {
     tester,
   ) async {
     final s = await _openCanvasInShell(tester);
-    await runOverflowItem(tester, 'Participants');
+    await runOverflowItem(tester, 'People here');
 
     await pressKey(tester, LogicalKeyboardKey.escape);
     await settle(tester);
 
-    expect(find.text('In this call'), findsNothing);
+    expect(find.text('People here'), findsNothing);
     await teardown(tester, s.container, s.db);
   });
 }

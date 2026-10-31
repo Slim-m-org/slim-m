@@ -11,7 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/splash_floor.dart';
-import 'package:slimm_app/src/providers/desktop_splash_preference.dart';
+import 'package:slimm_app/src/desktop/providers/desktop_splash_preference.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
 void main() {

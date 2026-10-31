@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE channels SET name = ?\n             WHERE id = ? AND deleted_at IS NULL\n               AND EXISTS (SELECT 1 FROM group_dm_members\n                           WHERE channel_id = channels.id AND user_id = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "240a90695c573af88dcc9b3bd62b3413c487341ad284bd118f5c57e5094948a3"
+}

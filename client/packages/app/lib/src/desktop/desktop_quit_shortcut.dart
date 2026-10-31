@@ -19,17 +19,16 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 import 'close_behavior.dart';
-import 'desktop_window_port.dart';
 import 'desktop_window_shell.dart' show DesktopWindowShell;
 
 class DesktopQuitShortcut {
-  DesktopQuitShortcut._();
+  DesktopQuitShortcut(this._shell);
 
-  static DesktopWindowPort? _port;
+  final DesktopWindowShell _shell;
+  bool _registered = false;
 
   /// A no-op on mobile and web, matching every other call
   /// [DesktopWindowShell] makes from `main.dart`. macOS keeps its own
@@ -41,24 +40,23 @@ class DesktopQuitShortcut {
   /// exists as a parameter only so a test can exercise every branch from
   /// this Linux dev box, the same seam `shortcuts.dart`'s own `forWeb`
   /// parameter already uses for its platform-conditional default.
-  static void register(DesktopWindowPort port, {DesktopPlatform? platform}) {
+  void register({DesktopPlatform? platform}) {
     final resolved = platform ?? currentDesktopPlatform();
     if (resolved == null || resolved == DesktopPlatform.macOS) return;
-    _port = port;
+    _registered = true;
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     HardwareKeyboard.instance.addHandler(_onKeyEvent);
   }
 
-  /// Test-only: undoes [register], since [HardwareKeyboard] is a process
-  /// singleton a leftover handler would otherwise keep firing into.
-  @visibleForTesting
-  static void debugUnregister() {
+  /// Takes the handler off [HardwareKeyboard], a process singleton that would
+  /// otherwise keep firing into a discarded shortcut.
+  void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
-    _port = null;
+    _registered = false;
   }
 
-  static bool _onKeyEvent(KeyEvent event) {
-    if (event is! KeyDownEvent) return false;
+  bool _onKeyEvent(KeyEvent event) {
+    if (!_registered || event is! KeyDownEvent) return false;
     if (event.logicalKey != LogicalKeyboardKey.keyQ) return false;
     final keyboard = HardwareKeyboard.instance;
     if (!keyboard.isControlPressed) return false;
@@ -68,8 +66,7 @@ class DesktopQuitShortcut {
         keyboard.isMetaPressed) {
       return false;
     }
-    final port = _port;
-    if (port != null) unawaited(DesktopWindowShell.quit(port));
+    unawaited(_shell.quit(_shell.port));
     return true;
   }
 }

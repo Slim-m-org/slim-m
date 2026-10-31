@@ -128,8 +128,12 @@ def _ctrl_wheel(client, delta, notches=5):
 
 
 def _follow_label(client):
+    """The Follow row's label from the people list, which this opens and closes."""
+    client.click(L.PEOPLE_HERE)
     node = client.find(L.FOLLOW_PREFIX)
-    return node["t"] if node else None
+    label = node["t"] if node else None
+    client.click(L.PEOPLE_HERE)
+    return label
 
 
 def _wait_zoom(client, ok, what, timeout=15):
@@ -151,7 +155,9 @@ def follow_and_bring_everyone(a, b):
 
     label = _follow_label(b)
     assert label, "b has no one to follow while a is in the canvas and the call"
+    b.click(L.PEOPLE_HERE)
     b.click(label)
+    b.click(L.PEOPLE_HERE)
     _ctrl_wheel(a, -100, notches=2)
     _wait_zoom(a, lambda z: z > 100, "ctrl and the wheel never zoomed in")
     _wait_zoom(b, lambda z: z > 100, "never followed a's zoom")
@@ -177,6 +183,7 @@ def follow_and_bring_everyone(a, b):
     b.click(L.FIT_VIEW)
     _wait_zoom(b, lambda z: _near(z, fit), "b could not fit")
     _ctrl_wheel(a, -100, notches=2)
+    a.click(L.PEOPLE_HERE)
     a.click(L.BRING_EVERYONE)
     a.click(L.BRING_EVERYONE_CONFIRM, settle=2)  # the confirm dialog's own button
     time.sleep(1.5)

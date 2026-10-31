@@ -17,6 +17,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [OPERATING.md](OPERATING.md): running a server, every setting, two-factor, modules, webhooks, bots, updating.
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): problems by symptom.
 - [sizing.md](sizing.md): how big a machine a deployment needs.
+- [capacity-guidance.md](capacity-guidance.md): how the setup screen turns cores, memory and disk into a range of people.
 - [PRODUCT.md](PRODUCT.md): what the app does today.
 - [data-export-format.md](data-export-format.md): what a data export or space export archive holds, for anyone reading or importing one.
 - [bots/building-bots.md](bots/building-bots.md), [modules/](modules/README.md) and [webhooks/pointing-tools-at-slim-m.md](webhooks/pointing-tools-at-slim-m.md): extending a deployment.
@@ -29,6 +30,7 @@ Tasks and the backlog live on the Planka board, not here; these files hold the r
 - [RELEASING.md](RELEASING.md): the release runbook; [APP-STORE.md](APP-STORE.md) for the iOS listing and review.
 - [dependencies.md](dependencies.md): why each dependency is there.
 - [internals.md](internals.md): how and why individual modules work, moved out of long doc comments.
+- [notifier-migration.md](notifier-migration.md): why new StateNotifiers are gated, and the plan to move the 69 existing ones to Notifier.
 - [video-quality.md](video-quality.md) and [voice-input-gate.md](voice-input-gate.md): how call media is tuned.
 - [agents/job-template.md](agents/job-template.md): the job file format for agent work.
 

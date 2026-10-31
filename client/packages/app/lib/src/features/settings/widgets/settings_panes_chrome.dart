@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'settings_panes.dart';
+library;
+
+import 'package:flutter/material.dart';
+import 'package:slimm_design_system/design_system.dart';
+import '../../../routing/close_screen.dart';
 
 /// A pane's heading row beside the nav: its name, any pane actions, and the
 /// close that the app bar used to carry (personal settings redesign,
@@ -52,8 +56,9 @@ class SettingsPaneHeading extends StatelessWidget {
 
 /// The nav's own top: the way back and the title, where the app bar used to
 /// sit across both columns.
-class _NavHeader extends StatelessWidget {
-  const _NavHeader({
+class NavHeader extends StatelessWidget {
+  const NavHeader({
+    super.key,
     required this.title,
     required this.backTooltip,
     required this.backFallback,
@@ -99,8 +104,8 @@ class _NavHeader extends StatelessWidget {
 
 /// A nav group's name: mono, uppercase and faint, with a hairline above
 /// every group but the first.
-class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.label, {required this.first});
+class GroupLabel extends StatelessWidget {
+  const GroupLabel(this.label, {required this.first, super.key});
 
   final String label;
   final bool first;

@@ -20,19 +20,19 @@ const _knownExceptions = {
   'features/voice/widgets/call_mini_player.dart -> features/voice/screens/dm_call_pane.dart',
   'features/voice/widgets/dm_call_button.dart -> features/voice/screens/dm_call_pane.dart',
   'features/voice/widgets/voice_strip_indicator.dart -> features/voice/screens/dm_call_pane.dart',
-  'widgets/compact_drawer_scaffold.dart -> features/voice/screens/voice_text_pane.dart',
+  'features/home/widgets/compact_drawer_scaffold.dart -> features/voice/screens/voice_text_pane.dart',
   // Widgets that list the Space settings panes or reuse a screen's helper.
   'features/channels/widgets/channel_settings_retention_row.dart -> features/settings/screens/admin/performance_screen.dart',
   'features/palette/widgets/command_palette_items.dart -> features/settings/screens/space_settings_section.dart',
-  'widgets/space_menu_button.dart -> features/settings/screens/space_settings_section.dart',
+  'features/channels/widgets/space_menu_button.dart -> features/settings/screens/space_settings_section.dart',
   // Providers that reuse a widget's helper.
   'features/auth/providers/database_key_store.dart -> widgets/banner_host_layout.dart',
   'features/auth/providers/server_identity_recheck.dart -> features/auth/widgets/server_identity_confirmation.dart',
   'features/composer/providers/composer_attachment_drop.dart -> features/composer/widgets/composer_attachments.dart',
   'features/members/providers/user_profiles.dart -> features/messages/widgets/author_label.dart',
   'features/messages/providers/link_preview.dart -> features/channels/widgets/channel_rail_frame.dart',
-  'features/voice/providers/voice_controller.dart -> features/voice/widgets/video_health_overlay.dart',
-  'providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
+  'features/voice/providers/voice_video_controls.dart -> features/voice/widgets/video_health_overlay.dart',
+  'desktop/providers/desktop_notification_text.dart -> features/messages/widgets/reply_target_summary.dart',
 };
 
 /// Directives start a line, so a commented-out import never matches.

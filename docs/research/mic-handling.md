@@ -663,3 +663,42 @@ Offline, rnnoise alone against libwebrtc's suppression (proxy, level 3) in front
 - Scottish female: at -35 dBFS 1 (12 ms) against 1 (10 ms); at -45 dBFS 1 (16 ms) against 4 (44 ms).
 The decision log lines all start with `voice-ns:` and are written on change only: the choice, Strong active and inactive edges, a restart with its reason and result, a deferred restart, fallbacks, and the effective capture options (device and libwebrtc suppression).
 The native reading carries no sample rate, so none is logged.
+
+## Update 2026-10-28: P5 AGC and the system mic volume, P8 Opus options, P9 filter toggles
+
+### P5: does Linux AGC move the system mic volume
+
+Measured on this Fedora 44 and PipeWire box with the real desktop plugin (the pinned flutter-webrtc fork, prebuilt `libwebrtc.so`), a small Flutter Linux app joining a local `livekit-server` 1.10.1 with `autoGainControl` true, then false.
+The app was pointed at a null sink's monitor with `PULSE_SOURCE`, so the default devices were never touched.
+The stimulus was one speech clip looped through four 20 to 25 s phases (-26, -50, -12, -26 dBFS RMS), and `pactl get-source-volume` was read every 0.5 s on the monitor source.
+A Python participant recorded what was sent.
+The trace method was checked first: `pactl set-source-volume` to 50% reads back as 50%.
+
+| AGC | source volume samples | volume seen | sent level, -26 / -50 / -12 / -26 dBFS in |
+|---|---|---|---|
+| on | 209 | 100% every time | -29.5 / -53.4 / -17.6 (peak -10.6) / -29.6 |
+| off | 202 | 100% every time | -41.4 / -65.4 / -22.7 (peak -12.1) / -41.4 |
+
+AGC never moved the source volume on this build, loud or quiet.
+It does not level either: with it on the sent level follows the input 1 to 1 over a 24 dB range (-29.5 to -53.4).
+What it adds is a fixed lift of about 12 dB, which is why turning it off sends a quiet mic 11 to 12 dB lower.
+The loud phase falls after about 10 s in both runs, which is the loop of one clip adapting libwebrtc's suppressor, not AGC, so real speech will not show it.
+Decision: leave `autoGainControl` on and add no pre-gain or volume pin, since there is nothing to pin.
+Not measured: a mic whose source volume is a hardware control (a USB headset with its own gain), where `pa_context_set_source_volume_by_index` may behave differently.
+
+### P8: Opus publish options
+
+The options are explicit now: `red` on (the SDK inverts the flag, see the code), `dtx` off, and the bitrate pinned to 48 kbps instead of inherited from the SDK preset.
+Offline, the same speech clip through libopus (voip, 20 ms frames, 5% expected loss) came out at 16.7, 29.7, 38.5 and 55.2 kbps for 16, 24, 32 and 48 kbps targets, with waveform SNR of 5.5, 8.3, 8.6 and 8.8 dB and the same energy above 8 kHz from 24 kbps up.
+So the extra bits past 24 to 32 kbps buy under half a dB here, and the 2026-10-26 network runs found 32 kbps no better under 5% loss (similarity 0.958 to 0.975 against 0.971 to 0.980).
+Decision: stay at 48 kbps, DTX off, RED on.
+The saving from 32 kbps would be 16 kbps per speaker and the evidence says it is not free, so the pin only stops a silent change.
+Not done: ViSQOL across bitrates under netem, and a check of the bitrate on the wire from the desktop engine (the receiving participant's stats API returned no inbound entries in this rig).
+
+### P9: filter toggles
+
+Voice settings has a folded Advanced row in the Microphone card on Linux and Windows desktop only: echo cancellation, automatic gain and built-in noise suppression, each on by default.
+libwebrtc fixes these when the capture opens and the fork refuses `setAudioProcessingOptions` at runtime, so a change reopens the microphone, which is a brief gap in sound.
+An unmuted mic restarts at once, a muted one gives its capture back so the next unmute opens with the new filters, and a push-to-talk mic is reopened muted.
+Strong (rnnoise) is independent: it still runs with the built-in suppression off, though the 2026-10-27 measurement says it then leaves steady hiss.
+Not verified: `getAudioProcessingState()` on the fork, a desktop run with the toggles flipped in a real call, and Windows.

@@ -35,7 +35,7 @@ fn now_ms() -> i64 {
 
 /// The Rust-side answer for `code`, read straight off `Invite::is_usable`.
 async fn rust_says_usable(s: &Store, code: &str) -> bool {
-    s.list_invites(None)
+    s.list_invites(None, None, 100)
         .await
         .unwrap()
         .into_iter()

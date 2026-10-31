@@ -338,8 +338,8 @@ Prefer tokens; a module that hard-codes hex will look wrong in one theme or the 
 
 | op | fields |
 | --- | --- |
-| `cells` | `cols`, `rows`, `data` (one char per cell, row-major, each a palette index `'0'`..), `palette` (list of colours), `gap`, `tap`, and optionally `x`, `y`, `w`, `h` |
-| `rect` | `x`, `y`, `w`, `h`, `fill`, `stroke`, `sw` (stroke width), `r` (corner radius), `tap` |
+| `cells` | `cols`, `rows`, `data` (one char per cell, row-major, each a palette index `'0'`..), `palette` (list of colours), `gap`, `tap`, `alt`, and optionally `x`, `y`, `w`, `h` |
+| `rect` | `x`, `y`, `w`, `h`, `fill`, `stroke`, `sw` (stroke width), `r` (corner radius), `tap`, `alt` |
 | `circle` | `cx`, `cy`, `r`, `fill`, `stroke`, `sw`, `tap` |
 | `line` | `x1`, `y1`, `x2`, `y2`, `stroke`, `sw` |
 | `text` | `x`, `y`, `s` (the string), `fill`, `size`, `align` (`left`/`center`/`right`) |
@@ -486,6 +486,9 @@ A scene becomes interactive by offering `controls` and carrying `state`, and by 
 - An op's `tap` makes it interactive.
   A `cells` op with `tap: "toggle"` reports a tapped cell as the action `"toggle:row,col"`.
   A `rect` or `circle` with `tap: "spin"` reports the bare action `"spin"`.
+- An op's `alt` (on `cells` and `rect`) is the action for a secondary press: a right click with a mouse, a long press with a finger.
+  It reports like `tap` does, `"flag:row,col"` for a cell and the bare name for a rect, so a board can dig on a tap and flag on a right click.
+  An op with no `alt` ignores a secondary press, and a scene with none keeps reading a held tap as a tap.
 - `live` tells the client the scene can still change; a control press or tap while `live` re-invokes the module.
 
 When a member presses a control or taps, slim calls the module's command again, with the `input` being a JSON object:
@@ -497,6 +500,20 @@ When a member presses a control or taps, slim calls the module's command again, 
 The module reads `action` and `state`, computes the next frame, and returns a new scene (with a new `state`).
 Return a scene with `live: false` to stop, or a non-scene/error to end with a message.
 Because the frame is stored and broadcast, every viewer of the message sees the same evolving surface, and a long step runs once for everyone.
+
+### Private scenes
+
+A scene with `"private": true` at the top level answers only the person who pressed.
+On an `app` the host runs the command as usual and sends the output back to that person, but does not store it as the message's frame and does not broadcast it, so everyone else keeps seeing the last shared frame.
+The client shows a private frame in place of the shared one and holds shared frames back while it is up; a control that makes the module answer with a scene that is not private (Word Guess calls it `close`) brings the shared frame back.
+A code block run is not a surface, so `private` is ignored there.
+
+A private board must not live in `state`: on a shared surface the host hands the module the stored frame's state whatever the client sends.
+Keep it in `data.store`, keyed by `caller.id`, which also means the viewer's copy decides nothing and cannot be forged.
+A private frame is not stored, so it is gone on reload; give the player a control that asks for their board again.
+
+Private scenes are add-on API 2: declare `"addon_api": 2` and a server that supports only 1 refuses the install ("update the server") rather than showing the board to the channel.
+See decision 0099.
 
 The Game of Life reference module (`slim-addons/modules/game-of-life`) is the worked example of this whole loop.
 

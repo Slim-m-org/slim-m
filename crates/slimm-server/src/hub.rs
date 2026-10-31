@@ -47,12 +47,14 @@ mod event_util;
 mod handshake;
 mod memory_guard;
 mod moderation_seq;
+mod screen_annotation;
 pub use created_lookups::{CreatedFacts, CreatedLookups};
 pub use event::Event;
 pub use handshake::PendingGuard;
 use memory_guard::MemoryGuard;
-pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, memory_limit_bytes};
+pub use memory_guard::{MemoryAdmissionSnapshot, MemoryReading, RESERVE_BYTES, memory_limit_bytes};
 use moderation_seq::{ModerationClock, is_moderation};
+pub use screen_annotation::{ScreenAnnotationEvent, ScreenAnnotationKind};
 
 /// How many events the durable channel buffers per subscriber before the
 /// slowest one starts losing the oldest and receives a `Lagged` error.
@@ -76,7 +78,7 @@ pub(crate) const CHANNEL_CAPACITY: usize = 1024;
 pub(crate) const EPHEMERAL_CHANNEL_CAPACITY: usize = 4096;
 
 /// Ceiling on simultaneously open WebSocket connections.
-const MAX_CONNECTIONS: usize = 1024;
+pub const MAX_CONNECTIONS: usize = 1024;
 
 /// A cloneable handle to the broadcast channel and the connection limiter,
 /// shared through app state.
@@ -90,6 +92,7 @@ pub struct Hub {
     sender: broadcast::Sender<Event>,
     ephemeral_sender: broadcast::Sender<Event>,
     slots: Arc<Semaphore>,
+    max_connections: usize,
     presence: PresenceTracker,
     typing: TypingTracker,
     ephemeral_budget: EphemeralBudget,
@@ -125,7 +128,9 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::OverwriteChanged { .. }
         | Event::ChannelCreated(..)
         | Event::ChannelUpdated(..)
-        | Event::ChannelDeleted { .. } => true,
+        | Event::ChannelDeleted { .. }
+        // A roster change is a permission change for the person added or removed.
+        | Event::DmChanged { .. } => true,
         Event::MessageCreated { .. }
         | Event::MessageEdited { .. }
         | Event::MessageDeleted { .. }
@@ -152,6 +157,7 @@ fn moves_permissions(event: &Event) -> bool {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::CanvasObjectMoved { .. }
         | Event::CanvasObjectReordered { .. }
@@ -220,6 +226,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::CanvasStrokePreview { .. }
         | Event::CanvasObjectPreview { .. }
         | Event::CanvasMediaSlotPreview { .. }
+        | Event::CanvasScreenAnnotation(_)
         | Event::CanvasView { .. }
         | Event::WatchTick { .. }
         | Event::EphemeralMessage { .. }
@@ -272,6 +279,7 @@ fn is_ephemeral(event: &Event) -> bool {
         | Event::VoiceScreenShareChanged { .. }
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
+        | Event::DmChanged { .. }
         | Event::ReportsChanged
         // Private notices and read markers move no permission and need no fan-out ordering.
         | Event::ReadStateChanged { .. }
@@ -298,6 +306,7 @@ impl Hub {
             sender,
             ephemeral_sender,
             slots: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
+            max_connections: MAX_CONNECTIONS,
             presence: PresenceTracker::new(),
             typing: TypingTracker::new(),
             ephemeral_budget: EphemeralBudget::default(),
@@ -307,6 +316,15 @@ impl Hub {
             memory_guard: Arc::new(MemoryGuard::new()),
             moderation: Arc::new(ModerationClock::new()),
             handshake: handshake::Handshake::new(),
+        }
+    }
+
+    /// Builds a hub with a small connection ceiling, so a test can reach it with a few sockets.
+    pub fn with_connection_limit(limit: usize) -> Self {
+        Self {
+            slots: Arc::new(Semaphore::new(limit)),
+            max_connections: limit,
+            ..Self::new()
         }
     }
 
@@ -442,7 +460,7 @@ impl Hub {
     /// Derived from the semaphore's own remaining permits rather than a
     /// second counter, so it cannot drift from what actually gates a connect.
     pub fn connection_count(&self) -> usize {
-        MAX_CONNECTIONS - self.slots.available_permits()
+        self.max_connections - self.slots.available_permits()
     }
 
     /// Whether the memory guard admits a new connection right now; see

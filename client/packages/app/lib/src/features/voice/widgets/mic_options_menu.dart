@@ -28,6 +28,7 @@ const _labels = {
   NoiseSuppressionChoice.spaceDefault: 'Space default',
   NoiseSuppressionChoice.standard: 'Standard',
   NoiseSuppressionChoice.strong: 'Strong',
+  NoiseSuppressionChoice.strongest: 'Strongest',
 };
 
 class MicOptionsMenu extends ConsumerStatefulWidget {
@@ -62,6 +63,7 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
     unawaited(_refresh());
     _changes = ref
         .read(voiceControllerProvider.notifier)
+        .devices
         .audioDeviceChanges
         .listen((_) => unawaited(_refresh()));
   }
@@ -75,6 +77,7 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
   Future<void> _refresh() async {
     final inputs = await ref
         .read(voiceControllerProvider.notifier)
+        .devices
         .audioInputDevices();
     if (mounted) setState(() => _inputs = inputs);
   }
@@ -92,13 +95,15 @@ class _MicOptionsMenuState extends ConsumerState<MicOptionsMenu> {
       menuWidth: micMenuWidth,
       options: [
         ..._deviceOptions(
-          supported: controller.supportsAudioInputSelection,
+          supported: controller.devices.supportsAudioInputSelection,
           selectedId: settings.audioInputDeviceId,
           onPick: notifier.setAudioInputDevice,
         ),
-        if (controller.supportsInputGate) ...[
+        if (controller.input.supportsInputGate) ...[
           const ControlOptionHeading('Noise suppression'),
-          for (final choice in NoiseSuppressionChoice.values)
+          for (final choice in NoiseSuppressionChoice.offered(
+            supported: ref.watch(strongestSupportedProvider),
+          ))
             ControlOption(
               label: _labels[choice]!,
               selected: choice == noise,

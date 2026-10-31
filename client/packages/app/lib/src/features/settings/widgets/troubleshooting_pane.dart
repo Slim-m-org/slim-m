@@ -23,8 +23,8 @@ import 'connection_test_row.dart';
 import 'debug_log_page.dart';
 import '../../voice/widgets/media_capability_section.dart';
 import 'settings_detail_row.dart';
-import 'settings_panes.dart';
 import 'troubleshooting_rows.dart';
+import 'settings_panes_chrome.dart';
 
 /// Whether the debug log is showing inside the pane; dropped with the pane.
 final debugLogOpenProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -51,6 +51,7 @@ class TroubleshootingPane extends ConsumerWidget {
               _DebugLogRow(),
               CallStatsRow(),
               RunSetupAgainRow(),
+              RunAdminSetupRow(),
             ],
           ),
         ),

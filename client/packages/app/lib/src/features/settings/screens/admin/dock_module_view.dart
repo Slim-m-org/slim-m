@@ -186,6 +186,7 @@ class DockManifestView extends StatelessWidget {
           DockActivityCard(
             stats: installed!.runStats!,
             storage: installed!.storage,
+            fuelLimit: installed!.fuelLimit,
             keepsData: installed!.approvedHostCapabilities.contains('kv.store'),
             onClearStorage: onClearStorage!,
             enabled: !busy,

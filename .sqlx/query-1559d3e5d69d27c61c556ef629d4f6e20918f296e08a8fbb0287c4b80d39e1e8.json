@@ -1,0 +1,80 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT o.id AS \"id!: CanvasObjectId\", o.kind AS \"kind!\",\n                      o.z_index AS \"z_index!: i64\",\n                      o.x AS \"x!: f64\", o.y AS \"y!: f64\",\n                      o.w AS \"w!: f64\", o.h AS \"h!: f64\",\n                      p.props AS \"props!\", o.author_id AS \"author_id: UserId\",\n                      o.seq AS \"seq!: Seq\", o.created_at AS \"created_at!: i64\"\n               FROM (SELECT o.rt_id AS rt_id, o.seq AS seq\n                     FROM canvas_rtree r\n                     CROSS JOIN canvas_objects o ON o.rt_id = r.rt_id\n                     WHERE r.min_key <= ? AND r.max_key >= ?\n                       AND r.max_x >= ? AND r.min_x <= ?\n                       AND r.max_y >= ? AND r.min_y <= ?\n                       AND o.channel_id = ? AND o.deleted_at IS NULL AND o.seq > ?\n                       AND o.x <= ? AND o.x + o.w >= ?\n                       AND o.y <= ? AND o.y + o.h >= ?\n                     ORDER BY o.seq ASC\n                     LIMIT ?) page\n               JOIN canvas_objects o ON o.rt_id = page.rt_id\n               JOIN canvas_object_props p ON p.object_id = o.id\n               ORDER BY page.seq ASC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "z_index!: i64",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "x!: f64",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "y!: f64",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "w!: f64",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "h!: f64",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "props!",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "author_id: UserId",
+        "ordinal": 8,
+        "type_info": "Blob"
+      },
+      {
+        "name": "seq!: Seq",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 10,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "1559d3e5d69d27c61c556ef629d4f6e20918f296e08a8fbb0287c4b80d39e1e8"
+}

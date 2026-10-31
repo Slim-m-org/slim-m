@@ -18,7 +18,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../accounts/providers/account_services.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_controller.dart';
 import '../../../providers/sync_controller.dart';
 import '../../members/providers/user_profiles.dart';
 import '../../voice/providers/voice_controller.dart';

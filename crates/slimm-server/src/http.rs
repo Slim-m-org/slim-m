@@ -11,14 +11,7 @@ use tower::limit::ConcurrencyLimitLayer;
 use tower_http::timeout::{RequestBodyTimeoutLayer, TimeoutLayer};
 use tower_http::trace::TraceLayer;
 
-use crate::auth::Auth;
-use crate::code_runner::CodeRunner;
-use crate::hub::Hub;
-use crate::media::Media;
-use crate::push::PushSender;
-use crate::ratelimit::RateLimiter;
-use crate::store::Store;
-use crate::voice::VoiceService;
+pub use crate::state::AppState;
 
 pub mod admin_audit;
 mod analytics;
@@ -48,7 +41,6 @@ use channels::{
     channel_notification_prefs, channel_order, channel_permissions, channel_retention,
     channel_slow_mode, channel_validation,
 };
-pub(crate) mod code_fences;
 mod code_runs;
 mod device_client_info;
 mod dms;
@@ -62,6 +54,7 @@ mod error;
 mod escalation;
 mod extract;
 pub mod gifs;
+mod group_dms;
 pub(crate) use crate::hidden_chars;
 pub use version::capability_names;
 mod interaction_forms;
@@ -91,7 +84,7 @@ mod module_host;
 mod module_logs;
 mod module_net;
 mod module_run;
-mod module_schedule;
+pub(crate) mod module_schedule;
 mod module_slot_cache;
 mod module_slot_nodes;
 mod module_slots;
@@ -128,6 +121,7 @@ mod space;
 mod space_banner;
 mod space_icon;
 mod space_link_previews;
+mod space_setup;
 mod still_picture;
 mod storage;
 mod surface_state;
@@ -181,23 +175,6 @@ const BODY_READ_TIMEOUT: Duration = Duration::from_secs(15);
 /// over it queue rather than fail, so a burst is absorbed and a flood is
 /// bounded.
 const MAX_INFLIGHT_REQUESTS: usize = 1024;
-
-/// What every handler shares: the persistence layer, the auth service, and the
-/// fan-out hub. Cloning is cheap (a pool handle and a couple of `Arc`s).
-#[derive(Clone)]
-pub struct AppState {
-    pub store: Store,
-    pub auth: Auth,
-    pub hub: Hub,
-    pub limiter: RateLimiter,
-    pub push: PushSender,
-    pub voice: VoiceService,
-    pub media: Media,
-    pub gifs: gifs::GifSearch,
-    pub link_previews: link_preview::LinkPreviews,
-    pub dock: dock::Dock,
-    pub code_runner: CodeRunner,
-}
 
 /// Wraps `router` so a panicking handler answers 500 and the process keeps
 /// serving; see [`panic_guard`]. Public so a test can wrap a route that panics.
@@ -262,6 +239,7 @@ pub fn router(state: AppState) -> Router {
         .merge(invites::routes())
         .merge(invite_page::routes())
         .merge(space_link_previews::routes())
+        .merge(space_setup::routes())
         .merge(members::routes())
         .merge(member_permissions::routes())
         .merge(member_nicknames::routes())
@@ -288,6 +266,7 @@ pub fn router(state: AppState) -> Router {
         .merge(safety::routes())
         .merge(data_exports::routes())
         .merge(dms::routes())
+        .merge(group_dms::routes())
         .merge(search::routes())
         .merge(space::routes())
         .merge(join_gate::routes())

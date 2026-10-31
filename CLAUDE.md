@@ -133,6 +133,7 @@ Never use `:memory:` for tests that depend on the multi-connection SQLite pool.
 - `scripts/check-comment-cap.sh` - ratchets the one-line plain-comment cap; a file may not gain a new run. `comment-cap-allow.txt` holds the pre-existing ones at their count.
 - `scripts/check-error-surface.py` - no API failure may be caught and surfaced with a SnackBar; use the persistent `AppErrorState`. This regressed back three times.
 - `scripts/check-migration-versions.py` - duplicate or mutated migrations.
+- `scripts/check-test-patterns.py` - no app test gains a `find.byType` or `pumpAndSettle`; `--update` lowers the ceilings in `test-pattern-allow.txt`, and `expectSettled`, `waitUntil` and the geometry helpers are the replacements.
 - `scripts/check-media-query-scope.py` - no unscoped `MediaQuery.of(context)` in `client/**/*.dart` outside `media-query-of-allow.txt`; use the scoped accessor (`MediaQuery.sizeOf`, `MediaQuery.viewInsetsOf`, ...) instead.
 - `scripts/lib/test_release_required_checks_*.py` - the two structural gates on `release.yml`'s `required_checks`: every name is a real job name, and the one it names can reach a release commit.
 - `scripts/lib/test_ci_docs_triggers.py` - a workflow's `docs/ci.md` row mentions every trigger kind it has. `check-ci-docs.py` only checks the row exists; this checks it is not lying about when the workflow runs.

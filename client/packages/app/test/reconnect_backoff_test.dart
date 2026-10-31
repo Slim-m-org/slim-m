@@ -11,7 +11,7 @@ import 'dart:math';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/providers/reconnect_backoff.dart';
+import 'package:slimm_app/src/sync/providers/reconnect_backoff.dart';
 
 /// A [Random] stub that always draws [value] and records the `max` it was
 /// last asked for, so a test can pin the jitter draw without depending on

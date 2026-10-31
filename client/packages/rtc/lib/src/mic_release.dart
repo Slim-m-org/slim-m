@@ -79,6 +79,12 @@ class MicRelease {
     _timer = Timer(grace, () => unawaited(_run()));
   }
 
+  /// Gives the device back now, so the next unmute opens it with fresh options.
+  Future<void> releaseNow() async {
+    _timer?.cancel();
+    await _run();
+  }
+
   Future<void> _run() async {
     _timer = null;
     if (!_muted || _released) return;

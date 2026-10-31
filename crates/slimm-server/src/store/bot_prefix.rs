@@ -9,6 +9,23 @@ use super::bot_commands::{BotCommand, SetBotCommandsError};
 use crate::ids::UserId;
 
 use super::Store;
+use super::now_ms;
+
+/// Why changing a bot's prefix failed.
+#[derive(Debug)]
+pub enum SetBotPrefixError {
+    /// No bot by that id.
+    NoSuchBot,
+    /// The commands the bot registered that another live bot already answers to under the new prefix.
+    Overlap(Vec<String>),
+    Internal(anyhow::Error),
+}
+
+impl From<sqlx::Error> for SetBotPrefixError {
+    fn from(err: sqlx::Error) -> Self {
+        SetBotPrefixError::Internal(err.into())
+    }
+}
 
 /// Single characters tried in order when suggesting a prefix, before doubled ones.
 const SUGGESTED_PREFIXES: [&str; 12] = ["!", "?", "$", "%", "&", "~", "^", ".", ",", ";", "+", "="];
@@ -55,6 +72,91 @@ impl Store {
         let taken = self.taken_bot_prefixes().await?;
         first_free(&taken).ok_or_else(|| anyhow::anyhow!("every suggested bot prefix is taken"))
     }
+
+    /// Moves a bot to `prefix` (already validated by `http::bots`) and its registered commands with it.
+    /// Two bots may share a prefix only when no command name is on both, the rule registration applies.
+    pub async fn set_bot_prefix(
+        &self,
+        bot_user_id: UserId,
+        prefix: &str,
+    ) -> Result<(), SetBotPrefixError> {
+        let mut tx = self.begin_write().await?;
+        let exists = sqlx::query_scalar!(
+            r#"SELECT id AS "id!: UserId" FROM users WHERE id = ? AND is_bot = 1 AND deleted_at IS NULL"#,
+            bot_user_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        if exists.is_none() {
+            return Err(SetBotPrefixError::NoSuchBot);
+        }
+        let clashes = clashing_commands(&mut tx, bot_user_id, prefix).await?;
+        if !clashes.is_empty() {
+            return Err(SetBotPrefixError::Overlap(clashes));
+        }
+        sqlx::query!(
+            "UPDATE users SET bot_prefix = ? WHERE id = ?",
+            prefix,
+            bot_user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        let now = now_ms();
+        sqlx::query!(
+            "UPDATE bot_command_registrations SET prefix = ?, updated_at = ? WHERE bot_user_id = ?",
+            prefix,
+            now,
+            bot_user_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+}
+
+/// Names this bot has registered that a different live bot already answers to under `prefix`.
+async fn clashing_commands(
+    tx: &mut SqliteConnection,
+    bot_user_id: UserId,
+    prefix: &str,
+) -> Result<Vec<String>, sqlx::Error> {
+    let mine = sqlx::query_scalar!(
+        "SELECT name FROM bot_commands WHERE bot_user_id = ?",
+        bot_user_id
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    let theirs: HashSet<String> = live_commands_under(tx, prefix, bot_user_id).await?;
+    let mut clashes: Vec<String> = mine
+        .into_iter()
+        .filter(|name| theirs.contains(&name.to_lowercase()))
+        .collect();
+    clashes.sort();
+    Ok(clashes)
+}
+
+/// Lowercased command names other live bots have registered under `prefix`.
+async fn live_commands_under(
+    tx: &mut SqliteConnection,
+    prefix: &str,
+    except: UserId,
+) -> Result<HashSet<String>, sqlx::Error> {
+    let names = sqlx::query_scalar!(
+        r#"SELECT c.name
+           FROM bot_command_registrations r
+           JOIN users u ON u.id = r.bot_user_id
+           JOIN bot_commands c ON c.bot_user_id = r.bot_user_id
+           JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL
+           WHERE r.prefix = ? AND r.bot_user_id != ?
+             AND u.is_bot = 1 AND u.deleted_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
+        prefix,
+        except
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    Ok(names.into_iter().map(|name| name.to_lowercase()).collect())
 }
 
 /// Runs inside the registration transaction: the prefix must be the one assigned
@@ -98,23 +200,7 @@ pub(super) async fn claim_registration(
     .into_iter()
     .map(|name| name.to_lowercase())
     .collect();
-    let others: HashSet<String> = sqlx::query_scalar!(
-        r#"SELECT c.name
-           FROM bot_command_registrations r
-           JOIN users u ON u.id = r.bot_user_id
-           JOIN bot_commands c ON c.bot_user_id = r.bot_user_id
-           JOIN bot_tokens t ON t.bot_user_id = u.id AND t.revoked_at IS NULL
-           WHERE r.prefix = ? AND r.bot_user_id != ?
-             AND u.is_bot = 1 AND u.deleted_at IS NULL
-             AND NOT EXISTS (SELECT 1 FROM space_removals sr WHERE sr.user_id = u.id)"#,
-        prefix,
-        bot_user_id
-    )
-    .fetch_all(&mut *tx)
-    .await?
-    .into_iter()
-    .map(|name| name.to_lowercase())
-    .collect();
+    let others = live_commands_under(tx, prefix, bot_user_id).await?;
     Ok(commands
         .iter()
         .map(|c| c.name.to_lowercase())

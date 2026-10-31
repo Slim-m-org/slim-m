@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/app_lifecycle.dart' show isSeenNow;
 import '../../members/providers/user_profiles.dart';
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 import '../../../format.dart';
 import '../../messages/widgets/author_label.dart';
 import 'canvas_activity_log.dart';

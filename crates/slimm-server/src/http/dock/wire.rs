@@ -6,7 +6,7 @@
 use serde::Serialize;
 
 use super::manifest::{IndexEntry, Manifest, ManifestExtensionPoint};
-use crate::module_runtime::{MAX_ENTRIES, MAX_TOTAL_BYTES};
+use crate::module_runtime::{MAX_ENTRIES, MAX_TOTAL_BYTES, RunLimits};
 use crate::store::{
     InstalledModule, ModuleExtensionPoint, ModuleExtensionPointSpec, ModuleHealth, ModuleRunStat,
     StorageUsage,
@@ -259,6 +259,11 @@ pub(in crate::http) struct InstalledModuleDto {
     disabled_reason: Option<String>,
     /// Pushed events its queue dropped because it fell behind.
     events_dropped: i64,
+    /// Pushed events waiting for it right now; only the installed listing carries it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    queue_depth: Option<i64>,
+    /// The fuel one run may burn, the ceiling the run stats' fuel is read against.
+    fuel_limit: i64,
     #[serde(flatten)]
     platform: PlatformDto,
 }
@@ -280,6 +285,10 @@ pub(in crate::http) struct RunStatDto {
     last_error_at: Option<i64>,
     last_duration_ms: i64,
     max_duration_ms: i64,
+    /// Fuel the last run burned; absent when it could not be read. The limit is on the module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_fuel_used: Option<i64>,
+    max_fuel_used: i64,
 }
 
 impl From<ModuleRunStat> for RunStatDto {
@@ -295,6 +304,8 @@ impl From<ModuleRunStat> for RunStatDto {
             last_error_at: s.last_error_at,
             last_duration_ms: s.last_duration_ms,
             max_duration_ms: s.max_duration_ms,
+            last_fuel_used: s.last_fuel_used,
+            max_fuel_used: s.max_fuel_used,
         }
     }
 }
@@ -324,6 +335,12 @@ impl InstalledModuleDto {
         self.consecutive_failures = health.consecutive_failures;
         self.disabled_reason = health.disabled_reason;
         self.events_dropped = health.events_dropped;
+        self
+    }
+
+    /// Adds how many pushed events are waiting for the module.
+    pub(in crate::http) fn with_queue_depth(mut self, depth: usize) -> Self {
+        self.queue_depth = Some(i64::try_from(depth).unwrap_or(i64::MAX));
         self
     }
 
@@ -369,6 +386,8 @@ impl From<InstalledModule> for InstalledModuleDto {
             consecutive_failures: 0,
             disabled_reason: None,
             events_dropped: 0,
+            queue_depth: None,
+            fuel_limit: i64::try_from(RunLimits::from(&m.runtime_limits).fuel).unwrap_or(i64::MAX),
             platform: PlatformDto {
                 addon_api: m.addon_api,
                 subscriptions: m.subscriptions,

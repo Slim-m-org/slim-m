@@ -48,6 +48,7 @@ void main() {
     (_change('space.screen_share'), 'changed the screen share limit'),
     (_change('space.link_previews'), 'changed link previews'),
     (_change('space.attachment_limit'), 'changed the attachment size limit'),
+    (_change('space.setup_complete'), 'finished the first-run setup'),
     (_change('space.icon_set'), 'set the space icon'),
     (_change('space.icon_clear'), 'removed the space icon'),
     (_change('space.banner_set'), 'set the space banner'),
@@ -178,12 +179,44 @@ void main() {
       _change('category.overwrites', target: 'k1'),
       'changed permissions on category Text',
     ),
+    (
+      _change('bot.prefix', target: 'u1', detail: {'prefix': '~'}),
+      'changed the prefix of Ada to ~',
+    ),
+    (_change('bot.prefix', target: 'u1'), 'changed the prefix of Ada'),
     (_change('invite.create', target: 'abc'), 'created an invite'),
     (_change('invite.revoke', target: 'abc'), 'revoked invite abc'),
     (_change('emoji.create', target: 'e1'), 'added :party:'),
     (_change('emoji.bulk_create'), 'added several emoji'),
     (_change('emoji.delete', target: 'e1'), 'deleted :party:'),
     (_change('module.install', target: 'polls'), 'installed module polls'),
+    (
+      _change(
+        'module.install',
+        target: 'xp',
+        detail: {
+          'approved': ['data.store', 'events'],
+          'local_network': true,
+        },
+      ),
+      'installed module xp, approved for data.store, events, local network',
+    ),
+    (
+      _change('module.install', target: 'xp', detail: {'approved': <String>[]}),
+      'installed module xp',
+    ),
+    (
+      _change('module.clear_storage', target: 'polls'),
+      'cleared the stored data of module polls',
+    ),
+    (
+      _change('module.settings', target: 'polls'),
+      'changed the settings of module polls',
+    ),
+    (
+      _change('module.auto_disable', target: 'polls'),
+      'turned off module polls after repeated failures',
+    ),
     (_change('module.uninstall', target: 'polls'), 'removed module polls'),
     (_change('module.enable', target: 'polls'), 'turned on module polls'),
     (_change('module.disable', target: 'polls'), 'turned off module polls'),

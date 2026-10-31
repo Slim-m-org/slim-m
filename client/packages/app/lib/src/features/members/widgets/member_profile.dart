@@ -191,7 +191,7 @@ class _MemberProfileBodyState extends ConsumerState<MemberProfileBody>
         surface: ParticipantSurface.card,
         isSelf: isSelf,
         inCallTogether: inCallTogether,
-        supportsVolume: controller.supportsParticipantVolume,
+        supportsVolume: controller.volumes.supportsParticipantVolume,
         hasProfile: true,
         showModeration: gates.showModeration,
         canCall: !profile.isBot,

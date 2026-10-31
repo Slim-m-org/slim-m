@@ -55,20 +55,20 @@ class PushToTalkGate {
     if ((composerFocused || _editableTextFocused()) && _windowFocused()) return;
     final first = _holds.isEmpty;
     _holds.add(source);
-    if (first) unawaited(_voice.setPushToTalkHeld(true));
+    if (first) unawaited(_voice.input.setPushToTalkHeld(true));
   }
 
   /// Closes the mic once no source is holding any more.
   void release(HoldSource source) {
     if (!_holds.remove(source)) return;
-    if (_holds.isEmpty) unawaited(_voice.setPushToTalkHeld(false));
+    if (_holds.isEmpty) unawaited(_voice.input.setPushToTalkHeld(false));
   }
 
   /// The window saw the key go up, which settles a global hold whose own key-up never arrived.
   void keyWentUp() {
     if (_holds.isEmpty) return;
     _holds.clear();
-    unawaited(_voice.setPushToTalkHeld(false));
+    unawaited(_voice.input.setPushToTalkHeld(false));
   }
 
   /// Forgets every hold without touching the mic, for when push-to-talk is switched off.

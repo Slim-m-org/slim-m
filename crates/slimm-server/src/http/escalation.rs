@@ -51,3 +51,25 @@ pub(super) fn peer_guard(
     }
     Ok(())
 }
+
+/// The role-position check a voice kick adds on top of the bit comparison:
+/// unless the caller is an administrator, their highest role must sit above
+/// the target's (decision 0092, owner decision 2026-10-28).
+///
+/// Bits alone cannot rank people in a call, since a channel overwrite can give
+/// every participant KICK_MEMBERS and so make everyone a peer of everyone.
+/// No role at all ranks below every role.
+pub(super) fn role_rank_guard(
+    caller_is_admin: bool,
+    caller_position: Option<i64>,
+    target_position: Option<i64>,
+) -> Result<(), ApiError> {
+    if caller_is_admin {
+        return Ok(());
+    }
+    match caller_position.cmp(&target_position) {
+        std::cmp::Ordering::Greater => Ok(()),
+        std::cmp::Ordering::Equal => Err(ApiError::ForbiddenBecause(EQUAL_RANK_REFUSED)),
+        std::cmp::Ordering::Less => Err(ApiError::Forbidden),
+    }
+}

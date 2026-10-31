@@ -12,31 +12,32 @@ import 'package:slimm_app/src/desktop/window_fullscreen_hold.dart';
 import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
 import 'package:slimm_app/src/providers/app_lifecycle.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late FakeDesktopWindowPort port;
+  late DesktopWindowShell shell;
   late ProviderContainer container;
 
   setUp(() {
     port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    container = ProviderContainer();
+    shell = shellFor(port);
+    container = ProviderContainer(
+      overrides: [desktopWindowShellProvider.overrideWith((ref) => shell)],
+    );
   });
-  tearDown(() {
-    container.dispose();
-    DesktopWindowShell.debugReset();
-    WindowFullscreenHold.debugReset();
-  });
+  tearDown(() => container.dispose());
 
   WindowFullscreenHold hold() => WindowFullscreenHold(
     container.read(fullscreenVideoActiveProvider.notifier),
+    shell,
   );
 
   test('entering fullscreens the window and hides the chrome, releasing '
       'gives both back', () async {
-    DesktopWindowShell.debugActivate(frameless: true);
+    shell = shellFor(port, active: true, frameless: true);
     final h = hold();
 
     await h.enter();
@@ -58,7 +59,7 @@ void main() {
   });
 
   test('a second enter and a release with nothing held are no-ops', () async {
-    DesktopWindowShell.debugActivate(frameless: true);
+    shell = shellFor(port, active: true, frameless: true);
     final h = hold()..release();
     await Future<void>.delayed(Duration.zero);
     expect(port.fullScreen, isFalse);
@@ -72,7 +73,7 @@ void main() {
   test(
     'two holds on one window leave fullscreen only when both let go',
     () async {
-      DesktopWindowShell.debugActivate(frameless: true);
+      shell = shellFor(port, active: true, frameless: true);
       final route = hold();
       final tile = hold();
 
@@ -98,7 +99,7 @@ void main() {
   test(
     'a window that was already fullscreen is left fullscreen on release',
     () async {
-      DesktopWindowShell.debugActivate(frameless: true);
+      shell = shellFor(port, active: true, frameless: true);
       port.fullScreen = true;
       final h = hold();
 
@@ -114,7 +115,7 @@ void main() {
   test(
     'a hold taken over in the same frame keeps the window fullscreen',
     () async {
-      DesktopWindowShell.debugActivate(frameless: true);
+      shell = shellFor(port, active: true, frameless: true);
       final old = hold();
       await old.enter();
 
@@ -131,10 +132,10 @@ void main() {
   );
 
   test('the OS leaving fullscreen on its own releases the hold', () async {
-    DesktopWindowShell.debugActivate(frameless: true);
+    shell = shellFor(port, active: true, frameless: true);
     final h = hold();
     await h.enter();
-    expect(WindowFullscreenHold.anyHeld, isTrue);
+    expect(shell.fullscreenHolds.any, isTrue);
 
     port.fullScreen = false;
     port.emit(DesktopWindowEventKind.leaveFullScreen);
@@ -142,7 +143,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(h.held, isFalse);
-    expect(WindowFullscreenHold.anyHeld, isFalse);
+    expect(shell.fullscreenHolds.any, isFalse);
     expect(
       container.read(fullscreenVideoActiveProvider),
       isFalse,
@@ -153,7 +154,7 @@ void main() {
   test(
     'releasing while isFullScreen is still in flight does not fullscreen the window',
     () async {
-      DesktopWindowShell.debugActivate(frameless: true);
+      shell = shellFor(port, active: true, frameless: true);
       final h = hold();
       final entering = h.enter();
       h.release();
