@@ -257,6 +257,21 @@ async fn watch_session_calls(c: &mut Contract, root: &str, bot_token: &str) {
         json!({ "playing": true, "position_ms": 65_000 }),
     )
     .await;
+    c.bare(
+        "sendVoiceHeartbeat",
+        "POST",
+        &format!("/channels/{room_id}/voice/heartbeat"),
+        root,
+    )
+    .await;
+    c.json(
+        "reportWatchViewing",
+        "PUT",
+        &format!("{uri}/viewing"),
+        root,
+        json!({ "direct": true }),
+    )
+    .await;
     c.get("getWatchSession", &uri, root).await;
     c.bare("endWatchSession", "DELETE", &uri, bot_token).await;
 }

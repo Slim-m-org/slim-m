@@ -57,6 +57,54 @@ void main() {
     expect(session.ttlMs, 30000);
   });
 
+  test('reads what the bot offers for direct play and who is direct', () async {
+    final client = _client(
+      (request) => http.Response(
+        jsonEncode({
+          ..._session,
+          'direct_play': {
+            'base_url': 'http://10.0.0.5:8096',
+            'verified_user_ids': ['u1'],
+            'unverified_user_ids': ['u2'],
+          },
+          'direct_viewer_ids': ['u1'],
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    final session = (await client.getWatchSession('c1'))!;
+    expect(session.directPlay!.baseUrl, 'http://10.0.0.5:8096');
+    expect(session.directPlay!.verifiedUserIds, ['u1']);
+    expect(session.directPlay!.unverifiedUserIds, ['u2']);
+    expect(session.directViewerIds, ['u1']);
+  });
+
+  test('a session without an offer reads as none', () async {
+    final client = _client(
+      (request) => http.Response(
+        jsonEncode(_session),
+        200,
+        headers: {'content-type': 'application/json'},
+      ),
+    );
+    final session = (await client.getWatchSession('c1'))!;
+    expect(session.directPlay, isNull);
+    expect(session.directViewerIds, isEmpty);
+  });
+
+  test('reports playing directly with the documented body', () async {
+    late http.Request seen;
+    final client = _client((request) {
+      seen = request;
+      return http.Response('', 204);
+    });
+    await client.reportWatchViewing('c1', direct: true);
+    expect(seen.method, 'PUT');
+    expect(seen.url.path, '/channels/c1/watch-session/viewing');
+    expect(jsonDecode(seen.body), {'direct': true});
+  });
+
   test('a room with nothing playing is null, not an error', () async {
     final client = _client(
       (_) => http.Response(

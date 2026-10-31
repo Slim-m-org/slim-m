@@ -28,6 +28,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../providers/direct_play_provider.dart';
 import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
@@ -41,6 +42,7 @@ import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
 import 'share_stage_grid.dart';
 import 'voice_reconnect_banner.dart';
+import 'direct_play_stage.dart';
 import 'watch_session_bar.dart';
 
 /// The dock's own visible height plus its margin, so the last row of
@@ -112,6 +114,15 @@ class CallStageLayout extends ConsumerWidget {
         shares.length > 1 && shares.first.identity == watch.focused
         ? watch.focused
         : null;
+    final channelId = voice.channelId;
+    final playingDirect =
+        !isDm &&
+        channelId != null &&
+        botIsOnCall(ref, [for (final p in participants) p.identity]) &&
+        ref.watch(directPlayProvider(channelId).select((d) => d.active));
+    final directStage = playingDirect
+        ? DirectPlayStage(channelId: channelId)
+        : null;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -147,9 +158,12 @@ class CallStageLayout extends ConsumerWidget {
           Expanded(
             child: AppFadeIn(
               // Keyed on whether a stage exists, not who is sharing: a hand-off between sharers must not re-fade the whole filmstrip.
-              key: ValueKey(shares.isNotEmpty ? 'stage' : 'grid'),
-              child: shares.isNotEmpty
+              key: ValueKey(
+                shares.isNotEmpty || playingDirect ? 'stage' : 'grid',
+              ),
+              child: shares.isNotEmpty || playingDirect
                   ? _StageWithFilmstrip(
+                      directStage: directStage,
                       shares: shares,
                       focusedIdentity: focusedIdentity,
                       onStopWatching: watching.stop,
@@ -195,6 +209,7 @@ class _CallHeader extends StatelessWidget {
 /// at the start of the strip.
 class _StageWithFilmstrip extends StatelessWidget {
   const _StageWithFilmstrip({
+    required this.directStage,
     required this.shares,
     required this.focusedIdentity,
     required this.onStopWatching,
@@ -205,6 +220,8 @@ class _StageWithFilmstrip extends StatelessWidget {
     this.menuItemsBuilder,
   });
 
+  /// The viewer's own player, which takes the stage while they play directly.
+  final Widget? directStage;
   final List<VoiceParticipant> shares;
   final String? focusedIdentity;
   final void Function(String identity) onStopWatching;
@@ -223,8 +240,8 @@ class _StageWithFilmstrip extends StatelessWidget {
       height: _filmstripHeight,
       child: _Filmstrip(
         leading: [
-          if (focusedIdentity != null)
-            for (final other in shares.skip(1))
+          if (focusedIdentity != null || directStage != null)
+            for (final other in directStage != null ? shares : shares.skip(1))
               ShareThumbnail(
                 key: ValueKey('share-thumb-${other.identity}'),
                 sharer: other,
@@ -239,6 +256,19 @@ class _StageWithFilmstrip extends StatelessWidget {
         menuItemsBuilder: menuItemsBuilder,
       ),
     );
+    final direct = directStage;
+    if (direct != null) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: AspectRatio(aspectRatio: _stageAspect, child: direct),
+          ),
+          const SizedBox(height: AppSpacing.s12),
+          strip,
+        ],
+      );
+    }
     if (shares.length > 1 && focusedIdentity == null) {
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(

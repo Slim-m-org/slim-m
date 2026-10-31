@@ -13,10 +13,20 @@ import 'voice_flags.dart';
 
 /// Sharers the viewer stopped watching, and the one share given the room.
 class ShareWatchState {
-  const ShareWatchState({this.stopped = const {}, this.focused});
+  const ShareWatchState({
+    this.stopped = const {},
+    this.focused,
+    this.held = const {},
+  });
 
   final Set<String> stopped;
   final String? focused;
+
+  /// Sharers kept unwatched by something other than the viewer's own choice,
+  /// such as a direct-play player standing in for the share. A held sharer
+  /// stays in [stopped] even while they are not sharing, so the share cannot
+  /// be subscribed in the gap before it is stopped again.
+  final Set<String> held;
 }
 
 /// Every watched sharer: the focused one first, then remote in roster order, then local.
@@ -52,40 +62,65 @@ class ShareWatchController extends StateNotifier<ShareWatchState> {
     state = ShareWatchState(
       stopped: {...state.stopped, identity},
       focused: state.focused == identity ? null : state.focused,
+      held: state.held,
     );
     _applyBlocked(blockedShareKeys(state.stopped));
   }
 
   void watch(String identity) {
-    if (!state.stopped.contains(identity)) return;
+    if (!state.stopped.contains(identity) && !state.held.contains(identity)) {
+      return;
+    }
     state = ShareWatchState(
       stopped: {...state.stopped}..remove(identity),
       focused: state.focused,
+      held: {...state.held}..remove(identity),
+    );
+    _applyBlocked(blockedShareKeys(state.stopped));
+  }
+
+  /// Keeps [identity]'s share unwatched until [watch] gives it back.
+  void hold(String identity) {
+    state = ShareWatchState(
+      stopped: {...state.stopped, identity},
+      focused: state.focused == identity ? null : state.focused,
+      held: {...state.held, identity},
     );
     _applyBlocked(blockedShareKeys(state.stopped));
   }
 
   /// Forgets every choice, for a call that has ended.
   void clear() {
-    if (state.stopped.isEmpty && state.focused == null) return;
+    if (state.stopped.isEmpty && state.focused == null && state.held.isEmpty) {
+      return;
+    }
     final blocked = state.stopped.isNotEmpty;
     state = const ShareWatchState();
     if (blocked) _applyBlocked(const {});
   }
 
   /// A null [identity] returns to the grid.
-  void focus(String? identity) =>
-      state = ShareWatchState(stopped: state.stopped, focused: identity);
+  void focus(String? identity) => state = ShareWatchState(
+    stopped: state.stopped,
+    focused: identity,
+    held: state.held,
+  );
 
   /// Forgets choices about people who are no longer sharing.
   void prune(Set<String> sharing) {
-    final stopped = state.stopped.where(sharing.contains).toSet();
+    final stopped = state.stopped
+        .where((id) => sharing.contains(id) || state.held.contains(id))
+        .toSet();
     final focused = sharing.contains(state.focused) ? state.focused : null;
     if (stopped.length == state.stopped.length && focused == state.focused) {
       return;
     }
     final changed = stopped.length != state.stopped.length;
-    state = ShareWatchState(stopped: stopped, focused: focused);
+    state = ShareWatchState(
+      stopped: stopped,
+      focused: focused,
+      held: state.held,
+    );
     if (changed) _applyBlocked(blockedShareKeys(stopped));
   }
 }

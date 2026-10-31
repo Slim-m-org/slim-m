@@ -47,6 +47,7 @@ mod room_admin;
 mod room_lifecycle;
 mod roster;
 mod token;
+mod watch_viewing;
 mod webhook;
 pub(crate) use call_record::record_finished_call;
 use heartbeat::{CallHeartbeats, STALE_AFTER as HEARTBEAT_STALE_AFTER};
@@ -130,6 +131,8 @@ pub struct VoiceService {
     /// Ephemeral like its siblings above; see `voice::live_state`'s own doc.
     live_state: RoomLiveState,
     roster_cache: roster::RosterCache,
+    /// Ephemeral like its siblings; see `voice::watch_viewing`'s own doc.
+    watch_viewing: watch_viewing::WatchViewing,
 }
 
 struct Enabled {
@@ -176,6 +179,7 @@ impl VoiceService {
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
+            watch_viewing: watch_viewing::WatchViewing::default(),
         })
     }
 
@@ -187,6 +191,7 @@ impl VoiceService {
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
+            watch_viewing: watch_viewing::WatchViewing::default(),
         }
     }
 
@@ -205,7 +210,13 @@ impl VoiceService {
             rings: CallRings::new(),
             live_state: RoomLiveState::new(),
             roster_cache: roster::RosterCache::default(),
+            watch_viewing: watch_viewing::WatchViewing::default(),
         }
+    }
+
+    /// Who on each call plays the watch party's title themselves.
+    pub fn watch_viewing(&self) -> &watch_viewing::WatchViewing {
+        &self.watch_viewing
     }
 
     pub fn is_enabled(&self) -> bool {
