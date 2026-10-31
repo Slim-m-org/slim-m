@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Group DMs (docs/decisions/0095): a DM channel with 3 to 8 participants.
+//! Group DMs (docs/decisions/0095): a DM channel with 3 to 10 participants.
 //!
 //! A pair stays in `dm_channels`; a group keeps its roster in
 //! `group_dm_members` because any number of groups may share the same people.

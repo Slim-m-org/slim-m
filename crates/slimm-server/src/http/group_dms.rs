@@ -52,6 +52,11 @@ struct AddRequest {
     user_id: String,
 }
 
+// The refusals below spell the sizes out, so moving a bound must move their words too.
+const _: () = assert!(
+    crate::store::GROUP_DM_MIN_PARTICIPANTS == 3 && crate::store::GROUP_DM_MAX_PARTICIPANTS == 10
+);
+
 impl From<GroupDmError> for ApiError {
     fn from(err: GroupDmError) -> Self {
         match err {
@@ -62,9 +67,9 @@ impl From<GroupDmError> for ApiError {
                 "a block between two of these people stops them sharing a group",
             ),
             GroupDmError::BadSize => {
-                ApiError::BadRequest("a group has 3 to 8 people, you included")
+                ApiError::BadRequest("a group has 3 to 10 people, you included")
             }
-            GroupDmError::Full => ApiError::Conflict("this group already has 8 people"),
+            GroupDmError::Full => ApiError::Conflict("this group already has 10 people"),
             GroupDmError::AlreadyMember => ApiError::Conflict("already in this group"),
             GroupDmError::IdTaken => ApiError::Conflict("that id is already in use"),
             GroupDmError::Internal(e) => e.into(),
