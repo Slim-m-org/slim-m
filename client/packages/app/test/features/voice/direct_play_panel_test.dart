@@ -19,6 +19,8 @@ import '../../ui_snapshot_support.dart';
 import 'direct_play_fakes.dart';
 
 const _channel = 'call-1';
+const _stageKey = Key('direct-stage');
+const _panelKey = Key('direct-panel');
 
 Future<DirectPlayController> _scene(
   WidgetTester tester,
@@ -66,13 +68,16 @@ Future<DirectPlayController> _scene(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const DirectPlayPanel(channelId: _channel),
+                    const DirectPlayPanel(key: _panelKey, channelId: _channel),
                     const SizedBox(height: AppSpacing.s12),
                     if (c.current.active)
                       const Flexible(
                         child: AspectRatio(
                           aspectRatio: 16 / 9,
-                          child: DirectPlayStage(channelId: _channel),
+                          child: DirectPlayStage(
+                            key: _stageKey,
+                            channelId: _channel,
+                          ),
                         ),
                       ),
                   ],
@@ -101,14 +106,7 @@ void main() {
         (tester) async {
           await _scene(tester, Rig(), width: width, brightness: brightness);
           expect(find.text('Watch at source quality'), findsOneWidget);
-          final row = tester.getSize(
-            find
-                .ancestor(
-                  of: find.text('Watch at source quality'),
-                  matching: find.byType(Container),
-                )
-                .first,
-          );
+          final row = tester.getSize(find.byKey(_panelKey));
           expect(row.height, greaterThanOrEqualTo(AppSizes.rowTouch));
           expect(row.width, width - 2 * AppSpacing.s16);
           await writeSnapshot(tester, 'direct-play-offer-$label');
@@ -131,7 +129,7 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.byType(AppToggle), findsNothing);
+        expect(find.text('Watch at source quality'), findsNothing);
         await writeSnapshot(tester, 'direct-play-blocked-$label');
       });
 
@@ -155,7 +153,7 @@ void main() {
             findsOneWidget,
           );
           expect(find.text('Rejoin the room'), findsOneWidget);
-          final stage = tester.getRect(find.byType(DirectPlayStage));
+          final stage = tester.getRect(find.byKey(_stageKey));
           expect(stage.width / stage.height, closeTo(16 / 9, 0.05));
           final band = tester.getRect(find.text('Rejoin the room'));
           expect(stage.contains(band.center), isTrue);
