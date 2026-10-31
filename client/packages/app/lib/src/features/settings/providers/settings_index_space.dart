@@ -250,6 +250,11 @@ const spaceSettingsIndex = <SettingsEntry>[
     keywords: ['modules', 'dock', 'addons'],
     conditional: true,
   ),
+  SettingsEntry(
+    'dock',
+    'Module files',
+    keywords: ['install module', 'export module', 'addons'],
+  ),
   SettingsEntry('bots', 'Create bot', keywords: ['bot token']),
   SettingsEntry('bots', 'Bots in this Space'),
   SettingsEntry('webhooks', 'Create webhook'),
