@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import 'canvas_board_callout.dart';
 import 'canvas_truncated_notice.dart';
 
 class CanvasBanners extends StatelessWidget {
@@ -70,15 +71,6 @@ class _UnsavedInkNotice extends StatelessWidget {
   const _UnsavedInkNotice();
 
   @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.fromLTRB(
-      AppSpacing.s12,
-      0,
-      AppSpacing.s12,
-      AppSpacing.s12,
-    ),
-    child: AppCallout(
-      child: Text('Your latest ink is not saved yet. Retrying.'),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      const CanvasBoardCallout('Your latest ink is not saved yet. Retrying.');
 }
