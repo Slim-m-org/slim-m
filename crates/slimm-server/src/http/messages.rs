@@ -26,6 +26,7 @@ use super::channel_slow_mode::enforce_slow_mode;
 use super::embeds;
 use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
+use super::module_hooks::{Draft, HookPoint, intercept};
 use super::post_commit::after_commit;
 use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
@@ -129,6 +130,12 @@ async fn send(
     {
         return Err(ApiError::Forbidden);
     }
+    super::module_hooks::check_permission(
+        &state,
+        ctx.user_id,
+        (super::module_hooks::Action::MessageSend, Some(channel_id)),
+    )
+    .await?;
 
     // A forward with no note of its own is a complete message; so is one
     // that is only attachments.
@@ -162,6 +169,22 @@ async fn send(
         }
         None => None,
     };
+    let intercepted = match stored_already {
+        true => Default::default(),
+        false => {
+            let draft = Draft {
+                point: HookPoint::PreSend,
+                channel_id,
+                actor: ctx.user_id,
+                reply_to: reply_to_id,
+                content,
+                carries_more,
+                own_module: None,
+            };
+            intercept(&state, &draft).await?
+        }
+    };
+    let content = intercepted.text(content);
     let sent = state
         .store
         .send_message_with_slow_mode(
@@ -178,6 +201,10 @@ async fn send(
             slow_mode_window_ms,
         )
         .await?;
+
+    if sent.fresh {
+        intercepted.save_annotations(&state, id).await;
+    }
 
     // Read once and used twice: the live frame and this response need the
     // same summaries, and a fresh message can already have them.
@@ -425,6 +452,20 @@ async fn edit(
 
     // An edit carries no attachment list, so nothing stands in for cleared text - unless the message forwards something.
     let content = validate_content(&req.content, forwarded.is_some())?;
+    let intercepted = intercept(
+        &state,
+        &Draft {
+            point: HookPoint::PreEdit,
+            channel_id,
+            actor: ctx.user_id,
+            reply_to: None,
+            content,
+            carries_more: forwarded.is_some(),
+            own_module: None,
+        },
+    )
+    .await?;
+    let content = intercepted.text(content);
     // Built before the text changes, so a refused embed leaves the edit undone rather than half done.
     let replacement = embeds::honored_for_edit(&state, ctx.user_id, is_author, req.embeds).await?;
     let updated = match state
@@ -440,6 +481,7 @@ async fn edit(
             op_seq,
             code_runs_cleared,
         } => {
+            intercepted.save_annotations(&state, message.id).await;
             let author = message.author_id.unwrap_or(ctx.user_id);
             // A reply's ping is not in its text, so an edit keeps it only if the send stored one.
             let reply_ping =

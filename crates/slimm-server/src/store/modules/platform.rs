@@ -46,16 +46,23 @@ pub struct ModuleSettingDef {
     pub max: Option<i64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub choices: Vec<SettingChoice>,
+    /// A secret's allowed hosts, a subset of the module's `network.hosts`; empty means any approved host.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<String>,
 }
 
 /// What a manifest declares under decision 0091, as install records it.
 #[derive(Debug, Clone, Default)]
 pub struct ModulePlatform {
     pub addon_api: u32,
+    /// The newest add-on API the manifest declares it works with; `None` names no upper bound.
+    pub addon_api_max: Option<u32>,
     pub subscriptions: Vec<String>,
     pub data_schema: serde_json::Value,
     pub settings_schema: Vec<ModuleSettingDef>,
     pub slots: Vec<ModuleSlot>,
+    /// Interceptors and permission hooks (decision 0100).
+    pub hooks: Vec<super::hooks::HookDecl>,
 }
 
 /// A place in the client a module may fill (`profile.section`, `member.badge`).
@@ -104,15 +111,17 @@ pub(super) async fn write_platform(
     platform: &ModulePlatform,
 ) -> anyhow::Result<()> {
     let addon_api = i64::from(platform.addon_api);
+    let addon_api_max = platform.addon_api_max.map(i64::from);
     let subscriptions = serde_json::to_string(&platform.subscriptions)?;
     let data_schema = serde_json::to_string(&platform.data_schema)?;
     let settings_schema = serde_json::to_string(&platform.settings_schema)?;
     let slots = serde_json::to_string(&platform.slots)?;
     sqlx::query!(
         "UPDATE installed_modules
-         SET addon_api = ?, subscriptions = ?, data_schema = ?, settings_schema = ?, slots = ?
+         SET addon_api = ?, addon_api_max = ?, subscriptions = ?, data_schema = ?, settings_schema = ?, slots = ?
          WHERE id = ?",
         addon_api,
+        addon_api_max,
         subscriptions,
         data_schema,
         settings_schema,
@@ -121,5 +130,6 @@ pub(super) async fn write_platform(
     )
     .execute(&mut **tx)
     .await?;
+    super::hooks::write_hooks(tx, id, &platform.hooks).await?;
     Ok(())
 }

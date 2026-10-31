@@ -9927,6 +9927,63 @@ paths:
           $ref: "#/components/responses/NotFound"
         "429":
           $ref: "#/components/responses/TooManyRequests"
+  /space/dock/hooks:
+    get:
+      operationId: listDockModuleHooks
+      tags: [space]
+      summary: List what installed modules hook into. Requires MANAGE_SERVER.
+      description: >
+        Every interceptor and permission hook of every installed module, in
+        the order they run, with the admin's priority and fail mode and how
+        each has been doing.
+      responses:
+        "200":
+          description: The hooks in chain order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModuleHook"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+  /space/dock/modules/{moduleId}/hooks:
+    parameters:
+      - name: moduleId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: putDockModuleHook
+      tags: [space]
+      summary: Change one hook's order or fail mode. Requires MANAGE_SERVER.
+      description: >
+        Names the hook by kind, hook and phase and changes only the fields
+        given. Priority is a whole number between -1000000 and 1000000.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutModuleHookRequest"
+      responses:
+        "204":
+          description: Changed.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
   /space/dock/modules/{moduleId}/schedule-channel:
     parameters:
       - name: moduleId
@@ -10999,6 +11056,10 @@ components:
           type: integer
           format: int32
           description: Wire-protocol envelope version a client negotiates against.
+        addon_api:
+          type: integer
+          format: int32
+          description: The add-on API level this server speaks, which a module's declared range is checked against.
         push_enabled:
           type: boolean
           description: >
@@ -12517,11 +12578,24 @@ components:
         addon_api:
           type: integer
           description: The add-on API version it declares; absent when it uses none.
+        addon_api_max:
+          type: integer
+          description: The newest add-on API version it declares it works with; absent when it names none.
         subscriptions:
           type: array
           description: The events it subscribes to.
           items:
             type: string
+        interceptors:
+          type: array
+          description: Where it asks to stand in front of a message, shown at consent; absent when none.
+          items:
+            $ref: "#/components/schemas/DockHookDecl"
+        permission_hooks:
+          type: array
+          description: The permission checks it asks to be able to deny, shown at consent; absent when none.
+          items:
+            $ref: "#/components/schemas/DockHookDecl"
         settings:
           type: array
           description: The settings it declares for an admin to fill.
@@ -12567,6 +12641,88 @@ components:
                 type: string
               label:
                 type: string
+        hosts:
+          type: array
+          description: A secret's allowed hosts, a subset of the module's network hosts; absent means any approved host.
+          items:
+            type: string
+    DockHookDecl:
+      type: object
+      required: [hook, reads]
+      properties:
+        hook:
+          type: string
+          description: The message hook point for an interceptor, the action for a permission hook.
+        phase:
+          type: string
+          description: reject, annotate or rewrite for an interceptor; absent for a permission hook.
+        reads:
+          type: array
+          items:
+            type: string
+    ModuleHook:
+      type: object
+      required: [module_id, module_name, kind, hook, phase, reads, priority, fail_closed, live, runs, failures, max_fuel_used]
+      properties:
+        module_id:
+          type: string
+        module_name:
+          type: string
+        kind:
+          type: string
+          enum: [interceptor, permission]
+        hook:
+          type: string
+          description: The message hook point for an interceptor, the action for a permission hook.
+        phase:
+          type: string
+          description: reject, annotate or rewrite for an interceptor; empty for a permission hook.
+        reads:
+          type: array
+          items:
+            type: string
+        priority:
+          type: integer
+          description: Lower runs first within a phase.
+        fail_closed:
+          type: boolean
+          description: Whether a failure refuses the action instead of letting it through.
+        live:
+          type: boolean
+          description: Whether it is in the chain now.
+        runs:
+          type: integer
+        failures:
+          type: integer
+        last_error:
+          type: string
+          nullable: true
+        last_error_at:
+          type: integer
+          format: int64
+          nullable: true
+        last_fuel_used:
+          type: integer
+          format: int64
+          nullable: true
+        max_fuel_used:
+          type: integer
+          format: int64
+    PutModuleHookRequest:
+      type: object
+      required: [kind, hook]
+      properties:
+        kind:
+          type: string
+          enum: [interceptor, permission]
+        hook:
+          type: string
+        phase:
+          type: string
+        priority:
+          type: integer
+        fail_closed:
+          type: boolean
     ModuleSlot:
       type: object
       required: [kind, name]
@@ -12761,6 +12917,9 @@ components:
         addon_api:
           type: integer
           description: The add-on API version it declares; absent when it uses none.
+        addon_api_max:
+          type: integer
+          description: The newest add-on API version it declares it works with; absent when it names none.
         subscriptions:
           type: array
           description: The events it subscribes to.

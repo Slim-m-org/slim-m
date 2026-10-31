@@ -46,6 +46,9 @@ pub mod data_rig;
 /// Installing a module that subscribes to pushed events, and reading back what it recorded.
 #[allow(dead_code)]
 pub mod module_events_world;
+/// Installing a module that hooks into messages or permission checks.
+#[allow(dead_code)]
+pub mod module_hooks_world;
 /// A one-member deployment plus helpers to install and run a wasm module.
 #[allow(dead_code)]
 pub mod module_world;

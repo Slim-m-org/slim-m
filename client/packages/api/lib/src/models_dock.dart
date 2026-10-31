@@ -246,8 +246,14 @@ class DockManifest {
     this.subscriptions = const [],
     this.dataMaxMb,
     this.dataSchema,
+    this.interceptors = const [],
+    this.permissionHooks = const [],
     this.reviewDigest,
   });
+
+  /// Where it asks to stand in front of a message, and the permission checks it can deny.
+  final List<DockHookDecl> interceptors;
+  final List<DockHookDecl> permissionHooks;
 
   /// The tables and cap of its data store; null when it declares none.
   final DockDataSchema? dataSchema;
@@ -333,6 +339,8 @@ class DockManifest {
         subscriptions: dockSubscriptions(json['subscriptions']),
         dataMaxMb: dockDataMaxMb(json['data']),
         dataSchema: dockDataSchema(json['data']),
+        interceptors: dockHooks(json['interceptors']),
+        permissionHooks: dockHooks(json['permission_hooks']),
         reviewDigest: json['review_digest'] as String?,
       );
 }

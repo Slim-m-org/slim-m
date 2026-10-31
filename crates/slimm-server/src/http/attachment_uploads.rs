@@ -102,7 +102,13 @@ pub(super) async fn may_attach(
             .contains(Permissions::ATTACH_FILES),
     };
     if allowed {
-        Ok(())
+        let channel = channel.and_then(|raw| uuid::Uuid::parse_str(raw).ok().map(ChannelId));
+        super::module_hooks::check_permission(
+            state,
+            user_id,
+            (super::module_hooks::Action::AttachmentUpload, channel),
+        )
+        .await
     } else {
         Err(ApiError::Forbidden)
     }

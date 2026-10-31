@@ -127,6 +127,19 @@ impl SqliteData {
         }
     }
 
+    /// The ids of every module that has a data file, installed or not.
+    pub fn stored_module_ids(&self) -> Vec<String> {
+        let Ok(entries) = std::fs::read_dir(&self.dir) else {
+            return Vec::new();
+        };
+        entries
+            .flatten()
+            .filter_map(|e| e.file_name().into_string().ok())
+            .filter_map(|name| name.strip_suffix(".db").map(str::to_owned))
+            .filter(|id| valid_file_id(id))
+            .collect()
+    }
+
     /// Removes the module's file and its journal files; a missing file is fine.
     pub async fn delete_data(&self, module_id: &str) -> Result<(), String> {
         let path = self.path_for(module_id)?;

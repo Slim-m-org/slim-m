@@ -109,6 +109,7 @@ async fn apply_enabled(
             .installed_module(id)
             .await?
             .ok_or(ApiError::NotFound("module not installed"))?;
+        crate::http::module_compat::require_compatible(&module)?;
         let keywords = keywords::slash_keywords(&module.extension_points);
         ensure_slash_keywords_free(state, id, keywords).await?;
     }

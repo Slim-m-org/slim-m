@@ -184,6 +184,7 @@ class _Describer {
     'module.schedule_channel' => 'set the schedule channel for ${_module()}',
     'module.clear_storage' => 'cleared the stored data of ${_module()}',
     'module.settings' => 'changed the settings of ${_module()}',
+    'module.hook' => 'changed the checks of ${_module()}',
     'module.auto_disable' => 'turned off ${_module()} after repeated failures',
     'module_source.add' => 'added a module source',
     'module_source.remove' => 'removed a module source',

@@ -110,6 +110,12 @@ async fn token(
     if let Some(channel) = state.store.channel(channel_id).await? {
         self::voice_rooms::check_join(&state, &channel, ctx.user_id).await?;
     }
+    super::module_hooks::check_permission(
+        &state,
+        ctx.user_id,
+        (super::module_hooks::Action::VoiceJoin, Some(channel_id)),
+    )
+    .await?;
 
     // The token's name comes from the account, never from what the caller sends.
     let profile = state.store.user_profile(ctx.user_id).await?;

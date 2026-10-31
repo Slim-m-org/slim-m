@@ -29,6 +29,7 @@ fn def(key: &str, kind: SettingKind) -> ModuleSettingDef {
         min: None,
         max: None,
         choices: Vec::new(),
+        hosts: Vec::new(),
     }
 }
 

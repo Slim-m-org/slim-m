@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT id AS \"id!\", name AS \"name!\", version AS \"version!\",\n                      artifact_sha256 AS \"artifact_sha256!\",\n                      approved_capabilities AS \"approved_capabilities!\",\n                      approved_host_capabilities AS \"approved_host_capabilities!\",\n                      runtime_limits AS \"runtime_limits!\",\n                      extension_points AS \"extension_points!\",\n                      enabled AS \"enabled!: bool\", installed_at AS \"installed_at!\",\n                      source_repo,\n                      network_hosts AS \"network_hosts!\",\n                      local_network_approved AS \"local_network_approved!: bool\",\n                      schedules AS \"schedules!\",\n                      bot_user_id AS \"bot_user_id: UserId\",\n                      schedule_channel_id AS \"schedule_channel_id: ChannelId\",\n                      addon_api AS \"addon_api!\",\n                      subscriptions AS \"subscriptions!\",\n                      data_schema AS \"data_schema!\",\n                      settings_schema AS \"settings_schema!\",\n                      slots AS \"slots!\"\n               FROM installed_modules WHERE id = ?",
+  "query": "SELECT id AS \"id!\", name AS \"name!\", version AS \"version!\",\n                      artifact_sha256 AS \"artifact_sha256!\",\n                      approved_capabilities AS \"approved_capabilities!\",\n                      approved_host_capabilities AS \"approved_host_capabilities!\",\n                      runtime_limits AS \"runtime_limits!\",\n                      extension_points AS \"extension_points!\",\n                      enabled AS \"enabled!: bool\", installed_at AS \"installed_at!\",\n                      source_repo,\n                      network_hosts AS \"network_hosts!\",\n                      local_network_approved AS \"local_network_approved!: bool\",\n                      schedules AS \"schedules!\",\n                      bot_user_id AS \"bot_user_id: UserId\",\n                      schedule_channel_id AS \"schedule_channel_id: ChannelId\",\n                      addon_api AS \"addon_api!\",\n                      addon_api_max,\n                      subscriptions AS \"subscriptions!\",\n                      data_schema AS \"data_schema!\",\n                      settings_schema AS \"settings_schema!\",\n                      slots AS \"slots!\"\n               FROM installed_modules WHERE id = ?",
   "describe": {
     "columns": [
       {
@@ -89,23 +89,28 @@
         "type_info": "Integer"
       },
       {
-        "name": "subscriptions!",
+        "name": "addon_api_max",
         "ordinal": 17,
-        "type_info": "Text"
+        "type_info": "Integer"
       },
       {
-        "name": "data_schema!",
+        "name": "subscriptions!",
         "ordinal": 18,
         "type_info": "Text"
       },
       {
-        "name": "settings_schema!",
+        "name": "data_schema!",
         "ordinal": 19,
         "type_info": "Text"
       },
       {
-        "name": "slots!",
+        "name": "settings_schema!",
         "ordinal": 20,
+        "type_info": "Text"
+      },
+      {
+        "name": "slots!",
+        "ordinal": 21,
         "type_info": "Text"
       }
     ],
@@ -130,11 +135,12 @@
       true,
       true,
       false,
+      true,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "3389056ffa61d12267cca0d3ff50fcb89b4e1e14c0d8966cc81675ca5ebf4dcb"
+  "hash": "43a542812f5a4e81b0c9513a455c95586bfbc21c059a625e1cd221288aca10c5"
 }

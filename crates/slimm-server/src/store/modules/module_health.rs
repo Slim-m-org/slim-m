@@ -121,6 +121,37 @@ impl Store {
             .await?;
         }
         tx.commit().await?;
+        self.touch_modules();
+        Ok(disabled > 0)
+    }
+
+    /// Turns an enabled module off because this server cannot run it, and records why.
+    /// Returns whether it was enabled.
+    pub async fn disable_module_incompatible(
+        &self,
+        module_id: &str,
+        reason: &str,
+    ) -> anyhow::Result<bool> {
+        let mut tx = self.begin_write().await?;
+        let disabled = sqlx::query!(
+            "UPDATE installed_modules SET enabled = 0 WHERE id = ? AND enabled = 1",
+            module_id
+        )
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        if disabled > 0 {
+            sqlx::query!(
+                "INSERT INTO module_health (module_id, disabled_reason) VALUES (?, ?)
+                 ON CONFLICT(module_id) DO UPDATE SET disabled_reason = excluded.disabled_reason",
+                module_id,
+                reason
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+        self.touch_modules();
         Ok(disabled > 0)
     }
 

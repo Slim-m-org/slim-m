@@ -9,8 +9,6 @@ use serde_json::Value;
 use super::{ManifestError, bounded, malformed, settings};
 use crate::store::{ModulePlatform, ModuleSettingDef, ModuleSlot};
 
-/// The `addon_api` this host implements: 2 adds private scenes (decision 0099).
-pub(in crate::http) const SUPPORTED_ADDON_API: i64 = 2;
 const MAX_SUBSCRIPTIONS: usize = 8;
 const MAX_SLOTS: usize = 4;
 const MAX_SLOT_NAME: usize = 64;
@@ -35,9 +33,12 @@ pub(super) struct RawSubscription {
 /// The raw sections as the manifest wrote them.
 pub(super) struct RawPlatform {
     pub(super) addon_api: Option<i64>,
+    pub(super) addon_api_max: Option<i64>,
     pub(super) subscriptions: Vec<RawSubscription>,
     pub(super) settings: Vec<ModuleSettingDef>,
     pub(super) slots: Vec<ModuleSlot>,
+    pub(super) interceptors: Vec<super::hooks::RawInterceptor>,
+    pub(super) permission_hooks: Vec<super::hooks::RawPermissionHook>,
     pub(super) data: Option<Value>,
 }
 
@@ -50,17 +51,23 @@ pub(super) fn validate_platform(
     capabilities: &[String],
 ) -> Result<ModulePlatform, ManifestError> {
     let addon_api = raw.addon_api.unwrap_or(0);
-    if addon_api > SUPPORTED_ADDON_API {
-        return Err(malformed(&format!(
-            "this module needs add-on API {addon_api}, but this server supports up to {SUPPORTED_ADDON_API}; update the server"
-        )));
-    }
     if addon_api < 0 {
         return Err(malformed("addon_api must not be negative"));
     }
+    let addon_api_max = validate_range_max(addon_api, raw.addon_api_max)?;
+    crate::module_runtime::check_compatible(
+        u32::try_from(addon_api).unwrap_or(u32::MAX),
+        addon_api_max,
+    )
+    .map_err(|why| malformed(&why))?;
     let subscriptions = validate_subscriptions(raw.subscriptions, capabilities)?;
     let settings = settings::validate_settings(raw.settings)?;
     let slots = validate_slots(raw.slots)?;
+    let hooks = super::hooks::validate_hooks(
+        raw.interceptors,
+        raw.permission_hooks,
+        (capabilities, addon_api),
+    )?;
     if raw.data.is_some() && !has(capabilities, "data.store") {
         return Err(malformed("data needs the data.store capability"));
     }
@@ -75,11 +82,27 @@ pub(super) fn validate_platform(
     }
     Ok(ModulePlatform {
         addon_api: u32::try_from(addon_api).unwrap_or(0),
+        addon_api_max,
         subscriptions,
         data_schema: raw.data.unwrap_or(Value::Null),
         settings_schema: settings,
         slots,
+        hooks,
     })
+}
+
+/// The newest add-on API the module declares, which cannot sit below the oldest it needs.
+fn validate_range_max(min: i64, max: Option<i64>) -> Result<Option<u32>, ManifestError> {
+    let Some(max) = max else {
+        return Ok(None);
+    };
+    if min < 1 {
+        return Err(malformed("addon_api_max needs \"addon_api\": 1 or higher"));
+    }
+    if max < min {
+        return Err(malformed("addon_api_max is below addon_api"));
+    }
+    Ok(Some(u32::try_from(max).unwrap_or(u32::MAX)))
 }
 
 fn validate_subscriptions(

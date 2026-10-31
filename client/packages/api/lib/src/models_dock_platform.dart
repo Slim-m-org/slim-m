@@ -70,6 +70,37 @@ class DockDataSchema {
   }
 }
 
+/// A hook a manifest declares: where it stands and what it is sent there.
+class DockHookDecl {
+  const DockHookDecl(
+      {required this.hook, this.phase = '', this.reads = const []});
+
+  /// The message hook point for an interceptor, the action for a permission hook.
+  final String hook;
+
+  /// `reject`, `annotate` or `rewrite` for an interceptor; empty otherwise.
+  final String phase;
+  final List<String> reads;
+}
+
+/// The hooks in a manifest's `interceptors` or `permission_hooks` array.
+List<DockHookDecl> dockHooks(Object? json) {
+  if (json is! List) return const [];
+  return [
+    for (final entry in json)
+      if (entry is Map && entry['hook'] is String)
+        DockHookDecl(
+          hook: entry['hook'] as String,
+          phase: entry['phase'] is String ? entry['phase'] as String : '',
+          reads: [
+            if (entry['reads'] is List)
+              for (final field in entry['reads'] as List)
+                if (field is String) field,
+          ],
+        ),
+  ];
+}
+
 /// The data store a module declares, or null when it declares none.
 DockDataSchema? dockDataSchema(Object? json) {
   final maxMb = dockDataMaxMb(json);

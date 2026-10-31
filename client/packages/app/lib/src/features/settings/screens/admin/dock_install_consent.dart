@@ -44,7 +44,10 @@ bool dockNeedsReapproval(
   if (installed == null) return false;
   final newBuild = installed.artifactSha256 != manifest.artifact.sha256;
   return switch (capability) {
-    'message.post' || 'log.read' => newBuild,
+    'message.post' ||
+    'log.read' ||
+    'interceptors' ||
+    'permission.hook' => newBuild,
     api.kNetFetchCapability =>
       newBuild ||
           !dockSameHosts(
@@ -123,6 +126,8 @@ const _reaskedOnNewBuild = {
   'events',
   'data.store',
   'log.read',
+  'interceptors',
+  'permission.hook',
 };
 
 /// The sentences for schedule entries that are new or run at another interval.

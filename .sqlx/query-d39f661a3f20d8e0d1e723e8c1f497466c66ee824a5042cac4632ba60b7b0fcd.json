@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_health (module_id, disabled_reason) VALUES (?, ?)\n                 ON CONFLICT(module_id) DO UPDATE SET disabled_reason = excluded.disabled_reason",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d39f661a3f20d8e0d1e723e8c1f497466c66ee824a5042cac4632ba60b7b0fcd"
+}

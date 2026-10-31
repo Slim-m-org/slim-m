@@ -29,6 +29,8 @@ pub(super) struct Version {
     #[serde(skip_serializing_if = "Option::is_none")]
     build_id: Option<String>,
     protocol: u32,
+    /// The add-on API level modules are checked against (decision 0100).
+    addon_api: u32,
     push_enabled: bool,
     /// Whether creating an account here needs an invite code. Onboarding
     /// needs this before an account exists, so it rides on /version.
@@ -167,6 +169,7 @@ pub(super) async fn version(
         version: env!("CARGO_PKG_VERSION"),
         build_id: build_id::current(),
         protocol: PROTOCOL_VERSION,
+        addon_api: crate::module_runtime::ADDON_API,
         push_enabled: state.push.is_enabled(),
         invite_required: state.store.join_policy().await? == JoinPolicy::Invite,
         claimed: state.store.is_bootstrapped().await?,

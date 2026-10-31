@@ -52,3 +52,24 @@ pub(super) async fn apply(
         .await
         .map_err(ApiError::UpstreamInvalid)
 }
+
+/// Deletes every module's rows about a member whose account is gone; failures are logged, not surfaced.
+pub(crate) async fn purge_member(state: &AppState, user_id: crate::ids::UserId) {
+    let data = files(state);
+    let id = user_id.to_string();
+    let outcome = tokio::task::spawn_blocking(move || {
+        let mut failed = Vec::new();
+        for module in data.stored_module_ids() {
+            if crate::module_runtime::purge_member(data.as_ref(), &module, &id).is_err() {
+                failed.push(module);
+            }
+        }
+        failed
+    })
+    .await;
+    match outcome {
+        Ok(failed) if failed.is_empty() => {}
+        Ok(failed) => tracing::error!(?failed, "could not purge a deleted member from module data"),
+        Err(err) => tracing::error!(%err, "module data purge task failed"),
+    }
+}

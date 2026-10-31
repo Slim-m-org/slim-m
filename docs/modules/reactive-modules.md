@@ -144,6 +144,12 @@ Declare the tables, and the host builds and runs every statement itself.
   `unique` and `index` add an index of that kind.
 - At most 8 tables and 16 columns per table.
   `max_mb` is the file cap, 1 to 64, default 8.
+- A `text` column may set `"member": true` to say it holds a member's user id.
+  When that member's account is deleted, by themselves or an administrator, the host deletes every row whose member column holds their id, in every module's file including an uninstalled module's.
+  A table with several member columns loses a row if any of them names the member.
+  A module that stores a user id without marking the column keeps it, so mark every one.
+  A member who is only removed (not deleted) keeps their rows, since they can be restored.
+  Member rows are not part of the member's data export yet.
 - `data` needs the `data.store` capability.
 - The host adds an integer primary key `_id` to every table, so you cannot declare a column of that name.
 - The store is one SQLite file per module (`<modules dir>/<module id>.db`), so no module can reach another's.
@@ -282,6 +288,8 @@ In a `net.fetch` header, a value of `{"secret": "api_key"}` is replaced by the h
 ```
 
 The module never sees the value.
+A secret may list `"hosts"`, a subset of `network.hosts`, and the host then sends it only to those: a request to any other approved host that names it is refused with `net.fetch secret api_key may not be sent to <host>`.
+A secret with no `hosts` goes to any approved host.
 A `secret` key that is not set is refused with `net.fetch names a secret that is not set: api_key`.
 The object must hold exactly the one key `secret`.
 
@@ -335,6 +343,50 @@ An item has at most 40 nodes and a depth of 4.
 A client that does not know a `type` skips that node, and shows `fallback` when it skipped every node, so always send a plain `fallback`.
 The vocabulary only grows: fields are added and never repurposed.
 There are no actions in phase 1, so a slot shows content and cannot be clicked into the module.
+
+## Interceptors and the permission hook
+
+Both are add-on API 3 (decision [0100](../decisions/0100-module-safety-contracts.md)), declare `"addon_api": 3`, and are off until an admin approves the capability.
+The module is sent plain input and answers with plain JSON, and it has no host calls: no network, no storage and no posting.
+Its admin-set `settings` arrive as in any run, which is where a word list belongs.
+
+### Compatibility
+
+`addon_api` is the oldest level the module needs and the optional `addon_api_max` the newest it works with.
+The server runs the module only while its own level (`addon_api` on `GET /version`) is inside that range, and says so in the admin screen when it is not.
+Levels only add; the changelog is [api-changelog.md](api-changelog.md).
+
+### Interceptors
+
+```json
+"capabilities": ["interceptors"],
+"interceptors": [
+  { "hook": "message.pre_send", "phase": "reject", "reads": ["content"] },
+  { "hook": "message.pre_edit", "phase": "rewrite", "reads": ["content"] }
+]
+```
+
+- `hook` is `message.pre_send` or `message.pre_edit`. `phase` is `reject`, `annotate` or `rewrite`. At most 4 entries, one per hook and phase.
+- `reads` is any of `content`, `channel_id`, `is_bot`, `reply_to_id` and `annotations` (what earlier modules in the chain tagged the message with). A module is sent only what it lists. Who wrote the message is `caller.id`, never an account id.
+- The command is `@intercept`. The input text is `{"$slim":"interceptor/1","hook","phase","message":{...}}`.
+- Reply to a `reject` phase with `{"action":"allow"}` or `{"action":"reject","reason":"..."}`; the sender sees the reason (200 characters at most).
+- Reply to an `annotate` phase with `{"annotations":{"key":"text"}}`: at most 8 keys, text of 256 characters. Your own `message.created` event carries them back as `data.annotations`.
+- Reply to a `rewrite` phase with `{"content":"..."}`; the text goes through the same checks as a member's, and leaving `content` out changes nothing.
+- Phases run reject, annotate, rewrite. Within a phase the admin's priority orders modules, lowest first. A rewrite is what the next module sees; a reject stops the chain.
+- Each run gets 100 ms and 10 million fuel, and the whole chain 250 ms per message. A trap, a timeout, `ok:false` or a reply that does not fit is a failure: the message goes through unchanged and the failure is counted, unless the admin set that hook to refuse. Five failures in a row turn the module off.
+- It covers sends and edits, bots and webhooks, and a module's own `message.post` (not by that same module). It does not cover the welcome post, polls, calls or forwards.
+
+### The permission hook
+
+```json
+"capabilities": ["permission.hook"],
+"permission_hooks": [{ "action": "message.send", "reads": ["member_joined_ms"] }]
+```
+
+- `action` is `message.send`, `attachment.upload`, `reaction.add` or `voice.join`. `reads` may be `member_joined_ms`.
+- The command is `@allow`. The input text is `{"$slim":"permission/1","action","channel_id","member_joined_ms"}`; reply `{"allow":true}` or `{"allow":false,"reason":"..."}`.
+- It runs only after the server has already allowed the action. A module can turn an allow into a deny and can never grant: a member who lacks the permission is refused without the module being asked.
+- Same budget, fail-open default and breaker as interceptors.
 
 ## A worked example: XP for time in calls
 
