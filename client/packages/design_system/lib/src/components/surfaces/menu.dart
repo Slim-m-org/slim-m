@@ -206,6 +206,7 @@ class AppMenuItem extends StatefulWidget {
     super.key,
     required this.label,
     this.leading,
+    this.leadingWidget,
     this.trailing,
     this.submenu = false,
     this.selected = false,
@@ -217,6 +218,9 @@ class AppMenuItem extends StatefulWidget {
 
   final String label;
   final IconData? leading;
+
+  /// A leading widget that is not an icon, such as a colour swatch. Wins over [leading].
+  final Widget? leadingWidget;
   final Widget? trailing;
 
   /// Adds a trailing chevron affordance for a row that opens a submenu.
@@ -331,7 +335,9 @@ class _AppMenuItemState extends State<AppMenuItem> {
       child: Row(
         spacing: touch ? AppSpacing.s12 : AppSpacing.s8,
         children: [
-          if (widget.leading != null)
+          if (widget.leadingWidget != null)
+            ExcludeSemantics(child: widget.leadingWidget)
+          else if (widget.leading != null)
             Icon(widget.leading, size: AppSizes.icon16, color: iconInk),
           Expanded(
             // Excluded because the Semantics wrapper above already names this

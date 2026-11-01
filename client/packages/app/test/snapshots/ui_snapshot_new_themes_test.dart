@@ -11,7 +11,7 @@ import '../features/voice/voice_snapshot_fixtures.dart'
     show SnapshotVoiceController, connectedCallState;
 import '../ui_snapshot_support.dart';
 
-const _themes = ['soft', 'forest'];
+const _themes = ['soft', 'forest', 'halloween'];
 
 void main() {
   setUpAll(loadRealFonts);

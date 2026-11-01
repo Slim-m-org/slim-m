@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 
 import 'app_token_colors.dart';
+import 'theme_backdrop.dart' show AppBackdrop;
 
 export 'app_token_colors.dart';
+export 'theme_backdrop.dart' show AppBackdrop;
 
 /// Semantic design tokens for slim-m, exposed as a [ThemeExtension] so a widget
 /// does one lookup (`Theme.of(context).extension<AppTokens>()`).
@@ -57,6 +59,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.warnSoft,
     required this.stripe,
     required this.code,
+    this.backdrop,
   });
 
   /// A step below [surfaceBase], for the rails. Six surfaces were not enough to
@@ -171,6 +174,9 @@ class AppTokens extends ThemeExtension<AppTokens> {
 
   /// Syntax colours for fenced code blocks.
   final AppCodeColors code;
+
+  /// A faint decorative layer the theme paints over the app, or null for none.
+  final AppBackdrop? backdrop;
 
   /// Cool-slate light theme.
   static const AppTokens light = AppTokens(
@@ -339,6 +345,33 @@ class AppTokens extends ThemeExtension<AppTokens> {
     code: AppCodeColors.forest,
   );
 
+  /// Violet-black surfaces with a pumpkin accent, and the one theme that paints
+  /// a backdrop of its own. See docs/decisions/0101.
+  static const AppTokens halloween = AppTokens(
+    surfaceSunken: Color(0xFF110B16),
+    surfaceBase: Color(0xFF1A1221),
+    surfaceRaised: Color(0xFF251A2E),
+    borderSubtle: Color(0xFF3A2A47),
+    borderStrong: Color(0xFF8E78A0),
+    textPrimary: Color(0xFFF4EADB),
+    textSecondary: Color(0xFFBDAFC4),
+    textDisabled: Color(0xFF8A7A94),
+    accent: Color(0xFFFF7A1A),
+    accentFill: Color(0xFFFF7A1A),
+    accentOn: Color(0xFF1A0B02),
+    accentSoft: Color(0xFF4A2A12),
+    accentRing: Color(0x40FF7A1A),
+    focusRing: Color(0xFFFF7A1A),
+    status: AppStatusColors.halloween,
+    dangerText: Color(0xFFF08A7E),
+    dangerBorder: Color(0xFFD9594C),
+    warnText: Color(0xFFF2C94C),
+    warnSoft: Color(0x1AF2C94C),
+    stripe: Color(0x12BDAFC4),
+    code: AppCodeColors.halloween,
+    backdrop: AppBackdrop.halloweenWebs,
+  );
+
   @override
   AppTokens copyWith({
     Color? surfaceSunken,
@@ -362,6 +395,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? warnSoft,
     Color? stripe,
     AppCodeColors? code,
+    AppBackdrop? backdrop,
   }) {
     return AppTokens(
       surfaceSunken: surfaceSunken ?? this.surfaceSunken,
@@ -385,6 +419,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       warnSoft: warnSoft ?? this.warnSoft,
       stripe: stripe ?? this.stripe,
       code: code ?? this.code,
+      backdrop: backdrop ?? this.backdrop,
     );
   }
 
@@ -413,6 +448,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       warnSoft: Color.lerp(warnSoft, other.warnSoft, t)!,
       stripe: Color.lerp(stripe, other.stripe, t)!,
       code: t < 0.5 ? code : other.code,
+      backdrop: t < 0.5 ? backdrop : other.backdrop,
     );
   }
 }

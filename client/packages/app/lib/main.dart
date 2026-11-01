@@ -470,10 +470,12 @@ Widget appChromeBuilder(BuildContext context, Widget? child) => Consumer(
                 child: Stack(
                   children: [
                     // Outside everything routed: a client the server refuses has nothing useful behind this. Fail-open.
-                    ModerationErrorHost(
-                      child: ClientTooOldGate(
-                        child: ServerIdentityChangeGate(
-                          child: PictureInPictureGate(child: densityWrapped),
+                    ThemeBackdrop(
+                      child: ModerationErrorHost(
+                        child: ClientTooOldGate(
+                          child: ServerIdentityChangeGate(
+                            child: PictureInPictureGate(child: densityWrapped),
+                          ),
                         ),
                       ),
                     ),
@@ -499,7 +501,8 @@ ThemeMode _themeModeFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.trueBlack ||
   AppThemeChoice.catppuccin ||
   AppThemeChoice.softDark ||
-  AppThemeChoice.forest => ThemeMode.dark,
+  AppThemeChoice.forest ||
+  AppThemeChoice.halloween => ThemeMode.dark,
 };
 
 /// The dark-family choices are palettes, not modes: each is the dark theme
@@ -509,5 +512,6 @@ AppTokens _darkTokensFor(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.catppuccin => AppTokens.mocha,
   AppThemeChoice.softDark => AppTokens.soft,
   AppThemeChoice.forest => AppTokens.forest,
+  AppThemeChoice.halloween => AppTokens.halloween,
   _ => AppTokens.dark,
 };

@@ -123,6 +123,7 @@ void main() {
     'mocha': AppTokens.mocha,
     'soft': AppTokens.soft,
     'forest': AppTokens.forest,
+    'halloween': AppTokens.halloween,
   };
 
   themes.forEach((name, t) {

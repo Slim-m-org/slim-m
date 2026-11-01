@@ -429,6 +429,7 @@ enum AppThemeChoice {
   catppuccin,
   softDark,
   forest,
+  halloween,
 }
 
 /// The stored appearance choice.
