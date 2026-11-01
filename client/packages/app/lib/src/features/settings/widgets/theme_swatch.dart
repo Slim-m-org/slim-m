@@ -52,10 +52,10 @@ class ThemeSwatch extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.control / 2),
-        border: Border.all(color: tokens.borderStrong, width: 0.5),
+        border: Border.all(color: tokens.borderStrong),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadii.control / 2 - 0.5),
+        borderRadius: BorderRadius.circular(AppRadii.control / 2 - 1),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
