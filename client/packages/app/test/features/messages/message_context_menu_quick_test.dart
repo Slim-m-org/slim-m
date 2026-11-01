@@ -23,6 +23,7 @@ MessageActions _actions({
   bool moderator = false,
   bool selecting = false,
   VoidCallback? onReport,
+  VoidCallback? onSelect,
 }) => MessageActions(
   canReply: true,
   onReply: noop,
@@ -45,7 +46,7 @@ MessageActions _actions({
   onForward: noop,
   canSave: true,
   onSave: noop,
-  onStartSelecting: selecting ? noop : null,
+  onStartSelecting: selecting ? (onSelect ?? noop) : null,
 );
 
 Future<void> _open(
@@ -189,7 +190,25 @@ void main() {
       tester,
     ).where((i) => i.tone == AppMenuItemTone.danger);
     expect(danger.map((i) => i.label), ['Delete']);
-    expect(find.text('Select messages'), findsNothing);
+  });
+
+  testWidgets('a lone extra sits on the first page instead of behind More', (
+    tester,
+  ) async {
+    var selecting = false;
+    await _open(
+      tester,
+      _actions(
+        own: true,
+        moderator: true,
+        selecting: true,
+        onSelect: () => selecting = true,
+      ),
+    );
+    expect(find.text('More'), findsNothing);
+    await tester.tap(find.text('Select messages'));
+    await tester.pumpAndSettle();
+    expect(selecting, isTrue);
   });
 
   testWidgets('More swaps in report, block and select, and Back returns', (
