@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.120.0](https://github.com/Slim-m-org/slim-m/compare/client-v0.119.1...client-v0.120.0) (2026-11-01)
+
+
+### Features
+
+* v120 - group dms, deepfilternet, screen overlay, admin setup and more ([#2327](https://github.com/Slim-m-org/slim-m/issues/2327)) ([536eb17](https://github.com/Slim-m-org/slim-m/commit/536eb17ebdc5f1cb3343b498c03b4eee7b8a4641))
+
 ## [0.119.1](https://github.com/Slim-m-org/slim-m/compare/client-v0.119.0...client-v0.119.1) (2026-10-28)
 
 
