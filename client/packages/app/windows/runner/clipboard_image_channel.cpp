@@ -3,12 +3,14 @@
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
+#include <shlobj.h>
 #include <wincodec.h>
 #include <wrl/client.h>
 
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -112,6 +114,45 @@ bool WriteClipboard(HWND owner, const std::vector<uint8_t>& png) {
   const UINT png_format = RegisterClipboardFormatW(L"PNG");
   if (png_format == 0 || SetClipboardData(png_format, png_copy) == nullptr) {
     GlobalFree(png_copy);
+  }
+  CloseClipboard();
+  return ok;
+}
+
+// A CF_HDROP file list, what Explorer's Copy puts down, so a paste elsewhere
+// receives the file itself.
+bool WriteClipboardFile(HWND owner, const std::string& utf8_path) {
+  const int wide_len = MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1,
+                                           nullptr, 0);
+  if (wide_len <= 1) return false;
+  std::wstring path(static_cast<size_t>(wide_len), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, utf8_path.c_str(), -1, path.data(),
+                      wide_len);
+  // The list ends with an empty name, so two terminators follow the path.
+  const size_t chars = static_cast<size_t>(wide_len) + 1;
+  std::vector<BYTE> blob(sizeof(DROPFILES) + chars * sizeof(wchar_t), 0);
+  DROPFILES header = {};
+  header.pFiles = sizeof(DROPFILES);
+  header.fWide = TRUE;
+  std::memcpy(blob.data(), &header, sizeof(header));
+  std::memcpy(blob.data() + sizeof(header), path.data(),
+              static_cast<size_t>(wide_len) * sizeof(wchar_t));
+  HGLOBAL drop = AllocCopy(blob.data(), blob.size());
+  const DWORD effect = DROPEFFECT_COPY;
+  HGLOBAL effect_copy = AllocCopy(&effect, sizeof(effect));
+  if (drop == nullptr || effect_copy == nullptr || !OpenClipboard(owner)) {
+    if (drop != nullptr) GlobalFree(drop);
+    if (effect_copy != nullptr) GlobalFree(effect_copy);
+    return false;
+  }
+  EmptyClipboard();
+  bool ok = SetClipboardData(CF_HDROP, drop) != nullptr;
+  if (!ok) GlobalFree(drop);
+  const UINT effect_format =
+      RegisterClipboardFormatW(CFSTR_PREFERREDDROPEFFECT);
+  if (effect_format == 0 ||
+      SetClipboardData(effect_format, effect_copy) == nullptr) {
+    GlobalFree(effect_copy);
   }
   CloseClipboard();
   return ok;
@@ -226,6 +267,18 @@ void RegisterClipboardImageChannel(flutter::BinaryMessenger* messenger,
           } else {
             result->Success(flutter::EncodableValue(std::move(image)));
           }
+          return;
+        }
+        if (call.method_name() == "writeFile") {
+          const auto* path =
+              call.arguments() == nullptr
+                  ? nullptr
+                  : std::get_if<std::string>(call.arguments());
+          if (path == nullptr || !WriteClipboardFile(owner, *path)) {
+            result->Error("write_failed", "The file could not be copied.");
+            return;
+          }
+          result->Success();
           return;
         }
         if (call.method_name() != "writeImage") {

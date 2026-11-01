@@ -34,6 +34,11 @@
 /// window width, never platform") the double tap only acts on
 /// [AppTouchTargets.of] rather than every pointer kind, since a mouse user
 /// already has the same fullscreen toggle as a button in this same bar.
+///
+/// Under a pointer the bar follows the pointer: it starts hidden, shows on
+/// hover, and hides when the pointer leaves or the window loses focus, so a
+/// column of paused clips does not each carry a permanent transport bar. A
+/// hidden, paused clip shows a single centered play button instead.
 library;
 
 import 'dart:async';
@@ -43,8 +48,7 @@ import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../format.dart' show formatPlaybackTime;
-import '../../messages/widgets/swipe_to_reply.dart' show SwipeToReplyOptOut;
+import 'video_controls_bar.dart';
 
 /// How long an idle, playing video keeps its controls up before fading them.
 const Duration kVideoControlsAutoHide = Duration(seconds: 3);
@@ -69,6 +73,8 @@ class VideoPlaybackControls extends StatefulWidget {
     required this.isFullscreen,
     required this.onToggleFullscreen,
     required this.child,
+    this.onSave,
+    this.saving = false,
     this.autoHideDelay = kVideoControlsAutoHide,
   });
 
@@ -82,6 +88,12 @@ class VideoPlaybackControls extends StatefulWidget {
   final VoidCallback onToggleFullscreen;
   final Widget child;
 
+  /// Saves the clip; null leaves the save button out of the bar.
+  final VoidCallback? onSave;
+
+  /// Whether a save of this clip is already running.
+  final bool saving;
+
   /// [kVideoControlsAutoHide], except in a test, which shrinks it so a
   /// widget test never has to sit through a real three-second wait.
   final Duration autoHideDelay;
@@ -90,8 +102,13 @@ class VideoPlaybackControls extends StatefulWidget {
   State<VideoPlaybackControls> createState() => _VideoPlaybackControlsState();
 }
 
-class _VideoPlaybackControlsState extends State<VideoPlaybackControls> {
+class _VideoPlaybackControlsState extends State<VideoPlaybackControls>
+    with WidgetsBindingObserver {
   bool _visible = true;
+  bool _visibilityChosen = false;
+
+  /// The level unmuting returns to, so mute then unmute keeps a chosen volume.
+  double _unmutedVolume = 100;
   bool _playing = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -125,6 +142,8 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls> {
     _position = state.position;
     _duration = state.duration;
     _volume = state.volume;
+    if (_volume > 0) _unmutedVolume = _volume;
+    WidgetsBinding.instance.addObserver(this);
     _playingSub = widget.player.stream.playing.listen((value) {
       if (!mounted) return;
       setState(() => _playing = value);
@@ -139,11 +158,30 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls> {
     _volumeSub = widget.player.stream.volume.listen((value) {
       if (mounted) setState(() => _volume = value);
     });
-    _syncAutoHide();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Touch starts with the bar up, since there is no hover to reveal it.
+    if (!_visibilityChosen) {
+      _visibilityChosen = true;
+      _visible = AppTouchTargets.of(context);
+      _syncAutoHide();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _visible && mounted) {
+      _hideTimer?.cancel();
+      setState(() => _visible = false);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     _scrubClearTimer?.cancel();
     _doubleTapTimer?.cancel();
@@ -166,8 +204,15 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls> {
   }
 
   void _showControls() {
-    setState(() => _visible = true);
+    if (!_visible) setState(() => _visible = true);
     _syncAutoHide();
+  }
+
+  void _onExit() {
+    // A scrub drag can leave the frame; hiding mid-drag would drop the thumb.
+    if (_scrubMs != null) return;
+    _hideTimer?.cancel();
+    setState(() => _visible = false);
   }
 
   void _handleTap() {
@@ -208,167 +253,96 @@ class _VideoPlaybackControlsState extends State<VideoPlaybackControls> {
   }
 
   void _toggleMute() {
-    widget.player.setVolume(_volume > 0 ? 0 : 100);
+    if (_volume > 0) _unmutedVolume = _volume;
+    widget.player.setVolume(_volume > 0 ? 0 : _unmutedVolume);
+    _showControls();
+  }
+
+  void _setVolume(double value) {
+    if (value > 0) _unmutedVolume = value;
+    widget.player.setVolume(value);
+    setState(() => _volume = value);
     _showControls();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        widget.child,
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _handleTap,
-          ),
-        ),
-        // Forced dark: see the class doc for why this ignores the app theme.
-        Theme(
-          data: buildTheme(Brightness.dark, AppTokens.dark),
-          child: AnimatedOpacity(
-            opacity: _visible ? 1 : 0,
-            duration: AppMotion.reduced(context, AppMotion.fast),
-            curve: AppMotion.entrance,
-            child: IgnorePointer(
-              ignoring: !_visible,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: _ControlsBar(
-                  playing: _playing,
-                  position: _position,
-                  duration: _duration,
-                  scrubMs: _scrubMs,
-                  muted: _volume <= 0,
-                  isFullscreen: widget.isFullscreen,
-                  onPlayPause: _togglePlay,
-                  onScrub: _scrub,
-                  onToggleMute: _toggleMute,
-                  onToggleFullscreen: widget.onToggleFullscreen,
-                ),
-              ),
+    final fade = AppMotion.reduced(context, AppMotion.fast);
+    return MouseRegion(
+      onEnter: (_) => _showControls(),
+      onHover: (_) => _showControls(),
+      onExit: (_) => _onExit(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _handleTap,
             ),
           ),
-        ),
-      ],
+          // Forced dark: see the class doc for why this ignores the app theme.
+          Theme(
+            data: buildTheme(Brightness.dark, AppTokens.dark),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (!_visible && !_playing)
+                  Center(child: _CenterPlayButton(onPressed: _togglePlay)),
+                AnimatedOpacity(
+                  opacity: _visible ? 1 : 0,
+                  duration: fade,
+                  curve: AppMotion.entrance,
+                  child: IgnorePointer(
+                    ignoring: !_visible,
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: VideoControlsBar(
+                        playing: _playing,
+                        position: _position,
+                        duration: _duration,
+                        scrubMs: _scrubMs,
+                        volume: _volume,
+                        isFullscreen: widget.isFullscreen,
+                        saving: widget.saving,
+                        onPlayPause: _togglePlay,
+                        onScrub: _scrub,
+                        onToggleMute: _toggleMute,
+                        onVolume: _setVolume,
+                        onToggleFullscreen: widget.onToggleFullscreen,
+                        onSave: widget.onSave,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _ControlsBar extends StatelessWidget {
-  const _ControlsBar({
-    required this.playing,
-    required this.position,
-    required this.duration,
-    required this.scrubMs,
-    required this.muted,
-    required this.isFullscreen,
-    required this.onPlayPause,
-    required this.onScrub,
-    required this.onToggleMute,
-    required this.onToggleFullscreen,
-  });
+/// The one control a hidden, paused clip keeps, so it still reads as a video.
+class _CenterPlayButton extends StatelessWidget {
+  const _CenterPlayButton({required this.onPressed});
 
-  final bool playing;
-  final Duration position;
-  final Duration duration;
-  final double? scrubMs;
-  final bool muted;
-  final bool isFullscreen;
-  final VoidCallback onPlayPause;
-  final ValueChanged<double> onScrub;
-  final VoidCallback onToggleMute;
-  final VoidCallback onToggleFullscreen;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final durationMs = duration.inMilliseconds.toDouble();
-    final hasDuration = durationMs > 0;
-    final sliderValue = (scrubMs ?? position.inMilliseconds.toDouble()).clamp(
-      0.0,
-      hasDuration ? durationMs : 1.0,
-    );
-    final remaining = duration - position;
-    final timeStyle = AppText.caption.copyWith(
-      color: tokens.textPrimary,
-      fontFamily: AppFonts.mono,
-      fontWeight: AppWeights.regular,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
-
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0),
-            Colors.black.withValues(alpha: 0.75),
-          ],
-        ),
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
       ),
-      child: SafeArea(
-        top: false,
-        minimum: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s8,
-            AppSpacing.s24,
-            AppSpacing.s8,
-            AppSpacing.s4,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwipeToReplyOptOut(
-                child: AppSlider(
-                  value: sliderValue,
-                  max: hasDuration ? durationMs : 1,
-                  onChanged: hasDuration ? onScrub : null,
-                  semanticLabel: 'Seek',
-                ),
-              ),
-              Row(
-                children: [
-                  AppIconButton(
-                    icon: playing ? AppIcons.pause : AppIcons.play,
-                    semanticLabel: playing ? 'Pause' : 'Play',
-                    variant: AppIconButtonVariant.ghost,
-                    onPressed: onPlayPause,
-                  ),
-                  Text(formatPlaybackTime(position), style: timeStyle),
-                  const SizedBox(width: AppSpacing.s4),
-                  Text(
-                    '/',
-                    style: timeStyle.copyWith(color: tokens.textSecondary),
-                  ),
-                  const SizedBox(width: AppSpacing.s4),
-                  Text(
-                    '-${formatPlaybackTime(remaining)}',
-                    style: timeStyle.copyWith(color: tokens.textSecondary),
-                  ),
-                  const Spacer(),
-                  AppIconButton(
-                    icon: muted ? AppIcons.speakerOff : AppIcons.speaker,
-                    semanticLabel: muted ? 'Unmute' : 'Mute',
-                    variant: AppIconButtonVariant.ghost,
-                    onPressed: onToggleMute,
-                  ),
-                  AppIconButton(
-                    icon: isFullscreen ? AppIcons.collapse : AppIcons.expand,
-                    semanticLabel: isFullscreen
-                        ? 'Exit full screen'
-                        : 'Full screen',
-                    variant: AppIconButtonVariant.ghost,
-                    onPressed: onToggleFullscreen,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+      child: AppIconButton(
+        icon: AppIcons.play,
+        semanticLabel: 'Play',
+        variant: AppIconButtonVariant.ghost,
+        onPressed: onPressed,
       ),
     );
   }

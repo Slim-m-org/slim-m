@@ -2,6 +2,8 @@
 /// The message writes the message widgets make that carry no local optimistic state of their own.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
@@ -50,6 +52,10 @@ class MessageApiActions {
 
   Future<List<ChannelReadState>> markChannelsRead(List<String> channelIds) =>
       _api.markChannelsRead(channelIds);
+
+  /// The whole file in memory, for copying an attachment somewhere else.
+  Future<Uint8List> fetchAttachmentBytes(String attachmentId) async =>
+      (await _api.fetchAttachment(attachmentId)).bytes;
 }
 
 final messageApiActionsProvider = Provider(

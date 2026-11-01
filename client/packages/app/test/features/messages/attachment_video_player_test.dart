@@ -148,7 +148,7 @@ Future<void> _pumpFaked(
           return _FakeVideoController();
         }),
         attachmentVideoSurfaceProvider.overrideWithValue(
-          (player, controller, onToggleFullscreen) =>
+          (player, controller, onToggleFullscreen, onSave, saving) =>
               const SizedBox(key: Key('ready-surface')),
         ),
       ],
@@ -338,7 +338,7 @@ void main() {
               (_) => _FakeVideoController(),
             ),
             attachmentVideoSurfaceProvider.overrideWithValue(
-              (player, controller, onToggleFullscreen) =>
+              (player, controller, onToggleFullscreen, onSave, saving) =>
                   const SizedBox(key: Key('ready-surface')),
             ),
           ],
