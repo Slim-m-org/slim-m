@@ -174,6 +174,11 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'appearance',
+    'Color theme',
+    keywords: ['dark', 'light', 'colors', 'colours', 'halloween'],
+  ),
+  SettingsEntry(
+    'appearance',
     'High contrast',
     description: 'Stronger borders and text.',
     keywords: ['accessibility', 'contrast', 'theme'],
