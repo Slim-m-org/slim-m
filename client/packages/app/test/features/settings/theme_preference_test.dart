@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/features/settings/widgets/theme_swatch.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -201,7 +200,10 @@ void main() {
     await _choose(tester, AppThemeChoice.halloween);
 
     expect(container.read(themeControllerProvider), AppThemeChoice.halloween);
-    expect(find.byType(ThemeSwatch), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp(r'^Color theme, currently Halloween')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a chosen light theme wins over a dark operating system', (
@@ -293,7 +295,9 @@ void main() {
 /// opens, so a tap proves the row is wired to the controller.
 Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
   await tester.tap(find.bySemanticsLabel(RegExp(r'^Color theme, currently')));
-  await tester.pumpAndSettle();
+  // The fake clock runs the menu or sheet entrance to its end; nothing real is awaited.
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 1));
   await tester.tap(find.text(_labelOf(choice)).last);
   await tester.pumpAndSettle();
 }
