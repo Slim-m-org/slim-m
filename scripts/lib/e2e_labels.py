@@ -27,6 +27,7 @@ APPEARANCE_PANE = "Appearance"
 CHANGE_AVATAR = "Change profile picture"
 CROP_TITLE = "Crop your picture"
 USE_PICTURE = "Use picture"
+THEME_ROW = "Color theme, currently"
 THEME_DARK = "Dark"
 
 BACK_TO_CHANNELS = "Back to channels"

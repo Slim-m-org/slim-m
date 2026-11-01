@@ -333,6 +333,9 @@ const List<WhatsNewEntry> whatsNewArchiveEntries8 = [
         'watching your share can circle or note things on your real screen.',
       ),
       WhatsNewPoint(
+        'Themes now pick from a compact list, and Halloween joins them.',
+      ),
+      WhatsNewPoint(
         'The canvas has one People here panel for following someone or '
         'bringing everyone to you.',
       ),

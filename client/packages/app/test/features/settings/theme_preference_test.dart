@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/main.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/settings/widgets/appearance_settings_section.dart';
-import 'package:slimm_app/src/features/settings/widgets/theme_choice_cards.dart';
+import 'package:slimm_app/src/features/settings/widgets/theme_swatch.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
@@ -57,6 +57,7 @@ String _labelOf(AppThemeChoice choice) => switch (choice) {
   AppThemeChoice.catppuccin => 'Catppuccin',
   AppThemeChoice.softDark => 'Soft dark',
   AppThemeChoice.forest => 'Forest',
+  AppThemeChoice.halloween => 'Halloween',
 };
 
 Future<void> _pumpApp(WidgetTester tester, ProviderContainer container) async {
@@ -186,6 +187,23 @@ void main() {
     }
   });
 
+  testWidgets('on a phone the Theme row lifts a sheet with swatches', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final container = _restartedContainer();
+    await container.read(themeControllerProvider.notifier).restore();
+    await _pumpSection(tester, container);
+
+    await _choose(tester, AppThemeChoice.halloween);
+
+    expect(container.read(themeControllerProvider), AppThemeChoice.halloween);
+    expect(find.byType(ThemeSwatch), findsOneWidget);
+  });
+
   testWidgets('a chosen light theme wins over a dark operating system', (
     tester,
   ) async {
@@ -220,6 +238,7 @@ void main() {
     (AppThemeChoice.catppuccin, AppTokens.mocha),
     (AppThemeChoice.softDark, AppTokens.soft),
     (AppThemeChoice.forest, AppTokens.forest),
+    (AppThemeChoice.halloween, AppTokens.halloween),
   ]) {
     testWidgets(
       'a stored ${choice.name} choice paints its tokens on relaunch',
@@ -270,10 +289,11 @@ void main() {
   });
 }
 
-/// Opens the row's sheet and picks [label]. The options are no longer segments
-/// on the screen itself, so a tap has to go through the sheet to prove the row
-/// is wired to anything.
+/// Opens the Theme row and picks [choice] from the dropdown or sheet that
+/// opens, so a tap proves the row is wired to the controller.
 Future<void> _choose(WidgetTester tester, AppThemeChoice choice) async {
-  await tester.tap(find.byKey(ThemeChoiceCards.cardKey(choice)));
+  await tester.tap(find.bySemanticsLabel(RegExp(r'^Color theme, currently')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(_labelOf(choice)).last);
   await tester.pumpAndSettle();
 }

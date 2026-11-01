@@ -43,6 +43,8 @@ def change_theme(client):
     """
     _open_personal(client)
     client.click(L.APPEARANCE_PANE, settle=2)
+    client.wait_for(L.THEME_ROW)
+    client.click(L.THEME_ROW, settle=2)
     client.wait_for(L.THEME_DARK)
     client.click(L.THEME_DARK, settle=2)
 
