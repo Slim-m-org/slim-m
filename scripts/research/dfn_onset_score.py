@@ -63,6 +63,8 @@ def run(tool, mode, src, dst):
     return float(m.group(1)) if m else None
 
 def main(tool, mode, label, outdir):
+    if mode not in ("strong", "strongest"):
+        sys.exit(f"MODE must be strong or strongest, not {mode!r}")
     os.makedirs(outdir, exist_ok=True)
     clean_a = os.path.join(MATERIAL, "clean_A", "clean.f32")
     d = os.path.join(outdir, "delay.f32"); run(tool, mode, clean_a, d)

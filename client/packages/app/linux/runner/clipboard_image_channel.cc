@@ -89,15 +89,17 @@ void ProvideCopiedFile(GtkClipboard* clipboard, GtkSelectionData* selection,
                        guint info, gpointer user_data) {
   const gchar* uri = static_cast<const gchar*>(user_data);
   if (info == kGnomeCopiedFiles) {
-    g_autofree gchar* payload = g_strconcat("copy\n", uri, nullptr);
+    g_autoptr(GString) payload = g_string_new("copy\n");
+    g_string_append(payload, uri);
     gtk_selection_data_set(selection, gtk_selection_data_get_target(selection),
-                           8, reinterpret_cast<const guchar*>(payload),
-                           strlen(payload));
+                           8, reinterpret_cast<const guchar*>(payload->str),
+                           payload->len);
   } else if (info == kUriList) {
-    g_autofree gchar* payload = g_strconcat(uri, "\r\n", nullptr);
+    g_autoptr(GString) payload = g_string_new(uri);
+    g_string_append(payload, "\r\n");
     gtk_selection_data_set(selection, gtk_selection_data_get_target(selection),
-                           8, reinterpret_cast<const guchar*>(payload),
-                           strlen(payload));
+                           8, reinterpret_cast<const guchar*>(payload->str),
+                           payload->len);
   } else {
     gtk_selection_data_set_text(selection, uri, -1);
   }
