@@ -207,7 +207,6 @@ void main() {
     );
     expect(find.text('More'), findsNothing);
     await tester.tap(find.text('Select messages'));
-    await tester.pumpAndSettle();
     expect(selecting, isTrue);
   });
 

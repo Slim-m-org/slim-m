@@ -149,7 +149,8 @@ void main() {
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: Offset.zero);
       addTearDown(mouse.removePointer);
-      await mouse.moveTo(tester.getCenter(find.byType(VideoPlaybackControls)));
+      // The harness pins the 320x180 frame to the top-left corner.
+      await mouse.moveTo(const Offset(160, 60));
       await tester.pump();
       expect(_barOpacity(tester), 1);
 
