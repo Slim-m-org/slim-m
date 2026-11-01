@@ -13,12 +13,17 @@ use super::{
 #[derive(Default)]
 struct Vault {
     asked: Mutex<Vec<String>>,
+    bound: Vec<String>,
 }
 
 impl SecretSource for Vault {
     fn secret(&self, key: &str) -> Option<String> {
         self.asked.lock().unwrap().push(key.to_owned());
         (key == "api_key").then(|| "s3cret-value".to_owned())
+    }
+
+    fn hosts(&self, _key: &str) -> Vec<String> {
+        self.bound.clone()
     }
 }
 
@@ -41,7 +46,7 @@ impl HttpFetcher for Recording {
 }
 
 fn hosts() -> Vec<String> {
-    vec!["api.example.com".to_owned()]
+    vec!["api.example.com".to_owned(), "other.example.com".to_owned()]
 }
 
 fn call(vault: &Vault, fetcher: &Recording, request: &str) -> String {
@@ -119,4 +124,33 @@ fn a_debug_print_of_a_request_hides_header_values() {
     let printed = format!("{:?}", fetcher.seen.lock().unwrap()[0]);
     assert!(!printed.contains("s3cret-value"), "{printed}");
     assert!(printed.contains("Authorization"));
+}
+
+fn bound_to(host: &str) -> Vault {
+    Vault {
+        bound: vec![host.to_owned()],
+        ..Vault::default()
+    }
+}
+
+#[test]
+fn a_secret_bound_to_one_host_is_refused_for_another_approved_host() {
+    let (vault, fetcher) = (bound_to("api.example.com"), Recording::default());
+    let request =
+        r#"{"url":"https://other.example.com/x","headers":{"Authorization":{"secret":"api_key"}}}"#;
+    let out = call(&vault, &fetcher, request);
+    assert!(
+        out.contains("may not be sent to other.example.com"),
+        "{out}"
+    );
+    assert!(vault.asked.lock().unwrap().is_empty(), "never even read");
+    assert!(fetcher.seen.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_secret_bound_to_a_host_still_goes_to_that_host() {
+    let (vault, fetcher) = (bound_to("api.example.com"), Recording::default());
+    let request =
+        r#"{"url":"https://api.example.com/x","headers":{"Authorization":{"secret":"api_key"}}}"#;
+    assert!(call(&vault, &fetcher, request).contains(r#""ok":true"#));
 }

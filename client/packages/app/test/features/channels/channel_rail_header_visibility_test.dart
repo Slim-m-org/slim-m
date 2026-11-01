@@ -13,16 +13,22 @@ import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart'
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
+import '../../desktop/support/desktop_shell_fixture.dart';
 import '../../ui_snapshot_support.dart';
 
 Future<({ProviderContainer container, SlimmDatabase db})> _pumpAtExpandedWidth(
-  WidgetTester tester,
-) async {
+  WidgetTester tester, {
+  DesktopWindowShell? shell,
+}) async {
   tester.view.physicalSize = const Size(1400, 900);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final fixture = await fixtureContainer();
+  final fixture = await fixtureContainer(
+    extraOverrides: [
+      if (shell != null) desktopWindowShellProvider.overrideWithValue(shell),
+    ],
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: fixture.container,
@@ -52,10 +58,10 @@ void main() {
     'the rail header still shows while the desktop title bar is mounted: '
     'the title bar is the window title, the rail header is the Space',
     (tester) async {
-      DesktopWindowShell.debugActivate(frameless: true);
-      addTearDown(DesktopWindowShell.debugReset);
-
-      final fixture = await _pumpAtExpandedWidth(tester);
+      final fixture = await _pumpAtExpandedWidth(
+        tester,
+        shell: shellFor(null, active: true, frameless: true),
+      );
 
       expect(find.byType(RailHeader), findsOneWidget);
 

@@ -109,6 +109,7 @@ async fn apply_enabled(
             .installed_module(id)
             .await?
             .ok_or(ApiError::NotFound("module not installed"))?;
+        crate::http::module_compat::require_compatible(&module)?;
         let keywords = keywords::slash_keywords(&module.extension_points);
         ensure_slash_keywords_free(state, id, keywords).await?;
     }
@@ -145,9 +146,11 @@ pub(in crate::http) async fn list_installed(
                 let stats = stats.remove(&m.id).unwrap_or_default();
                 let usage = usage.get(&m.id).copied().unwrap_or_default();
                 let health = health.remove(&m.id).unwrap_or_default();
+                let depth = state.dock.queue_depths().get(&m.id);
                 InstalledModuleDto::from(m)
                     .with_activity(stats, usage)
                     .with_health(health)
+                    .with_queue_depth(depth)
             })
             .collect(),
     ))

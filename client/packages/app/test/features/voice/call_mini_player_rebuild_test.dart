@@ -12,6 +12,7 @@ import 'package:slimm_app/src/features/voice/widgets/call_mini_player.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
 
@@ -55,12 +56,6 @@ class _CountingSession extends FakeSession {
   Widget screenShareViewFor(String identity) => const _CountingView();
 }
 
-class _LiveVoiceController extends VoiceController {
-  _LiveVoiceController(super.ref) : super(session: _CountingSession());
-
-  void setState(VoiceState next) => state = next;
-}
-
 VoiceState _call({required bool speaking, required bool otherSpeaking}) =>
     VoiceState(
       channelId: 'c-main',
@@ -91,11 +86,14 @@ void main() {
   testWidgets('roster churn over ten seconds never rebuilds the video view', (
     tester,
   ) async {
-    late _LiveVoiceController controller;
+    late FakeVoiceController controller;
     final fixture = await fixtureContainer(
       extraOverrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => controller = _LiveVoiceController(ref),
+          (ref) => controller = FakeVoiceController(
+            ref,
+            session: _CountingSession(),
+          ),
         ),
       ],
     );
@@ -113,7 +111,7 @@ void main() {
         ),
       ),
     );
-    controller.setState(_call(speaking: false, otherSpeaking: false));
+    controller.set(_call(speaking: false, otherSpeaking: false));
     await tester.pump(const Duration(milliseconds: 350));
     expect(find.byKey(miniPlayerKey), findsOneWidget);
     final inits = _counts.inits;
@@ -122,7 +120,7 @@ void main() {
     expect(builds, greaterThan(0));
 
     for (var i = 0; i < 100; i++) {
-      controller.setState(_call(speaking: i.isEven, otherSpeaking: i % 3 == 0));
+      controller.set(_call(speaking: i.isEven, otherSpeaking: i % 3 == 0));
       await tester.pump(const Duration(milliseconds: 100));
     }
 
@@ -139,11 +137,14 @@ void main() {
   testWidgets('the card casts an AppShadows token, not its own shadow', (
     tester,
   ) async {
-    late _LiveVoiceController controller;
+    late FakeVoiceController controller;
     final fixture = await fixtureContainer(
       extraOverrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => controller = _LiveVoiceController(ref),
+          (ref) => controller = FakeVoiceController(
+            ref,
+            session: _CountingSession(),
+          ),
         ),
       ],
     );
@@ -161,7 +162,7 @@ void main() {
         ),
       ),
     );
-    controller.setState(_call(speaking: false, otherSpeaking: false));
+    controller.set(_call(speaking: false, otherSpeaking: false));
     await tester.pump(const Duration(milliseconds: 350));
 
     final card = tester.widget<DecoratedBox>(find.byKey(miniPlayerKey));

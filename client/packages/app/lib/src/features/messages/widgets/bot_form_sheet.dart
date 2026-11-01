@@ -13,11 +13,11 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../api_failure.dart';
 import '../../../ids.dart';
 import '../../../providers/live_events.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/labeled_field.dart';
 import '../../channels/providers/channel_by_id_provider.dart';
 import '../../members/providers/user_profiles.dart';
 import '../providers/bot_forms.dart';
+import '../providers/message_api_actions.dart';
 
 /// How long a submission waits for the bot before it says so.
 const Duration botFormTimeout = Duration(seconds: 5);
@@ -85,7 +85,7 @@ class _BotFormSheetState extends ConsumerState<_BotFormSheet> {
     _timer?.cancel();
     try {
       await ref
-          .read(apiProvider)
+          .read(messageApiActionsProvider)
           .submitInteractionForm(
             channelId: widget.request.channelId,
             interactionId: widget.request.interactionId,

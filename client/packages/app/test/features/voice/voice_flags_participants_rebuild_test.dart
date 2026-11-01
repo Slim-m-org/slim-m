@@ -16,20 +16,8 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import 'voice_controller_harness.dart';
-
-/// A [VoiceController] a test can push `participants` or flag changes into
-/// after mount, unlike `voice_controller_harness.dart`'s own
-/// `FixedVoiceController`, which only ever pins one state at construction.
-class _MutableVoiceController extends VoiceController {
-  _MutableVoiceController(super.ref) : super(session: FakeSession());
-
-  void setMicrophoneEnabled(bool enabled) =>
-      state = state.copyWith(microphoneEnabled: enabled);
-
-  void setParticipants(List<VoiceParticipant> participants) =>
-      state = state.copyWith(participants: participants);
-}
 
 VoiceParticipant _participant(String identity) => VoiceParticipant(
   identity: identity,
@@ -79,13 +67,15 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
-          voiceControllerProvider.overrideWith(_MutableVoiceController.new),
+          voiceControllerProvider.overrideWith(
+            (ref) => FakeVoiceController(ref, session: FakeSession()),
+          ),
         ],
       );
       addTearDown(container.dispose);
       final controller =
           container.read(voiceControllerProvider.notifier)
-              as _MutableVoiceController;
+              as FakeVoiceController;
 
       await tester.pumpWidget(
         UncontrolledProviderScope(
@@ -104,7 +94,9 @@ void main() {
       expect(participantsAfterMount, greaterThan(0));
 
       // Only the roster changes now.
-      controller.setParticipants([_participant('remote-1')]);
+      controller.update(
+        (s) => s.copyWith(participants: [_participant('remote-1')]),
+      );
       await tester.pump();
 
       expect(
@@ -122,7 +114,7 @@ void main() {
       final participantsAfterRoster = _participantsBuilds;
 
       // Only a flag changes now.
-      controller.setMicrophoneEnabled(false);
+      controller.update((s) => s.copyWith(microphoneEnabled: false));
       await tester.pump();
 
       expect(

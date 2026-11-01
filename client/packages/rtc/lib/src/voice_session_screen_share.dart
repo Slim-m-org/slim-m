@@ -4,6 +4,7 @@ library;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show MediaStream;
 import 'package:livekit_client/livekit_client.dart' as lk;
 
 import 'broadcast_bridge.dart';
@@ -14,7 +15,9 @@ import 'screen_share.dart';
 import 'screen_share_audio_mute.dart';
 import 'screen_share_control.dart';
 import 'screen_share_local.dart';
+import 'screen_share_source_watch.dart';
 import 'screen_share_publish.dart';
+import 'screen_share_source_size.dart';
 import 'screen_share_watch.dart';
 import 'screen_share_view.dart';
 import 'share_audio_isolation.dart';
@@ -65,12 +68,25 @@ class VoiceScreenShare {
       participant: () => host.room()?.localParticipant,
       apply: _apply,
     );
+    sourceWatch = ShareSourceWatch(
+      captureErrors: () => desktopSources.captureErrors,
+      stop: (request) async {
+        watch.stop();
+        await _apply(false, request);
+      },
+    );
   }
 
   final VoiceScreenShareHost host;
   final DesktopSources desktopSources;
   final ScreenShareControl control;
   late final ScreenShareWatch watch;
+  late final ShareSourceWatch sourceWatch;
+
+  void dispose() {
+    watch.stop();
+    sourceWatch.dispose();
+  }
 
   Future<List<ScreenShareSource>> sources() async {
     final found = await host.reported(
@@ -86,6 +102,9 @@ class VoiceScreenShare {
       bool enabled, ShareRequest request) async {
     watch.stop();
     final outcome = await _apply(enabled, request);
+    sourceWatch.running(
+      enabled && outcome == ScreenShareOutcome.started ? request : null,
+    );
     if (enabled) watch.watch(request, outcome);
     return outcome;
   }
@@ -95,6 +114,7 @@ class VoiceScreenShare {
         request;
     final room = host.room();
     if (room == null) return ScreenShareOutcome.failed;
+    if (!enabled) localShareCapturedSize.value = null;
     final outcome = await control.setEnabled(
       enabled,
       quality: quality,
@@ -108,6 +128,7 @@ class VoiceScreenShare {
         includeAudio: audio,
         quality: quality,
         maxHeight: maxHeight,
+        measureSource: _measureAndKeep,
       ),
       isSharing: () => isSharingScreen(room.localParticipant),
       onSettled: (error) {
@@ -117,6 +138,14 @@ class VoiceScreenShare {
     );
     host.refresh();
     return outcome;
+  }
+
+  Future<({int width, int height})?> _measureAndKeep(
+    MediaStream stream,
+  ) async {
+    final size = await measureCapturedSize(stream);
+    if (size != null) localShareCapturedSize.value = size;
+    return size;
   }
 
   bool get hasAudio =>

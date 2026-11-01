@@ -17,13 +17,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart';
 
 import '../providers/member_moderation_error.dart';
 import '../providers/member_selection.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
 
 /// Confirms, then removes every selected member.
 ///
@@ -48,7 +47,8 @@ Future<void> confirmAndRemoveSelectedMembers(
   ref.read(memberModerationErrorProvider.notifier).state = null;
   final failure = await runGuarded(
     whatFailed: ids.length == 1 ? 'remove the member' : 'remove the members',
-    action: () => ref.read(apiProvider).bulkRemoveMembers(userIds: ids),
+    action: () =>
+        ref.read(memberActionsProvider).bulkRemoveMembers(userIds: ids),
   );
   if (failure != null) {
     ref.read(memberModerationErrorProvider.notifier).state = failure;
@@ -72,7 +72,7 @@ Future<void> timeOutSelectedMembers(WidgetRef ref, Duration duration) async {
         ? 'time the member out'
         : 'time the members out',
     action: () => ref
-        .read(apiProvider)
+        .read(memberActionsProvider)
         .bulkTimeoutMembers(userIds: ids, duration: duration),
   );
   if (failure != null) {

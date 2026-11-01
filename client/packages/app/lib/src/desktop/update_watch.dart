@@ -73,7 +73,9 @@ class UpdateWatcher {
   }) : _check = check,
        _format = format,
        _shouldRun = shouldRun,
-       _secondLaunches = secondLaunches ?? DesktopWindowShell.secondLaunches,
+       _secondLaunches =
+           secondLaunches ??
+           _ref.read(desktopWindowShellProvider).secondLaunches,
        _now = now;
 
   final Ref _ref;

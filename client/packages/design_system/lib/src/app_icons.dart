@@ -271,6 +271,9 @@ abstract final class AppIcons {
   /// short of closing and reopening the pane, see `worldLimit`'s own doc.
   static const IconData recenter = LucideIcons.locate300;
 
+  /// Following another person's view of the canvas.
+  static const IconData followView = LucideIcons.eye300;
+
   /// A camera or screen-share tile on the canvas: locked in place (so a
   /// drawing tool reaches through it) or free to drag and resize. Distinct
   /// from [permissions], which shares [tileLocked]'s glyph for an unrelated

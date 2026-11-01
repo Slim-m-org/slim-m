@@ -21,13 +21,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
-import '../../support/dead_voice_session.dart';
-
-class _Voice extends VoiceController {
-  _Voice(super.ref) : super(session: DeadVoiceSession());
-
-  void update(VoiceState Function(VoiceState) change) => state = change(state);
-}
+import '../../support/fake_voice.dart';
 
 class _Ring extends DmCallRingController {
   _Ring(super.ref);
@@ -66,8 +60,8 @@ class _Setup {
   final _Player player;
   final List<String> cues;
 
-  _Voice get voice =>
-      container.read(voiceControllerProvider.notifier) as _Voice;
+  FakeVoiceController get voice =>
+      container.read(voiceControllerProvider.notifier) as FakeVoiceController;
   _Ring get ring =>
       container.read(dmCallRingControllerProvider.notifier) as _Ring;
 
@@ -102,7 +96,7 @@ Future<_Setup> _wire(Map<String, Object> prefs) async {
         ),
       ),
       liveEventsProvider.overrideWithValue(const Stream.empty()),
-      voiceControllerProvider.overrideWith(_Voice.new),
+      voiceControllerProvider.overrideWith(FakeVoiceController.new),
       dmCallRingControllerProvider.overrideWith(_Ring.new),
       notificationSoundControllerProvider.overrideWith(
         (ref) => NotificationSoundController(

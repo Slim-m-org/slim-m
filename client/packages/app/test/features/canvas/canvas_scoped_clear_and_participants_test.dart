@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/features/canvas/screens/canvas_overflow_menu.dart';
 import 'package:slimm_app/src/features/canvas/widgets/canvas_clear_scope.dart';
-import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_sheet.dart';
 import 'package:slimm_app/src/features/members/providers/user_profiles.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
@@ -213,7 +213,7 @@ void main() {
     ) async {
       await _pump(tester, inCall: true, size: Size(width, 800));
 
-      await tester.tap(find.text('Participants'));
+      await tester.tap(find.text('People here'));
       await tester.pumpAndSettle();
       expect(find.text('Bob'), findsOneWidget);
 
@@ -229,13 +229,13 @@ void main() {
   ) async {
     await _pump(tester, inCall: true, speaking: true);
 
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     // A speaking ring never settles, so step frames the way a running app gets them.
     for (var i = 0; i < 60; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
 
-    final dialog = tester.getRect(find.byType(CanvasParticipantsSheet));
+    final dialog = tester.getRect(find.byType(CanvasPeopleSheet));
     final row = tester.getRect(find.text('Bob'));
     expect(dialog.width, greaterThan(200));
     expect(dialog.height, greaterThan(60));
@@ -250,13 +250,13 @@ void main() {
   ) async {
     await _pump(tester, inCall: true, onlyYou: true);
 
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     await tester.pumpAndSettle();
 
     expect(find.text('You'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byType(CanvasParticipantsSheet),
+        of: find.byType(CanvasPeopleSheet),
         matching: find.byIcon(AppIcons.moreVertical),
       ),
       findsNothing,
@@ -268,16 +268,16 @@ void main() {
   ) async {
     await _pump(tester);
 
-    expect(find.text('Participants'), findsNothing);
+    expect(find.text('People here'), findsNothing);
   });
 
   testWidgets('Participants sheet takes focus and pane hotkeys stay quiet', (
     tester,
   ) async {
     await _pump(tester, inCall: true, paneHotkeys: true);
-    await tester.tap(find.text('Participants'));
+    await tester.tap(find.text('People here'));
     await tester.pumpAndSettle();
-    expect(find.byType(CanvasParticipantsSheet), findsOneWidget);
+    expect(find.byType(CanvasPeopleSheet), findsOneWidget);
 
     final focusContext = FocusManager.instance.primaryFocus?.context;
     // The sheet's route holds focus; anything at or under the pane behind it would hear the hotkeys.

@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Temporary voice rooms (decision 0065).
 extension SlimmApiVoiceRooms on SlimmApi {
   /// The caller's room from lobby [channelId]: theirs if it exists, a new
   /// one otherwise. Join the returned channel as usual.
   Future<Channel> openVoiceRoom(String channelId) async {
-    final json = await _send('POST', '/channels/$channelId/voice/room');
+    final json = await send('POST', '/channels/$channelId/voice/room');
     return Channel.fromJson(json as Map<String, dynamic>);
   }
 
@@ -17,7 +22,7 @@ extension SlimmApiVoiceRooms on SlimmApi {
     bool? locked,
     int? userLimit,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/channels/$channelId/room',
       body: {

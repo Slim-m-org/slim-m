@@ -12,7 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../voice/widgets/mic_preview_hold.dart';
 import 'package:slimm_rtc/rtc.dart' show VoiceSessionState;
 
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_controller.dart';
 import '../../settings/providers/notification_preference_controller.dart';
 import '../../voice/providers/mic_preview.dart';
 import '../../voice/providers/voice_flags.dart';

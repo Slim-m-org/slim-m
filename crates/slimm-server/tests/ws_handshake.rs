@@ -132,3 +132,52 @@ async fn one_address_cannot_hold_more_than_its_share_of_pending_sockets() {
         .await
         .expect("a freed slot is usable again");
 }
+
+#[tokio::test]
+async fn the_connection_ceiling_refuses_with_503_and_frees_on_close() {
+    let hub = Hub::with_connection_limit(1);
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", hub).await;
+    let ticket = ticket_only(&store, "alice").await;
+
+    let mut first = connect_from(addr, "1.1.1.1").await.unwrap();
+    hello(&mut first, &ticket, 1).await;
+    assert_eq!(read_frame(&mut first).await["type"], "hello");
+
+    let refused = connect_from(addr, "2.2.2.2").await.unwrap_err();
+    assert!(refused.contains("503"), "expected a 503, got {refused}");
+
+    first.close(None).await.unwrap();
+    drop(first);
+    let deadline = tokio::time::Instant::now() + DEADLINE;
+    loop {
+        match connect_from(addr, "2.2.2.2").await {
+            Ok(_) => break,
+            Err(_) if tokio::time::Instant::now() < deadline => {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+            Err(err) => panic!("the slot never came back: {err}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_frame_over_the_4_kib_cap_closes_an_authenticated_socket() {
+    let (addr, store, _pool, _guard) = serve_with("slimm-ws-hs", Hub::new()).await;
+    let ticket = ticket_only(&store, "alice").await;
+    let mut ws = connect_from(addr, "1.1.1.1").await.unwrap();
+    hello(&mut ws, &ticket, 1).await;
+    assert_eq!(read_frame(&mut ws).await["type"], "hello");
+
+    let oversized = json!({ "type": "ping", "padding": "x".repeat(5 * 1024) });
+    // The server may reset the connection before the send finishes; either way it must end.
+    let _ = ws.send(WsMessage::Text(oversized.to_string())).await;
+
+    let ended = tokio::time::timeout(DEADLINE, async {
+        while let Some(Ok(_)) = futures_util::StreamExt::next(&mut ws).await {}
+    })
+    .await;
+    assert!(
+        ended.is_ok(),
+        "the socket stayed open after an oversized frame"
+    );
+}

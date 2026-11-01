@@ -110,7 +110,19 @@ class VisualTheme {
     stripe: Color(0x12A5B8AE),
   );
 
-  static const all = [light, dark, trueBlack, mocha, soft, forest];
+  static const halloween = VisualTheme(
+    name: 'halloween',
+    surfaceBase: Color(0xFF1A1221),
+    surfaceRaised: Color(0xFF251A2E),
+    borderSubtle: Color(0xFF3A2A47),
+    textPrimary: Color(0xFFF4EADB),
+    textSecondary: Color(0xFFBDAFC4),
+    textDisabled: Color(0xFF8A7A94),
+    accentFill: Color(0xFFFF7A1A),
+    stripe: Color(0x12BDAFC4),
+  );
+
+  static const all = [light, dark, trueBlack, mocha, soft, forest, halloween];
 }
 
 /// `AppCanvasColors`, copied verbatim - the same three per-kind ink roles and

@@ -179,6 +179,13 @@ pub(super) async fn claim_in(
     .execute(&mut **tx)
     .await?;
 
+    sqlx::query!(
+        "UPDATE space_settings SET setup_claimed_by = ? WHERE id = 1",
+        user_id
+    )
+    .execute(&mut **tx)
+    .await?;
+
     let channel_id = ChannelId::generate();
     // Migration 0031 seeds the "Text" category before any channel exists; file #general there.
     sqlx::query!(

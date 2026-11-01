@@ -22,10 +22,10 @@ import 'package:slimm_api/api.dart' as api;
 import '../../../ids.dart';
 import '../providers/blocks_controller.dart';
 import '../providers/filed_reports.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/app_snackbar.dart';
 import 'report_dialog.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
 
 /// Runs [action]; on success shows [succeeded], on failure the sentence
 /// [runGuarded] turns the exception into for [whatFailed].
@@ -68,7 +68,7 @@ Future<void> fileReport(
     'Report filed. A moderator will review it.',
     () async {
       final reportId = await container
-          .read(apiProvider)
+          .read(memberActionsProvider)
           .report(
             subject: subject,
             subjectId: subjectId,

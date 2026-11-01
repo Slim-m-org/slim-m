@@ -129,6 +129,12 @@ class _ConnectableSession with VideoQualityRecorder implements VoiceSession {
   bool get screenShareSourcePickerUseful => true;
 
   @override
+  Stream<String> get screenShareSourceLost => const Stream.empty();
+
+  @override
+  VoidCallback holdEnlargedVideo(String tileKey) => () {};
+
+  @override
   Future<List<ScreenShareSource>> screenShareSources() async => const [];
 
   @override

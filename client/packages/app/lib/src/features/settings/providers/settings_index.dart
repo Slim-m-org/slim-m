@@ -174,6 +174,11 @@ const personalSettingsIndex = <SettingsEntry>[
   ),
   SettingsEntry(
     'appearance',
+    'Color theme',
+    keywords: ['dark', 'light', 'colors', 'colours', 'halloween'],
+  ),
+  SettingsEntry(
+    'appearance',
     'High contrast',
     description: 'Stronger borders and text.',
     keywords: ['accessibility', 'contrast', 'theme'],
@@ -374,6 +379,13 @@ const personalSettingsIndex = <SettingsEntry>[
     'Run setup again',
     description: 'Profile, notifications and voice, one step at a time.',
     keywords: ['onboarding', 'welcome', 'tour', 'first run', 'setup'],
+  ),
+  SettingsEntry(
+    'troubleshooting',
+    'Run Space setup again',
+    description: 'Capacity, who can join, uploads, retention and voice.',
+    keywords: ['admin', 'first run', 'capacity', 'setup', 'wizard'],
+    conditional: true,
   ),
   SettingsEntry(
     'about',

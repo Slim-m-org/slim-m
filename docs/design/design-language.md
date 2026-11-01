@@ -55,6 +55,7 @@ The accent is a muted teal, far in hue from Discord's blurple, Slack's aubergine
 
 The Catppuccin column is Catppuccin Mocha, a fourth palette added on 2026-10-21 with its own mauve accent; the table shows only the headline roles, the full mapping is in [decisions/0088-catppuccin-mocha-theme.md](../decisions/0088-catppuccin-mocha-theme.md).
 The Soft dark (`AppTokens.soft`) and Forest (`AppTokens.forest`) palettes were added on 2026-10-22; see [decisions/0089-soft-dark-and-forest-themes.md](../decisions/0089-soft-dark-and-forest-themes.md).
+The Halloween palette (`AppTokens.halloween`) and its cobweb backdrop were added on 2026-11-01; see [decisions/0101-halloween-theme-and-backdrops.md](../decisions/0101-halloween-theme-and-backdrops.md).
 The four columns above mirror `AppTokens.light`, `dark`, `trueBlack` and `mocha` in `app_tokens.dart`, which stays the source of truth.
 
 The accent moved from the teal this table originally carried (#2B8A83 / #4FBDB4) to glacier cyan on 2026-07-27.

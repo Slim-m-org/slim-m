@@ -22,8 +22,10 @@ import 'package:slimm_rtc/rtc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/accounts/widgets/account_shortcuts.dart';
+import '../features/admin_setup/screens/admin_setup_gate.dart';
 import '../features/first_run/widgets/first_run_gate.dart';
 import '../features/members/providers/activity_publisher.dart';
+import '../features/screen_overlay/providers/screen_overlay_controller.dart';
 import '../features/voice/providers/live_quality_restart.dart';
 import '../features/voice/providers/voice_move_follower.dart';
 import '../providers/admin_providers.dart';
@@ -40,22 +42,21 @@ import '../features/settings/providers/notification_schedule_controller.dart';
 import '../features/settings/providers/notification_sound_controller.dart';
 import '../providers/providers.dart';
 import '../features/channels/providers/rail_width_preference.dart';
-import '../providers/retention_sweep.dart';
+import '../features/messages/providers/retention_sweep.dart';
 import '../providers/sync_controller.dart' show initialSyncCompleteProvider;
 import '../features/channels/providers/threads.dart';
 import '../features/voice/providers/voice_controller.dart';
 import '../routing/breakpoints.dart';
 import '../routing/routes.dart';
-import '../widgets/app_panel_reveal.dart';
 import '../features/channels/widgets/channel_grouping.dart';
 import '../features/voice/widgets/call_mini_player.dart';
 import '../features/channels/widgets/channel_rail.dart';
 import '../features/channels/widgets/channel_rail_frame.dart';
 import '../features/palette/widgets/command_palette.dart';
-import '../widgets/compact_drawer_scaffold.dart';
+import '../features/home/widgets/compact_drawer_scaffold.dart';
 import '../features/members/widgets/member_pane.dart';
-import '../widgets/new_device_banner_host.dart';
-import '../widgets/rules_gate_banner_host.dart';
+import '../features/auth/widgets/new_device_banner_host.dart';
+import '../features/settings/widgets/rules_gate_banner_host.dart';
 import '../features/voice/widgets/push_to_talk_listener.dart';
 import '../features/channels/widgets/rail_slot.dart';
 import '../downloads/download_failures.dart';
@@ -71,9 +72,7 @@ import '../features/canvas/screens/canvas_pane.dart';
 import '../features/voice/screens/dm_call_pane.dart';
 import '../features/voice/screens/hang_up_recap_toast.dart';
 import '../features/messages/widgets/inbox_sheet.dart';
-import '../features/messages/screens/thread_screen.dart';
-
-part 'home_shell_pane_slots.dart';
+import 'home_shell_pane_slots.dart';
 
 /// The shell. One widget handles every width: at compact widths it shows one
 /// pane at a time, and above that both at once. The panes themselves are the
@@ -129,7 +128,7 @@ class HomeShell extends ConsumerWidget {
         ),
       ),
     );
-    return FirstRunGate(child: shell);
+    return FirstRunGate(child: AdminSetupGate(child: shell));
   }
 
   void _holdSessionProviders(WidgetRef ref) {
@@ -146,6 +145,8 @@ class HomeShell extends ConsumerWidget {
     ref.watch(activityPublisherProvider);
     ref.watch(voiceMoveFollowerProvider);
     ref.watch(liveQualityRestartProvider);
+    // Session-lifetime, so the overlay follows the share without a call screen mounted.
+    ref.watch(screenOverlayControllerProvider.select((_) => null));
     // Same reasoning: read lazily, its first read would race a module's own sound trigger against this provider's async load from disk.
     ref.watch(moduleSoundSettingsProvider);
     // Same reasoning as the channel-mute watch above: session-lifetime, for the sound and desktop-notifier paths.
@@ -243,7 +244,7 @@ class HomeShell extends ConsumerWidget {
       Widget wide(bool isDm) => _wideScaffold(context, ref, facts, isDm);
       return selected == null
           ? wide(false)
-          : _withChannelKind(ref, selected, wide);
+          : withChannelKind(ref, selected, wide);
     }
     if (selected == null) return const Scaffold(body: ChannelRail());
     return _compactScaffold(context, ref, facts, selected);
@@ -289,7 +290,7 @@ class HomeShell extends ConsumerWidget {
           ),
           // Between the transcript and the roster (the Discord/Slack order); it and the roster never both take width, so the transcript loses at most one third pane.
           if (facts.threadFits)
-            _ThreadPaneSlot(
+            ThreadPaneSlot(
               channelId: facts.openThread,
               requested: facts.showThread,
             ),
@@ -301,7 +302,7 @@ class HomeShell extends ConsumerWidget {
           // duration while the entrance gets the full slide.
           if (facts.membersFit)
             // Once synced, unscoped until the row resolves, so no request names a channel not yet known to be visible.
-            _MemberPaneSlot(
+            MemberPaneSlot(
               channelId: facts.rosterPending ? null : selected,
               requested: facts.showMembers,
             ),
@@ -325,7 +326,7 @@ class HomeShell extends ConsumerWidget {
         voiceChannelId != channelId;
     // The composer area carries the slim call pill while typing, so the composer sits on the keyboard.
     final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return _withChannelKind(ref, channelId, (isDm) {
+    return withChannelKind(ref, channelId, (isDm) {
       // Only a DM's call pane replaces the header; the call-return affordances also set the provider for voice channels.
       final replacesHeader = facts.canvasOpen || (facts.dmCallOpen && isDm);
       return CompactDrawerScaffold(

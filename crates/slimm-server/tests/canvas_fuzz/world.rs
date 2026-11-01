@@ -304,7 +304,7 @@ impl World {
             .set_canvas_object_lock(self.channel, id, self.writers[src.writer], moderator, on)
             .await
         {
-            Ok(changed) => Ok(changed),
+            Ok(version) => Ok(version.is_some()),
             Err(LockError::NotFound) => Err(Fail::NotFound),
             Err(LockError::NotAuthorized) => Err(Fail::NotAuthorized),
             Err(LockError::Internal(e)) => Err(Fail::Internal(format!("{e:#}"))),

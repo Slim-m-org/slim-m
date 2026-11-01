@@ -23,238 +23,9 @@ use super::extract::{Authed, Json, enforce, require_manage_server};
 use crate::ratelimit::Class;
 use crate::store::AdminAuditEntry;
 
-/// One audited route: its method and axum template, the action it records,
-/// and which path parameter names the thing changed. `None` reads the id
-/// from the response instead, for creates.
-pub struct AuditedRoute {
-    pub method: Method,
-    pub path: &'static str,
-    pub action: &'static str,
-    pub target: Option<&'static str>,
-}
+mod audited_routes;
 
-const fn route(
-    method: Method,
-    path: &'static str,
-    action: &'static str,
-    target: Option<&'static str>,
-) -> AuditedRoute {
-    AuditedRoute {
-        method,
-        path,
-        action,
-        target,
-    }
-}
-
-const CH: Option<&str> = Some("channel_id");
-const CAT: Option<&str> = Some("category_id");
-const ROLE: Option<&str> = Some("role_id");
-const MODULE: Option<&str> = Some("id");
-
-/// Every admin change the log records.
-pub const AUDITED_ROUTES: &[AuditedRoute] = &[
-    route(Method::PATCH, "/space/settings", "space.update", None),
-    route(Method::PUT, "/space/join-gate", "space.join_gate", None),
-    route(Method::PATCH, "/space/analytics", "space.analytics", None),
-    route(Method::PATCH, "/space/retention", "space.retention", None),
-    route(Method::PATCH, "/space/canvas-cap", "space.canvas_cap", None),
-    route(
-        Method::PATCH,
-        "/space/screen-share",
-        "space.screen_share",
-        None,
-    ),
-    route(
-        Method::PATCH,
-        "/space/attachment-limit",
-        "space.attachment_limit",
-        None,
-    ),
-    route(
-        Method::PATCH,
-        "/space/media-compression",
-        "space.media_compression",
-        None,
-    ),
-    route(
-        Method::PATCH,
-        "/space/link-previews",
-        "space.link_previews",
-        None,
-    ),
-    route(Method::POST, "/space/icon", "space.icon_set", None),
-    route(Method::DELETE, "/space/icon", "space.icon_clear", None),
-    route(Method::POST, "/space/banner", "space.banner_set", None),
-    route(Method::DELETE, "/space/banner", "space.banner_clear", None),
-    route(Method::POST, "/exports/space", "space.export", None),
-    route(Method::POST, "/roles", "role.create", None),
-    route(Method::PATCH, "/roles/reorder", "role.reorder", None),
-    route(Method::PATCH, "/roles/{role_id}", "role.update", ROLE),
-    route(Method::DELETE, "/roles/{role_id}", "role.delete", ROLE),
-    route(
-        Method::PUT,
-        "/members/{user_id}/roles/{role_id}",
-        "role.assign",
-        Some("user_id"),
-    ),
-    route(
-        Method::DELETE,
-        "/members/{user_id}/roles/{role_id}",
-        "role.unassign",
-        Some("user_id"),
-    ),
-    route(
-        Method::PUT,
-        "/roles/{role_id}/module-permissions/{module_id}/{perm_key}",
-        "role.module_grant",
-        ROLE,
-    ),
-    route(
-        Method::DELETE,
-        "/roles/{role_id}/module-permissions/{module_id}/{perm_key}",
-        "role.module_revoke",
-        ROLE,
-    ),
-    route(Method::POST, "/channels", "channel.create", None),
-    route(Method::PUT, "/channels/order", "channel.reorder", None),
-    route(
-        Method::PATCH,
-        "/channels/{channel_id}",
-        "channel.update",
-        CH,
-    ),
-    route(
-        Method::DELETE,
-        "/channels/{channel_id}",
-        "channel.delete",
-        CH,
-    ),
-    route(
-        Method::PUT,
-        "/channels/{channel_id}/retention",
-        "channel.retention",
-        CH,
-    ),
-    route(
-        Method::PATCH,
-        "/channels/{channel_id}/room",
-        "channel.room",
-        CH,
-    ),
-    route(
-        Method::PUT,
-        "/channels/{channel_id}/overwrites",
-        "channel.overwrites",
-        CH,
-    ),
-    route(
-        Method::POST,
-        "/channels/{channel_id}/overwrites/sync",
-        "channel.overwrites_sync",
-        CH,
-    ),
-    route(
-        Method::PUT,
-        "/channels/{channel_id}/overwrites/{kind}/{id}",
-        "channel.overwrite_set",
-        CH,
-    ),
-    route(
-        Method::DELETE,
-        "/channels/{channel_id}/overwrites/{kind}/{id}",
-        "channel.overwrite_clear",
-        CH,
-    ),
-    route(Method::POST, "/categories", "category.create", None),
-    route(
-        Method::PATCH,
-        "/categories/{category_id}",
-        "category.update",
-        CAT,
-    ),
-    route(
-        Method::DELETE,
-        "/categories/{category_id}",
-        "category.delete",
-        CAT,
-    ),
-    route(
-        Method::PUT,
-        "/categories/{category_id}/overwrites",
-        "category.overwrites",
-        CAT,
-    ),
-    route(Method::POST, "/invites", "invite.create", None),
-    route(
-        Method::DELETE,
-        "/invites/{code}",
-        "invite.revoke",
-        Some("code"),
-    ),
-    route(Method::POST, "/emoji", "emoji.create", None),
-    route(Method::POST, "/emoji/bulk", "emoji.bulk_create", None),
-    route(
-        Method::DELETE,
-        "/emoji/{emoji_id}",
-        "emoji.delete",
-        Some("emoji_id"),
-    ),
-    route(
-        Method::POST,
-        "/space/dock/modules/{id}/install",
-        "module.install",
-        MODULE,
-    ),
-    route(
-        Method::DELETE,
-        "/space/dock/modules/{id}/install",
-        "module.uninstall",
-        MODULE,
-    ),
-    route(
-        Method::POST,
-        "/space/dock/modules/{id}/enable",
-        "module.enable",
-        MODULE,
-    ),
-    route(
-        Method::POST,
-        "/space/dock/modules/{id}/disable",
-        "module.disable",
-        MODULE,
-    ),
-    route(
-        Method::DELETE,
-        "/space/dock/modules/{id}/storage",
-        "module.clear_storage",
-        MODULE,
-    ),
-    route(
-        Method::PUT,
-        "/space/dock/modules/{id}/schedule-channel",
-        "module.schedule_channel",
-        MODULE,
-    ),
-    route(
-        Method::PUT,
-        "/space/dock/modules/{id}/settings",
-        "module.settings",
-        MODULE,
-    ),
-    route(
-        Method::POST,
-        "/space/dock/sources",
-        "module_source.add",
-        None,
-    ),
-    route(
-        Method::DELETE,
-        "/space/dock/sources/{sourceId}",
-        "module_source.remove",
-        Some("sourceId"),
-    ),
-];
+pub use audited_routes::{AUDITED_ROUTES, AuditedRoute};
 
 /// Request and response bodies past this are not read for field names or ids.
 const MAX_INSPECTED_BODY: usize = 64 * 1024;
@@ -387,8 +158,33 @@ fn detail(route: &AuditedRoute, mut params: Map<String, Value>, body: Option<&Va
             let name: String = name.chars().take(MAX_NAME_CHARS).collect();
             detail.insert("name".into(), Value::from(name));
         }
+        if route.action == "bot.prefix"
+            && let Some(Value::String(prefix)) = fields.get("prefix")
+        {
+            detail.insert("prefix".into(), Value::from(prefix.trim()));
+        }
+        if route.action == "module.install" || route.action == "module.install_file" {
+            insert_approvals(&mut detail, fields);
+        }
     }
     Value::Object(detail).to_string()
+}
+
+/// Which host capabilities an install approved, and whether it also approved local network access,
+/// so the log says what an admin granted and not only that they installed.
+fn insert_approvals(detail: &mut Map<String, Value>, body: &Map<String, Value>) {
+    if let Some(Value::Array(approved)) = body.get("approved_host_capabilities") {
+        let names: Vec<Value> = approved
+            .iter()
+            .filter_map(Value::as_str)
+            .take(MAX_FIELDS)
+            .map(|name| Value::from(name.chars().take(MAX_NAME_CHARS).collect::<String>()))
+            .collect();
+        detail.insert("approved".into(), Value::Array(names));
+    }
+    if body.get("approve_local_network") == Some(&Value::Bool(true)) {
+        detail.insert("local_network".into(), Value::Bool(true));
+    }
 }
 
 #[derive(Deserialize)]
@@ -445,4 +241,61 @@ async fn list(
     let limit = query.limit.unwrap_or(PAGE_DEFAULT).clamp(1, PAGE_MAX);
     let entries = state.store.admin_changes(query.before, limit).await?;
     Ok(Json(entries.into_iter().map(Into::into).collect()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn install_route() -> &'static AuditedRoute {
+        AUDITED_ROUTES
+            .iter()
+            .find(|r| r.action == "module.install")
+            .unwrap()
+    }
+
+    fn detail_of(route: &AuditedRoute, body: &Value) -> Value {
+        serde_json::from_str(&detail(route, Map::new(), Some(body))).unwrap()
+    }
+
+    #[test]
+    fn an_install_records_what_the_admin_approved_and_not_the_version_text() {
+        let body = json!({
+            "version": "0.2.0",
+            "approved_host_capabilities": ["data.store", "message.post"],
+            "approve_local_network": true,
+            "reviewed_digest": "abc",
+        });
+        let detail = detail_of(install_route(), &body);
+        assert_eq!(detail["approved"], json!(["data.store", "message.post"]));
+        assert_eq!(detail["local_network"], json!(true));
+        assert!(detail.get("version").is_none() && detail.get("reviewed_digest").is_none());
+    }
+
+    #[test]
+    fn an_install_that_approves_nothing_says_so_and_one_that_omits_it_says_nothing() {
+        let none = detail_of(
+            install_route(),
+            &json!({"version": "1", "approved_host_capabilities": []}),
+        );
+        assert_eq!(none["approved"], json!([]));
+        let omitted = detail_of(install_route(), &json!({"version": "1"}));
+        assert!(omitted.get("approved").is_none());
+    }
+
+    #[test]
+    fn approvals_are_only_read_for_an_install_and_are_bounded() {
+        let body = json!({"approved_host_capabilities": ["x".repeat(500)]});
+        let other = AUDITED_ROUTES
+            .iter()
+            .find(|r| r.action == "module.enable")
+            .unwrap();
+        assert!(detail_of(other, &body).get("approved").is_none());
+        let long = detail_of(install_route(), &body);
+        assert_eq!(
+            long["approved"][0].as_str().unwrap().chars().count(),
+            MAX_NAME_CHARS
+        );
+    }
 }

@@ -51,6 +51,13 @@ class AppStatusColors {
     offline: Color(0xFF6E8A7E),
   );
 
+  static const AppStatusColors halloween = AppStatusColors(
+    online: Color(0xFF6BBF3A),
+    away: Color(0xFFD9A32E),
+    dnd: Color(0xFFD0524A),
+    offline: Color(0xFF8A7A94),
+  );
+
   static const AppStatusColors mocha = AppStatusColors(
     online: Color(0xFFA6E3A1),
     away: Color(0xFFF9E2AF),
@@ -126,6 +133,14 @@ class AppCodeColors {
     number: Color(0xFFE3B778),
     comment: Color(0xFFA5B8AE),
     punctuation: Color(0xFFA5B8AE),
+  );
+
+  static const AppCodeColors halloween = AppCodeColors(
+    keyword: Color(0xFF9BD65A),
+    string: Color(0xFFF2C94C),
+    number: Color(0xFFFF9A4D),
+    comment: Color(0xFFBDAFC4),
+    punctuation: Color(0xFFBDAFC4),
   );
 
   /// Comment and punctuation use subtext0: overlay1 and overlay2 fail 4.5:1.

@@ -19,9 +19,11 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../api_failure.dart';
 import '../../../providers/providers.dart';
-import '../../messages/widgets/attachment_format.dart';
+import '../../../widgets/attachment_format.dart';
 import '../../../widgets/transfer_meter.dart';
 import 'staged_attachment_model.dart';
+import '../providers/composer_actions.dart';
+import '../../settings/providers/settings_actions.dart';
 
 export 'staged_attachment_model.dart';
 
@@ -329,7 +331,7 @@ final attachmentStagingProvider =
     Provider.family<AttachmentStagingController, String>((ref, channelId) {
       final controller = AttachmentStagingController(
         upload: (body, filename, report) async {
-          final client = ref.read(apiProvider);
+          final client = ref.read(composerActionsProvider);
           return client.uploadAttachmentAuto(
             body.source,
             length: body.length,
@@ -342,7 +344,8 @@ final attachmentStagingProvider =
             cancel: body.cancel,
           );
         },
-        onAbandon: (key) => ref.read(apiProvider).abandonUpload(key),
+        onAbandon: (key) =>
+            ref.read(composerActionsProvider).abandonUpload(key),
         maxBytes: () => _attachmentLimit(ref),
         onFailure: (filename, error) => api.AppLog.warning(
           api.LogTag.media,
@@ -368,7 +371,7 @@ Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
   if (length <= api.kUploadSessionThreshold) return null;
   try {
     final version = await ref
-        .read(apiProvider)
+        .read(settingsActionsProvider)
         .version()
         .timeout(const Duration(seconds: 3));
     return version.capabilities;
@@ -388,7 +391,7 @@ Future<List<String>?> _serverCapabilities(Ref ref, int length) async {
 Future<int?> _attachmentLimit(Ref ref) async {
   try {
     final version = await ref
-        .read(apiProvider)
+        .read(settingsActionsProvider)
         .version()
         .timeout(const Duration(seconds: 3));
     return version.maxAttachmentBytes;

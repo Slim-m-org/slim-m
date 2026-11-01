@@ -20,7 +20,7 @@ use super::dock::wire::InstalledModuleDto;
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce, require_manage_server};
 use super::module_host::{schedule_approved, scheduled_surface};
-use super::module_run::{RunKind, RunRequest, run_installed};
+use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -98,6 +98,24 @@ async fn text_channel(state: &AppState, raw: &str) -> Result<ChannelId, ApiError
     }
 }
 
+/// How often due module schedules are checked; the shortest interval a
+/// manifest may declare is five minutes, so this is precise enough.
+const MODULE_SCHEDULE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Runs modules' scheduled commands; see [`run_due`].
+pub(crate) fn spawn_sweep(state: AppState) {
+    crate::sweeps::spawn_sweep(MODULE_SCHEDULE_INTERVAL, move || {
+        let state = state.clone();
+        async move {
+            match run_due(&state, crate::store::now_ms()).await {
+                Ok(0) => {}
+                Ok(count) => tracing::debug!(count, "ran scheduled module commands"),
+                Err(err) => tracing::warn!(error = %err, "module schedule sweep failed"),
+            }
+        }
+    });
+}
+
 /// Whether `schedule` is due at `now`, given when it last ran.
 pub(crate) fn is_due(schedule: &ModuleSchedule, last_run_at: Option<i64>, now: i64) -> bool {
     let every_ms = i64::from(schedule.every_minutes) * 60_000;
@@ -149,6 +167,10 @@ async fn run_one(
         command,
         input: "",
         kind: RunKind::Background,
+        context: RunContext {
+            channel: Some(channel),
+            voice_channel: None,
+        },
     };
     match run_installed(state, module, &request, surface).await {
         Ok(outcome) if outcome.ok => {}

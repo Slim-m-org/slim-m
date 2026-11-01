@@ -14,19 +14,11 @@ import 'package:slimm_app/src/features/voice/widgets/popout_window_view.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../../support/reduced_motion_harness.dart';
 import 'voice_controller_harness.dart';
 
 const _feed = (identity: 'u-ada', name: 'Ada', kind: FeedKind.screenShare);
-
-class _Call extends VoiceController {
-  _Call(super.ref, FakeSession session) : super(session: session) {
-    state = const VoiceState(
-      channelId: 'c-main',
-      state: VoiceSessionState.connected,
-    );
-  }
-}
 
 Future<double> _controlsOpacityAfterHover(
   WidgetTester tester, {
@@ -34,7 +26,16 @@ Future<double> _controlsOpacityAfterHover(
 }) async {
   final container = ProviderContainer(
     overrides: [
-      voiceControllerProvider.overrideWith((ref) => _Call(ref, FakeSession())),
+      voiceControllerProvider.overrideWith(
+        (ref) => FakeVoiceController(
+          ref,
+          session: FakeSession(),
+          initial: const VoiceState(
+            channelId: 'c-main',
+            state: VoiceSessionState.connected,
+          ),
+        ),
+      ),
     ],
   );
   addTearDown(container.dispose);

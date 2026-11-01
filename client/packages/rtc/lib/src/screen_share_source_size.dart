@@ -8,7 +8,13 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
+
+/// The size of the screen the local share captures, once its first frame is read; null when not sharing.
+///
+/// A process-wide notifier rather than a `VoiceSession` member, so the many test doubles that implement `VoiceSession` stay valid.
+final localShareCapturedSize = ValueNotifier<({int width, int height})?>(null);
 
 /// The width and height of [stream]'s first video frame, or null when none
 /// arrives within [timeout].

@@ -127,7 +127,7 @@ It judges the block the server runs, not the message text, so a zero-width joine
 
 **The server runs its own extraction of the block, and never the caller's claim of it.**
 This first shipped judging the request's `input`, which left a hole: `input` could be anything, so a member could run other code and have its output shared under someone else's block.
-Now `POST /messages/{id}/blocks/{n}/run` extracts block `n` from the stored message (`http/code_fences.rs`) and runs that; `input` is ignored.
+Now `POST /messages/{id}/blocks/{n}/run` extracts block `n` from the stored message (`code_fences.rs`) and runs that; `input` is ignored.
 The extractor mirrors the client's fence rules (`message_fences.dart`): a fence marker occupies its whole line, the tag is `[A-Za-z0-9_+#-]*`, an opening fence with no close is text, and the client's `\s` is spelled out rather than approximated with Rust's `is_whitespace`.
 Both sides assert against one vector list, `crates/slimm-server/tests/fixtures/code_fence_vectors.json`, so a change to either fails the other.
 A message with no block at that index, including a stale index after an edit, answers 409 and stores nothing.

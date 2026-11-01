@@ -30,7 +30,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../widgets/anchored_menu.dart';
 import '../widgets/animated_menu_portal.dart';
 import 'desktop_window_port.dart';
-import 'desktop_window_shell.dart' show DesktopWindowShell;
+import 'desktop_window_shell.dart' show desktopWindowShellProvider;
 import 'self_update/self_update_controller.dart';
 import 'update_action.dart';
 import 'update_check.dart';
@@ -76,7 +76,7 @@ class _WindowMenuButtonState extends ConsumerState<WindowMenuButton> {
             leading: AppIcons.windowQuit,
             onTap: () {
               _controller.hide();
-              unawaited(DesktopWindowShell.quit(widget.port));
+              unawaited(ref.read(desktopWindowShellProvider).quit(widget.port));
             },
           ),
         ],

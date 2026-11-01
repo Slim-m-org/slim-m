@@ -48,7 +48,8 @@ class DesktopChrome extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!DesktopWindowShell.active) return child;
+    final shell = ref.watch(desktopWindowShellProvider);
+    if (!shell.active) return child;
 
     // Owned here, not by the banner: a frameless shell mounts no banner, and the title bar chip still needs the periodic check.
     ref.watch(updateWatcherProvider);
@@ -56,9 +57,7 @@ class DesktopChrome extends ConsumerWidget {
 
     // Transparent so each piece keeps its own surface; the library doc says why a Material and an Overlay are both here.
     return DesktopEntrance(
-      topInset: DesktopWindowShell.frameless && !videoFullscreen
-          ? titleBarHeight
-          : 0,
+      topInset: shell.frameless && !videoFullscreen ? titleBarHeight : 0,
       child: Material(
         type: MaterialType.transparency,
         child: Overlay.wrap(
@@ -69,25 +68,24 @@ class DesktopChrome extends ConsumerWidget {
               Column(
                 children: [
                   // frameless is only ever set true on Linux and Windows.
-                  if (DesktopWindowShell.frameless && !videoFullscreen)
+                  if (shell.frameless && !videoFullscreen)
                     TitleBar(
-                      port: DesktopWindowShell.port,
+                      port: shell.port,
                       platform:
                           currentDesktopPlatform() ?? DesktopPlatform.linux,
-                      onRequestClose: DesktopWindowShell.requestClose,
+                      onRequestClose: shell.requestClose,
                     ),
                   if (!videoFullscreen) ...[
                     const FirstRunTrayNoticeBanner(),
                     // The frameless title bar carries the compact update chip instead.
-                    if (!DesktopWindowShell.frameless)
-                      const UpdateAvailableBanner(),
+                    if (!shell.frameless) const UpdateAvailableBanner(),
                     const SelfUpdateFailureBanner(),
                   ],
                   Expanded(child: child),
                 ],
               ),
-              if (DesktopWindowShell.frameless && !videoFullscreen)
-                WindowResizeFrame(port: DesktopWindowShell.port),
+              if (shell.frameless && !videoFullscreen)
+                WindowResizeFrame(port: shell.port),
             ],
           ),
         ),

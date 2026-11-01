@@ -55,6 +55,7 @@ async fn install(w: &World, id: &str, wasm: &[u8], addon_api: u32, slots: Vec<Mo
             },
             wasm,
             &DockProvenance {
+                manifest_json: None,
                 host_capabilities: &[],
                 source_repo: None,
                 network_hosts: &[],

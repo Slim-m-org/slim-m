@@ -2,7 +2,7 @@
 //! Which channel's permissions decide whether a channel-scoped [`Event`]
 //! reaches a connection.
 
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event, MessageEvent};
 use crate::ids::ChannelId;
 
 /// `None` for an event with no channel to check, which is never delivered past this point.
@@ -11,19 +11,19 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         return Some(channel_id);
     }
     Some(match event {
-        Event::MessageCreated { message, .. } => message.channel_id,
-        Event::MessageEdited { message, .. } => message.channel_id,
-        Event::MessageDeleted { channel_id, .. } => *channel_id,
-        Event::ReactionsChanged { channel_id, .. } => *channel_id,
-        Event::CodeRunChanged { channel_id, .. } => *channel_id,
-        Event::CodeRunsCleared { channel_id, .. } => *channel_id,
-        Event::ThreadUpdated { channel_id, .. } => *channel_id,
-        Event::MessagePinned { channel_id, .. } => *channel_id,
-        Event::MessageUnpinned { channel_id, .. } => *channel_id,
-        Event::PollVoted { channel_id, .. } => *channel_id,
-        Event::MessageComponentsChanged { channel_id, .. } => *channel_id,
-        Event::MessageEmbedsChanged { channel_id, .. } => *channel_id,
-        Event::MessageLinkPreviewsRemoved { channel_id, .. } => *channel_id,
+        Event::Message(MessageEvent::Created { message, .. }) => message.channel_id,
+        Event::Message(MessageEvent::Edited { message, .. }) => message.channel_id,
+        Event::Message(MessageEvent::Deleted { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::ReactionsChanged { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::CodeRunChanged { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::CodeRunsCleared { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::ThreadUpdated { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::Pinned { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::Unpinned { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::PollVoted { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::ComponentsChanged { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::EmbedsChanged { channel_id, .. }) => *channel_id,
+        Event::Message(MessageEvent::LinkPreviewsRemoved { channel_id, .. }) => *channel_id,
         Event::TypingStarted { channel_id, .. } | Event::TypingStopped { channel_id, .. } => {
             *channel_id
         }
@@ -36,21 +36,25 @@ pub(super) fn channel_of(event: &Event) -> Option<ChannelId> {
         Event::WatchTick { channel_id, .. } => *channel_id,
         Event::CallRinging { channel_id, .. } => *channel_id,
         Event::CallRingEnded { channel_id, .. } => *channel_id,
+        Event::DmChanged { channel_id } => *channel_id,
         // canvas_frames::channel_id already answered Some for any of these.
-        Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectPreview { .. }
-        | Event::CanvasMediaSlotPreview { .. }
-        | Event::CanvasView { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasObjectEdited { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::channel_id"),
+        Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
+        | Event::Canvas(CanvasEvent::Cleared { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRestored { .. })
+        | Event::Canvas(CanvasEvent::CursorMoved { .. })
+        | Event::Canvas(CanvasEvent::StrokePreview { .. })
+        | Event::Canvas(CanvasEvent::ObjectPreview { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview { .. })
+        | Event::Canvas(CanvasEvent::ScreenAnnotation(_))
+        | Event::Canvas(CanvasEvent::View { .. })
+        | Event::Canvas(CanvasEvent::ObjectMoved { .. })
+        | Event::Canvas(CanvasEvent::ObjectReordered { .. })
+        | Event::Canvas(CanvasEvent::ObjectEdited { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
+            unreachable!("canvas_frames::channel_id")
+        }
         // Control events are handled in the loop; the rest already returned above.
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)

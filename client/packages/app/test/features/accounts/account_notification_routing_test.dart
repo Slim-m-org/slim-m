@@ -10,7 +10,7 @@ import 'package:slimm_app/src/deep_links.dart';
 import 'package:slimm_app/src/invite_link.dart';
 import 'package:slimm_app/src/message_link.dart';
 import 'package:slimm_app/src/features/accounts/providers/notification_target.dart';
-import 'package:slimm_app/src/providers/notification_tap_router.dart';
+import 'package:slimm_app/src/push/providers/notification_tap_router.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/routing/router.dart';
 

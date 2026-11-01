@@ -16,12 +16,23 @@ const SLICE_FUEL: u64 = 1_000_000;
 
 /// The run's total fuel, spent a slice at a time across every call.
 pub struct FuelBudget {
+    total: u64,
     remaining: u64,
 }
 
 impl FuelBudget {
     pub fn new(total: u64) -> Self {
-        Self { remaining: total }
+        Self {
+            total,
+            remaining: total,
+        }
+    }
+
+    /// Fuel the run has burned so far: the budget less what is still unspent, whether that sits
+    /// in the budget or in the slice the store was handed.
+    pub fn used<T>(&self, store: &Store<T>) -> u64 {
+        let unspent = self.remaining.saturating_add(store.get_fuel().unwrap_or(0));
+        self.total.saturating_sub(unspent)
     }
 
     /// Moves the next slice into the store, or `None` once the budget is spent.

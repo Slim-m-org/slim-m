@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The `auth` tag: everything that starts, rotates, or ends a session.
 ///
@@ -26,7 +32,7 @@ extension SlimmApiAuth on SlimmApi {
     String? clientVersion,
     String? installId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/register',
       authenticated: false,
@@ -64,7 +70,7 @@ extension SlimmApiAuth on SlimmApi {
     String? installId,
   }) async {
     var status = 0;
-    final json = await _send(
+    final json = await send(
       'POST',
       '/auth/login',
       authenticated: false,
@@ -94,8 +100,8 @@ extension SlimmApiAuth on SlimmApi {
   /// single-use, so two rotations would spend it twice and the server would
   /// treat the second as a leak and revoke the session.
   Future<TokenPair> refresh() {
-    return _refreshInFlight ??= _refreshOnce().whenComplete(() {
-      _refreshInFlight = null;
+    return link.refreshInFlight ??= _refreshOnce().whenComplete(() {
+      link.refreshInFlight = null;
     });
   }
 
@@ -125,7 +131,7 @@ extension SlimmApiAuth on SlimmApi {
     }
     final TokenPair tokens;
     try {
-      final json = await _send(
+      final json = await send(
         'POST',
         '/auth/refresh',
         authenticated: false,
@@ -163,13 +169,13 @@ extension SlimmApiAuth on SlimmApi {
 
   /// Mints a single-use ticket for opening a WebSocket.
   Future<Ticket> webSocketTicket() async {
-    final json = await _send('POST', '/auth/ws-ticket');
+    final json = await send('POST', '/auth/ws-ticket');
     return Ticket.fromJson(json as Map<String, dynamic>);
   }
 
   /// Ends this session. Any live WebSocket on it is closed by the server.
   Future<void> logout() async {
-    await _send('POST', '/auth/logout', expectNoContent: true);
+    await send('POST', '/auth/logout', expectNoContent: true);
     session.clear();
   }
 
@@ -178,7 +184,7 @@ extension SlimmApiAuth on SlimmApi {
   /// [password] is required, and [code] too while two-factor is on: a session
   /// token alone cannot destroy an account (decision 0048).
   Future<void> deleteAccount({required String password, String? code}) async {
-    await _send(
+    await send(
       'DELETE',
       '/account',
       body: {'password': password, if (code != null) 'code': code},

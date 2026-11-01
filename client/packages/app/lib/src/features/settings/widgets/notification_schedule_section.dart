@@ -19,15 +19,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/device_timezone.dart';
+import '../providers/device_timezone.dart';
 import '../providers/notification_schedule_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import 'settings_info_line.dart';
 import 'settings_hairline.dart';
 import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_toggle_row.dart';
+import '../providers/settings_actions.dart';
 
 const _dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const _dayFullNames = [
@@ -71,7 +71,7 @@ class _NotificationScheduleSectionState
     final ok = await guard(
       whatFailed: 'update your notification schedule',
       action: () => ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .setNotificationSchedule(
             timezone: timezone,
             offHoursMode: mode,
@@ -92,7 +92,8 @@ class _NotificationScheduleSectionState
     if (!enabled) {
       final ok = await guard(
         whatFailed: 'turn off your notification schedule',
-        action: () => ref.read(apiProvider).clearNotificationSchedule(),
+        action: () =>
+            ref.read(settingsActionsProvider).clearNotificationSchedule(),
       );
       if (ok) ref.invalidate(notificationScheduleProvider);
       return;

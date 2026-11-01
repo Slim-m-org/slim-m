@@ -152,7 +152,29 @@ def _wait_until_gone(client, label, timeout=30):
     raise AssertionError(f"{client.name}: {label!r} never went away")
 
 
-def audio_actually_arrives(a, b):
+def sfu_state(room_id):
+    """One line per participant: who the SFU holds, in what state, with which tracks muted or not."""
+    rows = []
+    for p in sfu_participants(room_id):
+        tracks = ",".join(f"{t.get('source')}{'(muted)' if t.get('muted') else ''}"
+                          for t in p.get("tracks", []))
+        rows.append(f"{p.get('identity', '?')[:13]} {p.get('state')} [{tracks}]")
+    return "; ".join(rows) or "no participants"
+
+
+def media_state(client):
+    """What one page says about the audio it sends and receives, for a failure message."""
+    import e2e_audio
+
+    probe = e2e_audio.AudioProbe(client)
+    try:
+        return {"listening": probe.listening(), "senders": probe.senders(),
+                "received_bytes_in_3s": probe.received_over(3)}
+    except Exception as err:  # a dead page must not hide the failure being explained
+        return {"unreadable": str(err)}
+
+
+def audio_actually_arrives(a, b, room_id=None):
     """Sound crossing the SFU, rather than tracks merely being present.
 
     `join_call` already proves both participants are ACTIVE with an unmuted
@@ -181,8 +203,15 @@ def audio_actually_arrives(a, b):
     passes any level at the default sensitivity, so this reduces to whatever
     the SFU reports.
     """
-    a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
-    b.wait_for(f"Alice{L.SPEAKING}", timeout=45)
+    try:
+        a.wait_for(f"Bob{L.SPEAKING}", timeout=45)
+        b.wait_for(f"Alice{L.SPEAKING}", timeout=45)
+    except AssertionError:
+        if room_id:
+            print(f"    SFU at the failure: {sfu_state(room_id)}")
+        for client in (a, b):
+            print(f"    {client.name} at the failure: {json.dumps(media_state(client))}")
+        raise
     a.shot("audio-arrives")
     print("  each client hears the other: the speaking ring lit on both")
 

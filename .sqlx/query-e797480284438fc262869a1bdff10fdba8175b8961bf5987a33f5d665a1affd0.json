@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE group_dm_members SET added_by = NULL WHERE added_by = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "e797480284438fc262869a1bdff10fdba8175b8961bf5987a33f5d665a1affd0"
+}

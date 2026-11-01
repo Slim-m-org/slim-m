@@ -15,16 +15,74 @@ RemoteVideoQualityRef _pub(
   List<lk.VideoQuality> asked, {
   bool subscribed = true,
   String sid = 'TR_1',
+  String key = 'camera:ada',
 }) =>
     (
       sid: sid,
+      key: key,
       source: source,
       subscribed: subscribed,
       setQuality: (q) async => asked.add(q),
     );
 
 void main() {
+  group('EnlargedVideo', () {
+    test('a tile stays held until every hold on it lets go', () {
+      final enlarged = EnlargedVideo();
+      var changes = 0;
+      final fullscreen = enlarged.hold('screen:ada', () => changes++);
+      final popout = enlarged.hold('screen:ada', () => changes++);
+
+      fullscreen();
+      fullscreen();
+      expect(enlarged.keys, {'screen:ada'});
+      popout();
+
+      expect(enlarged.keys, isEmpty);
+      expect(changes, 4);
+    });
+  });
+
   group('applyReceiveVideoQuality', () {
+    test('an enlarged share is lifted to the top layer and capped again after',
+        () async {
+      final share = <lk.VideoQuality>[];
+      final camera = <lk.VideoQuality>[];
+      final lowered = <String>{};
+      List<RemoteVideoQualityRef> refs() => [
+            _pub(lk.TrackSource.screenShareVideo, share,
+                sid: 'TR_2', key: 'screen:ada'),
+            _pub(lk.TrackSource.camera, camera, key: 'camera:ada'),
+          ];
+
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered);
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered,
+          enlarged: {'screen:ada'});
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered);
+
+      expect(share, [
+        lk.VideoQuality.MEDIUM,
+        lk.VideoQuality.HIGH,
+        lk.VideoQuality.MEDIUM
+      ]);
+      expect(camera, everyElement(lk.VideoQuality.LOW),
+          reason: 'the grid tile stays capped');
+    });
+
+    test('enlarging under auto changes nothing', () async {
+      final share = <lk.VideoQuality>[];
+      await applyReceiveVideoQuality(
+          [_pub(lk.TrackSource.screenShareVideo, share, key: 'screen:ada')],
+          ReceiveVideoQuality.auto,
+          {},
+          enlarged: {'screen:ada'});
+
+      expect(share, isEmpty);
+    });
+
     test('data saver caps a camera low and a share medium', () async {
       final camera = <lk.VideoQuality>[];
       final share = <lk.VideoQuality>[];

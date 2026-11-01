@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! `Event::MessageUnpinned` and `Event::ThreadUpdated` on the bulk-delete
+//! `MessageEvent::Unpinned` and `MessageEvent::ThreadUpdated` on the bulk-delete
 //! path (MOD12).
 //!
 //! Split out of `message_bulk_delete.rs` to stay under the file budget: that
@@ -15,7 +15,7 @@ use axum::http::StatusCode;
 use serde_json::json;
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::{MessageId, UserId};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::Store;
@@ -162,10 +162,12 @@ async fn bulk_delete_fires_message_unpinned_and_one_thread_updated() {
     let mut last_reply_count = None;
     while let Ok(event) = rx.try_recv() {
         match event {
-            Event::MessageUnpinned { message_id, .. } if message_id == pinned_reply => {
+            Event::Message(MessageEvent::Unpinned { message_id, .. })
+                if message_id == pinned_reply =>
+            {
                 unpinned = true;
             }
-            Event::ThreadUpdated { reply_count, .. } => {
+            Event::Message(MessageEvent::ThreadUpdated { reply_count, .. }) => {
                 thread_updates += 1;
                 last_reply_count = Some(reply_count);
             }

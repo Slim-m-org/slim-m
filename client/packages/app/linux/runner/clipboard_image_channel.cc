@@ -3,6 +3,8 @@
 
 #include <gtk/gtk.h>
 
+#include <cstring>
+
 namespace {
 
 // Shared with the Dart stub and the mobile implementations.
@@ -81,6 +83,71 @@ void HandleWriteImage(FlMethodCall* call) {
   fl_method_call_respond_success(call, nullptr, nullptr);
 }
 
+enum FileTarget { kUriList, kGnomeCopiedFiles, kPlainText };
+
+void ProvideCopiedFile(GtkClipboard* clipboard, GtkSelectionData* selection,
+                       guint info, gpointer user_data) {
+  const gchar* uri = static_cast<const gchar*>(user_data);
+  if (info == kGnomeCopiedFiles) {
+    g_autoptr(GString) payload = g_string_new("copy\n");
+    g_string_append(payload, uri);
+    gtk_selection_data_set(selection, gtk_selection_data_get_target(selection),
+                           8, reinterpret_cast<const guchar*>(payload->str),
+                           payload->len);
+  } else if (info == kUriList) {
+    g_autoptr(GString) payload = g_string_new(uri);
+    g_string_append(payload, "\r\n");
+    gtk_selection_data_set(selection, gtk_selection_data_get_target(selection),
+                           8, reinterpret_cast<const guchar*>(payload->str),
+                           payload->len);
+  } else {
+    gtk_selection_data_set_text(selection, uri, -1);
+  }
+}
+
+// The clipboard owns the URI until another copy replaces it.
+void ReleaseCopiedFile(GtkClipboard* clipboard, gpointer user_data) {
+  g_free(user_data);
+}
+
+// Offers a file already on disk the way a file manager's Copy does, so a paste
+// elsewhere receives the file itself rather than its bytes.
+void HandleWriteFile(FlMethodCall* call) {
+  FlValue* args = fl_method_call_get_args(call);
+  if (fl_value_get_type(args) != FL_VALUE_TYPE_STRING) {
+    fl_method_call_respond_error(call, "write_failed",
+                                 "The file could not be copied.", nullptr,
+                                 nullptr);
+    return;
+  }
+  g_autoptr(GError) error = nullptr;
+  gchar* uri = g_filename_to_uri(fl_value_get_string(args), nullptr, &error);
+  if (uri == nullptr) {
+    fl_method_call_respond_error(call, "write_failed",
+                                 "The file could not be copied.", nullptr,
+                                 nullptr);
+    return;
+  }
+  static const GtkTargetEntry targets[] = {
+      {const_cast<gchar*>("x-special/gnome-copied-files"), 0, kGnomeCopiedFiles},
+      {const_cast<gchar*>("text/uri-list"), 0, kUriList},
+      {const_cast<gchar*>("UTF8_STRING"), 0, kPlainText},
+      {const_cast<gchar*>("text/plain;charset=utf-8"), 0, kPlainText},
+  };
+  gboolean set = gtk_clipboard_set_with_data(
+      DefaultClipboard(), targets, G_N_ELEMENTS(targets), ProvideCopiedFile,
+      ReleaseCopiedFile, uri);
+  if (!set) {
+    g_free(uri);
+    fl_method_call_respond_error(call, "write_failed",
+                                 "The clipboard refused the file.", nullptr,
+                                 nullptr);
+    return;
+  }
+  gtk_clipboard_set_can_store(DefaultClipboard(), nullptr, 0);
+  fl_method_call_respond_success(call, nullptr, nullptr);
+}
+
 void HandleMethodCall(FlMethodChannel* channel, FlMethodCall* method_call,
                       gpointer user_data) {
   const gchar* method = fl_method_call_get_name(method_call);
@@ -90,6 +157,8 @@ void HandleMethodCall(FlMethodChannel* channel, FlMethodCall* method_call,
     HandleReadImage(method_call);
   } else if (g_strcmp0(method, "writeImage") == 0) {
     HandleWriteImage(method_call);
+  } else if (g_strcmp0(method, "writeFile") == 0) {
+    HandleWriteFile(method_call);
   } else {
     fl_method_call_respond_not_implemented(method_call, nullptr);
   }

@@ -39,7 +39,7 @@ import '../../../providers/providers.dart' show sessionProvider;
 import '../../../routing/modal_page.dart' show kScrimColor;
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
-import 'image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../../../widgets/text_link.dart';
 import 'youtube_inline_player.dart';
 import '../../../widgets/animation_gate.dart';

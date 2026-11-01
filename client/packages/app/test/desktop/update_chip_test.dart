@@ -19,6 +19,7 @@ import 'package:slimm_app/src/desktop/update_watch.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 
 ClientUpdate _update(String version) => ClientUpdate(
@@ -95,9 +96,7 @@ void main() {
   testWidgets('frameless chrome shows the chip and no banner strip', (
     tester,
   ) async {
-    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(null, active: true, frameless: true);
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
@@ -105,6 +104,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          desktopWindowShellProvider.overrideWithValue(shell),
           inSessionUpdateProvider.overrideWith((ref) => _update('9.9.9')),
         ],
         child: MaterialApp(

@@ -15,7 +15,7 @@ use axum::Router;
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
@@ -45,6 +45,10 @@ pub fn routes() -> Router<AppState> {
             get(get_session).put(set_session).delete(end_session),
         )
         .route("/channels/{channelId}/watch-session/tick", post(tick))
+        .route(
+            "/channels/{channelId}/watch-session/viewing",
+            put(report_viewing),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
 }
 
@@ -66,10 +70,54 @@ struct WatchSessionDto {
     ttl_ms: i64,
     /// The server clock at this read, so a reader can correct for its own skew.
     server_time_ms: i64,
+    /// What the bot offers a viewer who plays the title themselves, if anything.
+    direct_play: Option<DirectPlay>,
+    /// Members who say they are playing the title themselves right now.
+    direct_viewer_ids: Vec<String>,
+}
+
+/// How a viewer can reach the media server, and who the bot has linked to an account there.
+#[derive(Serialize, Deserialize)]
+struct DirectPlay {
+    base_url: String,
+    #[serde(default)]
+    verified_user_ids: Vec<String>,
+    #[serde(default)]
+    unverified_user_ids: Vec<String>,
+}
+
+const MAX_BASE_URL_CHARS: usize = 300;
+const MAX_LINKED: usize = 500;
+
+impl DirectPlay {
+    fn validate(&self) -> Result<(), ApiError> {
+        let url_ok = (self.base_url.starts_with("http://")
+            || self.base_url.starts_with("https://"))
+            && plain_text(&self.base_url, MAX_BASE_URL_CHARS)
+            && !self.base_url.chars().any(char::is_whitespace);
+        if !url_ok {
+            return Err(ApiError::BadRequest(
+                "direct_play.base_url is not a plain http(s) address",
+            ));
+        }
+        let ids = self
+            .verified_user_ids
+            .iter()
+            .chain(&self.unverified_user_ids);
+        if self.verified_user_ids.len() > MAX_LINKED
+            || self.unverified_user_ids.len() > MAX_LINKED
+            || ids.into_iter().any(|id| parse_uuid(id).is_err())
+        {
+            return Err(ApiError::BadRequest(
+                "direct_play has too many or malformed user ids",
+            ));
+        }
+        Ok(())
+    }
 }
 
 impl WatchSessionDto {
-    fn new(s: WatchSession, server_time_ms: i64) -> Self {
+    fn new(s: WatchSession, server_time_ms: i64, direct_viewers: Vec<UserId>) -> Self {
         Self {
             channel_id: s.channel_id.to_string(),
             bot_user_id: s.bot_user_id.to_string(),
@@ -83,6 +131,10 @@ impl WatchSessionDto {
             controller_user_id: s.controller_user_id.map(|u| u.to_string()),
             ttl_ms: WATCH_SESSION_TTL_MS,
             server_time_ms,
+            direct_play: s
+                .direct_play
+                .and_then(|json| serde_json::from_str(&json).ok()),
+            direct_viewer_ids: direct_viewers.iter().map(ToString::to_string).collect(),
         }
     }
 }
@@ -110,7 +162,11 @@ async fn get_session(
         .await?
         .filter(|s| state.voice.has_heartbeat(s.bot_user_id, channel_id))
         .ok_or(NONE)?;
-    Ok(Json(WatchSessionDto::new(session, now)))
+    let viewers = state
+        .voice
+        .watch_viewing()
+        .direct_viewers_at(channel_id, std::time::Instant::now());
+    Ok(Json(WatchSessionDto::new(session, now, viewers)))
 }
 
 #[derive(Deserialize)]
@@ -126,6 +182,8 @@ struct SetSessionRequest {
     seeked: bool,
     #[serde(default)]
     controller_user_id: Option<String>,
+    #[serde(default)]
+    direct_play: Option<DirectPlay>,
 }
 
 fn plain_text(value: &str, max_chars: usize) -> bool {
@@ -149,7 +207,16 @@ impl SetSessionRequest {
         if !in_range(self.position_ms) || !self.duration_ms.is_none_or(in_range) {
             return Err(ApiError::BadRequest("a time is out of range"));
         }
+        if let Some(direct) = &self.direct_play {
+            direct.validate()?;
+        }
+        let direct_play = self
+            .direct_play
+            .map(|d| serde_json::to_string(&d))
+            .transpose()
+            .map_err(|_| ApiError::BadRequest("direct_play cannot be stored"))?;
         Ok(WatchSessionWrite {
+            direct_play,
             item_id: self.item_id,
             title: self.title,
             duration_ms: self.duration_ms,
@@ -218,6 +285,9 @@ fn require_in_call(state: &AppState, bot: UserId, channel_id: ChannelId) -> Resu
 }
 
 fn publish_tick(state: &AppState, channel_id: ChannelId, sample: WatchSample, ended: bool) {
+    if ended {
+        state.voice.watch_viewing().clear(channel_id);
+    }
     state.hub.publish(Event::WatchTick {
         channel_id,
         bot_user_id: sample.bot_user_id,
@@ -331,5 +401,44 @@ async fn end_session(
         .await?
         .ok_or(ApiError::NotFound("no watch session"))?;
     publish_tick(&state, channel_id, sample, true);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct ViewingRequest {
+    direct: bool,
+}
+
+/// A member on the call says whether they are playing the title themselves,
+/// so the bot knows when nobody needs its shared stream. Restated every few
+/// seconds; a report that stops arriving reads as the shared track.
+async fn report_viewing(
+    Authed(ctx): Authed,
+    parts: Parts,
+    State(state): State<AppState>,
+    Path(channel_id): Path<String>,
+    Json(req): Json<ViewingRequest>,
+) -> Result<StatusCode, ApiError> {
+    enforce(&state, &parts, Some(&ctx), Class::WatchTick)?;
+    let channel_id = ChannelId(parse_uuid(&channel_id)?);
+    let caller = state
+        .store
+        .permissions_in_channel(ctx.user_id, channel_id)
+        .await?;
+    if !caller.contains(Permissions::VIEW_CHANNEL) {
+        return Err(ApiError::NotFound("no watch session"));
+    }
+    if state.store.is_bot(ctx.user_id).await? {
+        return Err(ApiError::Forbidden);
+    }
+    if !state.voice.has_heartbeat(ctx.user_id, channel_id) {
+        return Err(ApiError::ForbiddenBecause("you are not on this call"));
+    }
+    state.voice.watch_viewing().report_at(
+        channel_id,
+        ctx.user_id,
+        req.direct,
+        std::time::Instant::now(),
+    );
     Ok(StatusCode::NO_CONTENT)
 }

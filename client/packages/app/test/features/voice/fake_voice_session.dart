@@ -240,6 +240,20 @@ class FakeSession with VideoQualityRecorder implements VoiceSession {
   @override
   bool get screenShareSourcePickerUseful => sourcePickerUseful;
 
+  final sourceLost = StreamController<String>.broadcast();
+
+  @override
+  Stream<String> get screenShareSourceLost => sourceLost.stream;
+
+  final enlargedHolds = <String>[];
+  final enlargedReleases = <String>[];
+
+  @override
+  VoidCallback holdEnlargedVideo(String tileKey) {
+    enlargedHolds.add(tileKey);
+    return () => enlargedReleases.add(tileKey);
+  }
+
   @override
   Future<List<ScreenShareSource>> screenShareSources() async {
     sourceListings++;

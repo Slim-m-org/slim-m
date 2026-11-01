@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use super::AppState;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE, Query};
-use super::module_run::{RunKind, RunRequest, run_installed};
+use super::module_run::{RunContext, RunKind, RunRequest, run_installed};
 use super::module_slot_cache::{FILL_WAIT, SlotKey};
 use super::module_slot_nodes::{SlotItem, parse_response};
 use crate::ids::UserId;
@@ -262,6 +262,7 @@ async fn run_slot(
         command: SLOT_COMMAND,
         input: &input,
         kind: RunKind::Slot,
+        context: RunContext::default(),
     };
     let outcome = match run_installed(state, module, &request, surface).await {
         Ok(outcome) if super::module_breaker::was_turned_away(&outcome) => return None,

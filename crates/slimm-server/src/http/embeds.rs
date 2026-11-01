@@ -16,7 +16,8 @@ use serde::Serialize;
 use super::AppState;
 use super::error::ApiError;
 use super::link_preview::LinkPreviews;
-use crate::hub::Event;
+use crate::ephemeral::EphemeralEmbed;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{Embed as StoreEmbed, NewEmbed};
 
@@ -138,6 +139,17 @@ pub(crate) fn dtos_from_stored(
     link_previews: &LinkPreviews,
     stored: Vec<StoreEmbed>,
 ) -> Vec<EmbedDto> {
+    resolve_tokens(link_previews, stored)
+        .into_iter()
+        .map(EmbedDto::from)
+        .collect()
+}
+
+/// Resolves each embed's image tokens for a message that is never stored.
+pub(crate) fn resolve_tokens(
+    link_previews: &LinkPreviews,
+    stored: Vec<StoreEmbed>,
+) -> Vec<EphemeralEmbed> {
     stored
         .into_iter()
         .map(|embed| {
@@ -145,9 +157,19 @@ pub(crate) fn dtos_from_stored(
             let image_token = image_url.and_then(|url| link_previews.embed_image_token(url));
             let thumbnail_token =
                 thumbnail_url.and_then(|url| link_previews.embed_image_token(url));
-            to_dto(embed, image_token, thumbnail_token)
+            EphemeralEmbed {
+                embed,
+                image_token,
+                thumbnail_token,
+            }
         })
         .collect()
+}
+
+impl From<EphemeralEmbed> for EmbedDto {
+    fn from(e: EphemeralEmbed) -> Self {
+        to_dto(e.embed, e.image_token, e.thumbnail_token)
+    }
 }
 
 /// `raw` built into embeds, only when `caller` is a bot.
@@ -196,11 +218,13 @@ pub(crate) async fn after_edit(
     }
     let stored = store_and_reload(state, message_id, false, &[]).await?;
     if replacement.is_some() {
-        state.hub.publish(Event::MessageEmbedsChanged {
-            channel_id,
-            message_id,
-            embeds: Arc::new(stored.clone()),
-        });
+        state
+            .hub
+            .publish(Event::Message(MessageEvent::EmbedsChanged {
+                channel_id,
+                message_id,
+                embeds: Arc::new(stored.clone()),
+            }));
     }
     Ok(dtos_from_stored(&state.link_previews, stored))
 }

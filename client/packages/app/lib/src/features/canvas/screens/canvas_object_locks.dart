@@ -11,6 +11,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
 import 'canvas_retry.dart';
+import 'canvas_state_versions.dart';
 
 class CanvasObjectLocks {
   CanvasObjectLocks({
@@ -30,14 +31,16 @@ class CanvasObjectLocks {
 
   bool isLocked(String objectId) => ids.value.contains(objectId);
 
+  final _versions = CanvasStateVersions();
+
   // A fetch or a lock call can still be in flight when the pane closes.
   bool _disposed = false;
 
   /// A failed read leaves the last known set standing rather than blocking the canvas.
   Future<void> fetch() async {
-    final Set<String> fetched;
+    final api.CanvasObjectLockPage page;
     try {
-      fetched = await retryCanvasRequest(
+      page = await retryCanvasRequest(
         () => client.canvasObjectLocks(channelId),
       );
     } on api.ApiException catch (error, stack) {
@@ -49,18 +52,28 @@ class CanvasObjectLocks {
       );
       return;
     }
-    if (!_disposed) ids.value = fetched;
+    if (_disposed) return;
+    // A frame newer than this read already settled its object; the read must not undo it.
+    final held = _versions.newerThan(page.version);
+    ids.value = {
+      for (final id in page.objectIds)
+        if (!held.contains(id)) id,
+      for (final id in held)
+        if (ids.value.contains(id)) id,
+    };
+    _versions.applySnapshot(page.version);
   }
 
   void applyRemote(api.CanvasObjectLockChanged event) {
     if (event.channelId != channelId) return;
+    if (!_versions.accept(event.objectId, event.version)) return;
     _set(event.objectId, event.locked);
   }
 
   /// Locks or unlocks [objectId] at once and reverts if the server refuses.
   /// Returns false on a refusal, so the caller can say it did not stick.
   Future<bool> setLocked(String objectId, bool locked) async {
-    final before = ids.value;
+    final before = isLocked(objectId);
     _set(objectId, locked);
     try {
       await retryCanvasRequest(
@@ -76,7 +89,8 @@ class CanvasObjectLocks {
         error,
         stack,
       );
-      if (!_disposed) ids.value = before;
+      // Only this object, and only while it still holds the optimistic value, so a newer frame for it or any other object survives.
+      if (!_disposed && isLocked(objectId) == locked) _set(objectId, before);
       onError?.call('That could not be ${locked ? 'locked' : 'unlocked'}.');
       return false;
     }

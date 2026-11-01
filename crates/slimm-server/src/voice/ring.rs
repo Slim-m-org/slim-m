@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 //! Tracks the single outstanding "somebody is being rung" attempt for a DM
-//! channel.
+//! channel: one callee in a pair, every other participant in a group.
 //!
 //! Deliberately in-memory and keyed on the channel alone, the same call
 //! `heartbeat.rs` already makes for the SFU's own join bookkeeping: a ring is
@@ -31,8 +31,17 @@ pub const RING_TIMEOUT: Duration = Duration::from_secs(30);
 struct RingState {
     ring_id: CallRingId,
     caller_id: UserId,
-    callee_id: UserId,
+    callees: Vec<UserId>,
     started_at: Instant,
+}
+
+/// What a decline did to its ring.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Declined {
+    pub ring_id: CallRingId,
+    pub caller_id: UserId,
+    /// Nobody is left to answer, so the ring is over.
+    pub ended: bool,
 }
 
 /// One outstanding ring per DM channel, keyed on the channel.
@@ -55,7 +64,7 @@ impl CallRings {
         &self,
         channel_id: ChannelId,
         caller_id: UserId,
-        callee_id: UserId,
+        callees: &[UserId],
     ) -> (CallRingId, Option<(CallRingId, UserId)>) {
         let ring_id = CallRingId::generate();
         let replaced = lock(&self.state).insert(
@@ -63,7 +72,7 @@ impl CallRings {
             RingState {
                 ring_id,
                 caller_id,
-                callee_id,
+                callees: callees.to_vec(),
                 started_at: Instant::now(),
             },
         );
@@ -80,20 +89,30 @@ impl CallRings {
     /// [`Self::decline`] does: the call record this writes is attributed to
     /// whoever placed the call, and the callee is the only one here.
     pub fn answer(&self, channel_id: ChannelId, callee_id: UserId) -> Option<(CallRingId, UserId)> {
-        self.take_if(channel_id, |ring| ring.callee_id == callee_id)
+        self.take_if(channel_id, |ring| ring.callees.contains(&callee_id))
             .map(|ring| (ring.ring_id, ring.caller_id))
     }
 
-    /// The callee explicitly declined, the same match rule [`Self::answer`]
-    /// uses. Reports the ring id and the caller, so the caller's own
-    /// dangling SFU participant can be evicted.
-    pub fn decline(
-        &self,
-        channel_id: ChannelId,
-        callee_id: UserId,
-    ) -> Option<(CallRingId, UserId)> {
-        self.take_if(channel_id, |ring| ring.callee_id == callee_id)
-            .map(|ring| (ring.ring_id, ring.caller_id))
+    /// The callee explicitly declined. A pair's only callee ending it is the
+    /// whole ring; in a group the ring goes on for the others until the last
+    /// one declines. `None` if nothing was outstanding for them.
+    pub fn decline(&self, channel_id: ChannelId, callee_id: UserId) -> Option<Declined> {
+        let mut state = lock(&self.state);
+        let ring = state.get_mut(&channel_id)?;
+        if !ring.callees.contains(&callee_id) {
+            return None;
+        }
+        ring.callees.retain(|callee| *callee != callee_id);
+        let (ring_id, caller_id) = (ring.ring_id, ring.caller_id);
+        let ended = ring.callees.is_empty();
+        if ended {
+            state.remove(&channel_id);
+        }
+        Some(Declined {
+            ring_id,
+            caller_id,
+            ended,
+        })
     }
 
     /// The caller hung up (or left the call) before it was answered - the
@@ -129,7 +148,7 @@ impl CallRings {
         let state = lock(&self.state);
         let mut found: Vec<_> = state
             .iter()
-            .filter(|(_, ring)| ring.callee_id == callee_id)
+            .filter(|(_, ring)| ring.callees.contains(&callee_id))
             .filter_map(|(&channel_id, ring)| {
                 let left = RING_TIMEOUT.checked_sub(now.duration_since(ring.started_at))?;
                 Some((
@@ -225,7 +244,7 @@ mod tests {
     fn the_callee_answering_clears_the_ring_and_reports_its_id() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee).0;
+        let ring_id = rings.start(channel, caller, &[callee]).0;
 
         assert_eq!(
             rings.answer(channel, callee).map(|(id, _)| id),
@@ -247,7 +266,7 @@ mod tests {
     fn a_swept_ring_can_no_longer_be_answered() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee);
+        rings.start(channel, caller, &[callee]);
 
         let swept = rings.sweep_stale_at(Instant::now() + RING_TIMEOUT);
         assert_eq!(swept.len(), 1, "sanity: the ring really did time out");
@@ -262,7 +281,7 @@ mod tests {
     fn an_answered_ring_is_no_longer_there_for_the_sweep_to_time_out() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee);
+        rings.start(channel, caller, &[callee]);
 
         assert!(rings.answer(channel, callee).is_some());
         assert!(
@@ -277,7 +296,7 @@ mod tests {
     fn a_ring_past_its_timeout_is_not_listed_as_outstanding() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee);
+        rings.start(channel, caller, &[callee]);
         let now = Instant::now();
 
         assert_eq!(rings.outstanding_for_at(callee, now).len(), 1);
@@ -293,7 +312,7 @@ mod tests {
     fn a_stray_heartbeat_from_somebody_else_does_not_answer_the_ring() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee);
+        rings.start(channel, caller, &[callee]);
 
         assert_eq!(rings.answer(channel, uid()), None, "not the named callee");
         // Still outstanding: a real answer from the actual callee still works.
@@ -304,17 +323,63 @@ mod tests {
     fn declining_clears_the_ring_and_reports_the_caller_to_evict() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee).0;
+        let ring_id = rings.start(channel, caller, &[callee]).0;
 
-        assert_eq!(rings.decline(channel, callee), Some((ring_id, caller)));
+        assert_eq!(
+            rings.decline(channel, callee),
+            Some(Declined {
+                ring_id,
+                caller_id: caller,
+                ended: true
+            })
+        );
         assert_eq!(rings.decline(channel, callee), None);
+    }
+
+    #[test]
+    fn a_group_ring_answers_for_everyone_when_any_callee_joins() {
+        let rings = CallRings::new();
+        let (channel, caller, first, second) = (cid(), uid(), uid(), uid());
+        let ring_id = rings.start(channel, caller, &[first, second]).0;
+
+        assert_eq!(rings.outstanding_for_at(second, Instant::now()).len(), 1);
+        assert_eq!(
+            rings.answer(channel, first).map(|(id, _)| id),
+            Some(ring_id)
+        );
+        assert_eq!(rings.answer(channel, second), None, "already answered");
+        assert!(rings.outstanding_for_at(second, Instant::now()).is_empty());
+    }
+
+    #[test]
+    fn a_group_ring_goes_on_until_the_last_callee_declines() {
+        let rings = CallRings::new();
+        let (channel, caller, first, second) = (cid(), uid(), uid(), uid());
+        let ring_id = rings.start(channel, caller, &[first, second]).0;
+
+        let one = rings.decline(channel, first).expect("first decline");
+        assert!(!one.ended);
+        assert_eq!(rings.decline(channel, first), None, "declined twice");
+        assert!(rings.outstanding_for_at(first, Instant::now()).is_empty());
+        assert_eq!(rings.outstanding_for_at(second, Instant::now()).len(), 1);
+
+        let last = rings.decline(channel, second).expect("last decline");
+        assert_eq!(
+            (last.ring_id, last.caller_id, last.ended),
+            (ring_id, caller, true)
+        );
+        assert!(
+            rings
+                .sweep_stale_at(Instant::now() + RING_TIMEOUT)
+                .is_empty()
+        );
     }
 
     #[test]
     fn the_caller_canceling_is_matched_on_the_caller_not_the_callee() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee).0;
+        let ring_id = rings.start(channel, caller, &[callee]).0;
 
         assert_eq!(rings.cancel(channel, callee), None, "not the caller");
         assert_eq!(rings.cancel(channel, caller), Some(ring_id));
@@ -324,8 +389,8 @@ mod tests {
     fn starting_a_second_ring_for_the_same_channel_replaces_the_first() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let first = rings.start(channel, caller, callee).0;
-        let second = rings.start(channel, caller, callee).0;
+        let first = rings.start(channel, caller, &[callee]).0;
+        let second = rings.start(channel, caller, &[callee]).0;
 
         assert_ne!(first, second, "each attempt mints a fresh id");
         assert_eq!(
@@ -338,7 +403,7 @@ mod tests {
     fn a_ring_under_the_timeout_is_not_swept() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        rings.start(channel, caller, callee);
+        rings.start(channel, caller, &[callee]);
 
         assert!(
             rings
@@ -351,7 +416,7 @@ mod tests {
     fn a_ring_past_the_timeout_is_swept_and_reports_the_caller() {
         let rings = CallRings::new();
         let (channel, caller, callee) = (cid(), uid(), uid());
-        let ring_id = rings.start(channel, caller, callee).0;
+        let ring_id = rings.start(channel, caller, &[callee]).0;
 
         let past = Instant::now() + RING_TIMEOUT + Duration::from_secs(1);
         assert_eq!(rings.sweep_stale_at(past), [(channel, ring_id, caller)]);

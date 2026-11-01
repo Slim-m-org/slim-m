@@ -6,18 +6,19 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../../providers/desktop_message_notifier.dart';
+import '../../../desktop/providers/desktop_message_notifier.dart';
 import '../../../providers/direct_route_controller.dart';
 import '../../../providers/media_disk_caches.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_controller.dart';
-import '../../../providers/retention_sweep.dart';
+import '../../../push/providers/push_controller.dart';
+import '../../messages/providers/retention_sweep.dart';
 import '../../../providers/sync_controller.dart';
 import '../../../providers/viewing_reporter.dart';
 import '../../messages/providers/attachment_preview_bytes.dart';
 import '../../channels/providers/channel_notification_overrides_controller.dart';
 import '../../members/providers/activity_publisher.dart';
 import '../../members/providers/presence_activity_reporter.dart';
+import '../../screen_overlay/providers/screen_overlay_controller.dart';
 import '../../voice/providers/voice_move_follower.dart';
 import '../../members/providers/blocks_controller.dart';
 import '../../settings/providers/notification_schedule_controller.dart';
@@ -43,6 +44,7 @@ void startAccountServices(ProviderContainer container) {
   container.listen(holdMusicControllerProvider, (_, _) {});
   container.listen(activityPublisherProvider, (_, _) {});
   container.listen(voiceMoveFollowerProvider, (_, _) {});
+  container.listen(screenOverlayControllerProvider, (_, _) {});
   container.listen(notificationScheduleProvider, (_, _) {});
   container.listen(retentionSweepControllerProvider, (_, _) {});
 }

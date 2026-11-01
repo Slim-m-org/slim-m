@@ -1,8 +1,38 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'canvas_document_fuzz_run.dart';
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:slimm_voice_canvas/voice_canvas.dart';
+
+import 'canvas_document_model.dart';
 
 /// What [DocumentFuzzRun] holds the document to after every step.
-extension DocumentFuzzChecks on DocumentFuzzRun {
+class DocumentFuzzChecks {
+  DocumentFuzzChecks(this.document, this.model, this.violate);
+
+  final CanvasDocument document;
+  final DocumentModel model;
+  final void Function(String category, String detail) violate;
+  final Map<String, Offset> _graveyard = {};
+
+  void run() {
+    document.refresh();
+    final alive = model.alive.toList();
+    if (document.objectCount.value != alive.length) {
+      violate(
+        'objectCount',
+        'objectCount=${document.objectCount.value}, live objects=${alive.length}',
+      );
+    }
+    _checkFields(alive);
+    _checkGrid(alive);
+    _checkPaintOrder(alive);
+    _checkHitTests(alive);
+    _checkSelection();
+    _checkBoard();
+    _checkAggregates(alive);
+  }
+
   void _checkFields(List<ModelObject> alive) {
     for (final o in model.known.values) {
       if (document.knows(o.id) != true) {

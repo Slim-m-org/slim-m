@@ -13,7 +13,7 @@ app="${here}/../client/packages/app"
 
 cd "${app}"
 rm -rf build/ui-snapshots
-SLIMM_UI_SNAPSHOTS=1 flutter test test/ui_snapshot_*_test.dart "$@"
+SLIMM_UI_SNAPSHOTS=1 flutter test test/ui_snapshot_*_test.dart test/snapshots/ui_snapshot_*_test.dart "$@"
 
 echo
 echo "wrote:"

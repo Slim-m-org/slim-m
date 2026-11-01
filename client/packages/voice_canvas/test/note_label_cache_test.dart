@@ -167,24 +167,24 @@ void main() {
     debugResetNoteLabelLayoutCounts();
     final cache = NoteLabelCache();
 
-    cache.painterFor('n', ('hi', 10, 10, 0), _build);
-    cache.painterFor('n', ('hi', 10, 10, 0), _build);
+    cache.painterFor('n', ('hi', 10, 10, 0, 12), _build);
+    cache.painterFor('n', ('hi', 10, 10, 0, 12), _build);
     expect(debugNoteLabelLayoutCounts['n'], 1, reason: 'same key, one layout');
 
-    cache.painterFor('n', ('hi', 20, 10, 0), _build);
+    cache.painterFor('n', ('hi', 20, 10, 0, 12), _build);
     expect(debugNoteLabelLayoutCounts['n'], 2, reason: 'width changed');
 
-    cache.painterFor('n', ('bye', 20, 10, 0), _build);
+    cache.painterFor('n', ('bye', 20, 10, 0, 12), _build);
     expect(debugNoteLabelLayoutCounts['n'], 3, reason: 'text changed');
 
-    cache.painterFor('n', ('bye', 20, 10, 1), _build);
+    cache.painterFor('n', ('bye', 20, 10, 1, 12), _build);
     expect(debugNoteLabelLayoutCounts['n'], 4, reason: 'spans revision bumped');
   });
 
   test('retain drops cached text for notes no longer present', () {
     final cache = NoteLabelCache();
-    cache.painterFor('a', ('a', 10, 10, 0), _build);
-    cache.painterFor('b', ('b', 10, 10, 0), _build);
+    cache.painterFor('a', ('a', 10, 10, 0, 12), _build);
+    cache.painterFor('b', ('b', 10, 10, 0, 12), _build);
     expect(cache.size, 2);
 
     cache.retain({'a'});

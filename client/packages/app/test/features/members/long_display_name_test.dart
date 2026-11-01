@@ -8,7 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_api/api.dart' as api;
-import 'package:slimm_app/src/features/canvas/widgets/canvas_participants_sheet.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_people_panel.dart';
 import 'package:slimm_app/src/features/channels/widgets/rail_voice_participants.dart';
 import 'package:slimm_app/src/features/members/providers/bot_ui_uses.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
@@ -275,14 +275,18 @@ void main() {
     testWidgets('canvas participant row: $name', (tester) async {
       await tester.pumpWidget(
         _app(
-          CanvasParticipantRow(
-            participant: VoiceParticipant(
-              identity: 'u1',
+          CanvasPersonRow(
+            person: CanvasPerson(
+              id: 'u1',
               name: name,
-              isSpeaking: false,
-              isMuted: true,
-              isLocal: false,
-              isScreenSharing: false,
+              participant: VoiceParticipant(
+                identity: 'u1',
+                name: name,
+                isSpeaking: false,
+                isMuted: true,
+                isLocal: false,
+                isScreenSharing: false,
+              ),
             ),
           ),
           width: 320,

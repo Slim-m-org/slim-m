@@ -11,7 +11,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api show Me;
-import 'package:slimm_api/api.dart' show LogTag, SlimmApiUsers, reportFailure;
+import 'package:slimm_api/api.dart' show LogTag, reportFailure;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
@@ -26,6 +26,7 @@ import '../../settings/widgets/settings_section_header.dart';
 import 'identity_row.dart';
 import 'profile_banner.dart';
 import 'profile_colour_field.dart';
+import '../providers/member_actions.dart';
 
 /// The server's cap on a profile picture, less room for the encoder's overhead.
 const int _maxBytes = 2 * 1024 * 1024 - 64 * 1024;
@@ -71,7 +72,7 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
     );
     await _run(
       'upload the banner',
-      () => ref.read(apiProvider).uploadBanner(fitted),
+      () => ref.read(memberActionsProvider).uploadBanner(fitted),
     );
   }
 
@@ -147,7 +148,7 @@ class _BannerSettingsRowState extends ConsumerState<BannerSettingsRow>
                     ? () => unawaited(
                         _run(
                           'remove the banner',
-                          () => ref.read(apiProvider).deleteBanner(),
+                          () => ref.read(memberActionsProvider).deleteBanner(),
                         ),
                       )
                     : null,

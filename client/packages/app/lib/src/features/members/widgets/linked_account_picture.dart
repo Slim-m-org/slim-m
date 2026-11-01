@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 
-import '../../messages/widgets/image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../providers/linked_avatar_bytes.dart';
 import 'user_avatar.dart';
 

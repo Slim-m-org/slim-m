@@ -26,6 +26,7 @@ export 'models_dock.dart';
 export 'models_dock_changelog.dart';
 export 'models_dock_activity.dart';
 export 'models_dock_platform.dart';
+export 'models_module_hooks.dart';
 export 'models_bot_form.dart';
 export 'models_components.dart';
 export 'models_embeds.dart';

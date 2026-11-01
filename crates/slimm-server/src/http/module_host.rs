@@ -18,7 +18,8 @@ use uuid::Uuid;
 use super::AppState;
 use super::channel_slow_mode::enforce_slow_mode;
 use super::messages::validate_content;
-use crate::hub::Event;
+use super::module_hooks::{Draft, HookPoint, intercept};
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::module_runtime::{
     CapabilitySurface, KvBackend, KvError, MAX_ENTRIES, MAX_TOTAL_BYTES, MessagePoster, PostRefused,
@@ -29,7 +30,7 @@ use crate::store::{InstalledModule, KvSetError, ModuleStamp, NewMessage, Store};
 
 /// The capabilities this host implements behind `slim.host_call`. A manifest
 /// may declare others (it is free text); none of them can ever be approved.
-pub(crate) const HOST_CAPABILITIES: [&str; 7] = [
+pub(crate) const HOST_CAPABILITIES: [&str; 9] = [
     "kv.store",
     "message.post",
     "net.fetch",
@@ -37,10 +38,12 @@ pub(crate) const HOST_CAPABILITIES: [&str; 7] = [
     "events",
     "data.store",
     "log.read",
+    "interceptors",
+    "permission.hook",
 ];
 
 /// Approved like the others, but a permission to be run, not a host call.
-const NOT_HOST_CALLS: [&str; 2] = ["schedule", "events"];
+const NOT_HOST_CALLS: [&str; 4] = ["schedule", "events", "interceptors", "permission.hook"];
 
 /// Most keys a `list` returns; equal to the entry cap, so it is never truncated.
 const LIST_LIMIT: i64 = MAX_ENTRIES as i64;
@@ -87,6 +90,19 @@ pub(crate) fn surface_for(
     channel: Option<ChannelId>,
 ) -> CapabilitySurface {
     surface_posting_as(state, module, user_id, channel, false)
+}
+
+/// The surface for a run the host starts (an event or a timer): the module's
+/// own principal in its schedule channel when it has one, else nowhere.
+pub(crate) fn background_surface(
+    state: &AppState,
+    module: &InstalledModule,
+    bot: UserId,
+) -> CapabilitySurface {
+    match module.schedule_channel_id {
+        Some(channel) => scheduled_surface(state, module, bot, channel),
+        None => surface_posting_as(state, module, bot, None, true),
+    }
 }
 
 /// The surface for a scheduled run: it posts as the module's own principal
@@ -186,7 +202,7 @@ pub(crate) async fn post_command_output(
 }
 
 /// Line breaks and tabs are ordinary text; any other invisible character is not.
-fn hides_text(content: &str) -> bool {
+pub(crate) fn hides_text(content: &str) -> bool {
     content
         .split(['\n', '\r', '\t'])
         .any(crate::hidden_chars::hides_text_outside_emoji)
@@ -211,6 +227,14 @@ impl crate::module_runtime::SecretSource for StoredSecrets {
         }
         self.handle
             .block_on(self.store.module_secret(&self.module_id, key))
+    }
+
+    fn hosts(&self, key: &str) -> Vec<String> {
+        self.declared
+            .iter()
+            .find(|d| d.key == key)
+            .map(|d| d.hosts.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -321,7 +345,22 @@ impl ChannelPoster {
             .map_err(|_| PostRefused("slow mode is active in that channel"))?;
 
         let id = MessageId::generate();
-        let mut message = NewMessage::plain(channel_id, self.user_id, id, content);
+        let intercepted = intercept(
+            state,
+            &Draft {
+                point: HookPoint::PreSend,
+                channel_id,
+                actor: self.user_id,
+                reply_to: self.reply_to,
+                content,
+                carries_more: false,
+                own_module: Some(&self.module_id),
+            },
+        )
+        .await
+        .map_err(|_| PostRefused("a hook on this server refused that message"))?;
+        let mut message =
+            NewMessage::plain(channel_id, self.user_id, id, intercepted.text(content));
         message.reply_to_id = self.reply_to;
         let stamp = ModuleStamp {
             module_id: &self.module_id,
@@ -334,6 +373,7 @@ impl ChannelPoster {
             .await
             .map_err(|_| PostRefused("message.post is unavailable"))?;
 
+        intercepted.save_annotations(state, id).await;
         // Committed with its attribution; nothing below may fail the call, or a retry duplicates it.
         self.fan_out(&sent.message).await;
         Ok(id)
@@ -363,7 +403,7 @@ impl ChannelPoster {
             tracing::warn!(%err, "module post: mention resolution failed");
         }
         super::read_sync::advance_for_author(state, self.user_id, message).await;
-        state.hub.publish(Event::MessageCreated {
+        state.hub.publish(Event::Message(MessageEvent::Created {
             message: Arc::new(message.clone()),
             attachments: Arc::new(Vec::new()),
             forwarded: None,
@@ -374,7 +414,7 @@ impl ChannelPoster {
             call: None,
             components: Arc::new(Vec::new()),
             lookups: Default::default(),
-        });
+        }));
         state.push.notify_message(
             state.store.clone(),
             crate::push::SentMessage {

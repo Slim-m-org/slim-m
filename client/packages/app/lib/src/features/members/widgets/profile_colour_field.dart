@@ -12,6 +12,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../providers/providers.dart';
 import '../../../widgets/color_swatch_row.dart';
 import 'profile_colour.dart';
+import '../providers/member_actions.dart';
 
 /// Spoken names for [AppCanvasColors.cursors], in the same order.
 const _colourNames = ['Pink', 'Purple', 'Blue', 'Orange', 'Green', 'Magenta'];
@@ -33,13 +34,14 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
   String? _error;
 
   /// A preset sends only the index, which clears any custom colour server-side.
-  Future<void> _setColor(int index) =>
-      _save(() => ref.read(apiProvider).updateMe(profileColor: index));
+  Future<void> _setColor(int index) => _save(
+    () => ref.read(memberActionsProvider).updateMe(profileColor: index),
+  );
 
   /// The nearest preset rides along so older clients still draw something close.
   Future<void> _setCustom(Color colour) => _save(
     () => ref
-        .read(apiProvider)
+        .read(memberActionsProvider)
         .updateMe(
           profileColor: nearestColourIndex(colour, AppCanvasColors.cursors),
           profileColorRgb: rgbOf(colour),
@@ -59,7 +61,7 @@ class _ProfileColourFieldState extends ConsumerState<ProfileColourField> {
   Future<void> _save(Future<Object?> Function() save) async {
     setState(() => _error = null);
     try {
-      if (widget.imageSet) await ref.read(apiProvider).deleteBanner();
+      if (widget.imageSet) await ref.read(memberActionsProvider).deleteBanner();
       await save();
       ref.invalidate(meProvider);
     } on api.ApiException catch (e, stack) {

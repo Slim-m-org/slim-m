@@ -22,6 +22,6 @@ import 'package:slimm_data/data.dart';
 /// sense of.
 String? channelDisplayLabel(Channel? channel) {
   if (channel == null) return null;
-  if (channel.dmParticipantId != null) return channel.name;
+  if (channel.dmParticipantId != null || channel.isGroupDm) return channel.name;
   return '#${channel.name}';
 }

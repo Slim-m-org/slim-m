@@ -37,6 +37,10 @@ pub(super) struct Resolved {
 /// The source id and recorded repo of the operator's local directory.
 pub(crate) const DEV_ID: &str = "dev";
 pub(crate) const DEV_REPO: &str = "local/dev";
+/// The repo recorded for a module installed from a package file.
+pub(crate) const FILE_REPO: &str = "local/file";
+/// The `source` a client names to read or re-approve a module installed from a file.
+pub(crate) const FILE_ID: &str = "file";
 
 #[derive(Deserialize)]
 pub(super) struct SourceQuery {

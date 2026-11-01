@@ -51,7 +51,7 @@ use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
 use super::CanvasObjectDto;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId};
 use crate::media;
 use crate::permissions::Permissions;
@@ -200,10 +200,10 @@ pub(in crate::http) async fn place(
 
     // No await between the commit and this call; see `ws::permission_cache`.
     if placement.fresh {
-        state.hub.publish(Event::CanvasObjectPlaced {
+        state.hub.publish(Event::Canvas(CanvasEvent::ObjectPlaced {
             channel_id,
             object: Arc::new(placement.object.clone()),
-        });
+        }));
     }
 
     Ok((

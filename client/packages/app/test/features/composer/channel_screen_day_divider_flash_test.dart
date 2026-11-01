@@ -27,30 +27,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
-
-/// The real controller opens a websocket to a server that is not there. See
-/// `channel_screen_test.dart`, which needs the same seam for the same reason.
-///
-/// Sets [initialSyncCompleteProvider] directly: this fixture seeds real
-/// same-day history and its own assertion is about what happens *after*
-/// catch-up, so it stands in for a session that has already caught up once,
-/// not one still racing its first round (that race is
-/// `channel_screen_day_divider_sync_race_test.dart`'s job). The write is
-/// deferred past a real `await`, or Riverpod refuses it as a provider
-/// modifying another provider mid-initialization - the same reason the real
-/// [SyncController.start] naturally clears this guard by the time it gets
-/// there (its own first `await`, inside `_teardown`, comes first).
-class _NoopSyncController extends SyncController {
-  _NoopSyncController(this._testRef) : super(_testRef);
-
-  final Ref _testRef;
-
-  @override
-  Future<void> start() async {
-    await Future<void>.value();
-    _testRef.read(initialSyncCompleteProvider.notifier).state = true;
-  }
-}
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'bob',
@@ -121,7 +98,7 @@ void main() {
           sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
           storeProvider.overrideWith((ref) async => store),
           syncControllerProvider.overrideWith(
-            (ref) => _NoopSyncController(ref),
+            (ref) => CaughtUpSyncController(ref),
           ),
           mockApiOverride((request) async {
             if (request.method == 'POST' &&

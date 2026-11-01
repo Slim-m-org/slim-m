@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'message_store.dart';
 
 /// Whether the local store holds any message written by [authorId].
 ///

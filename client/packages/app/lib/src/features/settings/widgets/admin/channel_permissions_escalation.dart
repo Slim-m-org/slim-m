@@ -16,17 +16,6 @@ int escalatedBits({
   required int myPermissions,
 }) => ((newAllow & ~oldAllow) | (oldDeny & ~newDeny)) & ~myPermissions;
 
-/// The human names of every permission in [bits], in grid order.
-List<String> permissionLabels(int bits) => [
-  for (final spec in Perm.gridRows)
-    if (bits & spec.bit != 0) spec.label,
-];
-
-/// "A", "A and B" or "A, B and C".
-String joinLabels(List<String> names) => names.length == 1
-    ? names.single
-    : '${names.sublist(0, names.length - 1).join(', ')} and ${names.last}';
-
 /// The sentence a refused save shows, naming what the caller cannot grant.
 String escalationMessage(int bits) {
   final names = permissionLabels(bits);

@@ -11,11 +11,11 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../permissions.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../channels/providers/channel_permissions.dart';
 import '../../members/widgets/member_profile_popover.dart';
 import '../providers/voice_roster.dart';
+import '../providers/voice_actions.dart';
 
 const double _width = 260;
 
@@ -97,7 +97,7 @@ class _MoveDestinationsState extends ConsumerState<MoveDestinations> {
     final failure = await runGuarded(
       whatFailed: 'move ${widget.name} to ${to.name}',
       action: () => ref
-          .read(apiProvider)
+          .read(voiceActionsProvider)
           .moveVoiceParticipant(widget.fromChannelId, widget.userId, to.id),
     );
     if (!mounted) return;

@@ -24,6 +24,8 @@ pub struct WatchSession {
     pub sampled_at: i64,
     pub epoch: i64,
     pub controller_user_id: Option<UserId>,
+    /// The JSON object the bot states about direct play, or `None` when it offers none.
+    pub direct_play: Option<String>,
 }
 
 /// What a bot states when it sets the session.
@@ -36,6 +38,7 @@ pub struct WatchSessionWrite {
     pub position_ms: i64,
     pub seeked: bool,
     pub controller_user_id: Option<UserId>,
+    pub direct_play: Option<String>,
 }
 
 /// Whether a write landed.
@@ -68,6 +71,7 @@ fn from_row(row: &SqliteRow) -> WatchSession {
         sampled_at: row.get("sampled_at"),
         epoch: row.get("epoch"),
         controller_user_id: row.get("controller_user_id"),
+        direct_play: row.get("direct_play"),
     }
 }
 
@@ -130,14 +134,15 @@ impl Store {
         sqlx::query(
             "INSERT INTO watch_sessions
                 (channel_id, bot_user_id, item_id, title, duration_ms, playing,
-                 position_ms, sampled_at, epoch, controller_user_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 position_ms, sampled_at, epoch, controller_user_id, direct_play)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(channel_id) DO UPDATE SET
                 bot_user_id = excluded.bot_user_id, item_id = excluded.item_id,
                 title = excluded.title, duration_ms = excluded.duration_ms,
                 playing = excluded.playing, position_ms = excluded.position_ms,
                 sampled_at = excluded.sampled_at, epoch = excluded.epoch,
-                controller_user_id = excluded.controller_user_id",
+                controller_user_id = excluded.controller_user_id,
+                direct_play = excluded.direct_play",
         )
         .bind(channel)
         .bind(bot)
@@ -149,6 +154,7 @@ impl Store {
         .bind(now)
         .bind(epoch)
         .bind(write.controller_user_id)
+        .bind(&write.direct_play)
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;

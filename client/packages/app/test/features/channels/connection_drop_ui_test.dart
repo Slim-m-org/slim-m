@@ -42,6 +42,7 @@ import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 import '../../support/fake_api.dart';
+import '../../support/fake_sync.dart';
 
 const _tokens = api.TokenPair(
   userId: 'self',
@@ -56,21 +57,6 @@ const _category = ChannelCategoryRow(
   position: 0,
 );
 
-/// Stands in for the real [SyncController], which opens a websocket from its
-/// own constructor as soon as the session is signed in; [start] is
-/// overridden so this stays off the network, and [goOffline] then flips the
-/// state the same way a real dropped socket does.
-class _ToggleSyncController extends SyncController {
-  _ToggleSyncController(super.ref) {
-    state = SyncStatus.live;
-  }
-
-  @override
-  Future<void> start() async {}
-
-  void goOffline() => state = SyncStatus.offline;
-}
-
 /// A container wired like the app's, whose `/me` and `/members` answers flip
 /// from a resolved manager profile and a one-member roster to a real
 /// connection failure - the same kind of error a live app hits when the
@@ -81,7 +67,7 @@ class _ToggleSyncController extends SyncController {
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
-      syncControllerProvider.overrideWith(_ToggleSyncController.new),
+      syncControllerProvider.overrideWith(StubSyncController.new),
       mockApiOverride((request) async {
         if (!connected) {
           throw http.ClientException('connection refused');
@@ -287,7 +273,7 @@ void main() {
     addTearDown(setup.container.dispose);
     final sync =
         setup.container.read(syncControllerProvider.notifier)
-            as _ToggleSyncController;
+            as StubSyncController;
 
     await tester.pumpWidget(
       _harness(
@@ -311,7 +297,7 @@ void main() {
     expect(find.byTooltip('Connected to the server'), findsOneWidget);
 
     setup.disconnect();
-    sync.goOffline();
+    sync.report(SyncStatus.offline);
     await tester.pumpAndSettle();
 
     expect(

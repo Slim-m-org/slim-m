@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_text.dart';
+library;
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:slimm_design_system/design_system.dart';
+import '../../channels/providers/channel_by_id_provider.dart';
+import '../../../routing/routes.dart';
+import '../../emoji/widgets/custom_emoji_image.dart';
+import '../../emoji/widgets/emoji_name_tip.dart';
+import '../../emoji/widgets/emoji_names.dart';
+import 'message_inline.dart';
+import 'message_spoiler.dart';
 
 /// Turning parsed inline nodes into the spans a `Text.rich` draws, plus the
 /// mention chip one of them renders as.
@@ -35,11 +48,11 @@ bool _isRenderableRole(String name, Set<String> knownRoleNames) =>
 /// child span's style onto its parent's at paint time, which is the whole
 /// mechanism nesting rides on: an [InlineBold] wrapping an [InlineItalic]
 /// needs no combined style computed here, each node states only its own diff.
-/// Everything [_buildSpans] needs beyond the nodes themselves, bundled so the
+/// Everything [buildSpans] needs beyond the nodes themselves, bundled so the
 /// recursion passes one value rather than six and so a link can reach both
 /// its colour and the recognizer owner that will dispose it.
-class _InlineContext {
-  const _InlineContext({
+class InlineContext {
+  const InlineContext({
     required this.knownUsernames,
     required this.knownRoleNames,
     required this.customEmoji,
@@ -69,7 +82,7 @@ class _InlineContext {
   final TextSpan Function(String glyph, String name)? makeEmojiNameSpan;
 }
 
-List<InlineSpan> _buildSpans(List<InlineNode> nodes, _InlineContext ctx) => [
+List<InlineSpan> buildSpans(List<InlineNode> nodes, InlineContext ctx) => [
   for (final node in nodes)
     switch (node) {
       InlineText(:final text) => _textWithEmojiNames(text, ctx),
@@ -118,21 +131,21 @@ List<InlineSpan> _buildSpans(List<InlineNode> nodes, _InlineContext ctx) => [
       ),
       InlineBold(:final children) => TextSpan(
         style: const TextStyle(fontWeight: AppWeights.semi),
-        children: _buildSpans(children, ctx),
+        children: buildSpans(children, ctx),
       ),
       InlineItalic(:final children) => TextSpan(
         style: const TextStyle(fontStyle: FontStyle.italic),
-        children: _buildSpans(children, ctx),
+        children: buildSpans(children, ctx),
       ),
       InlineStrikethrough(:final children) => TextSpan(
         style: const TextStyle(decoration: TextDecoration.lineThrough),
-        children: _buildSpans(children, ctx),
+        children: buildSpans(children, ctx),
       ),
       InlineSpoiler(:final children) => WidgetSpan(
         alignment: PlaceholderAlignment.middle,
         child: MessageSpoiler(
           style: ctx.ambientStyle,
-          spans: _buildSpans(children, ctx),
+          spans: buildSpans(children, ctx),
         ),
       ),
     },
@@ -158,8 +171,8 @@ InlineSpan _emojiSpan(String raw, Map<String, String> customEmoji) {
 const int _emojiFloor = 0x2190;
 
 /// [text] with each standard emoji in its own span from
-/// [_InlineContext.makeEmojiNameSpan], the rest left as runs of plain text.
-InlineSpan _textWithEmojiNames(String text, _InlineContext ctx) {
+/// [InlineContext.makeEmojiNameSpan], the rest left as runs of plain text.
+InlineSpan _textWithEmojiNames(String text, InlineContext ctx) {
   final make = ctx.makeEmojiNameSpan;
   if (make == null || !text.runes.any((r) => r >= _emojiFloor)) {
     return TextSpan(text: text);
@@ -278,9 +291,9 @@ List<InlineSpan> inlineTextSpans(
     return recognizer;
   }
 
-  return _buildSpans(
+  return buildSpans(
     parseInline(text),
-    _InlineContext(
+    InlineContext(
       knownUsernames: const {},
       knownRoleNames: const {},
       customEmoji: customEmoji,
@@ -291,3 +304,15 @@ List<InlineSpan> inlineTextSpans(
     ),
   );
 }
+
+/// One line tall: [AppText.body] is 15px at a 1.45 line height, so an inline
+/// emoji is that product rather than a pixel value chosen to look right.
+/// [CustomEmojiImage] defaults to the picker's 20; running text is not the
+/// picker, so it says what it needs.
+final double _emojiSize = AppText.body.fontSize! * AppText.body.height!;
+
+/// The two reserved mentions `crates/slimm-server/src/push/recipients.rs`
+/// resolves specially, never a real account (`validate_username` in
+/// `http/auth.rs` refuses to register either, case-insensitively) - kept
+/// lower-case, matched the same way against a lower-cased [raw].
+const _reservedMentions = {'everyone', 'here'};

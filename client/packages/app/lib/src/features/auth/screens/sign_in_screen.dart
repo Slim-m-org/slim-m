@@ -15,7 +15,7 @@ import '../../first_run/providers/first_run_controller.dart'
     show firstRunInviterProvider;
 import '../../../default_server.dart';
 import '../../../providers/providers.dart';
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_controller.dart';
 import '../providers/sign_in_identity.dart';
 import '../../../routing/routes.dart';
 import '../../../server_address_reduction.dart';
@@ -25,7 +25,7 @@ import '../widgets/onboarding_shell.dart';
 import '../widgets/server_identity_confirmation.dart';
 import '../../../widgets/server_notice.dart';
 import '../../../providers/toasts.dart';
-import '../../../providers/whats_new_controller.dart';
+import '../../../whats_new/providers/whats_new_controller.dart';
 import 'reset_password_sheet.dart';
 import 'sign_in_alternatives.dart';
 import '../widgets/sign_in_credential_fields.dart';

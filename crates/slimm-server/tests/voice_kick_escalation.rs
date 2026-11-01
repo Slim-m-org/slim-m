@@ -291,3 +291,118 @@ async fn a_timeout_on_the_target_is_not_a_lever_to_kick_them() {
          would mean the guard compared effective permissions and let it through"
     );
 }
+
+/// Two members who both hold KICK_MEMBERS in a channel, as one call's
+/// moderators of a channel overwrite. Returns the store, its guard, the
+/// channel and the two accounts with bob's token.
+async fn two_kickers(
+    name: &str,
+) -> (
+    Store,
+    support::TestDbGuard,
+    slimm_server::store::Channel,
+    slimm_server::ids::UserId,
+    String,
+    slimm_server::ids::UserId,
+) {
+    let (store, guard) = support::new_store(name).await;
+    let alice = store
+        .create_account("alice", "alice", "not-a-real-hash")
+        .await
+        .unwrap();
+    store.bootstrap_deployment(alice.id).await.unwrap();
+    let channel = store.create_channel("lounge", "voice").await.unwrap();
+    let mut ids = Vec::new();
+    for who in ["bob", "carol"] {
+        let account = store
+            .create_account(who, who, "not-a-real-hash")
+            .await
+            .unwrap();
+        store
+            .set_member_overwrite(
+                channel.id,
+                account.id,
+                Permissions::VIEW_CHANNEL.union(Permissions::KICK_MEMBERS),
+                Permissions::NONE,
+            )
+            .await
+            .unwrap();
+        ids.push(account.id);
+    }
+    let bob_token = store
+        .open_session(ids[0], "cli")
+        .await
+        .unwrap()
+        .access_token;
+    (store, guard, channel, ids[0], bob_token, ids[1])
+}
+
+async fn kick_status(
+    store: &Store,
+    channel: &slimm_server::store::Channel,
+    target: slimm_server::ids::UserId,
+    token: &str,
+) -> (StatusCode, String) {
+    let response = app(store.clone(), unreachable_voice())
+        .oneshot(request(
+            "POST",
+            &format!(
+                "/channels/{}/voice/participants/{}/kick",
+                channel.id, target
+            ),
+            Some(token),
+        ))
+        .await
+        .unwrap();
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// Equal rank in a call: both hold KICK_MEMBERS in the channel and neither
+/// holds a role, so neither can kick the other (owner decision 2026-10-28).
+#[tokio::test]
+async fn an_equal_rank_peer_cannot_be_voice_kicked() {
+    let (store, _guard, channel, _bob, bob_token, carol) =
+        two_kickers("slimm-voice-kick-rank-test").await;
+    let (status, body) = kick_status(&store, &channel, carol, &bob_token).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert!(
+        body.contains("equal rank"),
+        "the client explains it: {body}"
+    );
+}
+
+/// A higher role outranks: bob's role sits above carol's, so the kick gets
+/// past the guards (the unreachable SFU answers next), and not the reverse.
+#[tokio::test]
+async fn a_higher_role_can_voice_kick_a_lower_one_and_not_the_reverse() {
+    let (store, _guard, channel, bob, bob_token, carol) =
+        two_kickers("slimm-voice-kick-rank-test").await;
+    let mods = store
+        .create_role("mods", Permissions::NONE, false)
+        .await
+        .unwrap();
+    let regulars = store
+        .create_role("regulars", Permissions::NONE, false)
+        .await
+        .unwrap();
+    let mut order = vec![mods, regulars];
+    for role in store.list_roles().await.unwrap() {
+        if !role.is_everyone && !order.contains(&role.id) {
+            order.push(role.id);
+        }
+    }
+    store.reorder_roles(&order).await.unwrap();
+    store.assign_role(bob, mods).await.unwrap();
+    store.assign_role(carol, regulars).await.unwrap();
+
+    let (status, _) = kick_status(&store, &channel, carol, &bob_token).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "past every guard");
+
+    let carol_token = store.open_session(carol, "cli").await.unwrap().access_token;
+    let (status, _) = kick_status(&store, &channel, bob, &carol_token).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "a lower role cannot kick up");
+}

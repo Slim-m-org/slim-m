@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/settings/providers/display_preferences.da
 import 'package:slimm_app/src/routing/breakpoints.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import 'support/fake_desktop_window_port.dart';
+import 'support/desktop_shell_fixture.dart';
 
 typedef _Seen = ({LayoutClass layout, double width, bool reduceMotion});
 
@@ -25,14 +25,13 @@ void main() {
     WidgetTester tester,
     List<_Seen> seen,
   ) async {
-    DesktopWindowShell.debugPort = FakeDesktopWindowPort();
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    final shell = shellFor(null, active: true, frameless: true);
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final container = ProviderContainer(
       overrides: [
+        desktopWindowShellProvider.overrideWithValue(shell),
         // The chrome keeps the real watcher alive; its periodic timer is not under test.
         updateWatcherProvider.overrideWith(
           (ref) => UpdateWatcher(ref, shouldRun: () => false),

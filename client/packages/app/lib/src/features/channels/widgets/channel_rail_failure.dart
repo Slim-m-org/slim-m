@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/sync_failure.dart';
+import '../../../sync/providers/sync_failure.dart';
 
 /// A failure the rail is willing to show, with the recovery that actually
 /// applies to it.

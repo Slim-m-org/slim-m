@@ -39,7 +39,6 @@ use axum::routing::post;
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
-use super::code_fences::code_block;
 use super::error::ApiError;
 use super::extract::{AuthedLimited, Json, MODULE};
 use super::hidden_chars::is_hidden_char;
@@ -49,8 +48,9 @@ use super::module_commands::{
 };
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
-use crate::hub::Event;
-use crate::ids::MessageId;
+use crate::code_fences::code_block;
+use crate::hub::{Event, MessageEvent};
+use crate::ids::{ChannelId, MessageId, UserId};
 use crate::store::{CodeRunRecord, MAX_SHARED_OUTPUT_BYTES, clamp_output};
 
 /// A code block's input is a whole snippet, so this matches the run route's
@@ -123,7 +123,8 @@ async fn run(
     }
 
     // A surface has one board, and its state is the server's, not the presser's.
-    let block_index = if surface.is_some() { 0 } else { block_index };
+    let on_surface = surface.is_some();
+    let block_index = if on_surface { 0 } else { block_index };
     // A surface's input is the module's own; a plain message runs only its own stored block, never the caller's claim of it.
     let code = match surface {
         Some(_) => held_input(&state, message_id, &req.input).await?,
@@ -142,33 +143,39 @@ async fn run(
     let outcome = if req.module_id == CODE_RUNNER_MODULE_ID {
         execute_code_runner(&state, permissions, ctx.user_id, &req.command, &code).await?
     } else {
-        execute_command(&state, ctx.user_id, &req.module_id, &req.command, &code).await?
+        execute_command(
+            &state,
+            ctx.user_id,
+            &req.module_id,
+            &req.command,
+            &code,
+            message.channel_id,
+        )
+        .await?
     };
     let (ok, stored) = stored_payload(req.module_id == CODE_RUNNER_MODULE_ID, outcome);
-    let ran_at = state
-        .store
-        .record_code_run(CodeRunRecord {
-            message_id,
-            block_index,
-            module_id: &req.module_id,
-            command: &req.command,
-            ok,
-            output: &stored,
-            ran_by: ctx.user_id,
-        })
-        .await?;
-
-    state.hub.publish(Event::CodeRunChanged {
-        channel_id: message.channel_id,
-        message_id,
+    // A private scene answers the person who pressed and is neither stored nor shown to anyone else.
+    if on_surface && ok && is_private_scene(&stored) {
+        return Ok(Json(RunResponse {
+            ok: true,
+            output: Some(stored),
+            error: None,
+        }));
+    }
+    publish_run(
+        &state,
+        (message_id, message.channel_id),
+        (&req.module_id, &req.command),
+        (ok, &stored, ctx.user_id),
         block_index,
-        module_id: req.module_id,
-        command: req.command,
-        ok,
-        output: stored.as_str().into(),
-        ran_by: Some(ctx.user_id),
-        ran_at,
-    });
+    )
+    .await?;
+    if on_surface && ok {
+        match super::scene_refresh::requested_ms(&stored) {
+            Some(ms) => super::scene_refresh::note(&state, message_id, ms, None).await,
+            None => super::scene_refresh::stop(&state, message_id).await,
+        }
+    }
 
     let response = if ok {
         RunResponse {
@@ -186,8 +193,55 @@ async fn run(
     Ok(Json(response))
 }
 
+/// Stores a surface's latest frame and tells everyone watching the channel.
+pub(super) async fn publish_run(
+    state: &AppState,
+    (message_id, channel_id): (MessageId, ChannelId),
+    (module_id, command): (&str, &str),
+    (ok, output, ran_by): (bool, &str, UserId),
+    block_index: i64,
+) -> Result<(), ApiError> {
+    let ran_at = state
+        .store
+        .record_code_run(CodeRunRecord {
+            message_id,
+            block_index,
+            module_id,
+            command,
+            ok,
+            output,
+            ran_by,
+        })
+        .await?;
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::CodeRunChanged {
+            channel_id,
+            message_id,
+            block_index,
+            module_id: module_id.to_owned(),
+            command: command.to_owned(),
+            ok,
+            output: output.into(),
+            ran_by: Some(ran_by),
+            ran_at,
+        }));
+    Ok(())
+}
+
+/// Whether `payload` is a scene that asks to be shown only to whoever pressed (decision 0099).
+pub(super) fn is_private_scene(payload: &str) -> bool {
+    if !payload.contains("\"private\"") {
+        return false;
+    }
+    serde_json::from_str::<serde_json::Value>(payload).is_ok_and(|scene| {
+        scene.get("$slim").and_then(|v| v.as_str()) == Some("scene/1")
+            && scene.get("private") == Some(&serde_json::Value::Bool(true))
+    })
+}
+
 /// A surface frame's input with `state` taken from the last scene stored for it.
-async fn held_input(
+pub(super) async fn held_input(
     state: &AppState,
     message_id: MessageId,
     input: &str,
@@ -205,7 +259,7 @@ async fn held_input(
 
 /// Text may be byte-clamped; a scene is JSON, and a cut scene is garbage the
 /// client cannot parse, so an over-ceiling scene is refused whole instead.
-fn stored_payload(is_text: bool, outcome: CommandOutcome) -> (bool, String) {
+pub(super) fn stored_payload(is_text: bool, outcome: CommandOutcome) -> (bool, String) {
     if is_text {
         return (outcome.ok, clamp_output(&outcome.payload));
     }

@@ -85,6 +85,22 @@ extension _CanvasPaneHelpers on _CanvasPaneState {
       ? (flags.error ?? 'The call was dropped.')
       : null;
 
+  /// The tiles of blocked callers, kept in the default layout so blocking someone moves nobody else's slot.
+  Set<String> _blockedTileKeys() {
+    final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));
+    if (channelId != widget.channelId) return const {};
+    final blocks = ref.watch(blocksProvider);
+    return presenceTileKeys([
+      for (final p
+          in ref
+              .watch(
+                voiceParticipantsProvider.select(CanvasCallParticipants.new),
+              )
+              .participants)
+        if (blocks.contains(p.identity)) p,
+    ]);
+  }
+
   /// Who to show as a camera or share bubble: nobody unless this device joined a call in this channel, since without one there is no LiveKit room to render from.
   List<VoiceParticipant> _callParticipants() {
     final channelId = ref.watch(voiceFlagsProvider.select((f) => f.channelId));

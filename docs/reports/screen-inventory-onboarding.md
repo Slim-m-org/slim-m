@@ -5,7 +5,7 @@ Covers the join flow before an account exists, the sign-in/create-account screen
 
 Two harnesses exist.
 "Surfaces harness" means `client/packages/app/test/ui_snapshot_test.dart`'s `_surfaces` map.
-"Overlay harness" means `client/packages/app/test/ui_overlay_snapshot_test.dart`'s `_overlays` map.
+"Overlay harness" means `client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart`'s `_overlays` map.
 Neither harness drives a dialog open, submits a form, or forces a probe result in this flow, so almost everything below is uncaptured even though the routes themselves render.
 
 ## Onboarding root (`/join`)

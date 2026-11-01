@@ -10,10 +10,10 @@
 /// while typing "Party Parrot" instead of finding out afterwards.
 library;
 
-/// The longest name the server keeps, matching `MAX_NAME_LEN` in
-/// `crates/slimm-server/src/emoji.rs`. Measured after normalising, as the
-/// server measures it.
-const int maxEmojiNameLength = 32;
+import 'package:slimm_api/api.dart' show InputLimits;
+
+/// The longest name the server keeps, measured after normalising as it does.
+const int maxEmojiNameLength = InputLimits.emojiName;
 
 const int _space = 0x20;
 const int _hyphen = 0x2D;

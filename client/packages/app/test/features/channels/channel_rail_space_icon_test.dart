@@ -13,7 +13,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_app/src/providers/direct_route.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/providers/sync_controller.dart';
-import 'package:slimm_app/src/providers/sync_failure.dart';
+import 'package:slimm_app/src/sync/providers/sync_failure.dart';
 import 'package:slimm_app/src/features/channels/widgets/channel_rail_frame.dart';
 import 'package:slimm_app/src/widgets/space_connection_dot.dart';
 import 'package:slimm_app/src/widgets/space_icon.dart';

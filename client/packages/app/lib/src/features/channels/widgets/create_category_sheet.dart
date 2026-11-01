@@ -12,13 +12,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:slimm_api/api.dart';
-import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
+import '../providers/channel_actions.dart';
 
 Future<void> showCreateCategorySheet(BuildContext context) {
   final id = newCategoryId();
@@ -39,11 +37,7 @@ class _CreateCategorySheet extends ConsumerWidget {
       noun: 'category',
       title: 'Create a category',
       onCreate: (name) async {
-        final created = await ref
-            .read(apiProvider)
-            .createCategory(name, id: id);
-        final store = await ref.read(storeProvider.future);
-        await store.upsertCategory(created);
+        await ref.read(channelActionsProvider).createCategory(name, id: id);
         return null;
       },
     );

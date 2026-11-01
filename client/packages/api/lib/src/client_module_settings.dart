@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// An installed module's settings. Both routes require MANAGE_SERVER.
 extension SlimmApiModuleSettings on SlimmApi {
   Future<ModuleSettingsDoc> moduleSettings(String moduleId) async {
-    final json = await _send('GET', '/space/dock/modules/$moduleId/settings');
+    final json = await send('GET', '/space/dock/modules/$moduleId/settings');
     return ModuleSettingsDoc.fromJson(json);
   }
 
@@ -14,7 +19,7 @@ extension SlimmApiModuleSettings on SlimmApi {
     String moduleId,
     Map<String, Object?> values,
   ) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/space/dock/modules/$moduleId/settings',
       body: {'values': values},

@@ -10,11 +10,11 @@ import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
 
 import '../providers/channel_by_id_provider.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
+import '../providers/channel_actions.dart';
 
 class ChannelJoinMutedSection extends ConsumerStatefulWidget {
   const ChannelJoinMutedSection({super.key, required this.channel});
@@ -36,14 +36,9 @@ class _ChannelJoinMutedSectionState
     joinMuted,
     whatFailed: 'change join muted',
     action: () async {
-      final updated = await ref
-          .read(apiProvider)
-          .updateChannel(
-            widget.channel.id,
-            ChannelUpdate(joinMuted: joinMuted),
-          );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([updated]);
+      await ref
+          .read(channelActionsProvider)
+          .update(widget.channel.id, ChannelUpdate(joinMuted: joinMuted));
     },
     refresh: channelByIdProvider(widget.channel.id),
   );

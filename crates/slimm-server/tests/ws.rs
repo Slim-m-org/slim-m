@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
 use slimm_server::http::{self};
-use slimm_server::hub::Event;
+use slimm_server::hub::{CanvasEvent, Event, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{NewMessage, Store};
@@ -223,7 +223,7 @@ async fn a_store_error_authorizing_fan_out_closes_the_connection() {
         ))
         .await
         .unwrap();
-    state.hub.publish(Event::MessageCreated {
+    state.hub.publish(Event::Message(MessageEvent::Created {
         message: Arc::new(sent.message),
         attachments: Arc::new(Vec::new()),
         forwarded: None,
@@ -234,7 +234,7 @@ async fn a_store_error_authorizing_fan_out_closes_the_connection() {
         call: None,
         components: Arc::new(Vec::new()),
         lookups: Default::default(),
-    });
+    }));
 
     let closed = tokio::time::timeout(Duration::from_secs(2), wait_closed(&mut bob_ws)).await;
     assert!(
@@ -278,13 +278,13 @@ async fn ephemeral_lag_skips_forward_without_closing_or_blocking_durable_events(
 
     // Comfortably past any plausible ephemeral capacity, not tied to the exact tuning.
     for _ in 0..5_000 {
-        state.hub.publish(Event::CanvasCursorMoved {
+        state.hub.publish(Event::Canvas(CanvasEvent::CursorMoved {
             channel_id: channel.id,
             user_id: alice,
             x: 0.0,
             y: 0.0,
             left: false,
-        });
+        }));
     }
 
     let uri = format!("/channels/{}/messages", channel.id);
@@ -342,11 +342,11 @@ async fn durable_lag_still_forces_a_resync_close() {
 
     // Comfortably past any plausible durable capacity; see the test above for the tight-loop reason.
     for _ in 0..5_000 {
-        state.hub.publish(Event::MessageDeleted {
+        state.hub.publish(Event::Message(MessageEvent::Deleted {
             channel_id: channel.id,
             message_id: MessageId::generate(),
             op_seq: None,
-        });
+        }));
     }
 
     let frame = read_frame(&mut bob_ws).await;

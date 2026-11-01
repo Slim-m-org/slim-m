@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The discovery and use halves of bot-contributed UI; a bot registers its own
 /// entries from its process. See docs/decisions/0045-bot-contributed-ui.md.
 extension SlimmApiBotUi on SlimmApi {
   /// What each bot adds to menus and calls in [channelId].
   Future<List<ChannelBotUi>> listChannelBotUi(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/bot-ui');
+    final json = await send('GET', '/channels/$channelId/bot-ui');
     return (json as List<dynamic>)
         .map((b) => ChannelBotUi.fromJson(b as Map<String, dynamic>))
         .toList(growable: false);
@@ -21,7 +26,7 @@ extension SlimmApiBotUi on SlimmApi {
     required String messageId,
     required String id,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/bot-ui/$botId/interactions',
         body: {
@@ -41,7 +46,7 @@ extension SlimmApiBotUi on SlimmApi {
     required String id,
     String? optionId,
   }) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/bot-ui/$botId/interactions',
         body: {

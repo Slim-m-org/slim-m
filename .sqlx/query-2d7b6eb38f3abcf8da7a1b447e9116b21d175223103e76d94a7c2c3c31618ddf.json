@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE bot_command_registrations SET prefix = ?, updated_at = ? WHERE bot_user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2d7b6eb38f3abcf8da7a1b447e9116b21d175223103e76d94a7c2c3c31618ddf"
+}

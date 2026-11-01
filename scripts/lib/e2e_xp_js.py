@@ -7,6 +7,13 @@ share because they run on one machine, so a send time in one page and a
 receive time in the other subtract directly.
 """
 
+# Served same-origin by e2e_web_server: the page's CSP allows a worklet only from 'self', never a blob.
+TAP_WORKLET = (
+    'class T extends AudioWorkletProcessor{process(i){var c=i[0][0];'
+    'if(c)this.port.postMessage({d:c.slice(0),f:currentFrame});return true;}}'
+    'registerProcessor("xp-tap",T);'
+)
+
 # Keeps the microphone stream the app opened, so a local tap can listen to what is being sent.
 STASH = r"""
 (function(){
@@ -102,11 +109,7 @@ TAP = r"""
     try {
     var ctx = new AudioContext({sampleRate: 48000});
     await ctx.resume();
-    var code = 'class T extends AudioWorkletProcessor{process(i){var c=i[0][0];'
-      + 'if(c)this.port.postMessage({d:c.slice(0),f:currentFrame});return true;}}'
-      + 'registerProcessor("xp-tap",T);';
-    var url = URL.createObjectURL(new Blob([code], {type: 'text/javascript'}));
-    await ctx.audioWorklet.addModule(url);
+    await ctx.audioWorklet.addModule('/__e2e/xp-tap.js');
     var node = new AudioWorkletNode(ctx, 'xp-tap', {numberOfOutputs: 0});
     node.port.onmessage = function(e){
       var arrived = performance.now();

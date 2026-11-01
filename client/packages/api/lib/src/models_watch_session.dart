@@ -3,6 +3,37 @@
 /// See docs/decisions/0050-watch-party-sync-authority-and-direct-play.md.
 library;
 
+/// How a viewer can reach the media server, and which members the bot has
+/// linked to an account there.
+class WatchDirectPlay {
+  const WatchDirectPlay({
+    required this.baseUrl,
+    this.verifiedUserIds = const [],
+    this.unverifiedUserIds = const [],
+  });
+
+  final String baseUrl;
+
+  /// Members whose media server account the bot has verified.
+  final List<String> verifiedUserIds;
+
+  /// Members linked only by a claimed name.
+  final List<String> unverifiedUserIds;
+
+  factory WatchDirectPlay.fromJson(Map<String, dynamic> json) =>
+      WatchDirectPlay(
+        baseUrl: json['base_url'] as String,
+        verifiedUserIds: [
+          for (final id in json['verified_user_ids'] as List? ?? const [])
+            id as String,
+        ],
+        unverifiedUserIds: [
+          for (final id in json['unverified_user_ids'] as List? ?? const [])
+            id as String,
+        ],
+      );
+}
+
 class WatchSession {
   const WatchSession({
     required this.channelId,
@@ -17,6 +48,8 @@ class WatchSession {
     required this.serverTimeMs,
     this.durationMs,
     this.controllerUserId,
+    this.directPlay,
+    this.directViewerIds = const [],
   });
 
   final String channelId;
@@ -44,6 +77,12 @@ class WatchSession {
   /// is how stale the sample is, on one clock.
   final int serverTimeMs;
 
+  /// What the bot offers a viewer who plays the title themselves, if anything.
+  final WatchDirectPlay? directPlay;
+
+  /// Members who reported playing the title themselves in the last 20 seconds.
+  final List<String> directViewerIds;
+
   factory WatchSession.fromJson(Map<String, dynamic> json) => WatchSession(
         channelId: json['channel_id'] as String,
         botUserId: json['bot_user_id'] as String,
@@ -57,5 +96,14 @@ class WatchSession {
         controllerUserId: json['controller_user_id'] as String?,
         ttlMs: json['ttl_ms'] as int,
         serverTimeMs: json['server_time_ms'] as int,
+        directPlay: json['direct_play'] == null
+            ? null
+            : WatchDirectPlay.fromJson(
+                json['direct_play'] as Map<String, dynamic>,
+              ),
+        directViewerIds: [
+          for (final id in json['direct_viewer_ids'] as List? ?? const [])
+            id as String,
+        ],
       );
 }

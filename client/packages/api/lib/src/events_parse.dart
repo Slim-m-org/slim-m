@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'events.dart';
+library;
+
+import 'events.dart';
+import 'models.dart';
+import 'events_tallies.dart';
 
 /// Handshake, keepalive and error frames.
-ServerEvent? _coreFrame(Map<String, dynamic> decoded) {
+ServerEvent? coreFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'hello' => HelloEvent(protocol: decoded['protocol'] as int? ?? 0),
     'category.changed' => const CategoryChanged(),
     'reports.changed' => const ReportsChanged(),
     'pong' => const PongEvent(),
     'error' => ErrorEvent(decoded['message'] as String? ?? 'unknown'),
+    'dm.changed' when decoded['channel_id'] is String =>
+      DmChanged(channelId: decoded['channel_id'] as String),
     _ => null,
   };
 }
 
 /// Message lifecycle, reaction, pin, thread and poll frames.
-ServerEvent? _messageFrame(Map<String, dynamic> decoded) {
+ServerEvent? messageFrame(Map<String, dynamic> decoded) {
   final message = decoded['message'];
   return switch (decoded['type']) {
     'message.created' when message is Map<String, dynamic> => MessageCreated(
@@ -116,7 +122,7 @@ ServerEvent? _messageFrame(Map<String, dynamic> decoded) {
 }
 
 /// Typing, read state, interactive component and ephemeral frames.
-ServerEvent? _overlayFrame(Map<String, dynamic> decoded) {
+ServerEvent? overlayFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'typing.started'
         when decoded['channel_id'] is String && decoded['user_id'] is String =>
@@ -199,14 +205,14 @@ ServerEvent? _overlayFrame(Map<String, dynamic> decoded) {
 }
 
 /// Presence, member, role, channel and device frames.
-ServerEvent? _rosterFrame(Map<String, dynamic> decoded) {
+ServerEvent? rosterFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'presence.changed'
         when decoded['user_id'] is String &&
-            _presenceStateOf(decoded['status']) != null =>
+            presenceStateOf(decoded['status']) != null =>
       PresenceChanged(
         userId: decoded['user_id'] as String,
-        status: _presenceStateOf(decoded['status'])!,
+        status: presenceStateOf(decoded['status'])!,
         activity: PresenceActivity.tryFromJson(decoded['activity']),
         devices: PresenceDevice.parseAll(decoded['devices']),
       ),
@@ -283,7 +289,7 @@ ServerEvent? _rosterFrame(Map<String, dynamic> decoded) {
 }
 
 /// Voice, call and watch-party frames.
-ServerEvent? _voiceFrame(Map<String, dynamic> decoded) {
+ServerEvent? voiceFrame(Map<String, dynamic> decoded) {
   return switch (decoded['type']) {
     'voice.activity' when decoded['channel_id'] is String =>
       VoiceActivityChanged(channelId: decoded['channel_id'] as String),
@@ -349,3 +355,10 @@ ServerEvent? _voiceFrame(Map<String, dynamic> decoded) {
     _ => null,
   };
 }
+
+/// Resolves a frame's raw `status` string to a known [PresenceState], or null
+/// for anything else (including a non-string), so a future server addition
+/// is ignored the same way an unrecognized frame type is rather than
+/// throwing out of an enum lookup.
+PresenceState? presenceStateOf(Object? raw) =>
+    PresenceState.values.where((s) => s.name == raw).firstOrNull;

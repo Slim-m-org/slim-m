@@ -49,6 +49,9 @@ pub struct Column {
     pub unique: bool,
     #[serde(default)]
     pub index: bool,
+    /// A text column holding a member's user id; the host deletes those rows when the account goes.
+    #[serde(default)]
+    pub member: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,6 +116,12 @@ fn check_columns(table: &Table) -> Result<(), String> {
     }
     for (i, column) in table.columns.iter().enumerate() {
         check_identifier(&column.name, "column")?;
+        if column.member && column.ty != ColumnType::Text {
+            return Err(format!(
+                "column {}.{} marks a member id, so it must be text",
+                table.name, column.name
+            ));
+        }
         if table.columns[..i].iter().any(|c| c.name == column.name) {
             return Err(format!(
                 "column {} is declared twice in {}",

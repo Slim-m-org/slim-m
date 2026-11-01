@@ -157,6 +157,9 @@ bool _mentions(String source, String name) =>
 /// Scoped by walking the top-level declarations rather than matching every
 /// indented method in the package: `models.dart` and `events.dart` have their
 /// own `toJson`, `parse` and `close`, none of which is API surface.
+/// Shared plumbing the endpoint libraries call, public only so they can see it across files.
+const _transportHelpers = {'sendStreamed', 'openDownload', 'retryDirectRoute'};
+
 Map<String, String> _publicSlimmApiMethods(Directory apiSrc) {
   final onSlimmApi = RegExp(r'^(class SlimmApi\b|extension \w+ on SlimmApi\b)');
   final topLevel = RegExp(r'^(class |extension |mixin |enum )');
@@ -169,8 +172,8 @@ Map<String, String> _publicSlimmApiMethods(Directory apiSrc) {
   for (final file in apiSrc.listSync().whereType<File>()) {
     if (!file.path.endsWith('.dart')) continue;
     final text = file.readAsStringSync();
-    if (!text.contains("part of 'client.dart'") &&
-        !file.path.endsWith('/client.dart')) {
+    final fileName = file.uri.pathSegments.last;
+    if (!fileName.startsWith('client') || fileName == 'client_transport.dart') {
       continue;
     }
     var inside = false;
@@ -186,7 +189,9 @@ Map<String, String> _publicSlimmApiMethods(Directory apiSrc) {
       if (!inside) continue;
       final match = declaration.firstMatch(line);
       final name = match?.group(1);
-      if (name != null && !name.startsWith('_')) {
+      if (name != null &&
+          !name.startsWith('_') &&
+          !_transportHelpers.contains(name)) {
         found[name] = file.uri.pathSegments.last;
       }
     }

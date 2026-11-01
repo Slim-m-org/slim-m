@@ -19,7 +19,7 @@ import 'package:slimm_app/src/features/first_run/providers/first_run_controller.
 import 'package:slimm_app/src/features/first_run/widgets/first_run_gate.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/providers/push_controller.dart';
+import 'package:slimm_app/src/push/providers/push_controller.dart';
 import 'package:slimm_app/src/routing/routes.dart';
 import 'package:slimm_data/data.dart' hide Message;
 import 'package:slimm_design_system/design_system.dart';

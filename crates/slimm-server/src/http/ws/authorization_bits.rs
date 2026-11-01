@@ -2,7 +2,7 @@
 //! Which permission bit each event needs beyond `VIEW_CHANNEL`, split from
 //! `authorization.rs` for the line budget.
 
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event, MessageEvent};
 use crate::permissions::Permissions;
 
 /// The bit a frame needs beyond `VIEW_CHANNEL`, if any.
@@ -13,33 +13,34 @@ use crate::permissions::Permissions;
 /// would have shipped the next canvas event gated on `VIEW_CHANNEL` alone.
 pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
     match event {
-        Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectPreview { .. }
-        | Event::CanvasMediaSlotPreview { .. }
-        | Event::CanvasView { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasObjectEdited { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. } => Some(Permissions::USE_CANVAS),
-        Event::MessageCreated { .. }
-        | Event::MessageEdited { .. }
-        | Event::MessageDeleted { .. }
-        | Event::ReactionsChanged { .. }
-        | Event::CodeRunChanged { .. }
-        | Event::CodeRunsCleared { .. }
-        | Event::ThreadUpdated { .. }
-        | Event::MessagePinned { .. }
-        | Event::MessageUnpinned { .. }
-        | Event::PollVoted { .. }
-        | Event::MessageComponentsChanged { .. }
-        | Event::MessageEmbedsChanged { .. }
-        | Event::MessageLinkPreviewsRemoved { .. }
+        Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
+        | Event::Canvas(CanvasEvent::Cleared { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRestored { .. })
+        | Event::Canvas(CanvasEvent::CursorMoved { .. })
+        | Event::Canvas(CanvasEvent::StrokePreview { .. })
+        | Event::Canvas(CanvasEvent::ObjectPreview { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview { .. })
+        | Event::Canvas(CanvasEvent::ScreenAnnotation(_))
+        | Event::Canvas(CanvasEvent::View { .. })
+        | Event::Canvas(CanvasEvent::ObjectMoved { .. })
+        | Event::Canvas(CanvasEvent::ObjectReordered { .. })
+        | Event::Canvas(CanvasEvent::ObjectEdited { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => Some(Permissions::USE_CANVAS),
+        Event::Message(MessageEvent::Created { .. })
+        | Event::Message(MessageEvent::Edited { .. })
+        | Event::Message(MessageEvent::Deleted { .. })
+        | Event::Message(MessageEvent::ReactionsChanged { .. })
+        | Event::Message(MessageEvent::CodeRunChanged { .. })
+        | Event::Message(MessageEvent::CodeRunsCleared { .. })
+        | Event::Message(MessageEvent::ThreadUpdated { .. })
+        | Event::Message(MessageEvent::Pinned { .. })
+        | Event::Message(MessageEvent::Unpinned { .. })
+        | Event::Message(MessageEvent::PollVoted { .. })
+        | Event::Message(MessageEvent::ComponentsChanged { .. })
+        | Event::Message(MessageEvent::EmbedsChanged { .. })
+        | Event::Message(MessageEvent::LinkPreviewsRemoved { .. })
         | Event::TypingStarted { .. }
         | Event::TypingStopped { .. }
         | Event::ChannelCreated(..)
@@ -54,6 +55,7 @@ pub(super) fn extra_bit(event: &Event) -> Option<Permissions> {
         // Same again: a DM's own VIEW_CHANNEL already limits this to the pair.
         | Event::CallRinging { .. }
         | Event::CallRingEnded { .. }
+        | Event::DmChanged { .. }
         // Handled earlier in `authorize` and never reach this call.
         | Event::SessionRevoked(_)
         | Event::PresenceChanged(_)

@@ -15,7 +15,7 @@
 /// persist at any pixel ratio; it does not. No code fix follows from this:
 /// clamping ink's on-screen minimum width would break the world-space
 /// model shapes were just made to match (see the note above `_paintShape`
-/// in `canvas_painters_shapes.dart`), and every real target this client
+/// in `canvas_object_painter.dart`), and every real target this client
 /// ships to renders at a device pixel ratio of at least 1 (desktop) or
 /// 2-3 (phone), where a stroke this thin at this zoom is already several
 /// device pixels wide and the artifact does not appear.

@@ -100,7 +100,7 @@ void main() {
     await openOverflowByKeyboard(tester);
     await pressKey(tester, LogicalKeyboardKey.arrowDown);
 
-    for (final item in ['Paste image', 'Enter fullscreen', 'Participants']) {
+    for (final item in ['Paste image', 'Enter fullscreen', 'People here']) {
       expect(await arrowTo(tester, item), isTrue, reason: item);
       expect(await _focusShows(rig), isTrue, reason: item);
     }

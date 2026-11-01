@@ -55,20 +55,26 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
     document.setNoteText(objectId, text);
     document.refresh();
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
           kind: 'edit',
           objectId: objectId,
-          props: {'text': text},
+          props: {
+            'text': text,
+            // An edit replaces the props wholesale, so the size has to travel with it.
+            'font_size': ?document.noteFontSizeOf(objectId),
+          },
         ),
       );
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       if (document.noteTextOf(objectId) == text) {
         document.setNoteText(objectId, before);
         document.refresh();
       }
+      _settleUnknownOutcome(error);
       onError(errorMessage);
       return null;
     }
@@ -80,7 +86,12 @@ extension CanvasOpsControllerEdit on CanvasOpsController {
   Future<void> _regrowNote(String objectId, String text) async {
     final bounds = document.objectBounds(objectId);
     if (bounds == null) return;
-    final box = noteBoxFor(text, width: bounds.w, minHeight: bounds.h);
+    final box = noteBoxFor(
+      text,
+      width: bounds.w,
+      minHeight: bounds.h,
+      fontSize: document.noteFontSizeOf(objectId) ?? noteWorldFontSize,
+    );
     if (box.height <= bounds.h) return;
     final to = document.boxOnBoard(
       objectId,
@@ -178,7 +189,8 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
     if (before == null) return null;
     _applyTextProps(objectId, next);
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
@@ -187,8 +199,9 @@ extension CanvasOpsControllerTextEdit on CanvasOpsController {
           props: next.toWire(),
         ),
       );
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       if (_textPropsOf(objectId) == next) _applyTextProps(objectId, before);
+      _settleUnknownOutcome(error);
       onError(errorMessage);
       return null;
     }

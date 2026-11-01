@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A single tap toggles the chrome instantly, a fast double tap enters full
 /// screen only where that gesture is turned on, and an idle, playing video
-/// hides its own chrome and brings it back on tap.
+/// hides its own chrome and brings it back on tap. Under a pointer the chrome
+/// follows hover and window focus, and carries a volume slider.
 ///
 /// One real `Player` for the whole file, created in [setUpAll] and disposed
 /// in [tearDownAll], rather than one per test: media_kit's native player is
@@ -11,7 +12,8 @@
 /// nothing after it depends on the player still being paused.
 library;
 
-import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
+import 'package:flutter/gestures.dart'
+    show PointerDeviceKind, kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_kit/media_kit.dart';
@@ -22,6 +24,7 @@ Widget _harness({
   required Player player,
   bool touchGestures = true,
   VoidCallback? onToggleFullscreen,
+  VoidCallback? onSave,
   Duration autoHideDelay = kVideoControlsAutoHide,
 }) {
   return AppTouchTargets(
@@ -36,6 +39,7 @@ Widget _harness({
             player: player,
             isFullscreen: false,
             onToggleFullscreen: onToggleFullscreen ?? () {},
+            onSave: onSave,
             autoHideDelay: autoHideDelay,
             child: const ColoredBox(color: Colors.black),
           ),
@@ -132,6 +136,66 @@ void main() {
 
     await tester.pump(const Duration(seconds: 5));
     expect(_barOpacity(tester), 1);
+  });
+
+  testWidgets(
+    'under a pointer the bar starts hidden behind a play button, shows on '
+    'hover and hides when the pointer leaves',
+    (tester) async {
+      await tester.pumpWidget(_harness(player: player, touchGestures: false));
+      expect(_barOpacity(tester), 0);
+      expect(find.bySemanticsLabel('Play'), findsOneWidget);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      // The harness pins the 320x180 frame to the top-left corner.
+      await mouse.moveTo(const Offset(160, 60));
+      await tester.pump();
+      expect(_barOpacity(tester), 1);
+
+      await mouse.moveTo(const Offset(700, 500));
+      await tester.pump();
+      expect(_barOpacity(tester), 0);
+    },
+  );
+
+  testWidgets('the bar hides when the window loses focus', (tester) async {
+    await tester.pumpWidget(_harness(player: player));
+    expect(_barOpacity(tester), 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(_barOpacity(tester), 0);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  });
+
+  testWidgets('a pointer gets a volume slider, touch keeps only mute', (
+    tester,
+  ) async {
+    // The pointer bar starts faded out, so this reads widgets, not semantics.
+    final volume = find.byWidgetPredicate(
+      (w) => w is AppSlider && w.semanticLabel == 'Volume',
+    );
+    await tester.pumpWidget(_harness(player: player, touchGestures: false));
+    expect(volume, findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_harness(player: player));
+    expect(volume, findsNothing);
+    expect(find.bySemanticsLabel('Mute'), findsOneWidget);
+  });
+
+  testWidgets('save sits inside the bar only when the surface can save', (
+    tester,
+  ) async {
+    var saved = 0;
+    await tester.pumpWidget(_harness(player: player));
+    expect(find.bySemanticsLabel('Save video'), findsNothing);
+
+    await tester.pumpWidget(_harness(player: player, onSave: () => saved++));
+    await tester.tap(find.bySemanticsLabel('Save video'));
+    expect(saved, 1);
   });
 
   testWidgets('an idle playing video hides its bar and a tap brings it back', (

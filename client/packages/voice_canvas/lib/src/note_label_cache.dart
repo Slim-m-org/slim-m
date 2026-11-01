@@ -13,12 +13,14 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 
-/// What a note's laid-out text depends on: its text, world width and height, and the revision of whatever styles its spans; zoom only scales the layout so it is not part of the key.
+/// What a note's laid-out text depends on: its text, world width and height, the revision of whatever styles its spans, and its font size; zoom only scales the layout so it is not part of the key.
+/// A text box has no height or spans in its layout, so it passes 0 and its colour hash there.
 typedef NoteLayoutKey = (
   String text,
   double w,
   double h,
   int spansRevision,
+  double fontSize,
 );
 
 /// Test-only: how many times each note's text was laid out, so a test can tell

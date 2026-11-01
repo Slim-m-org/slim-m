@@ -58,6 +58,7 @@ Size presenceTileSize(String key) => presenceTileKind(key) == screenTrackKind
     ? presenceScreenShareSize
     : presenceCameraOnSize;
 
+/// [layoutOnly] keys take a default slot but are never returned, so hiding someone (a block) leaves every other default tile where it was.
 /// Every tile's current world rect, its override if it has one else [layout]'s default, minus hidden tiles; the single source both widgets read so a control never moves a different box than the painted one.
 Map<String, Rect> presenceOnCanvasRects({
   required Set<String> keys,
@@ -65,9 +66,13 @@ Map<String, Rect> presenceOnCanvasRects({
   required CanvasPresenceTileOverrides overrides,
   required Map<String, VoiceParticipant> byIdentity,
   required bool hideSelfCamera,
+  Set<String> layoutOnly = const {},
   Size viewport = Size.zero,
 }) {
-  final raw = layout.arrange(keys, sizeFor: presenceTileSize);
+  final raw = layout.arrange({
+    ...keys,
+    ...layoutOnly,
+  }, sizeFor: presenceTileSize);
   final defaults = _clampedToViewport(raw, viewport);
   final onCanvas = <String, Rect>{};
   for (final key in keys) {

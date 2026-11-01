@@ -12,6 +12,11 @@ import 'models_dock_activity.dart';
 import 'models_dock_changelog.dart';
 import 'models_dock_platform.dart';
 
+/// The `source` that reads a module installed from a package file back from the
+/// server, and the repo such a module is recorded under.
+const kFileDockSource = 'file';
+const kFileDockRepo = 'local/file';
+
 /// One row of the marketplace's index: enough to list a module, not enough
 /// to install it. `GET /space/dock/modules`.
 class DockIndexEntry {
@@ -246,8 +251,14 @@ class DockManifest {
     this.subscriptions = const [],
     this.dataMaxMb,
     this.dataSchema,
+    this.interceptors = const [],
+    this.permissionHooks = const [],
     this.reviewDigest,
   });
+
+  /// Where it asks to stand in front of a message, and the permission checks it can deny.
+  final List<DockHookDecl> interceptors;
+  final List<DockHookDecl> permissionHooks;
 
   /// The tables and cap of its data store; null when it declares none.
   final DockDataSchema? dataSchema;
@@ -333,6 +344,8 @@ class DockManifest {
         subscriptions: dockSubscriptions(json['subscriptions']),
         dataMaxMb: dockDataMaxMb(json['data']),
         dataSchema: dockDataSchema(json['data']),
+        interceptors: dockHooks(json['interceptors']),
+        permissionHooks: dockHooks(json['permission_hooks']),
         reviewDigest: json['review_digest'] as String?,
       );
 }
@@ -364,6 +377,8 @@ class InstalledDockModule {
     this.consecutiveFailures = 0,
     this.disabledReason,
     this.eventsDropped = 0,
+    this.queueDepth = 0,
+    this.fuelLimit = 0,
   });
 
   /// Event kinds it was installed to receive.
@@ -380,6 +395,12 @@ class InstalledDockModule {
 
   /// Pushed events its queue dropped because it fell behind.
   final int eventsDropped;
+
+  /// Pushed events waiting for it right now; only `GET /space/dock/installed` fills it.
+  final int queueDepth;
+
+  /// The fuel one run may burn, which each command's fuel is read against; 0 from an older server.
+  final int fuelLimit;
 
   /// Whether it declares settings an admin can fill.
   final bool declaresSettings;
@@ -467,5 +488,7 @@ class InstalledDockModule {
         consecutiveFailures: json['consecutive_failures'] as int? ?? 0,
         disabledReason: json['disabled_reason'] as String?,
         eventsDropped: json['events_dropped'] as int? ?? 0,
+        queueDepth: json['queue_depth'] as int? ?? 0,
+        fuelLimit: json['fuel_limit'] as int? ?? 0,
       );
 }

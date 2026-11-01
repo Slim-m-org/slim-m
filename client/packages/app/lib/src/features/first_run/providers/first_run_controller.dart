@@ -30,8 +30,13 @@ class FirstRunController extends StateNotifier<FirstRunState> {
   }
 
   final Ref _ref;
+  final _checked = Completer<void>();
   String? _space;
   String? _account;
+
+  /// Completes once the check has decided whether setup is owed, so a later
+  /// overlay does not race it onto the screen.
+  Future<void> get ready => _checked.future;
 
   Future<void> _check() async {
     try {
@@ -57,6 +62,8 @@ class FirstRunController extends StateNotifier<FirstRunState> {
         error,
         stack,
       );
+    } finally {
+      if (!_checked.isCompleted) _checked.complete();
     }
   }
 

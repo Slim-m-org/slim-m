@@ -59,6 +59,7 @@ step "no API failure shown with a SnackBar" python3 scripts/check-error-surface.
 step "data.dart exports Message as a DTO" python3 scripts/check-message-dto-boundary.py
 step "migrations do not collide or change" python3 scripts/check-migration-versions.py
 step "no unscoped MediaQuery.of" python3 scripts/check-media-query-scope.py
+step "find.byType and pumpAndSettle counts" python3 scripts/check-test-patterns.py
 step "every workflow is in docs/ci.md" python3 scripts/check-ci-docs.py
 step "no emoji in UI source" bash scripts/check-no-emoji.sh
 step "SPDX headers, Dart" bash scripts/check-spdx-dart.sh

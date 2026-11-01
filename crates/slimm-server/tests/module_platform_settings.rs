@@ -29,6 +29,7 @@ fn def(key: &str, kind: SettingKind) -> ModuleSettingDef {
         min: None,
         max: None,
         choices: Vec::new(),
+        hosts: Vec::new(),
     }
 }
 
@@ -84,6 +85,7 @@ async fn install_module(w: &World, wasm: Vec<u8>, defs: Vec<ModuleSettingDef>, c
             },
             &wasm,
             &DockProvenance {
+                manifest_json: None,
                 host_capabilities: &declared,
                 source_repo: None,
                 network_hosts: &[],

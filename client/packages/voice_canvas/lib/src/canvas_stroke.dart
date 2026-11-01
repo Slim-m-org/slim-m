@@ -137,6 +137,7 @@ class CanvasStrokeInput {
     this.groupId,
     this.flipX = false,
     this.flipY = false,
+    this.fontSize,
   });
 
   final String id;
@@ -189,6 +190,9 @@ class CanvasStrokeInput {
   /// Which way a line or arrow runs inside its box; see [shapeSegment].
   final bool flipX;
   final bool flipY;
+
+  /// A [CanvasObjectKind.note]'s text size in world units; null paints [noteWorldFontSize], the size every note had before it was stored.
+  final double? fontSize;
 }
 
 /// The endpoints of a line or arrow inside a `w` by `h` box, from its tail to
@@ -231,6 +235,7 @@ class CanvasStroke {
     this.groupId,
     this.flipX = false,
     this.flipY = false,
+    this.fontSize,
   });
 
   final String id;
@@ -298,6 +303,9 @@ class CanvasStroke {
   /// See [CanvasStrokeInput.flipX].
   final bool flipX;
   final bool flipY;
+
+  /// See [CanvasStrokeInput.fontSize].
+  final double? fontSize;
 
   /// Every point in absolute world coordinates, for hit testing against a
   /// world-space pointer with no per-call offset arithmetic.

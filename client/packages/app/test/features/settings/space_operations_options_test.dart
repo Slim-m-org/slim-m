@@ -205,7 +205,7 @@ void main() {
   ) async {
     var scrapes = 0;
     await _pump(tester, const ServerMetricsPane(), (r) {
-      scrapes++;
+      if (r.url.path == '/metrics') scrapes++;
       return http.Response('', 200);
     });
     expect(scrapes, 1);

@@ -12,7 +12,7 @@ use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use slimm_server::config::Config;
 use slimm_server::db;
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{
     InstallModuleRequest, ModuleExtensionPointSpec, ModulePermissionSpec, ModuleRuntimeLimits,
@@ -158,7 +158,7 @@ fn drain(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> (bool, bool) {
     while let Ok(ev) = rx.try_recv() {
         match ev {
             Event::ReadStateChanged { .. } => read = true,
-            Event::ThreadUpdated { .. } => thread = true,
+            Event::Message(MessageEvent::ThreadUpdated { .. }) => thread = true,
             _ => {}
         }
     }
@@ -359,7 +359,7 @@ async fn a_retried_app_launch_is_not_refused_by_slow_mode() {
 fn created_frames(rx: &mut tokio::sync::broadcast::Receiver<Event>) -> usize {
     let mut n = 0;
     while let Ok(ev) = rx.try_recv() {
-        if matches!(ev, Event::MessageCreated { .. }) {
+        if matches!(ev, Event::Message(MessageEvent::Created { .. })) {
             n += 1;
         }
     }

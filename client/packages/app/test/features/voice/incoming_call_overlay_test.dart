@@ -26,6 +26,7 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
 
 import '../../desktop/support/fake_desktop_window_port.dart';
+import '../../desktop/support/desktop_shell_fixture.dart';
 
 const _tokens = api.TokenPair(
   userId: 'me',
@@ -74,7 +75,11 @@ class _Setup {
   final GoRouter router;
 }
 
-Future<_Setup> _pump(WidgetTester tester, {double width = 1200}) async {
+Future<_Setup> _pump(
+  WidgetTester tester, {
+  double width = 1200,
+  DesktopWindowShell? shell,
+}) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -86,6 +91,7 @@ Future<_Setup> _pump(WidgetTester tester, {double width = 1200}) async {
 
   final container = ProviderContainer(
     overrides: [
+      if (shell != null) desktopWindowShellProvider.overrideWithValue(shell),
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
       sessionProvider.overrideWithValue(api.SessionStore(tokens: _tokens)),
       liveEventsProvider.overrideWithValue(events.stream),
@@ -208,11 +214,7 @@ void main() {
     tester,
   ) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate();
-    addTearDown(DesktopWindowShell.debugReset);
-
-    final s = await _pump(tester);
+    final s = await _pump(tester, shell: shellFor(port, active: true));
     expect(port.showCalls, 0);
     expect(port.focusCalls, 0);
 
@@ -227,10 +229,7 @@ void main() {
     tester,
   ) async {
     final port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    addTearDown(DesktopWindowShell.debugReset);
-
-    final s = await _pump(tester);
+    final s = await _pump(tester, shell: shellFor(port));
     _emitRing(s);
     await tester.pumpAndSettle();
 

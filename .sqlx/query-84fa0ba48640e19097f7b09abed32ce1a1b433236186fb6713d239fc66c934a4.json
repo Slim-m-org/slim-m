@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT setup_claimed_by AS \"claimed_by: UserId\", setup_done_at\n               FROM space_settings WHERE id = 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "claimed_by: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "setup_done_at",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "84fa0ba48640e19097f7b09abed32ce1a1b433236186fb6713d239fc66c934a4"
+}

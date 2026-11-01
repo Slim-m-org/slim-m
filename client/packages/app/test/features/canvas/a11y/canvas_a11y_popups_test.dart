@@ -105,8 +105,8 @@ void main() {
   group('a modal opened from the overflow menu owns the keyboard', () {
     a11yTest('the Participants sheet takes keyboard focus', (tester) async {
       await pumpA11yCanvas(tester);
-      await runOverflowItem(tester, 'Participants');
-      expect(find.text('In this call'), findsOneWidget);
+      await runOverflowItem(tester, 'People here');
+      expect(find.text('People here'), findsOneWidget);
 
       expect(
         focusIsInModal(),
@@ -121,8 +121,8 @@ void main() {
       tester,
     ) async {
       await pumpA11yCanvas(tester, size: phoneSize);
-      await runOverflowItem(tester, 'Participants');
-      expect(find.text('In this call'), findsOneWidget);
+      await runOverflowItem(tester, 'People here');
+      expect(find.text('People here'), findsOneWidget);
 
       expect(focusIsInModal(), isTrue, reason: focusedName(tester));
     });
@@ -143,7 +143,7 @@ void main() {
 
     a11yTest('canvas hotkeys do nothing while a sheet is open', (tester) async {
       await pumpA11yCanvas(tester);
-      await runOverflowItem(tester, 'Participants');
+      await runOverflowItem(tester, 'People here');
       final before = currentTool(tester);
 
       await pressKey(tester, LogicalKeyboardKey.keyE);
@@ -167,7 +167,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 300));
       expect(surfaceDocument(tester).objectCount.value, 1);
-      await runOverflowItem(tester, 'Participants');
+      await runOverflowItem(tester, 'People here');
 
       await pressKey(tester, LogicalKeyboardKey.keyZ, control: true);
       await settle(tester);
@@ -183,12 +183,12 @@ void main() {
       'Escape closes the sheet and focus returns to the overflow button',
       (tester) async {
         await pumpA11yCanvas(tester);
-        await runOverflowItem(tester, 'Participants');
+        await runOverflowItem(tester, 'People here');
         await pressKey(tester, LogicalKeyboardKey.escape);
         await settle(tester);
 
         expect(
-          find.text('In this call'),
+          find.text('People here'),
           findsNothing,
           reason: 'sheet still open',
         );

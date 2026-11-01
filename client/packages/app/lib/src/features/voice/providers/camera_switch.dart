@@ -13,10 +13,11 @@ import 'voice_controller.dart';
 /// off: duplicate device nodes made a wrong count worse than a late one.
 final cameraDeviceCountProvider = FutureProvider.autoDispose
     .family<int, VoiceController>(
-      (ref, controller) async => (await controller.cameraDevices()).length,
+      (ref, controller) async =>
+          (await controller.video.cameraDevices()).length,
     );
 
 /// Whether [controller] can switch cameras: a bare flip, or more than one device.
 bool canSwitchCamera(WidgetRef ref, VoiceController controller) =>
-    controller.canFlipCamera ||
+    controller.video.canFlipCamera ||
     (ref.watch(cameraDeviceCountProvider(controller)).valueOrNull ?? 0) > 1;

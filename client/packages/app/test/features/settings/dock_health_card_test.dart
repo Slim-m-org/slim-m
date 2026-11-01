@@ -17,6 +17,7 @@ api.InstalledDockModule _module({
   int failures = 0,
   String? reason,
   int dropped = 0,
+  int queued = 0,
 }) => api.InstalledDockModule.fromJson({
   'id': 'xp',
   'name': 'xp',
@@ -29,6 +30,7 @@ api.InstalledDockModule _module({
   'consecutive_failures': failures,
   'disabled_reason': ?reason,
   'events_dropped': dropped,
+  'queue_depth': queued,
 });
 
 Future<void> _pump(
@@ -48,6 +50,18 @@ void main() {
   test('a healthy module has no news', () {
     expect(dockHasHealthNews(_module()), isFalse);
     expect(dockHasHealthNews(null), isFalse);
+  });
+
+  test('events waiting count as news', () {
+    expect(dockHasHealthNews(_module(queued: 1)), isTrue);
+  });
+
+  testWidgets('a module with events waiting says how many', (tester) async {
+    await _pump(tester, _module(queued: 12));
+    expect(find.text('12 events are waiting for it.'), findsOneWidget);
+    await _pump(tester, _module(queued: 1));
+    await tester.pump();
+    expect(find.text('1 event is waiting for it.'), findsOneWidget);
   });
 
   testWidgets('a module the breaker turned off says why and can be turned on', (

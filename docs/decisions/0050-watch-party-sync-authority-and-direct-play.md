@@ -1,6 +1,6 @@
 # 0050 - The watch party keeps its shared track and gains per-viewer direct play
 
-Status: accepted (a design decision); stage 1, the durable watch session and the position readout, is built (#1527), and stages 2 to 5 are not
+Status: accepted (a design decision); stage 1 (#1527), stage 2 (slim-bots Quick Connect links), and stages 3 and 4 (the per-viewer player and the floor that lifts) are built, and stage 5 is not; the viewer signs in to Jellyfin on their own device and the bot stores no tokens (section 4, owner-confirmed 2026-10-31)
 Date: 2026-09-30
 Extends: 0035 (module or bot), 0045 (bot-contributed UI), 0014 (canvas video subscription culling)
 Relates to: 0021 (module ABI), 0023 (mediated host capabilities), 0043 (scene timeline), 0010 (canvas media tiles)
@@ -134,14 +134,18 @@ The watch surface carries one line naming the state and the action that changes 
 
 Each of those is a working watch party, at today's quality, not a failure.
 
-### 4. A verified link, or no direct play
+### 4. A verified link, and the viewer signs in on their own device
 
-`!jellyfin link` grows a verified path: the member authenticates against Jellyfin with their own password through `POST /Users/AuthenticateByName`, and the bot stores the returned per-user access token rather than a bare id.
-An existing unverified link keeps working for resume and progress exactly as it does today, and is simply not eligible for direct play.
+`!jellyfin link` has a verified path (stage 2, Quick Connect): the member proves they own the Jellyfin account, and the bot records the link as verified.
+The bot keeps no Jellyfin token for anyone; stage 2 logs the Quick Connect token out once the link is verified.
+An unverified link keeps working for resume and progress exactly as before, and is simply not eligible for direct play.
 `!jellyfin account` says which kind a member holds.
 
-The token is the member's own credential for their own account, so handing it back to that member's client is not the case decision 0035 closed when it refused personal access tokens; that was about slim-m credentials going into scripts.
-It still never touches the message store: the client asks the bot for it per session over a private reply, holds it in memory, and drops it when the session ends.
+For direct play the viewer's own client signs in to Jellyfin with their name and password, and keeps only the returned token in the device's key store.
+The owner confirmed this on 2026-10-31, over the first draft of this section, which had the bot store each member's token and hand it back per session.
+A bot holding a token for every member would make the bot host a store of everyone's Jellyfin credentials, so a bot compromise would reach every account; with the token on the viewer's device, the reach of any one leak is that one person.
+The cost is one sign-in per device, which the panel asks for the first time a viewer turns direct play on.
+
 The admin API key never leaves the bot host, and a `user_links` row alone never buys reach it did not already have.
 
 ### 5. State rides the durable record, the heartbeat rides a new ephemeral event
@@ -258,4 +262,3 @@ Explicitly not planned: a slim-m proxy for Jellyfin bytes, Jellyfin behind the C
 ## Open, for the owner
 
 - Whether off-LAN guests get on a VPN or tailnet to the LAN, which is the only route that makes direct play work for them.
-- Whether a per-member Jellyfin password prompt is acceptable, given the alternative is that direct play has no trustworthy identity to hang on.

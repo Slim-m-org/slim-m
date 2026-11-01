@@ -29,6 +29,8 @@ pub(super) struct Version {
     #[serde(skip_serializing_if = "Option::is_none")]
     build_id: Option<String>,
     protocol: u32,
+    /// The add-on API level modules are checked against (decision 0100).
+    addon_api: u32,
     push_enabled: bool,
     /// Whether creating an account here needs an invite code. Onboarding
     /// needs this before an account exists, so it rides on /version.
@@ -67,6 +69,9 @@ pub(super) struct Version {
     /// Whether any member may create invites, on `/version` so a member's
     /// client can offer the action without reading admin settings.
     members_can_invite: bool,
+    /// Whether the canvas accepts a `clear_scoped` op. Always true on a build that has this field;
+    /// a client reads its absence as an older server and falls back to its version number.
+    canvas_scoped_clear: bool,
     /// The largest single attachment upload the server accepts, in bytes, so a
     /// client can refuse an oversize pick before sending any of it.
     max_attachment_bytes: u64,
@@ -164,6 +169,7 @@ pub(super) async fn version(
         version: env!("CARGO_PKG_VERSION"),
         build_id: build_id::current(),
         protocol: PROTOCOL_VERSION,
+        addon_api: crate::module_runtime::ADDON_API,
         push_enabled: state.push.is_enabled(),
         invite_required: state.store.join_policy().await? == JoinPolicy::Invite,
         claimed: state.store.is_bootstrapped().await?,
@@ -174,6 +180,7 @@ pub(super) async fn version(
         screen_share_max_height: state.store.screen_share_max_height().await?,
         strong_noise_suppression: state.store.strong_noise_suppression().await?,
         members_can_invite: state.store.members_can_invite().await?,
+        canvas_scoped_clear: true,
         max_attachment_bytes: super::attachments::effective_attachment_max(&state).await?,
         min_client_version: min_client_version(),
         capabilities: capabilities(state).await,

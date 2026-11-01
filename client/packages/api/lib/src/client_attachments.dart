@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Attachments: upload bytes once, reference the returned id in
 /// [SlimmApi.sendMessage], fetch them back. The `attachments` tag.
@@ -13,7 +21,7 @@ extension SlimmApiAttachments on SlimmApi {
     List<int> bytes, {
     String? filename,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/attachments',
       bytes: bytes,
@@ -34,7 +42,7 @@ extension SlimmApiAttachments on SlimmApi {
     String? channelId,
     void Function(int sent)? onProgress,
   }) async {
-    final response = await _sendStreamed(
+    final response = await sendStreamed(
       'POST',
       '/attachments',
       open: open,
@@ -49,7 +57,7 @@ extension SlimmApiAttachments on SlimmApi {
       return Attachment.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
     }
-    throw _errorFor(response);
+    throw errorFor(response);
   }
 
   /// Sends a raw body read from [open] and answers the response unmapped, so
@@ -58,7 +66,7 @@ extension SlimmApiAttachments on SlimmApi {
   /// [sendDeadline] bounds the send itself, which a plain upload leaves open
   /// but a part of a resumable one cannot: a stalled part has to fail so the
   /// uploader can resume from the server's offset.
-  Future<http.Response> _sendStreamed(
+  Future<http.Response> sendStreamed(
     String method,
     String path, {
     required Stream<List<int>> Function() open,
@@ -70,7 +78,7 @@ extension SlimmApiAttachments on SlimmApi {
   }) async {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final request = http.StreamedRequest(method, _requestUri(path, query))
+    final request = http.StreamedRequest(method, requestUri(path, query))
       ..contentLength = length
       ..headers['content-type'] = 'application/octet-stream'
       ..headers['authorization'] = 'Bearer $token';
@@ -91,11 +99,11 @@ extension SlimmApiAttachments on SlimmApi {
     );
     final http.Response response;
     try {
-      var sending = _http.send(request);
+      var sending = link.client.send(request);
       if (sendDeadline != null) sending = sending.timeout(sendDeadline);
       response = await http.Response.fromStream(
         await sending,
-      ).timeout(_transferDeadline);
+      ).timeout(transferDeadline);
     } on TimeoutException {
       throw TransportException('$method $path got no answer');
     } catch (e) {
@@ -103,7 +111,7 @@ extension SlimmApiAttachments on SlimmApi {
     }
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await refresh();
-      return _sendStreamed(
+      return sendStreamed(
         method,
         path,
         open: open,
@@ -131,7 +139,7 @@ extension SlimmApiAttachments on SlimmApi {
     int? previewWidth,
     bool firstFrame = false,
   }) =>
-      _fetchBytes(
+      fetchBytes(
         '/attachments/$attachmentId',
         query: previewWidth == null
             ? null
@@ -148,24 +156,24 @@ extension SlimmApiAttachments on SlimmApi {
     String attachmentId, {
     bool original = false,
   }) =>
-      _openDownload(
+      openDownload(
         '/attachments/$attachmentId',
         original ? {'original': 'true'} : null,
       );
 
   /// Streams a GET with no body deadline and one token refresh on a 401.
-  Future<AttachmentDownload> _openDownload(
+  Future<AttachmentDownload> openDownload(
     String path,
     Map<String, String>? query, {
     bool isRetry = false,
   }) async {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final request = http.Request('GET', _requestUri(path, query))
+    final request = http.Request('GET', requestUri(path, query))
       ..headers['authorization'] = 'Bearer $token';
     final http.StreamedResponse response;
     try {
-      response = await _http.send(request).timeout(_requestDeadline);
+      response = await link.client.send(request).timeout(requestDeadline);
     } on TimeoutException {
       throw TransportException('GET $path got no answer');
     } catch (e) {
@@ -174,10 +182,10 @@ extension SlimmApiAttachments on SlimmApi {
     if (response.statusCode == 401 && !isRetry && session.tokens != null) {
       await response.stream.drain<void>();
       await refresh();
-      return _openDownload(path, query, isRetry: true);
+      return openDownload(path, query, isRetry: true);
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _errorFor(await http.Response.fromStream(response));
+      throw errorFor(await http.Response.fromStream(response));
     }
     return AttachmentDownload(
       body: response.stream,
@@ -193,5 +201,5 @@ extension SlimmApiAttachments on SlimmApi {
   /// bearer header and let the player issue range requests directly. Carries
   /// no token itself: this is only the address.
   Uri attachmentUrl(String attachmentId) =>
-      _requestUri('/attachments/$attachmentId', null);
+      requestUri('/attachments/$attachmentId', null);
 }

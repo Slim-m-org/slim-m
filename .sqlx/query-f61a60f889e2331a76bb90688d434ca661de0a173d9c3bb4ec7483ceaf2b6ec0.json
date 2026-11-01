@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM group_dm_members WHERE user_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "f61a60f889e2331a76bb90688d434ca661de0a173d9c3bb4ec7483ceaf2b6ec0"
+}

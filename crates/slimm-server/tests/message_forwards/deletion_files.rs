@@ -4,7 +4,7 @@
 use super::fixtures::*;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::{ChannelId, MessageId};
 use slimm_server::media::Media;
 use slimm_server::permissions::Permissions;
@@ -150,8 +150,12 @@ async fn deleting_the_original_removes_a_pinned_copy_and_unpins_it() {
     let (mut deleted, mut unpinned) = (false, false);
     while let Ok(event) = rx.try_recv() {
         match event {
-            Event::MessageDeleted { message_id, .. } if message_id == copy_id => deleted = true,
-            Event::MessageUnpinned { message_id, .. } if message_id == copy_id => unpinned = true,
+            Event::Message(MessageEvent::Deleted { message_id, .. }) if message_id == copy_id => {
+                deleted = true
+            }
+            Event::Message(MessageEvent::Unpinned { message_id, .. }) if message_id == copy_id => {
+                unpinned = true
+            }
             _ => {}
         }
     }

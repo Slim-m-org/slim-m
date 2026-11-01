@@ -199,9 +199,9 @@ async fn seed_restore_op(
         sqlx::query(
             "WITH RECURSIVE n(i) AS (SELECT ? UNION ALL SELECT i + 1 FROM n WHERE i < ?)
              INSERT INTO canvas_objects
-                 (id, channel_id, channel_key, kind, z_index, x, y, w, h, props,
+                 (id, channel_id, channel_key, kind, z_index, x, y, w, h,
                   author_id, seq, created_at)
-             SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, '{}', ?, i, 0 FROM n",
+             SELECT randomblob(16), ?, 0, 'stroke', i, 0, 0, 1, 1, ?, i, 0 FROM n",
         )
         .bind(existing + 1)
         .bind(touched_count)
@@ -210,6 +210,7 @@ async fn seed_restore_op(
         .execute(pool)
         .await
         .expect("seed objects for the restore to name");
+        crate::support::canvas::backfill_props(pool).await;
     }
     sqlx::query(
         "INSERT INTO canvas_op_targets (channel_id, seq, object_id)

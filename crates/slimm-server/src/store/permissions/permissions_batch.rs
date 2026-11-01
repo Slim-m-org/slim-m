@@ -95,13 +95,13 @@ impl Store {
         };
 
         if channel.kind == super::super::dms::DM_CHANNEL_KIND {
-            let Some((user_a, user_b)) = self.dm_pair(channel_id).await? else {
+            let Some(participants) = self.dm_participants(channel_id).await? else {
                 return Ok(Vec::new());
             };
             let mut viewers = Vec::new();
-            // Narrowed to the pair first, so this really is at most two checks.
+            // Narrowed to the participants first, so this is at most eight checks.
             for &user_id in candidates {
-                if user_id != user_a && user_id != user_b {
+                if !participants.contains(&user_id) {
                     continue;
                 }
                 if self

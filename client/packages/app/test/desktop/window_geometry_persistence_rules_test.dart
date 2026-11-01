@@ -11,7 +11,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_window_controller.dart';
 import 'package:slimm_app/src/desktop/desktop_window_port.dart';
-import 'package:slimm_app/src/desktop/desktop_window_shell.dart';
 import 'package:slimm_app/src/desktop/display_server.dart';
 import 'package:slimm_app/src/desktop/window_fullscreen_hold.dart';
 import 'package:slimm_app/src/desktop/window_geometry.dart';
@@ -19,6 +18,7 @@ import 'package:slimm_app/src/features/voice/providers/fullscreen_video.dart';
 import 'package:slimm_app/src/desktop/window_geometry_store.dart';
 import 'package:slimm_app/src/providers/providers.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 
 const _real = WindowRect(x: 100, y: 120, width: 1280, height: 720);
@@ -35,6 +35,7 @@ DesktopWindowController _controller(
   WindowGeometryStore store, {
   required bool positionSupported,
   bool enabled = true,
+  bool Function()? fullscreenHeld,
 }) => DesktopWindowController(
   port: port,
   store: store,
@@ -42,6 +43,7 @@ DesktopWindowController _controller(
   trayAvailable: () async => true,
   geometryPersistenceEnabled: enabled,
   positionSupported: () => positionSupported,
+  fullscreenHeld: fullscreenHeld ?? () => false,
 )..start();
 
 void main() {
@@ -211,13 +213,10 @@ void main() {
   });
 
   group('quit', () {
-    tearDown(DesktopWindowShell.debugReset);
-
     test('flushes the pending write before the window is destroyed', () async {
       final port = FakeDesktopWindowPort()..bounds = _real;
       final store = await _store();
-      DesktopWindowShell.debugPort = port;
-      DesktopWindowShell.debugPositionSupported = () => true;
+      final shell = shellFor(port, position: () => true);
       final container = ProviderContainer(
         overrides: [
           preferencesProvider.overrideWith(
@@ -228,14 +227,14 @@ void main() {
       addTearDown(container.dispose);
 
       fakeAsync((async) {
-        DesktopWindowShell.registerListenersAndTray(container);
+        shell.registerListenersAndTray(container);
         async.flushMicrotasks();
-        DesktopWindowShell.debugEnablePersistence();
+        shell.windowController?.enableGeometryPersistence();
         port.emit(DesktopWindowEventKind.move);
         async.elapse(const Duration(milliseconds: 100));
         expect(store.read(), isNull);
 
-        DesktopWindowShell.quit(port);
+        shell.quit(port);
         async.flushMicrotasks();
       });
 
@@ -249,16 +248,12 @@ void main() {
     'a window a call tile holds fullscreen is not saved as fullscreen',
     () async {
       final port = FakeDesktopWindowPort()..fullScreen = true;
-      DesktopWindowShell.debugPort = port;
-      DesktopWindowShell.debugActivate(frameless: true);
-      addTearDown(() {
-        DesktopWindowShell.debugReset();
-        WindowFullscreenHold.debugReset();
-      });
+      final shell = shellFor(port, active: true, frameless: true);
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final hold = WindowFullscreenHold(
         container.read(fullscreenVideoActiveProvider.notifier),
+        shell,
       );
       await hold.enter();
       final store = await _store();
@@ -268,7 +263,12 @@ void main() {
           runState: WindowRunState.windowed,
         ),
       );
-      final controller = _controller(port, store, positionSupported: true);
+      final controller = _controller(
+        port,
+        store,
+        positionSupported: true,
+        fullscreenHeld: () => shell.fullscreenHolds.any,
+      );
       port.emit(DesktopWindowEventKind.fullScreen);
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);

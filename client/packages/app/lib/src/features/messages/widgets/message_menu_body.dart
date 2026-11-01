@@ -4,7 +4,9 @@
 ///
 /// "More" swaps the page in place rather than opening a second surface: a
 /// floating submenu under a thumb is what `desktop-vs-mobile.md` forbids, and
-/// one swap behaves the same under a pointer, a finger and the keyboard.
+/// one swap behaves the same under a pointer, a finger and the keyboard. A
+/// second page holding a single item is a wasted click, so that item sits on
+/// the first page instead.
 library;
 
 import 'package:flutter/material.dart';
@@ -48,11 +50,6 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
   }
 
   void _showMore(bool more) => setState(() => _more = more);
-
-  bool get _hasMore =>
-      _a.canReport ||
-      _a.canBlockAuthor ||
-      (_a.canDelete && _a.onStartSelecting != null);
 
   @override
   Widget build(BuildContext context) {
@@ -158,8 +155,11 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
   }
 
   List<Widget> _lastGroup() {
+    final more = _moreItems();
     return [
-      if (_hasMore)
+      if (more.length == 1)
+        more.single
+      else if (more.isNotEmpty)
         AppMenuItem(
           label: 'More',
           leading: AppIcons.moreHorizontal,
@@ -183,6 +183,10 @@ class _MessageMenuBodyState extends State<MessageMenuBody> {
       onTap: () => _showMore(false),
     ),
     const AppMenuDivider(),
+    ..._moreItems(),
+  ];
+
+  List<Widget> _moreItems() => [
     if (_a.canDelete)
       if (_a.onStartSelecting case final VoidCallback start)
         AppMenuItem(

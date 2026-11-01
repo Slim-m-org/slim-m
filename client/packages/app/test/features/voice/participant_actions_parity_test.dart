@@ -292,7 +292,7 @@ void main() {
     final wired = _wire();
     final controller = wired.container.read(voiceControllerProvider.notifier);
 
-    await controller.setVolumeFor('user-bot', 1.5);
+    await controller.volumes.setVolumeFor('user-bot', 1.5);
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
 
     expect(wired.session.volumeFor('user-bot'), 1.5);
@@ -303,7 +303,7 @@ void main() {
     );
     expect(saved, {'user-bot': 1.5});
 
-    await controller.setVolumeFor('user-bot', 1.0);
+    await controller.volumes.setVolumeFor('user-bot', 1.0);
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     expect(
       jsonDecode(prefs.getString('slimm.voice.participant_volumes')!),
@@ -316,7 +316,7 @@ void main() {
     final wired = _wire();
     final controller = wired.container.read(voiceControllerProvider.notifier);
 
-    await controller.setScreenVolumeFor('user-bot', 0.6);
+    await controller.volumes.setScreenVolumeFor('user-bot', 0.6);
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
 
     final prefs = await SharedPreferences.getInstance();
@@ -338,6 +338,7 @@ void main() {
     await tester.runAsync(
       wired.container
           .read(voiceControllerProvider.notifier)
+          .volumes
           .restoreParticipantVolumes,
     );
 

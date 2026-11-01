@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use crate::hub::{Event, Hub};
+use crate::hub::{Event, Hub, MessageEvent};
 use crate::store::{DetachedForward, Store};
 
 /// Publishes one `MessageEdited` per detached forward, best-effort: the change
@@ -31,11 +31,11 @@ pub(crate) async fn publish_detached(store: &Store, hub: &Hub, detached: &[Detac
                 continue;
             }
         };
-        hub.publish(Event::MessageEdited {
+        hub.publish(Event::Message(MessageEvent::Edited {
             message: Arc::new(message),
             op_seq: forward.op_seq,
             forwarded: forwarded.map(Arc::new),
             lookups: Default::default(),
-        });
+        }));
     }
 }

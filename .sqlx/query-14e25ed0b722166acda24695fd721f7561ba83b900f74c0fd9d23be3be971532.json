@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO channels (id, name, kind, created_at) VALUES (?, ?, 'dm', ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "14e25ed0b722166acda24695fd721f7561ba83b900f74c0fd9d23be3be971532"
+}

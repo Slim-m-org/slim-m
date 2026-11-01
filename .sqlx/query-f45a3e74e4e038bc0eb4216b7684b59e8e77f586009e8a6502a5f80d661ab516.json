@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO canvas_object_props (object_id, props) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f45a3e74e4e038bc0eb4216b7684b59e8e77f586009e8a6502a5f80d661ab516"
+}

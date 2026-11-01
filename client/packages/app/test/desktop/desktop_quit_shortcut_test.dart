@@ -10,14 +10,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_quit_shortcut.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 
 void main() {
-  tearDown(DesktopQuitShortcut.debugUnregister);
-
   testWidgets('Ctrl+Q calls destroy on the port exactly once', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
+    final shortcut = DesktopQuitShortcut(shellFor(port))
+      ..register(platform: DesktopPlatform.linux);
+    addTearDown(shortcut.dispose);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
@@ -27,7 +28,9 @@ void main() {
 
   testWidgets('Q alone, with no Control held, does nothing', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
+    final shortcut = DesktopQuitShortcut(shellFor(port))
+      ..register(platform: DesktopPlatform.linux);
+    addTearDown(shortcut.dispose);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
 
@@ -38,7 +41,9 @@ void main() {
     'never registers on macOS, which keeps its own Cmd+Q convention',
     (tester) async {
       final port = FakeDesktopWindowPort();
-      DesktopQuitShortcut.register(port, platform: DesktopPlatform.macOS);
+      final shortcut = DesktopQuitShortcut(shellFor(port))
+        ..register(platform: DesktopPlatform.macOS);
+      addTearDown(shortcut.dispose);
 
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
@@ -47,10 +52,12 @@ void main() {
     },
   );
 
-  testWidgets('debugUnregister removes the handler for good', (tester) async {
+  testWidgets('dispose removes the handler for good', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
-    DesktopQuitShortcut.debugUnregister();
+    final shortcut = DesktopQuitShortcut(shellFor(port))
+      ..register(platform: DesktopPlatform.linux);
+    addTearDown(shortcut.dispose);
+    shortcut.dispose();
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);

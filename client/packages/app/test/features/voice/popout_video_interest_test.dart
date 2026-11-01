@@ -19,6 +19,7 @@ import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import 'voice_controller_harness.dart';
 
 const _ada = VoiceParticipant(
@@ -31,16 +32,6 @@ const _ada = VoiceParticipant(
 );
 
 const _feed = (identity: 'u-ada', name: 'Ada', kind: FeedKind.screenShare);
-
-class _Call extends VoiceController {
-  _Call(super.ref, FakeSession session) : super(session: session) {
-    state = const VoiceState(
-      channelId: 'c-main',
-      state: VoiceSessionState.connected,
-      participants: [_ada],
-    );
-  }
-}
 
 void main() {
   setUp(TestWidgetsFlutterBinding.ensureInitialized);
@@ -55,7 +46,17 @@ void main() {
         preferencesProvider.overrideWith(
           (ref) => SharedPreferences.getInstance(),
         ),
-        voiceControllerProvider.overrideWith((ref) => _Call(ref, session)),
+        voiceControllerProvider.overrideWith(
+          (ref) => FakeVoiceController(
+            ref,
+            session: session,
+            initial: const VoiceState(
+              channelId: 'c-main',
+              state: VoiceSessionState.connected,
+              participants: [_ada],
+            ),
+          ),
+        ),
         pauseOnUnfocusedAppliesProvider.overrideWithValue(true),
       ],
     );

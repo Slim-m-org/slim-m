@@ -113,9 +113,21 @@ impl From<anyhow::Error> for OpenDmError {
 #[derive(Debug, Clone)]
 pub struct DmConversation {
     pub channel_id: ChannelId,
+    /// The other participant of a pair; for a group, the first participant who is not the caller.
     pub other: User,
     pub unread: i64,
     pub created_at: i64,
+    /// Set for a group DM; see [`super::group_dms`].
+    pub group: Option<GroupDm>,
+}
+
+/// What a group DM adds to its [`DmConversation`].
+#[derive(Debug, Clone)]
+pub struct GroupDm {
+    /// The custom name; `None` means each client derives the default from the members.
+    pub name: Option<String>,
+    /// Every participant, the caller included, oldest member first.
+    pub members: Vec<User>,
 }
 
 /// Orders a pair so (a, b) and (b, a) always produce the same result. `Uuid`
@@ -125,6 +137,27 @@ pub struct DmConversation {
 /// either way this branches, which is exactly what admits it.
 fn normalize_pair(a: UserId, b: UserId) -> (UserId, UserId) {
     if a.0 < b.0 { (a, b) } else { (b, a) }
+}
+
+/// The in-memory shape of a freshly inserted DM channel, pair or group.
+pub(super) fn new_dm_channel(id: ChannelId, name: String, created_at: i64) -> Channel {
+    Channel {
+        id,
+        name,
+        kind: DM_CHANNEL_KIND.to_owned(),
+        topic: None,
+        // Never read: a DM is excluded from every position-ordered query.
+        position: 0,
+        parent_message_id: None,
+        // Never read: a DM is excluded from every category grouping.
+        category_id: None,
+        created_at,
+        // Never read: a DM has no slow-mode setter of its own.
+        slow_mode_seconds: 0,
+        join_muted: false,
+        default_notification: NotificationPreference::default(),
+        room: super::ChannelRoom::default(),
+    }
 }
 
 impl Store {
@@ -215,23 +248,7 @@ impl Store {
         .await?;
         tx.commit().await?;
 
-        Ok(Channel {
-            id: channel_id,
-            name: String::new(),
-            kind: DM_CHANNEL_KIND.to_owned(),
-            topic: None,
-            // Never read: a DM is excluded from every position-ordered query.
-            position: 0,
-            parent_message_id: None,
-            // Never read: a DM is excluded from every category grouping.
-            category_id: None,
-            created_at: now,
-            // Never read: a DM has no slow-mode setter of its own.
-            slow_mode_seconds: 0,
-            join_muted: false,
-            default_notification: NotificationPreference::default(),
-            room: super::ChannelRoom::default(),
-        })
+        Ok(new_dm_channel(channel_id, String::new(), now))
     }
 
     /// Every DM channel `user_id` is a party to, hidden ones included.
@@ -250,7 +267,13 @@ impl Store {
         let rows = sqlx::query!(
             r#"SELECT channel_id AS "channel_id!: ChannelId"
                FROM dm_channels
-               WHERE user_a = ? OR user_b = ?"#,
+               WHERE user_a = ? OR user_b = ?
+               UNION
+               SELECT g.channel_id
+               FROM group_dm_members g
+               JOIN channels c ON c.id = g.channel_id AND c.deleted_at IS NULL
+               WHERE g.user_id = ?"#,
+            user_id,
             user_id,
             user_id,
         )
@@ -282,6 +305,17 @@ impl Store {
         &self,
         user_id: UserId,
     ) -> anyhow::Result<Vec<DmConversation>> {
+        let mut conversations = self.list_pair_conversations(user_id).await?;
+        conversations.extend(self.list_group_conversations(user_id).await?);
+        // Stable, so two conversations active in the same millisecond keep their query order.
+        conversations.sort_by_key(|(activity_at, _)| std::cmp::Reverse(*activity_at));
+        Ok(conversations.into_iter().map(|(_, c)| c).collect())
+    }
+
+    async fn list_pair_conversations(
+        &self,
+        user_id: UserId,
+    ) -> anyhow::Result<Vec<(i64, DmConversation)>> {
         let rows = sqlx::query!(
             r#"SELECT channel_id AS "channel_id!: ChannelId",
                       other_id AS "other_id!: UserId",
@@ -330,13 +364,17 @@ impl Store {
             let Some(other) = profiles.get(&row.other_id).cloned() else {
                 continue;
             };
-            conversations.push(DmConversation {
-                channel_id: row.channel_id,
-                other,
-                // Absent from the map means nothing unread; see unread_counts.
-                unread: unread.get(&row.channel_id).copied().unwrap_or(0),
-                created_at: row.created_at,
-            });
+            conversations.push((
+                row.activity_at,
+                DmConversation {
+                    channel_id: row.channel_id,
+                    other,
+                    // Absent from the map means nothing unread; see unread_counts.
+                    unread: unread.get(&row.channel_id).copied().unwrap_or(0),
+                    created_at: row.created_at,
+                    group: None,
+                },
+            ));
         }
         Ok(conversations)
     }
@@ -433,7 +471,11 @@ impl Store {
         .fetch_optional(&self.pool)
         .await?;
         let Some(pair) = pair else {
-            return Ok(Permissions::NONE);
+            // Not a pair: a group member holds the base set, since one pair's block must not silence the rest.
+            return Ok(match self.is_group_dm_member(user_id, channel_id).await? {
+                true => DM_BASE,
+                false => Permissions::NONE,
+            });
         };
 
         let other = if user_id == pair.user_a {

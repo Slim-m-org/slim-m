@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT channel_id AS \"channel_id!: ChannelId\", id AS \"id!: CanvasObjectId\",\n                  kind AS \"kind!\", z_index AS \"z_index!: i64\",\n                  x AS \"x!: f64\", y AS \"y!: f64\", w AS \"w!: f64\", h AS \"h!: f64\",\n                  p.props AS \"props!\", author_id AS \"author_id: UserId\",\n                  seq AS \"seq!: Seq\", created_at AS \"created_at!: i64\",\n                  deleted_at AS \"deleted_at: i64\"\n           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id\n           WHERE o.id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "channel_id!: ChannelId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      },
+      {
+        "name": "id!: CanvasObjectId",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "kind!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "z_index!: i64",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "x!: f64",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "y!: f64",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "w!: f64",
+        "ordinal": 6,
+        "type_info": "Float"
+      },
+      {
+        "name": "h!: f64",
+        "ordinal": 7,
+        "type_info": "Float"
+      },
+      {
+        "name": "props!",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "author_id: UserId",
+        "ordinal": 9,
+        "type_info": "Blob"
+      },
+      {
+        "name": "seq!: Seq",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "created_at!: i64",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "deleted_at: i64",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3be84b6909ab4c50e86038a6055cf8139ad2d303852a1f35def19c547be241b8"
+}

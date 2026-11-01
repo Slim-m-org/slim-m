@@ -65,7 +65,7 @@ void main() {
 
     a11yTest('the Participants sheet rows are 44 px targets', (tester) async {
       await pumpA11yCanvas(tester, size: phoneSize);
-      await runOverflowItem(tester, 'Participants');
+      await runOverflowItem(tester, 'People here');
 
       final rows = [
         for (final name in ['Priya', 'Sam']) ...rowsNamed(tester, name),

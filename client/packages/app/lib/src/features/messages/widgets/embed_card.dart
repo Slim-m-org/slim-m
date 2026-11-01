@@ -17,7 +17,7 @@ import '../providers/link_preview.dart';
 import '../providers/media_preferences.dart';
 import 'attachment_reveal.dart';
 import 'attachment_view.dart' show kInlineImageMax;
-import 'image_decode.dart';
+import '../../../widgets/image_decode.dart';
 import '../../../widgets/text_link.dart';
 import '../../../widgets/animation_gate.dart';
 

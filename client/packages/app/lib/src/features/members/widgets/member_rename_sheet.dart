@@ -20,8 +20,8 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/member_presence.dart' show membersProvider;
-import '../../../providers/providers.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/member_actions.dart';
 
 Future<void> showRenameMemberSheet(
   BuildContext context, {
@@ -101,7 +101,7 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
   Future<void> _save() => _run(
     'rename ${widget.profile.displayName}',
     () => ref
-        .read(apiProvider)
+        .read(memberActionsProvider)
         .setMemberNickname(
           userId: widget.profile.id,
           nickname: _name.text.trim(),
@@ -110,7 +110,8 @@ class _RenameMemberSheetState extends ConsumerState<_RenameMemberSheet>
 
   Future<void> _remove() => _run(
     'remove the nickname',
-    () => ref.read(apiProvider).clearMemberNickname(widget.profile.id),
+    () =>
+        ref.read(memberActionsProvider).clearMemberNickname(widget.profile.id),
   );
 
   @override

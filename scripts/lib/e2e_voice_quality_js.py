@@ -6,6 +6,13 @@ the decoded remote audio into PCM (what the listener's speakers would get,
 before any app gain) and samples the receive-side concealment counters.
 """
 
+# Served same-origin by e2e_web_server: the page's CSP allows a worklet only from 'self', never a blob.
+TAP_WORKLET = (
+    'class T extends AudioWorkletProcessor{process(i){var c=i[0][0];'
+    'if(c)this.port.postMessage(c.slice(0));return true;}}'
+    'registerProcessor("vq-tap",T);'
+)
+
 # Capture without browser voice processing, so the call is judged alone; E2E_VQ_PROCESSING=1 keeps it.
 RAW_CAPTURE_ALL = r"""
 (function(){
@@ -109,11 +116,7 @@ COLLECT = r"""
         function(e){ return e.srcObject && e.srcObject.getAudioTracks().length; });
       var ctx = new AudioContext({sampleRate: 48000});
       await ctx.resume();
-      var code = 'class T extends AudioWorkletProcessor{process(i){var c=i[0][0];'
-        + 'if(c)this.port.postMessage(c.slice(0));return true;}}'
-        + 'registerProcessor("vq-tap",T);';
-      var url = URL.createObjectURL(new Blob([code], {type: 'text/javascript'}));
-      await ctx.audioWorklet.addModule(url);
+      await ctx.audioWorklet.addModule('/__e2e/vq-tap.js');
       var node = new AudioWorkletNode(ctx, 'vq-tap', {numberOfOutputs: 0});
       node.port.onmessage = function(e){ vq.chunks.push(e.data); };
       ctx.createMediaStreamSource(el.srcObject).connect(node);

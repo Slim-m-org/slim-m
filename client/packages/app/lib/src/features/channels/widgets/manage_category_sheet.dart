@@ -19,10 +19,10 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../api_failure.dart';
 import '../../../entity_name.dart';
 import '../providers/channel_order_controller.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../../../widgets/confirm_dialog.dart';
 import '../../../widgets/run_guarded.dart';
+import '../providers/channel_actions.dart';
 
 const _deleteCategoryAction = 'delete the category';
 
@@ -57,9 +57,7 @@ Future<void> deleteCategoryAndForget(
   WidgetRef ref,
   ChannelCategoryRow category,
 ) async {
-  await ref.read(apiProvider).deleteCategory(category.id);
-  final store = await ref.read(storeProvider.future);
-  await store.removeCategory(category.id);
+  await ref.read(channelActionsProvider).deleteCategory(category);
 }
 
 /// Confirms, then deletes, without opening the sheet on the way.
@@ -158,14 +156,9 @@ class _ManageCategorySheetState extends ConsumerState<_ManageCategorySheet> {
       _error = null;
     });
     try {
-      final updated = await ref
-          .read(apiProvider)
-          .updateCategory(
-            categoryId: widget.category.id,
-            name: _name.text.trim(),
-          );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertCategory(updated);
+      await ref
+          .read(channelActionsProvider)
+          .renameCategory(widget.category.id, _name.text.trim());
       if (mounted) Navigator.of(context).pop();
     } on api.ApiException catch (e, stack) {
       api.reportFailure(api.LogTag.ui, 'save the category', e, stack);

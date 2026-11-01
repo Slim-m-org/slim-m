@@ -84,7 +84,7 @@ List<Widget> _screenRows(
     ShareStageMenu(
       sharerName: p.name,
       onPopOut: _popOut(ref, p, FeedKind.screenShare),
-      streamVolume: !p.isLocal && controller.hasScreenAudio(p.identity)
+      streamVolume: !p.isLocal && controller.volumes.hasScreenAudio(p.identity)
           ? streamVolumeSlider(
               p.identity,
               controller,
@@ -119,14 +119,14 @@ List<Widget> _cameraRows(
   bool withFullscreen,
 ) {
   final controller = ref.read(voiceControllerProvider.notifier);
-  if (!p.isLocal && controller.isCameraHidden(p.identity)) {
+  if (!p.isLocal && controller.cameras.isCameraHidden(p.identity)) {
     return [
       AppMenuItem(
         label: 'Show camera',
         leading: AppIcons.camera,
         onTap: () {
           close();
-          unawaited(controller.setCameraHidden(p.identity, false));
+          unawaited(controller.cameras.setCameraHidden(p.identity, false));
         },
       ),
     ];
@@ -155,7 +155,7 @@ List<Widget> _cameraRows(
         leading: AppIcons.tileHide,
         onTap: () {
           close();
-          unawaited(controller.setCameraHidden(p.identity, true));
+          unawaited(controller.cameras.setCameraHidden(p.identity, true));
         },
       ),
     if (withFullscreen)

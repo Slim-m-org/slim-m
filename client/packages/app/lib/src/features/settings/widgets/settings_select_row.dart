@@ -11,10 +11,17 @@ import 'settings_search.dart';
 
 /// One choice offered by a [SettingsSelectRow].
 class SettingsChoice<T> {
-  const SettingsChoice({required this.value, required this.label});
+  const SettingsChoice({
+    required this.value,
+    required this.label,
+    this.leading,
+  });
 
   final T value;
   final String label;
+
+  /// A small mark shown before the label and beside the current value.
+  final Widget? leading;
 }
 
 /// Replaces a row of segmented cards for settings with more than about three
@@ -62,13 +69,16 @@ class SettingsSelectRow<T> extends StatelessWidget {
   /// Renders as an indented sub-row of the row above, not a row of its own.
   final bool sub;
 
-  String get _currentLabel {
+  SettingsChoice<T>? get _currentChoice {
     final current = value;
-    if (current == null) return unknownLabel;
-    return choices
-        .firstWhere((c) => c.value == current, orElse: () => choices.first)
-        .label;
+    if (current == null) return null;
+    return choices.firstWhere(
+      (c) => c.value == current,
+      orElse: () => choices.first,
+    );
   }
+
+  String get _currentLabel => _currentChoice?.label ?? unknownLabel;
 
   /// Opens the choice sheet standalone, for a caller that wants this row's
   /// picker without its [AppListRow] presentation: [JoinPolicyRow] renders
@@ -91,6 +101,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
             for (final choice in choices)
               AppMenuItem(
                 label: choice.label,
+                leadingWidget: choice.leading,
                 selected: choice.value == value,
                 onTap: () => Navigator.of(sheetContext).pop(choice.value),
               ),
@@ -145,6 +156,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
             value: choice.value,
             child: _DropdownItem(
               label: choice.label,
+              leading: choice.leading,
               selected: choice.value == value,
             ),
           ),
@@ -178,6 +190,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: AppSpacing.s8,
           children: [
+            if (_currentChoice?.leading != null) _currentChoice!.leading!,
             Flexible(
               child: Text(
                 _currentLabel,
@@ -204,6 +217,7 @@ class SettingsSelectRow<T> extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 6,
           children: [
+            if (_currentChoice?.leading != null) _currentChoice!.leading!,
             Flexible(
               child: Text(
                 _currentLabel,
@@ -224,9 +238,14 @@ class SettingsSelectRow<T> extends StatelessWidget {
 /// One value in [SettingsSelectRow]'s desktop dropdown: a leading check on the
 /// current choice, aligned so the labels line up whether ticked or not.
 class _DropdownItem extends StatelessWidget {
-  const _DropdownItem({required this.label, required this.selected});
+  const _DropdownItem({
+    required this.label,
+    required this.selected,
+    this.leading,
+  });
 
   final String label;
+  final Widget? leading;
   final bool selected;
 
   @override
@@ -244,6 +263,10 @@ class _DropdownItem extends StatelessWidget {
                 )
               : null,
         ),
+        if (leading != null) ...[
+          leading!,
+          const SizedBox(width: AppSpacing.s8),
+        ],
         Expanded(
           child: Text(
             label,

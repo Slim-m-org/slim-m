@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// GIF search, proxied end to end through this deployment's own server
 /// rather than reaching a third-party provider directly - see
@@ -14,7 +19,7 @@ extension SlimmApiGifs on SlimmApi {
     int? limit,
     String? channelId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/gifs/search',
       query: {
@@ -37,7 +42,7 @@ extension SlimmApiGifs on SlimmApi {
     int? limit,
     String? channelId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/gifs/trending',
       query: {
@@ -57,7 +62,7 @@ extension SlimmApiGifs on SlimmApi {
   /// [channelId] names where the GIF is headed, so ATTACH_FILES is checked
   /// there and a channel overwrite granting it counts.
   Future<FetchedBytes> fetchGifPreview(String gifId, {String? channelId}) =>
-      _fetchBytes(
+      fetchBytes(
         '/gifs/preview/$gifId',
         query: {if (channelId != null) 'channel_id': channelId},
       );
@@ -67,7 +72,7 @@ extension SlimmApiGifs on SlimmApi {
   /// referenced in `attachment_ids` on [SlimmApiMessages.sendMessage] exactly
   /// like one from [SlimmApiAttachments.uploadAttachment].
   Future<Attachment> selectGif(String gifId, {String? channelId}) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/gifs/select',
       body: {'id': gifId, if (channelId != null) 'channel_id': channelId},

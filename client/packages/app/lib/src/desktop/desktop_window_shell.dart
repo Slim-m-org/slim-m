@@ -17,7 +17,6 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -34,6 +33,7 @@ import 'startup_state.dart' show startupLeavingProvider;
 import 'tray/desktop_tray_controller.dart';
 import 'tray/linux_tray_probe.dart';
 import 'tray/tray_availability.dart';
+import 'window_fullscreen_hold.dart' show FullscreenHolds;
 import 'window_geometry.dart';
 import 'window_final_geometry.dart';
 import 'window_geometry_store.dart';
@@ -42,15 +42,31 @@ import 'package:slimm_api/api.dart' show AppLog, LogTag;
 
 export 'window_view_size.dart';
 
+/// The window shell for one process, built in `main.dart` before `runApp` and
+/// handed to every account's container through [desktopWindowShellProvider].
 class DesktopWindowShell {
-  DesktopWindowShell._();
+  DesktopWindowShell({
+    DesktopWindowPort? port,
+    bool Function() positionSupported = windowPositionSupported,
+    DesktopPlatform? chromePlatform,
+    Future<Duration?> Function() splashMappedProbe = queryNativeWindowMapped,
+    SecondInstanceChannel? secondInstances,
+    bool active = false,
+    bool frameless = false,
+  }) : port = port ?? WindowManagerDesktopWindowPort(),
+       _positionSupported = positionSupported,
+       _chromePlatform = chromePlatform,
+       _splashMappedProbe = splashMappedProbe,
+       _secondInstances = secondInstances ?? SecondInstanceChannel(),
+       _active = active,
+       _framelessApplied = frameless;
 
   /// Shared across [applyInitialGeometry] and [registerListenersAndTray]:
   /// the native listener must be registered exactly once, which is what
   /// [WindowManagerDesktopWindowPort.ensureInitialized]'s own idempotence
-  /// guards, and both steps need the one real window either way. Not
-  /// `final`: [debugPort] is the test-only seam that swaps it for a fake.
-  static DesktopWindowPort _port = WindowManagerDesktopWindowPort();
+  /// guards, and both steps need the one real window either way. Also the one
+  /// port [TitleBar] drags, minimizes and maximizes through.
+  final DesktopWindowPort port;
 
   /// How long [registerListenersAndTray] waits on the native window/tray
   /// calls before giving up and letting startup proceed regardless - a
@@ -79,19 +95,23 @@ class DesktopWindowShell {
   /// it with no import cycle: this file already imports that one.
   static const splashWindowSize = kSplashWindowSize;
 
-  static bool Function() _positionSupported = windowPositionSupported;
+  /// The Wayland rule: a compositor that cannot place a window has no position to save.
+  final bool Function() _positionSupported;
 
-  /// Test-only seam for the Wayland rule, since a test runs on this Linux box.
-  @visibleForTesting
-  static set debugPositionSupported(bool Function() probe) =>
-      _positionSupported = probe;
+  /// Which platform's splash chrome [lockSplashChrome] applies; null means the host's own.
+  final DesktopPlatform? _chromePlatform;
 
-  @visibleForTesting
-  static void debugEnablePersistence() =>
-      _controller?.enableGeometryPersistence();
+  final Future<Duration?> Function() _splashMappedProbe;
+  final SecondInstanceChannel _secondInstances;
+
+  /// The fullscreen holds taken on this window, shared by every video surface.
+  final fullscreenHolds = FullscreenHolds();
+
+  /// The native window controller [registerListenersAndTray] builds, for geometry persistence.
+  DesktopWindowController? get windowController => _controller;
 
   /// Writes any pending geometry, then destroys the window through [port].
-  static Future<void> quit(DesktopWindowPort port) async {
+  Future<void> quit(DesktopWindowPort port) async {
     try {
       await _controller?.flush();
     } catch (error, stack) {
@@ -105,61 +125,20 @@ class DesktopWindowShell {
     await port.destroy();
   }
 
-  static DesktopWindowController? _controller;
-  static DesktopTrayController? _trayController;
-  static bool _active = false;
-  static bool _framelessApplied = false;
-
-  static DesktopPlatform? _debugPlatform;
-
-  /// Test-only: which platform's splash chrome [lockSplashChrome] applies.
-  @visibleForTesting
-  static set debugSplashPlatform(DesktopPlatform? platform) =>
-      _debugPlatform = platform;
+  DesktopWindowController? _controller;
+  DesktopTrayController? _trayController;
+  bool _active;
+  bool _framelessApplied;
 
   /// The windowed size [_applyFinalGeometry] asked for, so
   /// [revealAfterHandoff] knows what the view is supposed to settle at.
   /// Null when the run state is maximized or fullscreen, where the final
   /// size is the compositor's to decide and there is nothing to compare.
-  static WindowSize? _handoffTargetSize;
+  WindowSize? _handoffTargetSize;
 
   /// True when the final run state is maximized or fullscreen, where the size
   /// is the compositor's but the view must still leave the splash's own.
-  static bool _handoffFillsDisplay = false;
-
-  /// Test-only seam: a real desktop-shell test still runs on real Linux
-  /// (`dart:io`'s `Platform` cannot tell a CI runner from a launch), so
-  /// this is what lets a test drive [registerListenersAndTray] against a
-  /// fake port rather than the real plugin.
-  @visibleForTesting
-  static set debugPort(DesktopWindowPort port) => _port = port;
-
-  /// Restores every static field to its never-started state, for a test
-  /// that wants a clean slate.
-  @visibleForTesting
-  static void debugReset() {
-    _port = WindowManagerDesktopWindowPort();
-    _controller = null;
-    _trayController = null;
-    _active = false;
-    _framelessApplied = false;
-    _debugPlatform = null;
-    _handoffTargetSize = null;
-    _handoffFillsDisplay = false;
-    _positionSupported = windowPositionSupported;
-  }
-
-  /// Flips the two flags [DesktopChrome] reads, so a widget test can render
-  /// the active chrome without driving the whole native bring-up. Pair with
-  /// [debugPort] and [debugReset]; [frameless] mounts the title bar.
-  @visibleForTesting
-  static void debugActivate({bool frameless = false}) {
-    _active = true;
-    _framelessApplied = frameless;
-  }
-
-  /// The one port [TitleBar] drags, minimizes and maximizes through.
-  static DesktopWindowPort get port => _port;
+  bool _handoffFillsDisplay = false;
 
   /// True once [registerListenersAndTray] has actually run against a real
   /// desktop platform - never true in an ordinary widget test, since
@@ -168,7 +147,7 @@ class DesktopWindowShell {
   /// project's own Linux dev box or CI runner - which really is Linux, as
   /// far as `dart:io`'s `Platform` can tell - does not silently wrap every
   /// existing widget test's tree in a `Column` it never had before.
-  static bool get active => _active;
+  bool get active => _active;
 
   /// True only once the native frame has actually been hidden - on Linux and
   /// Windows, set by [lockSplashChrome], right after the splash's own first frame is
@@ -176,7 +155,7 @@ class DesktopWindowShell {
   /// first instant. Stays true (or false, on a failure) for the rest of the
   /// run: nothing resets it back at handoff, since the splash and the ready
   /// app share the one real window and its one frame state throughout.
-  static bool get frameless => _framelessApplied;
+  bool get frameless => _framelessApplied;
 
   /// The close button drawn inside [TitleBar] has no native close event of
   /// its own to reach [DesktopWindowController.requestClose] through, so it
@@ -187,7 +166,7 @@ class DesktopWindowShell {
   /// the window frameless with a close button that does nothing. `Ctrl+Q`
   /// (`desktop_quit_shortcut.dart`) is the deliberate, unconditional
   /// fallback for exactly that gap, registered independently of both.
-  static Future<void> requestClose() =>
+  Future<void> requestClose() =>
       _controller?.requestClose() ?? Future<void>.value();
 
   /// Puts the window into small splash mode before it is ever shown, so
@@ -208,7 +187,7 @@ class DesktopWindowShell {
   /// On a timeout or error the window simply opens at its native default. No
   /// [ProviderContainer] exists this early, so the breadcrumb goes to
   /// [AppLog], which buffers until the app installs its sink.
-  static Future<void> applyInitialGeometry() async {
+  Future<void> applyInitialGeometry() async {
     if (currentDesktopPlatform() == null) return;
     try {
       await _applySplashGeometry().timeout(_setupTimeout);
@@ -222,10 +201,10 @@ class DesktopWindowShell {
     }
   }
 
-  static Future<void> _applySplashGeometry() async {
-    await _port.ensureInitialized();
-    await _port.setSize(splashWindowSize);
-    await _port.center();
+  Future<void> _applySplashGeometry() async {
+    await port.ensureInitialized();
+    await port.setSize(splashWindowSize);
+    await port.center();
   }
 
   /// Locks the splash's chrome once the window is actually visible:
@@ -244,7 +223,7 @@ class DesktopWindowShell {
   /// after which the window is already realized at the intended size, is
   /// the same ordering the original (pre-splash) title-bar hide already
   /// relied on safely.
-  static Future<void> lockSplashChrome() async {
+  Future<void> lockSplashChrome() async {
     if (currentDesktopPlatform() == null) return;
     try {
       await _lockSplashChrome().timeout(_setupTimeout);
@@ -258,11 +237,11 @@ class DesktopWindowShell {
     }
   }
 
-  static Future<void> _lockSplashChrome() async {
-    await _port.setResizable(false);
-    switch (_debugPlatform ?? currentDesktopPlatform()) {
+  Future<void> _lockSplashChrome() async {
+    await port.setResizable(false);
+    switch (_chromePlatform ?? currentDesktopPlatform()) {
       case DesktopPlatform.linux || DesktopPlatform.windows:
-        await _port.hideTitleBar();
+        await port.hideTitleBar();
         _framelessApplied = true;
       case DesktopPlatform.macOS || null:
         break;
@@ -284,13 +263,13 @@ class DesktopWindowShell {
   /// Persistence stays off until [revealAfterHandoff] has settled the view. [splashFloor] is
   /// how long the splash must have been on screen once mapped. [fadeOut] is
   /// how long the splash content dissolves before its window hides.
-  static Future<void> prepareHandoff(
+  Future<void> prepareHandoff(
     ProviderContainer container, {
     Duration splashFloor = Duration.zero,
     Duration fadeOut = Duration.zero,
   }) async {
     if (currentDesktopPlatform() == null) return;
-    await awaitSplashMapped(floor: splashFloor);
+    await awaitSplashMapped(floor: splashFloor, probe: _splashMappedProbe);
     if (fadeOut > Duration.zero) {
       container.read(startupLeavingProvider.notifier).state = true;
       await Future<void>.delayed(fadeOut);
@@ -310,10 +289,10 @@ class DesktopWindowShell {
     }
   }
 
-  static Future<void> _applyFinalGeometry(ProviderContainer container) async {
+  Future<void> _applyFinalGeometry(ProviderContainer container) async {
     final prefs = await container.read(preferencesProvider.future);
     await applyFinalGeometry(
-      _port,
+      port,
       WindowGeometryStore(prefs),
       positionSupported: _positionSupported(),
       onTarget: (target) {
@@ -336,7 +315,7 @@ class DesktopWindowShell {
   /// wait for. Confirmed by instrumenting a real launch on the reporter's
   /// own KDE Wayland session: the wait failed after the full
   /// [_setupTimeout] every time while the window stayed hidden, then
-  /// resolved within a single frame the instant [_port.show] ran. Waiting
+  /// resolved within a single frame the instant [port.show] ran. Waiting
   /// first and revealing second, the order this replaces, could only ever
   /// spend that timeout for nothing before doing the exact same `show()`
   /// its own timeout fallback already did - see decision 0012's 2026-08-28
@@ -358,14 +337,14 @@ class DesktopWindowShell {
   /// that stalls for a genuinely different reason gets logged rather than
   /// hanging this method forever; nothing downstream awaits this method's
   /// completion, so the bound protects a log line, not a caller.
-  static Future<void> revealAfterHandoff() async {
+  Future<void> revealAfterHandoff() async {
     if (currentDesktopPlatform() == null) return;
     await _reveal();
   }
 
-  static Future<void> _reveal() async {
+  Future<void> _reveal() async {
     try {
-      await _port.show();
+      await port.show();
     } catch (error, stack) {
       AppLog.warning(
         LogTag.platform,
@@ -395,24 +374,22 @@ class DesktopWindowShell {
   /// launch was turned away in favour of this process. `main.dart` calls this
   /// right after [applyInitialGeometry], before there is a [ProviderContainer],
   /// since a second launch can race the very start of this process.
-  static void registerSecondInstanceHandler() {
+  void registerSecondInstanceHandler() {
     if (currentDesktopPlatform() == null) return;
     _secondInstances.register(raise);
   }
 
-  static final _secondInstances = SecondInstanceChannel();
-
   /// Fires each time another launch hands over to this running instance.
-  static Stream<void> get secondLaunches => _secondInstances.launches;
+  Stream<void> get secondLaunches => _secondInstances.launches;
 
   /// Brings the window forward for a notification click or a second launch.
   ///
   /// show() un-hides a tray-hidden window; restore() raises a minimised one.
-  static Future<void> raise() async {
+  Future<void> raise() async {
     if (currentDesktopPlatform() == null) return;
     try {
-      await _port.show();
-      await _port.restore();
+      await port.show();
+      await port.restore();
     } catch (error, stack) {
       AppLog.swallowed(
         LogTag.platform,
@@ -435,9 +412,7 @@ class DesktopWindowShell {
   /// out - is logged and swallowed, matching [restoreSession]'s own
   /// precedent; the app reaches a usable window with no tray, no custom
   /// title bar and no geometry persistence rather than no window at all.
-  static Future<void> registerListenersAndTray(
-    ProviderContainer container,
-  ) async {
+  Future<void> registerListenersAndTray(ProviderContainer container) async {
     final platform = currentDesktopPlatform();
     if (platform == null) return;
     _active = true;
@@ -453,11 +428,11 @@ class DesktopWindowShell {
     }
   }
 
-  static Future<void> _bringUpWindowAndTray(
+  Future<void> _bringUpWindowAndTray(
     ProviderContainer container,
     DesktopPlatform platform,
   ) async {
-    await _port.ensureInitialized();
+    await port.ensureInitialized();
 
     final prefs = await container.read(preferencesProvider.future);
     final store = WindowGeometryStore(prefs);
@@ -467,19 +442,20 @@ class DesktopWindowShell {
     );
 
     _controller = DesktopWindowController(
-      port: _port,
+      port: port,
       store: store,
       platform: platform,
       trayAvailable: trayAvailable,
       positionSupported: _positionSupported,
       onShow: (action) => _offerFirstRunNoticeIfNeeded(container, action),
+      fullscreenHeld: () => fullscreenHolds.any,
     )..start();
 
-    await _port.setPreventClose(true);
+    await port.setPreventClose(true);
     // The Linux title bar is hidden by lockSplashChrome, not here; see decision 0012's superseding section.
 
     _trayController = DesktopTrayController(
-      port: _port,
+      port: port,
       container: container,
       host: container.read(accountHostProvider),
     );
@@ -489,7 +465,7 @@ class DesktopWindowShell {
   /// [action] is null on a show that was never preceded by a routed close
   /// on this controller (the very first launch) - nothing happened yet to
   /// describe, so there is nothing to offer.
-  static Future<void> _offerFirstRunNoticeIfNeeded(
+  Future<void> _offerFirstRunNoticeIfNeeded(
     ProviderContainer container,
     CloseAction? action,
   ) async {
@@ -500,3 +476,7 @@ class DesktopWindowShell {
         action;
   }
 }
+
+final desktopWindowShellProvider = Provider<DesktopWindowShell>(
+  (ref) => DesktopWindowShell(),
+);

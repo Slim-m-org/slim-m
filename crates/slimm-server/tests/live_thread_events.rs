@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-//! Live coverage for `Event::ThreadUpdated`: the "thread opened" and "reply
+//! Live coverage for `MessageEvent::ThreadUpdated`: the "thread opened" and "reply
 //! added" signal a bystander already viewing the parent channel was missing
 //! entirely before this (`docs/decisions/0005-threads.md`'s own writeup
 //! named it as deliberately not built).

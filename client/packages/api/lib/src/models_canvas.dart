@@ -143,15 +143,35 @@ class CanvasMediaSlot {
 
 /// Every media slot a channel's canvas currently remembers.
 class CanvasMediaSlotPage {
-  const CanvasMediaSlotPage({required this.slots});
+  const CanvasMediaSlotPage({required this.slots, this.version = 0});
 
   final List<CanvasMediaSlot> slots;
+
+  /// The state version the list was read at; 0 from a server that sends none.
+  final int version;
 
   factory CanvasMediaSlotPage.fromJson(Map<String, dynamic> json) =>
       CanvasMediaSlotPage(
         slots: (json['slots'] as List<dynamic>)
             .map((s) => CanvasMediaSlot.fromJson(s as Map<String, dynamic>))
             .toList(),
+        version: (json['version'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// The objects locked in place, with the state version they were read at.
+class CanvasObjectLockPage {
+  const CanvasObjectLockPage({required this.objectIds, this.version = 0});
+
+  final Set<String> objectIds;
+
+  /// 0 from a server that sends none.
+  final int version;
+
+  factory CanvasObjectLockPage.fromJson(Map<String, dynamic> json) =>
+      CanvasObjectLockPage(
+        objectIds: (json['object_ids'] as List<dynamic>).cast<String>().toSet(),
+        version: (json['version'] as num?)?.toInt() ?? 0,
       );
 }
 

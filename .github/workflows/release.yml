@@ -303,118 +303,12 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.client_ref }}
 
-      # The same build and staging as main-builds and copr-catch-up, so the snapshot and the release tarball cannot drift.
-      # Published on every client release and gated on nothing. It is both the
-      # download for a user with no packaging, and the spec's Source0.
-      - name: build linux tarball
-        uses: ./.github/actions/linux-tarball
+      - uses: ./.github/actions/release-linux-client
         with:
           version: ${{ needs.release-please.outputs.client_version }}
+          tag: ${{ needs.release-please.outputs.client_tag }}
           spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
-
-      # One gate per format, so a working rpm is not held back by the absence of
-      # a flatpak manifest. The tarball above ships either way.
-      - name: check packaging inputs
-        id: pkg
-        run: |
-          if [ -f packaging/flatpak/top.npcserver.slimm.yaml ]; then
-            echo "flatpak=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "flatpak=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No packaging/flatpak/top.npcserver.slimm.yaml, so no Flatpak bundle is built. The portable tarball is published regardless."
-          fi
-          if [ -f packaging/rpm/slim-m-client.spec ]; then
-            echo "rpm=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "rpm=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::No packaging/rpm/slim-m-client.spec, so no rpm is built. The portable tarball is published regardless."
-          fi
-
-      # continue-on-error: this format has one real CI run behind it versus the rpm's dozens; see packaging/flatpak/README.md.
-      # librsvg2-common provides the gdk-pixbuf SVG loader `flatpak build-export`
-      # needs on this host to validate exported icons; without it a valid SVG
-      # fails export with "Format not recognized". See packaging/flatpak/README.md.
-      - name: install flatpak and its build tools
-        if: steps.pkg.outputs.flatpak == 'true'
-        continue-on-error: true
-        uses: ./.github/actions/apt-install
-        with:
-          packages: flatpak flatpak-builder elfutils librsvg2-common
-
-      - name: build flatpak
-        if: steps.pkg.outputs.flatpak == 'true'
-        continue-on-error: true
-        run: |
-          flatpak remote-add --user --if-not-exists flathub \
-            https://flathub.org/repo/flathub.flatpakrepo
-          flatpak-builder --user --install-deps-from=flathub --force-clean \
-            --repo=dist/flatpak-repo build-dir \
-            packaging/flatpak/top.npcserver.slimm.yaml
-          flatpak build-bundle dist/flatpak-repo \
-            "dist/slim-m-client-${{ needs.release-please.outputs.client_version }}.flatpak" \
-            top.npcserver.slimm
-
-      # In a Fedora container, not on the runner: the spec is written against
-      # Fedora's macros and dependency generators, and Ubuntu's rpm has neither.
-      - name: build rpm
-        if: steps.pkg.outputs.rpm == 'true'
-        env:
-          VER: ${{ needs.release-please.outputs.client_version }}
-        run: |
-          docker run --rm -v "${PWD}:/w" -w /w -e VER fedora:44 bash -eo pipefail -c '
-            dnf -y install rpm-build patchelf desktop-file-utils tar gzip >/dev/null
-            mkdir -p rpmbuild/SOURCES
-            cp dist/slim-m-client-*-linux-amd64.tar.gz \
-              packaging/rpm/top.npcserver.slimm.desktop packaging/rpm/slim-m-client.repo \
-            packaging/rpm/slim-m-client-update-helper packaging/rpm/top.npcserver.slimm.update.policy \
-              packaging/linux/icons/top.npcserver.slimm*.png \
-              packaging/linux/icons/top.npcserver.slimm.svg rpmbuild/SOURCES/
-            # The same stamp the copr job applies, so the .rpm on the release and
-            # the one COPR builds carry the same version as the tag.
-            sed "s/^Version:.*/Version:        ${VER}/" \
-              packaging/rpm/slim-m-client.spec > rpmbuild/slim-m-client.spec
-            rpmbuild -bb --define "_topdir /w/rpmbuild" --define "_rpmdir /w/dist" \
-              rpmbuild/slim-m-client.spec
-          '
-
-      - name: checksums
-        working-directory: dist
-        run: |
-          shopt -s nullglob
-          sha256sum -- slim-m-client-*-linux-amd64.tar.gz *.flatpak > SHA256SUMS
-          # The rpm is attached by basename, so it is listed by basename too.
-          for rpm in */*.rpm; do
-            printf '%s  %s\n' "$(sha256sum < "$rpm" | cut -d' ' -f1)" "${rpm##*/}" >> SHA256SUMS
-          done
-          cat SHA256SUMS
-
-      - name: sign checksums (optional)
-        if: env.GPG_PRIVATE_KEY != ''
-        working-directory: dist
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --batch --pinentry-mode loopback --passphrase-fd 0 <<< "$GPG_PASSPHRASE" \
-            --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
-
-      - name: attach to the github release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
-            'dist/slim-m-client-*-linux-amd64.tar.gz' \
-            '?dist/*.flatpak' '?dist/*/*.rpm' \
-            dist/SHA256SUMS '?dist/SHA256SUMS.asc'
-
-      # Last and unconditional on earlier failures, so a missing bundle turns the run red after everything else has attached.
-      - name: verify flatpak bundle was produced
-        if: always() && steps.pkg.outputs.flatpak == 'true'
-        run: |
-          shopt -s nullglob
-          bundles=(dist/slim-m-client-*.flatpak)
-          if [ ${#bundles[@]} -eq 0 ]; then
-            echo "::error::build flatpak did not produce a .flatpak bundle; see its logs for the real failure"
-            exit 1
-          fi
+          gh_token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}
 
   # Rewrites SHA256SUMS from the release's actual assets once the Linux, Android and (through desktop-clients) Windows and macOS downloads are attached; linux-client's own partial file is only the first draft.
@@ -479,46 +373,10 @@ jobs:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
-      - name: submit to COPR
+      - uses: ./.github/actions/release-copr-submit
         if: steps.gate.outputs.ready == 'true'
-        env:
-          VER: ${{ needs.release-please.outputs.client_version }}
-        run: |
-          set -uo pipefail
-          spec=packaging/rpm/slim-m-client.spec
-          if [ ! -f "$spec" ]; then
-            echo "::warning::${spec} does not exist, so there is nothing to submit to COPR. Skipping."
-            exit 0
-          fi
-          mkdir -p ~/.config
-          printf '%s\n' "$COPR_CONFIG" > ~/.config/copr
-          chmod 600 ~/.config/copr
-          rpmdev-setuptree
-          # A macro file rather than a --define, because spectool and rpmbuild
-          # both read it and only one of them is guaranteed to take the flag.
-          printf '%%app_version %s\n' "$VER" >> ~/.rpmmacros
-          cp "$spec" ~/rpmbuild/SPECS/slim-m-client.spec
-          # spectool below fetches remote sources only, so the local ones have
-          # to be placed by hand or rpmbuild -bs fails on a missing Source.
-          cp packaging/rpm/top.npcserver.slimm.desktop packaging/rpm/slim-m-client.repo \
-            packaging/rpm/slim-m-client-update-helper packaging/rpm/top.npcserver.slimm.update.policy \
-            packaging/linux/icons/top.npcserver.slimm*.png \
-            packaging/linux/icons/top.npcserver.slimm.svg ~/rpmbuild/SOURCES/
-          # Stamp the version only when the spec hardcodes it. A spec that
-          # expands a macro there already has the value and must not be edited.
-          if ! grep -q '^Version:.*%{' ~/rpmbuild/SPECS/slim-m-client.spec; then
-            sed -i "s/^Version:.*/Version:        ${VER}/" ~/rpmbuild/SPECS/slim-m-client.spec
-          fi
-          # COPR's buildroot has no network, so Source0 has to travel inside the
-          # SRPM. spectool downloads it here, while there is still a network.
-          spectool -g -R ~/rpmbuild/SPECS/slim-m-client.spec
-          rpmbuild -bs ~/rpmbuild/SPECS/slim-m-client.spec >/dev/null
-          srpm=$(ls ~/rpmbuild/SRPMS/slim-m-client-*.src.rpm)
-          if copr-cli build nc1107/slim-m "$srpm" --nowait; then
-            echo "submitted slim-m-client ${VER} to COPR (nc1107/slim-m)"
-          else
-            echo "::warning::COPR submit failed for slim-m-client ${VER}. The .rpm is on the release; rebuild manually with 'copr-cli build nc1107/slim-m <srpm>' from ${spec}. See packaging/fedora/README.md."
-          fi
+        with:
+          version: ${{ needs.release-please.outputs.client_version }}
 
   # Upload-signed apk and appbundle. Inert without its three secrets, and it
   # verifies the signer is the upload key, never debug. See docs/ci.md.
@@ -551,104 +409,12 @@ jobs:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
-      - name: write signing assets
-        if: steps.gate.outputs.ready == 'true'
-        run: |
-          printf '%s' "$ANDROID_GOOGLE_SERVICES_JSON" \
-            > client/packages/app/android/app/google-services.json
-          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d \
-            > client/packages/app/android/app/upload-keystore.jks
-          printf '%s' "$ANDROID_KEY_PROPERTIES" \
-            > client/packages/app/android/key.properties
-
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+      - uses: ./.github/actions/release-android-client
         if: steps.gate.outputs.ready == 'true'
         with:
-          distribution: temurin
-          # The LTS the Android Gradle Plugin supports; local builds match.
-          java-version: "21"
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        if: steps.gate.outputs.ready == 'true'
-        with:
-          channel: stable
-          flutter-version: 3.47.0
-
-      - uses: ./.github/actions/native-hooks-cache
-        if: steps.gate.outputs.ready == 'true'
-      - name: build android release
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          # --enforce-lockfile: resolve exactly what pubspec.lock pins.
-          flutter pub get --enforce-lockfile
-          # Build number from the run number and build name from the tag, never
-          # from pubspec. Both stores reject a reuse; see docs/ci.md.
-          flutter build appbundle --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ needs.release-please.outputs.client_version }} \
-            --build-number=${{ github.run_number }}
-          flutter build apk --release --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ needs.release-please.outputs.client_version }} \
-            --build-number=${{ github.run_number }}
-
-      - name: verify the signer is the upload key, not debug
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        env:
-          # Play's registered upload certificate. A public fingerprint, not a
-          # secret, and the only check that proves Play will accept the upload.
-          EXPECTED_SHA256: 9dc12a6a03bd6125065fb5f6eca2d8d8477f74009e0f6624efee2d2b98ec033b
-        run: |
-          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-          if [ -z "$sdk" ] || [ ! -d "$sdk/build-tools" ]; then
-            echo "::error::no Android build-tools; ANDROID_HOME='${sdk}'"
-            exit 1
-          fi
-          tool="$(find "$sdk/build-tools" -name apksigner -type f | sort -V | tail -n1)"
-          if [ -z "$tool" ]; then
-            echo "::error::no apksigner under $sdk/build-tools"
-            ls -1 "$sdk/build-tools" || true
-            exit 1
-          fi
-          # Captured to a file and echoed before matching. The previous form
-          # assigned a grep pipeline, so a miss aborted with no output at all.
-          "$tool" verify --print-certs \
-            build/app/outputs/flutter-apk/app-release.apk > certs.txt 2>&1 || {
-              echo "::error::apksigner could not verify the release apk"
-              cat certs.txt
-              exit 1
-            }
-          cat certs.txt
-          if grep -q 'Android Debug' certs.txt; then
-            echo "::error::release apk is signed with the debug keystore; key.properties did not take effect"
-            exit 1
-          fi
-          if ! grep -qi "$EXPECTED_SHA256" certs.txt; then
-            echo "::error::signer is not Play's registered upload key (want $EXPECTED_SHA256)"
-            exit 1
-          fi
-          echo "signed by the expected upload key"
-
-      - name: checksums
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "dist/slim-m-client-android.apk"
-          cp build/app/outputs/bundle/release/app-release.aab \
-            "dist/slim-m-client-android.aab"
-          (cd dist && sha256sum -- slim-m-client-android.apk > SHA256SUMS.android)
-
-      # No aab: a Play upload format testers download by mistake; docs/INSTALL.md.
-      - name: attach to the github release
-        if: steps.gate.outputs.ready == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          scripts/upload-release-assets.sh "${{ needs.release-please.outputs.client_tag }}" \
-            client/packages/app/dist/slim-m-client-android.apk \
-            client/packages/app/dist/SHA256SUMS.android
+          version: ${{ needs.release-please.outputs.client_version }}
+          tag: ${{ needs.release-please.outputs.client_tag }}
+          spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
       - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}
 
   # Signed ipa to TestFlight, reviewer-gated. Inert without its six secrets: it
@@ -690,106 +456,9 @@ jobs:
           ref: ${{ needs.release-please.outputs.client_ref }}
         if: steps.gate.outputs.ready == 'true'
 
-      - name: import signing assets
-        if: steps.gate.outputs.ready == 'true'
-        run: |
-          KEYDIR="${HOME}/.appstoreconnect/private_keys"
-          mkdir -p "$KEYDIR"
-          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" \
-            > "${KEYDIR}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-
-          # A throwaway keychain, not the login one: it keeps the private key
-          # out of any shared default that later steps touch.
-          CERT_PATH="${RUNNER_TEMP}/build_certificate.p12"
-          PROFILE_PATH="${RUNNER_TEMP}/build_pp.mobileprovision"
-          KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
-
-          printf '%s' "$IOS_SIGNING_CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
-          printf '%s' "$IOS_PROVISIONING_PROFILE" | base64 --decode > "$PROFILE_PATH"
-          BROADCAST_PROFILE_PATH="${RUNNER_TEMP}/build_pp_broadcast.mobileprovision"
-          printf '%s' "$IOS_BROADCAST_PROVISIONING_PROFILE" \
-            | base64 --decode > "$BROADCAST_PROFILE_PATH"
-          NSE_PROFILE_PATH="${RUNNER_TEMP}/build_pp_nse.mobileprovision"
-          printf '%s' "$IOS_NSE_PROVISIONING_PROFILE" | base64 --decode > "$NSE_PROFILE_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$IOS_SIGNING_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          # Without this, codesign prompts for permission and hangs a headless run.
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-
-          # xcodebuild finds a profile by its UUID under this directory, so the
-          # file has to be named for the UUID embedded in its own signed plist.
-          # One per bundle: the app and both extensions are signed separately,
-          # and a missing extension profile fails the export naming only that
-          # bundle id.
-          PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          INSTALLED=""
-          for pp in "$PROFILE_PATH" "$BROADCAST_PROFILE_PATH" "$NSE_PROFILE_PATH"; do
-            UUID="$(security cms -D -i "$pp" | plutil -extract UUID raw -o - -)"
-            NAME="$(security cms -D -i "$pp" | plutil -extract Name raw -o - -)"
-            cp "$pp" "${PROFILE_DIR}/${UUID}.mobileprovision"
-            echo "installed profile ${NAME} (${UUID})"
-            INSTALLED="${INSTALLED}${NAME}\n"
-          done
-
-          # Fail here rather than at export. xcodebuild matches these names
-          # literally and its own error names only a bundle id, which sends
-          # you looking at the wrong thing.
-          # No pipe into the loop: a `while` on the right of a pipe runs in a
-          # subshell, so its exit would not fail this step.
-          EXPORT_OPTIONS=client/packages/app/ios/ExportOptions.plist
-          /usr/libexec/PlistBuddy -c "Print :provisioningProfiles" "$EXPORT_OPTIONS" \
-            | sed -n 's/^ *[^ ]* = \(.*\)$/\1/p' > "${RUNNER_TEMP}/wanted_profiles"
-          printf '%b' "$INSTALLED" > "${RUNNER_TEMP}/installed_profiles"
-          missing=0
-          while read -r want; do
-            [ -n "$want" ] || continue
-            grep -qxF "$want" "${RUNNER_TEMP}/installed_profiles" || {
-              echo "::error::ExportOptions names profile '${want}', which is not installed"
-              missing=1
-            }
-          done < "${RUNNER_TEMP}/wanted_profiles"
-          [ "$missing" -eq 0 ] || exit 1
-
-          # Name the identity codesign can actually see: a downstream failure
-          # otherwise says only "no valid code signing certificates were found".
-          echo "signing identities available to codesign:"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+      - uses: ./.github/actions/release-ios-testflight
         if: steps.gate.outputs.ready == 'true'
         with:
-          channel: stable
-          flutter-version: 3.47.0
-
-      - uses: ./.github/actions/native-hooks-cache
-        if: steps.gate.outputs.ready == 'true'
-      - name: build ipa
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          # --enforce-lockfile: resolve exactly what pubspec.lock pins.
-          flutter pub get --enforce-lockfile
-          # Build number from the run number and build name from the tag, never
-          # from pubspec. Both stores reject a reuse; see docs/ci.md.
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist --dart-define=SLIMM_SPOTIFY_CLIENT_ID="${SLIMM_SPOTIFY_CLIENT_ID}" \
-            --build-name=${{ needs.release-please.outputs.client_version }} \
-            --build-number=${{ github.run_number }}
-
-      - name: upload to TestFlight
-        if: steps.gate.outputs.ready == 'true'
-        working-directory: client/packages/app
-        run: |
-          ipa=(build/ios/ipa/*.ipa)
-          xcrun altool --upload-app --type ios \
-            --file "${ipa[0]}" \
-            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          version: ${{ needs.release-please.outputs.client_version }}
+          spotify_client_id: ${{ vars.SLIMM_SPOTIFY_CLIENT_ID }}
       - {if: failure() && steps.gate.outputs.ready == 'true', uses: ./.github/actions/native-hooks-diagnose}

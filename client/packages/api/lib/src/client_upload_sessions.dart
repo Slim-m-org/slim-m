@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'exceptions.dart';
+import 'logging/app_log.dart';
+import 'logging/failure.dart';
+import 'models.dart';
+import 'upload_source.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Files above this go through upload sessions when the server offers them.
 const kUploadSessionThreshold = 32 * 1024 * 1024;
@@ -77,7 +88,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     Duration Function(int attempt) backoff = _defaultBackoff,
     Duration stallLimit = kUploadStallLimit,
   }) async {
-    _retryDirectRoute();
+    retryDirectRoute();
     final known = length > sessionThreshold
         ? capabilities ??
             await _patiently(
@@ -119,7 +130,7 @@ extension SlimmApiUploadSessions on SlimmApi {
   /// Discards the session kept under [resumeKey], for a file removed rather
   /// than retried, so it does not hold server disk until the daily sweep.
   void abandonUpload(String resumeKey) {
-    final id = _resumableUploads.remove(resumeKey);
+    final id = link.resumableUploads.remove(resumeKey);
     if (id == null) return;
     unawaited(_discardUploadSession(id)
         .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
@@ -167,7 +178,8 @@ extension SlimmApiUploadSessions on SlimmApi {
           backoff: backoff,
           stallLimit: stallLimit,
         );
-    final kept = resumeKey == null ? null : _resumableUploads.remove(resumeKey);
+    final kept =
+        resumeKey == null ? null : link.resumableUploads.remove(resumeKey);
     var session = await _resumeOrCreate(kept, length, create);
     var restarted = false;
     try {
@@ -195,7 +207,7 @@ extension SlimmApiUploadSessions on SlimmApi {
       }
     } on ApiException catch (e) {
       if (resumeKey != null && _classify(e) == _PartFailure.transient) {
-        _resumableUploads[resumeKey] = session.id;
+        link.resumableUploads[resumeKey] = session.id;
       } else {
         unawaited(_discardUploadSession(session.id)
             .catchError(ignoreError(LogTag.net, _discardFailedMessage)));
@@ -340,7 +352,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     int size,
     String? channelId,
   ) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/attachments/uploads',
       body: {
@@ -349,13 +361,13 @@ extension SlimmApiUploadSessions on SlimmApi {
         if (channelId != null) 'channel_id': channelId,
       },
     );
-    return _decodeShape(
+    return decodeShape(
         json, 'POST /attachments/uploads', UploadSession.fromJson);
   }
 
   Future<UploadSession> _getUploadSession(String id) async {
-    final json = await _send('GET', '/attachments/uploads/$id');
-    return _decodeShape(
+    final json = await send('GET', '/attachments/uploads/$id');
+    return decodeShape(
       json,
       'GET /attachments/uploads/$id',
       UploadSession.fromJson,
@@ -369,7 +381,7 @@ extension SlimmApiUploadSessions on SlimmApi {
     int length,
     void Function(int sent) onProgress,
   ) async {
-    final response = await _sendStreamed(
+    final response = await sendStreamed(
       'PUT',
       '/attachments/uploads/$id',
       open: open,
@@ -379,9 +391,9 @@ extension SlimmApiUploadSessions on SlimmApi {
       sendDeadline: _partSendDeadline,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _errorFor(response);
+      throw errorFor(response);
     }
-    return _decodeShape(
+    return decodeShape(
       jsonDecode(response.body),
       'PUT /attachments/uploads/$id',
       UploadSession.fromJson,
@@ -389,16 +401,16 @@ extension SlimmApiUploadSessions on SlimmApi {
   }
 
   Future<void> _discardUploadSession(String id) =>
-      _send('DELETE', '/attachments/uploads/$id', expectNoContent: true);
+      send('DELETE', '/attachments/uploads/$id', expectNoContent: true);
 
   Future<Attachment> _completeUploadSession(
       String id, String? channelId) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/attachments/uploads/$id/complete',
       query: channelId == null ? null : {'channel_id': channelId},
     );
-    return _decodeShape(
+    return decodeShape(
       json,
       'POST /attachments/uploads/$id/complete',
       Attachment.fromJson,

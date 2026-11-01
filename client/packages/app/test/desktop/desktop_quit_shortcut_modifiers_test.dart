@@ -8,11 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/desktop/close_behavior.dart';
 import 'package:slimm_app/src/desktop/desktop_quit_shortcut.dart';
 
+import 'support/desktop_shell_fixture.dart';
 import 'support/fake_desktop_window_port.dart';
 
 void main() {
-  tearDown(DesktopQuitShortcut.debugUnregister);
-
   final extras = <String, LogicalKeyboardKey>{
     'Shift': LogicalKeyboardKey.shiftLeft,
     'Alt': LogicalKeyboardKey.altLeft,
@@ -21,7 +20,9 @@ void main() {
   for (final e in extras.entries) {
     testWidgets('Ctrl+${e.key}+Q does not quit', (tester) async {
       final port = FakeDesktopWindowPort();
-      DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
+      final shortcut = DesktopQuitShortcut(shellFor(port))
+        ..register(platform: DesktopPlatform.linux);
+      addTearDown(shortcut.dispose);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyDownEvent(e.value);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
@@ -31,8 +32,10 @@ void main() {
 
   testWidgets('registering twice still destroys once', (tester) async {
     final port = FakeDesktopWindowPort();
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
-    DesktopQuitShortcut.register(port, platform: DesktopPlatform.linux);
+    final shortcut = DesktopQuitShortcut(shellFor(port))
+      ..register(platform: DesktopPlatform.linux)
+      ..register(platform: DesktopPlatform.linux);
+    addTearDown(shortcut.dispose);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
     expect(port.destroyCalls, 1);

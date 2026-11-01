@@ -7,6 +7,7 @@ library;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slimm_app/src/features/canvas/providers/canvas_pen_style.dart';
+import 'package:slimm_app/src/features/canvas/screens/canvas_follow_status.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/features/canvas/screens/canvas_engine.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
@@ -181,14 +182,19 @@ void main() {
     );
     await tester.pump();
 
+    await tester.tap(find.byTooltip('People here'));
+    await tester.pump();
     expect(find.bySemanticsLabel('Bring everyone to me'), findsOneWidget);
     await tester.tap(find.bySemanticsLabel('Follow Amy'));
     await tester.pump();
     expect(engine.viewRelay.following.value, 'u2');
+    expect(find.byKey(followOutlineKey), findsOneWidget);
+    expect(find.text('Following Amy'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Stop following Amy'));
+    await tester.tap(find.bySemanticsLabel('Following Amy, tap to stop'));
     await tester.pump();
     expect(engine.viewRelay.following.value, isNull);
+    expect(find.byKey(followOutlineKey), findsNothing);
   });
 
   testWidgets('a screen reader can follow and unfollow, by the semantic tap', (
@@ -213,6 +219,8 @@ void main() {
     );
     await tester.pump();
 
+    await tester.tap(find.byTooltip('People here'));
+    await tester.pump();
     tester.semantics.tap(find.semantics.byLabel('Follow Amy'));
     await tester.pump();
     expect(engine.viewRelay.following.value, 'u2');

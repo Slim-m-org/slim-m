@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT user_id AS \"user_id!: UserId\" FROM group_dm_members\n               WHERE channel_id = ? ORDER BY joined_at, user_id",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id!: UserId",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "38e0ec56d992bbce2ef1ce75025f06662f2b3b645e4420aea30d0d1dd81503cf"
+}

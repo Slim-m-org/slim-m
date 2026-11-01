@@ -14,9 +14,9 @@ use super::AppState;
 use super::error::ApiError;
 use super::module_commands::CommandOutcome;
 use super::module_host::effective_capabilities;
-use crate::ids::UserId;
+use crate::ids::{ChannelId, UserId};
 use crate::module_runtime::{CapabilitySurface, ModuleHost, RunError, RunLane, RunLimits};
-use crate::store::{InstalledModule, RunResult, now_ms};
+use crate::store::{InstalledModule, RunResult, RunTiming, now_ms};
 
 #[derive(Serialize)]
 struct ModuleWireRequest<'a> {
@@ -29,6 +29,42 @@ struct ModuleWireRequest<'a> {
     /// The admin's values over the manifest's defaults, left out when empty; secrets are never here.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     settings: BTreeMap<String, serde_json::Value>,
+    /// Where the run came from, left out when it came from nowhere in particular.
+    #[serde(skip_serializing_if = "ModuleContext::is_empty")]
+    context: ModuleContext,
+}
+
+/// Where a run was started, so a module can keep state per channel.
+/// Ids only: nothing about the channel's contents or members.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RunContext {
+    /// The channel a command was typed in or a surface lives in.
+    pub(crate) channel: Option<ChannelId>,
+    /// The voice channel the invoker is in, only when the host confirmed it.
+    pub(crate) voice_channel: Option<ChannelId>,
+}
+
+#[derive(Serialize)]
+struct ModuleContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    channel_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    voice_channel_id: Option<String>,
+}
+
+impl ModuleContext {
+    fn is_empty(&self) -> bool {
+        self.channel_id.is_none() && self.voice_channel_id.is_none()
+    }
+}
+
+impl From<RunContext> for ModuleContext {
+    fn from(context: RunContext) -> Self {
+        Self {
+            channel_id: context.channel.map(|id| id.to_string()),
+            voice_channel_id: context.voice_channel.map(|id| id.to_string()),
+        }
+    }
 }
 
 /// 16 fresh random bytes as hex, new for every run. A module has no random
@@ -67,6 +103,9 @@ pub(crate) enum RunKind {
     /// A slot fill: its own lane, `ok:false` counts as failed in the stats,
     /// but a member viewing profiles can never trip the breaker.
     Slot,
+    /// A hook on a member's action; it draws on its own lane, is held to a short budget,
+    /// and counts toward the circuit breaker like a background run.
+    Hook,
 }
 
 /// One gated run: who asked, for which command, and what started it.
@@ -75,6 +114,7 @@ pub(crate) struct RunRequest<'a> {
     pub(crate) command: &'a str,
     pub(crate) input: &'a str,
     pub(crate) kind: RunKind,
+    pub(crate) context: RunContext,
 }
 
 /// Runs an already-gated command on `module`, with `surface` as its
@@ -86,8 +126,9 @@ pub(crate) async fn run_installed(
     request: &RunRequest<'_>,
     surface: CapabilitySurface,
 ) -> Result<CommandOutcome, ApiError> {
+    super::module_compat::require_compatible(module)?;
     let started = Instant::now();
-    let ran = run_checked(state, module, request, surface).await;
+    let (ran, fuel_used) = run_checked(state, module, request, surface).await;
     if request.kind == RunKind::Slot
         && ran
             .as_ref()
@@ -111,24 +152,41 @@ pub(crate) async fn run_installed(
             &module.id,
             request.command,
             &result,
-            (now_ms(), duration_ms),
+            RunTiming {
+                at: now_ms(),
+                duration_ms,
+                fuel_used: fuel_used.and_then(|fuel| i64::try_from(fuel).ok()),
+            },
         )
         .await
     {
         tracing::warn!(%err, module = %module.id, "could not record a module run");
     }
-    if request.kind == RunKind::Background {
+    if matches!(request.kind, RunKind::Background | RunKind::Hook) {
         super::module_breaker::note_background_run(state, module, &result, ran.as_ref().ok()).await;
     }
     ran
 }
 
+/// The run and the fuel it burned, when that could be read.
 async fn run_checked(
     state: &AppState,
     module: &InstalledModule,
     request: &RunRequest<'_>,
     surface: CapabilitySurface,
-) -> Result<CommandOutcome, ApiError> {
+) -> (Result<CommandOutcome, ApiError>, Option<u64>) {
+    match prepare_and_run(state, module, request, surface).await {
+        Ok((outcome, fuel)) => (Ok(outcome), fuel),
+        Err(err) => (Err(err), None),
+    }
+}
+
+async fn prepare_and_run(
+    state: &AppState,
+    module: &InstalledModule,
+    request: &RunRequest<'_>,
+    surface: CapabilitySurface,
+) -> Result<(CommandOutcome, Option<u64>), ApiError> {
     let module_id = module.id.as_str();
     let Some(stored_sha256) = state.store.module_artifact_sha256(module_id).await? else {
         return Err(ApiError::Conflict(
@@ -141,7 +199,10 @@ async fn run_checked(
         ));
     }
     let mut limits = RunLimits::from(&module.runtime_limits);
-    if effective_capabilities(module)
+    if request.kind == RunKind::Hook {
+        limits.wall = limits.wall.min(super::module_hooks::HOOK_WALL);
+        limits.fuel = limits.fuel.min(super::module_hooks::HOOK_FUEL);
+    } else if effective_capabilities(module)
         .iter()
         .any(|c| c == "net.fetch")
     {
@@ -161,6 +222,7 @@ async fn run_checked(
         entropy: run_entropy(),
         now_ms: now_ms(),
         settings,
+        context: request.context.into(),
     })
     .map_err(|_| ApiError::Internal)?;
 
@@ -169,8 +231,9 @@ async fn run_checked(
         RunKind::Command => RunLane::Member,
         RunKind::Background => RunLane::Background,
         RunKind::Slot => RunLane::Slot,
+        RunKind::Hook => RunLane::Hook,
     };
-    let ran = ModuleHost::run_loading_in(
+    let (ran, fuel) = ModuleHost::run_metered_in(
         lane,
         &module.artifact_sha256,
         (limits, request_json, surface),
@@ -184,10 +247,14 @@ async fn run_checked(
         },
     )
     .await;
-    Ok(match ran {
-        Ok(bytes) => interpret(&bytes),
+    let outcome = match ran {
+        Ok(bytes) => {
+            super::module_timers::apply(state, module, request.context, &bytes).await;
+            interpret(&bytes)
+        }
         Err(err) => CommandOutcome::host_failure(describe(&err)),
-    })
+    };
+    Ok((outcome, fuel))
 }
 
 /// The module's own answer, or a host failure when it is not the ABI's shape.

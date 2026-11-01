@@ -26,10 +26,12 @@ bool isTransientCanvasFailure(api.ApiException error) => switch (error) {
 
 /// Reruns [send] after a transient failure with the same request (so the idempotency key makes a lost reply harmless), backing off and honouring `retryAfter`.
 /// Rethrows after [maxAttempts] (null retries until [giveUp] says stop), and at once for anything a retry cannot fix.
+/// [onRetry] runs when a failure is about to be retried, so the caller can say the change is not saved yet.
 Future<T> retryCanvasRequest<T>(
   Future<T> Function() send, {
   int? maxAttempts = 6,
   bool Function()? giveUp,
+  void Function()? onRetry,
 }) async {
   var delay = _firstDelay;
   for (var attempt = 1; ; attempt++) {
@@ -39,6 +41,7 @@ Future<T> retryCanvasRequest<T>(
       final exhausted = maxAttempts != null && attempt >= maxAttempts;
       if (!isTransientCanvasFailure(error) || exhausted) rethrow;
       if (giveUp?.call() ?? false) rethrow;
+      onRetry?.call();
       await Future<void>.delayed(_waitBefore(error, delay));
       if (giveUp?.call() ?? false) rethrow;
       delay = _atMost(delay * 2, _maxDelay);

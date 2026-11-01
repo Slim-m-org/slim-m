@@ -21,15 +21,6 @@ import 'voice_controller_harness.dart';
 
 const _channelName = 'top.npcserver.slimm/picture_in_picture';
 
-class _FixedVoiceController extends VoiceController {
-  _FixedVoiceController(super.ref, VoiceState fixed, FakeSession session)
-    : super(session: session) {
-    state = fixed;
-  }
-
-  void set(VoiceState next) => state = next;
-}
-
 const _share = VoiceParticipant(
   identity: 'u-ada',
   name: 'Ada',
@@ -78,8 +69,8 @@ class _Rig {
   final FakeSession session;
   final List<MethodCall> sent;
 
-  _FixedVoiceController get voice =>
-      container.read(voiceControllerProvider.notifier) as _FixedVoiceController;
+  FixedVoiceController get voice =>
+      container.read(voiceControllerProvider.notifier) as FixedVoiceController;
 
   Future<void> native(bool inPip) async {
     await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
@@ -117,7 +108,7 @@ Future<_Rig> _pump(WidgetTester tester, VoiceState voice) async {
   final container = ProviderContainer(
     overrides: [
       voiceControllerProvider.overrideWith(
-        (ref) => _FixedVoiceController(ref, voice, session),
+        (ref) => FixedVoiceController(ref, voice, session),
       ),
       pictureInPictureChannelProvider.overrideWith((ref) {
         final channel = PictureInPictureChannel(isAndroid: true);

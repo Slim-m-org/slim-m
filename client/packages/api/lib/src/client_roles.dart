@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Role management and channel permission overwrites: the `roles` tag.
 ///
@@ -10,7 +15,7 @@ part of 'client.dart';
 extension SlimmApiRoles on SlimmApi {
   /// Lists every role. Requires MANAGE_ROLES.
   Future<List<Role>> listRoles() async {
-    final json = await _send('GET', '/roles');
+    final json = await send('GET', '/roles');
     return (json as List<dynamic>)
         .map((r) => Role.fromJson(r as Map<String, dynamic>))
         .toList(growable: false);
@@ -25,7 +30,7 @@ extension SlimmApiRoles on SlimmApi {
     required int permissions,
     bool? mentionable,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/roles',
       body: {
@@ -49,7 +54,7 @@ extension SlimmApiRoles on SlimmApi {
     bool? hoist,
     int? color,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/roles/$roleId',
       body: {
@@ -67,17 +72,17 @@ extension SlimmApiRoles on SlimmApi {
   /// (exactly one always exists) and refuses if this role is the
   /// deployment's only remaining source of ADMINISTRATOR.
   Future<void> deleteRole(String roleId) =>
-      _send('DELETE', '/roles/$roleId', expectNoContent: true);
+      send('DELETE', '/roles/$roleId', expectNoContent: true);
 
   /// Grants a role to a member. Requires MANAGE_ROLES. Idempotent. Refused if
   /// the role carries a permission the caller does not themselves hold.
   Future<void> assignRole({required String userId, required String roleId}) =>
-      _send('PUT', '/members/$userId/roles/$roleId', expectNoContent: true);
+      send('PUT', '/members/$userId/roles/$roleId', expectNoContent: true);
 
   /// Revokes a role from a member. Requires MANAGE_ROLES. Idempotent.
   /// Refused if it would leave the deployment with no administrator.
   Future<void> unassignRole({required String userId, required String roleId}) =>
-      _send('DELETE', '/members/$userId/roles/$roleId', expectNoContent: true);
+      send('DELETE', '/members/$userId/roles/$roleId', expectNoContent: true);
 
   /// Sets the deployment's role order. Requires MANAGE_ROLES. [roleIds] must
   /// name exactly the live non-`@everyone` roles, top to bottom; `@everyone`
@@ -85,7 +90,7 @@ extension SlimmApiRoles on SlimmApi {
   /// below the caller's own highest held role - an administrator bypasses
   /// this.
   Future<List<Role>> reorderRoles(List<String> roleIds) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/roles/reorder',
       body: {'role_ids': roleIds},
@@ -102,7 +107,7 @@ extension SlimmApiRoles on SlimmApi {
     required OverwriteTarget kind,
     required String id,
   }) =>
-      _send(
+      send(
         'DELETE',
         '/channels/$channelId/overwrites/${kind.wire}/$id',
         expectNoContent: true,
@@ -115,7 +120,7 @@ extension SlimmApiRoles on SlimmApi {
   /// [setChannelOverwrite] uses, and refuses a channel the caller cannot
   /// manage identically to one that does not exist.
   Future<List<ChannelOverwrite>> getChannelOverwrites(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/overwrites');
+    final json = await send('GET', '/channels/$channelId/overwrites');
     return ((json as Map<String, dynamic>)['overwrites'] as List<dynamic>)
         .map((o) => ChannelOverwrite.fromJson(o as Map<String, dynamic>))
         .toList(growable: false);
@@ -131,7 +136,7 @@ extension SlimmApiRoles on SlimmApi {
     required String channelId,
     required List<ChannelOverwriteEdit> overwrites,
   }) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/channels/$channelId/overwrites',
       body: {

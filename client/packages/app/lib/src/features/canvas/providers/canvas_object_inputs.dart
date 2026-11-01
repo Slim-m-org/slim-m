@@ -2,6 +2,8 @@
 /// Wire canvas objects turned into what the document paints.
 library;
 
+import 'dart:math' as math;
+
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
@@ -18,6 +20,10 @@ CanvasStrokeInput? canvasStrokeInputFrom(api.CanvasObject object) {
     _ => null,
   };
 }
+
+/// The widest stroke a viewer paints, in world units: the pen's widest setting at the lowest zoom, rounded up.
+/// Props are opaque to the server, so a forged width could otherwise wash one stroke over the whole board.
+const double maxWireStrokeWidth = 256;
 
 /// Props are opaque to the server, so every field is checked with `is`: a
 /// hard cast on a stored row that is wrong-typed would throw out of the
@@ -36,7 +42,9 @@ CanvasStrokeInput? _strokeInputFrom(api.CanvasObject object) {
     w: object.w,
     h: object.h,
     points: raw.whereType<num>().map((n) => n.toDouble()).toList(),
-    width: width is num && width.isFinite && width > 0 ? width.toDouble() : 3,
+    width: width is num && width.isFinite && width > 0
+        ? math.min(width.toDouble(), maxWireStrokeWidth)
+        : 3,
     colorKey: color is String ? color : 'annotation',
     authorId: object.authorId,
     groupId: object.props['group'] is String
@@ -84,8 +92,17 @@ CanvasStrokeInput? _noteInputFrom(api.CanvasObject object) {
     authorId: object.authorId,
     kind: CanvasObjectKind.note,
     text: text,
+    fontSize: _noteFontSizeOf(object.props['font_size']),
   );
 }
+
+/// Props are opaque, so a note's size is trusted only inside the range the app offers; anything else paints at the old default.
+double? _noteFontSizeOf(Object? raw) => raw is num && raw.isFinite
+    ? raw.toDouble().clamp(minNoteFontSize, maxNoteFontSize)
+    : null;
+
+const double minNoteFontSize = 8;
+const double maxNoteFontSize = 96;
 
 /// A text box carries its text, a font step and a colour key; the last two fall back to the defaults.
 CanvasStrokeInput? _textInputFrom(api.CanvasObject object) {

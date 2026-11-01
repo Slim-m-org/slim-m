@@ -47,7 +47,8 @@ VARIANTS = {
 
 
 RESULTS_FILE = "results.json"
-STALE_RESULTS = (RESULTS_FILE, "corpus.json")
+PROVENANCE_FILE = "provenance.json"
+STALE_RESULTS = (RESULTS_FILE, "corpus.json", PROVENANCE_FILE)
 
 
 def clear_previous_run(directory):
@@ -114,6 +115,31 @@ def capture_seconds(directory):
     if "E2E_VQ_SECONDS" in os.environ or not ends:
         return SECONDS
     return int(max(ends)) + REEL_MARGIN
+
+
+def _git(*args):
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    return done.stdout.strip() if done.returncode == 0 else None
+
+
+def provenance(profiles):
+    """What produced a run's numbers: the commit, whether the tree was clean, when, and every knob."""
+    status = _git("status", "--porcelain")
+    return {
+        "commit": _git("rev-parse", "HEAD"),
+        "dirty": None if status is None else bool(status),
+        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "variant": variant_name(),
+        "profiles": list(profiles),
+        "seconds": SECONDS,
+        "env": {k: v for k, v in sorted(os.environ.items()) if k.startswith("E2E_VQ_")},
+    }
+
+
+def write_provenance(directory, profiles):
+    with open(os.path.join(directory, PROVENANCE_FILE), "w") as fh:
+        json.dump(provenance(profiles), fh, indent=2)
 
 
 def requested_variant():
@@ -298,6 +324,7 @@ def a_scored_call(server, secret, admin_api, sign_in):
     wanted = _wanted_profiles()
     directory = out_dir()
     install_staged(stage_clips(directory), directory)
+    write_provenance(directory, wanted)
     for user in ("vqa", "vqb"):
         e2e_browsers.register(server, admin_api, user, secret)
     script = _init_script()
@@ -328,7 +355,8 @@ def a_scored_call(server, secret, admin_api, sign_in):
         for who, report in sides.items():
             print(f"  {profile:18} {who} sim {report['similarity']:.3f} "
                   f"{report['counts']} conceal "
-                  f"{report['stats'].get('concealedSamples')} mos {report.get('mos')}")
+                  f"{report['stats'].get('concealedSamples')} mos {report.get('mos')} "
+                  f"lost {report['timing']['lost_s']}s step {report['timing']['max_step_ms']}ms")
     clean = results.get("clean")
     if clean:
         for who, report in clean.items():

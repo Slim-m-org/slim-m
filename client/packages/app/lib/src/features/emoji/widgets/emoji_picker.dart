@@ -16,7 +16,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../widgets/animated_menu_portal.dart';
 import 'emoji_picker_panel.dart';
 import '../../../widgets/hover_reveal.dart';
-import '../../messages/widgets/message_context_menu_layout.dart';
+import '../../../widgets/message_context_menu_layout.dart';
 import '../../../action_labels.dart';
 
 export 'emoji_picker_panel.dart' show EmojiPickerPanel;

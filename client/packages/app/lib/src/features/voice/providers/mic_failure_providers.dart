@@ -19,8 +19,8 @@ final micSettingsLauncherProvider = Provider<SettingsLauncher>(
 final micFailureProvider = StreamProvider<MicFailureReason?>((ref) {
   final controller = ref.watch(voiceControllerProvider.notifier);
   return Stream<MicFailureReason?>.multi((out) {
-    out.add(controller.micFailure);
-    final sub = controller.micFailures.listen(out.add);
+    out.add(controller.devices.micFailure);
+    final sub = controller.devices.micFailures.listen(out.add);
     out.onCancel = sub.cancel;
   });
 });
@@ -29,8 +29,8 @@ final micFailureProvider = StreamProvider<MicFailureReason?>((ref) {
 final micFallbackNoticeProvider = StreamProvider<String?>((ref) {
   final controller = ref.watch(voiceControllerProvider.notifier);
   return Stream<String?>.multi((out) {
-    out.add(controller.micFallbackNotice);
-    final sub = controller.micFallbackNotices.listen(out.add);
+    out.add(controller.devices.micFallbackNotice);
+    final sub = controller.devices.micFallbackNotices.listen(out.add);
     out.onCancel = sub.cancel;
   });
 });

@@ -258,7 +258,7 @@ async fn two_concurrent_first_touches_leave_exactly_one_row() {
     assert_eq!(first.unwrap().status(), StatusCode::OK);
     assert_eq!(second.unwrap().status(), StatusCode::OK);
 
-    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    let slots = store.list_canvas_media_slots(channel).await.unwrap().1;
     assert_eq!(slots.len(), 1, "a race must not create two rows");
 }
 
@@ -324,14 +324,24 @@ async fn deleting_an_account_removes_its_slots() {
         .await
         .unwrap();
     assert_eq!(
-        store.list_canvas_media_slots(channel).await.unwrap().len(),
+        store
+            .list_canvas_media_slots(channel)
+            .await
+            .unwrap()
+            .1
+            .len(),
         1
     );
 
     store.delete_account(bob).await.unwrap();
 
     assert_eq!(
-        store.list_canvas_media_slots(channel).await.unwrap().len(),
+        store
+            .list_canvas_media_slots(channel)
+            .await
+            .unwrap()
+            .1
+            .len(),
         0
     );
 }

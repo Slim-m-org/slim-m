@@ -25,7 +25,7 @@ Every state carries a stable kebab-case id (usable as a filename), a one-line de
 Two harnesses exist and are referred to by name throughout:
 
 - **Surfaces harness** — `client/packages/app/test/ui_snapshot_test.dart`. Renders named routes at a matrix of viewports and both themes via `scripts/ui-snapshots.sh`. Its `_surfaces`/`_canvasSurfaces`/`_voiceCallSurfaces` maps are the ground truth for what it covers; anything not a key in one of those three maps has zero coverage from it, full stop.
-- **Overlay harness** — `client/packages/app/test/ui_overlay_snapshot_test.dart`. Opens 21 named overlays through their real `show*` entry points at two viewports, dark theme only.
+- **Overlay harness** — `client/packages/app/test/snapshots/ui_overlay_snapshot_test.dart`. Opens 21 named overlays through their real `show*` entry points at two viewports, dark theme only.
 
 "Coverage: none" means literally that: nothing in either harness renders it today, so a screenshot of it has to be captured by hand, either by driving the real app or by writing a one-off fixture the way the harnesses already do.
 "Coverage: covered" means the named surface entry renders it, though not necessarily every combination within it — read the entry's own note, since several "covered" surfaces render only one of several sub-states a route can be in.

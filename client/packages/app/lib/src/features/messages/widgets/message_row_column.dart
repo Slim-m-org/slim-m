@@ -15,7 +15,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../providers/author_is_bot.dart';
 import '../providers/message_extras.dart' show MessageExtras;
 import '../../../providers/providers.dart' show sessionProvider;
-import '../../../widgets/app_surface_view.dart';
+import '../../modules/widgets/app_surface_view.dart';
 import 'attachment_gallery.dart';
 import '../../members/widgets/bot_ui_failure.dart';
 import '../../voice/widgets/call_record_view.dart';

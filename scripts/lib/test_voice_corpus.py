@@ -264,6 +264,17 @@ class Report(unittest.TestCase):
         self.assertEqual(report.cell_text(accent), "4 / 2 / 2 / 3.50 / +2.5")
         self.assertEqual(report.cell_text(rolled["clean"]["singing"]), "0 / 0 / 1 / - / +0.5")
 
+    def test_timing_rolls_up_lost_audio_and_the_worst_step_into_a_table_row(self):
+        results = {"clean": {
+            "vqa": {"clips": {}, "timing": {"lost_s": 1.25, "max_step_ms": 3.0}},
+            "vqb": {"clips": {}, "timing": {"lost_s": 0.5, "max_step_ms": 8.5}}}}
+        timings = {"today": report.timing_rollup(results)}
+        self.assertEqual(timings["today"]["clean"], {"lost_s": 1.75, "max_step_ms": 8.5})
+        cell = {"clips": 1, "bursts": 0, "loud": 0, "dropouts": 0, "visqol": [], "peak": 0.0}
+        text = report.table("clean", {"today": {"clean": {"accent": cell}}}, timings=timings)
+        self.assertEqual(text.splitlines()[-1], "| lost s / max delay step ms | 1.75 / 8.5 |")
+        self.assertNotIn("lost s", report.table("clean", {"today": {"clean": {"accent": cell}}}))
+
     def test_table_has_a_column_per_label_and_skips_empty_categories(self):
         rolled = {"today": {"clean": {"accent": {"clips": 2, "bursts": 5, "loud": 0, "dropouts": 1,
                                                  "visqol": [4.0], "peak": 1.0}}},

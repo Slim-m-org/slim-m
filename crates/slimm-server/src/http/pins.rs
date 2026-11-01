@@ -22,7 +22,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::message_enrich::with_reactions;
 use super::messages::{MessageDto, parse_uuid};
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::{ChannelId, MessageId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -107,12 +107,12 @@ async fn pin(
         Err(PinError::Internal(e)) => return Err(e.into()),
     };
 
-    state.hub.publish(Event::MessagePinned {
+    state.hub.publish(Event::Message(MessageEvent::Pinned {
         channel_id,
         message_id,
         pinned_by: pin.pinned_by,
         pinned_at: pin.pinned_at,
-    });
+    }));
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -128,10 +128,10 @@ async fn unpin(
     authorize_manage(&state, ctx.user_id, channel_id).await?;
 
     state.store.unpin_message(channel_id, message_id).await?;
-    state.hub.publish(Event::MessageUnpinned {
+    state.hub.publish(Event::Message(MessageEvent::Unpinned {
         channel_id,
         message_id,
-    });
+    }));
     Ok(StatusCode::NO_CONTENT)
 }
 

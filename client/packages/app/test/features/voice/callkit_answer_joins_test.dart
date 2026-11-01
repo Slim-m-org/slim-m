@@ -23,6 +23,8 @@ import 'package:slimm_platform/platform.dart';
 import 'package:slimm_platform/testing.dart';
 import 'package:slimm_test_support/slimm_test_support.dart';
 
+import '../../support/fake_voice.dart';
+
 const _channelName = 'top.npcserver.slimm/callkit_incoming';
 
 const _tokens = api.TokenPair(
@@ -38,20 +40,6 @@ const _ringFrame = api.CallRinging(
   callerId: 'caller-1',
 );
 
-class _RecordingVoice extends VoiceController {
-  _RecordingVoice(super.ref);
-
-  final joined = <String>[];
-
-  @override
-  Future<void> join(String channelId) async {
-    joined.add(channelId);
-    state = VoiceState(channelId: channelId);
-  }
-
-  void hangUp() => state = const VoiceState();
-}
-
 Map<String, Object> _outstanding(String channelId, String ringId) => {
   'channel_id': channelId,
   'ring_id': ringId,
@@ -64,7 +52,7 @@ class _Rig {
 
   final ProviderContainer container;
   final StreamController<api.ServerEvent> events;
-  final _RecordingVoice voice;
+  final FakeVoiceController voice;
   final GoRouter router;
 
   /// Call ids Dart asked the native side to end.
@@ -112,7 +100,7 @@ Future<_Rig> _rig({
   final router = GoRouter(
     routes: [GoRoute(path: '/', builder: (_, __) => throw 0)],
   );
-  late _RecordingVoice voice;
+  late FakeVoiceController voice;
   final container = ProviderContainer(
     overrides: [
       keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
@@ -123,7 +111,7 @@ Future<_Rig> _rig({
         CallKitIncomingChannel(isIOS: true),
       ),
       voiceControllerProvider.overrideWith(
-        (ref) => voice = _RecordingVoice(ref),
+        (ref) => voice = FakeVoiceController(ref, recording: true),
       ),
       storeProvider.overrideWith((ref) async => throw StateError('no store')),
       apiProvider.overrideWith((ref) {
@@ -158,12 +146,12 @@ void main() {
     final rig = await _rig();
     await rig.nativeSends('ringing');
     await rig.nativeSends('answered');
-    expect(rig.voice.joined, isEmpty, reason: 'no channel is known yet');
+    expect(rig.voice.joins, isEmpty, reason: 'no channel is known yet');
 
     rig.events.add(_ringFrame);
     await rig.settle();
 
-    expect(rig.voice.joined, ['dm-1']);
+    expect(rig.voice.joins, ['dm-1']);
     expect(rig.container.read(dmCallOpenProvider), 'dm-1');
     expect(rig.ring.visibleIncoming, isNull);
     expect(rig.ring.incoming, isNull, reason: 'the ring was consumed');
@@ -174,12 +162,12 @@ void main() {
     await rig.nativeSends('ringing');
     rig.events.add(_ringFrame);
     await rig.settle();
-    expect(rig.voice.joined, isEmpty);
+    expect(rig.voice.joins, isEmpty);
 
     await rig.nativeSends('answered');
     await rig.settle();
 
-    expect(rig.voice.joined, ['dm-1']);
+    expect(rig.voice.joins, ['dm-1']);
     expect(rig.ring.incoming, isNull);
   });
 
@@ -193,7 +181,7 @@ void main() {
     rig.events.add(_ringFrame);
     await rig.settle();
 
-    expect(rig.voice.joined, ['dm-1']);
+    expect(rig.voice.joins, ['dm-1']);
   });
 
   test('while CallKit rings, the in-app ring stays hidden', () async {
@@ -212,7 +200,7 @@ void main() {
     await rig.settle();
 
     expect(rig.ring.visibleIncoming?.channelId, 'dm-1');
-    expect(rig.voice.joined, isEmpty);
+    expect(rig.voice.joins, isEmpty);
   });
 
   test('declining on CallKit ends the in-app ring too', () async {
@@ -254,7 +242,7 @@ void main() {
       );
       await rig.settle();
 
-      expect(rig.voice.joined, ['dm-1']);
+      expect(rig.voice.joins, ['dm-1']);
       expect(rig.container.read(dmCallOpenProvider), 'dm-1');
       expect(rig.ring.incoming, isNull);
       expect(rig.ended, isEmpty, reason: 'the call is live, not over');
@@ -272,7 +260,7 @@ void main() {
         rig.events.add(_ringFrame);
         await rig.settle();
 
-        expect(rig.voice.joined, ['dm-1'], reason: 'joined exactly once');
+        expect(rig.voice.joins, ['dm-1'], reason: 'joined exactly once');
         expect(rig.ring.incoming, isNull);
       },
     );
@@ -281,7 +269,7 @@ void main() {
       final rig = await _rig(pending: answeredAtLaunch, outstanding: []);
       await rig.settle();
 
-      expect(rig.voice.joined, isEmpty);
+      expect(rig.voice.joins, isEmpty);
       expect(rig.ended, ['uuid-1']);
       expect(rig.ring.callKit, CallKitPhase.none);
       expect(rig.ring.incoming, isNull);
@@ -290,13 +278,13 @@ void main() {
     test('an unreachable server leaves the ring frame to answer it', () async {
       final rig = await _rig(pending: answeredAtLaunch);
       await rig.settle();
-      expect(rig.voice.joined, isEmpty);
+      expect(rig.voice.joins, isEmpty);
       expect(rig.ended, isEmpty);
 
       rig.events.add(_ringFrame);
       await rig.settle();
 
-      expect(rig.voice.joined, ['dm-1']);
+      expect(rig.voice.joins, ['dm-1']);
     });
 
     test('hanging up on the system screen first never joins', () async {
@@ -309,7 +297,7 @@ void main() {
       );
       await rig.settle();
 
-      expect(rig.voice.joined, isEmpty);
+      expect(rig.voice.joins, isEmpty);
     });
   });
 
@@ -320,7 +308,7 @@ void main() {
       rig.events.add(_ringFrame);
       await rig.nativeSends('answered');
       await rig.settle();
-      expect(rig.voice.joined, ['dm-1']);
+      expect(rig.voice.joins, ['dm-1']);
       expect(rig.ended, isEmpty);
 
       rig.voice.hangUp();

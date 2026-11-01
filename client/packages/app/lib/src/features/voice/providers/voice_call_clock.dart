@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart';
 
 import '../../../providers/providers.dart';
+import 'voice_state_access.dart';
 
 class VoiceCallClock {
   VoiceCallClock(this._ref, {DateTime Function()? now})
@@ -81,6 +82,22 @@ class VoiceCallClock {
         stack,
       );
       return null;
+    }
+  }
+
+  /// Moves the shown start back to the call's real one once the server has said when that was.
+  ///
+  /// Only ever earlier than what is shown: a participant leaving must not move the timer back up.
+  Future<void> adoptServerStart(VoiceStateAccess access) async {
+    final channelId = access.state.channelId;
+    if (channelId == null || access.state.connectedAt == null) return;
+    final start = await serverStart(channelId);
+    final shown = access.state.connectedAt;
+    if (start == null || access.state.channelId != channelId || shown == null) {
+      return;
+    }
+    if (start.isBefore(shown)) {
+      access.state = access.state.copyWith(connectedAt: start);
     }
   }
 }

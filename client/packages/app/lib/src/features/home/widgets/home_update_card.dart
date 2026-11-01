@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/whats_new_controller.dart';
+import '../../../whats_new/providers/whats_new_controller.dart';
 import '../../../whats_new/whats_new_content.dart';
 import '../../../widgets/whats_new_sheet.dart';
 

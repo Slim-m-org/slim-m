@@ -9,7 +9,7 @@ use tokio::sync::OnceCell;
 use crate::ids::{MessageId, UserId};
 use crate::store::Store;
 
-/// Shared by every clone of one `Event::MessageCreated`, so the first
+/// Shared by every clone of one `MessageEvent::Created`, so the first
 /// connection to build a frame pays the two lookups and the rest reuse them.
 #[derive(Debug, Default)]
 pub struct CreatedLookups(OnceCell<CreatedFacts>, OnceCell<bool>);

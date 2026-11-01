@@ -21,7 +21,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../desktop/desktop_window_shell.dart';
 import '../desktop/window_resize_frame.dart';
 
 /// The band at each side edge where a horizontal drag means "pull the drawer".
@@ -39,7 +38,7 @@ const double kDrawerEdgeZoneWidth = 24;
 /// the zone the app owns never sits entirely under the system's. A frameless
 /// desktop window's own resize band (`window_resize_frame.dart`) sits on top of
 /// the first few pixels and wins them, so the zone starts past it.
-double drawerEdgeDragWidth(BuildContext context) {
+double drawerEdgeDragWidth(BuildContext context, {bool frameless = false}) {
   final gestures = MediaQuery.systemGestureInsetsOf(context);
   final padding = MediaQuery.paddingOf(context);
   final system = [
@@ -48,9 +47,7 @@ double drawerEdgeDragWidth(BuildContext context) {
     padding.left,
     padding.right,
   ].reduce((a, b) => a > b ? a : b);
-  final resizeBand = DesktopWindowShell.frameless
-      ? kWindowResizeHandleThickness
-      : 0.0;
+  final resizeBand = frameless ? kWindowResizeHandleThickness : 0.0;
   return system + resizeBand + kDrawerEdgeZoneWidth;
 }
 

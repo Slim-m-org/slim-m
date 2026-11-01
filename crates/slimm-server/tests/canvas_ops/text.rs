@@ -120,11 +120,12 @@ async fn editing_a_text_box_validates_the_new_props_and_a_stroke_cannot_be_edite
         let (status, body) = submit_op(&app, channel, &bob, edit_op(&id(), &object, bad)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     }
-    let stored: String = sqlx::query_scalar("SELECT props FROM canvas_objects WHERE id = ?")
-        .bind(uuid::Uuid::parse_str(&object).unwrap())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let stored: String =
+        sqlx::query_scalar("SELECT props FROM canvas_object_props WHERE object_id = ?")
+            .bind(uuid::Uuid::parse_str(&object).unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(serde_json::from_str::<Value>(&stored).unwrap(), good());
 
     let (_, ink) = post_object(&app, channel, &bob, stroke(&id())).await;

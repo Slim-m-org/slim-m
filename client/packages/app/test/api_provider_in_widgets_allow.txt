@@ -1,0 +1,8 @@
+# widget file and its remaining apiProvider reads; lower or delete as they move behind action providers
+features/channels/widgets/channel_settings_private_row.dart 1
+features/composer/widgets/composer_slash.dart 1
+features/members/widgets/member_remove_from_channel.dart 1
+features/messages/widgets/attachment_video_player.dart 2
+features/voice/widgets/screen_share_start.dart 2
+widgets/space_banner.dart 1
+widgets/space_icon.dart 1

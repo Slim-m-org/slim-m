@@ -81,11 +81,11 @@ void main() {
   });
 
   test('a dismissal is forgotten once the call ends, never before', () {
-    late _Settable call;
+    late FixedVoiceController call;
     final container = ProviderContainer(
       overrides: [
         voiceControllerProvider.overrideWith(
-          (ref) => call = _Settable(ref, miniCall([remoteShare])),
+          (ref) => call = FixedVoiceController(ref, miniCall([remoteShare])),
         ),
       ],
     );
@@ -102,9 +102,3 @@ bool _onTheCard() =>
     FocusManager.instance.primaryFocus?.context
         ?.findAncestorWidgetOfExactType<FocusableVideoPress>() !=
     null;
-
-class _Settable extends FixedVoiceController {
-  _Settable(super.ref, super.fixed);
-
-  void set(VoiceState next) => state = next;
-}

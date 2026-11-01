@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// One webhook, as the admin surface lists it. Never carries a credential.
 class Webhook {
@@ -58,7 +62,7 @@ class NewWebhook {
 extension SlimmApiWebhooks on SlimmApi {
   /// Webhooks in the deployment, newest first. Carries no credential.
   Future<List<Webhook>> listWebhooks() async {
-    final json = await _send('GET', '/webhooks');
+    final json = await send('GET', '/webhooks');
     return (json as List<dynamic>)
         .map((entry) => Webhook.fromJson(entry as Map<String, dynamic>))
         .toList(growable: false);
@@ -67,7 +71,7 @@ extension SlimmApiWebhooks on SlimmApi {
   /// Mints a webhook on [channelId] and returns it with its delivery path,
   /// shown only this once.
   Future<NewWebhook> createWebhook(String channelId, String label) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/webhooks',
       body: {'channel_id': channelId, 'label': label},
@@ -77,7 +81,7 @@ extension SlimmApiWebhooks on SlimmApi {
 
   /// Renames a webhook's admin-facing label.
   Future<Webhook> renameWebhook(String webhookId, String label) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/webhooks/$webhookId',
       body: {'label': label},
@@ -88,11 +92,11 @@ extension SlimmApiWebhooks on SlimmApi {
   /// Replaces a webhook's token, keeping the webhook and its principal. The
   /// old delivery path 404s at once; the new one is in the result, once.
   Future<NewWebhook> rotateWebhook(String webhookId) async {
-    final json = await _send('POST', '/webhooks/$webhookId/rotate');
+    final json = await send('POST', '/webhooks/$webhookId/rotate');
     return NewWebhook.fromJson(json as Map<String, dynamic>);
   }
 
   /// Revokes a webhook. Its delivery path 404s on its very next attempt.
   Future<void> revokeWebhook(String webhookId) =>
-      _send('POST', '/webhooks/$webhookId/revoke', expectNoContent: true);
+      send('POST', '/webhooks/$webhookId/revoke', expectNoContent: true);
 }

@@ -417,6 +417,8 @@ def main():
     # The run outlasts a 15 minute access token; revoked-session checks use their own Api.
     admin.keep_signed_in("alice", secret, "e2e-admin")
     member.keep_signed_in("bob", secret, "e2e-member")
+    # alice claimed the deployment, so the first-run admin setup would cover every scenario's screen.
+    admin.call("POST", "/space/setup/complete")
 
     print("== sign in ==")
     sign_in(a, server, "alice", secret)

@@ -18,16 +18,19 @@ import 'package:slimm_platform/platform.dart';
 
 import '../providers/auto_update_preference.dart';
 import '../providers/providers.dart';
+import '../providers/windows_adopt.dart';
 import '../features/voice/providers/voice_controller.dart';
 import 'desktop_window_port.dart';
 import 'self_update/self_update_controller.dart';
 import 'update_check.dart';
+import 'windows_adopt_confirm.dart';
 import 'update_package_view.dart';
 import 'update_watch.dart';
 
 /// What the update action does for an update on this install.
 enum UpdateMenuAction {
   installAndRestart,
+  adoptAndInstall,
   restartToUpdate,
   packageManager,
   openRelease,
@@ -39,13 +42,21 @@ enum UpdateMenuAction {
 ///
 /// Restart only where the splash will actually install on the way back up:
 /// an rpm, with the auto-update preference answered yes. A per-user tarball
-/// installs itself on tap ([selfApplies]) and restarts once [staged].
+/// installs itself on tap ([selfApplies]) and restarts once [staged]. A bare
+/// Windows copy ([adoptable]) first moves itself into that layout, then does
+/// the same.
 UpdateMenuAction updateMenuAction(
   ClientUpdate update, {
   bool? autoUpdate,
   bool selfApplies = false,
+  bool adoptable = false,
   String? staged,
 }) {
+  if (adoptable) {
+    return staged == update.version
+        ? UpdateMenuAction.restartToUpdate
+        : UpdateMenuAction.adoptAndInstall;
+  }
   if (selfApplies) {
     return staged == update.version
         ? UpdateMenuAction.restartToUpdate
@@ -75,6 +86,9 @@ final updateActionProvider = Provider<UpdateMenuAction?>((ref) {
     selfApplies:
         ref.watch(selfApplyAvailableProvider) &&
         update.format == InstallFormat.tarball,
+    adoptable:
+        ref.watch(windowsAdoptAvailableProvider) &&
+        update.format == InstallFormat.tarball,
     staged: ref.watch(stagedUpdateVersionProvider),
   );
 });
@@ -86,9 +100,11 @@ String updateActionLabel(
   UpdateMenuAction action, {
   required bool installing,
 }) => switch (action) {
-  UpdateMenuAction.installAndRestart when installing =>
+  UpdateMenuAction.installAndRestart || UpdateMenuAction.adoptAndInstall
+      when installing =>
     'Installing ${update.version}',
-  UpdateMenuAction.installAndRestart => 'Install ${update.version}',
+  UpdateMenuAction.installAndRestart ||
+  UpdateMenuAction.adoptAndInstall => 'Install ${update.version}',
   UpdateMenuAction.restartToUpdate => 'Restart to update to ${update.version}',
   UpdateMenuAction.packageManager => packageManagerLabel(update),
   UpdateMenuAction.openRelease => 'Get update ${update.version}',
@@ -105,11 +121,19 @@ Future<void> runUpdateAction(
   required bool Function() isMounted,
 }) async {
   switch (action) {
-    case UpdateMenuAction.installAndRestart:
+    case UpdateMenuAction.installAndRestart || UpdateMenuAction.adoptAndInstall:
+      if (action == UpdateMenuAction.adoptAndInstall &&
+          !await confirmWindowsAdopt(context)) {
+        return;
+      }
       final info = await ref.read(appInfoProvider.future);
-      final version = await ref
-          .read(selfUpdateProvider)
-          .install(currentVersion: info.version);
+      final controller = ref.read(selfUpdateProvider);
+      final version = action == UpdateMenuAction.adoptAndInstall
+          ? await controller.adoptAndInstall(
+              currentVersion: info.version,
+              releaseUrl: update.releaseUrl,
+            )
+          : await controller.install(currentVersion: info.version);
       if (version == null || !isMounted()) return;
       if (ref.read(voiceControllerProvider).channelId != null) return;
       await port.relaunch();

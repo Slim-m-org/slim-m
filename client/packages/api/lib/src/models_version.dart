@@ -35,6 +35,7 @@ class Version {
     this.screenShareMaxHeight,
     this.strongNoiseSuppression = false,
     this.membersCanInvite = false,
+    this.canvasScopedClear,
     this.maxAttachmentBytes,
     this.capabilities,
     this.identity,
@@ -107,6 +108,9 @@ class Version {
   /// Whether any member may create invites; absent on older servers.
   final bool membersCanInvite;
 
+  /// Whether the canvas accepts a scoped clear. Null on a server older than this field, which [supportsPartialClear] answers from the version number.
+  final bool? canvasScopedClear;
+
   /// The largest single attachment the server accepts, in bytes. Null on a
   /// server older than this field, which a client treats as no known limit
   /// and lets the server refuse.
@@ -150,9 +154,11 @@ class Version {
         .toList(growable: false);
   }
 
-  /// Whether this server build supports partial (scoped) clear ops on the canvas.
-  /// Introduced in slimm-server 0.98.0.
+  /// Whether this server supports partial (scoped) clear ops on the canvas.
+  /// The server says so itself; one that predates the field is judged by its version, 0.98.0 being where the op arrived.
   bool get supportsPartialClear {
+    final advertised = canvasScopedClear;
+    if (advertised != null) return advertised;
     final numbers = _parseVersion(version);
     if (numbers == null) return false;
     const floor = [0, 98, 0];
@@ -179,6 +185,7 @@ class Version {
         strongNoiseSuppression:
             json['strong_noise_suppression'] as bool? ?? false,
         membersCanInvite: json['members_can_invite'] as bool? ?? false,
+        canvasScopedClear: json['canvas_scoped_clear'] as bool?,
         // A non-list here is a foreign or broken server, which is unknown
         // rather than a reason to crash sign-in.
         maxAttachmentBytes: json['max_attachment_bytes'] as int?,

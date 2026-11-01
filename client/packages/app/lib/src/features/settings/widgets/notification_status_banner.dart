@@ -6,7 +6,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/push_status.dart';
+import '../../../push/providers/push_status.dart';
 
 /// Which tone and glyph each push state reads in.
 ({bool warn, bool bell}) notificationBannerStyle(PushStatus status) {

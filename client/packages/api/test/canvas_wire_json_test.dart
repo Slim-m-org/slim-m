@@ -219,11 +219,13 @@ void main() {
     });
 
     test('a lock list parses', () async {
-      final ids = await _api({
+      final page = await _api({
         'object_ids': ['a', 'b'],
+        'version': 4,
       }).canvasObjectLocks('c1');
 
-      expect(ids, {'a', 'b'});
+      expect(page.objectIds, {'a', 'b'});
+      expect(page.version, 4);
     });
 
     test('a body of the wrong shape is a transport error, not a TypeError', () {

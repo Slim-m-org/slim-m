@@ -26,7 +26,7 @@ struct CallEndEnvelope {
     sent_at: i64,
 }
 
-/// Sends a `call_end` for `ring_id` to the other side of `caller_id`'s DM.
+/// Sends a `call_end` for `ring_id` to every other participant of `caller_id`'s DM.
 pub(super) async fn deliver(
     enabled: Arc<Enabled>,
     store: Store,
@@ -34,30 +34,38 @@ pub(super) async fn deliver(
     ring_id: CallRingId,
     caller_id: UserId,
 ) {
-    let callee = match store.dm_pair(channel_id).await {
-        Ok(Some((a, b))) if a == caller_id => b,
-        Ok(Some((a, _))) => a,
+    let callees: Vec<UserId> = match store.dm_participants(channel_id).await {
+        Ok(Some(participants)) => participants
+            .into_iter()
+            .filter(|participant| *participant != caller_id)
+            .collect(),
         Ok(None) => return,
         Err(err) => {
-            tracing::warn!(error = %err, %channel_id, "push: failed to resolve a ring's callee");
+            tracing::warn!(error = %err, %channel_id, "push: failed to resolve a ring's callees");
             return;
         }
     };
-    let preference = match store
-        .channel_notification_preferences(channel_id, None, &[callee])
+    let preferences = match store
+        .channel_notification_preferences(channel_id, None, &callees)
         .await
     {
-        Ok(preferences) => preferences.get(&callee).copied().unwrap_or_default(),
+        Ok(preferences) => preferences,
         Err(err) => {
             tracing::warn!(error = %err, %channel_id, "push: failed to resolve a ring end's preference");
             return;
         }
     };
     // The ring itself was never pushed to an account that opted out of everything.
-    if preference == NotificationPreference::Nothing {
+    let callees: Vec<UserId> = callees
+        .into_iter()
+        .filter(|callee| {
+            preferences.get(callee).copied().unwrap_or_default() != NotificationPreference::Nothing
+        })
+        .collect();
+    if callees.is_empty() {
         return;
     }
-    let targets = match store.push_targets(&[callee]).await {
+    let targets = match store.push_targets(&callees).await {
         Ok(targets) => targets,
         Err(err) => {
             tracing::warn!(error = %err, %channel_id, "push: failed to load a ring end's push targets");

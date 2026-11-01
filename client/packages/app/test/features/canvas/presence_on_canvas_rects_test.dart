@@ -183,4 +183,37 @@ void main() {
 
     expect(rects[keys.single]!.topLeft, const Offset(24, 24));
   });
+
+  test('a blocked tile keeps its slot so the others do not move', () {
+    final a = _p('a');
+    final b = _p('b');
+    final c = _p('c');
+    final all = presenceTileKeys([a, b, c]);
+    final byIdentity = {'a': a, 'b': b, 'c': c};
+    final blocked = all.firstWhere((k) => presenceTileIdentity(k) == 'a');
+
+    Map<String, Rect> rects({Set<String> layoutOnly = const {}}) =>
+        presenceOnCanvasRects(
+          keys: all.difference({blocked}),
+          layoutOnly: layoutOnly,
+          layout: layout,
+          overrides: CanvasPresenceTileOverrides(),
+          byIdentity: byIdentity,
+          hideSelfCamera: false,
+        );
+
+    final unblocked = presenceOnCanvasRects(
+      keys: all,
+      layout: layout,
+      overrides: CanvasPresenceTileOverrides(),
+      byIdentity: byIdentity,
+      hideSelfCamera: false,
+    );
+    final withBlock = rects(layoutOnly: {blocked});
+    expect(withBlock.containsKey(blocked), isFalse);
+    for (final entry in withBlock.entries) {
+      expect(entry.value, unblocked[entry.key]);
+    }
+    expect(rects().values.toSet(), isNot(withBlock.values.toSet()));
+  });
 }

@@ -16,10 +16,11 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isDesktopHost, isLinuxHost;
 
-import '../../../providers/desktop_message_text_settings.dart';
+import '../../../desktop/providers/desktop_message_text_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
-import '../../../providers/push_controller.dart';
+import '../../../push/providers/push_controller.dart';
+import '../../../push/providers/push_reset.dart';
 import '../../../providers/toasts.dart';
 import 'notification_schedule_allow_lists.dart';
 import '../providers/ui_sound_settings.dart';
@@ -74,6 +75,8 @@ class NotificationsSection extends ConsumerWidget {
               const PushContentPreviewRow(),
             const NotificationScheduleSection(),
             const _TestNotificationRow(),
+            if (defaultTargetPlatform == TargetPlatform.iOS && !kIsWeb)
+              const _ResetPushRow(),
           ],
         ),
         const NotificationAlwaysLetThroughSection(),
@@ -174,6 +177,43 @@ class _TestNotificationRow extends ConsumerWidget {
                     .show('Test notification sent.');
               }
             : null,
+      ),
+    );
+  }
+}
+
+/// Re-registers this iPhone for push from scratch, for a phone that stopped
+/// getting notifications while every setting says they are on.
+class _ResetPushRow extends ConsumerStatefulWidget {
+  const _ResetPushRow();
+
+  @override
+  ConsumerState<_ResetPushRow> createState() => _ResetPushRowState();
+}
+
+class _ResetPushRowState extends ConsumerState<_ResetPushRow> {
+  bool _resetting = false;
+
+  Future<void> _reset() async {
+    setState(() => _resetting = true);
+    final reset = await resetPushRegistration(ref);
+    if (!mounted) return;
+    setState(() => _resetting = false);
+    ref
+        .read(toastsProvider.notifier)
+        .show(reset ? 'Notifications reset.' : 'Nothing to reset here.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppListRow(
+      label: 'Reset notifications',
+      subtitle: 'Try this if notifications stopped arriving on this phone.',
+      trailing: AppButton(
+        label: _resetting ? 'Resetting' : 'Reset',
+        size: AppButtonSize.sm,
+        variant: AppButtonVariant.secondary,
+        onPressed: _resetting ? null : _reset,
       ),
     );
   }

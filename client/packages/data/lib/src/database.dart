@@ -59,6 +59,10 @@ class Channels extends Table {
   /// until the next channel refresh replaces it.
   TextColumn get dmParticipantId => text().nullable()();
 
+  /// Every participant id of a group DM, comma-joined, the caller included.
+  /// Null for a pair and for any non-DM channel; set only by `channelFromDm`.
+  TextColumn get dmMemberIds => text().nullable()();
+
   /// Sort key among the deployment's live, non-DM channels: lower sorts
   /// first, mirroring the server's `channels.position`. Deployment-wide, set
   /// by a manager's drag, not a per-device preference. Meaningless for a DM,
@@ -322,7 +326,7 @@ class SlimmDatabase extends _$SlimmDatabase {
   SlimmDatabase(super.e);
 
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   /// An older build that opens this cache stamps its own lower version on it
   /// and keeps the newer columns, so the next upgrade meets columns it already has.
@@ -428,6 +432,8 @@ class SlimmDatabase extends _$SlimmDatabase {
         }),
         _UpgradeStep(27,
             () => _addColumnOnce(m, messages, messages.linkPreviewsRemoved)),
+        _UpgradeStep(
+            28, () => _addColumnOnce(m, channels, channels.dmMemberIds)),
       ];
 
   /// How each schema version is reached. Most add a column in place that the

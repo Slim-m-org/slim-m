@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Whether Strong noise suppression was asked for but is not running, so the
+/// Whether Strong or Strongest noise suppression was asked for but is not running, so the
 /// settings row can say so instead of leaving the member to guess.
 library;
 
@@ -31,7 +31,13 @@ class _StrongInactiveNotifier extends StateNotifier<bool> {
     ) {
       final reading = next.valueOrNull;
       if (reading == null || !ref.read(_strongExpectedProvider)) return;
-      _add(reading.strongActive, reading.step);
+      final strongest = ref
+          .read(noiseSuppressionProvider)
+          .isStrongest(supported: ref.read(strongestSupportedProvider));
+      _add(
+        strongest ? reading.strongestActive : reading.strongActive,
+        reading.step,
+      );
     });
   }
 

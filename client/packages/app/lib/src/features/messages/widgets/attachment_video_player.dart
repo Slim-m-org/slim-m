@@ -4,8 +4,9 @@
 ///
 /// See `attachment_video_source.dart` for how each platform gets the
 /// bearer-token-gated bytes to `package:media_kit`'s player, and
-/// `downloads/downloads_controller.dart` for the save action beside the player - a video
-/// that plays but cannot be saved is still only half of what this fixes.
+/// `downloads/downloads_controller.dart` for the save action in the player's
+/// bar and its right-click menu - a video that plays but cannot be saved is
+/// still only half of what this fixes.
 library;
 
 import 'dart:async';
@@ -16,13 +17,17 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_platform/platform.dart';
 
 import '../../../api_failure.dart';
 import '../../../downloads/downloads_controller.dart';
 import '../../../providers/app_lifecycle.dart';
 import '../../../providers/providers.dart';
+import '../../../providers/toasts.dart';
+import '../../../widgets/context_menu_region.dart';
 import '../../../widgets/viewport_freeze.dart';
-import 'attachment_format.dart';
+import '../../../widgets/attachment_format.dart';
+import '../providers/message_api_actions.dart';
 import 'attachment_video_fullscreen.dart';
 import 'attachment_video_reopen.dart';
 import 'attachment_video_source.dart' show AttachmentVideoSource;
@@ -61,17 +66,33 @@ typedef AttachmentVideoSurfaceBuilder =
       Player player,
       VideoController Function() controller,
       VoidCallback onToggleFullscreen,
+      VoidCallback onSave,
+      bool saving,
     );
 
 final attachmentVideoSurfaceProvider = Provider<AttachmentVideoSurfaceBuilder>(
   (ref) =>
-      (player, controller, onToggleFullscreen) => VideoPlaybackControls(
+      (
+        player,
+        controller,
+        onToggleFullscreen,
+        onSave,
+        saving,
+      ) => VideoPlaybackControls(
         player: player,
         isFullscreen: false,
         onToggleFullscreen: onToggleFullscreen,
+        onSave: onSave,
+        saving: saving,
         // No default media_kit chrome; see video_playback_controls.dart's doc.
         child: Video(controller: controller(), controls: null),
       ),
+);
+
+/// Puts a whole video on the clipboard, injectable because the real one talks
+/// to the desktop runner.
+final clipboardFileWriterProvider = Provider<ClipboardFileWriter>(
+  (ref) => const PlatformClipboardFileWriter(),
 );
 
 class AttachmentVideoPlayer extends ConsumerStatefulWidget {
@@ -189,6 +210,37 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
     unawaited(ref.read(downloadsProvider.notifier).start(attachment));
   }
 
+  Future<void> _copy() async {
+    clearActionError();
+    final actions = ref.read(messageApiActionsProvider);
+    final toasts = ref.read(toastsProvider.notifier);
+    try {
+      await ref
+          .read(clipboardFileWriterProvider)
+          .writeFile(
+            actions.fetchAttachmentBytes(attachment.id),
+            filename: attachment.filename,
+          );
+      toasts.show('Video copied.', severity: AppToastSeverity.success);
+    } on ClipboardFileWriteException catch (e, stack) {
+      api.AppLog.swallowed(
+        api.LogTag.media,
+        'Could not copy the video; showing the reason',
+        e,
+        stack,
+      );
+      if (mounted) setActionError(e.message);
+    } on api.ApiException catch (e, stack) {
+      api.reportFailure(api.LogTag.media, 'copy the video', e, stack);
+      if (mounted) {
+        setActionError(describeApiFailure('copy ${attachment.filename}', e));
+      }
+    } catch (error, stack) {
+      api.reportFailure(api.LogTag.media, 'copy the video', error, stack);
+      if (mounted) setActionError('Could not copy ${attachment.filename}.');
+    }
+  }
+
   @override
   void dispose() {
     unawaited(_errorSub?.cancel());
@@ -211,60 +263,68 @@ class _AttachmentVideoPlayerState extends ConsumerState<AttachmentVideoPlayer>
         '${attachment.filename} · ${formatByteSize(attachment.size)}';
     ref.listen(appFocusedProvider, (_, _) => _syncPlayback());
 
+    final canCopy = ref.watch(clipboardFileWriterProvider).supported;
+
     return ViewportFreeze(
       onVisibility: _onVisibility,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: kInlineVideoMax),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.control),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: tokens.stripe,
-                    border: Border.all(color: tokens.borderSubtle),
+          ContextMenuRegion(
+            itemsBuilder: (context, close) => [
+              if (canCopy)
+                AppMenuItem(
+                  label: 'Copy video',
+                  leading: AppIcons.copy,
+                  onTap: () {
+                    close();
+                    unawaited(_copy());
+                  },
+                ),
+              AppMenuItem(
+                label: 'Save video',
+                leading: AppIcons.download,
+                onTap: () {
+                  close();
+                  _save();
+                },
+              ),
+            ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kInlineVideoMax),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadii.control),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: tokens.stripe,
+                      border: Border.all(color: tokens.borderSubtle),
+                    ),
+                    child: _ready
+                        ? ref.watch(attachmentVideoSurfaceProvider)(
+                            _player,
+                            () => _videoController,
+                            _openFullscreen,
+                            _save,
+                            saving,
+                          )
+                        : _VideoLoading(
+                            progress: _fetchProgress,
+                            tokens: tokens,
+                          ),
                   ),
-                  child: _ready
-                      ? ref.watch(attachmentVideoSurfaceProvider)(
-                          _player,
-                          () => _videoController,
-                          _openFullscreen,
-                        )
-                      : _VideoLoading(progress: _fetchProgress, tokens: tokens),
                 ),
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.s4),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
-                  caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.caption.copyWith(color: tokens.textSecondary),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s4),
-              saving
-                  ? const Padding(
-                      padding: EdgeInsets.all(AppSpacing.s4),
-                      child: AppSpinner(size: AppSpinnerSize.sm),
-                    )
-                  : AppIconButton(
-                      icon: AppIcons.download,
-                      semanticLabel: 'Save ${attachment.filename}',
-                      tooltip: 'Save',
-                      size: AppIconButtonSize.sm,
-                      onPressed: _save,
-                    ),
-            ],
+          Text(
+            caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppText.caption.copyWith(color: tokens.textSecondary),
           ),
           if (actionError != null) ...[
             const SizedBox(height: AppSpacing.s4),

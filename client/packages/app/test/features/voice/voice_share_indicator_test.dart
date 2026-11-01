@@ -41,7 +41,7 @@ void main() {
         _harness(const VoiceScreen(channelId: 'channel-1'), harness.container),
       );
       await tester.pump();
-      await controller.setScreenShare(true);
+      await controller.share.setScreenShare(true);
       await tester.pump();
 
       expect(find.byType(AppCallout), findsNothing);
@@ -74,7 +74,7 @@ void main() {
           ),
         );
         await tester.pump();
-        await controller.setScreenShare(true);
+        await controller.share.setScreenShare(true);
         await tester.pump();
 
         expect(controller.state.awaitingBroadcast, isTrue);
@@ -196,7 +196,7 @@ void main() {
           ),
         );
         await tester.pump();
-        await controller.setScreenShare(true);
+        await controller.share.setScreenShare(true);
         await tester.pump();
 
         expect(find.text('You are sharing your screen.'), findsNothing);
@@ -340,7 +340,7 @@ void main() {
         _harness(const VoiceStripIndicator(), harness.container),
       );
       await tester.pump();
-      await controller.setScreenShare(true);
+      await controller.share.setScreenShare(true);
       await tester.pump();
 
       expect(find.textContaining('sharing'), findsOneWidget);
@@ -364,7 +364,7 @@ void main() {
         _harness(const VoiceStripIndicator(), harness.container),
       );
       await tester.pump();
-      await controller.setScreenShare(true);
+      await controller.share.setScreenShare(true);
       await tester.pump();
 
       expect(controller.state.awaitingBroadcast, isTrue);

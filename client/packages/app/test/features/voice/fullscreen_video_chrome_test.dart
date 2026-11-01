@@ -16,6 +16,8 @@ import 'package:slimm_app/src/features/voice/widgets/fullscreen_video_overlay.da
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
+import '../../desktop/support/desktop_shell_fixture.dart';
 import '../../desktop/support/fake_desktop_window_port.dart';
 import 'voice_controller_harness.dart';
 
@@ -28,24 +30,13 @@ const _ada = VoiceParticipant(
   isScreenSharing: true,
 );
 
-class _Call extends VoiceController {
-  _Call(super.ref, FakeSession session) : super(session: session) {
-    state = const VoiceState(
-      channelId: 'c-main',
-      state: VoiceSessionState.connected,
-      participants: [_ada],
-    );
-  }
-}
-
 void main() {
   late FakeDesktopWindowPort port;
+  late DesktopWindowShell shell;
 
   setUp(() {
     port = FakeDesktopWindowPort();
-    DesktopWindowShell.debugPort = port;
-    DesktopWindowShell.debugActivate(frameless: true);
-    addTearDown(DesktopWindowShell.debugReset);
+    shell = shellFor(port, active: true, frameless: true);
   });
 
   Future<void> open(WidgetTester tester) async {
@@ -55,8 +46,17 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          desktopWindowShellProvider.overrideWithValue(shell),
           voiceControllerProvider.overrideWith(
-            (ref) => _Call(ref, FakeSession()),
+            (ref) => FakeVoiceController(
+              ref,
+              session: FakeSession(),
+              initial: const VoiceState(
+                channelId: 'c-main',
+                state: VoiceSessionState.connected,
+                participants: [_ada],
+              ),
+            ),
           ),
         ],
         child: MaterialApp(

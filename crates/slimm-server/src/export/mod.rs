@@ -75,7 +75,7 @@ pub async fn run(store: Store, media: Media, job: Job) {
         Ok(false) => return,
         Err(err) => {
             tracing::warn!(%err, "could not mark an export running");
-            let _ = store.mark_export_failed(job.id, FAILURE).await;
+            record_failure(&store, job.id, FAILURE).await;
             return;
         }
     }
@@ -102,8 +102,15 @@ pub async fn run(store: Store, media: Media, job: Job) {
             } else {
                 FAILURE
             };
-            let _ = store.mark_export_failed(job.id, reason).await;
+            record_failure(&store, job.id, reason).await;
         }
+    }
+}
+
+/// A failed write is logged: the row would otherwise sit running until the staleness rule expires it.
+async fn record_failure(store: &Store, id: ExportId, reason: &str) {
+    if let Err(err) = store.mark_export_failed(id, reason).await {
+        tracing::warn!(%err, export = %id, "could not record a failed export");
     }
 }
 
@@ -122,7 +129,7 @@ async fn finish(store: &Store, media: &Media, job: Job, size: u64) {
         Err(err) => {
             tracing::warn!(%err, export = %id, "could not record a finished export");
             let _ = media.remove_export(&id).await;
-            let _ = store.mark_export_failed(job.id, FAILURE).await;
+            record_failure(store, job.id, FAILURE).await;
         }
     }
 }

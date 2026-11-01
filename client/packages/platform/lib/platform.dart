@@ -4,6 +4,7 @@
 library;
 
 export 'src/apns_token_channel.dart';
+export 'src/app_badge_channel.dart';
 export 'src/callkit_incoming_channel.dart';
 export 'src/app_lock_window_channel.dart';
 export 'src/orientation_channel.dart';
@@ -12,6 +13,7 @@ export 'src/call_lifecycle_channel.dart';
 export 'src/call_notifications.dart';
 export 'src/call_service.dart';
 export 'src/clipboard_image_png.dart' show isPng, toPng;
+export 'src/clipboard_file_writer.dart';
 export 'src/clipboard_image_writer.dart';
 export 'src/cross_tab.dart';
 export 'src/device_name.dart';
@@ -33,5 +35,7 @@ export 'src/persistent_key_store.dart';
 export 'src/polled_stream.dart';
 export 'src/shared_stream.dart';
 export 'src/picture_in_picture_channel.dart';
+export 'src/screen_overlay.dart';
+export 'src/screen_overlay_channel.dart';
 export 'src/shortcuts.dart';
 export 'src/system_idle.dart';

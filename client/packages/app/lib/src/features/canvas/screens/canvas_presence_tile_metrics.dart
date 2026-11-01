@@ -30,3 +30,30 @@ int canvasPresenceTileControlCapacity(Size screen, {required bool touch}) {
   final room = screen.width - 2 * canvasPresenceTileControlsInset;
   return (room / slot).floor().clamp(0, 3);
 }
+
+/// The largest side from [start] that stays within [edge], never under [min] or over [limit].
+double _roomTo(double? edge, double start, double min, double limit) =>
+    edge == null ? limit : (edge - start).clamp(min, limit);
+
+/// [current] grown by [worldDelta], held to [board]'s far edge so the grip stops there instead of the tile sliding back.
+Rect canvasPresenceTileResized(Rect current, Offset worldDelta, Rect? board) {
+  final width = (current.width + worldDelta.dx).clamp(
+    canvasPresenceTileMinSize.width,
+    _roomTo(
+      board?.right,
+      current.left,
+      canvasPresenceTileMinSize.width,
+      canvasPresenceTileMaxSize.width,
+    ),
+  );
+  final height = (current.height + worldDelta.dy).clamp(
+    canvasPresenceTileMinSize.height,
+    _roomTo(
+      board?.bottom,
+      current.top,
+      canvasPresenceTileMinSize.height,
+      canvasPresenceTileMaxSize.height,
+    ),
+  );
+  return Rect.fromLTWH(current.left, current.top, width, height);
+}

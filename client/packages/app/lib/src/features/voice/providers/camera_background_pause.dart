@@ -53,7 +53,7 @@ final cameraBackgroundHostProvider = Provider<void>((ref) {
   final controller = ref.read(voiceControllerProvider.notifier);
   final pause = CameraBackgroundPause(
     cameraOn: () => ref.read(voiceControllerProvider).cameraEnabled,
-    setCamera: controller.setCameraPublishing,
+    setCamera: controller.video.setCameraPublishing,
   );
   ref.listen<bool>(cameraBackgroundPausedProvider, (_, paused) {
     unawaited(pause.apply(paused: paused));

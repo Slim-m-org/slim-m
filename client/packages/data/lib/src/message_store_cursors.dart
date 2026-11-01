@@ -1,25 +1,29 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'package:slimm_api/api.dart' as api;
+import 'database.dart';
+import 'message_store.dart';
 
 /// The channel-cursor reads and the op-cursor write behind [MessageStore],
 /// split out of `message_store.dart` to stay under the file budget. Private
 /// top-level functions, like `message_store_batch.dart`, so the public methods
 /// stay real methods on the type.
-Future<Channel?> _channelRow(MessageStore store, String channelId) =>
+Future<Channel?> channelRow(MessageStore store, String channelId) =>
     (store.db.select(store.db.channels)..where((c) => c.id.equals(channelId)))
         .getSingleOrNull();
 
-Future<int?> _cursorFor(MessageStore store, String channelId) async =>
-    (await _channelRow(store, channelId))?.cursor;
+Future<int?> cursorFor(MessageStore store, String channelId) async =>
+    (await channelRow(store, channelId))?.cursor;
 
-Future<int?> _opCursorFor(MessageStore store, String channelId) async =>
-    (await _channelRow(store, channelId))?.opCursor;
+Future<int?> opCursorFor(MessageStore store, String channelId) async =>
+    (await channelRow(store, channelId))?.opCursor;
 
-Future<void> _setOpCursor(
-    MessageStore store, String channelId, int? seq) async {
+Future<void> setOpCursor(MessageStore store, String channelId, int? seq) async {
   final db = store.db;
   await db.transaction(() async {
-    final row = await _channelRow(store, channelId);
+    final row = await channelRow(store, channelId);
     if (row == null) return;
     if (seq != null && row.opCursor != null && row.opCursor! >= seq) return;
     await (db.update(db.channels)..where((c) => c.id.equals(channelId)))
@@ -29,7 +33,7 @@ Future<void> _setOpCursor(
 
 /// Moves a channel's cursor forward. Never backwards: the cursor is the
 /// high-water mark of what has been applied.
-Future<void> _advanceCursorHelper(
+Future<void> advanceCursorHelper(
     MessageStore store, String channelId, int seq) async {
   final db = store.db;
   final row = await (db.select(db.channels)
@@ -40,9 +44,9 @@ Future<void> _advanceCursorHelper(
       .write(ChannelsCompanion(cursor: Value(seq)));
 }
 
-/// [_advanceCursorHelper]'s own shape for `mentionedSeq`, only ever called for a
+/// [advanceCursorHelper]'s own shape for `mentionedSeq`, only ever called for a
 /// message whose `mentionsMe` is true.
-Future<void> _advanceMentionCursorHelper(
+Future<void> advanceMentionCursorHelper(
     MessageStore store, String channelId, int seq) async {
   final db = store.db;
   final row = await (db.select(db.channels)
@@ -53,7 +57,7 @@ Future<void> _advanceMentionCursorHelper(
       .write(ChannelsCompanion(mentionedSeq: Value(seq)));
 }
 
-Future<List<api.ScopeCursor>> _allCursors(MessageStore store) async {
+Future<List<api.ScopeCursor>> allCursors(MessageStore store) async {
   final rows = await store.db.select(store.db.channels).get();
   return rows
       .map((c) => api.ScopeCursor(
@@ -64,7 +68,7 @@ Future<List<api.ScopeCursor>> _allCursors(MessageStore store) async {
       .toList(growable: false);
 }
 
-Future<void> _setReadMarker(
+Future<void> setReadMarker(
   MessageStore store,
   String channelId,
   int seq, {
@@ -91,7 +95,7 @@ Future<void> _setReadMarker(
 /// One channel's server read marker, as [MessageStore.setReadMarkers] takes it.
 typedef ReadMarker = ({String channelId, int seq, bool? manuallyUnread});
 
-Future<void> _setReadMarkers(
+Future<void> setReadMarkers(
   MessageStore store,
   Iterable<ReadMarker> markers,
 ) =>

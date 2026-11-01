@@ -11,17 +11,24 @@ import 'package:slimm_design_system/design_system.dart';
 
 final _now = DateTime.fromMillisecondsSinceEpoch(10 * 3600 * 1000);
 
-api.DockRunStat _stat({int? failingSince, String? error, int failures = 0}) =>
-    api.DockRunStat(
-      command: 'post',
-      runCount: 4,
-      failureCount: failures,
-      lastRunAt: _now.millisecondsSinceEpoch - 5 * 60 * 1000,
-      failingSince: failingSince,
-      lastError: error,
-      lastDurationMs: 10,
-      maxDurationMs: 20,
-    );
+api.DockRunStat _stat({
+  int? failingSince,
+  String? error,
+  int failures = 0,
+  int? lastFuel,
+  int maxFuel = 0,
+}) => api.DockRunStat(
+  lastFuelUsed: lastFuel,
+  maxFuelUsed: maxFuel,
+  command: 'post',
+  runCount: 4,
+  failureCount: failures,
+  lastRunAt: _now.millisecondsSinceEpoch - 5 * 60 * 1000,
+  failingSince: failingSince,
+  lastError: error,
+  lastDurationMs: 10,
+  maxDurationMs: 20,
+);
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -29,6 +36,7 @@ Future<void> _pump(
   api.DockStorage? storage,
   bool keepsData = true,
   VoidCallback? onClear,
+  int fuelLimit = 0,
 }) => tester.pumpWidget(
   MaterialApp(
     theme: buildTheme(Brightness.light, AppTokens.light),
@@ -38,6 +46,7 @@ Future<void> _pump(
         storage: storage,
         keepsData: keepsData,
         onClearStorage: onClear ?? () {},
+        fuelLimit: fuelLimit,
         now: _now,
       ),
     ),
@@ -59,6 +68,69 @@ void main() {
     await _pump(tester, stats: [_stat(failures: 1)]);
     expect(find.text('Last ran 5m ago. 4 runs, 1 failed.'), findsOneWidget);
     expect(_badge('Failing'), findsNothing);
+  });
+
+  testWidgets('a command shows the fuel its last and its heaviest run burned', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      stats: [_stat(lastFuel: 1200000, maxFuel: 3400000)],
+      fuelLimit: 50000000,
+    );
+    expect(
+      find.text(
+        'Last ran 5m ago. 4 runs, 0 failed. '
+        'Fuel: 1.2M last run, 3.4M most, of 50M.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a run with no fuel reading shows only the heaviest one', (
+    tester,
+  ) async {
+    await _pump(tester, stats: [_stat(maxFuel: 800)], fuelLimit: 50000000);
+    expect(find.textContaining('Fuel: 800 most, of 50M.'), findsOneWidget);
+    expect(find.textContaining('last run'), findsNothing);
+  });
+
+  testWidgets('a command that has used no fuel shows no fuel line', (
+    tester,
+  ) async {
+    await _pump(tester, stats: [_stat()]);
+    expect(find.textContaining('Fuel'), findsNothing);
+  });
+
+  testWidgets('a failing command still shows its fuel after the error', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      stats: [
+        _stat(
+          failingSince: _now.millisecondsSinceEpoch - 3600 * 1000,
+          error: 'exceeded its fuel (CPU) budget',
+          lastFuel: 50000000,
+          maxFuel: 50000000,
+        ),
+      ],
+      fuelLimit: 50000000,
+    );
+    expect(
+      find.textContaining(
+        'exceeded its fuel (CPU) budget Fuel: 50M last run, 50M most, of 50M.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  test('fuel reads in thousands and millions', () {
+    expect(dockFuel(12), '12');
+    expect(dockFuel(1500), '1.5k');
+    expect(dockFuel(340000), '340k');
+    expect(dockFuel(1200000), '1.2M');
+    expect(dockFuel(50000000), '50M');
   });
 
   testWidgets('a failing scheduled command shows since when and the error', (

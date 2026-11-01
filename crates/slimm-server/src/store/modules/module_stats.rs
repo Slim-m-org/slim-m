@@ -30,6 +30,28 @@ pub struct ModuleRunStat {
     pub last_error_at: Option<i64>,
     pub last_duration_ms: i64,
     pub max_duration_ms: i64,
+    /// Fuel the last run used, absent when it could not be read; and the most any run has used.
+    pub last_fuel_used: Option<i64>,
+    pub max_fuel_used: i64,
+}
+
+/// When one run happened, how long it took and how much fuel it burned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunTiming {
+    pub at: i64,
+    pub duration_ms: i64,
+    pub fuel_used: Option<i64>,
+}
+
+/// A run with no fuel reading, as every caller that does not meter one has.
+impl From<(i64, i64)> for RunTiming {
+    fn from((at, duration_ms): (i64, i64)) -> Self {
+        RunTiming {
+            at,
+            duration_ms,
+            fuel_used: None,
+        }
+    }
 }
 
 /// How much of its `kv.store` allowance a module is using.
@@ -47,8 +69,14 @@ impl Store {
         module_id: &str,
         command: &str,
         result: &RunResult,
-        (at, duration_ms): (i64, i64),
+        timing: impl Into<RunTiming>,
     ) -> anyhow::Result<()> {
+        let RunTiming {
+            at,
+            duration_ms,
+            fuel_used,
+        } = timing.into();
+        let max_fuel = fuel_used.unwrap_or(0);
         let (failed, error) = match result {
             RunResult::Ok => (0_i64, None),
             RunResult::Failed(text) => (
@@ -62,8 +90,9 @@ impl Store {
         sqlx::query!(
             "INSERT INTO module_run_stats
                  (module_id, command, run_count, failure_count, last_run_at, last_ok_at,
-                  failing_since, last_error, last_error_at, last_duration_ms, max_duration_ms)
-             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+                  failing_since, last_error, last_error_at, last_duration_ms, max_duration_ms,
+                  last_fuel_used, max_fuel_used)
+             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT (module_id, command) DO UPDATE SET
                  run_count = run_count + 1,
                  failure_count = failure_count + excluded.failure_count,
@@ -74,7 +103,9 @@ impl Store {
                  last_error = CASE WHEN excluded.failure_count = 0 THEN last_error ELSE excluded.last_error END,
                  last_error_at = COALESCE(excluded.last_error_at, last_error_at),
                  last_duration_ms = excluded.last_duration_ms,
-                 max_duration_ms = MAX(max_duration_ms, excluded.max_duration_ms)",
+                 max_duration_ms = MAX(max_duration_ms, excluded.max_duration_ms),
+                 last_fuel_used = excluded.last_fuel_used,
+                 max_fuel_used = MAX(max_fuel_used, excluded.max_fuel_used)",
             module_id,
             command,
             failed,
@@ -84,7 +115,9 @@ impl Store {
             error,
             error_at,
             duration_ms,
-            duration_ms
+            duration_ms,
+            fuel_used,
+            max_fuel
         )
         .execute(&self.pool)
         .await?;
@@ -97,7 +130,8 @@ impl Store {
             r#"SELECT module_id AS "module_id!", command AS "command!", run_count AS "run_count!",
                       failure_count AS "failure_count!", last_run_at AS "last_run_at!",
                       last_ok_at, failing_since, last_error, last_error_at,
-                      last_duration_ms AS "last_duration_ms!", max_duration_ms AS "max_duration_ms!"
+                      last_duration_ms AS "last_duration_ms!", max_duration_ms AS "max_duration_ms!",
+                      last_fuel_used, max_fuel_used AS "max_fuel_used!"
                FROM module_run_stats ORDER BY module_id, command"#
         )
         .fetch_all(&self.pool)
@@ -115,6 +149,8 @@ impl Store {
                 last_error_at: r.last_error_at,
                 last_duration_ms: r.last_duration_ms,
                 max_duration_ms: r.max_duration_ms,
+                last_fuel_used: r.last_fuel_used,
+                max_fuel_used: r.max_fuel_used,
             });
         }
         Ok(grouped)

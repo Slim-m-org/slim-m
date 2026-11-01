@@ -23,11 +23,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import '../../../providers/toasts.dart';
 import '../../auth/widgets/reauth_sheet.dart';
 import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
+import '../providers/settings_actions.dart';
 
 /// Opens the enrolment flow: the password first, since a session token alone
 /// cannot turn the factor on (decision 0048), then the setup sheet. Resolves
@@ -45,7 +45,7 @@ Future<bool?> showTotpEnrolSheet(BuildContext context, WidgetRef ref) async {
     onSubmit: (password, _) async {
       try {
         enrolment = await ref
-            .read(apiProvider)
+            .read(settingsActionsProvider)
             .beginTotpEnrolment(password: password);
         confirmedPassword = password;
         return null;
@@ -98,7 +98,7 @@ class _TotpEnrolSheetState extends ConsumerState<_TotpEnrolSheet> {
     });
     try {
       final codes = await ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .confirmTotpEnrolment(_code, password: widget.password);
       if (!mounted) return;
       setState(() => _recoveryCodes = codes);

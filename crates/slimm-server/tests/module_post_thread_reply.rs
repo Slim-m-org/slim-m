@@ -2,7 +2,7 @@
 //! A module's `message.post` into a thread moves the thread's reply count live,
 //! the way an ordinary send does.
 
-use slimm_server::hub::Event;
+use slimm_server::hub::{Event, MessageEvent};
 use slimm_server::ids::MessageId;
 use slimm_server::store::NewMessage;
 
@@ -35,9 +35,9 @@ async fn a_module_post_into_a_thread_publishes_a_reply_count_update() {
 
     let mut reply_count = None;
     while let Ok(event) = rx.try_recv() {
-        if let Event::ThreadUpdated {
+        if let Event::Message(MessageEvent::ThreadUpdated {
             reply_count: count, ..
-        } = event
+        }) = event
         {
             reply_count = Some(count);
         }

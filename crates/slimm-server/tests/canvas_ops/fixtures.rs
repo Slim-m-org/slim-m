@@ -227,14 +227,23 @@ pub(crate) async fn place_many(
         let seq = base + i;
         sqlx::query(
             "INSERT INTO canvas_objects \
-             (id, channel_id, channel_key, kind, z_index, x, y, w, h, props, author_id, seq, created_at) \
-             VALUES (?, ?, ?, 'stroke', ?, 0.0, 0.0, 1.0, 1.0, '{}', ?, ?, 0)",
+             (id, channel_id, channel_key, kind, z_index, x, y, w, h, author_id, seq, created_at) \
+             VALUES (?, ?, ?, 'stroke', ?, 0.0, 0.0, 1.0, 1.0, ?, ?, 0)",
         )
         .bind(CanvasObjectId::generate())
         .bind(channel)
         .bind(key)
         .bind(seq)
         .bind(author)
+        .bind(seq)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO canvas_object_props (object_id, props)
+             SELECT id, '{}' FROM canvas_objects WHERE channel_id = ? AND seq = ?",
+        )
+        .bind(channel)
         .bind(seq)
         .execute(&mut *tx)
         .await

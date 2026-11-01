@@ -21,26 +21,9 @@ import 'package:slimm_data/data.dart' show SlimmDatabase;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../support/fake_voice.dart';
 import '../../ui_snapshot_support.dart';
 import 'voice_controller_harness.dart';
-
-class _CountingVoiceController extends VoiceController {
-  _CountingVoiceController(super.ref, VoiceState fixed)
-    : super(session: FakeSession()) {
-    state = fixed;
-  }
-
-  final calls = <String>[];
-
-  @override
-  Future<void> toggleMicrophone() async => calls.add('mute');
-
-  @override
-  Future<void> toggleDeafen() async => calls.add('deafen');
-
-  @override
-  Future<void> leave() async => calls.add('leave');
-}
 
 const _elsewhere = '/channels/c-general';
 const _callRoute = '/channels/c-main';
@@ -48,7 +31,7 @@ const _callRoute = '/channels/c-main';
 class _Rig {
   _Rig(this.router, this.controller, this.fixture);
   final GoRouter router;
-  final _CountingVoiceController controller;
+  final FakeVoiceController controller;
   final ({ProviderContainer container, SlimmDatabase db}) fixture;
 
   String get location => router.routeInformationProvider.value.uri.toString();
@@ -58,13 +41,16 @@ Future<_Rig> _pump(
   WidgetTester tester, {
   Brightness mode = Brightness.dark,
 }) async {
-  late _CountingVoiceController controller;
+  late FakeVoiceController controller;
   final fixture = await fixtureContainer(
     extraOverrides: [
       voiceControllerProvider.overrideWith((ref) {
-        controller = _CountingVoiceController(
+        controller = FakeVoiceController(
           ref,
-          VoiceState(
+          session: FakeSession(),
+          recording: true,
+          clearsOnLeave: false,
+          initial: VoiceState(
             channelId: 'c-main',
             state: VoiceSessionState.connected,
             connectedAt: DateTime.now().subtract(const Duration(seconds: 36)),

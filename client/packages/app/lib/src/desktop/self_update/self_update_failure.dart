@@ -16,6 +16,7 @@ enum SelfUpdateFailureKind {
   installFailed,
   rolledBack,
   noArtifactForPlatform,
+  launcherOutdated,
 }
 
 class SelfUpdateFailure implements Exception {

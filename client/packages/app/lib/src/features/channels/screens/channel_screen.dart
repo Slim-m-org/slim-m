@@ -385,6 +385,7 @@ class _ChannelScreenState extends ConsumerState<ChannelScreen> {
               isVoice: isVoice,
               isDm: channel?.kind == 'dm',
               dmParticipantId: dmPartnerId,
+              groupMemberIds: channel?.groupMemberIds ?? const [],
               isPersonalSpace: channel?.isPersonalSpace ?? false,
               restricted: channel?.restricted ?? false,
               searchOpen: search.open,

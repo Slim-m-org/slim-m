@@ -13,7 +13,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::store::LockError;
@@ -30,6 +30,8 @@ pub fn routes() -> Router<AppState> {
 #[derive(Serialize)]
 struct LocksDto {
     object_ids: Vec<String>,
+    /// The state version the list was read at; see `canvas_state_version`.
+    version: i64,
 }
 
 /// `GET /channels/{channel_id}/canvas/object-locks`.
@@ -40,9 +42,10 @@ async fn list(
 ) -> Result<Json<LocksDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     canvas_permissions(&state, ctx.user_id, channel_id).await?;
-    let ids = state.store.list_canvas_object_locks(channel_id).await?;
+    let (version, ids) = state.store.list_canvas_object_locks(channel_id).await?;
     Ok(Json(LocksDto {
         object_ids: ids.into_iter().map(|id| id.to_string()).collect(),
+        version,
     }))
 }
 
@@ -78,12 +81,12 @@ async fn set(
         return Err(ApiError::Forbidden);
     }
     let may_moderate = permissions.contains(Permissions::MANAGE_CANVAS);
-    let changed = match state
+    let version = match state
         .store
         .set_canvas_object_lock(channel_id, object_id, actor, may_moderate, locked)
         .await
     {
-        Ok(changed) => changed,
+        Ok(version) => version,
         Err(LockError::NotFound) => {
             return Err(ApiError::NotFound("that id is not in this channel"));
         }
@@ -91,12 +94,15 @@ async fn set(
         Err(LockError::Internal(err)) => return Err(err.into()),
     };
     // No await between the commit and this call; see `ws::permission_cache`.
-    if changed {
-        state.hub.publish(Event::CanvasObjectLockChanged {
-            channel_id,
-            object_id,
-            locked,
-        });
+    if let Some(version) = version {
+        state
+            .hub
+            .publish(Event::Canvas(CanvasEvent::ObjectLockChanged {
+                channel_id,
+                object_id,
+                locked,
+                version,
+            }));
     }
     Ok(StatusCode::NO_CONTENT)
 }

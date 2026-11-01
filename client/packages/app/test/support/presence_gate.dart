@@ -33,8 +33,10 @@ const _pictureHomes = {
 };
 
 /// The only code that may read the raw presence map, the shared providers and
-/// each feature's own; widgets and screens get a state from `presenceForProvider`.
-final _presenceMapReaders = RegExp(r'^app/lib/src/(features/\w+/)?providers/');
+/// each feature's or module folder's own; widgets and screens get a state from `presenceForProvider`.
+final _presenceMapReaders = RegExp(
+  r'^app/lib/src/(features/\w+/|\w+/)?providers/',
+);
 
 /// The painter is deliberately not covered: the Space's connection dot draws
 /// with it, and that is a link to a server rather than a person.

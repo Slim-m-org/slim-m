@@ -128,6 +128,7 @@ final snapshotThemes = <String, ({Brightness brightness, AppTokens tokens})>{
   'light': (brightness: Brightness.light, tokens: AppTokens.light),
   'soft': (brightness: Brightness.dark, tokens: AppTokens.soft),
   'forest': (brightness: Brightness.dark, tokens: AppTokens.forest),
+  'halloween': (brightness: Brightness.dark, tokens: AppTokens.halloween),
 };
 
 /// Where PNGs land. Gitignored: these are for looking at, not for diffing.

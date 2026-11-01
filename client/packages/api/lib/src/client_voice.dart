@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Voice: joining a channel's room, evicting a participant, and previewing
 /// who is already in one, the `voice` tag.
@@ -10,7 +16,7 @@ extension SlimmApiVoice on SlimmApi {
   /// a supported way to run text-only rather than a fault, so a caller should
   /// hide voice rather than retry.
   Future<VoiceToken> voiceToken(String channelId) async {
-    final json = await _send('POST', '/channels/$channelId/voice/token');
+    final json = await send('POST', '/channels/$channelId/voice/token');
     return VoiceToken.fromJson(json as Map<String, dynamic>);
   }
 
@@ -20,7 +26,7 @@ extension SlimmApiVoice on SlimmApi {
   /// after a timeout is safe. This does not bar them from rejoining - taking
   /// away CONNECT is what does that - it makes the removal take effect now
   /// rather than when their current token lapses.
-  Future<void> kickVoiceParticipant(String channelId, String userId) => _send(
+  Future<void> kickVoiceParticipant(String channelId, String userId) => send(
         'POST',
         '/channels/$channelId/voice/participants/$userId/kick',
         expectNoContent: true,
@@ -30,7 +36,7 @@ extension SlimmApiVoice on SlimmApi {
   /// beside their name. The server publishes it; a client cannot set its own
   /// participant attributes.
   Future<void> setVoiceDeafened(String channelId, {required bool deafened}) =>
-      _send(
+      send(
         'PUT',
         '/channels/$channelId/voice/deafened',
         body: {'deafened': deafened},
@@ -47,7 +53,7 @@ extension SlimmApiVoice on SlimmApi {
     String userId,
     String toChannelId,
   ) =>
-      _send(
+      send(
         'POST',
         '/channels/$channelId/voice/participants/$userId/move',
         body: {'to_channel_id': toChannelId},
@@ -61,7 +67,7 @@ extension SlimmApiVoice on SlimmApi {
   /// uses to bound how long a terminated app can leave a ghost participant
   /// behind, rather than waiting on the SFU's own default. Throws
   /// [NotConfiguredException] when the deployment has no SFU.
-  Future<void> sendVoiceHeartbeat(String channelId) => _send(
+  Future<void> sendVoiceHeartbeat(String channelId) => send(
         'POST',
         '/channels/$channelId/voice/heartbeat',
         expectNoContent: true,
@@ -75,7 +81,7 @@ extension SlimmApiVoice on SlimmApi {
   /// Best-effort by the caller's own convention, same as [sendVoiceHeartbeat]:
   /// if this never lands, the sweep still cleans up in time, just later and
   /// with a wasted RPC on the server's side.
-  Future<void> forgetVoiceHeartbeat(String channelId) => _send(
+  Future<void> forgetVoiceHeartbeat(String channelId) => send(
         'DELETE',
         '/channels/$channelId/voice/heartbeat',
         expectNoContent: true,
@@ -96,7 +102,7 @@ extension SlimmApiVoice on SlimmApi {
 
   /// [voiceRoster] with the call's age the same response carries.
   Future<VoiceRoster> voiceRosterSnapshot(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/voice/roster');
+    final json = await send('GET', '/channels/$channelId/voice/roster');
     return VoiceRoster.fromJson(json as Map<String, dynamic>);
   }
 
@@ -106,7 +112,7 @@ extension SlimmApiVoice on SlimmApi {
   /// [NotFoundException] for anything that is not a DM between this caller
   /// and exactly one other account.
   Future<RingStarted> ringDmCall(String channelId) async {
-    final json = await _send('POST', '/channels/$channelId/voice/ring');
+    final json = await send('POST', '/channels/$channelId/voice/ring');
     return RingStarted.fromJson(json as Map<String, dynamic>);
   }
 
@@ -115,7 +121,7 @@ extension SlimmApiVoice on SlimmApi {
   /// For a client that connected after the `call.ringing` frame was sent, such
   /// as an app launched by a VoIP push; nothing is claimed by reading.
   Future<List<OutstandingDmCallRing>> listIncomingDmCallRings() async {
-    final json = await _send('GET', '/voice/rings/incoming');
+    final json = await send('GET', '/voice/rings/incoming');
     return ((json as Map<String, dynamic>)['rings'] as List<dynamic>)
         .map((r) => OutstandingDmCallRing.fromJson(r as Map<String, dynamic>))
         .toList();
@@ -123,7 +129,7 @@ extension SlimmApiVoice on SlimmApi {
 
   /// Declines an incoming DM call ring. Idempotent: declining one that
   /// already ended some other way still succeeds.
-  Future<void> declineDmCallRing(String channelId) => _send(
+  Future<void> declineDmCallRing(String channelId) => send(
         'POST',
         '/channels/$channelId/voice/ring/decline',
         expectNoContent: true,

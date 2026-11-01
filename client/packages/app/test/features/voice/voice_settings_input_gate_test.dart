@@ -125,7 +125,7 @@ void main() {
     final session = await _pump(tester);
     await _container(
       tester,
-    ).read(voiceControllerProvider.notifier).restoreEvenOutLoudSounds();
+    ).read(voiceControllerProvider.notifier).input.restoreEvenOutLoudSounds();
     expect(session.lastEvenOutLoudSounds, isFalse);
   });
 

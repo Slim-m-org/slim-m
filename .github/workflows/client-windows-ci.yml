@@ -49,10 +49,10 @@ concurrency:
 jobs:
   windows-compiles:
     name: windows desktop compiles
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 45
     env:
-      # firebase_cpp_sdk_windows vendors a pre-3.5 cmake_minimum_required CMake 4.x (windows-latest's default) refuses outright; this is CMake's own documented escape hatch, not a slim-m bug.
+      # firebase_cpp_sdk_windows vendors a pre-3.5 cmake_minimum_required CMake 4.x (the windows-2025 image's default) refuses outright; this is CMake's own documented escape hatch, not a slim-m bug.
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
       # flutter_local_notifications_windows 1.0.3's <experimental/coroutine> use is a hard C2338 on this runner's newer MSVC; CL is MSVC's own env var for a define applied to every compile, the same shape as the policy floor above.
       CL: "/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
@@ -107,7 +107,7 @@ jobs:
   windows-tester-build:
     name: windows tester build (artifact)
     if: github.event_name == 'workflow_dispatch' && inputs.tester_build
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 45
     env:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
@@ -172,5 +172,6 @@ jobs:
             slim-m-client-*-windows-x64.zip
             slim-m-setup-*.exe
           retention-days: 7
+          if-no-files-found: error
 
       - {if: failure(), uses: ./.github/actions/native-hooks-diagnose}

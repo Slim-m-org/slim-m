@@ -63,5 +63,5 @@ class SoundOutputRouter {
 
 final soundOutputRouterProvider = Provider<SoundOutputRouter>((ref) {
   final voice = ref.read(voiceControllerProvider.notifier);
-  return SoundOutputRouter(() => voice.audioOutputInUse);
+  return SoundOutputRouter(() => voice.devices.audioOutputInUse);
 });

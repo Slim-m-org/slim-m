@@ -109,6 +109,7 @@ class _PushToTalkListenerState extends ConsumerState<PushToTalkListener>
         appLifecycleProvider,
         (_, state) => ref
             .read(voiceControllerProvider.notifier)
+            .input
             .setAppBackgrounded(isBackgroundedOnPhone(state, mobile: true)),
       );
     }

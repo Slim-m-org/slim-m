@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// The Dock: the module marketplace's browse, install and lifecycle calls.
 /// Every route here requires MANAGE_SERVER. See
@@ -10,7 +15,7 @@ extension SlimmApiDock on SlimmApi {
   /// Browses a source's index; [source] is a [DockSource.id], and null is the
   /// official one. Nothing is installed by this call.
   Future<List<DockIndexEntry>> listDockModules({String? source}) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/space/dock/modules',
       query: _sourceQuery(source),
@@ -23,7 +28,7 @@ extension SlimmApiDock on SlimmApi {
   /// Reads one module's full manifest, including every permission it will
   /// register and every capability it asks for, before installing it.
   Future<DockManifest> getDockModule(String moduleId, {String? source}) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/space/dock/modules/$moduleId',
       query: _sourceQuery(source),
@@ -50,7 +55,7 @@ extension SlimmApiDock on SlimmApi {
     String? reviewedDigest,
     String? source,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/space/dock/modules/$moduleId/install',
       query: _sourceQuery(source),
@@ -72,7 +77,7 @@ extension SlimmApiDock on SlimmApi {
     String moduleId,
     String? channelId,
   ) async {
-    final json = await _send(
+    final json = await send(
       'PUT',
       '/space/dock/modules/$moduleId/schedule-channel',
       body: {'channel_id': channelId},
@@ -82,14 +87,14 @@ extension SlimmApiDock on SlimmApi {
 
   /// Uninstalls a module: removes the install, its registered permissions,
   /// and every role grant of them.
-  Future<void> uninstallDockModule(String moduleId) => _send(
+  Future<void> uninstallDockModule(String moduleId) => send(
         'DELETE',
         '/space/dock/modules/$moduleId/install',
         expectNoContent: true,
       );
 
   /// Empties what an installed module has stored; it stays installed.
-  Future<void> clearDockModuleStorage(String moduleId) => _send(
+  Future<void> clearDockModuleStorage(String moduleId) => send(
         'DELETE',
         '/space/dock/modules/$moduleId/storage',
         expectNoContent: true,
@@ -97,14 +102,60 @@ extension SlimmApiDock on SlimmApi {
 
   /// Enables an installed module.
   Future<InstalledDockModule> enableDockModule(String moduleId) async {
-    final json = await _send('POST', '/space/dock/modules/$moduleId/enable');
+    final json = await send('POST', '/space/dock/modules/$moduleId/enable');
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
   }
 
   /// Disables an installed module without losing its config.
   Future<InstalledDockModule> disableDockModule(String moduleId) async {
-    final json = await _send('POST', '/space/dock/modules/$moduleId/disable');
+    final json = await send('POST', '/space/dock/modules/$moduleId/disable');
     return InstalledDockModule.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Reads a module package file's manifest without installing anything: the
+  /// same validation and artifact check an install runs, refused with 400 and
+  /// a reason when the file is malformed, too large or does not match itself.
+  Future<DockManifest> previewDockPackage(Map<String, dynamic> package) async {
+    final json = await send(
+      'POST',
+      '/space/dock/packages/preview',
+      body: package,
+    );
+    return DockManifest.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// Installs the module in [package] with the approvals the admin gave after
+  /// seeing the manifest [previewDockPackage] returned; [reviewedDigest] is
+  /// that manifest's `reviewDigest`. Recorded as not verified, from a file.
+  Future<InstalledDockModule> installDockPackage({
+    required Map<String, dynamic> package,
+    required String version,
+    List<String>? approvedHostCapabilities,
+    bool? approveLocalNetwork,
+    String? reviewedDigest,
+  }) async {
+    final json = await send(
+      'POST',
+      '/space/dock/packages/install',
+      body: {
+        'package': package,
+        'version': version,
+        if (approvedHostCapabilities != null)
+          'approved_host_capabilities': approvedHostCapabilities,
+        if (approveLocalNetwork != null)
+          'approve_local_network': approveLocalNetwork,
+        if (reviewedDigest != null) 'reviewed_digest': reviewedDigest,
+      },
+    );
+    return InstalledDockModule.fromJson(json as Map<String, dynamic>);
+  }
+
+  /// An installed module as one package file: its manifest and artifact, and
+  /// no settings values, secrets or data. Refused with 409 for a module
+  /// installed before exports existed.
+  Future<Map<String, dynamic>> exportDockModule(String moduleId) async {
+    final json = await send('GET', '/space/dock/modules/$moduleId/export');
+    return json as Map<String, dynamic>;
   }
 
   Map<String, String>? _sourceQuery(String? source) =>
@@ -112,7 +163,7 @@ extension SlimmApiDock on SlimmApi {
 
   /// The module sources, the official one first.
   Future<List<DockSource>> listDockSources() async {
-    final json = await _send('GET', '/space/dock/sources');
+    final json = await send('GET', '/space/dock/sources');
     return (json as List<dynamic>)
         .map((s) => DockSource.fromJson(s as Map<String, dynamic>))
         .toList(growable: false);
@@ -120,7 +171,7 @@ extension SlimmApiDock on SlimmApi {
 
   /// Adds a community source by its GitHub `owner/repo`; a URL is refused.
   Future<DockSource> addDockSource(String repo) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/space/dock/sources',
       body: {'repo': repo},
@@ -129,7 +180,7 @@ extension SlimmApiDock on SlimmApi {
   }
 
   /// Removes a community source. Modules installed from it stay installed.
-  Future<void> removeDockSource(String sourceId) => _send(
+  Future<void> removeDockSource(String sourceId) => send(
         'DELETE',
         '/space/dock/sources/${Uri.encodeComponent(sourceId)}',
         expectNoContent: true,
@@ -137,7 +188,7 @@ extension SlimmApiDock on SlimmApi {
 
   /// Every module this space currently has installed.
   Future<List<InstalledDockModule>> listInstalledDockModules() async {
-    final json = await _send('GET', '/space/dock/installed');
+    final json = await send('GET', '/space/dock/installed');
     return (json as List<dynamic>)
         .map((m) => InstalledDockModule.fromJson(m as Map<String, dynamic>))
         .toList(growable: false);

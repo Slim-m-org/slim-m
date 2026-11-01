@@ -51,7 +51,8 @@ final class NotificationService: UNNotificationServiceExtension {
     // one sealed box and one CXCallObserver read are the whole of the
     // work, so there is nothing to wait for and no reason to spend any of
     // the budget waiting.
-    deliver(withSound(decorated(request.content) ?? request.content))
+    let content = withSound(decorated(request.content) ?? request.content)
+    withBadge(content) { [weak self] badged in self?.deliver(badged) }
   }
 
   /// iOS calls this when the budget runs out, and whatever it is handed is
@@ -93,6 +94,26 @@ final class NotificationService: UNNotificationServiceExtension {
 
     decodedEnvelope = envelope
     return envelope.applied(to: mutable)
+  }
+
+  /// Sets the icon badge to the channels with a notification waiting. Falls
+  /// back to the content as it is if the answer never comes: a notification
+  /// without a badge is worth more than one that arrives late.
+  private func withBadge(
+    _ content: UNNotificationContent,
+    completion: @escaping (UNNotificationContent) -> Void
+  ) {
+    guard let mutable = content.mutableCopy() as? UNMutableNotificationContent else {
+      completion(content)
+      return
+    }
+    UNUserNotificationCenter.current().getDeliveredNotifications { delivered in
+      mutable.badge = NSNumber(
+        value: BadgeCount.unreadChannels(
+          deliveredThreads: delivered.map { $0.request.content.threadIdentifier },
+          currentThread: mutable.threadIdentifier))
+      completion(mutable)
+    }
   }
 
   /// Chooses and attaches a sound, after `decorated` has had its chance to

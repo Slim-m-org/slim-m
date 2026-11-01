@@ -106,6 +106,28 @@ Not applied here, since this branch only adds the tooling.
 3. Cut the query count per history page, starting with reaction enrichment.
 4. Revisit the 1024-socket cap before relying on reconnect behaviour at that size.
 
+## Writer gate on the SQLite pool
+
+`Store::begin_write` now lets one caller at a time wait for SQLite's write lock (a one-permit semaphore, 10 s timeout), and the pool has an explicit 10 s acquire timeout instead of sqlx's 30 s.
+Before it, up to eight queued `BEGIN IMMEDIATE` writers could hold every pool connection while they waited, so a read had to queue behind them.
+`tests/write_pool.rs` holds the write lock, queues twelve registrations, and asserts a read still answers within a second; it fails with the gate removed.
+
+`http_mix`, STAGES=200,400,800,1200, 15 s each, USERS=300, three interleaved runs of the old and new binary on a shared 32-thread box (other agents building):
+
+| Step | Old p95 (ms) | New p95 (ms) |
+| --- | --- | --- |
+| 200 | 1.6, 2.0, 18.1 | 1.2, 1.3, 1.8 |
+| 400 | 19.8, 19.9, 22.7 | 17.6, 10.1, 19.5 |
+| 800 | 5.8, 11.1, 19.9 | 11.6, 13.9, 16.4 |
+| 1200 | 2.4, 1.8, 20.9 | 8.6, 6.4, 9.6 |
+
+Send p95 was 21.2, 21.0 and 33.7 ms old against 21.5, 20.7 and 23.1 ms new, with no dropped iterations in five of six runs.
+So this mix does not saturate the pool on this box and the change is neutral here; the starvation case is covered by the test, not by this scenario.
+
+A first attempt that gave `begin_write` its own single-connection pool was much worse (send p95 5 to 6 s, thousands of dropped iterations).
+Transactions on that connection hand it from one to the next with no gap, so the plain writers that poll SQLite's busy handler (reactions, most single statements) never got the lock.
+Do not split writers onto a separate pool unless every write goes through it.
+
 ## Not done yet
 
 - Variance: three runs each of `http_mix` on 8 and 16 CPUs and `fanout` at 252k and 300k, all with clean pinning.

@@ -31,6 +31,7 @@ class VoiceSettingsState {
     this.inputThresholdAuto = false,
     this.evenOutLoudSounds = true,
     this.screenShareIncludeAudio = false,
+    this.screenShareAllowAnnotations = false,
     this.pauseVideoWhenMinimised = true,
     this.micFallbackEnabled = true,
     this.audioInputDeviceId,
@@ -105,6 +106,11 @@ class VoiceSettingsState {
   /// honouring this value.
   final bool screenShareIncludeAudio;
 
+  /// Whether viewers on the canvas may draw on the screen being shared, shown
+  /// on that screen by the overlay (decision 0096). Off until chosen; the
+  /// overlay also needs a desktop that can host it.
+  final bool screenShareAllowAnnotations;
+
   /// Whether incoming video stops while the desktop window is visible but not focused.
   final bool pauseVideoWhenMinimised;
   final bool micFallbackEnabled;
@@ -135,6 +141,7 @@ class VoiceSettingsState {
     bool? inputThresholdAuto,
     bool? evenOutLoudSounds,
     bool? screenShareIncludeAudio,
+    bool? screenShareAllowAnnotations,
     bool? pauseVideoWhenMinimised,
     bool? micFallbackEnabled,
     String? audioInputDeviceId,
@@ -162,6 +169,8 @@ class VoiceSettingsState {
     evenOutLoudSounds: evenOutLoudSounds ?? this.evenOutLoudSounds,
     screenShareIncludeAudio:
         screenShareIncludeAudio ?? this.screenShareIncludeAudio,
+    screenShareAllowAnnotations:
+        screenShareAllowAnnotations ?? this.screenShareAllowAnnotations,
     pauseVideoWhenMinimised:
         pauseVideoWhenMinimised ?? this.pauseVideoWhenMinimised,
     micFallbackEnabled: micFallbackEnabled ?? this.micFallbackEnabled,

@@ -15,7 +15,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import 'settings_detail_row.dart';
 import 'settings_notice.dart';
 import 'settings_section_header.dart';
@@ -23,9 +22,10 @@ import 'totp_code_sheet.dart';
 import 'totp_enrol_sheet.dart';
 import 'totp_failures.dart';
 import 'totp_recovery_codes.dart';
+import '../providers/settings_actions.dart';
 
 final totpStatusProvider = FutureProvider.autoDispose<api.TotpStatus>(
-  (ref) => ref.watch(apiProvider).totpStatus(),
+  (ref) => ref.watch(settingsActionsProvider).totpStatus(),
 );
 
 /// Whether the section has nothing to offer, so a card around it can skip it.
@@ -148,7 +148,9 @@ Future<void> _reissue(BuildContext context, WidgetRef ref) async {
     submitLabel: 'Replace codes',
     onSubmit: (code) async {
       try {
-        fresh = await ref.read(apiProvider).reissueTotpRecoveryCodes(code);
+        fresh = await ref
+            .read(settingsActionsProvider)
+            .reissueTotpRecoveryCodes(code);
         return null;
       } on api.ApiException catch (e, stack) {
         api.reportFailure(
@@ -183,7 +185,7 @@ Future<void> _turnOff(BuildContext context, WidgetRef ref) async {
     dangerous: true,
     onSubmit: (code) async {
       try {
-        await ref.read(apiProvider).disableTotp(code);
+        await ref.read(settingsActionsProvider).disableTotp(code);
         return null;
       } on api.ApiException catch (e, stack) {
         api.reportFailure(

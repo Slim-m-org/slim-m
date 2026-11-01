@@ -67,8 +67,19 @@ Map<String, MessageExtras> _cache(int size) => {
   for (var i = 0; i < size; i++) 'm$i': _entry(i),
 };
 
+/// The best of several runs: a loaded machine only ever adds time, so the
+/// fastest run is the closest to the cost of the copy itself.
+({double perCopyUs, int copies}) _measure(int size, {int runs = 7}) {
+  var best = _measureOnce(size);
+  for (var i = 1; i < runs; i++) {
+    final next = _measureOnce(size);
+    if (next.perCopyUs < best.perCopyUs) best = next;
+  }
+  return best;
+}
+
 /// The copy `_set` performs, timed over enough iterations to be measurable.
-({double perCopyUs, int copies}) _measure(int size, {int copies = 200}) {
+({double perCopyUs, int copies}) _measureOnce(int size, {int copies = 200}) {
   final cache = _cache(size);
   final entry = _entry(0);
   // Untimed warm-up: first-run allocation is not the thing being reported.
@@ -110,8 +121,8 @@ void main() {
 
   test('the cost is linear in cache size, not worse', () {
     // Shape, not magnitude: superlinear would be a different problem entirely.
-    final small = _measure(1000).perCopyUs;
-    final large = _measure(10000).perCopyUs;
+    final small = _measure(20000).perCopyUs;
+    final large = _measure(200000).perCopyUs;
 
     expect(
       large / small,

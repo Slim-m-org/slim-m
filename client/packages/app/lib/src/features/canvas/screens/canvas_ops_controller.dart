@@ -19,6 +19,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import '../../../ids.dart';
 import 'canvas_commit_queue.dart';
 import 'canvas_note_sizing.dart';
+import 'canvas_object_op_chain.dart';
 import '../providers/canvas_object_inputs.dart';
 import '../providers/canvas_text_props.dart';
 import '../widgets/canvas_text_content.dart';
@@ -127,6 +128,7 @@ class CanvasOpsController {
     required this.onError,
     this.onRemoveFailed,
     this.onObjectPlaced,
+    this.onUnknownOutcome,
     this.isLocked = _nothingLocked,
   });
 
@@ -143,6 +145,22 @@ class CanvasOpsController {
     final opId = newCanvasOpId();
     return retryCanvasRequest(() => send(opId), giveUp: () => _disposed);
   }
+
+  final _objectOps = ObjectOpChain();
+
+  /// [_sendOp] after every earlier change to the same object has settled.
+  Future<T> _sendObjectOp<T>(
+    String objectId,
+    Future<T> Function(String opId) send,
+  ) => _objectOps.run(objectId, () => _sendOp(send));
+
+  /// Reads the feed again when a refused change may still have landed, so the screen follows the server rather than the rollback.
+  void _settleUnknownOutcome(api.ApiException error) {
+    if (error is api.TransportException) unawaited(onUnknownOutcome?.call());
+  }
+
+  /// Called after a change failed with no reply, where the server may have applied it.
+  final Future<void> Function()? onUnknownOutcome;
 
   static bool _nothingLocked(String objectId) => false;
 

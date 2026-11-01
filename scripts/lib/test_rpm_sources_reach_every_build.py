@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 SPEC = ROOT / "packaging" / "rpm" / "slim-m-client.spec"
 WORKFLOWS = ROOT / ".github" / "workflows"
+ACTIONS = ROOT / ".github" / "actions"
 
 SOURCE_LINE = re.compile(r"^Source\d+:\s*(\S+)\s*$", re.M)
 
@@ -49,7 +50,7 @@ def jobs_populating_sources() -> dict[str, str]:
     """Each job that populates a SOURCES directory, mapped to its copy text.
 
     Scoped to the job, which is the unit that actually fails. Not the whole
-    workflow: `release.yml` populates SOURCES in two different jobs, and losing
+    workflow: the release composites and `main-builds.yml` each populate SOURCES, and losing
     a source from one of them breaks that job while the other still names it.
     Not a single `cp` either: a job may copy the bulk of its sources in one
     command and the built tarball in another, and requiring every source in
@@ -61,6 +62,10 @@ def jobs_populating_sources() -> dict[str, str]:
     did, on the first version.
     """
     found = {}
+    for path in sorted(ACTIONS.glob("*/action.yml")):
+        commands = COPY_INTO_SOURCES.findall(path.read_text())
+        if commands:
+            found[f"{path.parent.name}/action.yml"] = "\n".join(commands)
     for path in sorted(WORKFLOWS.glob("*.yml")):
         text = path.read_text()
         if "rpmbuild/SOURCES" not in text:

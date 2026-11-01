@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'database.dart';
+import 'message_store.dart';
 
 /// Marks a stored id as a spoiler. Attachment ids are hex, so the mark can
 /// never collide with one, and rows written before spoilers read as plain.
-const _spoilerMark = '!';
+const spoilerMark = '!';
 
 /// Remembers the ids a queued send carries, or forgets them when it has none.
-Future<void> _savePendingAttachments(
+Future<void> savePendingAttachments(
   MessageStore store,
   String messageId,
   List<String> ids,
@@ -14,10 +18,10 @@ Future<void> _savePendingAttachments(
   bool mentionReply = true,
 }) async {
   ids = [
-    for (final id in ids) spoilerIds.contains(id) ? '$_spoilerMark$id' : id,
+    for (final id in ids) spoilerIds.contains(id) ? '$spoilerMark$id' : id,
   ];
   if (ids.isEmpty && mentionReply) {
-    await _forgetPendingAttachments(store, messageId);
+    await forgetPendingAttachments(store, messageId);
     return;
   }
   await store.db.into(store.db.pendingAttachments).insertOnConflictUpdate(
@@ -29,7 +33,7 @@ Future<void> _savePendingAttachments(
       );
 }
 
-Future<List<String>> _pendingAttachmentIds(
+Future<List<String>> pendingAttachmentIds(
   MessageStore store,
   String messageId, {
   bool spoilersOnly = false,
@@ -40,19 +44,19 @@ Future<List<String>> _pendingAttachmentIds(
   if (row == null) return const [];
   return [
     for (final id in row.attachmentIds)
-      if (!spoilersOnly || id.startsWith(_spoilerMark))
-        id.startsWith(_spoilerMark) ? id.substring(1) : id,
+      if (!spoilersOnly || id.startsWith(spoilerMark))
+        id.startsWith(spoilerMark) ? id.substring(1) : id,
   ];
 }
 
-Future<bool> _pendingMentionReply(MessageStore store, String messageId) async {
+Future<bool> pendingMentionReply(MessageStore store, String messageId) async {
   final row = await (store.db.select(store.db.pendingAttachments)
         ..where((p) => p.messageId.equals(messageId)))
       .getSingleOrNull();
   return row?.mentionReply ?? true;
 }
 
-Future<void> _forgetPendingAttachments(
+Future<void> forgetPendingAttachments(
   MessageStore store,
   String messageId,
 ) async {

@@ -31,6 +31,31 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
 
     c.get("listInstalledDockModules", "/space/dock/installed", root)
         .await;
+    let mut package = c
+        .get(
+            "exportDockModule",
+            &format!("/space/dock/modules/{id}/export"),
+            root,
+        )
+        .await;
+    c.json(
+        "previewDockPackage",
+        "POST",
+        "/space/dock/packages/preview",
+        root,
+        package.clone(),
+    )
+    .await;
+    // A file may not take over an id a registry installed, so the copy gets its own.
+    package["manifest"]["id"] = json!("from-file");
+    c.json(
+        "installDockPackage",
+        "POST",
+        "/space/dock/packages/install",
+        root,
+        json!({ "package": package, "version": version }),
+    )
+    .await;
     // Approving schedule gives the module its principal, so a channel can be chosen for it.
     c.json(
         "installDockModule",
@@ -62,6 +87,8 @@ pub(super) async fn dock_calls(c: &mut Contract, root: &str, admin_id: &str, cha
         json!({ "values": { "xp_per_minute": 7, "api_key": "contract-secret" } }),
     )
     .await;
+    c.get("listDockModuleHooks", "/space/dock/hooks", root)
+        .await;
     c.get(
         "getMemberProfileSlots",
         &format!("/space/dock/slots/profile/{admin_id}"),

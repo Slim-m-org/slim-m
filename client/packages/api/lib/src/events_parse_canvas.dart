@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'events.dart';
+library;
+
+import 'events.dart';
+import 'models.dart';
 
 /// Voice Canvas frames.
-ServerEvent? _canvasFrame(Map<String, dynamic> decoded) =>
+ServerEvent? canvasFrame(Map<String, dynamic> decoded) =>
     _canvasObjectFrame(decoded) ??
     _canvasLiveFrame(decoded) ??
     _canvasEditFrame(decoded);
@@ -148,6 +151,29 @@ ServerEvent? _canvasLiveFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         ended: decoded['ended'] as bool,
       ),
+    'canvas.screen_annotation.updated'
+        when decoded['channel_id'] is String &&
+            decoded['user_id'] is String &&
+            decoded['target_user_id'] is String &&
+            decoded['kind'] is String &&
+            decoded['points'] is List &&
+            decoded['ended'] is bool =>
+      CanvasScreenAnnotation(
+        channelId: decoded['channel_id'] as String,
+        userId: decoded['user_id'] as String,
+        targetUserId: decoded['target_user_id'] as String,
+        kind: decoded['kind'] as String,
+        annotationId: decoded['annotation_id'] as String?,
+        points: [
+          for (final v in decoded['points'] as List)
+            if (v is num) v.toDouble(),
+        ],
+        color: decoded['color'] as String?,
+        text: decoded['text'] as String?,
+        ended: decoded['ended'] as bool,
+        allowed: decoded['allowed'] == true,
+        aspect: (decoded['aspect'] as num?)?.toDouble(),
+      ),
     'canvas.view.updated'
         when decoded['channel_id'] is String &&
             decoded['user_id'] is String &&
@@ -238,6 +264,7 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         h: (decoded['h'] as num).toDouble(),
         locked: decoded['locked'] as bool,
         sentToBack: decoded['sent_to_back'] as bool,
+        version: (decoded['version'] as num?)?.toInt() ?? 0,
       ),
     'canvas.object.lock_changed'
         when decoded['channel_id'] is String &&
@@ -247,6 +274,7 @@ ServerEvent? _canvasEditFrame(Map<String, dynamic> decoded) {
         channelId: decoded['channel_id'] as String,
         objectId: decoded['object_id'] as String,
         locked: decoded['locked'] as bool,
+        version: (decoded['version'] as num?)?.toInt() ?? 0,
       ),
     _ => null,
   };

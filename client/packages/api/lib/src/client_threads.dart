@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Opening a thread: the one call `openThread` needs, split out of
 /// `client_messages.dart` to keep that file under the review budget, the
@@ -16,7 +21,7 @@ extension SlimmApiThreads on SlimmApi {
     required String channelId,
     required String messageId,
   }) async {
-    final json = await _send(
+    final json = await send(
       'POST',
       '/channels/$channelId/messages/$messageId/thread',
     );
@@ -31,7 +36,7 @@ extension SlimmApiThreads on SlimmApi {
   /// .getChannelPermissions], so this can never be used to probe whether an
   /// unviewable channel exists. See docs/decisions/0011-per-channel-permissions.md.
   Future<ThreadParent> getThreadParent(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/thread-parent');
+    final json = await send('GET', '/channels/$channelId/thread-parent');
     return ThreadParent.fromJson(json as Map<String, dynamic>);
   }
 
@@ -40,7 +45,7 @@ extension SlimmApiThreads on SlimmApi {
   /// visibility always resolves to its parent's, so this cannot be reached
   /// for a channel the caller cannot already view.
   Future<List<ThreadListItem>> listThreads(String channelId) async {
-    final json = await _send('GET', '/channels/$channelId/threads');
+    final json = await send('GET', '/channels/$channelId/threads');
     return (json as List<dynamic>)
         .map((row) => ThreadListItem.fromJson(row as Map<String, dynamic>))
         .toList(growable: false);

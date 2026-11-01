@@ -38,10 +38,11 @@ import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import '../../../desktop/desktop_window_shell.dart';
 import '../../../desktop/window_fullscreen_hold.dart';
 import '../../../ids.dart';
 import '../../../widgets/app_drop_zone.dart';
-import '../../modules/providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 import '../../messages/widgets/attachment_picker.dart'
     show AttachmentSource, attachmentPickerProvider;
 import '../../messages/widgets/image_drop_zone.dart'
@@ -81,7 +82,11 @@ import 'canvas_timeout_banner.dart';
 import 'canvas_object_locks.dart';
 import 'canvas_forbidden_message.dart';
 import 'canvas_presence_geometry.dart'
-    show presenceScreenLabel, presenceTileIdentity, presenceTileKind;
+    show
+        presenceScreenLabel,
+        presenceTileIdentity,
+        presenceTileKeys,
+        presenceTileKind;
 import 'canvas_dock_collapse.dart' show canvasDockHandleHeight;
 import 'canvas_fullscreen.dart';
 import 'canvas_summon_request.dart' show leaveFullscreenThenSettle;
@@ -182,6 +187,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
     // Built here: dispose cannot read ref, and releasing the window must still work then.
     _windowHold = WindowFullscreenHold(
       ref.read(fullscreenVideoActiveProvider.notifier),
+      ref.read(desktopWindowShellProvider),
     );
     _landscapeHold = PhoneLandscapeHold(
       ref.read(orientationChannelProvider),
@@ -445,6 +451,7 @@ class _CanvasPaneState extends ConsumerState<CanvasPane> {
                   onDraftEnded: _strokePreview.endLocalDraft,
                   onDraftCancel: _strokePreview.cancelLocalDraft,
                   callParticipants: _callParticipants(),
+                  blockedTileKeys: _blockedTileKeys(),
                   cameraViewFor: (identity) => ref
                       .read(voiceControllerProvider.notifier)
                       .cameraViewFor(identity, declaresInterest: false),

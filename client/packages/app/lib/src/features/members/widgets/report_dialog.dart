@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 /// Asks why [subjectLabel] is being reported. Returns the trimmed reason,
@@ -72,7 +73,7 @@ class _ReportReasonSheetState extends State<_ReportReasonSheet> {
             controller: _controller,
             autofocus: true,
             maxLines: 3,
-            maxLength: 2000,
+            maxLength: api.InputLimits.reportReason,
             style: AppText.body.copyWith(color: tokens.textPrimary),
             cursorColor: tokens.accent,
             decoration: const InputDecoration(

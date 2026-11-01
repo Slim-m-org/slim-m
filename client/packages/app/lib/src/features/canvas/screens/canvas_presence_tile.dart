@@ -8,11 +8,11 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show BoxHitTestResult, RenderProxyBox;
 import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_voice_canvas/voice_canvas.dart';
 
+import 'canvas_pointer_gate.dart';
 import 'canvas_presence_geometry.dart' show presenceScreenRect;
 import 'canvas_presence_tile_camera.dart';
 import 'canvas_presence_tile_context_menu.dart';
@@ -177,35 +177,13 @@ class _CanvasPresenceManipulableTileState
     _settle(details);
   }
 
-  /// The largest side from [start] that stays within [edge], never under [min] or over [limit].
-  double _roomTo(double? edge, double start, double min, double limit) =>
-      edge == null ? limit : (edge - start).clamp(min, limit);
-
   void _resize(DragUpdateDetails details) {
-    final delta = details.delta / widget.camera.zoom;
-    final current = _rect;
-    // Held to the board's far edge, so the grip stops there instead of the tile sliding back.
-    final board = widget.document.board;
-    final width = (current.width + delta.dx).clamp(
-      canvasPresenceTileMinSize.width,
-      _roomTo(
-        board?.right,
-        current.left,
-        canvasPresenceTileMinSize.width,
-        canvasPresenceTileMaxSize.width,
-      ),
-    );
-    final height = (current.height + delta.dy).clamp(
-      canvasPresenceTileMinSize.height,
-      _roomTo(
-        board?.bottom,
-        current.top,
-        canvasPresenceTileMinSize.height,
-        canvasPresenceTileMaxSize.height,
-      ),
-    );
     final next = widget.document.placeOnBoard(
-      Rect.fromLTWH(current.left, current.top, width, height),
+      canvasPresenceTileResized(
+        _rect,
+        details.delta / widget.camera.zoom,
+        widget.document.board,
+      ),
     );
     setState(() => _liveRect = next);
     widget.onRectChanged(next);
@@ -216,17 +194,11 @@ class _CanvasPresenceManipulableTileState
     widget.onRectCommitted();
   }
 
-  /// This tile's own pan pointer, so an unrelated second pointer's own
-  /// button cannot steer or end a grab it did not start - the same guard
-  /// `_beginPan`'s own doc gives `CanvasSurface`.
+  /// This tile's own pan pointer, so a second pointer cannot steer or end a grab it did not start.
   int? _panPointer;
   Offset? _panFrom;
 
-  /// Every pointer this tile has told [CanvasExternalPointers] about but not
-  /// yet told it left - see that class's own doc for why `CanvasSurface`
-  /// needs to hear about a pointer it never itself received a down event
-  /// for. A set, not a count, because [dispose] has to balance exactly the
-  /// pointers this instance actually added, never a guess.
+  /// Pointers reported to [CanvasExternalPointers] and not yet released; a set so [dispose] balances exactly what was added.
   final Set<int> _countedPointers = {};
 
   bool _isPanButton(int buttons) =>
@@ -388,7 +360,7 @@ class _CanvasPresenceManipulableTileState
   }) {
     final room = !needsRoom || _controlCapacity > 0;
     final shown = _controlsVisible && room;
-    return _PointerGate(
+    return CanvasPointerGate(
       ignoring: !shown,
       child: AnimatedOpacity(
         opacity: shown ? 1 : 0,
@@ -521,32 +493,4 @@ class _CanvasPresenceManipulableTileState
       ),
     );
   }
-}
-
-/// Hides its child from pointers only. IgnorePointer also blocks semantics
-/// actions, which left a screen reader's tap on a hidden control doing nothing.
-class _PointerGate extends SingleChildRenderObjectWidget {
-  const _PointerGate({required this.ignoring, super.child});
-
-  final bool ignoring;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderPointerGate(ignoring);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderPointerGate renderObject,
-  ) => renderObject.ignoring = ignoring;
-}
-
-class _RenderPointerGate extends RenderProxyBox {
-  _RenderPointerGate(this.ignoring);
-
-  bool ignoring;
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      !ignoring && super.hitTest(result, position: position);
 }

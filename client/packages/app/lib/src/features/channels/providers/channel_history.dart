@@ -45,7 +45,7 @@ import '../../messages/providers/message_extras.dart';
 import '../../messages/providers/message_page_size.dart';
 import '../../../providers/providers.dart';
 import '../../../providers/rate_limit_retry.dart';
-import '../../../providers/retention_policy.dart';
+import '../../messages/providers/retention_policy.dart';
 
 /// The transcript's opening window, matching [MessageStore.watchChannel]'s
 /// own default so a channel that has never been paged reads exactly as it

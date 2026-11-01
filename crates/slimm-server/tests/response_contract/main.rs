@@ -57,6 +57,11 @@ use world::Contract;
 /// this list must be called.
 const UNCOVERED: &[(&str, &str)] = &[
     (
+        "putDockModuleHook",
+        "the fixture's module declares no hooks, so it can only answer 404 here. Its 204 and \
+         the order it sets are covered by tests/module_hooks.rs.",
+    ),
+    (
         "startDiscordLink",
         "needs a configured Discord application, which this fixture's router has \
          none of, so it can only answer 501 here. Its 200 and 501 are covered by \

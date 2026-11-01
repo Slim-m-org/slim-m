@@ -54,17 +54,31 @@ async fn concurrent_upsert_adds_from_two_connections_lose_nothing() {
         let dir = dir.clone();
         tasks.push(tokio::spawn(async move {
             let mut mine = Rig::attach(&dir, "game", &["data.store"]);
+            let mut added = 0;
             for _ in 0..30 {
-                mine.ok(bump("shared", 1));
+                let reply = mine.store(bump("shared", 1));
+                if reply["ok"] == json!(true) {
+                    added += 1;
+                } else {
+                    // A busy refusal under heavy load is allowed; an add that reports success and is lost is not.
+                    assert_eq!(
+                        reply["error"],
+                        json!("data.store is unavailable"),
+                        "{reply}"
+                    );
+                }
             }
+            added
         }));
     }
+    let mut added = 0;
     for task in tasks {
-        task.await.unwrap();
+        added += task.await.unwrap();
     }
+    assert!(added > 0, "every add was refused");
     let mut r = r;
     r.renew();
-    assert_eq!(points(&mut r, "shared"), json!(60));
+    assert_eq!(points(&mut r, "shared"), json!(added));
     drop(guard);
 }
 

@@ -4,6 +4,7 @@
 use std::collections::HashSet;
 
 use super::super::{Store, now_ms};
+use super::canvas_state_version::{canvas_state_head, next_canvas_state_version};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 
 /// Why a lock or unlock was refused.
@@ -29,11 +30,13 @@ impl From<anyhow::Error> for LockError {
 }
 
 impl Store {
-    /// The live objects locked in `channel_id`.
+    /// The live objects locked in `channel_id`, with the state version they were read at.
     pub async fn list_canvas_object_locks(
         &self,
         channel_id: ChannelId,
-    ) -> anyhow::Result<Vec<CanvasObjectId>> {
+    ) -> anyhow::Result<(i64, Vec<CanvasObjectId>)> {
+        let mut tx = self.begin_read().await?;
+        let version = canvas_state_head(&mut tx, channel_id).await?;
         let ids = sqlx::query_scalar!(
             r#"SELECT l.object_id AS "object_id: CanvasObjectId"
                FROM canvas_object_locks l
@@ -42,9 +45,10 @@ impl Store {
                ORDER BY l.locked_at"#,
             channel_id
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?;
-        Ok(ids)
+        tx.commit().await?;
+        Ok((version, ids))
     }
 
     /// Which of `ids` are locked, whatever their live state; a restore uses it to
@@ -68,8 +72,8 @@ impl Store {
         Ok(locked)
     }
 
-    /// Locks or unlocks `object_id`. Returns whether anything changed, so a
-    /// repeat publishes nothing.
+    /// Locks or unlocks `object_id`. Returns the state version of the change, or
+    /// `None` when nothing changed, so a repeat publishes nothing.
     pub async fn set_canvas_object_lock(
         &self,
         channel_id: ChannelId,
@@ -77,7 +81,7 @@ impl Store {
         actor_id: UserId,
         may_moderate: bool,
         locked: bool,
-    ) -> Result<bool, LockError> {
+    ) -> Result<Option<i64>, LockError> {
         let mut tx = self.begin_write().await?;
         let found = sqlx::query!(
             r#"SELECT author_id AS "author_id: UserId", deleted_at AS "deleted_at: i64"
@@ -115,8 +119,13 @@ impl Store {
             .await?
             .rows_affected()
         } == 1;
+        let version = if changed {
+            Some(next_canvas_state_version(&mut tx, channel_id).await?)
+        } else {
+            None
+        };
         tx.commit().await?;
-        Ok(changed)
+        Ok(version)
     }
 }
 

@@ -45,6 +45,26 @@ void main() {
     expect(box.height, maxObjectExtent);
   });
 
+  testWidgets('a note too tall for the board widens rather than leaving the '
+      'placement to shrink both axes', (tester) async {
+    final text = List.filled(700, 'word').join(' ');
+    const board = Size(1920, 1080);
+
+    final narrow = noteBoxFor(text);
+    expect(narrow.height, greaterThan(board.height));
+
+    final fitted = noteBoxFor(text, fit: board);
+    expect(fitted.width, greaterThan(narrow.width));
+    expect(fitted.height, lessThanOrEqualTo(board.height));
+    expect(fitted.width, lessThanOrEqualTo(board.width));
+  });
+
+  testWidgets('a note that already fits keeps the default width with a board '
+      'to fit', (tester) async {
+    final box = noteBoxFor('hello', fit: const Size(1920, 1080));
+    expect(box.width, 220);
+  });
+
   testWidgets('empty text still answers the default box, never a zero one', (
     tester,
   ) async {

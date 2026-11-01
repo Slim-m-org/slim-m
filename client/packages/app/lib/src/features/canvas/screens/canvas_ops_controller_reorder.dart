@@ -62,7 +62,8 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     document.setZIndex(objectId, toZ);
     document.refresh();
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
@@ -72,11 +73,12 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
         ),
       );
       _pushUndo(_ReorderEntry(objectId, fromZ));
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       if (document.zIndexOf(objectId) == toZ) {
         document.setZIndex(objectId, fromZ);
         document.refresh();
       }
+      _settleUnknownOutcome(error);
       onError('That could not be reordered.');
     }
   }
@@ -99,7 +101,8 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
     document.setZIndex(objectId, z);
     document.refresh();
     try {
-      await _sendOp(
+      await _sendObjectOp(
+        objectId,
         (id) => client.submitCanvasOp(
           channelId,
           id: id,
@@ -109,11 +112,12 @@ extension CanvasOpsControllerReorder on CanvasOpsController {
         ),
       );
       return before;
-    } on api.ApiException {
+    } on api.ApiException catch (error) {
       if (before != null && document.zIndexOf(objectId) == z) {
         document.setZIndex(objectId, before);
         document.refresh();
       }
+      _settleUnknownOutcome(error);
       onError('That could not be $verb.');
       return null;
     }

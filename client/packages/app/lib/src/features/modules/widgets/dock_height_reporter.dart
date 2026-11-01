@@ -14,7 +14,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../providers/dock_reservation.dart';
+import '../../../providers/dock_reservation.dart';
 
 class DockHeightReporter extends ConsumerStatefulWidget {
   const DockHeightReporter({

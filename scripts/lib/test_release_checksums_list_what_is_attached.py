@@ -17,19 +17,33 @@ from pathlib import Path
 
 from test_windows_builds_do_not_run_under_bash import jobs, steps
 
-RELEASE = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "release.yml").read_text()
+ACTIONS = Path(__file__).resolve().parents[2] / ".github" / "actions"
+RELEASE_ACTIONS = {"linux-client": "release-linux-client", "android-client": "release-android-client"}
+COMPOSITE_STEP = re.compile(r"^    - ")
+
+
+def composite_steps(text: str) -> list[str]:
+    blocks: list[list[str]] = []
+    for line in text.splitlines():
+        if COMPOSITE_STEP.match(line):
+            blocks.append([line])
+        elif blocks:
+            blocks[-1].append(line)
+    return ["\n".join(block) for block in blocks]
 
 
 def step_named(job: str, name: str) -> str:
-    for step in steps(jobs(RELEASE)[job]):
+    """The step of that name in the composite action the release job runs."""
+    text = (ACTIONS / RELEASE_ACTIONS[job] / "action.yml").read_text()
+    for step in composite_steps(text):
         if re.search(rf"name:\s*{re.escape(name)}\s*$", step, re.M):
             return step
     raise AssertionError(f"{job} has no step named {name!r}")
 
 
 def run_script(step: str) -> str:
-    body = re.search(r"^        run: \|\n((?:          .*\n|\s*\n)+)", step, re.M)
-    return textwrap.dedent(body.group(1))
+    body = re.search(r"^( +)run: \|\n((?:\1  .*\n|\s*\n)+)", step, re.M)
+    return textwrap.dedent(body.group(2))
 
 
 def attached_patterns(step: str) -> list[str]:

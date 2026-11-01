@@ -97,6 +97,8 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
     ),
     ("admin_audit_log", "actor_id", OnDelete::Anonymize),
     ("dm_hides", "user_id", OnDelete::Purge),
+    ("group_dm_members", "user_id", OnDelete::Purge),
+    ("group_dm_members", "added_by", OnDelete::Anonymize),
     ("invite_redemptions", "user_id", OnDelete::Purge),
     (
         "installed_modules",
@@ -172,6 +174,14 @@ const DECISIONS: &[(&str, &str, OnDelete)] = &[
         "space_settings",
         "welcome_author_id",
         OnDelete::Keep("the system welcome principal, never a person's account"),
+    ),
+    (
+        "space_settings",
+        "setup_claimed_by",
+        OnDelete::Keep(
+            "only decides who is offered the one-time setup; a tombstoned id \
+             names nobody and matches no signed-in admin",
+        ),
     ),
     ("totp_challenges", "user_id", OnDelete::Purge),
     ("totp_recovery_codes", "user_id", OnDelete::Purge),

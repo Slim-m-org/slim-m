@@ -17,11 +17,11 @@ import 'package:slimm_data/data.dart';
 
 import '../../../preset_options.dart';
 import '../providers/channel_by_id_provider.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
+import '../providers/channel_actions.dart';
 
 /// The interval choices offered here, index-matched to the segmented
 /// control below. Not the server's own full 0..21600 range
@@ -63,14 +63,9 @@ class _ChannelSlowModeSectionState extends ConsumerState<ChannelSlowModeSection>
     seconds,
     whatFailed: 'change slow mode',
     action: () async {
-      final updated = await ref
-          .read(apiProvider)
-          .updateChannel(
-            widget.channel.id,
-            ChannelUpdate(slowModeSeconds: seconds),
-          );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([updated]);
+      await ref
+          .read(channelActionsProvider)
+          .update(widget.channel.id, ChannelUpdate(slowModeSeconds: seconds));
     },
     refresh: channelByIdProvider(widget.channel.id),
   );

@@ -13,7 +13,7 @@
 //! enforced.
 
 use axum::Router;
-use axum::extract::{DefaultBodyLimit, Path, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::routing::{get, post};
@@ -270,6 +270,16 @@ async fn create(
     Ok(Json(dto(invite, now_ms())))
 }
 
+const DEFAULT_PAGE: i64 = 50;
+const MAX_PAGE: i64 = 100;
+
+#[derive(Deserialize)]
+struct ListQuery {
+    limit: Option<i64>,
+    /// The code of the last invite of the previous page.
+    before: Option<String>,
+}
+
 /// Every invite for MANAGE_ROLES, and only your own for anybody else who may
 /// issue one.
 ///
@@ -279,10 +289,15 @@ async fn create(
 async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
+    Query(page): Query<ListQuery>,
 ) -> Result<Json<Vec<InviteDto>>, ApiError> {
     let scope = invite_scope(&state, ctx.user_id).await?;
     let now = now_ms();
-    let invites = state.store.list_invites(scope).await?;
+    let limit = page.limit.unwrap_or(DEFAULT_PAGE).clamp(1, MAX_PAGE);
+    let invites = state
+        .store
+        .list_invites(scope, page.before.as_deref(), limit)
+        .await?;
     Ok(Json(invites.into_iter().map(|i| dto(i, now)).collect()))
 }
 

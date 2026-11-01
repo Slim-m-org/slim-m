@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::attachment_ids::parse_attachment_ids;
-use super::embeds::{EmbedDto, RawEmbed, build_embeds, dtos_from_stored};
+use super::embeds::{EmbedDto, RawEmbed, build_embeds, resolve_tokens};
 use super::ephemeral_anchor::{Target, resolve};
 use super::error::ApiError;
 use super::extract::{Authed, Json, enforce};
@@ -83,7 +83,7 @@ impl From<&EphemeralMessage> for EphemeralMessageDto {
                 .cloned()
                 .map(AttachmentDto::from)
                 .collect(),
-            embeds: m.embeds.clone(),
+            embeds: m.embeds.iter().cloned().map(EmbedDto::from).collect(),
         }
     }
 }
@@ -160,7 +160,7 @@ async fn send_ephemeral(
         in_reply_to_id: anchor.in_reply_to_id,
         created_at: now,
         attachments,
-        embeds: dtos_from_stored(
+        embeds: resolve_tokens(
             &state.link_previews,
             embeds.into_iter().map(Embed::from).collect(),
         ),

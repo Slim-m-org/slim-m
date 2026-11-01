@@ -7,6 +7,7 @@
 
 #include "clipboard_image_channel.h"
 #include "flutter/generated_plugin_registrant.h"
+#include "linux_screen_overlay_channel.h"
 #include "linux_second_instance_channel.h"
 #include "linux_tray_probe_channel.h"
 #include "linux_window_mapped_channel.h"
@@ -111,6 +112,9 @@ static void my_application_activate(GApplication* application) {
 
   // DesktopWindowShell's channel; see linux_second_instance_channel.h.
   linux_second_instance_channel_register(self->messenger);
+
+  // The click-through overlay for viewers' marks on a shared screen; see linux_screen_overlay_channel.h.
+  linux_screen_overlay_channel_register(self->messenger);
 
   // Lets the splash-to-real-window handoff wait for the splash to be mapped; see linux_window_mapped_channel.h.
   linux_window_mapped_channel_register(self->messenger, window);

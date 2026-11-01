@@ -88,6 +88,8 @@ Requires:       libepoxy.so.0()(64bit)
 # Services rather than libraries, and each backs one feature rather than the app:
 # no portal means no screen share, no secret service means no remembered sign-in.
 Recommends:     xdg-desktop-portal
+# Loaded with dlopen: lets the screen overlay sit above other windows on Wayland (decision 0096).
+Recommends:     gtk-layer-shell
 # kf6-kwallet's ksecretd serves the same org.freedesktop.secrets libsecret wants.
 Recommends:     (gnome-keyring or kf6-kwallet)
 

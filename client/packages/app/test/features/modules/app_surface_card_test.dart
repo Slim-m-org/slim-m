@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_app/src/widgets/app_surface_view.dart';
+import 'package:slimm_app/src/features/modules/widgets/app_surface_view.dart';
 import 'package:slimm_app/src/features/modules/widgets/module_scene_frame.dart';
 import 'package:slimm_design_system/design_system.dart';
 

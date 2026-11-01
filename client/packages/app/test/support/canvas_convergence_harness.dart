@@ -26,18 +26,29 @@ import 'package:slimm_test_support/slimm_test_support.dart';
 /// of [log] past `after_seq` in one page - the simplification
 /// `canvas_sync_test.dart`'s own fakes already make, since paging itself is
 /// covered there and is not this harness's concern.
-api.SlimmApi fakeClientFor(List<CanonOp> log) => testApi(
+///
+/// With [pageSize] it answers that many ops at a time and says there are more, the shape a long feed has.
+/// With [publishedThrough] the log only holds ops up to that seq, the way a feed grows while a client is reading it.
+api.SlimmApi fakeClientFor(
+  List<CanonOp> log, {
+  int? pageSize,
+  int Function()? publishedThrough,
+}) => testApi(
   (request) async {
     if (!request.url.path.endsWith('/canvas/ops')) {
       return jsonResponse(<Object>[]);
     }
     final afterSeq = int.parse(request.url.queryParameters['after_seq']!);
-    final ops = log.where((o) => o.seq > afterSeq).map(wireOp).toList();
-    final latest = log.isEmpty ? 0 : log.last.seq;
+    final held = publishedThrough == null
+        ? log
+        : log.where((o) => o.seq <= publishedThrough()).toList();
+    final tail = held.where((o) => o.seq > afterSeq).toList();
+    final page = pageSize == null ? tail : tail.take(pageSize).toList();
+    final latest = held.isEmpty ? 0 : held.last.seq;
     return jsonResponse({
-      'ops': ops,
+      'ops': page.map(wireOp).toList(),
       'latest_seq': latest,
-      'has_more': false,
+      'has_more': page.length < tail.length,
       'reset': false,
     });
   },
@@ -54,12 +65,20 @@ api.SlimmApi fakeClientFor(List<CanonOp> log) => testApi(
 /// One simulated client: a real [CanvasDocument] and [CanvasSync] pair, fed
 /// through the same [dispatchCanvasLiveEvent] switch `CanvasPane` uses.
 class CanvasReceiver {
-  CanvasReceiver(String channelId, List<CanonOp> log)
-    : document = CanvasDocument(),
-      _channelId = channelId {
+  CanvasReceiver(
+    String channelId,
+    List<CanonOp> log, {
+    int? pageSize,
+    int Function()? publishedThrough,
+  }) : document = CanvasDocument(),
+       _channelId = channelId {
     sync = CanvasSync(
       channelId: channelId,
-      client: fakeClientFor(log),
+      client: fakeClientFor(
+        log,
+        pageSize: pageSize,
+        publishedThrough: publishedThrough,
+      ),
       document: document,
       coldFetch: () async {},
       forgetFetchedRegion: () {},

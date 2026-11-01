@@ -7,6 +7,7 @@
 use crate::ids::{ChannelId, UserId};
 
 use super::super::{Store, now_ms};
+use super::canvas_state_version::{canvas_state_head, next_canvas_state_version};
 use super::valid_bounds;
 
 /// The two kinds of media tile a call can put on a canvas.
@@ -96,7 +97,7 @@ impl Store {
         bounds: (f64, f64, f64, f64),
         locked: bool,
         sent_to_back: bool,
-    ) -> Result<CanvasMediaSlot, MediaSlotError> {
+    ) -> Result<(CanvasMediaSlot, i64), MediaSlotError> {
         let (x, y, w, h) = bounds;
         if !valid_bounds(x, y, w, h) {
             return Err(MediaSlotError::OutOfBounds);
@@ -145,8 +146,9 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        let version = next_canvas_state_version(&mut tx, channel_id).await?;
         tx.commit().await?;
-        Ok(CanvasMediaSlot {
+        let slot = CanvasMediaSlot {
             channel_id,
             user_id,
             kind,
@@ -157,7 +159,8 @@ impl Store {
             locked,
             sent_to_back,
             updated_at: now,
-        })
+        };
+        Ok((slot, version))
     }
 
     /// Whether the tile is locked; a tile nobody has placed yet is not.
@@ -180,7 +183,7 @@ impl Store {
         Ok(row.is_some_and(|r| r.locked))
     }
 
-    /// Every slot ever touched in this channel - bounded by however many
+    /// Every slot ever touched in this channel, with the state version it was read at - bounded by however many
     /// distinct (participant, kind) pairs anyone has ever arranged, at most
     /// twice the channel's member count, which is small enough on this
     /// product's target scale that no page limit earns its cost the way
@@ -188,7 +191,9 @@ impl Store {
     pub async fn list_canvas_media_slots(
         &self,
         channel_id: ChannelId,
-    ) -> anyhow::Result<Vec<CanvasMediaSlot>> {
+    ) -> anyhow::Result<(i64, Vec<CanvasMediaSlot>)> {
+        let mut tx = self.begin_read().await?;
+        let version = canvas_state_head(&mut tx, channel_id).await?;
         let rows = sqlx::query!(
             r#"SELECT user_id AS "user_id!: UserId", kind AS "kind!",
                       x AS "x!: f64", y AS "y!: f64", w AS "w!: f64", h AS "h!: f64",
@@ -197,9 +202,10 @@ impl Store {
                FROM canvas_media_slots WHERE channel_id = ?"#,
             channel_id
         )
-        .fetch_all(&self.pool)
+        .fetch_all(&mut *tx)
         .await?;
-        Ok(rows
+        tx.commit().await?;
+        let slots = rows
             .into_iter()
             // Skipped rather than trusted, the same degrade-away treatment an unparseable `props` object gets.
             .filter_map(|r| {
@@ -216,6 +222,7 @@ impl Store {
                     updated_at: r.updated_at,
                 })
             })
-            .collect())
+            .collect();
+        Ok((version, slots))
     }
 }

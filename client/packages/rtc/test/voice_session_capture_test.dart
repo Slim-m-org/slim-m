@@ -66,10 +66,13 @@ class _FakeMic implements MicPort {
 class _FakeGate {
   bool strongActive = true;
   final configured = <bool>[];
+  final strongest = <bool>[];
 
   Future<Object?> invoke(String method, [Object? args]) async {
     if (method == 'setInputGate') {
-      configured.add((args! as Map)['strongNoiseSuppression'] as bool);
+      final map = args! as Map;
+      configured.add(map['strongNoiseSuppression'] as bool);
+      strongest.add(map['strongestNoiseSuppression'] as bool);
     }
     if (method == 'getInputGate') {
       return {
@@ -135,6 +138,21 @@ void main() {
     expect(options.echoCancellation, isTrue);
     expect(options.autoGainControl, isTrue);
     expect(rig.gate.configured.last, isTrue, reason: 'rnnoise is on natively');
+    expect(rig.mic.restarts, isEmpty);
+  });
+
+  test('Strongest asks the native gate for both rnnoise and DeepFilterNet',
+      () async {
+    final rig = _Rig();
+    addTearDown(rig.session.dispose);
+    rig.session.setStrongNoiseSuppression(true, strongest: true);
+    await rig.join();
+    await _until(() => rig.gate.configured.isNotEmpty);
+    expect(rig.gate.configured.last, isTrue);
+    expect(rig.gate.strongest.last, isTrue);
+    rig.session.setStrongNoiseSuppression(true);
+    await _until(() => rig.gate.strongest.last == false);
+    expect(rig.gate.configured.last, isTrue, reason: 'Strong stays on');
     expect(rig.mic.restarts, isEmpty);
   });
 

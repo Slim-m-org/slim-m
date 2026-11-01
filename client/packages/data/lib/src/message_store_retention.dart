@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'message_store.dart';
+library;
+
+import 'package:drift/drift.dart';
+import 'database.dart';
+import 'message_store.dart';
 
 /// [MessageStore.pruneToRetentionCeiling]'s body, split out for the same
 /// reason `message_store_batch.dart` is: a top-level function in this
@@ -18,9 +22,9 @@ part of 'message_store.dart';
 /// Pending and failed sends (`seq` 0) are never touched by the threshold
 /// below - they are not delivered history to cap, and a queued or failed
 /// send is exactly the row a retry or a manual resend still needs.
-Future<void> _pruneToRetentionCeiling(MessageStore store, int ceiling) async {
+Future<void> pruneToRetentionCeiling(MessageStore store, int ceiling) async {
   final db = store.db;
-  final channelIds = await _distinctMessageChannelIds(db);
+  final channelIds = await distinctMessageChannelIds(db);
   await db.transaction(() async {
     for (final channelId in channelIds) {
       final thresholdRow = await (db.select(db.messages)
@@ -45,7 +49,7 @@ Future<void> _pruneToRetentionCeiling(MessageStore store, int ceiling) async {
           .go();
     }
   });
-  await _reclaimFreedPages(store.db);
+  await reclaimFreedPages(store.db);
 }
 
 /// SQLite parks the pages a delete frees on its own free list rather than
@@ -56,12 +60,12 @@ Future<void> _pruneToRetentionCeiling(MessageStore store, int ceiling) async {
 ///
 /// The floor is 512 pages, roughly 2 MiB at SQLite's 4 KiB default page size:
 /// below that there is nothing worth a full rewrite for.
-const _vacuumFreePageFloor = 512;
+const vacuumFreePageFloor = 512;
 
-Future<void> _reclaimFreedPages(SlimmDatabase db) async {
+Future<void> reclaimFreedPages(SlimmDatabase db) async {
   final row = await db.customSelect('PRAGMA freelist_count').getSingle();
   final freePages = row.data.values.first as int? ?? 0;
-  if (freePages < _vacuumFreePageFloor) return;
+  if (freePages < vacuumFreePageFloor) return;
   // Must run outside a transaction; the prune's own transaction has committed.
   await db.customStatement('VACUUM');
 }
@@ -69,13 +73,13 @@ Future<void> _reclaimFreedPages(SlimmDatabase db) async {
 /// [MessageStore.reachableMessageIds]'s body: every message id already held
 /// locally for [channelIds].
 ///
-/// Meaningful as a reachability answer only once [_pruneToRetentionCeiling]
+/// Meaningful as a reachability answer only once [pruneToRetentionCeiling]
 /// has already run this session: after that, no channel holds more than the
 /// ceiling, so "every row this channel still has" and "every row a
 /// still-open window could ever show" are the same set, which is what lets
 /// `retention_sweep.dart` use this directly to decide what
 /// `MessageExtrasController` may keep.
-Future<Set<String>> _reachableMessageIds(
+Future<Set<String>> reachableMessageIds(
   MessageStore store,
   Iterable<String> channelIds,
 ) async {
@@ -91,7 +95,7 @@ Future<Set<String>> _reachableMessageIds(
 
 /// The distinct set of channel ids [Messages] currently holds any row for -
 /// including a thread's, which is a channel row like any other here.
-Future<Set<String>> _distinctMessageChannelIds(SlimmDatabase db) async {
+Future<Set<String>> distinctMessageChannelIds(SlimmDatabase db) async {
   final query = db.selectOnly(db.messages, distinct: true)
     ..addColumns([db.messages.channelId]);
   final rows = await query.get();

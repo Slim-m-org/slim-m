@@ -120,6 +120,16 @@ If your build predates a change, the pull request number is there so you can ski
   Turn it on, join a call with nobody else in it, and listen.
   Expected: soft music plays on your phone only, and it stops when someone else joins or you leave.
   With the switch off, a call you are alone in stays silent.
+  On an iPhone the music comes from the app's own audio engine beside the call (`HoldMusicChannel.swift`), so also check this there.
+  Expected: it plays while you are alone, it stops when someone joins and their voice and your mic keep working, earpiece, speaker and Bluetooth stay as they were, and the log shows no `DarwinAudioError`.
+- **Icon badge on iPhone.**
+  Close the app, have another account post in two channels (and twice in one), then look at the icon.
+  Expected: the badge reads 2, one per channel with a notification waiting, and a muted channel adds nothing.
+  Open the app and read one channel.
+  Expected: the badge drops to 1 and that channel's notification leaves the lock screen.
+  Read everything on desktop and open the app on the phone.
+  Expected: the badge is gone.
+  A read on another device does not clear a closed phone's badge until the app next opens.
 
 ### Members and moderation
 

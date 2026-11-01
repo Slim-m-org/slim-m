@@ -22,9 +22,10 @@ pub(in crate::store) async fn apply_edit(
     props: &str,
 ) -> Result<(&'static str, i64, Vec<CanvasObjectId>, Option<i64>), SubmitOpError> {
     let Some(found) = sqlx::query!(
-        r#"SELECT author_id AS "author_id: UserId", kind AS "kind!",
-                  deleted_at AS "deleted_at: i64", props AS "props!"
-           FROM canvas_objects WHERE id = ? AND channel_id = ?"#,
+        r#"SELECT o.author_id AS "author_id: UserId", o.kind AS "kind!",
+                  o.deleted_at AS "deleted_at: i64", p.props AS "props!"
+           FROM canvas_objects o JOIN canvas_object_props p ON p.object_id = o.id
+           WHERE o.id = ? AND o.channel_id = ?"#,
         object_id,
         channel_id
     )
@@ -48,7 +49,7 @@ pub(in crate::store) async fn apply_edit(
         return Ok(("edit", 0, Vec::new(), None));
     }
     sqlx::query!(
-        "UPDATE canvas_objects SET props = ? WHERE id = ?",
+        "UPDATE canvas_object_props SET props = ? WHERE object_id = ?",
         props,
         object_id
     )

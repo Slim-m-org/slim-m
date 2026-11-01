@@ -213,11 +213,12 @@ async fn reordering_does_not_touch_bounds_or_props_and_accepts_a_negative_value(
         "a negative z_index (send to back) must be accepted"
     );
 
-    let props: String = sqlx::query_scalar("SELECT props FROM canvas_objects WHERE id = ?")
-        .bind(Uuid::parse_str(&object_id).unwrap())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let props: String =
+        sqlx::query_scalar("SELECT props FROM canvas_object_props WHERE object_id = ?")
+            .bind(Uuid::parse_str(&object_id).unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(
         props,
         serde_json::to_string(

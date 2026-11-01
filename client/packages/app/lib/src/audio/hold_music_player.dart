@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_platform/platform.dart' show isIOSHost;
 
+import 'call_path_hold_output.dart';
 import 'lounge_tracks.dart';
 import 'releasable_player.dart';
 import 'sound_output_router.dart';
@@ -229,12 +230,13 @@ class AudioPlayersHoldMusicPlayer implements HoldMusicPlayer {
   }
 }
 
-/// False on iOS: audioplayers there resets the call's own audio session category and deactivates it when the loop stops.
-final holdMusicAvailableProvider = Provider<bool>((ref) => !isIOSHost);
+/// Every platform has a way to play it; iPhone uses [CallPathHoldOutput].
+final holdMusicAvailableProvider = Provider<bool>((ref) => true);
 
 final holdMusicPlayerProvider = Provider<HoldMusicPlayer>((ref) {
   final router = ref.read(soundOutputRouterProvider);
   final player = AudioPlayersHoldMusicPlayer(
+    output: isIOSHost ? CallPathHoldOutput() : null,
     afterPlay: router.followChosenOutput,
   );
   ref.onDispose(player.dispose);

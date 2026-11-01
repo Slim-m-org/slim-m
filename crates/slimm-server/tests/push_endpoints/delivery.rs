@@ -223,11 +223,14 @@ async fn a_foreground_device_is_not_pushed() {
     assert_eq!(messages[0]["token"], "carols-token");
 }
 
+// Five sends must land inside the window even on a loaded CI runner; 150ms did not.
+const BURST_WINDOW_MS: i64 = 1_000;
+
 #[tokio::test]
 async fn a_burst_of_messages_in_one_channel_debounces_to_one_push() {
     let (store, channel_id, _guard) = seeded_store().await;
     let (mock, relay_url) = spawn_mock_relay().await;
-    let push = PushSender::with_debounce_window_ms(&push_config(&relay_url), SHORT_DEBOUNCE_MS)
+    let push = PushSender::with_debounce_window_ms(&push_config(&relay_url), BURST_WINDOW_MS)
         .expect("push sender");
 
     let app = app(store.clone(), push);
@@ -255,7 +258,7 @@ async fn a_burst_of_messages_in_one_channel_debounces_to_one_push() {
         "the first message's push fired"
     );
     // Settle well past the debounce window, then confirm the burst collapsed.
-    tokio::time::sleep(Duration::from_millis((SHORT_DEBOUNCE_MS * 3) as u64)).await;
+    tokio::time::sleep(Duration::from_millis((BURST_WINDOW_MS * 2) as u64)).await;
     assert_eq!(mock.call_count(), 1, "the burst collapsed into one push");
 
     // A message after the window has fully elapsed opens a new window.

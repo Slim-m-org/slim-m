@@ -150,6 +150,12 @@ class _FakeSession with VideoQualityRecorder implements VoiceSession {
   bool get screenShareSourcePickerUseful => true;
 
   @override
+  Stream<String> get screenShareSourceLost => const Stream.empty();
+
+  @override
+  VoidCallback holdEnlargedVideo(String tileKey) => () {};
+
+  @override
   Future<List<ScreenShareSource>> screenShareSources() async => const [];
 
   final Set<String> _locallyMuted = {};

@@ -196,6 +196,14 @@ pub(crate) async fn bot_calls(c: &mut Contract, root: &str, channel: &str) {
         json!({ "permissions": 0 }),
     )
     .await;
+    c.json(
+        "setBotPrefix",
+        "PATCH",
+        &format!("/bots/{bot_id}/prefix"),
+        root,
+        json!({ "prefix": "~" }),
+    )
+    .await;
     c.bare(
         "reissueBotToken",
         "POST",
@@ -247,6 +255,21 @@ async fn watch_session_calls(c: &mut Contract, root: &str, bot_token: &str) {
         &format!("{uri}/tick"),
         bot_token,
         json!({ "playing": true, "position_ms": 65_000 }),
+    )
+    .await;
+    c.bare(
+        "sendVoiceHeartbeat",
+        "POST",
+        &format!("/channels/{room_id}/voice/heartbeat"),
+        root,
+    )
+    .await;
+    c.json(
+        "reportWatchViewing",
+        "PUT",
+        &format!("{uri}/viewing"),
+        root,
+        json!({ "direct": true }),
     )
     .await;
     c.get("getWatchSession", &uri, root).await;

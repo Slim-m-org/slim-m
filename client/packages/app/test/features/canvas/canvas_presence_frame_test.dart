@@ -77,6 +77,26 @@ void main() {
     expect(frame.byIdentity.keys, {'near', 'far'});
   });
 
+  test('a blocked caller keeps a slot but never shows, so others stay put', () {
+    final everyone = _resolve(
+      CanvasPresenceFrameResolver(),
+      document,
+      overrides,
+      [_p('a'), _p('b'), _p('c')],
+    );
+    final resolver = CanvasPresenceFrameResolver()
+      ..layoutOnlyKeys = {'camera:a'};
+
+    final withBlock = _resolve(resolver, document, overrides, [
+      _p('b'),
+      _p('c'),
+    ]);
+
+    expect(withBlock.onCanvas.keys, {'camera:b', 'camera:c'});
+    expect(withBlock.onCanvas['camera:b'], everyone.onCanvas['camera:b']);
+    expect(withBlock.onCanvas['camera:c'], everyone.onCanvas['camera:c']);
+  });
+
   test('asking twice with the same input gives the same visible set', () {
     overrides.setRect('camera:edge', const Rect.fromLTWH(1100, 10, 100, 80));
     final resolver = CanvasPresenceFrameResolver();

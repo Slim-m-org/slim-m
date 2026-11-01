@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::canvas_gate::{Frame, may_relay, relay_grant};
 use super::permission_cache::PermissionCache;
-use crate::hub::{Event, Hub};
+use crate::hub::{CanvasEvent, Event, Hub};
 use crate::ids::{CanvasObjectId, ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::{Class, RateLimiter};
@@ -56,13 +56,13 @@ pub(super) async fn handle_canvas_cursor(
         return;
     }
 
-    hub.publish(Event::CanvasCursorMoved {
+    hub.publish(Event::Canvas(CanvasEvent::CursorMoved {
         channel_id,
         user_id: ctx.user_id,
         x,
         y,
         left,
-    });
+    }));
 }
 
 /// Bound on how many coordinate pairs one in-flight stroke preview frame may
@@ -91,7 +91,7 @@ const MAX_PREVIEW_COLOR_LEN: usize = 32;
 const MAX_PREVIEW_WIDTH: f64 = 256.0;
 
 /// A colour key made only of identifier characters, or none.
-fn valid_preview_color(color: Option<String>) -> Option<String> {
+pub(super) fn valid_preview_color(color: Option<String>) -> Option<String> {
     color.filter(|c| {
         !c.is_empty()
             && c.len() <= MAX_PREVIEW_COLOR_LEN
@@ -158,7 +158,7 @@ pub(super) async fn handle_canvas_stroke_preview(
         return;
     }
 
-    hub.publish(Event::CanvasStrokePreview {
+    hub.publish(Event::Canvas(CanvasEvent::StrokePreview {
         channel_id,
         user_id: ctx.user_id,
         object_id,
@@ -167,7 +167,7 @@ pub(super) async fn handle_canvas_stroke_preview(
         cancelled: frame.cancelled,
         color: valid_preview_color(frame.color),
         width: valid_preview_width(frame.width),
-    });
+    }));
 }
 
 /// One `canvas.view` frame's fields.
@@ -216,7 +216,7 @@ pub(super) async fn handle_canvas_view(
         return;
     }
 
-    hub.publish(Event::CanvasView {
+    hub.publish(Event::Canvas(CanvasEvent::View {
         channel_id,
         user_id: ctx.user_id,
         x,
@@ -225,7 +225,7 @@ pub(super) async fn handle_canvas_view(
         h,
         summon: frame.summon,
         tile: frame.tile.filter(|t| t.len() <= MAX_TILE_KEY_LEN),
-    });
+    }));
 }
 
 /// One `canvas.media_slot_preview` frame's fields.
@@ -279,7 +279,7 @@ pub(super) async fn handle_canvas_media_slot_preview(
         return;
     }
 
-    hub.publish(Event::CanvasMediaSlotPreview {
+    hub.publish(Event::Canvas(CanvasEvent::MediaSlotPreview {
         channel_id,
         user_id: ctx.user_id,
         kind,
@@ -289,7 +289,7 @@ pub(super) async fn handle_canvas_media_slot_preview(
         w,
         h,
         ended: frame.ended,
-    });
+    }));
 }
 
 /// One `canvas.object_preview` frame's fields.
@@ -344,7 +344,7 @@ pub(super) async fn handle_canvas_object_preview(
         cache.insert_previewable(channel_id, object_id, now);
     }
 
-    hub.publish(Event::CanvasObjectPreview {
+    hub.publish(Event::Canvas(CanvasEvent::ObjectPreview {
         channel_id,
         user_id: ctx.user_id,
         object_id,
@@ -353,5 +353,5 @@ pub(super) async fn handle_canvas_object_preview(
         w,
         h,
         ended: frame.ended,
-    });
+    }));
 }

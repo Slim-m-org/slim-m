@@ -50,14 +50,14 @@ void main() {
       await tester.pump();
 
       expect(find.text('40%'), findsOneWidget);
-      expect(controller.volumeFor('user-1'), 0.4);
+      expect(controller.volumes.volumeFor('user-1'), 0.4);
       expect(find.byTooltip('Reset to normal'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Reset to normal'));
       await tester.pump();
 
       expect(find.text('100%'), findsOneWidget);
-      expect(controller.volumeFor('user-1'), 1.0);
+      expect(controller.volumes.volumeFor('user-1'), 1.0);
       expect(find.byTooltip('Reset to normal'), findsNothing);
     },
   );
@@ -76,7 +76,7 @@ void main() {
       tester.widget<AppSlider>(find.byType(AppSlider)).onChanged!(150);
       await tester.pump();
 
-      expect(controller.volumeFor('user-1'), 1.5);
+      expect(controller.volumes.volumeFor('user-1'), 1.5);
     },
   );
 

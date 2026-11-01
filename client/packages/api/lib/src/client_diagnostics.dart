@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'connection_test.dart';
+import 'exceptions.dart';
+import 'upload_source.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 const _diagnosticsChunk = 64 * 1024;
 const _diagnosticsDeadline = Duration(minutes: 2);
@@ -11,7 +22,7 @@ extension SlimmApiDiagnostics on SlimmApi {
   /// advertised an address, and the internet. Each owns a connection the
   /// caller closes through [ConnectionProbe.close].
   List<(ConnectionRoute, ConnectionProbe)> connectionProbes() {
-    final route = _route;
+    final route = link.route;
     final lan = route?.pinnedClient(direct: true);
     final internet = route?.pinnedClient(direct: false);
     return [
@@ -20,7 +31,7 @@ extension SlimmApiDiagnostics on SlimmApi {
         lan == null && isLocalHost(baseUrl.host)
             ? ConnectionRoute.lan
             : ConnectionRoute.internet,
-        _ApiProbe(this, internet ?? _http, owns: internet != null),
+        _ApiProbe(this, internet ?? link.client, owns: internet != null),
       ),
     ];
   }
@@ -49,7 +60,7 @@ class _ApiProbe implements ConnectionProbe {
   Future<Duration> ping({UploadCancelToken? cancel}) async {
     cancel?.throwIfCancelled();
     final clock = Stopwatch()..start();
-    await _api._send(
+    await _api.send(
       'GET',
       '/diagnostics/ping',
       over: _client,
@@ -77,7 +88,7 @@ class _ApiProbe implements ConnectionProbe {
       viaCloudflare = true;
     }
     if (response.statusCode != 200) {
-      throw _api._errorFor(await http.Response.fromStream(response));
+      throw _api.errorFor(await http.Response.fromStream(response));
     }
     final clock = Stopwatch();
     var timed = 0;
@@ -128,7 +139,7 @@ class _ApiProbe implements ConnectionProbe {
       viaCloudflare = true;
     }
     final full = await http.Response.fromStream(response);
-    if (full.statusCode != 200) throw _api._errorFor(full);
+    if (full.statusCode != 200) throw _api.errorFor(full);
     return _uploadTiming(full, bytes, clock.elapsed);
   }
 
@@ -179,7 +190,7 @@ extension on SlimmApi {
   }) {
     final token = session.tokens?.accessToken;
     if (token == null) throw const UnauthorizedException('not signed in');
-    final uri = _requestUri(path, query);
+    final uri = requestUri(path, query);
     final request = method == 'POST'
         ? http.StreamedRequest(method, uri)
         : http.Request(method, uri);

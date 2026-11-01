@@ -6,7 +6,7 @@
 use axum::Router;
 use axum::http::StatusCode;
 use serde_json::{Value, json};
-use slimm_server::hub::{Event, Hub};
+use slimm_server::hub::{Event, Hub, MessageEvent};
 use slimm_server::ids::UserId;
 use slimm_server::permissions::Permissions;
 use slimm_server::store::{NewMessage, Store};
@@ -253,9 +253,9 @@ async fn deleting_a_reply_in_a_thread_publishes_thread_updated() {
 
     let mut reply_count = None;
     while let Ok(event) = rx.try_recv() {
-        if let Event::ThreadUpdated {
+        if let Event::Message(MessageEvent::ThreadUpdated {
             reply_count: count, ..
-        } = event
+        }) = event
         {
             reply_count = Some(count);
         }
@@ -304,7 +304,7 @@ async fn deleting_in_an_ordinary_channel_publishes_no_thread_updated() {
 
     while let Ok(event) = rx.try_recv() {
         assert!(
-            !matches!(event, Event::ThreadUpdated { .. }),
+            !matches!(event, Event::Message(MessageEvent::ThreadUpdated { .. })),
             "an ordinary channel's delete must not publish ThreadUpdated"
         );
     }

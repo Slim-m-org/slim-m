@@ -61,12 +61,11 @@ class CanvasViewFollower {
     }
     _showingView = false;
     _viewCamera = document.camera;
-    final clock = Stopwatch()..start();
-    _ease = Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      final t = (clock.elapsedMicroseconds / duration.inMicroseconds).clamp(
-        0.0,
-        1.0,
-      );
+    const frame = Duration(milliseconds: 16);
+    // The tick counts elapsed periods even when a callback runs late, so the ease keeps time without a wall clock.
+    _ease = Timer.periodic(frame, (timer) {
+      final t = (timer.tick * frame.inMicroseconds / duration.inMicroseconds)
+          .clamp(0.0, 1.0);
       final eased = 1 - (1 - t) * (1 - t);
       _showingView = true;
       document.setCamera(

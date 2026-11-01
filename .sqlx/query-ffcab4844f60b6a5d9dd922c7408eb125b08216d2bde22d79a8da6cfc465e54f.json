@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT module_id AS \"module_id!\", command AS \"command!\", run_count AS \"run_count!\",\n                      failure_count AS \"failure_count!\", last_run_at AS \"last_run_at!\",\n                      last_ok_at, failing_since, last_error, last_error_at,\n                      last_duration_ms AS \"last_duration_ms!\", max_duration_ms AS \"max_duration_ms!\",\n                      last_fuel_used, max_fuel_used AS \"max_fuel_used!\"\n               FROM module_run_stats ORDER BY module_id, command",
+  "describe": {
+    "columns": [
+      {
+        "name": "module_id!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "command!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "run_count!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "failure_count!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_run_at!",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_ok_at",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "failing_since",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_error",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_error_at",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_duration_ms!",
+        "ordinal": 9,
+        "type_info": "Integer"
+      },
+      {
+        "name": "max_duration_ms!",
+        "ordinal": 10,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_fuel_used",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "max_fuel_used!",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "ffcab4844f60b6a5d9dd922c7408eb125b08216d2bde22d79a8da6cfc465e54f"
+}

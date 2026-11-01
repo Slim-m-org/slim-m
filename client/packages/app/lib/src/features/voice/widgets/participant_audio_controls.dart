@@ -75,7 +75,7 @@ class _MemberLocalAudioSectionState extends State<MemberLocalAudioSection> {
               controller: controller,
             ),
           ),
-        if (widget.showVolume && controller.hasScreenAudio(identity))
+        if (widget.showVolume && controller.volumes.hasScreenAudio(identity))
           ParticipantScreenAudioSection(
             identity: identity,
             controller: controller,
@@ -149,8 +149,8 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
   /// from the session on every frame would make the drag depend on a round
   /// trip through the platform channel.
   late double _volume = _screen
-      ? widget.controller.screenVolumeFor(widget.identity)
-      : widget.controller.volumeFor(widget.identity);
+      ? widget.controller.volumes.screenVolumeFor(widget.identity)
+      : widget.controller.volumes.volumeFor(widget.identity);
 
   /// Whether the platform refused the last gain change for this person.
   bool _failed = false;
@@ -176,20 +176,22 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
     required bool commit,
   }) {
     if (!commit) {
-      return controller.dragVolumeFor(
+      return controller.volumes.dragVolumeFor(
         widget.identity,
         volume,
         channel: widget.channel,
       );
     }
-    if (_screen) return controller.setScreenVolumeFor(widget.identity, volume);
-    return controller.setVolumeFor(widget.identity, volume);
+    if (_screen) {
+      return controller.volumes.setScreenVolumeFor(widget.identity, volume);
+    }
+    return controller.volumes.setVolumeFor(widget.identity, volume);
   }
 
   void _syncFailure() {
     if (!mounted) return;
     final failed =
-        widget.controller.volumeFailureFor(
+        widget.controller.volumes.volumeFailureFor(
           widget.identity,
           channel: widget.channel,
         ) !=
@@ -201,7 +203,7 @@ class _ParticipantVolumeControlState extends State<ParticipantVolumeControl> {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final muted = _screen
-        ? widget.controller.isScreenAudioMuted(widget.identity)
+        ? widget.controller.volumes.isScreenAudioMuted(widget.identity)
         : widget.controller.isLocallyMuted(widget.identity);
     final atDefault = _volume == kDefaultParticipantVolume;
 
@@ -307,7 +309,7 @@ class _ParticipantScreenAudioSectionState
     extends State<ParticipantScreenAudioSection> {
   @override
   Widget build(BuildContext context) {
-    final muted = widget.controller.isScreenAudioMuted(widget.identity);
+    final muted = widget.controller.volumes.isScreenAudioMuted(widget.identity);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -324,7 +326,7 @@ class _ParticipantScreenAudioSectionState
           leading: muted ? AppIcons.speakerOff : AppIcons.speaker,
           selected: muted,
           onTap: () async {
-            await widget.controller.setScreenAudioMuted(
+            await widget.controller.volumes.setScreenAudioMuted(
               widget.identity,
               !muted,
             );

@@ -64,7 +64,7 @@ async fn a_locked_slot_refuses_a_move_that_would_leave_it_locked() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::CONFLICT);
 
-    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    let slots = store.list_canvas_media_slots(channel).await.unwrap().1;
     assert_eq!(slots.len(), 1);
     assert_eq!(slots[0].x, 10.0, "the locked tile must not have moved");
     assert_eq!(slots[0].y, 10.0);
@@ -132,7 +132,7 @@ async fn unlocking_a_slot_frees_the_next_move() {
         "a move is free once unlocked"
     );
 
-    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    let slots = store.list_canvas_media_slots(channel).await.unwrap().1;
     assert_eq!(slots[0].x, 500.0);
 }
 
@@ -173,7 +173,7 @@ async fn a_locked_slots_depth_may_still_be_toggled() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    let slots = store.list_canvas_media_slots(channel).await.unwrap().1;
     assert!(slots[0].sent_to_back);
 }
 
@@ -207,6 +207,6 @@ async fn a_move_that_claims_the_slot_is_unlocked_is_still_refused() {
         .unwrap();
     assert_eq!(stale.status(), StatusCode::CONFLICT);
 
-    let slots = store.list_canvas_media_slots(channel).await.unwrap();
+    let slots = store.list_canvas_media_slots(channel).await.unwrap().1;
     assert_eq!((slots[0].x, slots[0].locked), (10.0, true));
 }

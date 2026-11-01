@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO module_run_stats\n                 (module_id, command, run_count, failure_count, last_run_at, last_ok_at,\n                  failing_since, last_error, last_error_at, last_duration_ms, max_duration_ms,\n                  last_fuel_used, max_fuel_used)\n             VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n             ON CONFLICT (module_id, command) DO UPDATE SET\n                 run_count = run_count + 1,\n                 failure_count = failure_count + excluded.failure_count,\n                 last_run_at = excluded.last_run_at,\n                 last_ok_at = COALESCE(excluded.last_ok_at, last_ok_at),\n                 failing_since = CASE WHEN excluded.failure_count = 0 THEN NULL\n                                      ELSE COALESCE(failing_since, excluded.failing_since) END,\n                 last_error = CASE WHEN excluded.failure_count = 0 THEN last_error ELSE excluded.last_error END,\n                 last_error_at = COALESCE(excluded.last_error_at, last_error_at),\n                 last_duration_ms = excluded.last_duration_ms,\n                 max_duration_ms = MAX(max_duration_ms, excluded.max_duration_ms),\n                 last_fuel_used = excluded.last_fuel_used,\n                 max_fuel_used = MAX(max_fuel_used, excluded.max_fuel_used)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "382ebbf56a3eb17da27c1bce2ce70ac0fd978510b217bc0cc68141cb119b200d"
+}

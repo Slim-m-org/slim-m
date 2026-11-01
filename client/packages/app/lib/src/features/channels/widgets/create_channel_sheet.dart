@@ -32,7 +32,6 @@ import 'package:slimm_api/api.dart' as api;
 
 import '../../../permissions.dart';
 import '../../../providers/admin_providers.dart';
-import '../../../providers/providers.dart';
 import '../../../routing/routes.dart';
 import '../../../ids.dart';
 import '../../../widgets/name_entry_sheet.dart';
@@ -40,6 +39,7 @@ import 'private_audience_picker.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import '../../settings/widgets/settings_toggle_row.dart';
 import 'channel_default_notification_choices.dart';
+import '../providers/channel_actions.dart';
 
 /// Opens the sheet, defaulting the kind picker to [initialKind]: still
 /// changeable inside the sheet, since it is only a starting guess, not a
@@ -97,7 +97,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
 
   Future<VoidCallback?> _create(String name) async {
     final created = await ref
-        .read(apiProvider)
+        .read(channelActionsProvider)
         .createChannel(
           name: name,
           kind: _kind,
@@ -107,8 +107,6 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
           defaultNotification: _defaultNotification,
           id: _createId,
         );
-    final store = await ref.read(storeProvider.future);
-    await store.upsertChannels([created]);
     if (_restricted) await _grantAudience(created.id);
     if (!mounted) return null;
     final router = GoRouter.of(context);
@@ -129,9 +127,7 @@ class _CreateChannelSheetState extends ConsumerState<_CreateChannelSheet> {
         ),
     ];
     try {
-      await ref
-          .read(apiProvider)
-          .batchSetChannelOverwrites(channelId: channelId, overwrites: edits);
+      await ref.read(channelActionsProvider).setOverwrites(channelId, edits);
     } on api.ApiException catch (e) {
       throw NameEntryPartialFailure(
         'The channel was created, but choosing who can see it failed '

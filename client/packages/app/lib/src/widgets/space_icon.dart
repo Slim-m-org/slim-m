@@ -10,7 +10,7 @@ import 'package:slimm_api/api.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../providers/providers.dart';
-import '../features/messages/widgets/image_decode.dart';
+import 'image_decode.dart';
 
 /// Keyed by when the icon was set, so a replacement is fetched afresh.
 final spaceIconBytesProvider = FutureProvider.autoDispose

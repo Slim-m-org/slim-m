@@ -66,7 +66,7 @@ Server (`crates/slimm-server/src/`):
 Client (`client/packages/`), layered bottom-up:
 
 - `api` (wire types and transport, no Flutter) -> `data` (drift local store and sync) -> feature packages (`design_system`, `platform`, `rtc`, `voice_canvas`) -> `app` (screens, routing, providers).
-- `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it. A widget never imports a screen and a provider never imports a widget; `app/test/layer_direction_gate_test.dart` enforces it, with a shrink-only list of the known exceptions.
+- `app` uses riverpod for state and go_router for routing. `app/lib/src/features/<feature>/{widgets,providers,screens}` holds each feature (auth, canvas, channels, composer, emoji, members, messages, modules, palette, settings, voice); the top-level `widgets/`, `providers/` and `screens/` are the shared layer (shell, sync, push, app lock, generic UI), next to `routing/`, `desktop/` and the other platform folders. A new file goes in its feature; it goes in the shared layer only when two or more features use it. A widget never imports a screen and a provider never imports a widget; `app/test/gates/layer_direction_gate_test.dart` enforces it, with a shrink-only list of the known exceptions.
 - `data` commits drift's generated `database.g.dart`; regenerate it rather than hand-editing.
 
 ## Critical rules
@@ -133,6 +133,7 @@ Never use `:memory:` for tests that depend on the multi-connection SQLite pool.
 - `scripts/check-comment-cap.sh` - ratchets the one-line plain-comment cap; a file may not gain a new run. `comment-cap-allow.txt` holds the pre-existing ones at their count.
 - `scripts/check-error-surface.py` - no API failure may be caught and surfaced with a SnackBar; use the persistent `AppErrorState`. This regressed back three times.
 - `scripts/check-migration-versions.py` - duplicate or mutated migrations.
+- `scripts/check-test-patterns.py` - no app test gains a `find.byType` or `pumpAndSettle`; `--update` lowers the ceilings in `test-pattern-allow.txt`, and `expectSettled`, `waitUntil` and the geometry helpers are the replacements.
 - `scripts/check-media-query-scope.py` - no unscoped `MediaQuery.of(context)` in `client/**/*.dart` outside `media-query-of-allow.txt`; use the scoped accessor (`MediaQuery.sizeOf`, `MediaQuery.viewInsetsOf`, ...) instead.
 - `scripts/lib/test_release_required_checks_*.py` - the two structural gates on `release.yml`'s `required_checks`: every name is a real job name, and the one it names can reach a release commit.
 - `scripts/lib/test_ci_docs_triggers.py` - a workflow's `docs/ci.md` row mentions every trigger kind it has. `check-ci-docs.py` only checks the row exists; this checks it is not lying about when the workflow runs.
@@ -203,8 +204,8 @@ cd client
 for d in . packages/*/; do [ -d "${d%/}/test" ] && (cd "${d%/}" && flutter test); done
 
 # one file, or one case by its test name
-(cd packages/app && flutter test test/api_failure_test.dart)
-(cd packages/app && flutter test test/api_failure_test.dart --plain-name '<substring of the test name>')
+(cd packages/app && flutter test test/shared/api_failure_test.dart)
+(cd packages/app && flutter test test/shared/api_failure_test.dart --plain-name '<substring of the test name>')
 ```
 
 Goldens run inside those suites rather than a job of their own, and should be regenerated in CI.

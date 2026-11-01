@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import '../../screen_overlay/providers/screen_overlay_controller.dart'
+    show screenOverlaySupportedProvider;
 import '../providers/live_quality_restart.dart'
     show shareSettingsPendingNote, shareSettingsPendingProvider;
 import '../providers/video_pause.dart';
@@ -34,7 +36,8 @@ class VideoQualitySection extends ConsumerWidget {
         : null;
     final supportsAudio = ref
         .read(voiceControllerProvider.notifier)
-        .supportsScreenShareAudio;
+        .share
+        .supportsAudio;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,6 +94,16 @@ class VideoQualitySection extends ConsumerWidget {
                 value: settings.screenShareIncludeAudio,
                 semanticLabel: 'Share audio with a screen share',
                 onChanged: notifier.setScreenShareIncludeAudio,
+              ),
+            // Absent, never disabled, on a desktop that cannot host the overlay; see decision 0096.
+            if (ref.watch(screenOverlaySupportedProvider))
+              SettingsToggleRow(
+                label: 'Viewers draw on my screen',
+                description:
+                    'Their marks show on the screen you share for a few seconds.',
+                value: settings.screenShareAllowAnnotations,
+                semanticLabel: 'Let viewers draw on the screen I share',
+                onChanged: notifier.setScreenShareAllowAnnotations,
               ),
             if (ref.watch(pauseOnUnfocusedAppliesProvider))
               const PauseVideoRow(),

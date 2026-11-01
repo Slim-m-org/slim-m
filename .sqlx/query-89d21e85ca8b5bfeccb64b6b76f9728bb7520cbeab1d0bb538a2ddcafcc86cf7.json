@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM invites WHERE code IN (\n                SELECT i.code FROM invites i\n                WHERE (i.revoked_at IS NOT NULL AND i.revoked_at < ?1)\n                   OR (i.expires_at IS NOT NULL AND i.expires_at < ?1)\n                   OR (i.max_uses IS NOT NULL AND i.uses >= i.max_uses\n                       AND i.created_at < ?1\n                       AND COALESCE((SELECT MAX(r.redeemed_at) FROM invite_redemptions r\n                                     WHERE r.code = i.code), 0) < ?1)\n                LIMIT ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "89d21e85ca8b5bfeccb64b6b76f9728bb7520cbeab1d0bb538a2ddcafcc86cf7"
+}

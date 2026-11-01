@@ -41,11 +41,22 @@ pub fn routes() -> Router<AppState> {
 // --- Wire types ---
 
 #[derive(Serialize)]
-struct DmConversationDto {
+pub(super) struct DmConversationDto {
     channel_id: String,
     user: ParticipantDto,
     unread: i64,
     created_at: i64,
+    /// Present only for a group DM; `user` is then its first other participant.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    group: Option<GroupDto>,
+}
+
+#[derive(Serialize)]
+struct GroupDto {
+    /// The custom name, or `null` when each client shows the default.
+    name: Option<String>,
+    /// Every participant, the caller included.
+    members: Vec<ParticipantDto>,
 }
 
 /// The other participant's public profile. The same narrow shape
@@ -78,6 +89,10 @@ impl From<DmConversation> for DmConversationDto {
             user: conversation.other.into(),
             unread: conversation.unread,
             created_at: conversation.created_at,
+            group: conversation.group.map(|group| GroupDto {
+                name: group.name,
+                members: group.members.into_iter().map(Into::into).collect(),
+            }),
         }
     }
 }
@@ -89,20 +104,38 @@ async fn list(
     AuthedLimited(ctx): AuthedLimited<AUTHED_READ>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<DmConversationDto>>, ApiError> {
-    let mut conversations = state.store.list_dm_conversations(ctx.user_id).await?;
-    let ids: Vec<UserId> = conversations.iter().map(|c| c.other.id).collect();
+    let conversations = state.store.list_dm_conversations(ctx.user_id).await?;
+    Ok(Json(with_nicknames(&state, conversations).await?))
+}
+
+/// Renders conversations with the nicknames set in this space in place of display names.
+pub(super) async fn with_nicknames(
+    state: &AppState,
+    mut conversations: Vec<DmConversation>,
+) -> Result<Vec<DmConversationDto>, ApiError> {
+    let ids: Vec<UserId> = conversations
+        .iter()
+        .flat_map(|c| {
+            let members = c.group.iter().flat_map(|g| g.members.iter());
+            std::iter::once(&c.other).chain(members).map(|user| user.id)
+        })
+        .collect();
     let nicknames = state.store.nicknames_for(&ids).await?;
     for conversation in &mut conversations {
-        if let Some(nickname) = nicknames.get(&conversation.other.id) {
-            conversation.other.display_name.clone_from(nickname);
+        let members = conversation
+            .group
+            .iter_mut()
+            .flat_map(|group| group.members.iter_mut());
+        for user in std::iter::once(&mut conversation.other).chain(members) {
+            if let Some(nickname) = nicknames.get(&user.id) {
+                user.display_name.clone_from(nickname);
+            }
         }
     }
-    Ok(Json(
-        conversations
-            .into_iter()
-            .map(DmConversationDto::from)
-            .collect(),
-    ))
+    Ok(conversations
+        .into_iter()
+        .map(DmConversationDto::from)
+        .collect())
 }
 
 /// Opens (or returns) the DM channel with another user, or - passing the
@@ -147,6 +180,7 @@ async fn open(
         user: other.into(),
         unread,
         created_at: channel.created_at,
+        group: None,
     }))
 }
 

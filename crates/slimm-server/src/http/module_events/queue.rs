@@ -8,6 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::Notify;
 
+use super::depths::QueueDepths;
+
 use crate::ids::{ChannelId, MessageId};
 
 /// Events held per module before the oldest is dropped.
@@ -46,15 +48,30 @@ pub(super) struct Queues {
     state: Mutex<State>,
     capacity: usize,
     wake: Notify,
+    depths: Arc<QueueDepths>,
 }
 
 impl Queues {
+    #[cfg(test)]
     pub(super) fn new(capacity: usize) -> Arc<Self> {
+        Self::with_depths(capacity, Arc::default())
+    }
+
+    /// Queues that report how many events each module has waiting to `depths`.
+    pub(super) fn with_depths(capacity: usize, depths: Arc<QueueDepths>) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::default(),
             capacity,
             wake: Notify::new(),
+            depths,
         })
+    }
+
+    fn report(&self, state: &State, module_id: &str) {
+        self.depths.set(
+            module_id,
+            state.queues.get(module_id).map_or(0, VecDeque::len),
+        );
     }
 
     /// Queues `body` for `module_id`; returns true when the oldest event was dropped to fit it.
@@ -78,6 +95,7 @@ impl Queues {
         } else if was_empty && !state.running.contains(module_id) {
             state.ready.push_back(module_id.to_owned());
         }
+        self.report(state, module_id);
         drop(guard);
         self.wake.notify_one();
         dropped
@@ -89,6 +107,7 @@ impl Queues {
         let module_id = state.ready.pop_front()?;
         let (kind, body, origin) = state.queues.get_mut(&module_id)?.pop_front()?;
         state.running.insert(module_id.clone());
+        self.report(&state, &module_id);
         Some(Job {
             module_id,
             kind,
@@ -112,6 +131,7 @@ impl Queues {
         let mut state = self.lock();
         state.queues.remove(module_id);
         state.ready.retain(|m| m != module_id);
+        self.report(&state, module_id);
     }
 
     /// Drops only the events of `kind` queued for a module no longer subscribed to it.
@@ -125,6 +145,7 @@ impl Queues {
             state.queues.remove(module_id);
             state.ready.retain(|m| m != module_id);
         }
+        self.report(&state, module_id);
     }
 
     /// Drops counted since the last call, to be stored.
@@ -180,6 +201,36 @@ mod tests {
         assert!(queues.take().is_none(), "second waits for the first");
         queues.finish("m");
         assert_eq!(&*queues.take().expect("second").body, "2");
+    }
+
+    #[test]
+    fn the_depth_follows_what_is_waiting_not_what_is_running() {
+        let depths = Arc::new(QueueDepths::default());
+        let queues = Queues::with_depths(8, depths.clone());
+        for n in 0..3 {
+            queues.push("m", ("k", Origin::default()), body(n));
+        }
+        assert_eq!(depths.get("m"), 3);
+        let job = queues.take().expect("job");
+        assert_eq!(depths.get("m"), 2, "the event in flight is not waiting");
+        queues.finish(&job.module_id);
+        queues.clear_kind("m", "other");
+        assert_eq!(depths.get("m"), 2);
+        queues.clear_kind("m", "k");
+        assert_eq!(depths.get("m"), 0);
+        queues.push("m", ("k", Origin::default()), body(9));
+        queues.clear("m");
+        assert_eq!(depths.get("m"), 0);
+    }
+
+    #[test]
+    fn a_full_queue_reports_its_ceiling() {
+        let depths = Arc::new(QueueDepths::default());
+        let queues = Queues::with_depths(3, depths.clone());
+        for n in 0..9 {
+            queues.push("m", ("k", Origin::default()), body(n));
+        }
+        assert_eq!(depths.get("m"), 3);
     }
 
     #[test]

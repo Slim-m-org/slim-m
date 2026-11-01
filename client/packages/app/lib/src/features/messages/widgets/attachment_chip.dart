@@ -14,7 +14,7 @@ import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../downloads/downloads_controller.dart';
-import 'attachment_format.dart';
+import '../../../widgets/attachment_format.dart';
 import '../../../widgets/run_guarded.dart';
 
 class AttachmentChip extends ConsumerStatefulWidget {

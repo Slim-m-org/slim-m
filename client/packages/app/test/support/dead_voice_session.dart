@@ -54,6 +54,12 @@ class DeadVoiceSession with VideoQualityRecorder implements VoiceSession {
   @override
   bool get screenShareSourcePickerUseful => false;
   @override
+  Stream<String> get screenShareSourceLost => const Stream.empty();
+
+  @override
+  VoidCallback holdEnlargedVideo(String tileKey) => () {};
+
+  @override
   Future<List<ScreenShareSource>> screenShareSources() async => const [];
   @override
   bool isLocallyMuted(String identity) => false;

@@ -16,7 +16,7 @@ import 'settings_section_header.dart';
 import 'settings_select_row.dart';
 import 'settings_slider_row.dart';
 import 'settings_toggle_row.dart';
-import 'theme_choice_cards.dart';
+import 'theme_swatch.dart';
 
 class AppearanceSettingsSection extends ConsumerWidget {
   const AppearanceSettingsSection({super.key});
@@ -33,18 +33,34 @@ class AppearanceSettingsSection extends ConsumerWidget {
     );
   }
 
+  static const _themeOrder = [
+    AppThemeChoice.system,
+    AppThemeChoice.dark,
+    AppThemeChoice.softDark,
+    AppThemeChoice.light,
+    AppThemeChoice.trueBlack,
+    AppThemeChoice.catppuccin,
+    AppThemeChoice.forest,
+    AppThemeChoice.halloween,
+  ];
+
   Widget _themeCard(WidgetRef ref) {
     return SettingsSectionCard(
       title: 'Theme',
       children: [
-        SettingsCardBlock(
-          children: [
-            ThemeChoiceCards(
-              selected: ref.watch(themeControllerProvider),
-              onChanged: (next) =>
-                  ref.read(themeControllerProvider.notifier).select(next),
-            ),
+        SettingsSelectRow<AppThemeChoice>(
+          label: 'Color theme',
+          value: ref.watch(themeControllerProvider),
+          choices: [
+            for (final choice in _themeOrder)
+              SettingsChoice(
+                value: choice,
+                label: themeLabel(choice),
+                leading: ThemeSwatch(choice: choice),
+              ),
           ],
+          onChanged: (next) =>
+              ref.read(themeControllerProvider.notifier).select(next),
         ),
         SettingsToggleRow(
           label: 'High contrast',

@@ -24,7 +24,7 @@ use super::error::ApiError;
 use super::extract::{AUTHED_READ, Authed, AuthedLimited, Json, Query, enforce};
 use super::messages::parse_uuid;
 use super::viewable_message::viewable_message;
-use crate::hub::Event;
+use crate::hub::{Event, MessageEvent};
 use crate::ids::MessageId;
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
@@ -69,6 +69,12 @@ async fn add(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let message_id = MessageId(parse_uuid(&message_id)?);
     let channel_id = authorize(&state, ctx.user_id, message_id).await?;
+    super::module_hooks::check_permission(
+        &state,
+        ctx.user_id,
+        (super::module_hooks::Action::ReactionAdd, Some(channel_id)),
+    )
+    .await?;
     if !super::reaction_emoji::is_reaction(&emoji) {
         return Err(ApiError::BadRequest("that is not a usable emoji"));
     }
@@ -134,11 +140,13 @@ async fn publish(
     message_id: MessageId,
 ) -> Result<(), ApiError> {
     let reactors = state.store.reaction_reactors(message_id).await?;
-    state.hub.publish(Event::ReactionsChanged {
-        channel_id,
-        message_id,
-        reactors: Arc::new(reactors),
-    });
+    state
+        .hub
+        .publish(Event::Message(MessageEvent::ReactionsChanged {
+            channel_id,
+            message_id,
+            reactors: Arc::new(reactors),
+        }));
     Ok(())
 }
 

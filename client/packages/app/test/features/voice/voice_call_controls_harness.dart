@@ -146,6 +146,12 @@ class InertSession with VideoQualityRecorder implements VoiceSession {
   bool get screenShareNeedsSource => _needsSource;
 
   @override
+  Stream<String> get screenShareSourceLost => const Stream.empty();
+
+  @override
+  VoidCallback holdEnlargedVideo(String tileKey) => () {};
+
+  @override
   Future<List<ScreenShareSource>> screenShareSources() {
     sourceFetchCount += 1;
     return _sources;

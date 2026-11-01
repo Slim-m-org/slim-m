@@ -2,24 +2,22 @@
 /// The event WebSocket: typed frames and the connection that carries them.
 library;
 
-import 'dart:async';
 import 'dart:convert';
-
-import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'client.dart';
 import 'models.dart';
 import 'events_tallies.dart';
-import 'socket_liveness.dart';
 import 'logging/app_log.dart';
+import 'events_parse.dart';
+import 'events_parse_canvas.dart';
 
-part 'events_connection.dart';
+export 'events_connection.dart' show EventConnection, EventConnectionRefused;
+
+// ServerEvent is sealed, so its subclasses must stay in this library.
 part 'events_frames.dart';
 part 'events_frames_bots.dart';
 part 'events_frames_canvas.dart';
 part 'events_frames_watch.dart';
-part 'events_parse.dart';
-part 'events_parse_canvas.dart';
 
 /// The envelope version this client speaks. The server refuses a mismatch, so a
 /// client that is too old fails at connect rather than misreading frames.
@@ -57,20 +55,13 @@ sealed class ServerEvent {
   }
 
   static ServerEvent? _fromFrame(Map<String, dynamic> decoded) =>
-      _coreFrame(decoded) ??
-      _messageFrame(decoded) ??
-      _overlayFrame(decoded) ??
-      _rosterFrame(decoded) ??
-      _voiceFrame(decoded) ??
-      _canvasFrame(decoded);
+      coreFrame(decoded) ??
+      messageFrame(decoded) ??
+      overlayFrame(decoded) ??
+      rosterFrame(decoded) ??
+      voiceFrame(decoded) ??
+      canvasFrame(decoded);
 }
-
-/// Resolves a frame's raw `status` string to a known [PresenceState], or null
-/// for anything else (including a non-string), so a future server addition
-/// is ignored the same way an unrecognized frame type is rather than
-/// throwing out of an enum lookup.
-PresenceState? _presenceStateOf(Object? raw) =>
-    PresenceState.values.where((s) => s.name == raw).firstOrNull;
 
 /// The server accepted the handshake.
 class HelloEvent extends ServerEvent {

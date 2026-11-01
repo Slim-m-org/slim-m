@@ -22,6 +22,8 @@ class DockRunStat {
     this.failingSince,
     this.lastError,
     this.lastErrorAt,
+    this.lastFuelUsed,
+    this.maxFuelUsed = 0,
   });
 
   final String command;
@@ -39,6 +41,10 @@ class DockRunStat {
   final int lastDurationMs;
   final int maxDurationMs;
 
+  /// Fuel the last run burned, null when it could not be read; and the most any run has burned.
+  final int? lastFuelUsed;
+  final int maxFuelUsed;
+
   factory DockRunStat.fromJson(Map<String, dynamic> json) => DockRunStat(
         command: json['command'] as String,
         runCount: json['run_count'] as int,
@@ -50,6 +56,8 @@ class DockRunStat {
         lastErrorAt: json['last_error_at'] as int?,
         lastDurationMs: json['last_duration_ms'] as int,
         maxDurationMs: json['max_duration_ms'] as int,
+        lastFuelUsed: json['last_fuel_used'] as int?,
+        maxFuelUsed: json['max_fuel_used'] as int? ?? 0,
       );
 }
 

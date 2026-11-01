@@ -41,6 +41,8 @@ pub(crate) enum ApiError {
     MissingPermissions(Permissions),
     /// A refusal for a reason worth telling the caller, where "insufficient permissions" would mislead.
     ForbiddenBecause(&'static str),
+    /// Like [`ApiError::ForbiddenBecause`], where a module supplied the reason.
+    ForbiddenDetail(String),
     NotFound(&'static str),
     Conflict(&'static str),
     /// Like [`ApiError::Conflict`], naming the other party, which is only known at request time.
@@ -123,6 +125,7 @@ impl IntoResponse for ApiError {
             ApiError::ForbiddenBecause(message) => (StatusCode::FORBIDDEN, message.into()),
             ApiError::NotFound(message) => (StatusCode::NOT_FOUND, message.into()),
             ApiError::Conflict(message) => (StatusCode::CONFLICT, message.into()),
+            ApiError::ForbiddenDetail(message) => (StatusCode::FORBIDDEN, message.into()),
             ApiError::ConflictDetail(message) => (StatusCode::CONFLICT, message.into()),
             ApiError::TooManyRequests => {
                 (StatusCode::TOO_MANY_REQUESTS, "slow down and retry".into())

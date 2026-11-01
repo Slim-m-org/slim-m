@@ -58,14 +58,15 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
     unawaited(_refresh());
     _changes = ref
         .read(voiceControllerProvider.notifier)
+        .devices
         .audioDeviceChanges
         .listen((_) => unawaited(_refresh()));
   }
 
   Future<void> _refresh() async {
     final notifier = ref.read(voiceControllerProvider.notifier);
-    final inputs = await notifier.audioInputDevices();
-    final outputs = await notifier.audioOutputDevices();
+    final inputs = await notifier.devices.audioInputDevices();
+    final outputs = await notifier.devices.audioOutputDevices();
     if (!mounted) return;
     setState(() {
       _inputs = inputs;
@@ -94,14 +95,14 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
       _DevicePickerRow(
         label: 'Microphone',
         icon: AppIcons.mic,
-        supported: notifier.supportsAudioInputSelection,
+        supported: notifier.devices.supportsAudioInputSelection,
         unsupportedCaption: 'This platform routes microphones automatically.',
         devices: _inputs,
         listed: _listed,
         selectedId: settings.audioInputDeviceId,
         onChanged: settingsNotifier.setAudioInputDevice,
       ),
-      if (notifier.supportsAudioInputSelection)
+      if (notifier.devices.supportsAudioInputSelection)
         SettingsToggleRow(
           label: 'Switch if mic stops working',
           description: 'Use another microphone when yours goes silent.',
@@ -112,7 +113,7 @@ class _AudioDeviceSectionState extends ConsumerState<AudioDeviceSection> {
       _DevicePickerRow(
         label: 'Speaker',
         icon: AppIcons.speaker,
-        supported: notifier.supportsAudioOutputSelection,
+        supported: notifier.devices.supportsAudioOutputSelection,
         unsupportedCaption:
             'This platform always plays a call through its default output.',
         devices: _outputs,

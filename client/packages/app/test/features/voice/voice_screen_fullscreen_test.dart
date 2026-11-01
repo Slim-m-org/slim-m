@@ -186,4 +186,19 @@ void main() {
       await fixture.leave();
     },
   );
+
+  testWidgets('a tile holds full sharpness for as long as it is full screen, '
+      'whatever the receive quality', (tester) async {
+    final fixture = await _openedFullscreen(tester);
+    addTearDown(fixture.harness.dispose);
+
+    expect(fixture.session.enlargedHolds, ['camera:user-2']);
+    expect(fixture.session.enlargedReleases, isEmpty);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(fixture.session.enlargedReleases, ['camera:user-2']);
+    await fixture.leave();
+  });
 }

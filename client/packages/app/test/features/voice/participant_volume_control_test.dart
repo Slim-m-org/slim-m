@@ -35,7 +35,7 @@ void main() {
     tester.widget<AppSlider>(find.byType(AppSlider)).onChanged!(97);
     await tester.pump();
     expect(find.text('100%'), findsOneWidget);
-    expect(controller.volumeFor('user-1'), 1.0);
+    expect(controller.volumes.volumeFor('user-1'), 1.0);
     tester.widget<AppSlider>(find.byType(AppSlider)).onChanged!(90);
     await tester.pump();
     expect(
@@ -44,7 +44,11 @@ void main() {
       reason: 'far enough away is left alone',
     );
     await tester.pump(const Duration(milliseconds: 100));
-    expect(controller.volumeFor('user-1'), 0.9, reason: 'the trailing apply');
+    expect(
+      controller.volumes.volumeFor('user-1'),
+      0.9,
+      reason: 'the trailing apply',
+    );
   });
 
   testWidgets('the slider announces its percent, whatever the range', (

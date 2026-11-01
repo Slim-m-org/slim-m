@@ -70,6 +70,7 @@ jobs:
           name: criterion-report-${{ env.TAG }}
           path: target/criterion
           retention-days: 90
+          if-no-files-found: error
       - name: build the glibc release binary
         run: cargo build --locked --release --bin slimm-server
       # Five runs because one RSS reading can sit 2-3% off; the baseline keeps each figure's median.

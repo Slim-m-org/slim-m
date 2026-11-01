@@ -23,6 +23,7 @@ import 'package:slimm_voice_canvas/voice_canvas.dart';
 import 'canvas_cursor_relay.dart' show cursorSendInterval;
 import 'canvas_forbidden_message.dart' show canvasDrawForbiddenMessage;
 import 'canvas_retry.dart';
+import 'canvas_state_versions.dart';
 import 'canvas_presence_geometry.dart'
     show presenceTileIdentity, presenceTileKeyForSlot, presenceTileKind;
 
@@ -62,6 +63,7 @@ class CanvasMediaSlotSync {
         DateTime.fromMillisecondsSinceEpoch(until).isAfter(DateTime.now());
   }
 
+  final _versions = CanvasStateVersions();
   final Map<String, Future<void>> _tails = {};
   final Map<String, Timer> _abandon = {};
   DateTime? _lastPreview;
@@ -133,13 +135,17 @@ class CanvasMediaSlotSync {
     final slots = [...page.slots]
       ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
     for (final slot in slots) {
+      final key = presenceTileKeyForSlot(slot.kind, slot.userId);
+      // A frame newer than this read already settled the tile.
+      if (!_versions.mayReplace(key, page.version)) continue;
       overrides.applyServer(
-        presenceTileKeyForSlot(slot.kind, slot.userId),
+        key,
         rect: Rect.fromLTWH(slot.x, slot.y, slot.w, slot.h),
         locked: slot.locked,
         sentToBack: slot.sentToBack,
       );
     }
+    _versions.applySnapshot(page.version);
   }
 
   /// Sends [key]'s settled [rect] with its lock and depth; writes for one key run in order, and a refused or lost write puts the tile back where the server has it.
@@ -207,8 +213,10 @@ class CanvasMediaSlotSync {
   /// Applies a live `canvas.media_slot.changed` frame naming this channel.
   void applyRemote(api.CanvasMediaSlotChanged event) {
     if (event.channelId != channelId) return;
+    final key = presenceTileKeyForSlot(event.kind, event.userId);
+    if (!_versions.accept(key, event.version)) return;
     overrides.applyServer(
-      presenceTileKeyForSlot(event.kind, event.userId),
+      key,
       rect: Rect.fromLTWH(event.x, event.y, event.w, event.h),
       locked: event.locked,
       sentToBack: event.sentToBack,

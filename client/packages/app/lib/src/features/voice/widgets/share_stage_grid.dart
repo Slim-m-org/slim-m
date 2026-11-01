@@ -46,7 +46,8 @@ Widget shareStageTile(
   onFocus: onFocus,
   focused: focused,
   showCaption: showCaption,
-  streamVolume: !sharer.isLocal && controller.hasScreenAudio(sharer.identity)
+  streamVolume:
+      !sharer.isLocal && controller.volumes.hasScreenAudio(sharer.identity)
       ? streamVolumeSlider(sharer.identity, controller)
       : null,
   quality: sharer.isLocal

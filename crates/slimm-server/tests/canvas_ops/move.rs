@@ -273,11 +273,12 @@ async fn moving_does_not_touch_z_index_or_props() {
     assert_eq!((x, y, w, h), (111.0, 222.0, 5.0, 6.0));
     assert_eq!(before_z, after_z, "z_index must survive a move untouched");
 
-    let props: String = sqlx::query_scalar("SELECT props FROM canvas_objects WHERE id = ?")
-        .bind(Uuid::parse_str(&object_id).unwrap())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let props: String =
+        sqlx::query_scalar("SELECT props FROM canvas_object_props WHERE object_id = ?")
+            .bind(Uuid::parse_str(&object_id).unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(
         props,
         serde_json::to_string(

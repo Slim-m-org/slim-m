@@ -41,7 +41,7 @@ class SendCall {
 /// by route key: the receiver's type is not recoverable from source text.
 typedef ToJsonOwners = Map<String, String>;
 
-final RegExp _callStart = RegExp(r"_send\(\s*'([A-Z]+)'\s*,\s*'([^']*)'");
+final RegExp _callStart = RegExp(r"\bsend\(\s*'([A-Z]+)'\s*,\s*'([^']*)'");
 
 /// `/channels/$id/x` -> `/channels/{}/x`, matching the schema side's
 /// placeholder form.

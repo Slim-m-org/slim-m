@@ -273,6 +273,15 @@ Recommendation: a small platform channel (`slimm_platform`) exposing thermal sta
 
 ### P9. Wayland portal polish (park until P1 to P4 are done)
 - Check cursor visibility on KDE; investigate `restore_token`/`persist_mode=2` for fewer prompts; reconsider window sharing via portal only.
+- Measured in v120 with `scripts/linux-portal-probe/run.sh` (nested KWin, D-Bus monitor on the ScreenCast portal):
+  - Cursor: `SelectSources` asks for `cursor_mode` 4 (metadata) even though the app's `show_cursor` is true, so the pointer reaches receivers only through libwebrtc's PipeWire cursor monitor and composer.
+    That is how Chrome shares on KDE too, but a real pointer over a real shared screen was not seen from a receiver here, so it needs the owner's KDE session.
+  - Fewer prompts: libwebrtc already sends `persist_mode` 1 and keeps the portal's restore token in-process, keyed by source id.
+    `resetDesktopSources` drops that source on purpose, so every share asks again and sends no `restore_token`.
+    `persist_mode` 2 is a libwebrtc setter the plugin cannot reach; it would need a libwebrtc rebuild, and it would stop a share from picking another screen unless the chooser were forced.
+  - Windows via the portal: `SelectSources` is asked for `types` 1 (monitors) only.
+    Listing windows on Linux uses libwebrtc's X11 window capturer, which aborted the whole process in a session with no X display; the fork now returns an empty list there.
+    The chooser offering windows needs `types` 3, which this build does not expose.
 - Evidence: xdg-desktop-portal ScreenCast docs; `desktop_sources.dart`.
 
 ### P10. Codec experiment (later, data-driven)

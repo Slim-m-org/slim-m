@@ -115,4 +115,14 @@ void main() {
     connection.canvasView('c1', (x: 1, y: 2, w: 3, h: 4));
     expect((await next()).containsKey('tile'), isFalse);
   });
+
+  test('a watch frame lists the open canvases, and may be empty', () async {
+    connection.canvasWatch(['c1', 'c2']);
+    expect(await next(), {
+      'type': 'canvas.watch',
+      'channel_ids': ['c1', 'c2'],
+    });
+    connection.canvasWatch(const []);
+    expect((await next())['channel_ids'], isEmpty);
+  });
 }

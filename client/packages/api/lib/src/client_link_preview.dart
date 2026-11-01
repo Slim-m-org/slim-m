@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'exceptions.dart';
+import 'logging/app_log.dart';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Link unfurling, proxied end to end through this deployment's own server
 /// rather than a client asking the linked site or its image directly - see
@@ -12,7 +19,7 @@ extension SlimmApiLinkPreview on SlimmApi {
   /// since those are not "no preview", they are "could not check".
   Future<LinkPreview?> fetchLinkPreview(String url) async {
     try {
-      final json = await _send('GET', '/link-preview', query: {'url': url});
+      final json = await send('GET', '/link-preview', query: {'url': url});
       return LinkPreview.fromJson(json as Map<String, dynamic>);
     } on NotFoundException catch (error, stack) {
       AppLog.swallowed(
@@ -27,5 +34,5 @@ extension SlimmApiLinkPreview on SlimmApi {
   /// Fetches a preview's image, streamed through this server rather than a
   /// client asking the linked site's own host directly.
   Future<FetchedBytes> fetchLinkPreviewImage(String token) =>
-      _fetchBytes('/link-preview/image/$token');
+      fetchBytes('/link-preview/image/$token');
 }

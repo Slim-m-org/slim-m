@@ -216,12 +216,13 @@ impl Store {
                       obj.id AS "obj_id?: CanvasObjectId", obj.kind AS "obj_kind?: String",
                       obj.z_index AS "obj_z_index?: i64", obj.x AS "obj_x?: f64",
                       obj.y AS "obj_y?: f64", obj.w AS "obj_w?: f64", obj.h AS "obj_h?: f64",
-                      obj.props AS "obj_props?: String", obj.author_id AS "obj_author_id?: UserId",
+                      prop.props AS "obj_props?: String", obj.author_id AS "obj_author_id?: UserId",
                       obj.seq AS "obj_seq?: Seq", obj.created_at AS "obj_created_at?: i64"
                FROM canvas_ops o
                LEFT JOIN canvas_objects obj
                  ON obj.channel_id = o.channel_id AND obj.seq = o.seq
                  AND o.kind = 'place' AND obj.deleted_at IS NULL
+               LEFT JOIN canvas_object_props prop ON prop.object_id = obj.id
                WHERE o.channel_id = ? AND o.seq > ?
                ORDER BY o.seq ASC
                LIMIT ?"#,

@@ -16,7 +16,7 @@ import 'package:slimm_app/src/features/members/widgets/invite_friend.dart';
 import 'package:slimm_app/src/features/members/widgets/member_pane.dart';
 import 'package:slimm_app/src/permissions.dart';
 import 'package:slimm_app/src/providers/providers.dart';
-import 'package:slimm_app/src/widgets/space_menu_button.dart';
+import 'package:slimm_app/src/features/channels/widgets/space_menu_button.dart';
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_platform/testing.dart';
@@ -174,6 +174,33 @@ void main() {
         (world.created.single['expires_at'] as int) -
         DateTime.now().millisecondsSinceEpoch;
     expect(lifetime, closeTo(const Duration(hours: 24).inMilliseconds, 60000));
+  });
+
+  testWidgets('a member who may only invite can open their invites from the '
+      'Space menu', (tester) async {
+    final world = _World(permissions: 0, membersCanInvite: true);
+    addTearDown(world.container.dispose);
+    await world.pump(tester, _menu);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My invites'), findsOneWidget);
+  });
+
+  testWidgets('someone with Space settings finds invites there, not twice in '
+      'the menu', (tester) async {
+    final world = _World(
+      permissions: Perm.createInvite,
+      membersCanInvite: false,
+    );
+    addTearDown(world.container.dispose);
+    await world.pump(tester, _menu);
+
+    await tester.tap(find.bySemanticsLabel('Space menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My invites'), findsNothing);
   });
 
   testWidgets('the member list header invites in one tap', (tester) async {

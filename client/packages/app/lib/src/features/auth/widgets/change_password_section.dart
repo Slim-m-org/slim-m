@@ -9,12 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_api/api.dart' as api;
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../providers/providers.dart';
 import 'change_password_sheet.dart';
 import 'reauth_sheet.dart' show reauthFailure;
 import '../../settings/widgets/settings_detail_row.dart';
 import '../../settings/widgets/settings_notice.dart';
 import '../../settings/widgets/settings_section_header.dart';
+import '../../settings/providers/settings_actions.dart';
 
 class ChangePasswordSection extends ConsumerStatefulWidget {
   const ChangePasswordSection({super.key, this.embedded = false});
@@ -34,7 +34,8 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
   Future<void> _open() async {
     final bool needsCode;
     try {
-      needsCode = (await ref.read(apiProvider).totpStatus()).enabled;
+      needsCode =
+          (await ref.read(settingsActionsProvider).totpStatus()).enabled;
     } on api.ApiException catch (e, stack) {
       api.reportFailure(
         api.LogTag.auth,
@@ -61,7 +62,7 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
   Future<String?> _submit(String current, String next, String? code) async {
     try {
       await ref
-          .read(apiProvider)
+          .read(settingsActionsProvider)
           .changePassword(
             currentPassword: current,
             newPassword: next,

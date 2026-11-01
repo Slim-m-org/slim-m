@@ -23,7 +23,7 @@ use super::super::AppState;
 use super::super::error::ApiError;
 use super::super::extract::{AuthedLimited, CANVAS, Json};
 use super::super::messages::parse_uuid;
-use crate::hub::Event;
+use crate::hub::{CanvasEvent, Event};
 use crate::ids::ChannelId;
 use crate::permissions::Permissions;
 use crate::store::{CanvasMediaSlot, MediaSlotError, MediaSlotKind};
@@ -73,6 +73,16 @@ impl From<CanvasMediaSlot> for CanvasMediaSlotDto {
 #[derive(Serialize)]
 struct SlotsDto {
     slots: Vec<CanvasMediaSlotDto>,
+    /// The state version the list was read at; see `canvas_state_version`.
+    version: i64,
+}
+
+/// The stored tile and the state version its write was given.
+#[derive(Serialize)]
+struct SlotWrittenDto {
+    #[serde(flatten)]
+    slot: CanvasMediaSlotDto,
+    version: i64,
 }
 
 /// `GET /channels/{channel_id}/canvas/media-slots`.
@@ -89,9 +99,10 @@ async fn list(
     if !permissions.contains(Permissions::VIEW_CHANNEL.union(Permissions::USE_CANVAS)) {
         return Err(ApiError::Forbidden);
     }
-    let slots = state.store.list_canvas_media_slots(channel_id).await?;
+    let (version, slots) = state.store.list_canvas_media_slots(channel_id).await?;
     Ok(Json(SlotsDto {
         slots: slots.into_iter().map(CanvasMediaSlotDto::from).collect(),
+        version,
     }))
 }
 
@@ -119,7 +130,7 @@ async fn upsert(
     Path((channel_id, kind, user_id)): Path<(String, String, String)>,
     State(state): State<AppState>,
     Json(params): Json<UpsertParams>,
-) -> Result<Json<CanvasMediaSlotDto>, ApiError> {
+) -> Result<Json<SlotWrittenDto>, ApiError> {
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
     let user_id = crate::ids::UserId(parse_uuid(&user_id)?);
     let kind =
@@ -150,8 +161,8 @@ async fn upsert(
             params.sent_to_back,
         )
         .await;
-    let slot = match slot {
-        Ok(slot) => slot,
+    let (slot, version) = match slot {
+        Ok(written) => written,
         Err(MediaSlotError::OutOfBounds) => {
             return Err(ApiError::BadRequest(
                 "the tile is outside the world or too large",
@@ -164,17 +175,23 @@ async fn upsert(
     };
 
     // No await between the commit and this call; see `ws::permission_cache`.
-    state.hub.publish(Event::CanvasMediaSlotChanged {
-        channel_id,
-        kind,
-        user_id,
-        x: slot.x,
-        y: slot.y,
-        w: slot.w,
-        h: slot.h,
-        locked: slot.locked,
-        sent_to_back: slot.sent_to_back,
-    });
+    state
+        .hub
+        .publish(Event::Canvas(CanvasEvent::MediaSlotChanged {
+            channel_id,
+            kind,
+            user_id,
+            x: slot.x,
+            y: slot.y,
+            w: slot.w,
+            h: slot.h,
+            locked: slot.locked,
+            sent_to_back: slot.sent_to_back,
+            version,
+        }));
 
-    Ok(Json(CanvasMediaSlotDto::from(slot)))
+    Ok(Json(SlotWrittenDto {
+        slot: CanvasMediaSlotDto::from(slot),
+        version,
+    }))
 }

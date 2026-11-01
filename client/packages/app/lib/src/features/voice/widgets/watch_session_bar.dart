@@ -14,6 +14,7 @@ import 'package:slimm_design_system/design_system.dart';
 import '../../../format.dart' show formatPlaybackTime;
 import '../../members/providers/member_presence.dart' show membersProvider;
 import '../providers/watch_room.dart';
+import 'direct_play_panel.dart';
 import 'second_clock.dart';
 
 /// Mounts [WatchSessionBar] only while a bot is on the call.
@@ -33,14 +34,23 @@ class WatchSessionGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final present = participantIds.toSet();
-    final botOnCall = (ref.watch(membersProvider).valueOrNull ?? const []).any(
-      (m) => m.isBot && present.contains(m.id),
+    if (!botIsOnCall(ref, participantIds)) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WatchSessionBar(channelId: channelId),
+        DirectPlayPanel(channelId: channelId),
+      ],
     );
-    return botOnCall
-        ? WatchSessionBar(channelId: channelId)
-        : const SizedBox.shrink();
   }
+}
+
+/// Whether any bot is among [participantIds].
+bool botIsOnCall(WidgetRef ref, Iterable<String> participantIds) {
+  final present = participantIds.toSet();
+  return (ref.watch(membersProvider).valueOrNull ?? const []).any(
+    (m) => m.isBot && present.contains(m.id),
+  );
 }
 
 class WatchSessionBar extends ConsumerStatefulWidget {

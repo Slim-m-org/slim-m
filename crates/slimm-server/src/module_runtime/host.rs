@@ -4,6 +4,8 @@
 //! panicking the caller.
 
 use std::fmt;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use sha2::{Digest, Sha256};
@@ -133,8 +135,41 @@ impl ModuleHost {
     pub async fn run_loading_in<F, Fut>(
         lane: RunLane,
         sha256: &str,
+        run: (RunLimits, Vec<u8>, CapabilitySurface),
+        load: F,
+    ) -> Result<Vec<u8>, RunError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
+    {
+        Self::run_metered_in(lane, sha256, run, load).await.0
+    }
+
+    /// As [`run_loading_in`](Self::run_loading_in), and the fuel the run burned, or `None` when it
+    /// never reached the interpreter or the caller gave up on it before it finished.
+    pub async fn run_metered_in<F, Fut>(
+        lane: RunLane,
+        sha256: &str,
         (limits, input, surface): (RunLimits, Vec<u8>, CapabilitySurface),
         load: F,
+    ) -> (Result<Vec<u8>, RunError>, Option<u64>)
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<Vec<u8>, RunError>>,
+    {
+        let meter = Arc::new(AtomicU64::new(UNMETERED));
+        let result =
+            Self::run_with_meter(lane, sha256, (limits, input, surface), load, &meter).await;
+        let used = meter.load(Ordering::Relaxed);
+        (result, (used != UNMETERED).then_some(used))
+    }
+
+    async fn run_with_meter<F, Fut>(
+        lane: RunLane,
+        sha256: &str,
+        (limits, input, surface): (RunLimits, Vec<u8>, CapabilitySurface),
+        load: F,
+        meter: &Arc<AtomicU64>,
     ) -> Result<Vec<u8>, RunError>
     where
         F: FnOnce() -> Fut,
@@ -158,17 +193,25 @@ impl ModuleHost {
         let wall = limits.wall;
         let deadline = Instant::now() + wall;
         // The slot is held until the blocking thread ends, not until the caller gives up.
+        let task_meter = Arc::clone(meter);
         let task = tokio::task::spawn_blocking(move || {
             let _slot = permit;
-            run_sync(&module, limits, &input, (surface, deadline))
+            run_sync(&module, limits, &input, (surface, deadline), &task_meter)
         });
         match tokio::time::timeout(wall, task).await {
             Ok(Ok(result)) => result,
             Ok(Err(_join_error)) => Err(RunError::Trap("module task did not complete".to_owned())),
-            Err(_elapsed) => Err(RunError::Timeout),
+            Err(_elapsed) => {
+                // The blocking thread may still be running and writing its own reading; the run is reported as unmetered.
+                meter.store(UNMETERED, Ordering::Relaxed);
+                Err(RunError::Timeout)
+            }
         }
     }
 }
+
+/// What the meter holds until a run has been read; no real run burns this much.
+const UNMETERED: u64 = u64::MAX;
 
 /// A module run's store data: the memory/fuel limiter as before, plus the
 /// capability surface a `slim.host_call` host function reads to gate a request.
@@ -183,6 +226,7 @@ fn run_sync(
     limits: RunLimits,
     input: &[u8],
     (surface, deadline): (CapabilitySurface, Instant),
+    meter: &AtomicU64,
 ) -> Result<Vec<u8>, RunError> {
     let engine = shared_engine();
     // The only import a module may declare is the single gated `slim.host_call`, and only with the surface on and a capability approved; every other case (any import while off, any other import ever, a second import) is refused, the same no-ambient-authority rule v1 has always had (decisions 0021, 0023).
@@ -206,10 +250,28 @@ fn run_sync(
     );
     store.limiter(|state| &mut state.limits);
     let mut budget = FuelBudget::new(limits.fuel);
-    budget
+    let result = budget
         .next_slice(&mut store)
-        .map_err(|e| RunError::Instantiate(format!("failed to configure fuel: {e}")))?;
+        .map_err(|e| RunError::Instantiate(format!("failed to configure fuel: {e}")))
+        .and_then(|_| {
+            drive(
+                module,
+                (&mut store, &mut budget),
+                (imports_host_call, input, deadline),
+            )
+        });
+    // Read after a failed run too: the run that hit its fuel ceiling is the one an admin most wants the number for.
+    meter.store(budget.used(&store), Ordering::Relaxed);
+    result
+}
 
+/// Instantiates the module and calls its `run` export under the store's fuel slices.
+fn drive(
+    module: &Module,
+    (store, budget): (&mut WasmiStore<HostState>, &mut FuelBudget),
+    (imports_host_call, input, deadline): (bool, &[u8], Instant),
+) -> Result<Vec<u8>, RunError> {
+    let engine = shared_engine();
     let instance = if imports_host_call {
         let mut linker = Linker::<HostState>::new(engine);
         linker
@@ -217,42 +279,47 @@ fn run_sync(
             .map_err(|e| RunError::Instantiate(format!("failed to define host_call: {e}")))?;
         // A slim module has no wasm start function, so instantiate-and-start is just instantiation; the response comes from `run`, called below.
         linker
-            .instantiate_and_start(&mut store, module)
+            .instantiate_and_start(&mut *store, module)
             .map_err(|e| RunError::Instantiate(format!("module failed to instantiate: {e}")))?
     } else {
-        Instance::new(&mut store, module, &[])
+        Instance::new(&mut *store, module, &[])
             .map_err(|e| RunError::Instantiate(format!("module failed to instantiate: {e}")))?
     };
 
-    let memory = instance.get_memory(&store, "memory").ok_or_else(|| {
+    let memory = instance.get_memory(&*store, "memory").ok_or_else(|| {
         RunError::Instantiate("module does not export a memory named \"memory\"".to_owned())
     })?;
     let alloc = instance
-        .get_typed_func::<i32, i32>(&store, "alloc")
+        .get_typed_func::<i32, i32>(&*store, "alloc")
         .map_err(|e| RunError::Instantiate(format!("module does not export alloc: {e}")))?;
     let run = instance
-        .get_typed_func::<(i32, i32), i64>(&store, "run")
+        .get_typed_func::<(i32, i32), i64>(&*store, "run")
         .map_err(|e| RunError::Instantiate(format!("module does not export run: {e}")))?;
 
     let in_len = i32::try_from(input.len())
         .map_err(|_| RunError::Instantiate("request too large for a wasm module".to_owned()))?;
-    let in_ptr = call_sliced(&mut store, &alloc, in_len, (&mut budget, deadline))?;
+    let in_ptr = call_sliced(&mut *store, &alloc, in_len, (&mut *budget, deadline))?;
     memory
-        .write(&mut store, in_ptr as usize, input)
+        .write(&mut *store, in_ptr as usize, input)
         .map_err(|e| RunError::Instantiate(format!("module's alloc returned bad memory: {e}")))?;
 
-    let packed = call_sliced(&mut store, &run, (in_ptr, in_len), (&mut budget, deadline))?;
+    let packed = call_sliced(
+        &mut *store,
+        &run,
+        (in_ptr, in_len),
+        (&mut *budget, deadline),
+    )?;
     let out_ptr = (packed >> 32) as u32 as usize;
     let out_len = (packed & 0xffff_ffff) as u32 as usize;
     let inside_memory = out_ptr
         .checked_add(out_len)
-        .is_some_and(|end| end <= memory.data_size(&store));
+        .is_some_and(|end| end <= memory.data_size(&*store));
     if inside_memory && out_len > MAX_RESPONSE_BYTES {
         return Err(RunError::ResourceLimited(format!(
             "its response is larger than the {MAX_RESPONSE_BYTES} byte limit"
         )));
     }
-    read_guest(&memory, &store, out_ptr, out_len).ok_or_else(|| {
+    read_guest(&memory, &*store, out_ptr, out_len).ok_or_else(|| {
         RunError::Trap("run returned a response region outside the module's memory".to_owned())
     })
 }

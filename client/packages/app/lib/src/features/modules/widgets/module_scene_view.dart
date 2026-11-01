@@ -30,10 +30,10 @@ import 'module_scene_images.dart';
 import 'module_scene_inputs.dart';
 import 'module_scene_footer.dart';
 import 'module_scene_frame.dart';
+import 'module_scene_gestures.dart';
 import 'module_scene_keyboard.dart';
 import 'module_scene_pacing.dart';
 import 'module_scene_queue.dart';
-import 'module_scene_painter.dart';
 import 'module_scene_timeline.dart';
 import '../../messages/widgets/swipe_to_reply.dart';
 
@@ -99,20 +99,17 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
 
   final _queue = SceneActionQueue();
 
-  /// The last few scene states this view produced itself.
-  ///
-  /// A scene that belongs to a message is shared: every action stores the new
-  /// output on the message and broadcasts it, so this widget's own step comes
-  /// straight back as a new [widget.initial]. Without this it read as somebody
-  /// starting a new run and stopped the very timer that had just produced it -
-  /// press play, watch exactly one generation, then nothing.
-  final _ownStates = <String>{};
-  static const _ownStateMemory = 8;
+  final _ownStates = SceneOwnStates();
+  late final _gestures = SceneGestures(
+    scene: () => _scene,
+    queue: _queue,
+    enqueue: _enqueue,
+  );
 
   @override
   void initState() {
     super.initState();
-    _rememberOwn(widget.initial.state);
+    _ownStates.remember(widget.initial.state);
     WidgetsBinding.instance.addObserver(this);
     // A finished decode changes what this paints with no scene or tap involved.
     _images.addListener(_onImageDecoded);
@@ -142,8 +139,10 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   void didUpdateWidget(ModuleSceneView old) {
     super.didUpdateWidget(old);
     if (old.initial.state == widget.initial.state) return;
+    // A private board is this viewer's alone: another player's frame does not take it away.
+    if (_scene.isPrivate) return;
     if (_isOwnWork(widget.initial.state)) {
-      _rememberOwn(widget.initial.state);
+      _ownStates.remember(widget.initial.state);
       if (_scene.state != widget.initial.state) {
         setState(() => _scene = keepCropStable(_scene, widget.initial));
       }
@@ -151,7 +150,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
     }
     _stop();
     _queue.clear();
-    _rememberOwn(widget.initial.state);
+    _ownStates.remember(widget.initial.state);
     setState(() => _scene = keepCropStable(_scene, widget.initial));
   }
 
@@ -160,17 +159,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
   /// answer on its own: the broadcast can beat this view's own response back,
   /// so the state would not be in [_ownStates] yet even though it is ours.
   bool _isOwnWork(String? state) =>
-      _busy ||
-      _queue.isNotEmpty ||
-      (state != null && _ownStates.contains(state));
-
-  void _rememberOwn(String? state) {
-    if (state == null) return;
-    _ownStates.add(state);
-    if (_ownStates.length > _ownStateMemory) {
-      _ownStates.remove(_ownStates.first);
-    }
-  }
+      _busy || _queue.isNotEmpty || _ownStates.contains(state);
 
   @override
   void dispose() {
@@ -216,7 +205,7 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
         ? parseModuleScene(result.output!)
         : null;
     if (next != null) {
-      _rememberOwn(next.state);
+      _ownStates.remember(next.state);
       _pacing.succeeded();
     }
     setState(() {
@@ -327,47 +316,6 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
     setState(_stop);
   }
 
-  /// Where the current gesture began, remembered because `onPanStart` reports
-  /// the point at which the drag was *recognised* rather than the point the
-  /// finger came down on. Those are a cell or two apart, so a line drawn by
-  /// dragging was missing the cell it started in until this was recorded here.
-  Offset? _downAt;
-
-  /// The raw pointer-down, not `onTapDown`: the tap recogniser is rejected
-  /// before its own deadline when a drag is quick, so `onTapDown` never fires
-  /// for exactly the gestures this needs to know the origin of.
-  void _handlePointerDown(PointerDownEvent event) {
-    _downAt = event.localPosition;
-    _queue.startDrag();
-  }
-
-  void _handleTapUp(TapUpDetails details, Size size) {
-    final action = sceneTapAction(_scene, details.localPosition, size);
-    if (action != null) _enqueue(action);
-  }
-
-  /// Paints the cell the finger actually landed on, then the one the drag was
-  /// recognised in. The dedupe set makes the common case, where they are the
-  /// same cell, a single paint.
-  void _handlePanStart(DragStartDetails details, Size size) {
-    final down = _downAt;
-    if (down != null) _paintCell(down, size);
-    _paintCell(details.localPosition, size);
-  }
-
-  void _handlePanUpdate(DragUpdateDetails details, Size size) =>
-      _paintCell(details.localPosition, size);
-
-  /// Sends the cell under [local] once per drag. Ops that answer a bare action
-  /// rather than a cell (a button drawn into the scene) are ignored here: a
-  /// drag across one is not a press of it.
-  void _paintCell(Offset local, Size size) {
-    final action = sceneTapAction(_scene, local, size);
-    if (action == null || !action.contains(':')) return;
-    if (!_queue.markPainted(action)) return;
-    _enqueue(action);
-  }
-
   void _enqueue(String action) {
     _queue.add(action);
     unawaited(_drain());
@@ -462,11 +410,18 @@ class _ModuleSceneViewState extends State<ModuleSceneView>
           onActivate: _enqueue,
           child: SwipeToReplyOptOut(
             child: Listener(
-              onPointerDown: _handlePointerDown,
+              onPointerDown: _gestures.pointerDown,
               child: GestureDetector(
-                onTapUp: (d) => _handleTapUp(d, size),
-                onPanStart: (d) => _handlePanStart(d, size),
-                onPanUpdate: (d) => _handlePanUpdate(d, size),
+                onTapUp: (d) => _gestures.tapUp(d, size),
+                onSecondaryTapUp: _scene.hasSecondary
+                    ? (d) => _gestures.secondary(d.localPosition, size)
+                    : null,
+                // Only a scene that answers one: a held tap otherwise still reads as a tap.
+                onLongPressStart: _scene.hasSecondary
+                    ? (d) => _gestures.secondary(d.localPosition, size)
+                    : null,
+                onPanStart: (d) => _gestures.panStart(d, size),
+                onPanUpdate: (d) => _gestures.panUpdate(d, size),
                 child: Stack(
                   children: [
                     SceneTimeline(

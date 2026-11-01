@@ -9,6 +9,7 @@ library;
 
 export 'src/canvas_layout_store.dart' show CanvasLayoutStore, canvasLayoutsCap;
 export 'src/category_store.dart' show CategoryStore;
+export 'src/channel_group.dart' show GroupDmChannel;
 export 'src/channel_reposition.dart' show ChannelReposition;
 export 'src/connection/connection.dart' show openSlimmDatabase;
 export 'src/connection/database_key.dart'

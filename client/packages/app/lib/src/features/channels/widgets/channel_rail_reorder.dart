@@ -11,7 +11,7 @@ import 'package:slimm_api/api.dart' show ChannelOrderGroup;
 import 'package:slimm_data/data.dart';
 import 'package:slimm_design_system/design_system.dart';
 
-import '../../../widgets/desktop_rail_reorder.dart';
+import 'desktop_rail_reorder.dart';
 import 'rail_drag_lift.dart';
 import 'rail_move_actions.dart';
 import '../../../widgets/hold_then_move_drag.dart';

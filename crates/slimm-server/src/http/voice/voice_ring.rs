@@ -31,7 +31,7 @@ use super::super::error::ApiError;
 use super::super::extract::{Authed, enforce};
 use super::super::messages::parse_uuid;
 use crate::hub::Event;
-use crate::ids::ChannelId;
+use crate::ids::{ChannelId, UserId};
 use crate::permissions::Permissions;
 use crate::ratelimit::Class;
 use crate::voice::{CallRingOutcome, VoiceError};
@@ -92,16 +92,16 @@ async fn incoming(
     Ok(Json(IncomingRings { rings }))
 }
 
-/// Starts ringing the other side of a DM call.
+/// Starts ringing every other participant of a DM call.
 ///
 /// `VIEW_CHANNEL` and `CONNECT` are the gate, the same pair minting a token
 /// already requires: a ring for a room the caller could not join tells the
 /// other side nothing real, and a blocked party never reaches this far.
 ///
-/// Refuses anything that is not a DM between the caller and exactly one
-/// other account (`NotFound`): ringing is meaningless for a channel with any
-/// other shape, and a caller's own personal space (a DM with themself) has
-/// nobody on the other end to ring.
+/// Refuses anything that is not a DM the caller is in (`NotFound`): ringing
+/// is meaningless for a channel with any other shape, and a caller's own
+/// personal space (a DM with themself) has nobody on the other end to ring.
+/// A group rings everyone else on its roster; the first to join answers for all.
 ///
 /// A second ring for the same channel replaces whatever was already
 /// outstanding - see [`crate::voice::CallRings`] - since a caller trying
@@ -121,15 +121,19 @@ async fn ring(
         ));
     }
 
-    let Some((user_a, user_b)) = state.store.dm_pair(channel_id).await? else {
+    let Some(participants) = state.store.dm_participants(channel_id).await? else {
         return Err(ApiError::NotFound("no such DM channel"));
     };
-    let callee = match (user_a == ctx.user_id, user_b == ctx.user_id) {
-        (true, true) => return Err(ApiError::NotFound("a personal space has nobody to ring")),
-        (true, false) => user_b,
-        (false, true) => user_a,
-        (false, false) => return Err(ApiError::Forbidden),
-    };
+    if !participants.contains(&ctx.user_id) {
+        return Err(ApiError::Forbidden);
+    }
+    let callees: Vec<UserId> = participants
+        .into_iter()
+        .filter(|participant| *participant != ctx.user_id)
+        .collect();
+    if callees.is_empty() {
+        return Err(ApiError::NotFound("nobody else is here to ring"));
+    }
 
     let permissions = state
         .store
@@ -140,7 +144,7 @@ async fn ring(
         return Err(ApiError::Forbidden);
     }
 
-    let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, callee);
+    let (ring_id, replaced) = state.voice.rings().start(channel_id, ctx.user_id, &callees);
     // Announced so the first caller stops ringing out, but not recorded: the call goes on under the new ring, which gets the one record.
     if let Some((replaced_id, replaced_caller)) = replaced {
         let outcome = if replaced_caller == ctx.user_id {
@@ -159,13 +163,15 @@ async fn ring(
         ring_id,
         caller_id: ctx.user_id,
     });
-    state.push.notify_call_ring(
-        state.store.clone(),
-        channel_id,
-        ring_id,
-        ctx.user_id,
-        callee,
-    );
+    for callee in callees {
+        state.push.notify_call_ring(
+            state.store.clone(),
+            channel_id,
+            ring_id,
+            ctx.user_id,
+            callee,
+        );
+    }
 
     Ok(Json(RingResponse {
         ring_id: ring_id.to_string(),
@@ -195,7 +201,14 @@ async fn decline(
     enforce(&state, &parts, Some(&ctx), Class::Write)?;
     let channel_id = ChannelId(parse_uuid(&channel_id)?);
 
-    if let Some((ring_id, caller_id)) = state.voice.rings().decline(channel_id, ctx.user_id) {
+    // Only the last callee declining ends the ring; until then it rings on for the others.
+    if let Some(declined) = state
+        .voice
+        .rings()
+        .decline(channel_id, ctx.user_id)
+        .filter(|declined| declined.ended)
+    {
+        let (ring_id, caller_id) = (declined.ring_id, declined.caller_id);
         state.hub.publish(Event::CallRingEnded {
             channel_id,
             ring_id,

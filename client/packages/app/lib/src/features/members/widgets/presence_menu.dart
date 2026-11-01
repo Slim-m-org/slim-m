@@ -23,6 +23,7 @@ import 'presence_status_field.dart';
 import '../../../widgets/run_guarded.dart';
 import 'status_editor_sheet.dart';
 import 'user_avatar.dart';
+import '../providers/member_actions.dart';
 
 /// Every visibility a caller may choose, each with the label it is offered
 /// under and the state it draws as.
@@ -60,7 +61,8 @@ Future<bool> applyPresenceVisibility(
   notifier.state = visibility;
   final ok = await guard(
     whatFailed: 'update your status',
-    action: () => ref.read(apiProvider).setPresenceVisibility(visibility),
+    action: () =>
+        ref.read(memberActionsProvider).setPresenceVisibility(visibility),
   );
   if (!ok) notifier.state = previous;
   return ok;

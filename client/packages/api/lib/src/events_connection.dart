@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'events.dart';
+library;
+
+import 'events.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'client.dart';
+import 'socket_liveness.dart';
+import 'logging/app_log.dart';
 
 /// Opens the event socket and yields its events.
 ///
@@ -145,6 +153,15 @@ class EventConnection {
         }),
       );
 
+  /// Reports the canvases open on this device, replacing the previous report; empty says none.
+  /// Until the first report the server sends live canvas frames for every channel.
+  void canvasWatch(Iterable<String> channelIds) => _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.watch',
+          'channel_ids': channelIds.toList(),
+        }),
+      );
+
   /// Tells the server the person used this device recently. After the first
   /// one, this connection's pings stop counting as activity, so a client that
   /// sends it must keep sending it, about once a minute, while they are here.
@@ -233,6 +250,37 @@ class EventConnection {
           'w': box.w,
           'h': box.h,
           'ended': ended,
+        }),
+      );
+
+  /// Relays a mark over [targetUserId]'s shared screen, or (kind `consent`,
+  /// sent by that sharer) whether viewers may draw. Coordinates are 0 to 1 on
+  /// the shared screen. Ephemeral and rate-limited like [canvasStrokePreview].
+  void canvasScreenAnnotation(
+    String channelId,
+    String targetUserId,
+    String kind, {
+    String? annotationId,
+    List<double> points = const [],
+    String? color,
+    String? text,
+    bool ended = false,
+    bool allowed = false,
+    double? aspect,
+  }) =>
+      _channel.sink.add(
+        jsonEncode({
+          'type': 'canvas.screen_annotation',
+          'channel_id': channelId,
+          'target_user_id': targetUserId,
+          'kind': kind,
+          if (annotationId != null) 'annotation_id': annotationId,
+          'points': points,
+          if (color != null) 'color': color,
+          if (text != null) 'text': text,
+          'ended': ended,
+          'allowed': allowed,
+          if (aspect != null) 'aspect': aspect,
         }),
       );
 

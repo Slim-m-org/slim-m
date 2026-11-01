@@ -90,23 +90,46 @@ class _InviteList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final invites = ref.watch(invitesProvider);
-    return AppAsyncView<List<api.Invite>>(
+    return AppAsyncView<InviteList>(
       value: AppAsyncState(data: invites.valueOrNull, error: invites.error),
       center: false,
       errorMessage: 'Could not load invites.',
       onRetry: () => ref.invalidate(invitesProvider),
-      data: (context, list) => SettingsSectionCard(
+      data: (context, page) => SettingsSectionCard(
         title: 'Invites',
         children: [
-          if (list.isEmpty)
+          if (page.items.isEmpty)
             const SettingsEmptyState(
               icon: AppIcons.invite,
               title: 'No invites yet',
               detail: 'Invites you create are listed here, to copy or revoke.',
             )
           else
-            for (final invite in list)
+            for (final invite in page.items)
               _InviteRow(key: ValueKey(invite.code), invite: invite),
+          if (page.moreFailed)
+            SettingsCardBlock(
+              children: [
+                AppErrorState(
+                  message: 'Could not load more invites.',
+                  onRetry: () => ref.read(invitesProvider.notifier).loadMore(),
+                ),
+              ],
+            )
+          else if (page.hasMore)
+            SettingsCardBlock(
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppButton(
+                    label: 'Show more',
+                    variant: AppButtonVariant.secondary,
+                    onPressed: () =>
+                        ref.read(invitesProvider.notifier).loadMore(),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );

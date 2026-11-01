@@ -12,6 +12,7 @@ class _FakeGate {
   double levelDb = -70;
   bool voice = false;
   bool? strongNoiseSuppression;
+  bool? strongestNoiseSuppression;
   bool fail = false;
 
   Future<Object?> invoke(String method, [Object? args]) async {
@@ -23,6 +24,8 @@ class _FakeGate {
         'voice': voice,
         if (strongNoiseSuppression != null)
           'strongNoiseSuppression': strongNoiseSuppression,
+        if (strongestNoiseSuppression != null)
+          'strongestNoiseSuppression': strongestNoiseSuppression,
       };
     }
     return null;
@@ -42,6 +45,7 @@ void main() {
       'thresholdDb': -42.0,
       'dynamics': false,
       'strongNoiseSuppression': false,
+      'strongestNoiseSuppression': false,
     });
   });
 
@@ -76,6 +80,42 @@ void main() {
       expect(active, contains(true));
       expect(active.last, isFalse);
     });
+  });
+
+  test('configure asks for Strongest when told to', () async {
+    final fake = _FakeGate();
+    final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+    await gate.configure(
+      enabled: true,
+      thresholdDb: -50,
+      dynamics: true,
+      strongNoiseSuppression: true,
+      strongestNoiseSuppression: true,
+    );
+    expect((fake.calls.single.$2! as Map)['strongestNoiseSuppression'], isTrue);
+  });
+
+  test('a reading carries whether DeepFilterNet ran, false if unsent', () {
+    fakeAsync((async) {
+      final fake = _FakeGate();
+      final gate = InputGateMonitor(invoke: fake.invoke, supported: true);
+      final active = <bool>[];
+      gate.readings.listen((r) => active.add(r.strongestActive));
+      gate.start(() {});
+
+      async.elapse(const Duration(milliseconds: 60));
+      fake.strongestNoiseSuppression = true;
+      async.elapse(const Duration(milliseconds: 60));
+      gate.stop();
+
+      expect(active.first, isFalse, reason: 'an older native build has no key');
+      expect(active.last, isTrue);
+    });
+  });
+
+  test('Strongest is offered where the native gate is', () {
+    expect(supportsStrongestNoiseSuppression, isTrue,
+        reason: 'tests run on Linux');
   });
 
   test('an unsupported host never reaches the platform', () {

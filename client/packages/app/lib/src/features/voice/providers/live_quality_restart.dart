@@ -68,7 +68,7 @@ class LiveQualityRestart {
     final controller = _ref.read(voiceControllerProvider.notifier);
     if (!_ref.read(voiceControllerProvider).screenSharing) return;
     final pending = _ref.read(shareSettingsPendingProvider.notifier);
-    if (!controller.screenShareRestartable) {
+    if (!controller.share.screenShareRestartable) {
       pending.state = true;
       return;
     }
@@ -93,10 +93,12 @@ class LiveQualityRestart {
       if (!sameCall() || !_ref.read(voiceControllerProvider).screenSharing) {
         return;
       }
-      await controller.setScreenShare(false);
+      final source = controller.share.lastShareSource;
+      await controller.share.setScreenShare(false);
       if (!sameCall()) return;
-      await controller.setScreenShare(
+      await controller.share.setScreenShare(
         true,
+        source: source,
         quality: settings.screenShareQuality,
         sourceId: sourceId,
         includeAudio: settings.screenShareIncludeAudio,
@@ -109,8 +111,8 @@ class LiveQualityRestart {
 
   /// The screen the share is on, if it is still listed; null when it is gone.
   Future<String?> _reusableSource(VoiceController controller) async {
-    final sources = await controller.screenShareSources();
-    final last = controller.lastShareSourceId;
+    final sources = await controller.video.screenShareSources();
+    final last = controller.share.lastShareSourceId;
     if (last != null && sources.any((s) => s.id == last)) return last;
     return sources.length == 1 ? sources.first.id : null;
   }
@@ -122,7 +124,7 @@ class LiveQualityRestart {
     }
     _restartingCamera = true;
     try {
-      await _ref.read(voiceControllerProvider.notifier).restartCamera();
+      await _ref.read(voiceControllerProvider.notifier).video.restartCamera();
     } finally {
       _restartingCamera = false;
     }

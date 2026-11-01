@@ -1,5 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'client.dart';
+library;
+
+import 'dart:async';
+import 'models.dart';
+import 'client.dart';
+import 'client_transport.dart';
 
 /// Presence: batch status lookup and the caller's own visibility, the
 /// `presence` tag.
@@ -8,7 +13,7 @@ extension SlimmApiPresence on SlimmApi {
   /// authenticated caller may ask about any user id. An id with nothing live
   /// to report (never existed, or deleted) is simply absent from the result.
   Future<List<PresenceStatus>> listPresence(List<String> userIds) async {
-    final json = await _send(
+    final json = await send(
       'GET',
       '/presence',
       query: {'ids': userIds.join(',')},
@@ -23,7 +28,7 @@ extension SlimmApiPresence on SlimmApi {
   Future<PresenceVisibility> setPresenceVisibility(
     PresenceVisibility visibility,
   ) async {
-    final json = await _send(
+    final json = await send(
       'PATCH',
       '/presence',
       body: {'visibility': visibility.wire},
@@ -36,11 +41,11 @@ extension SlimmApiPresence on SlimmApi {
   /// Says what the caller is listening to or playing. Held in memory against
   /// their live socket and never stored.
   Future<void> setPresenceActivity(PresenceActivity activity) async {
-    await _send('PUT', '/presence/activity', body: activity.toJson());
+    await send('PUT', '/presence/activity', body: activity.toJson());
   }
 
   /// Clears the caller's activity. Idempotent.
   Future<void> clearPresenceActivity() async {
-    await _send('DELETE', '/presence/activity');
+    await send('DELETE', '/presence/activity');
   }
 }

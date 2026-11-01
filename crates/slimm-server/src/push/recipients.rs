@@ -16,7 +16,7 @@ use crate::presence::PresenceTracker;
 use crate::store::{NotificationChoice, Store, ThreadParent};
 
 use super::mention_grammar::{mentioned_role_names, mentioned_usernames};
-use crate::http::code_fences::prose_outside_code;
+use crate::code_fences::prose_outside_code;
 
 /// The reserved mention naming every candidate viewer, never a real
 /// username: `validate_username` (`http/auth.rs`) refuses to register it for

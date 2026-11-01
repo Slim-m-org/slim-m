@@ -10,12 +10,12 @@ import 'package:slimm_api/api.dart' hide Channel;
 import 'package:slimm_data/data.dart';
 
 import '../providers/channel_by_id_provider.dart';
-import '../../../providers/providers.dart';
 import '../../../widgets/optimistic_setting_state.dart';
 import '../../../widgets/run_guarded.dart';
 import '../../settings/widgets/settings_save_feedback.dart';
 import '../../settings/widgets/settings_select_row.dart';
 import 'channel_default_notification_choices.dart';
+import '../providers/channel_actions.dart';
 
 class ChannelDefaultNotificationSection extends ConsumerStatefulWidget {
   const ChannelDefaultNotificationSection({super.key, required this.channel});
@@ -40,14 +40,9 @@ class _ChannelDefaultNotificationSectionState
     level,
     whatFailed: 'change the default notifications',
     action: () async {
-      final updated = await ref
-          .read(apiProvider)
-          .updateChannel(
-            widget.channel.id,
-            ChannelUpdate(defaultNotification: level),
-          );
-      final store = await ref.read(storeProvider.future);
-      await store.upsertChannels([updated]);
+      await ref
+          .read(channelActionsProvider)
+          .update(widget.channel.id, ChannelUpdate(defaultNotification: level));
     },
     refresh: channelByIdProvider(widget.channel.id),
   );

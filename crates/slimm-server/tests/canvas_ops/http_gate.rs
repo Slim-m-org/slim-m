@@ -74,7 +74,7 @@ async fn the_feed_is_dense_over_place_ops_placed_over_http() {
 
 /// A moderation act must not name its moderator to the whole channel.
 ///
-/// [`Event::CanvasObjectsRemoved`] withholds the actor deliberately, and this
+/// [`CanvasEvent::ObjectsRemoved`] withholds the actor deliberately, and this
 /// feed handed the same channel exactly what that withholds - more reliably,
 /// since a live frame is ephemeral and this read is durable and repeatable.
 /// A `place` keeps its actor because `CanvasObject.author_id` is already on

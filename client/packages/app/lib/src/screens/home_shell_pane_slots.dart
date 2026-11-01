@@ -1,9 +1,20 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-part of 'home_shell.dart';
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:slimm_data/data.dart';
+import 'package:slimm_design_system/design_system.dart';
+import '../providers/providers.dart';
+import '../features/channels/providers/threads.dart';
+import '../routing/breakpoints.dart';
+import '../widgets/app_panel_reveal.dart';
+import '../features/members/widgets/member_pane.dart';
+import '../features/messages/screens/thread_screen.dart';
 
 // The two docked third-pane slots (member roster, thread), split from home_shell.dart for the line budget; kept as private part-of classes so the shell's Row still names them.
 /// Builds [build] with whether [channelId] is a DM, resolved from the local store.
-Widget _withChannelKind(
+Widget withChannelKind(
   WidgetRef ref,
   String channelId,
   Widget Function(bool isDm) build,
@@ -24,8 +35,12 @@ Widget _withChannelKind(
 /// by default for a two-person conversation, the exact bug `ChannelHeader.isDm`
 /// exists to name. [channelId] null (nothing selected) or a store not yet
 /// resolved both read as "show": only a confirmed DM withholds it.
-class _MemberPaneSlot extends ConsumerWidget {
-  const _MemberPaneSlot({required this.channelId, required this.requested});
+class MemberPaneSlot extends ConsumerWidget {
+  const MemberPaneSlot({
+    super.key,
+    required this.channelId,
+    required this.requested,
+  });
 
   final String? channelId;
   final bool requested;
@@ -67,12 +82,16 @@ class _MemberPaneSlot extends ConsumerWidget {
 }
 
 /// The docked thread, beside the transcript at expanded widths (UX1). Mirrors
-/// [_MemberPaneSlot]'s reveal exactly - an [AnimatedContainer] width that
+/// [MemberPaneSlot]'s reveal exactly - an [AnimatedContainer] width that
 /// unmounts its content when closed so a hidden pane stops fetching - but wraps
 /// [ThreadScreen], whose close affordance clears [openThreadProvider] rather
 /// than popping, since docked there is no route entry to pop.
-class _ThreadPaneSlot extends ConsumerWidget {
-  const _ThreadPaneSlot({required this.channelId, required this.requested});
+class ThreadPaneSlot extends ConsumerWidget {
+  const ThreadPaneSlot({
+    super.key,
+    required this.channelId,
+    required this.requested,
+  });
 
   final String? channelId;
   final bool requested;

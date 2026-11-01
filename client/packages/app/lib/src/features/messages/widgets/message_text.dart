@@ -32,29 +32,19 @@ import 'package:slimm_design_system/design_system.dart';
 
 import '../../../external_link.dart';
 import '../../../message_link.dart';
-import '../../channels/providers/channel_by_id_provider.dart';
 import '../../../providers/providers.dart';
-import '../../../routing/routes.dart';
 import '../../../widgets/app_snackbar.dart';
 import '../../channels/widgets/channel_rail.dart' show selectedChannelId;
-import '../../emoji/widgets/custom_emoji_image.dart';
 import '../../emoji/widgets/emoji_name_tip.dart';
-import '../../emoji/widgets/emoji_names.dart';
 import 'message_jump.dart' show jumpToMessage;
 import 'message_code_block_runner.dart';
 import 'message_fences.dart';
 import 'message_inline.dart';
 import 'message_markdown_blocks.dart';
 import 'message_parse_cache.dart';
-import 'message_spoiler.dart';
+import 'message_text_spans.dart';
 
-part 'message_text_spans.dart';
-
-/// One line tall: [AppText.body] is 15px at a 1.45 line height, so an inline
-/// emoji is that product rather than a pixel value chosen to look right.
-/// [CustomEmojiImage] defaults to the picker's 20; running text is not the
-/// picker, so it says what it needs.
-final double _emojiSize = AppText.body.fontSize! * AppText.body.height!;
+export 'message_text_spans.dart' show ChannelMentionChip, inlineTextSpans;
 
 /// A message body: fenced code blocks rendered through [AppCodeBlock], and
 /// everything else split into headings, quotes, lists and paragraphs, each
@@ -394,9 +384,9 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
       TextSpan(
         style: style,
         children: [
-          ..._buildSpans(
+          ...buildSpans(
             cachedInline(widget.text),
-            _InlineContext(
+            InlineContext(
               knownUsernames: widget.knownUsernames,
               knownRoleNames: widget.knownRoleNames,
               customEmoji: widget.customEmoji,
@@ -421,9 +411,3 @@ class _MessageTextRunState extends ConsumerState<_MessageTextRun> {
     );
   }
 }
-
-/// The two reserved mentions `crates/slimm-server/src/push/recipients.rs`
-/// resolves specially, never a real account (`validate_username` in
-/// `http/auth.rs` refuses to register either, case-insensitively) - kept
-/// lower-case, matched the same way against a lower-cased [raw].
-const _reservedMentions = {'everyone', 'here'};

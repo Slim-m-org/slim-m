@@ -120,6 +120,7 @@ void main() {
 
     await container
         .read(voiceControllerProvider.notifier)
+        .input
         .restoreVideoQuality();
 
     expect(session.lastReceiveVideoQuality, ReceiveVideoQuality.dataSaver);

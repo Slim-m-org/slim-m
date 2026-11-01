@@ -62,6 +62,7 @@ ModuleScene? parseModuleScene(String raw) {
     controls: _stringList(decoded['controls']),
     status: _string(decoded['status']),
     live: decoded['live'] == true,
+    isPrivate: decoded['private'] == true,
   );
   return ModuleScene(
     width: scene.width,
@@ -72,6 +73,7 @@ ModuleScene? parseModuleScene(String raw) {
     controls: scene.controls,
     status: scene.status,
     live: scene.live,
+    isPrivate: scene.isPrivate,
     crop: sceneContentBounds(scene),
   );
 }
@@ -106,6 +108,7 @@ SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {
         palette: _stringList(op['palette']),
         gap: _double(op['gap'], 0),
         tap: _string(op['tap']),
+        alt: _string(op['alt']),
         tapBatch: op['tap_batch'] == true,
         box: _parseBox(op),
       );
@@ -121,6 +124,7 @@ SceneOp? _parseOp(Map<Object?, Object?> op, {required bool allowSweep}) {
         strokeWidth: _double(op['sw'], 1),
         radius: _double(op['r'], 0),
         tap: _string(op['tap']),
+        alt: _string(op['alt']),
         sweep: sweep,
       );
     case 'circle':

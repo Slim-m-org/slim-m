@@ -195,6 +195,7 @@ extension VoiceSessionTracks on VoiceSession {
         remoteVideoQualityRefs(room),
         _receiveQuality,
         _loweredVideoSids,
+        enlarged: _enlargedVideo.keys,
       ),
     );
 

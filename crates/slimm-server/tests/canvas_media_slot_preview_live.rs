@@ -125,8 +125,8 @@ async fn a_member_denied_use_canvas_neither_sends_nor_receives() {
 
     send_preview(&mut alice_ws, channel, alice_id, 1.0).await;
     assert_nothing_of_type(&mut carol_ws, KIND).await;
-    // The sender hears its own frame; drained so only carol's could follow.
-    next_of_type(&mut alice_ws, KIND).await;
+    // The sender is not sent its own frame, so alice sees nothing from herself.
+    assert_nothing_of_type(&mut alice_ws, KIND).await;
 
     send_preview(&mut carol_ws, channel, alice_id, 2.0).await;
     assert_nothing_of_type(&mut alice_ws, KIND).await;

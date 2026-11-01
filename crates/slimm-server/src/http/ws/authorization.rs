@@ -13,7 +13,7 @@ use super::frames::{PollOptionCountDto, ReactionCountDto, ServerFrame};
 use super::permission_cache::PermissionCache;
 use super::signals;
 use crate::http::link_preview::LinkPreviews;
-use crate::hub::{Event, Hub};
+use crate::hub::{CanvasEvent, Event, Hub, MessageEvent};
 use crate::ids::{ChannelId, MessageId, UserId};
 use crate::permissions::Permissions;
 use crate::store::{SessionContext, Store};
@@ -202,7 +202,7 @@ async fn channel_frame(
         Err(event) => *event,
     };
     Authorization::Deliver(Box::new(match event {
-        created @ Event::MessageCreated { .. } => {
+        created @ Event::Message(MessageEvent::Created { .. }) => {
             match super::message_frames::created_from_event(
                 store,
                 link_previews,
@@ -215,12 +215,12 @@ async fn channel_frame(
                 Err(()) => return Authorization::Unknown,
             }
         }
-        Event::MessageEdited {
+        Event::Message(MessageEvent::Edited {
             message,
             op_seq,
             forwarded,
             lookups,
-        } => match super::message_frames::edited(
+        }) => match super::message_frames::edited(
             store,
             ctx.user_id,
             (*message).clone(),
@@ -233,28 +233,28 @@ async fn channel_frame(
             Ok(frame) => frame,
             Err(()) => return Authorization::Unknown,
         },
-        Event::MessageDeleted {
+        Event::Message(MessageEvent::Deleted {
             channel_id,
             message_id,
             op_seq,
-        } => ServerFrame::MessageDeleted {
+        }) => ServerFrame::MessageDeleted {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             op_seq,
         },
         // A separate, fresh-per-event store read past the view check; see `Authorization::Unknown`.
-        Event::ReactionsChanged {
+        Event::Message(MessageEvent::ReactionsChanged {
             channel_id,
             message_id,
             reactors,
-        } => match reactions_frame(store, hub, ctx, cache, (channel_id, message_id), &reactors)
+        }) => match reactions_frame(store, hub, ctx, cache, (channel_id, message_id), &reactors)
             .await
         {
             Ok(frame) => frame,
             Err(()) => return Authorization::Unknown,
         },
         // No per-viewer derivation: the output is the same for everyone past the VIEW_CHANNEL gate above, so it is delivered as-is.
-        Event::CodeRunChanged {
+        Event::Message(MessageEvent::CodeRunChanged {
             channel_id,
             message_id,
             block_index,
@@ -264,7 +264,7 @@ async fn channel_frame(
             output,
             ran_by,
             ran_at,
-        } => ServerFrame::CodeRunChanged {
+        }) => ServerFrame::CodeRunChanged {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             block_index,
@@ -275,50 +275,50 @@ async fn channel_frame(
             ran_by: ran_by.map(|u| u.to_string()),
             ran_at,
         },
-        Event::CodeRunsCleared {
+        Event::Message(MessageEvent::CodeRunsCleared {
             channel_id,
             message_id,
-        } => ServerFrame::CodeRunsCleared {
+        }) => ServerFrame::CodeRunsCleared {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
         },
-        Event::ThreadUpdated {
+        Event::Message(MessageEvent::ThreadUpdated {
             channel_id,
             parent_message_id,
             thread_channel_id,
             reply_count,
             last_reply_at,
-        } => ServerFrame::ThreadUpdated {
+        }) => ServerFrame::ThreadUpdated {
             channel_id: channel_id.to_string(),
             parent_message_id: parent_message_id.to_string(),
             thread_channel_id: thread_channel_id.to_string(),
             reply_count,
             last_reply_at,
         },
-        Event::MessagePinned {
+        Event::Message(MessageEvent::Pinned {
             channel_id,
             message_id,
             pinned_by,
             pinned_at,
-        } => ServerFrame::MessagePinned {
+        }) => ServerFrame::MessagePinned {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             pinned_by: pinned_by.map(|id| id.to_string()),
             pinned_at,
         },
-        Event::MessageUnpinned {
+        Event::Message(MessageEvent::Unpinned {
             channel_id,
             message_id,
-        } => ServerFrame::MessageUnpinned {
+        }) => ServerFrame::MessageUnpinned {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
         },
-        Event::PollVoted {
+        Event::Message(MessageEvent::PollVoted {
             channel_id,
             message_id,
             options,
             runoff,
-        } => ServerFrame::PollVoted {
+        }) => ServerFrame::PollVoted {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             options: options
@@ -327,29 +327,29 @@ async fn channel_frame(
                 .collect(),
             runoff: runoff.map(Into::into),
         },
-        Event::MessageComponentsChanged {
+        Event::Message(MessageEvent::ComponentsChanged {
             channel_id,
             message_id,
             components,
-        } => ServerFrame::MessageComponentsChanged {
+        }) => ServerFrame::MessageComponentsChanged {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             components: (*components).clone(),
         },
-        Event::MessageEmbedsChanged {
+        Event::Message(MessageEvent::EmbedsChanged {
             channel_id,
             message_id,
             embeds,
-        } => ServerFrame::MessageEmbedsChanged {
+        }) => ServerFrame::MessageEmbedsChanged {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             embeds: super::super::embeds::dtos_from_stored(link_previews, (*embeds).clone()),
         },
-        Event::MessageLinkPreviewsRemoved {
+        Event::Message(MessageEvent::LinkPreviewsRemoved {
             channel_id,
             message_id,
             op_seq,
-        } => ServerFrame::MessageLinkPreviewsRemoved {
+        }) => ServerFrame::MessageLinkPreviewsRemoved {
             channel_id: channel_id.to_string(),
             message_id: message_id.to_string(),
             op_seq,
@@ -441,21 +441,27 @@ async fn channel_frame(
             ring_id: ring_id.to_string(),
             outcome: outcome.as_str().to_owned(),
         },
+        Event::DmChanged { channel_id } => ServerFrame::DmChanged {
+            channel_id: channel_id.to_string(),
+        },
         // canvas_frames::to_frame already answered Ok for any of these.
-        Event::CanvasObjectPlaced { .. }
-        | Event::CanvasObjectsRemoved { .. }
-        | Event::CanvasCleared { .. }
-        | Event::CanvasObjectsRestored { .. }
-        | Event::CanvasCursorMoved { .. }
-        | Event::CanvasStrokePreview { .. }
-        | Event::CanvasObjectPreview { .. }
-        | Event::CanvasMediaSlotPreview { .. }
-        | Event::CanvasView { .. }
-        | Event::CanvasObjectMoved { .. }
-        | Event::CanvasObjectReordered { .. }
-        | Event::CanvasObjectEdited { .. }
-        | Event::CanvasMediaSlotChanged { .. }
-        | Event::CanvasObjectLockChanged { .. } => unreachable!("canvas_frames::to_frame"),
+        Event::Canvas(CanvasEvent::ObjectPlaced { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRemoved { .. })
+        | Event::Canvas(CanvasEvent::Cleared { .. })
+        | Event::Canvas(CanvasEvent::ObjectsRestored { .. })
+        | Event::Canvas(CanvasEvent::CursorMoved { .. })
+        | Event::Canvas(CanvasEvent::StrokePreview { .. })
+        | Event::Canvas(CanvasEvent::ObjectPreview { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotPreview { .. })
+        | Event::Canvas(CanvasEvent::ScreenAnnotation(_))
+        | Event::Canvas(CanvasEvent::View { .. })
+        | Event::Canvas(CanvasEvent::ObjectMoved { .. })
+        | Event::Canvas(CanvasEvent::ObjectReordered { .. })
+        | Event::Canvas(CanvasEvent::ObjectEdited { .. })
+        | Event::Canvas(CanvasEvent::MediaSlotChanged { .. })
+        | Event::Canvas(CanvasEvent::ObjectLockChanged { .. }) => {
+            unreachable!("canvas_frames::to_frame")
+        }
         // The deployment-wide and channel-deletion cases already returned above.
         Event::SessionRevoked(_)
         | Event::PresenceChanged(_)

@@ -16,13 +16,15 @@ test('switching to the dark theme in Settings repaints the app and is remembered
   await step('alice opens personal settings, then Appearance', async () => {
     await alice.click(L.PERSONAL_SETTINGS);
     await alice.click(L.APPEARANCE_PANE);
-    await alice.see(L.THEME_DARK);
+    await alice.see(L.THEME_ROW);
   });
-  await step('she picks Dark', async () => {
+  await step('she opens the Theme row and picks Dark', async () => {
+    await alice.click(L.THEME_ROW);
+    await alice.see(L.THEME_DARK);
     await alice.click(L.THEME_DARK);
   });
   await step('Dark is the selected option and the background goes dark', async () => {
-    await expect(alice.page.locator('flt-semantics[aria-current="true"]').filter({ hasText: /^\s*Dark\s*$/ })).toBeAttached();
+    await alice.see('Color theme, currently Dark');
     await expect.poll(async () => luminance(await pixelAt(alice.page, BACKDROP.x, BACKDROP.y))).toBeLessThan(80);
   });
   await step('the choice was written to storage, so it survives a reload', async () => {

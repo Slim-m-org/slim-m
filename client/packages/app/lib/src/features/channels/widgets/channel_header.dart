@@ -22,6 +22,7 @@ import '../../canvas/widgets/canvas_open_button.dart';
 import '../../voice/widgets/dm_call_button.dart';
 import '../../../routing/breakpoints.dart';
 import 'channel_title_glyph.dart';
+import 'group_dm_members_action.dart';
 import 'channel_topic_text.dart';
 import '../../members/widgets/member_list_toggle.dart';
 import '../../messages/widgets/pinned_messages_sheet.dart';
@@ -40,6 +41,7 @@ class ChannelHeader extends ConsumerWidget {
     required this.isVoice,
     this.isDm = false,
     this.dmParticipantId,
+    this.groupMemberIds = const [],
     this.isPersonalSpace = false,
     this.topic,
     this.restricted = false,
@@ -55,6 +57,9 @@ class ChannelHeader extends ConsumerWidget {
   /// The DM peer's user id, so the header avatar's tint keys off identity
   /// the way every member-naming surface does; see [AppAvatar.tintKey].
   final String? dmParticipantId;
+
+  /// Every participant of a group DM, the caller included; empty otherwise.
+  final List<String> groupMemberIds;
   final bool isVoice;
 
   /// The self-DM. Its name is "Notes" (`personalSpaceName`), so it takes the
@@ -143,6 +148,7 @@ class ChannelHeader extends ConsumerWidget {
                       isDm: isDm,
                       isPersonalSpace: isPersonalSpace,
                       dmParticipantId: dmParticipantId,
+                      groupMemberIds: groupMemberIds,
                     ),
                     const SizedBox(width: AppSpacing.s8),
                     if (!hasTopic)
@@ -183,6 +189,10 @@ class ChannelHeader extends ConsumerWidget {
               onPressed: () => showThreadsSheet(context, channelId),
             ),
           const SizedBox(width: AppSpacing.s4),
+          if (groupMemberIds.isNotEmpty) ...[
+            GroupDmMembersAction(channelId: channelId),
+            const SizedBox(width: AppSpacing.s4),
+          ],
           DmCallButton(channelId: channelId),
           const SizedBox(width: AppSpacing.s4),
           if (onToggleTextChat case final toggle?) ...[
