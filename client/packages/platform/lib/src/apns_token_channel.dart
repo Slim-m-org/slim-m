@@ -171,6 +171,24 @@ class ApnsTokenChannel {
     }
   }
 
+  /// Drops this install's device token so the next [fetch] waits for a fresh
+  /// one; false when this is not iOS or the build has no such call.
+  Future<bool> resetRegistration() async {
+    if (!_isIOS) return false;
+    try {
+      await _channel.invokeMethod<void>('resetRegistration');
+      return true;
+    } on MissingPluginException catch (error, stack) {
+      AppLog.swallowed(LogTag.platform,
+          'This build cannot reset its push registration', error, stack);
+      return false;
+    } on PlatformException catch (error, stack) {
+      AppLog.swallowed(
+          LogTag.platform, 'Resetting push registration failed', error, stack);
+      return false;
+    }
+  }
+
   /// The PushKit VoIP token native already holds, or null when this is not iOS,
   /// PushKit has not issued one yet, or the bridge is unavailable. A token that
   /// lands later arrives on [onVoipToken] instead of being waited for here, so

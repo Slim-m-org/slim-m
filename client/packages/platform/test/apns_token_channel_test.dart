@@ -197,4 +197,51 @@ void main() {
       expect(await next, 'cafe');
     });
   });
+
+  group('ApnsTokenChannel.resetRegistration', () {
+    test('asks native to drop the token, then fetch waits for the new one',
+        () async {
+      var token = 'old0';
+      final calls = <String>[];
+      _mock((call) async {
+        calls.add(call.method);
+        switch (call.method) {
+          case 'resetRegistration':
+            token = '';
+            return null;
+          case 'getToken':
+            return token.isEmpty ? null : token;
+        }
+        return null;
+      });
+      addTearDown(() => _mock(null));
+      final channel = ApnsTokenChannel(isIOS: true);
+
+      expect(await channel.resetRegistration(), isTrue);
+      final fetched = channel.fetch(timeout: const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        _channelName,
+        const StandardMethodCodec()
+            .encodeMethodCall(const MethodCall('onToken', 'new1')),
+        (_) {},
+      );
+
+      final result = await fetched;
+      expect(calls.first, 'resetRegistration');
+      expect((result as ApnsTokenReady).token, 'new1');
+    });
+
+    test('off iOS there is nothing to reset', () async {
+      expect(await ApnsTokenChannel(isIOS: false).resetRegistration(), isFalse);
+    });
+
+    test('a build without the call reports false instead of throwing',
+        () async {
+      _mock((call) async => throw MissingPluginException());
+      addTearDown(() => _mock(null));
+      expect(await ApnsTokenChannel(isIOS: true).resetRegistration(), isFalse);
+    });
+  });
 }

@@ -248,6 +248,9 @@ import UserNotifications
       result(cachedError)
     case "getVoipToken":
       result(cachedVoipTokenHex)
+    case "resetRegistration":
+      resetRemoteRegistration(UIApplication.shared)
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -268,14 +271,37 @@ import UserNotifications
     }
   }
 
+  /// Set once this install has traded its device token for a fresh one, so the
+  /// trade happens once rather than on every launch.
+  private static let tokenRefreshedKey = "slimm.push.tokenRefreshed.v1"
+
   private func requestPushAuthorization(_ application: UIApplication) {
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
       // A device token is worth having even if the user declines the alert:
       // the relay still needs it to seal envelopes, and a later notification
       // service extension can act on a silent push without alert permission.
       DispatchQueue.main.async {
-        application.registerForRemoteNotifications()
+        // Pre-v120 installs could hold a token APNs accepts but never delivers.
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: AppDelegate.tokenRefreshedKey) {
+          application.registerForRemoteNotifications()
+        } else {
+          defaults.set(true, forKey: AppDelegate.tokenRefreshedKey)
+          self.resetRemoteRegistration(application)
+        }
       }
+    }
+  }
+
+  /// Drops this install's device token and asks for a new one, which then
+  /// arrives through `didRegisterForRemoteNotificationsWithDeviceToken` as usual.
+  private func resetRemoteRegistration(_ application: UIApplication) {
+    cachedTokenHex = nil
+    cachedError = nil
+    application.unregisterForRemoteNotifications()
+    // A register issued in the same turn as the unregister can be answered with the old token.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+      application.registerForRemoteNotifications()
     }
   }
 
