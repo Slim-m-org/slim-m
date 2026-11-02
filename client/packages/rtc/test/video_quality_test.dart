@@ -72,6 +72,22 @@ void main() {
           reason: 'the grid tile stays capped');
     });
 
+    test('an enlarged camera is lifted to the top layer under data saver',
+        () async {
+      final camera = <lk.VideoQuality>[];
+      final lowered = <String>{};
+      List<RemoteVideoQualityRef> refs() =>
+          [_pub(lk.TrackSource.camera, camera, key: 'camera:ada')];
+
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered);
+      await applyReceiveVideoQuality(
+          refs(), ReceiveVideoQuality.dataSaver, lowered,
+          enlarged: {'camera:ada'});
+
+      expect(camera, [lk.VideoQuality.LOW, lk.VideoQuality.HIGH]);
+    });
+
     test('enlarging under auto changes nothing', () async {
       final share = <lk.VideoQuality>[];
       await applyReceiveVideoQuality(
