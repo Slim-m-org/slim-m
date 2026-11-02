@@ -12,7 +12,7 @@ import 'package:slimm_rtc/rtc.dart';
 
 const _stripKey = ValueKey('strip');
 
-Widget _app({required bool lounge}) => MaterialApp(
+Widget _app({required bool lounge, String channelId = 'c1'}) => MaterialApp(
   theme: buildTheme(Brightness.light, AppTokens.light),
   home: Scaffold(
     body: lounge
@@ -21,6 +21,7 @@ Widget _app({required bool lounge}) => MaterialApp(
             height: 128,
             child: CallFilmstrip(
               key: _stripKey,
+              channelId: channelId,
               leading: const [],
               leadingItemWidth: 199,
               participants: [
@@ -71,5 +72,19 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(_offset(tester), scrolled);
+  });
+
+  testWidgets('another call does not inherit the strip offset', (tester) async {
+    await tester.pumpWidget(_app(lounge: true));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.drag(find.byKey(_stripKey), const Offset(-300, 0));
+    await tester.pump(const Duration(seconds: 1));
+
+    await tester.pumpWidget(_app(lounge: false));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(_app(lounge: true, channelId: 'c2'));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(_offset(tester), 0);
   });
 }

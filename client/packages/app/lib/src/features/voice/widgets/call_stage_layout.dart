@@ -178,6 +178,7 @@ class CallStageLayout extends ConsumerWidget {
                       participants: participants,
                       controller: controller,
                       onOpenProfile: onOpenProfile,
+                      channelId: voice.channelId,
                       menuItemsBuilder: menuItemsBuilder,
                     )
                   : _ParticipantGrid(
@@ -224,8 +225,11 @@ class _StageWithFilmstrip extends StatelessWidget {
     required this.participants,
     required this.controller,
     required this.onOpenProfile,
+    required this.channelId,
     this.menuItemsBuilder,
   });
+
+  final String? channelId;
 
   /// The viewer's own player, which takes the stage while they play directly.
   final Widget? directStage;
@@ -246,6 +250,7 @@ class _StageWithFilmstrip extends StatelessWidget {
       width: double.infinity,
       height: _filmstripHeight,
       child: CallFilmstrip(
+        channelId: channelId,
         leadingItemWidth: ShareThumbnail.widthFor(
           _filmstripHeight - AppSpacing.s16,
         ),
@@ -286,7 +291,7 @@ class _StageWithFilmstrip extends StatelessWidget {
     if (shares.length > 1 && focusedIdentity == null) {
       return LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
-          key: const PageStorageKey<String>('call-share-grid-scroll'),
+          key: PageStorageKey<String>('call-share-grid-scroll-$channelId'),
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Column(
@@ -364,7 +369,7 @@ class _ParticipantGrid extends StatelessWidget {
         participants.length,
       );
       return SingleChildScrollView(
-        key: const PageStorageKey<String>('call-roster-scroll'),
+        key: PageStorageKey<String>('call-roster-scroll-$channelId'),
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: constraints.maxHeight),
           child: Center(
