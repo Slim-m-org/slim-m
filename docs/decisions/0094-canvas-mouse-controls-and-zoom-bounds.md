@@ -50,7 +50,7 @@ Decisions on 2026-10-26: left click stays Move, a right-click hold opens a tool 
 
 Nick pressed Esc by instinct to put the pen down and found it did nothing, so this looked at what comparable tools do.
 Excalidraw's `actionFinalize` runs on Esc for a multi-point element in progress and then sets the active tool back to the preferred selection tool ([source](https://raw.githubusercontent.com/excalidraw/excalidraw/master/packages/excalidraw/actions/actionFinalize.tsx)).
-Figma users report pressing V or Esc to get back to the selection tool after drawing a shape, and Esc as the default "back to Move" key ([Figma forum](https://forum.figma.com/ask-the-community-7/why-doesn-t-the-mouse-switch-to-selection-after-using-shortcut-r-to-create-a-graphic-i-have-to-press-v-or-esc-to-switch-it-to-selection-mode-14475)).
+One Figma forum poster says V or Esc returns to the selection tool after drawing a shape ([Figma forum](https://forum.figma.com/ask-the-community-7/why-doesn-t-the-mouse-switch-to-selection-after-using-shortcut-r-to-create-a-graphic-i-have-to-press-v-or-esc-to-switch-it-to-selection-mode-14475)).
 Miro's moderators describe Esc as deselect, and Esc twice to leave text editing and then deselect ([Miro community](https://community.miro.com/ideas/1202)).
 A Blender thread asks for the same two-step behaviour: the first Esc cancels the action in progress, the second returns to the select tool ([Blender devtalk](https://devtalk.blender.org/t/pressing-esc-while-in-active-tool-go-out-of-the-tool-back-to-selection/6593)).
 I could not confirm tldraw, FigJam, Photoshop or Krita from search results, so they are not cited.
