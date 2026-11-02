@@ -15,6 +15,7 @@ use serde_json::Value;
 use super::AppState;
 use super::code_runs::{held_input, is_private_scene, publish_run, stored_payload};
 use super::module_commands::execute_command;
+use super::surface_lock::lock_surface;
 use crate::ids::MessageId;
 use crate::store::now_ms;
 
@@ -98,6 +99,7 @@ async fn redraw(state: &AppState, message_id: MessageId) -> Option<i64> {
         .await
         .ok()??;
     let message = state.store.message(message_id).await.ok()??;
+    let _turn = lock_surface(message_id).await;
     let last = state
         .store
         .code_runs_for_messages(&[message_id])

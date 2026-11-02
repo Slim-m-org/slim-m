@@ -130,6 +130,7 @@ mod space_link_previews;
 mod space_setup;
 mod still_picture;
 mod storage;
+mod surface_lock;
 mod surface_state;
 mod sync;
 mod sync_ops;

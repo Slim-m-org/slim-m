@@ -459,6 +459,11 @@ See decision 0043 for why this is declared motion and not a timer you control.
 > Everyone who can see the message can still read the `state` string in the stored scene, so do not hide a secret in it (the word-guess answer, a hand of cards): obscure data in `state` is derivable by anyone.
 > For a scene that is not on a shared surface (a slash command that prints a scene, for instance), nothing is stored on the host, so `state` is whatever the client sends back.
 > Treat it as untrusted input there: validate it, and never let it grant anything.
+>
+> Presses on a shared surface are applied one at a time, each to the frame the previous press stored.
+> Two people pressing at the same moment therefore both count, and neither overwrites the other.
+> A press that names no `action` is run as `{"action":"refresh"}` once the surface has a stored frame; only a surface with nothing stored yet is launched.
+> A failed press (a host limit, a crash, or `ok: false` from the module) answers the person who pressed and never replaces the stored frame.
 
 A scene becomes interactive by offering `controls` and carrying `state`, and by drawing ops with a `tap`.
 

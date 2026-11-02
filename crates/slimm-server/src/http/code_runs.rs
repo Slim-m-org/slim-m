@@ -46,6 +46,7 @@ use super::messages::parse_uuid;
 use super::module_commands::{
     CODE_RUNNER_MODULE_ID, CommandOutcome, execute_code_runner, execute_command,
 };
+use super::surface_lock::lock_surface;
 use super::surface_state::with_held_state;
 use super::viewable_message::viewable_message;
 use crate::code_fences::code_block;
@@ -124,6 +125,12 @@ async fn run(
 
     // A surface has one board, and its state is the server's, not the presser's.
     let on_surface = surface.is_some();
+    // One press at a time, so each starts from the frame the last one stored.
+    let _turn = if on_surface {
+        Some(lock_surface(message_id).await)
+    } else {
+        None
+    };
     let block_index = if on_surface { 0 } else { block_index };
     // A surface's input is the module's own; a plain message runs only its own stored block, never the caller's claim of it.
     let code = match surface {
@@ -154,6 +161,14 @@ async fn run(
         .await?
     };
     let (ok, stored) = stored_payload(req.module_id == CODE_RUNNER_MODULE_ID, outcome);
+    // A failed press answers its presser only; it must not replace the frame everyone shares.
+    if on_surface && !ok {
+        return Ok(Json(RunResponse {
+            ok: false,
+            output: None,
+            error: Some(stored),
+        }));
+    }
     // A private scene answers the person who pressed and is neither stored nor shown to anyone else.
     if on_surface && ok && is_private_scene(&stored) {
         return Ok(Json(RunResponse {
@@ -194,6 +209,7 @@ async fn run(
 }
 
 /// Stores a surface's latest frame and tells everyone watching the channel.
+/// A surface caller holds its `surface_lock` turn, so frames land in press order.
 pub(super) async fn publish_run(
     state: &AppState,
     (message_id, channel_id): (MessageId, ChannelId),
