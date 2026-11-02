@@ -69,7 +69,7 @@ List<Widget> _screenRows(
   if (ref.read(shareWatchProvider).stopped.contains(p.identity)) {
     return [
       AppMenuItem(
-        label: 'Show stream',
+        label: 'Watch stream',
         leading: AppIcons.preview,
         onTap: () {
           close();

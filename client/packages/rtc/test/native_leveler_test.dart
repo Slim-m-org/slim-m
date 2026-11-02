@@ -41,6 +41,8 @@ class _Mic implements MicPort {
   @override
   Future<double?> senderLevelDb() async => null;
   @override
+  Future<double?> capturedSeconds() async => null;
+  @override
   Stream<void> get lost => const Stream.empty();
   @override
   void onRoomEvent(lk.RoomEvent event) {}

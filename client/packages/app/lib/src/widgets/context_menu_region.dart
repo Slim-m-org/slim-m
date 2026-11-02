@@ -178,8 +178,11 @@ class ContextMenuRegionState extends State<ContextMenuRegion> {
   /// Closes the menu or sheet if one is open.
   void close() => _setOpen(false);
 
+  /// Whether the anchored menu or the sheet is showing.
+  bool get isOpen => _controller.isShowing || _sheetOpen;
+
   /// Closes the menu when it is open and opens it otherwise, for a trigger that owns both.
-  void toggle() => _controller.isShowing || _sheetOpen ? close() : open();
+  void toggle({Offset? at}) => isOpen ? close() : open(at: at);
 
   /// [pinRow] mirrors [onOpenChanged]'s own doc: true (the default) for a
   /// right-click and every close, false for a long press, which has nothing

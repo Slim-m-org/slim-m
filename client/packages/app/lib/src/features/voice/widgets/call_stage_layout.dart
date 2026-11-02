@@ -43,6 +43,7 @@ import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
 import 'poor_connection_banner.dart';
 import 'share_stage_grid.dart';
+import 'stopped_shares_banner.dart';
 import 'voice_reconnect_banner.dart';
 import 'direct_play_stage.dart';
 import 'watch_session_bar.dart';
@@ -159,6 +160,7 @@ class CallStageLayout extends ConsumerWidget {
               child: AppErrorState(message: voice.error!),
             ),
           const MicFailureBanner(),
+          const StoppedSharesBanner(),
           const SizedBox(height: AppSpacing.s12),
           Expanded(
             child: AppFadeIn(
@@ -414,6 +416,13 @@ Widget participantTile(
       width: width,
       poorConnection: ref.watch(
         poorConnectionsProvider.select((s) => s.contains(participant.identity)),
+      ),
+      shareHidden: ref.watch(
+        shareWatchProvider.select(
+          (w) =>
+              w.stopped.contains(participant.identity) &&
+              !w.held.contains(participant.identity),
+        ),
       ),
       // CallParticipantTile hands back its own context here - see its own doc.
       onTap: (anchor) => onOpenProfile(anchor, participant),

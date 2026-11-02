@@ -8,9 +8,22 @@ Three independent choices, all stored on the device and edited in Voice settings
   They are the only quality choices in that menu, because they are the only ones about the share.
 - Camera quality (360p, 720p, 1080p): Voice settings only.
   The camera button has no options menu, and a menu on it just for this was not worth the extra control.
-- Watching quality (Auto, Balanced, Data saver): Voice settings only.
+- Watching quality (Max, Auto, Balanced, Data saver): Voice settings, and the quality chip on a share's control strip in the call.
   It caps the layer received, and the pixel size of that layer depends on what each sender publishes, so it keeps plain words instead of invented numbers.
   Data saver asks for the lowest layer of cameras and of shares (960x540 for a share, which publishes only two layers); an enlarged or popped-out tile always gets the top layer.
+  The setting is global, so the chip's menu is headed "Watching quality (all streams)" and a pick there changes every stream and camera, written through the same `receiveVideoQuality` setting Voice settings edits.
+
+## The share's control strip
+
+A share's stage in the call shows a strip along its top right edge: the stream volume (when the share has sound and the stage is at least 400 wide), the live quality chip, full screen, and a button for the tile's menu.
+- It shows while a pointer is over the stage or keyboard focus is inside it, and for four seconds after a touch; an open menu or a volume drag holds it up.
+  Hidden, it is not built, so nothing samples quality until it shows.
+- The chip reads what is arriving now (for example `1080p 30`) from the call stats sampler, and opens the Watching quality pick.
+  Your own share has no chip, since there is nothing received to measure.
+- The strip sits beside the stage's double-click target, so a double press on one of its buttons never enters full screen.
+- Everything on the strip is also in the tile's context menu, which a long press opens on touch.
+- Full screen has its own strip along the bottom: the share's volume (a remote share with sound), mute and deafen.
+  Leave is left off on purpose, since it is one tap from a video you are only watching.
 
 ## Screen share bitrate ceiling
 

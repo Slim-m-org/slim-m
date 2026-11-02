@@ -31,6 +31,9 @@ const mutedBadgeKey = ValueKey('participant-muted-badge');
 /// The sharing glyph on a call tile, for tests to find.
 const sharingBadgeKey = ValueKey('participant-sharing-badge');
 
+/// The glyph a tile shows for a share the viewer stopped watching, for tests to find.
+const hiddenShareBadgeKey = ValueKey('participant-hidden-share-badge');
+
 /// A tile's avatar, for tests to find.
 const callTileAvatarKey = ValueKey('call-tile-avatar');
 
@@ -76,10 +79,15 @@ class TileStateBadges extends StatelessWidget {
     super.key,
     required this.participant,
     required this.stacked,
+    this.shareHidden = false,
   });
 
   final VoiceParticipant participant;
   final bool stacked;
+
+  /// Whether this viewer stopped watching the participant's share, which the
+  /// sharing badge then says instead of the live share glyph.
+  final bool shareHidden;
 
   @override
   Widget build(BuildContext context) {
@@ -114,10 +122,10 @@ class TileStateBadges extends StatelessWidget {
           _badgeCircle(
             tokens,
             Icon(
-              AppIcons.screenShare,
-              key: sharingBadgeKey,
+              shareHidden ? AppIcons.tileHide : AppIcons.screenShare,
+              key: shareHidden ? hiddenShareBadgeKey : sharingBadgeKey,
               size: 12,
-              color: tokens.accent,
+              color: shareHidden ? tokens.textSecondary : tokens.accent,
             ),
           ),
       ],

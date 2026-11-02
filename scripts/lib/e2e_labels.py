@@ -97,8 +97,8 @@ MUTE = "Mute"
 UNMUTE = "Unmute"
 LEAVE_CALL = "Leave call"
 # A share hidden from its tile menu, and shown again from the person's (participant_stream_menu.dart).
-HIDE_STREAM = "Hide stream"
-SHOW_STREAM = "Show stream"
+HIDE_STREAM = "Stop watching"
+SHOW_STREAM = "Watch stream"
 # The mini-player's video, once you leave the call's channel (call_mini_player.dart).
 RETURN_TO_CALL = "Return to the call"
 

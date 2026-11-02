@@ -77,6 +77,12 @@ Future<void> _pumpTile(
   );
 }
 
+/// The slider in the open menu; a hovering pointer also brings up the strip's own.
+final _menuSlider = find.descendant(
+  of: find.bySubtype<AppMenu>(),
+  matching: find.bySubtype<AppSlider>(),
+);
+
 void main() {
   testWidgets('a share with sound shows its volume slider right in the menu', (
     tester,
@@ -86,7 +92,7 @@ void main() {
     await rightClickMenu(tester, find.byType(ScreenShareStage));
 
     expect(find.text('Stream volume'), findsOneWidget);
-    expect(find.byType(AppSlider), findsOneWidget);
+    expect(_menuSlider, findsOneWidget);
     expect(find.text("Ada's screen audio"), findsNothing);
   });
 
@@ -102,7 +108,7 @@ void main() {
     );
 
     await rightClickMenu(tester, find.byType(ScreenShareStage));
-    await tester.drag(find.byType(AppSlider), const Offset(-60, 0));
+    await tester.drag(_menuSlider, const Offset(-60, 0));
     await tester.pumpAndSettle();
 
     expect(volumes, isNotEmpty);

@@ -30,6 +30,7 @@ import 'video_label_pill.dart';
 export 'call_tile_badges.dart'
     show
         deafenedBadgeKey,
+        hiddenShareBadgeKey,
         poorConnectionBadgeKey,
         poorConnectionLabel,
         poorConnectionMessage;
@@ -103,12 +104,16 @@ class CallParticipantTile extends StatelessWidget {
     this.width = kCallTileMinWidth,
     this.contextMenuItemsBuilder,
     this.poorConnection = false,
+    this.shareHidden = false,
   });
 
   final VoiceParticipant participant;
 
   /// Whether this person's audio is breaking up; the tile then says so quietly.
   final bool poorConnection;
+
+  /// Whether this person is sharing a screen the viewer stopped watching.
+  final bool shareHidden;
 
   /// How wide this tile renders, video box and avatar included - the name
   /// label and mute badge stay their own fixed size regardless. Callers
@@ -149,7 +154,8 @@ class CallParticipantTile extends StatelessWidget {
       if (participant.isDeafened) 'deafened',
       if (poorConnection) poorConnectionLabel(participant),
       if (participant.isSpeaking) 'speaking',
-      if (participant.isScreenSharing) 'sharing their screen',
+      if (participant.isScreenSharing)
+        shareHidden ? 'sharing their screen, hidden' : 'sharing their screen',
     ];
     return parts.join(', ');
   }
@@ -230,6 +236,7 @@ class CallParticipantTile extends StatelessWidget {
         top: AppSpacing.s8,
         child: TileStateBadges(
           participant: participant,
+          shareHidden: shareHidden,
           stacked: !feed && badgesReachAvatar(width, avatarSize, participant),
         ),
       ),
