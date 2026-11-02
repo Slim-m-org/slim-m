@@ -12,14 +12,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart' show LocalAudioChannel;
 
 import '../../../desktop/desktop_window_port.dart' show ResizeEdge;
 import '../../../desktop/window_resize_frame.dart';
 import '../providers/call_mini_player.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
-import 'participant_audio_controls.dart' show ParticipantVolumeControl;
+import 'stream_controls_reveal.dart';
+import 'stream_volume_pill.dart';
 
 const popOutWindowKey = Key('popout_window_view');
 const popOutDragRegionKey = Key('popout_drag_region');
@@ -59,8 +59,8 @@ class PopOutWindowView extends ConsumerWidget {
           builder: (context) => Material(
             key: popOutWindowKey,
             color: Colors.black,
-            child: _HoverReveal(
-              builder: (shown) => Stack(
+            child: StreamControlsReveal(
+              builder: (context, shown, hold) => Stack(
                 fit: StackFit.expand,
                 children: [
                   view,
@@ -73,9 +73,10 @@ class PopOutWindowView extends ConsumerWidget {
                     onMute: controller.toggleMicrophone,
                     onLeave: controller.leave,
                     volume: hasSound
-                        ? _StreamVolume(
+                        ? StreamVolumePill(
                             identity: feed.identity,
                             controller: controller,
+                            onHold: hold,
                           )
                         : null,
                   ),
@@ -103,34 +104,6 @@ class PopOutFrame {
   final VoidCallback onMoveStart;
   final void Function(ResizeEdge edge) onResizeStart;
   final VoidCallback onClose;
-}
-
-/// Shows its overlay controls while the pointer is over the window or focus is
-/// inside it, so a keyboard user can still reach them.
-class _HoverReveal extends StatefulWidget {
-  const _HoverReveal({required this.builder});
-
-  final Widget Function(bool shown) builder;
-
-  @override
-  State<_HoverReveal> createState() => _HoverRevealState();
-}
-
-class _HoverRevealState extends State<_HoverReveal> {
-  bool _hovered = false;
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit: (_) => setState(() => _hovered = false),
-    child: Focus(
-      canRequestFocus: false,
-      skipTraversal: true,
-      onFocusChange: (focused) => setState(() => _focused = focused),
-      child: widget.builder(_hovered || _focused),
-    ),
-  );
 }
 
 /// The whole video is the drag handle, since the window has no title bar.
@@ -254,49 +227,4 @@ class _Controls extends StatelessWidget {
       ),
     ],
   );
-}
-
-const double _streamVolumeMaxWidth = 260;
-
-/// The shared screen's own volume, on a raised pill so it reads over any picture.
-class _StreamVolume extends StatelessWidget {
-  const _StreamVolume({required this.identity, required this.controller});
-
-  final String identity;
-  final VoiceController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: _streamVolumeMaxWidth),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-        decoration: BoxDecoration(
-          color: tokens.surfaceRaised,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: tokens.borderSubtle),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              AppIcons.speaker,
-              size: AppSizes.icon16,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            Expanded(
-              child: ParticipantVolumeControl(
-                identity: identity,
-                controller: controller,
-                channel: LocalAudioChannel.screen,
-                showLabel: false,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

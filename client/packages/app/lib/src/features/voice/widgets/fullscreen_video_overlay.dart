@@ -27,6 +27,8 @@ import '../providers/fullscreen_video.dart';
 import '../../../providers/phone_landscape.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
+import 'fullscreen_video_controls.dart';
+import 'stream_controls_reveal.dart';
 
 /// Which live view a tile was showing when it was expanded.
 enum FullscreenVideoKind { camera, screenShare }
@@ -84,12 +86,6 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
   /// Set the instant a pop is scheduled, so a participant leaving *and* their
   /// camera flag flipping in the same frame cannot schedule the pop twice.
   bool _exiting = false;
-
-  /// Touch toggles the name line and close control with a tap on the video.
-  bool _tapShown = true;
-
-  /// A pointer over the video reveals them, and leaving hides them again.
-  bool _hovered = false;
 
   late final WindowFullscreenHold _windowHold;
 
@@ -179,32 +175,51 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
               ? controller.cameraViewFor(widget.identity)
               : controller.screenShareViewFor(widget.identity))
         : const SizedBox.shrink();
-    final shown = _hovered || _tapShown;
-    final Widget stage = MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() {
-        _hovered = false;
-        _tapShown = false;
-      }),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _tapShown = !_tapShown),
-        child: Stack(
-          children: [
-            Positioned.fill(child: video),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                bottom: false,
+    final remoteSound =
+        widget.kind == FullscreenVideoKind.screenShare &&
+        participants.any(
+          (p) =>
+              p.identity == widget.identity &&
+              !p.isLocal &&
+              controller.volumes.hasScreenAudio(p.identity),
+        );
+    // A touch shows the controls for a few seconds, a pointer while it is over the video.
+    final Widget stage = StreamControlsReveal(
+      initiallyShown: true,
+      tapToggles: true,
+      builder: (context, shown, hold) => Stack(
+        children: [
+          Positioned.fill(child: video),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: shown
+                  ? _VideoHeader(label: widget.label, onClose: _exit)
+                  : const SizedBox.shrink(),
+            ),
+          ),
+          Positioned(
+            bottom: 0,
+            left: AppSpacing.s16,
+            right: AppSpacing.s16,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.s16),
                 child: shown
-                    ? _VideoHeader(label: widget.label, onClose: _exit)
+                    ? FullscreenVideoControls(
+                        identity: widget.identity,
+                        showVolume: remoteSound,
+                        onHold: hold,
+                      )
                     : const SizedBox.shrink(),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// A share tile carries no corner buttons: pop out, stream volume, hide and
 /// full screen live in its context menu, reached by right-click, long-press
-/// or the menu key, and a hidden stream gets "Show stream" on the person.
+/// or the menu key, and a hidden stream gets "Watch stream" on the person.
 library;
 
 import 'package:flutter/material.dart';
@@ -19,7 +19,7 @@ import 'package:slimm_rtc/rtc.dart';
 import '../../support/menu_gestures.dart';
 import 'voice_controller_harness.dart';
 
-const _items = ['Pop out stream', 'Hide stream', 'Full screen'];
+const _items = ['Pop out stream', 'Stop watching', 'Full screen'];
 
 Future<({ProviderContainer container, List<String> calls})> _pumpStage(
   WidgetTester tester,
@@ -90,7 +90,7 @@ void main() {
       expect(rig.container.read(popOutFeedProvider)?.identity, 'u-ada');
 
       for (final (label, call) in [
-        ('Hide stream', 'hide'),
+        ('Stop watching', 'hide'),
         ('Full screen', 'fullscreen'),
       ]) {
         await entry.value(tester);
@@ -149,11 +149,11 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Show stream'), findsOneWidget);
-    expect(find.text('Hide stream'), findsNothing);
+    expect(find.text('Watch stream'), findsOneWidget);
+    expect(find.text('Stop watching'), findsNothing);
     expect(session.videoBlocked.last, isNotEmpty, reason: 'hidden is blocked');
 
-    await tester.tap(find.text('Show stream'));
+    await tester.tap(find.text('Watch stream'));
     await tester.pump();
     expect(harness.container.read(shareWatchProvider).stopped, isEmpty);
     expect(session.videoBlocked.last, isEmpty, reason: 'shown is unblocked');

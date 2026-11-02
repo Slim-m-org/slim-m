@@ -16,6 +16,8 @@ import '../../../widgets/double_click_detector.dart';
 import '../../messages/widgets/media_label.dart';
 import '../providers/popout_window.dart';
 import 'share_stage_controls.dart';
+import 'stream_control_strip.dart';
+import 'stream_controls_reveal.dart';
 import '../../../widgets/context_menu_region.dart';
 
 /// A dark stage with the share inside it, labelled on hover.
@@ -31,11 +33,16 @@ import '../../../widgets/context_menu_region.dart';
 /// terms as the canvas tile's own - hiding it in place instead would reflow
 /// the video every time a pointer crossed it.
 ///
+/// A control strip (volume, live quality, full screen, the menu) shows on
+/// hover, on keyboard focus, or for a few seconds after a touch; see
+/// [StreamControlStrip]. The same actions stay in the context menu, which a
+/// long press opens on touch.
+///
 /// The local caption reads as a full sentence ("You are sharing your
 /// screen") rather than a bare label ("Your screen"): it is what is left to
 /// confirm a live share once `local_screen_share_banner.dart`'s own banner
 /// is withheld here to avoid saying the identical thing twice.
-class ScreenShareStage extends ConsumerWidget {
+class ScreenShareStage extends ConsumerStatefulWidget {
   const ScreenShareStage({
     super.key,
     required this.sharerName,
@@ -49,7 +56,15 @@ class ScreenShareStage extends ConsumerWidget {
     this.showCaption = true,
     this.streamVolume,
     this.quality,
+    this.stripVolume,
+    this.stripQuality,
   });
+
+  /// The strip's inline volume pill, called with the strip's hold callback; null when the share carries no sound.
+  final Widget Function(ValueChanged<bool> hold)? stripVolume;
+
+  /// The strip's live quality chip, called with the strip's hold callback; null for a local share.
+  final Widget Function(ValueChanged<bool> hold)? stripQuality;
 
   /// Off where a caption under the tile already names the sharer, as in the share grid.
   final bool showCaption;
@@ -83,73 +98,113 @@ class ScreenShareStage extends ConsumerWidget {
   final String? popOutIdentity;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tokens = Theme.of(context).extension<AppTokens>()!;
-    final stage = PointerRevealed(
-      builder: (context, revealed) => DoubleClickDetector(
-        onDoubleClick: onExpand,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF000000),
-                    border: Border.all(color: tokens.borderSubtle),
-                    borderRadius: BorderRadius.circular(AppRadii.card),
-                  ),
-                  child: child,
+  ConsumerState<ScreenShareStage> createState() => _ScreenShareStageState();
+}
+
+class _ScreenShareStageState extends ConsumerState<ScreenShareStage> {
+  final _menu = GlobalKey<ContextMenuRegionState>();
+  final _menuGroup = Object();
+
+  void _toggleMenu(BuildContext button) {
+    final box = button.findRenderObject() as RenderBox?;
+    final at = box?.localToGlobal(Offset(0, box.size.height));
+    _menu.currentState?.toggle(at: at);
+  }
+
+  Widget _video(BuildContext context, AppTokens tokens) => DoubleClickDetector(
+    onDoubleClick: widget.onExpand,
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: PointerRevealed(
+        builder: (context, revealed) => Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF000000),
+                  border: Border.all(color: tokens.borderSubtle),
+                  borderRadius: BorderRadius.circular(AppRadii.card),
                 ),
+                child: widget.child,
               ),
-              if (showCaption)
-                Positioned(
-                  left: 6,
-                  bottom: 6,
-                  right: 6,
-                  child: Align(
-                    alignment: Alignment.bottomLeft,
-                    child: RevealFade(
-                      revealed: revealed,
-                      child: MediaLabelChip(
-                        icon: AppIcons.screenShare,
-                        label: isLocal
-                            ? 'You are sharing your screen'
-                            : "$sharerName's screen",
-                      ),
+            ),
+            if (widget.showCaption)
+              Positioned(
+                left: 6,
+                bottom: 6,
+                right: 6,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: RevealFade(
+                    revealed: revealed,
+                    child: MediaLabelChip(
+                      icon: AppIcons.screenShare,
+                      label: widget.isLocal
+                          ? 'You are sharing your screen'
+                          : "${widget.sharerName}'s screen",
                     ),
                   ),
                 ),
-            ],
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = Theme.of(context).extension<AppTokens>()!;
+    final popOutId = widget.popOutIdentity;
+    final canPopOut =
+        popOutId != null &&
+        !widget.isLocal &&
+        ref.watch(popOutSupportedProvider);
+    return StreamControlsReveal(
+      builder: (context, shown, hold) => ContextMenuRegion(
+        key: _menu,
+        tapRegionGroupId: _menuGroup,
+        onOpenChanged: hold,
+        itemsBuilder: (_, close) => shareStageMenuItems(
+          close,
+          ShareStageMenu(
+            sharerName: widget.sharerName,
+            onPopOut: canPopOut
+                ? () => ref.read(popOutFeedProvider.notifier).state = (
+                    identity: popOutId,
+                    name: widget.sharerName,
+                    kind: FeedKind.screenShare,
+                  )
+                : null,
+            streamVolume: widget.streamVolume,
+            quality: widget.quality,
+            onFocus: widget.onFocus,
+            focused: widget.focused,
+            onStopWatching: widget.onStopWatching,
+            onFullscreen: widget.onExpand,
           ),
         ),
-      ),
-    );
-    final popOutId = popOutIdentity;
-    final canPopOut =
-        popOutId != null && !isLocal && ref.watch(popOutSupportedProvider);
-    return ContextMenuRegion(
-      itemsBuilder: (_, close) => shareStageMenuItems(
-        close,
-        ShareStageMenu(
-          sharerName: sharerName,
-          onPopOut: canPopOut
-              ? () => ref.read(popOutFeedProvider.notifier).state = (
-                  identity: popOutId,
-                  name: sharerName,
-                  kind: FeedKind.screenShare,
-                )
-              : null,
-          streamVolume: streamVolume,
-          quality: quality,
-          onFocus: onFocus,
-          focused: focused,
-          onStopWatching: onStopWatching,
-          onFullscreen: onExpand,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _video(context, tokens),
+            Positioned(
+              top: AppSpacing.s8,
+              left: AppSpacing.s8,
+              right: AppSpacing.s8,
+              child: StreamControlStrip(
+                shown: shown,
+                menuGroup: _menuGroup,
+                onMore: _toggleMenu,
+                onFullscreen: widget.onExpand,
+                volume: widget.stripVolume?.call(hold),
+                quality: widget.stripQuality?.call(hold),
+              ),
+            ),
+          ],
         ),
       ),
-      child: stage,
     );
   }
 }

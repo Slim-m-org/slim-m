@@ -78,7 +78,7 @@ def _hide_show_and_unseen(a, b, pb, room_id):
     b.wait_for(L.SHOW_STREAM)
     b.click(L.SHOW_STREAM, settle=3)
     wait_for_videos(pb, sids, 1)
-    print("  Show stream from alice's menu brings the video back")
+    print("  Watch stream from alice's menu brings the video back")
 
     _set_page_visible(b, False)
     _assert_nothing_decodes(pb, "page hidden", settle=DWELL_SECONDS)

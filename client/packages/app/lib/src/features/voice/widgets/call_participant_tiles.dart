@@ -94,12 +94,16 @@ class CallParticipantTile extends StatelessWidget {
     this.width = kCallTileMinWidth,
     this.contextMenuItemsBuilder,
     this.poorConnection = false,
+    this.shareHidden = false,
   });
 
   final VoiceParticipant participant;
 
   /// Whether this person's audio is breaking up; the tile then says so quietly.
   final bool poorConnection;
+
+  /// Whether this person is sharing a screen the viewer stopped watching.
+  final bool shareHidden;
 
   /// How wide this tile renders, video box and avatar included - the name
   /// label and mute badge stay their own fixed size regardless. Callers
@@ -140,7 +144,8 @@ class CallParticipantTile extends StatelessWidget {
       if (participant.isDeafened) 'deafened',
       if (poorConnection) poorConnectionLabel(participant),
       if (participant.isSpeaking) 'speaking',
-      if (participant.isScreenSharing) 'sharing their screen',
+      if (participant.isScreenSharing)
+        shareHidden ? 'sharing their screen, hidden' : 'sharing their screen',
     ];
     return parts.join(', ');
   }
@@ -206,6 +211,7 @@ class CallParticipantTile extends StatelessWidget {
         top: AppSpacing.s8,
         child: _StateBadge(
           participant: participant,
+          shareHidden: shareHidden,
           stacked:
               !_showsCamera &&
               _badgesReachAvatar(width, avatarSize, participant),
@@ -347,9 +353,14 @@ class _PoorConnectionBadge extends StatelessWidget {
 }
 
 class _StateBadge extends StatelessWidget {
-  const _StateBadge({required this.participant, required this.stacked});
+  const _StateBadge({
+    required this.participant,
+    required this.stacked,
+    required this.shareHidden,
+  });
 
   final VoiceParticipant participant;
+  final bool shareHidden;
 
   /// Badges stack in a column when a row of them would run under the avatar.
   final bool stacked;
@@ -358,10 +369,16 @@ class _StateBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppTokens>()!;
     final mutedIcon = participant.isMuted ? AppIcons.micOff : AppIcons.mic;
+    final sharing = participant.isScreenSharing;
     final main = Icon(
-      participant.isScreenSharing ? AppIcons.screenShare : mutedIcon,
+      sharing
+          ? (shareHidden ? AppIcons.tileHide : AppIcons.screenShare)
+          : mutedIcon,
+      key: sharing && shareHidden ? hiddenShareBadgeKey : null,
       size: 12,
-      color: participant.isMuted ? tokens.textSecondary : tokens.accent,
+      color: participant.isMuted || (sharing && shareHidden)
+          ? tokens.textSecondary
+          : tokens.accent,
     );
     return Flex(
       direction: stacked ? Axis.vertical : Axis.horizontal,
@@ -386,6 +403,9 @@ class _StateBadge extends StatelessWidget {
 
 /// The unstable-connection glyph on a call tile, for tests to find.
 const poorConnectionBadgeKey = ValueKey('participant-poor-connection-badge');
+
+/// The glyph a tile shows for a share the viewer stopped watching, for tests to find.
+const hiddenShareBadgeKey = ValueKey('participant-hidden-share-badge');
 
 /// The deafened glyph on a call tile, for tests to find.
 const deafenedBadgeKey = ValueKey('participant-deafened-badge');

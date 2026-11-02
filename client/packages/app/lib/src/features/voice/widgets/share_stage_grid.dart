@@ -12,7 +12,9 @@ import 'focusable_video_press.dart';
 import 'fullscreen_video_overlay.dart';
 import 'screen_share_stage.dart';
 import 'share_stage_controls.dart';
+import 'stream_quality_chip.dart';
 import 'stream_quality_row.dart';
+import 'stream_volume_pill.dart';
 
 const double _shareAspect = 16 / 9;
 const double _gap = AppSpacing.s12;
@@ -28,6 +30,28 @@ int shareGridColumns(double windowWidth, int count) {
   if (windowWidth < shareGridWideMinWidth) return 2;
   return count == 2 || count == 4 ? 2 : 3;
 }
+
+/// The strip's inline volume for [sharer]'s share.
+Widget shareStripVolume(
+  VoiceParticipant sharer,
+  VoiceController controller,
+  ValueChanged<bool> hold,
+) => StreamVolumePill(
+  identity: sharer.identity,
+  controller: controller,
+  onHold: hold,
+);
+
+/// The strip's live quality chip for [sharer]'s share.
+Widget shareStripQuality(
+  VoiceParticipant sharer,
+  VoiceController controller,
+  ValueChanged<bool> hold,
+) => StreamQualityChip(
+  sampler: controller.callStats,
+  identity: sharer.identity,
+  onHold: hold,
+);
 
 /// One share's stage tile, with the opt-out and focus controls bound to it.
 Widget shareStageTile(
@@ -50,6 +74,13 @@ Widget shareStageTile(
       !sharer.isLocal && controller.volumes.hasScreenAudio(sharer.identity)
       ? streamVolumeSlider(sharer.identity, controller)
       : null,
+  stripVolume:
+      !sharer.isLocal && controller.volumes.hasScreenAudio(sharer.identity)
+      ? (hold) => shareStripVolume(sharer, controller, hold)
+      : null,
+  stripQuality: sharer.isLocal
+      ? null
+      : (hold) => shareStripQuality(sharer, controller, hold),
   quality: sharer.isLocal
       ? null
       : StreamQualityRow(
