@@ -110,3 +110,4 @@ Take the next free number from `origin/main` at the moment you open the PR, sinc
 | [0099](0099-private-scenes.md) | A scene can be private to the person who pressed, which needs add-on API 2 | accepted |
 | [0100](0100-module-safety-contracts.md) | Module safety: API ranges, member data purge, host-bound secrets, interceptors and the deny-only permission hook | accepted |
 | [0101](0101-halloween-theme-and-backdrops.md) | Halloween is the seventh palette, and a theme can carry a procedural backdrop | accepted |
+| [0103](0103-level-after-suppression.md) | Strong levels the microphone after suppression: libwebrtc's auto gain goes off and the chain's leveler takes over | accepted |

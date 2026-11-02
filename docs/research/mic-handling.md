@@ -67,6 +67,7 @@ Facts:
 
 Recommendations:
 - Keep order AEC -> NS -> AGC -> rnnoise -> gate -> compressor/limiter.
+  Superseded 2026-11-02 for Strong and Strongest: AGC1 lifted quiet mouth sounds into the band rnnoise keeps (chewing came out 2.2 dB louder than sent with it on, 2.3 dB quieter with it off), so under Strong the capture opens with AGC off and the chain's dynamics stage levels after suppression; see decision 0103 and `voice-transients-2026-11-02.md`.
 - When strong NS is on, consider turning off WebRTC NS rather than stacking. Not possible from the hook alone; requires passing `noiseSuppression:false` in constraints when `Strong` is chosen. Needs an A/B listen test before committing (P4).
 - Surface "strong NS inactive at this sample rate" in the settings UI instead of silently passing audio through (or resample 16k/44.1k -> 48k inside the hook; rnnoise is 48k only).
 
