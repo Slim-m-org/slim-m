@@ -98,6 +98,20 @@ class Noise(unittest.TestCase):
         got = self.run_with(self.mix[0])
         self.assertGreater(got["bark_speech"]["excess_over_speech_db"], 2.0)
 
+    def test_the_loudest_frame_of_an_event_is_reported_next_to_its_mean(self):
+        got = self.run_with(self.mix[0])
+        self.assertAlmostEqual(got["typing_gap"]["peak_change_db"], 0.0, delta=0.5)
+        rec = [v * 0.5 for v in self.mix[0]]
+        self.assertAlmostEqual(self.run_with(rec)["typing_gap"]["peak_change_db"], -6.0, delta=1.0)
+
+    def test_a_gap_event_is_placed_against_the_voice_as_heard(self):
+        got = self.run_with(self.mix[0])
+        sent_gap = got["typing_gap"]["over_speech_db"]
+        self.assertIsNotNone(sent_gap)
+        louder = [v * 2 if 4.0 <= i / RATE < 5.0 else v for i, v in enumerate(self.mix[0])]
+        self.assertAlmostEqual(self.run_with(louder)["typing_gap"]["over_speech_db"] - sent_gap, 6.0, delta=1.0)
+        self.assertNotIn("over_speech_db", got["bark_speech"])
+
 
 class LoopedRecording(unittest.TestCase):
     # Aperiodic on purpose: a clip that repeats within the loop has several equally good alignments.

@@ -57,9 +57,13 @@ class Aligned:
 
 def _pair(sent, got, frames):
     if not frames:
-        return {"sent_db": None, "arrived_db": None, "change_db": None}
+        return {"sent_db": None, "arrived_db": None, "change_db": None, "peak_change_db": None}
     s, g = _power_mean([sent[i] for i in frames]), _power_mean([got[i] for i in frames])
-    return {"sent_db": round(s, 2), "arrived_db": round(g, 2), "change_db": round(g - s, 2)}
+    # The loudest 10 ms frame is what a listener notices, so the worst frame is kept next to the mean.
+    peak = max(got[i] - sent[i] for i in frames if sent[i] > SPEECH_DB) \
+        if any(sent[i] > SPEECH_DB for i in frames) else None
+    return {"sent_db": round(s, 2), "arrived_db": round(g, 2), "change_db": round(g - s, 2),
+            "peak_change_db": None if peak is None else round(peak, 2)}
 
 
 def _excess(view, level, frames, gain):
@@ -99,6 +103,7 @@ def analyze(clean, mix, rec, speech_spans, events):
                          MARGIN_S))
     live = [i for i in speech if view.clean[i] > SPEECH_DB]
     gain = statistics.median(view.rec[i] - view.clean[i] for i in live) if live else 0.0
+    arrived_speech = _power_mean([view.rec[i] for i in live]) if live else None
     out = {"speech_level_change_db": round(gain, 2),
            "hum_floor": _pair(view.mix, view.rec,
                               [i for i in range(view.frames) if i not in busy])}
@@ -108,6 +113,9 @@ def analyze(clean, mix, rec, speech_spans, events):
         if event["kind"].endswith("speech"):
             pair["excess_over_speech_db"] = _excess(view, view.rec, frames, gain)
             pair["sent_excess_over_speech_db"] = _excess(view, view.mix, frames, 0.0)
+        elif arrived_speech is not None and pair["arrived_db"] is not None:
+            # How a gap event sits against the voice as heard: 0 means as loud as talking.
+            pair["over_speech_db"] = round(pair["arrived_db"] - arrived_speech, 2)
         out[event["kind"]] = pair
     out["onsets"] = _onset_loss(view, gain, speech)
     out["onsets"]["loud"] = _onset_loss(view, gain, speech, LOUD_ONSET_DB)

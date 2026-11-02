@@ -52,6 +52,7 @@ import e2e_share_quality
 import e2e_voice_noise
 import e2e_voice_desktop
 import e2e_voice_desktop_volume
+import e2e_voice_transients
 import e2e_voice_experience
 import e2e_voice_latency
 import e2e_voice_quality
@@ -367,6 +368,10 @@ def scenarios(a, b, admin, member, room_id, server, secret):
         ("volume slider on the desktop: the Linux client's playback level per slider "
          "value (opt in with E2E_ONLY)",
          lambda: e2e_voice_desktop_volume.run_if_selected(
+             server, secret, admin, sign_in)),
+        ("voice transients: chewing, smacks, a swallow and a breath through the Linux "
+         "client per suppression arm (opt in with E2E_ONLY)",
+         lambda: e2e_voice_transients.run_if_selected(
              server, secret, admin, sign_in)),
         ("account: two tabs share one token refresh and both stay signed in",
          lambda: e2e_tabs.two_tabs_survive_rotations(server, admin, sign_in)),
