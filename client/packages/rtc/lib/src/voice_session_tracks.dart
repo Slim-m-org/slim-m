@@ -42,6 +42,7 @@ extension VoiceSessionTracks on VoiceSession {
       if (event is lk.RoomDisconnectedEvent) {
         return _onDisconnected(event.reason);
       }
+      _syncStatsHold();
       _refreshParticipants();
     });
   }
@@ -95,6 +96,7 @@ extension VoiceSessionTracks on VoiceSession {
     final room = _room;
     _room = null;
     _stopStallWatch();
+    _releaseStats();
     _stopMicWatch();
     _stopHealthWatch();
     _strong.reset();
@@ -224,6 +226,7 @@ extension VoiceSessionTracks on VoiceSession {
     _state = next;
     _syncMicWatch(next);
     _syncHealthWatch(next);
+    _syncCallDiagnostics(next);
     if (next == VoiceSessionState.connected) {
       unawaited(_applyInputGate());
       _applyGateRate();

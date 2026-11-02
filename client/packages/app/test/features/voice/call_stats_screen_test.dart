@@ -6,15 +6,13 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:slimm_api/api.dart';
-import 'package:slimm_app/src/providers/providers.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/screens/call_stats_screen.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_stats_lines.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
+import 'call_stats_harness.dart';
 import 'voice_settings_screen_harness.dart';
 
 const _sample = VideoStatsSample(
@@ -40,35 +38,6 @@ const _sample = VideoStatsSample(
   transport: TransportStats(rttMs: 42, localType: 'host', protocol: 'udp'),
 );
 
-List<Override> _overrides(FakeSession session) => [
-  sessionProvider.overrideWithValue(SessionStore(tokens: tokens)),
-  apiProvider.overrideWith((ref) {
-    final api = SlimmApi(
-      baseUrl: Uri.parse('http://localhost:8080'),
-      session: ref.watch(sessionProvider),
-      httpClient: voiceTokenClient(),
-    );
-    ref.onDispose(api.close);
-    return api;
-  }),
-  voiceControllerProvider.overrideWith(
-    (ref) => VoiceController(ref, session: session),
-  ),
-];
-
-Widget _screen(FakeSession session) => UncontrolledProviderScope(
-  container: ProviderContainer(
-    overrides: [
-      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ..._overrides(session),
-    ],
-  )..read(preferencesProvider),
-  child: MaterialApp(
-    theme: buildTheme(Brightness.light, AppTokens.light),
-    home: const CallStatsScreen(),
-  ),
-);
-
 void main() {
   testWidgets('outside a call it says so and starts no sampling', (
     tester,
@@ -81,10 +50,10 @@ void main() {
           return const [];
         },
       );
-    await tester.pumpWidget(_screen(session));
+    await tester.pumpWidget(callStatsScreenFor(session));
     await tester.pumpAndSettle();
 
-    expect(find.text('Join a call to see its video stats.'), findsOneWidget);
+    expect(find.text('Join a call to see its stats.'), findsOneWidget);
     expect(session.callStats.running, isFalse);
     expect(asked, 0);
   });
@@ -114,7 +83,7 @@ void main() {
           ),
         ],
       );
-    await tester.pumpWidget(_screen(session));
+    await tester.pumpWidget(callStatsScreenFor(session));
     await tester.pumpAndSettle();
     final controller = ProviderScope.containerOf(
       tester.element(find.byType(CallStatsScreen)),
@@ -140,7 +109,7 @@ void main() {
   ) async {
     final session = FakeSession()
       ..callStats = CallStatsSampler(targets: () => const []);
-    await tester.pumpWidget(_screen(session));
+    await tester.pumpWidget(callStatsScreenFor(session));
     await tester.pumpAndSettle();
     final controller = ProviderScope.containerOf(
       tester.element(find.byType(CallStatsScreen)),
@@ -148,6 +117,7 @@ void main() {
     await controller.join('channel-1');
     await tester.pumpAndSettle();
     expect(session.callStats.logging, isFalse);
+    expect(find.text('Log every sample'), findsOneWidget);
 
     await tester.tap(find.byType(AppToggle));
     await tester.pumpAndSettle();

@@ -327,8 +327,11 @@ class VoiceController extends StateNotifier<VoiceState> {
   /// Per-person audio quality and the last call's summary.
   VoiceHealth get health => _session.health;
 
-  /// Live per-track video numbers; sampled only while something listens.
+  /// Live per-track video numbers; sampled while something listens or we publish video.
   CallStatsSampler get callStats => _session.callStats;
+
+  /// What a call report is built from; see [CallDiagnostics].
+  CallDiagnostics get diagnostics => _session.diagnostics;
 
   /// Toggles local playback of everyone else's audio; independent of muting.
   Future<void> toggleDeafen() async {

@@ -23,6 +23,7 @@ export 'src/audio_publish_options.dart';
 export 'src/voice_processing.dart';
 export 'src/screen_share_audio_options.dart';
 export 'src/broadcast_bridge.dart';
+export 'src/call_diagnostics.dart' show CallDiagnostics, kDiagnosticsSummaryCap;
 export 'src/call_stats.dart';
 export 'src/strong_noise_suppression.dart';
 export 'src/strong_inactivity.dart';
@@ -74,8 +75,9 @@ export 'src/voice_health.dart'
         kPoorRttMs,
         kPoorSustain,
         kRecoverSustain;
-export 'src/voice_health_summary.dart' show CallHealthSummary, HealthStats;
-export 'src/voice_health_window.dart' show HealthInterval;
+export 'src/voice_health_summary.dart'
+    show CallHealthSummary, HealthStats, NamedWindow;
+export 'src/voice_health_window.dart' show HealthInterval, HealthWindow;
 export 'src/voice_models.dart';
 export 'src/voice_roster_snapshot.dart'
     show

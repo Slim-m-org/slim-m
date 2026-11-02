@@ -13,6 +13,8 @@ mixin VideoQualityRecorder {
 
   VoiceHealth health = VoiceHealth();
 
+  CallDiagnostics diagnostics = CallDiagnostics();
+
   ValueNotifier<Map<String, VideoTileHealth>> videoHealth = ValueNotifier(
     const {},
   );

@@ -174,8 +174,17 @@ class VideoStatsSample {
   final List<VideoStreamStats> streams;
   final TransportStats? transport;
 
-  String get key => '${local ? 'out' : 'in'}/$identity/${source.name}';
+  String get key =>
+      statsTrackKey(local: local, identity: identity, source: source);
 }
+
+/// The id one track keeps across samples: direction, who, and camera or share.
+String statsTrackKey({
+  required bool local,
+  required String identity,
+  required CallStatsSource source,
+}) =>
+    '${local ? 'out' : 'in'}/$identity/${source.name}';
 
 /// Parses [entries] from one sender or receiver into a sample.
 ///
@@ -205,7 +214,7 @@ VideoStatsSample parseVideoStats(
     source: source,
     local: local,
     streams: streams,
-    transport: _parseTransport(entries, byId),
+    transport: parseTransportStats(entries),
   );
 }
 
@@ -271,10 +280,9 @@ double? _bitrate(num? bytes, num timestampMs, VideoStreamStats? previous) {
   return (bytes - lastBytes) * 8 / seconds;
 }
 
-TransportStats? _parseTransport(
-  List<StatsEntry> entries,
-  Map<String, StatsEntry> byId,
-) {
+/// The nominated network path in [entries], or null when the report has none.
+TransportStats? parseTransportStats(List<StatsEntry> entries) {
+  final byId = {for (final e in entries) e.id: e};
   final pair = entries
       .where((e) => e.type == 'candidate-pair')
       .where((e) =>

@@ -26,7 +26,7 @@ class CallStatsRow extends StatelessWidget {
     return SettingsDetailRow(
       icon: AppIcons.requestLatency,
       title: 'Call stats',
-      detail: 'Live video numbers for a call.',
+      detail: 'Live audio and video numbers for a call.',
       trailing: const Icon(AppIcons.chevronRight, size: AppSizes.icon16),
       onTap: () => unawaited(context.push(Routes.callStats)),
     );

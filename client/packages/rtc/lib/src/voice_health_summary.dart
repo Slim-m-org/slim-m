@@ -96,6 +96,10 @@ class NamedWindow {
   final bool local;
 }
 
+/// How the once-a-minute line and the end-of-call lines begin, for whoever files them.
+const String kHealthMinutePrefix = '[voice-health] last 60s';
+const String kHealthSummaryPrefix = '[voice-health] call summary';
+
 String _pct(double? v) => v == null ? '?' : '${(v * 100).toStringAsFixed(1)}%';
 String _ms(double? v) => v == null ? '?' : '${v.round()}ms';
 String _db(double? level) =>
@@ -105,7 +109,7 @@ String _db(double? level) =>
 String? minuteLine(List<NamedWindow> windows) {
   if (windows.isEmpty) return null;
   final parts = [for (final w in windows) _windowPart(w)];
-  return '[voice-health] last 60s | ${parts.join(' | ')}';
+  return '$kHealthMinutePrefix | ${parts.join(' | ')}';
 }
 
 String _windowPart(NamedWindow w) {
@@ -124,11 +128,11 @@ String _windowPart(NamedWindow w) {
 /// The lines logged when a call ends: everyone pooled, then each person.
 List<String> summaryLines(CallHealthSummary summary) => [
       if (summary.peers.isNotEmpty)
-        '[voice-health] call summary ${_stats(summary.remote)}',
+        '$kHealthSummaryPrefix ${_stats(summary.remote)}',
       for (final e in summary.peers.entries)
-        '[voice-health] call summary ${e.key}: ${_stats(e.value)}',
+        '$kHealthSummaryPrefix ${e.key}: ${_stats(e.value)}',
       if (summary.local case final local?)
-        '[voice-health] call summary you: ${_statsLocal(local)}',
+        '$kHealthSummaryPrefix you: ${_statsLocal(local)}',
     ];
 
 String _stats(HealthStats s) => 'over ${s.seconds.round()}s '

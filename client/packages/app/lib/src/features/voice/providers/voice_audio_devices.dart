@@ -32,6 +32,10 @@ class VoiceAudioDevices {
   /// [VoiceSession.audioOutputInUse].
   String? get audioOutputInUse => _session.audioOutputInUse;
 
+  /// The microphone in use, null for the system default; see
+  /// [VoiceSession.audioInputInUse].
+  String? get audioInputInUse => _session.audioInputInUse;
+
   /// Fires when the platform's own device list changes; see
   /// [VoiceSession.audioDeviceChanges].
   Stream<void> get audioDeviceChanges => _session.audioDeviceChanges;

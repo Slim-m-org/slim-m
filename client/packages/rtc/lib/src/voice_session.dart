@@ -28,6 +28,7 @@ import 'audio_gain.dart' as rtc_gain;
 import 'audio_glitch_watch.dart';
 import 'audio_stats.dart';
 import 'broadcast_bridge.dart';
+import 'call_diagnostics.dart';
 import 'call_stats.dart';
 import 'call_stats_sampler.dart';
 import 'camera_devices.dart';
@@ -48,6 +49,7 @@ import 'screen_share_local.dart';
 import 'share_audio_isolation.dart';
 import 'speaking_hold.dart';
 import 'strong_noise_suppression.dart';
+import 'track_stats_summary.dart';
 import 'video_quality.dart';
 import 'video_stall_watchdog.dart';
 import 'video_subscription_culler.dart';
@@ -222,11 +224,15 @@ class VoiceSession
   StreamSubscription<CallStatsSnapshot>? _stallStats;
   final _activeVideoKeys = <String>{};
 
-  /// Per-track video stats, sampled only while something is listening.
+  /// Per-track video stats, sampled while somebody watches, listens or we publish video.
   late final callStats = CallStatsSampler(
     targets: () => _callStatsTargets(),
     log: (line) => AppLog.debug(LogTag.voice, line),
+    onSample: _onStatsSample,
   );
+
+  late final _trackSummaries =
+      TrackStatsSummary(onSummary: _recordTrackSummary);
 
   @override
   lk.Room? _room;
