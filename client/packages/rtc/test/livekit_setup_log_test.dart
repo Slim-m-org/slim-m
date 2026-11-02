@@ -30,6 +30,8 @@ void main() {
     final session = VoiceSession(
       roomFactory: ConnectlessRoom.new,
       audioLog: (message, {level = LogLevel.info}) => lines.add(message),
+      // The real device list warms up through flutter_webrtc after a leave, which needs a platform.
+      audioDevices: NoDevices(),
       inputGate: InputGateMonitor.disabled(),
     );
     addTearDown(session.dispose);
