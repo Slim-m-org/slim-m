@@ -12,7 +12,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
-import 'package:slimm_rtc/rtc.dart' show LocalAudioChannel;
+import 'package:slimm_rtc/rtc.dart'
+    show CameraFit, CameraFitScope, LocalAudioChannel;
 
 import '../../../desktop/desktop_window_port.dart' show ResizeEdge;
 import '../../../desktop/window_resize_frame.dart';
@@ -40,7 +41,10 @@ class PopOutWindowView extends ConsumerWidget {
     );
     final view = switch (feed.kind) {
       FeedKind.screenShare => controller.screenShareViewFor(feed.identity),
-      FeedKind.camera => controller.cameraViewFor(feed.identity),
+      FeedKind.camera => CameraFitScope(
+        fit: CameraFit.contain,
+        child: controller.cameraViewFor(feed.identity),
+      ),
     };
     // Rebuilt on roster changes so the volume appears once the share's sound arrives.
     ref.watch(voiceControllerProvider.select((v) => v.participants));

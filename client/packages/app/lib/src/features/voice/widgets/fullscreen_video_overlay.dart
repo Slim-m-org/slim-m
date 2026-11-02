@@ -176,7 +176,10 @@ class _FullscreenVideoViewState extends ConsumerState<FullscreenVideoView>
     final real = MediaQueryData.fromView(View.of(context));
     final video = live
         ? (widget.kind == FullscreenVideoKind.camera
-              ? controller.cameraViewFor(widget.identity)
+              ? CameraFitScope(
+                  fit: CameraFit.contain,
+                  child: controller.cameraViewFor(widget.identity),
+                )
               : controller.screenShareViewFor(widget.identity))
         : const SizedBox.shrink();
     final shown = _hovered || _tapShown;

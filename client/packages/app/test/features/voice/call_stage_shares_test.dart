@@ -83,14 +83,14 @@ Future<void> _leave(_Call call) =>
 Finder _tile(String id) => find.byKey(ValueKey('share-tile-$id'));
 
 void main() {
-  test('columns follow the window width', () {
-    expect(shareGridColumns(390, 2), 1);
-    expect(shareGridColumns(599, 3), 1);
-    expect(shareGridColumns(800, 2), 2);
-    expect(shareGridColumns(800, 3), 2);
-    expect(shareGridColumns(1200, 2), 2);
-    expect(shareGridColumns(1200, 3), 3);
-    expect(shareGridColumns(1200, 4), 2);
+  test('columns follow the pane the grid sits in', () {
+    expect(shareGridColumns(355, 2), 1);
+    expect(shareGridColumns(571, 2), 1);
+    expect(shareGridColumns(572, 2), 2);
+    expect(shareGridColumns(983, 3), 2);
+    expect(shareGridColumns(984, 3), 3);
+    expect(shareGridColumns(1400, 4), 2);
+    expect(shareGridColumns(355, 4), 1);
   });
 
   testWidgets('one share keeps the single stage with no grid', (tester) async {

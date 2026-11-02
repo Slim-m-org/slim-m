@@ -12,6 +12,8 @@ import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_health.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_stage_layout.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_participant_tiles.dart';
+import 'package:slimm_app/src/features/voice/widgets/call_tile_badges.dart'
+    show poorConnectionMessageKey;
 import 'package:slimm_design_system/design_system.dart';
 import 'package:slimm_rtc/rtc.dart';
 
@@ -97,9 +99,7 @@ void main() {
     expect(find.byKey(poorConnectionBadgeKey), findsNothing);
   });
 
-  testWidgets('our own tile shows the hint when our connection is poor', (
-    tester,
-  ) async {
+  testWidgets('our own tile leaves the saying to the banner', (tester) async {
     const me = VoiceParticipant(
       identity: 'user-me',
       name: 'Me',
@@ -117,7 +117,45 @@ void main() {
         ],
       ),
     );
-    expect(find.byKey(poorConnectionBadgeKey), findsOneWidget);
+    expect(find.byKey(poorConnectionBadgeKey), findsNothing);
+  });
+
+  testWidgets('tapping the glyph says it in text, and again hides it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(const CallParticipantTile(participant: _bob, poorConnection: true)),
+    );
+    expect(find.byKey(poorConnectionMessageKey), findsNothing);
+    await tester.tap(find.byKey(poorConnectionBadgeKey));
+    await tester.pump();
+    expect(find.text('Connection is unstable.'), findsOneWidget);
+    await tester.tap(find.byKey(poorConnectionBadgeKey));
+    await tester.pump();
+    expect(find.byKey(poorConnectionMessageKey), findsNothing);
+  });
+
+  testWidgets('the glyph does not lean on a tooltip', (tester) async {
+    await tester.pumpWidget(
+      _app(const CallParticipantTile(participant: _bob, poorConnection: true)),
+    );
+    expect(find.byTooltip('connection is unstable'), findsNothing);
+  });
+
+  testWidgets('tapping the glyph does not open the profile', (tester) async {
+    var opened = 0;
+    await tester.pumpWidget(
+      _app(
+        CallParticipantTile(
+          participant: _bob,
+          poorConnection: true,
+          onTap: (_) => opened++,
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(poorConnectionBadgeKey));
+    await tester.pump();
+    expect(opened, 0);
   });
 
   group('the last call on the Troubleshooting page', () {

@@ -8,7 +8,7 @@
 /// navigate on mobile or vertical views." Nothing here answers "what is a
 /// participant" with more than two visual surfaces: their own camera-or-
 /// avatar tile, which they always have, in [_ParticipantGrid] or the
-/// [_Filmstrip]; and, only while they are actually sharing, the one
+/// [CallFilmstrip]; and, only while they are actually sharing, the one
 /// screen-share tile that becomes [_StageWithFilmstrip]'s stage. The local
 /// participant's camera renders inside their own tile exactly like everyone
 /// else's now - there is no second, enlarged self-preview box any more.
@@ -33,6 +33,7 @@ import '../providers/share_watch.dart';
 import '../providers/voice_controller.dart';
 import '../providers/voice_flags.dart';
 import '../providers/voice_health.dart';
+import 'call_filmstrip.dart';
 import 'call_header_facts.dart';
 import 'call_participant_tiles.dart';
 import 'call_roster_motion.dart';
@@ -40,6 +41,7 @@ import 'fullscreen_video_overlay.dart';
 import '../../screen_overlay/widgets/screen_overlay_banner.dart';
 import 'local_screen_share_banner.dart';
 import 'mic_failure_banner.dart';
+import 'poor_connection_banner.dart';
 import 'share_stage_grid.dart';
 import 'voice_reconnect_banner.dart';
 import 'direct_play_stage.dart';
@@ -135,7 +137,10 @@ class CallStageLayout extends ConsumerWidget {
         children: [
           _CallHeader(channelId: voice.channelId),
           // One banner at a time: the reconnect notice already says why the stage is quiet.
-          if (voice.rejoining) const VoiceReconnectBanner(),
+          if (voice.rejoining)
+            const VoiceReconnectBanner()
+          else
+            const PoorConnectionBanner(),
           if (!isDm && voice.channelId != null)
             WatchSessionGate(
               channelId: voice.channelId!,
@@ -238,7 +243,10 @@ class _StageWithFilmstrip extends StatelessWidget {
     final strip = SizedBox(
       width: double.infinity,
       height: _filmstripHeight,
-      child: _Filmstrip(
+      child: CallFilmstrip(
+        leadingItemWidth: ShareThumbnail.widthFor(
+          _filmstripHeight - AppSpacing.s16,
+        ),
         leading: [
           if (focusedIdentity != null || directStage != null)
             for (final other in directStage != null ? shares : shares.skip(1))
@@ -251,9 +259,13 @@ class _StageWithFilmstrip extends StatelessWidget {
               ),
         ],
         participants: participants,
-        controller: controller,
-        onOpenProfile: onOpenProfile,
-        menuItemsBuilder: menuItemsBuilder,
+        tileBuilder: (context, participant) => participantTile(
+          context,
+          participant,
+          controller,
+          onOpenProfile,
+          menuItemsBuilder: menuItemsBuilder,
+        ),
       ),
     );
     final direct = directStage;
@@ -314,56 +326,6 @@ class _StageWithFilmstrip extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Enter-only motion: a joiner's tile pops in, while a leaver here reflows
-/// at once, since a separated horizontal strip has no in-place slot for an
-/// exit the way [AnimatedRosterWrap]'s grid does.
-class _Filmstrip extends StatelessWidget {
-  const _Filmstrip({
-    required this.leading,
-    required this.participants,
-    required this.controller,
-    required this.onOpenProfile,
-    this.menuItemsBuilder,
-  });
-
-  /// Share thumbnails shown ahead of the participant tiles.
-  final List<Widget> leading;
-  final List<VoiceParticipant> participants;
-  final VoiceController controller;
-  final void Function(BuildContext anchor, VoiceParticipant participant)
-  onOpenProfile;
-  final List<Widget> Function(BuildContext, VoiceParticipant, VoidCallback)?
-  menuItemsBuilder;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      shrinkWrap: true,
-      itemCount: leading.length + participants.length,
-      separatorBuilder: (context, index) =>
-          const SizedBox(width: AppSpacing.s12),
-      itemBuilder: (context, index) {
-        if (index < leading.length) return Center(child: leading[index]);
-        final participant = participants[index - leading.length];
-        return Center(
-          // Keyed at the item root so a roster shift never replays the pop.
-          key: ValueKey('film-${participant.identity}'),
-          child: CallTilePop(
-            child: participantTile(
-              context,
-              participant,
-              controller,
-              onOpenProfile,
-              menuItemsBuilder: menuItemsBuilder,
-            ),
-          ),
-        );
-      },
-    ),
-  );
 }
 
 /// Every participant, wrapped and centred like a call rather than listed -
