@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
 /// Getting the microphone back when it dies under a call: a track that ended
-/// or was unpublished, and a capture that reads digital silence.
+/// or was unpublished, and a capture whose sample counter stopped.
 library;
 
 import 'dart:async';
@@ -27,9 +27,9 @@ class MicRecoveryTiming {
     this.retryBase = const Duration(milliseconds: 500),
     this.maxRetryDelay = const Duration(seconds: 8),
     this.maxRetries = 5,
-    this.silence = const Duration(seconds: 10),
-    this.silentCooldown = const Duration(seconds: 30),
-    this.maxSilentRestarts = 3,
+    this.quietNote = const Duration(minutes: 2),
+    this.restartCooldown = const Duration(seconds: 30),
+    this.maxRestarts = 3,
     this.recoveredAfter = const Duration(minutes: 2),
     this.deviceDebounce = const Duration(seconds: 1),
     this.senderPoll = const Duration(seconds: 2),
@@ -42,14 +42,14 @@ class MicRecoveryTiming {
   final Duration maxRetryDelay;
   final int maxRetries;
 
-  /// How long the level must sit at the floor before capture is restarted.
-  final Duration silence;
+  /// How long the level sits at the floor before one diagnostic line says so.
+  final Duration quietNote;
 
   /// Multiplied by the restarts already made, so a truly dead source is not hammered.
-  final Duration silentCooldown;
-  final int maxSilentRestarts;
+  final Duration restartCooldown;
+  final int maxRestarts;
 
-  /// How long the level must stay live before the restart budget is refilled; a
+  /// How long the counter must keep moving before the restart budget is refilled; a
   /// restart's own startup blip must not refill it, or a dead mic restarts forever.
   final Duration recoveredAfter;
   final Duration deviceDebounce;
@@ -189,65 +189,59 @@ class MicRecovery {
   }
 }
 
-/// Notices an unmuted mic that reads digital silence and asks for a capture
-/// restart, a bounded number of times, then reports that it gave up.
-class SilentMicWatchdog {
-  SilentMicWatchdog({
+/// Restarts a capture whose sample counter has stopped, a bounded number of
+/// times, then reports that it gave up.
+///
+/// Silence is never a verdict: a gated or virtual microphone sends exact zeros
+/// while its owner says nothing, so the level only feeds one quiet log line.
+class MicStallWatchdog {
+  MicStallWatchdog({
     required this.timing,
-    required this.onSilent,
+    required this.onStalled,
     this.onGaveUp,
     this.onRecovered,
+    this.onQuiet,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final MicRecoveryTiming timing;
-  final void Function() onSilent;
+  final void Function() onStalled;
 
-  /// Silence outlasted every restart; the user has to be told.
+  /// Stalls outlasted every restart; the user has to be told.
   final void Function()? onGaveUp;
 
-  /// A live level held for [MicRecoveryTiming.recoveredAfter] after [onGaveUp].
+  /// The counter moved for [MicRecoveryTiming.recoveredAfter] after [onGaveUp].
   final void Function()? onRecovered;
+
+  /// The level sat at the floor for [MicRecoveryTiming.quietNote]; once per stretch.
+  final void Function()? onQuiet;
   final DateTime Function() _now;
   bool _gaveUp = false;
-  bool _gaveUpOnStall = false;
-  bool _lastSpentOnStall = false;
-  int _stallRestarts = 0;
+  bool _quietNoted = false;
 
-  DateTime? _silentSince;
-  DateTime? _liveSince;
+  DateTime? _quietSince;
   DateTime? _stalledSince;
   DateTime? _movingSince;
   DateTime? _nextAllowed;
   int _restarts = 0;
 
-  /// [active] is false while muted, closed or out of a call.
+  /// Diagnostics only: [active] is false while muted, closed or out of a call.
   void observe(double levelDb, {required bool active}) {
-    if (!active) return reset();
-    final now = _now();
-    if (levelDb > kInputFloorDb + 1) {
-      _silentSince = null;
-      final since = _liveSince ??= now;
-      if (now.difference(since) < timing.recoveredAfter) return;
-      _restarts = 0;
-      _stallRestarts = 0;
-      _nextAllowed = null;
-      if (_gaveUp) {
-        _gaveUp = false;
-        _gaveUpOnStall = false;
-        onRecovered?.call();
-      }
+    if (!active || levelDb > kInputFloorDb + 1) {
+      _quietSince = null;
+      _quietNoted = false;
       return;
     }
-    _liveSince = null;
-    final since = _silentSince ??= now;
-    if (now.difference(since) < timing.silence) return;
-    if (_spendRestart(now)) _silentSince = null;
+    final since = _quietSince ??= _now();
+    if (_quietNoted || _now().difference(since) < timing.quietNote) return;
+    _quietNoted = true;
+    onQuiet?.call();
   }
 
-  /// Whether the capture's sample counter moved, which a level cannot say under
-  /// Strong. A stall past [MicRecoveryTiming.captureStall] spends the same
-  /// restart budget; null means no verdict this time.
+  /// Whether the capture's sample counter moved, which a level cannot say. A
+  /// stall past [MicRecoveryTiming.captureStall] spends the restart budget;
+  /// null means no verdict this time, and a host that never gives one is
+  /// never restarted.
   void observeProgress({required bool? advancing, required bool active}) {
     if (!active) {
       _stalledSince = null;
@@ -264,74 +258,50 @@ class SilentMicWatchdog {
     _movingSince = null;
     final since = _stalledSince ??= now;
     if (now.difference(since) < timing.captureStall) return;
-    if (_spendRestart(now, onStall: true)) _stalledSince = null;
+    if (_spendRestart(now)) _stalledSince = null;
   }
 
-  /// A moving counter only vouches for restarts a stall spent; a mic that reads
-  /// digital silence while its counter advances is the level watchdog's case.
   void _refillAfterMoving(DateTime now) {
     final since = _movingSince ??= now;
     if (now.difference(since) < timing.recoveredAfter) return;
-    _restarts -= _stallRestarts;
-    _stallRestarts = 0;
+    _restarts = 0;
     _nextAllowed = null;
-    if (_gaveUp && _gaveUpOnStall) {
+    if (_gaveUp) {
       _gaveUp = false;
-      _gaveUpOnStall = false;
       onRecovered?.call();
     }
   }
 
   /// True when a restart was asked for.
-  bool _spendRestart(DateTime now, {bool onStall = false}) {
+  bool _spendRestart(DateTime now) {
     final allowed = _nextAllowed;
-    if (_restarts >= timing.maxSilentRestarts) {
+    if (_restarts >= timing.maxRestarts) {
       if (!_gaveUp) {
         _gaveUp = true;
-        _gaveUpOnStall = onStall;
         onGaveUp?.call();
       }
       return false;
     }
     if (allowed != null && now.isBefore(allowed)) return false;
     _restarts++;
-    _lastSpentOnStall = onStall;
-    if (onStall) _stallRestarts++;
-    _nextAllowed = now.add(timing.silentCooldown * _restarts);
-    onSilent();
+    _nextAllowed = now.add(timing.restartCooldown * _restarts);
+    onStalled();
     return true;
   }
 
-  /// A reading that proves nothing (Strong zeroes a quiet room): forgets the
-  /// silence so far without refilling the restart budget.
-  void pause() {
-    _silentSince = null;
-    _liveSince = null;
-  }
-
-  /// The silence just reported was the input gate's, not the capture's: gives back that
-  /// restart so a stalled gate cannot spend, or refill, the budget for a truly dead mic.
-  void refundRestart() {
-    if (_restarts > 0) _restarts--;
-    if (_lastSpentOnStall && _stallRestarts > 0) _stallRestarts--;
-    _nextAllowed = null;
-  }
-
   void reset() {
-    _silentSince = null;
-    _liveSince = null;
+    _quietSince = null;
+    _quietNoted = false;
     _stalledSince = null;
     _movingSince = null;
     _nextAllowed = null;
     _restarts = 0;
-    _stallRestarts = 0;
     _gaveUp = false;
-    _gaveUpOnStall = false;
   }
 }
 
-/// A capture level as the watchdog reads it: only exact digital silence counts
-/// as the floor, so a quiet room under strong suppression never trips it.
+/// A capture level as the quiet note reads it: only exact digital silence
+/// counts as the floor, so a quiet room under strong suppression never trips it.
 double senderLevelToDb(double audioLevel) => audioLevel <= 0
     ? kInputFloorDb
     : (20 * log(audioLevel) / ln10).clamp(kInputFloorDb + 2, 0.0);

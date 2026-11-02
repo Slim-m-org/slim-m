@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// The switch to another microphone once the watchdog has given up on the one
-/// in use; the choice in the session and the saved settings is never touched.
+/// The switch to another microphone once the one in use has gone from the
+/// device list; the choice in the session and the saved settings is never
+/// touched, and silence alone never starts it.
 library;
 
 import 'dart:async';
@@ -8,7 +9,6 @@ import 'dart:async';
 import 'package:slimm_api/api.dart' show LogLevel;
 
 import 'audio_device_switching.dart';
-import 'input_gate.dart';
 import 'mic_failure.dart';
 import 'mic_fallback.dart';
 import 'mic_port.dart';
@@ -37,7 +37,7 @@ class MicFallbackHost {
   final bool Function() micWanted;
   final MicPort Function() mic;
   final MicRecoveryTiming Function() timing;
-  final SilentMicWatchdog Function() watchdog;
+  final MicStallWatchdog Function() watchdog;
   final void Function(String message, {LogLevel level}) log;
   final void Function(MicStatus status) setStatus;
   final Future<void> Function(MicFailureReason reason) noteFailure;
@@ -53,7 +53,7 @@ class MicFallback {
 
   final MicFallbackHost _host;
 
-  /// Whether a silent microphone is swapped for another.
+  /// Whether a vanished microphone is swapped for another.
   bool enabled = true;
 
   /// The generation whose run is in flight; a [reset] makes it stale at once rather than when it unwinds.
@@ -123,7 +123,7 @@ class MicFallback {
       generation == _generation && _host.hasRoom() && _host.micWanted();
 
   /// Tries each other microphone once, the system default first; keeps the
-  /// first that is not silent, and leaves the mic unavailable otherwise.
+  /// first whose capture runs, and leaves the mic unavailable otherwise.
   ///
   /// Hosts that cannot pick a microphone (mobile) have nothing to switch to.
   Future<void> run() async {
@@ -192,17 +192,20 @@ class MicFallback {
           level: LogLevel.warning);
       return !_live(generation);
     }
+    final before = await _captured();
     await Future<void>.delayed(_host.timing().fallbackSettle);
     if (!_live(generation)) return true;
-    final sent = await _sentLevel();
+    final after = await _captured();
     if (!_live(generation)) return true;
-    if (sent != null && sent <= kInputFloorDb + 1) {
-      _host.log('Microphone $target is silent too', level: LogLevel.warning);
+    final running = before == null || after == null ? null : before != after;
+    if (running == false) {
+      _host.log('Microphone $target is not capturing either',
+          level: LogLevel.warning);
       return false;
     }
     final shown = await _host.switching().inputDeviceInUse();
     if (!_live(generation)) return true;
-    if (sent == null) {
+    if (running == null) {
       _host.log('Microphone fallback to $target could not be verified');
     } else {
       _host.log('Microphone fallback worked: $target');
@@ -214,9 +217,9 @@ class MicFallback {
     return true;
   }
 
-  Future<double?> _sentLevel() async {
+  Future<double?> _captured() async {
     try {
-      return await _host.mic().senderLevelDb();
+      return await _host.mic().capturedSeconds();
     } on Object {
       return null;
     }
