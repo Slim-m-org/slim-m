@@ -172,7 +172,7 @@ extension VoiceSessionTracks on VoiceSession {
       ),
     );
     if (result.error != null) _lastError = result.error;
-    // Off means the next enable republishes fresh, front-facing: reset now.
+    // Off only mutes, and the next enable reopens the capture front-facing: reset now.
     if (!enabled && result.ok) _cameraSwitching.resetFacing();
     _refreshParticipants();
     return result.ok;

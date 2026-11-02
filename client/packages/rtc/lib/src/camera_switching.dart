@@ -52,6 +52,17 @@ lk.VideoViewMirrorMode mirrorModeFor({
 CameraFacing facingAfterSwitch(bool isFrontCamera) =>
     isFrontCamera ? CameraFacing.front : CameraFacing.back;
 
+/// Whether a camera that was published as [published] must be unpublished to
+/// capture at [wanted]: its resolution and encodings are fixed at publish.
+bool cameraNeedsRepublish(
+  lk.LocalTrack? published,
+  lk.CameraCaptureOptions? wanted,
+) {
+  final options = published?.currentOptions;
+  if (options is! lk.VideoCaptureOptions || wanted == null) return false;
+  return options.params != wanted.params;
+}
+
 /// What came of a camera enable/disable attempt. [reason] is only ever set
 /// alongside a failed *enable* (see [CameraSwitching.setEnabled]), since
 /// "no camera detected" has no sensible reading for a camera that was
@@ -131,6 +142,7 @@ class CameraSwitching {
   }) async {
     if (local == null) return const CameraToggleResult.ok();
     try {
+      if (enabled) await _dropStaleCamera(local, options);
       await local.setCameraEnabled(enabled, cameraCaptureOptions: options);
       return const CameraToggleResult.ok();
     } catch (e, stack) {
@@ -148,6 +160,20 @@ class CameraSwitching {
         classifyCameraFailure(e, hasDevice: hasDevice),
       );
     }
+  }
+
+  /// Unpublishes a camera published at another quality than [wanted].
+  ///
+  /// A muted camera unmutes with its original capture options and simulcast
+  /// encodings, so only a fresh publish applies a changed quality.
+  Future<void> _dropStaleCamera(
+    lk.LocalParticipant local,
+    lk.CameraCaptureOptions? wanted,
+  ) async {
+    final pub = local.getTrackPublicationBySource(lk.TrackSource.camera);
+    if (!cameraNeedsRepublish(pub?.track, wanted)) return;
+    await local.removePublishedTrack(pub!.sid);
+    resetFacing();
   }
 
   /// Flips [local]'s published camera between front and back. Native

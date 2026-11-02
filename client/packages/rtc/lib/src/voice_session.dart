@@ -292,8 +292,8 @@ class VoiceSession
   VoidCallback holdEnlargedVideo(String tileKey) => _enlargedVideo.hold(
       tileKey, () => _disposed ? null : _refreshParticipants());
 
-  /// How sharp your camera publishes. Read when the camera turns on, since
-  /// capture parameters cannot change on a live track; the app cycles a live
+  /// How sharp your camera publishes. Read when the camera turns on, and a
+  /// different one than it was published at republishes; the app cycles a live
   /// camera to apply a change.
   void setCameraQuality(CameraQuality quality) => _cameraQuality = quality;
 
