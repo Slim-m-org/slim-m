@@ -246,4 +246,26 @@ void main() {
     world.container.dispose();
     await tester.pump(const Duration(seconds: 5));
   });
+
+  testWidgets('inviteAFriend called twice back to back mints once', (
+    tester,
+  ) async {
+    final world = _World(permissions: 0, membersCanInvite: true);
+    addTearDown(world.container.dispose);
+    world.holdInvite = Completer<void>();
+    await world.pump(tester, _menu);
+    final context = tester.element(find.bySemanticsLabel('Space menu'));
+
+    unawaited(inviteAFriend(context));
+    unawaited(inviteAFriend(context));
+    await tester.pump(const Duration(milliseconds: 20));
+    expect(world.created, hasLength(1));
+
+    world.holdInvite!.complete();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(world.sharer.shared, hasLength(1));
+    await tester.pumpWidget(const SizedBox());
+    world.container.dispose();
+    await tester.pump(const Duration(seconds: 5));
+  });
 }

@@ -235,9 +235,7 @@ void main() {
   testWidgets("a module badge shows on its member's row and a change to it "
       'rebuilds only that row', (tester) async {
     debugResetMemberRowBuildCounts();
-    SharedPreferences.setMockInitialValues({
-      moduleMemberBadgesKey: ['xp'],
-    });
+    SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: true});
     final members = [_profile('a', 'Anna'), _profile('b', 'Bo')];
     final events = StreamController<ServerEvent>.broadcast();
     addTearDown(events.close);

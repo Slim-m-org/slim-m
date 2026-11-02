@@ -362,6 +362,25 @@ void main() {
 
       expect(pencil(), 1);
     });
+    testWidgets('keyboard focus shows the pencil and Enter opens the menu', (
+      tester,
+    ) async {
+      await _pump(tester, _harness((_) => _card(), self: true));
+      double pencil() =>
+          tester.widget<Opacity>(find.byKey(statusEditPencilKey)).opacity;
+      expect(pencil(), 0);
+
+      final node = Focus.of(tester.element(find.text('Out for lunch')));
+      node.requestFocus();
+      await tester.pump();
+      await tester.pump();
+      expect(pencil(), 1);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Appear offline'), findsOneWidget);
+    });
+
     testWidgets(
       'the status menu opens inside the real popover and keeps it up',
       (tester) async {

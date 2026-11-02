@@ -129,17 +129,16 @@ class MemberRow extends ConsumerWidget {
     final badge = _badgeLabel(displayed);
     ref.read(moduleBadgesProvider.notifier).request(profile.id);
     // Scoped to this member's own entry, and null while empty, so neither another member's badge nor a bare answer rebuilds this row.
-    final shownModules = ref.watch(moduleMemberBadgeSettingsProvider);
+    final showModuleBadges = ref.watch(moduleMemberBadgeSettingsProvider);
     final moduleBadges = visibleModuleBadges(
-      ref
-          .watch(
-            moduleBadgesProvider.select((m) {
-              final own = m[profile.id];
-              return own == null || own.isEmpty ? null : own;
-            }),
-          )
-          ?.where((b) => shownModules.contains(b.moduleId))
-          .toList(growable: false),
+      !showModuleBadges
+          ? null
+          : ref.watch(
+              moduleBadgesProvider.select((m) {
+                final own = m[profile.id];
+                return own == null || own.isEmpty ? null : own;
+              }),
+            ),
     );
 
     // Scoped to this row's two facts: the set is a new object per toggle, so watching it rebuilds every row.

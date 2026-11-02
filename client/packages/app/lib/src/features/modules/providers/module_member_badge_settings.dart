@@ -1,40 +1,41 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Noncommercial-1.0.0
-/// Which modules may draw their badge beside names in the member list.
+/// Whether module badges draw beside names in the member list.
 ///
-/// A per-device choice, empty by default: a module's badge competes with the
-/// role chip in a 236px row, so it is opt-in. The profile card is unaffected.
+/// A per-user, per-device choice, off by default: a module's badge competes
+/// with the role chip in a 236px row. Members cannot list installed modules,
+/// so one switch covers them all. The profile card is unaffected.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/providers.dart';
 
-const moduleMemberBadgesKey = 'slimm.modules.member_list_badges';
+const moduleMemberBadgesKey = 'slimm.modules.member_list_badges_enabled';
 
-class ModuleMemberBadgeSettings extends Notifier<Set<String>> {
+class ModuleMemberBadgeSettings extends Notifier<bool> {
   var _disposed = false;
 
   @override
-  Set<String> build() {
+  bool build() {
     ref.onDispose(() => _disposed = true);
     _load();
-    return const {};
+    return false;
   }
 
   Future<void> _load() async {
     final prefs = await ref.read(preferencesProvider.future);
     if (_disposed) return;
-    state = {...?prefs.getStringList(moduleMemberBadgesKey)};
+    state = prefs.getBool(moduleMemberBadgesKey) ?? false;
   }
 
-  Future<void> setShown(String moduleId, bool shown) async {
-    state = shown ? {...state, moduleId} : ({...state}..remove(moduleId));
+  Future<void> setShown(bool shown) async {
+    state = shown;
     final prefs = await ref.read(preferencesProvider.future);
-    await prefs.setStringList(moduleMemberBadgesKey, state.toList());
+    await prefs.setBool(moduleMemberBadgesKey, shown);
   }
 }
 
 final moduleMemberBadgeSettingsProvider =
-    NotifierProvider<ModuleMemberBadgeSettings, Set<String>>(
+    NotifierProvider<ModuleMemberBadgeSettings, bool>(
       ModuleMemberBadgeSettings.new,
     );

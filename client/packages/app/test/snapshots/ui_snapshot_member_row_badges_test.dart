@@ -54,9 +54,7 @@ class _Badges extends ModuleBadgesController {
 void main() {
   setUpAll(loadRealFonts);
   setUp(
-    () => SharedPreferences.setMockInitialValues({
-      moduleMemberBadgesKey: ['xp'],
-    }),
+    () => SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: true}),
   );
 
   for (final brightness in Brightness.values) {

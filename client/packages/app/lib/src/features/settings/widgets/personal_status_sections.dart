@@ -17,6 +17,7 @@ import 'package:slimm_platform/platform.dart'
     show LocalAlertChannel, isAndroidHost, isDesktopHost, isLinuxHost;
 
 import '../../../desktop/providers/desktop_message_text_settings.dart';
+import '../../modules/providers/module_member_badge_settings.dart';
 import '../../modules/providers/module_sound_settings.dart';
 import '../providers/notification_sound_settings.dart';
 import '../../../push/providers/push_controller.dart';
@@ -51,6 +52,7 @@ class NotificationsSection extends ConsumerWidget {
     final status = ref.watch(pushControllerProvider);
     final soundsEnabled = ref.watch(messageSoundSettingsProvider);
     final moduleSoundsEnabled = ref.watch(moduleSoundSettingsProvider);
+    final moduleBadgesShown = ref.watch(moduleMemberBadgeSettingsProvider);
     final uiSoundsEnabled = ref.watch(uiSoundSettingsProvider);
     final hapticsEnabled = ref.watch(hapticsSettingsProvider);
     final style = notificationBannerStyle(status);
@@ -118,6 +120,15 @@ class NotificationsSection extends ConsumerWidget {
                   .read(moduleSoundSettingsProvider.notifier)
                   .setEnabled(value),
               semanticLabel: 'Let modules play sound effects',
+            ),
+            SettingsToggleRow(
+              label: 'Module badges in member list',
+              description: 'Shows a module badge beside names. Off by default.',
+              value: moduleBadgesShown,
+              onChanged: (value) => ref
+                  .read(moduleMemberBadgeSettingsProvider.notifier)
+                  .setShown(value),
+              semanticLabel: 'Show module badges in the member list',
             ),
           ],
         ),

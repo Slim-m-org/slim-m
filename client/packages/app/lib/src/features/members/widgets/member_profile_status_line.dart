@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import 'presence_indicator.dart';
@@ -14,8 +15,10 @@ const statusEditPencilKey = Key('member-status-edit-pencil');
 
 /// "Online - joinkin it": what someone's state is, then what they typed.
 ///
-/// [editable] makes the whole line a button for the status menu; the pencil
-/// shows on hover, and always under [kCompactWidth], where nothing hovers.
+/// [editable] makes the whole line a button for the status menu, an anchored
+/// dropdown per desktop-vs-mobile.md surface rule 2. The pencil shows on hover
+/// or keyboard focus, and always under [kCompactWidth] (law 3: a hover
+/// affordance needs a touch equivalent), where the row is 44dp tall (law 2).
 class MemberProfileStatusLine extends StatefulWidget {
   const MemberProfileStatusLine({
     super.key,
@@ -35,6 +38,7 @@ class MemberProfileStatusLine extends StatefulWidget {
 
 class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
   bool _hovered = false;
+  bool _focused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -99,17 +103,32 @@ class _MemberProfileStatusLineState extends State<MemberProfileStatusLine> {
           label: 'Change your status',
           excludeSemantics: true,
           onTap: open,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: open,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: touch ? AppSizes.rowTouch : 0,
+          child: FocusableActionDetector(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+              SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+            },
+            onFocusChange: (v) => setState(() => _focused = v),
+            actions: {
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) {
+                  open();
+                  return null;
+                },
               ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                heightFactor: 1,
-                child: line(touch || _hovered),
+            },
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: open,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: touch ? AppSizes.rowTouch : 0,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  heightFactor: 1,
+                  child: line(touch || _hovered || _focused),
+                ),
               ),
             ),
           ),

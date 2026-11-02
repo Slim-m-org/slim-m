@@ -48,11 +48,9 @@ Future<void> _pump(
   double width,
   List<api.ModuleBadge> badges, {
   String role = 'Mod',
-  Set<String> shown = const {'xp'},
+  bool shown = true,
 }) async {
-  SharedPreferences.setMockInitialValues({
-    moduleMemberBadgesKey: shown.toList(),
-  });
+  SharedPreferences.setMockInitialValues({moduleMemberBadgesKey: shown});
   // A fresh scope each time: an override change keeps the old notifier.
   await tester.pumpWidget(const SizedBox.shrink());
   tester.view.physicalSize = Size(width, 200);
@@ -169,18 +167,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a module badge stays out of the member list until it is turned '
-      'on for that module', (tester) async {
-    await _pump(tester, 390, two, shown: const {});
-    expect(find.text('Streak 4'), findsNothing);
-    expect(find.byWidgetPredicate((w) => w is AppBadge), findsOneWidget);
+  testWidgets(
+    'a module badge stays out of the member list until it is turned on',
+    (tester) async {
+      await _pump(tester, 390, two, shown: false);
+      expect(find.text('Streak 4'), findsNothing);
+      expect(find.byWidgetPredicate((w) => w is AppBadge), findsOneWidget);
 
-    await _pump(tester, 390, two, shown: const {'another'});
-    expect(find.text('Streak 4'), findsNothing);
-
-    await _pump(tester, 390, two);
-    expect(find.text('Streak 4'), findsOneWidget);
-  });
+      await _pump(tester, 390, two);
+      expect(find.text('Streak 4'), findsOneWidget);
+    },
+  );
 
   testWidgets('a row badge is quiet: no outline, no origin marker', (
     tester,

@@ -22,7 +22,6 @@ import 'dock_hooks_card.dart';
 import 'dock_host_access_card.dart';
 import 'dock_install_consent.dart';
 import 'dock_limits_card.dart';
-import 'dock_member_badge_card.dart';
 import 'dock_schedule_card.dart';
 import 'dock_settings_card.dart';
 import 'dock_what_it_adds.dart';
@@ -194,8 +193,6 @@ class DockManifestView extends StatelessWidget {
           ),
         if (installed case final it? when it.declaresSettings)
           DockSettingsCard(moduleId: it.id),
-        if (installed case final it? when it.declaresMemberBadge)
-          DockMemberBadgeCard(moduleId: it.id),
         if (installed?.runStats != null && onClearStorage != null)
           DockActivityCard(
             stats: installed!.runStats!,
