@@ -9,9 +9,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slimm_app/src/features/voice/providers/call_dock_hint.dart';
+import 'package:slimm_app/src/features/voice/providers/voice_controller.dart';
 import 'package:slimm_app/src/features/voice/providers/voice_flags.dart';
 import 'package:slimm_app/src/features/voice/screens/voice_call_dock.dart';
 import 'package:slimm_app/src/features/voice/widgets/call_dock_hint.dart';
+import 'package:slimm_app/src/providers/providers.dart';
+import 'package:slimm_design_system/design_system.dart';
+import 'package:slimm_app/src/widgets/floating_dock_card.dart';
+import 'package:slimm_platform/testing.dart';
 import 'package:slimm_rtc/rtc.dart';
 
 import 'voice_call_controls_harness.dart';
@@ -47,6 +52,50 @@ Future<ProviderContainer> _pump(
     await tester.pump();
   }
   return container;
+}
+
+/// A dock card with a row above the one the mic anchor sits in, as a bot's
+/// controls or a folded canvas toggle give it.
+Future<void> _pumpTwoRowCard(WidgetTester tester) async {
+  final container = ProviderContainer(
+    overrides: [
+      keyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      voiceControllerProvider.overrideWith(
+        (ref) => VoiceController(ref, session: _withInputs()),
+      ),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildTheme(Brightness.light, AppTokens.light),
+        home: const Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: FloatingDockCard(
+              rows: [
+                SizedBox(width: 200, height: 40),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DockHintAnchor(
+                      target: DockHintTarget.mic,
+                      child: SizedBox(width: 48, height: 48),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
 }
 
 Future<void> _elapse(WidgetTester tester) async {
@@ -179,6 +228,18 @@ void main() {
     testWidgets('names the system default on the first call', (tester) async {
       await _pump(tester, session: _withInputs(), touch: false);
       expect(find.text('Mic: System default'), findsOneWidget);
+    });
+
+    testWidgets('clears a row above the control', (tester) async {
+      SharedPreferences.setMockInitialValues({shareHintSeenKey: true});
+      await _pumpTwoRowCard(tester);
+      final text = find.text('Mic: System default');
+      expect(text, findsOneWidget);
+      final bubble = find
+          .ancestor(of: text, matching: find.byType(DecoratedBox))
+          .first;
+      final cardTop = tester.getTopLeft(find.byType(FloatingDockCard)).dy;
+      expect(tester.getBottomLeft(bubble).dy, lessThanOrEqualTo(cardTop));
     });
 
     testWidgets('names a saved microphone that was not shown yet', (

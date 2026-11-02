@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:slimm_design_system/design_system.dart';
 
 import '../../../providers/providers.dart';
+import '../../../widgets/floating_dock_card.dart';
 import '../providers/call_dock_hint.dart';
 
 /// How long a hint stays before it is remembered as seen.
@@ -98,6 +99,16 @@ class _DockHintAnchorState extends ConsumerState<DockHintAnchor> {
     ref.read(dockHintEpochProvider.notifier).state++;
   }
 
+  /// How far the dock card's top edge sits above this control: the rows above
+  /// it (a bot's controls, a folded canvas toggle) that the bubble must clear.
+  double _lift() {
+    final control = context.findRenderObject();
+    if (control is! RenderBox || !control.hasSize) return 0;
+    final cardTop = FloatingDockCard.topEdgeOf(context, null);
+    if (cardTop == null) return 0;
+    return control.localToGlobal(Offset.zero).dy - cardTop;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen(dockHintEpochProvider, (_, _) => unawaited(_resolve()));
@@ -110,7 +121,7 @@ class _DockHintAnchorState extends ConsumerState<DockHintAnchor> {
         link: _link,
         targetAnchor: left ? Alignment.topLeft : Alignment.topRight,
         followerAnchor: left ? Alignment.bottomLeft : Alignment.bottomRight,
-        offset: const Offset(0, -AppSpacing.s8),
+        offset: Offset(0, -(_lift() + AppSpacing.s8)),
         child: Align(
           alignment: left ? Alignment.bottomLeft : Alignment.bottomRight,
           child: _Bubble(text: _shown?.text ?? ''),
