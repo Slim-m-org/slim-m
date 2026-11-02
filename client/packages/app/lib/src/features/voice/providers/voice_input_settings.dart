@@ -101,8 +101,14 @@ class VoiceInputSettings {
 
   /// Seeds the noise suppression choice and the Space's default before any
   /// call.
+  ///
+  /// The saved choice is applied here, not left to the Space read: that read
+  /// only applies when the default differs from what it last knew, so a
+  /// saved Strong on a Space that defaults to Standard never reached the
+  /// microphone until the picker was touched again.
   Future<void> restoreNoiseSuppression() async {
     _noiseSuppression = await loadNoiseSuppressionChoice(_ref);
+    _applyNoiseSuppression();
     await refreshSpaceNoiseSuppression();
   }
 
