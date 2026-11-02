@@ -56,7 +56,78 @@ Future<void> _elapse(WidgetTester tester) async {
   }
 }
 
+class _CountingSession extends InertSession {
+  _CountingSession() : super(supportsAudioInputSelection: true);
+
+  int inputListings = 0;
+
+  @override
+  Future<List<AudioDevice>> audioInputDevices() async {
+    inputListings++;
+    return super.audioInputDevices();
+  }
+}
+
+Future<void> _resize(WidgetTester tester, double width) async {
+  tester.view.physicalSize = Size(width, 700);
+  await tester.pump();
+  for (var i = 0; i < 4; i++) {
+    await tester.pump();
+  }
+}
+
 void main() {
+  group('resolving', () {
+    testWidgets('does not list devices again while the window resizes', (
+      tester,
+    ) async {
+      final session = _CountingSession();
+      SharedPreferences.setMockInitialValues({
+        shareHintSeenKey: true,
+        micCueSeenKey: '',
+      });
+      tester.view.physicalSize = const Size(900, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await pumpVoiceCallDock(
+        tester,
+        _connected,
+        width: 900,
+        scoped: false,
+        session: session,
+      );
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      final mounted = session.inputListings;
+      expect(mounted, greaterThan(0));
+
+      for (final width in [880.0, 820.0, 760.0, 700.0, 960.0]) {
+        await _resize(tester, width);
+      }
+      expect(session.inputListings, mounted);
+    });
+
+    testWidgets('resolves again when the density flips', (tester) async {
+      SharedPreferences.setMockInitialValues({micCueSeenKey: ''});
+      tester.view.physicalSize = const Size(900, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await pumpVoiceCallDock(
+        tester,
+        _connected,
+        width: 900,
+        scoped: false,
+        session: _withInputs(),
+      );
+      await _resize(tester, 900);
+      expect(find.text(shareHintText), findsNothing);
+
+      await _resize(tester, 390);
+      expect(find.text(shareHintText), findsOneWidget);
+    });
+  });
+
   group('the share hint', () {
     testWidgets('names the long press on a phone, once per install', (
       tester,
@@ -97,6 +168,7 @@ void main() {
       await _pump(tester, prefs: {shareHintSeenKey: true});
       final quiet = tester.getSize(find.byKey(VoiceCallDock.slideKey));
 
+      await tester.pumpWidget(const SizedBox());
       await _pump(tester);
       expect(find.text(shareHintText), findsOneWidget);
       expect(tester.getSize(find.byKey(VoiceCallDock.slideKey)), quiet);

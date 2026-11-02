@@ -45,12 +45,15 @@ class _DockHintAnchorState extends ConsumerState<DockHintAnchor> {
   DockHint? _hint;
   DockHint? _shown;
   bool _touch = false;
+  bool _started = false;
+  int _generation = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final touch = AppTouchTargets.of(context);
-    if (touch == _touch && _hint != null) return;
+    if (_started && touch == _touch) return;
+    _started = true;
     _touch = touch;
     unawaited(_resolve());
   }
@@ -63,8 +66,9 @@ class _DockHintAnchorState extends ConsumerState<DockHintAnchor> {
 
   Future<void> _resolve() async {
     final container = ProviderScope.containerOf(context, listen: false);
+    final generation = ++_generation;
     final hint = await resolveDockHint(container, touch: _touch);
-    if (mounted) setState(() => _hint = hint);
+    if (mounted && generation == _generation) setState(() => _hint = hint);
   }
 
   void _sync(DockHint? wanted) {
